@@ -820,71 +820,41 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 }
 
 func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
-		opts.Matcher = source.CaseInsensitive
-	})
-	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if len(got) != len(expectedSymbols) {
-		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
-		return
-	}
-	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
-		t.Error(diff)
-	}
+	r.callWorkspaceSymbols(t, query, source.CaseInsensitive, dirs, expectedSymbols)
 }
 
 func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
-		opts.Matcher = source.Fuzzy
-	})
-	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if len(got) != len(expectedSymbols) {
-		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
-		return
-	}
-	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
-		t.Error(diff)
-	}
+	r.callWorkspaceSymbols(t, query, source.Fuzzy, dirs, expectedSymbols)
 }
 
 func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
-		opts.Matcher = source.CaseSensitive
-	})
-	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if len(got) != len(expectedSymbols) {
-		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
-		return
-	}
-	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
-		t.Error(diff)
-	}
+	r.callWorkspaceSymbols(t, query, source.CaseSensitive, dirs, expectedSymbols)
 }
 
-func (r *runner) callWorkspaceSymbols(t *testing.T, query string, options func(*source.Options)) []protocol.SymbolInformation {
+func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.Matcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
 	t.Helper()
 
-	for _, view := range r.server.session.Views() {
-		original := view.Options()
-		modified := original
-		options(&modified)
-		var err error
-		view, err = view.SetOptions(r.ctx, modified)
-		if err != nil {
-			t.Error(err)
-			return nil
-		}
-		defer view.SetOptions(r.ctx, original)
-	}
+	original := r.server.session.Options()
+	modified := original
+	modified.Matcher = matcher
+	r.server.session.SetOptions(modified)
+	defer r.server.session.SetOptions(original)
 
 	params := &protocol.WorkspaceSymbolParams{
 		Query: query,
 	}
-	symbols, err := r.server.Symbol(r.ctx, params)
+	got, err := r.server.Symbol(r.ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return symbols
+	got = tests.FilterWorkspaceSymbols(got, dirs)
+	if len(got) != len(expectedSymbols) {
+		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
+		return
+	}
+	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
+		t.Error(diff)
+	}
 }
 
 func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {

@@ -16,5 +16,7 @@ func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolPar
 	ctx, done := event.Start(ctx, "lsp.Server.symbol")
 	defer done()
 
-	return source.WorkspaceSymbols(ctx, s.session.Views(), params.Query)
+	views := s.session.Views()
+	matcher := s.session.Options().Matcher
+	return source.WorkspaceSymbols(ctx, matcher, views, params.Query)
 }

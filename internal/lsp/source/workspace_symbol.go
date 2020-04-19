@@ -18,13 +18,31 @@ import (
 
 const maxSymbols = 100
 
-func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protocol.SymbolInformation, error) {
+// WorkspaceSymbols matches symbols across views using the given query,
+// according to the matcher Matcher.
+//
+// The workspace symbol method is defined in the spec as follows:
+//
+//  > The workspace symbol request is sent from the client to the server to
+//  > list project-wide symbols matching the query string.
+//
+// It is unclear what "project-wide" means here, but given the parameters of
+// workspace/symbol do not include any workspace identifier, then it has to be
+// assumed that "project-wide" means "across all workspaces".  Hence why
+// WorkspaceSymbols receives the views []View.
+//
+// However, it then becomes unclear what it would mean to call WorkspaceSymbols
+// with a different configured Matcher per View. Therefore we assume that
+// Session level configuration will define the Matcher to be used for the
+// WorkspaceSymbols method.
+func WorkspaceSymbols(ctx context.Context, matcherType Matcher, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := event.Start(ctx, "source.WorkspaceSymbols")
 	defer done()
 	if query == "" {
 		return nil, nil
 	}
 
+	matcher := makeMatcher(matcherType, query)
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
 outer:
@@ -33,7 +51,6 @@ outer:
 		if err != nil {
 			return nil, err
 		}
-		matcher := makeMatcher(view.Options().Matcher, query)
 		for _, ph := range knownPkgs {
 			pkg, err := ph.Check(ctx)
 			if err != nil {
