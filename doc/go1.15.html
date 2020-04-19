@@ -177,6 +177,18 @@ TODO
   </dd>
 </dl>
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 228902 -->
+      Package reflect now disallows accessing methods of all
+      non-exported fields, whereas previously it allowed accessing
+      those of non-exported, embedded fields. Code that relies on the
+      previous behavior should be updated to instead access the
+      corresponding promoted method of the enclosing variable.
+    </p>
+  </dd>
+</dl>
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->

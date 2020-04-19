@@ -3567,7 +3567,7 @@ func TestCallPanic(t *testing.T) {
 
 	i := timp(0)
 	v := ValueOf(T{i, i, i, i, T2{i, i}, i, i, T2{i, i}})
-	ok(func() { call(v.Field(0).Method(0)) })               // .t0.W
+	badCall(func() { call(v.Field(0).Method(0)) })          // .t0.W
 	badCall(func() { call(v.Field(0).Elem().Method(0)) })   // .t0.W
 	badCall(func() { call(v.Field(0).Method(1)) })          // .t0.w
 	badMethod(func() { call(v.Field(0).Elem().Method(2)) }) // .t0.w
@@ -3588,7 +3588,7 @@ func TestCallPanic(t *testing.T) {
 
 	ok(func() { call(v.Field(4).Field(0).Method(0)) })             // .NamedT2.T1.Y
 	ok(func() { call(v.Field(4).Field(0).Elem().Method(0)) })      // .NamedT2.T1.W
-	ok(func() { call(v.Field(4).Field(1).Method(0)) })             // .NamedT2.t0.W
+	badCall(func() { call(v.Field(4).Field(1).Method(0)) })        // .NamedT2.t0.W
 	badCall(func() { call(v.Field(4).Field(1).Elem().Method(0)) }) // .NamedT2.t0.W
 
 	badCall(func() { call(v.Field(5).Method(0)) })          // .namedT0.W
