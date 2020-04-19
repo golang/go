@@ -58,20 +58,7 @@ func shortcircuit(f *Func) {
 	//   if v goto t else u
 	// We can redirect p to go directly to t instead of b.
 	// (If v is not live after b).
-	for changed := true; changed; {
-		changed = false
-		for i := len(f.Blocks) - 1; i >= 0; i-- {
-			b := f.Blocks[i]
-			if fuseBlockPlain(b) {
-				changed = true
-				continue
-			}
-			changed = shortcircuitBlock(b) || changed
-		}
-		if changed {
-			f.invalidateCFG()
-		}
-	}
+	fuse(f, fuseTypePlain|fuseTypeShortCircuit)
 }
 
 // shortcircuitBlock checks for a CFG in which an If block

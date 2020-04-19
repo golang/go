@@ -20,6 +20,7 @@ const (
 	fuseTypePlain fuseType = 1 << iota
 	fuseTypeIf
 	fuseTypeIntInRange
+	fuseTypeShortCircuit
 )
 
 // fuse simplifies control flow by joining basic blocks.
@@ -37,6 +38,9 @@ func fuse(f *Func, typ fuseType) {
 			}
 			if typ&fuseTypePlain != 0 {
 				changed = fuseBlockPlain(b) || changed
+			}
+			if typ&fuseTypeShortCircuit != 0 {
+				changed = shortcircuitBlock(b) || changed
 			}
 		}
 		if changed {
