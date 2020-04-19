@@ -2549,7 +2549,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.load(n.Type, addr)
 
 	case ODEREF:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		return s.load(n.Type, p)
 
 	case ODOT:
@@ -2574,7 +2574,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type), n.Xoffset, p)
 		return s.load(n.Type, p)
 
