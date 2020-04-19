@@ -585,7 +585,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	case OCALLMETH:
 		// Prevent inlining some reflect.Value methods when using checkptr,
 		// even when package reflect was compiled without it (#35073).
-		if s := n.Left.Sym; Debug_checkptr != 0 && s.Pkg.Path == "reflect" && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+		if s := n.Left.Sym; Debug_checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
 			return n
 		}
 	}

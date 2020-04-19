@@ -3659,7 +3659,7 @@ func usemethod(n *Node) {
 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
 	//       (including global variables such as numImports - was issue #19028).
 	// Also need to check for reflect package itself (see Issue #38515).
-	if s := res0.Type.Sym; s != nil && s.Name == "Method" && s.Pkg != nil && (s.Pkg.Path == "reflect" || s.Pkg == localpkg && myimportpath == "reflect") {
+	if s := res0.Type.Sym; s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
 		Curfn.Func.SetReflectMethod(true)
 	}
 }
