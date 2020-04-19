@@ -190,11 +190,30 @@ func (x ValAndOff) canAdd(off int64) bool {
 	return newoff == int64(int32(newoff))
 }
 
+func (x ValAndOff) canAdd32(off int32) bool {
+	newoff := x.Off() + int64(off)
+	return newoff == int64(int32(newoff))
+}
+
 func (x ValAndOff) add(off int64) int64 {
 	if !x.canAdd(off) {
 		panic("invalid ValAndOff.add")
 	}
 	return makeValAndOff(x.Val(), x.Off()+off)
+}
+
+func (x ValAndOff) addOffset32(off int32) ValAndOff {
+	if !x.canAdd32(off) {
+		panic("invalid ValAndOff.add")
+	}
+	return ValAndOff(makeValAndOff(x.Val(), x.Off()+int64(off)))
+}
+
+func (x ValAndOff) addOffset64(off int64) ValAndOff {
+	if !x.canAdd(off) {
+		panic("invalid ValAndOff.add")
+	}
+	return ValAndOff(makeValAndOff(x.Val(), x.Off()+off))
 }
 
 // int128 is a type that stores a 128-bit constant.
