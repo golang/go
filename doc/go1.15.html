@@ -198,6 +198,17 @@ TODO
       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
       then the value will be printed, instead of just its address.
     </p>
+
+    <p><!-- CL -->
+      On a Unix system, if the <code>kill</code> command
+      or <code>kill</code> system call is used to send
+      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+      or <code>SIGFPE</code> signal to a Go program, and if the signal
+      is not being handled via
+      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+      the Go program will now reliably crash with a stack trace.
+      In earlier releases the behavior was unpredictable.
+    </p>
   </dd>
 </dl>
 
