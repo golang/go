@@ -193,6 +193,16 @@ th {
   background-color: #050505;
   color: #fff;
 }
+th.total-time,
+th.exec-time,
+th.io-time,
+th.block-time,
+th.syscall-time,
+th.sched-time,
+th.sweep-time,
+th.pause-time {
+  cursor: pointer;
+}
 table {
   border-collapse: collapse;
 }
@@ -250,15 +260,15 @@ function reloadTable(key, value) {
 <table class="details">
 <tr>
 <th> Goroutine</th>
-<th onclick="reloadTable('sortby', 'TotalTime')"> Total</th>
+<th onclick="reloadTable('sortby', 'TotalTime')" class="total-time"> Total</th>
 <th></th>
 <th onclick="reloadTable('sortby', 'ExecTime')" class="exec-time"> Execution</th>
 <th onclick="reloadTable('sortby', 'IOTime')" class="io-time"> Network wait</th>
 <th onclick="reloadTable('sortby', 'BlockTime')" class="block-time"> Sync block </th>
 <th onclick="reloadTable('sortby', 'SyscallTime')" class="syscall-time"> Blocking syscall</th>
 <th onclick="reloadTable('sortby', 'SchedWaitTime')" class="sched-time"> Scheduler wait</th>
-<th onclick="reloadTable('sortby', 'SweepTime')"> GC sweeping</th>
-<th onclick="reloadTable('sortby', 'GCTime')"> GC pause</th>
+<th onclick="reloadTable('sortby', 'SweepTime')" class="sweep-time"> GC sweeping</th>
+<th onclick="reloadTable('sortby', 'GCTime')" class="pause-time"> GC pause</th>
 </tr>
 {{range .GList}}
   <tr>
