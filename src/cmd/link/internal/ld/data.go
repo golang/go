@@ -1480,7 +1480,13 @@ func (ctxt *Link) dodata() {
 		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
 	}
 
-	state.allocateSections(ctxt)
+	// Create *sym.Section objects and assign symbols to sections for
+	// data/rodata (and related) symbols.
+	state.allocateDataSections(ctxt)
+
+	// Create *sym.Section objects and assign symbols to sections for
+	// DWARF symbols.
+	state.allocateDwarfSections(ctxt)
 
 	/* number the sections */
 	n := int16(1)
@@ -1599,9 +1605,9 @@ func (state *dodataState) allocateNamedSectionAndAssignSyms(seg *sym.Segment, se
 	return sect
 }
 
-// allocateSections allocates sym.Section objects for data sections
-// of interest and assigns symbols into the sections.
-func (state *dodataState) allocateSections(ctxt *Link) {
+// allocateDataSections allocates sym.Section objects for data/rodata
+// (and related) symbols, and then assigns symbols to those sections.
+func (state *dodataState) allocateDataSections(ctxt *Link) {
 	// Allocate sections.
 	// Data is processed before segtext, because we need
 	// to see all symbols in the .data and .bss sections in order
@@ -1899,6 +1905,11 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
 		ctxt.datap = append(ctxt.datap, state.data[symn]...)
 	}
+}
+
+// allocateDwarfSections allocates sym.Section objects for DWARF
+// symbols, and assigns symbols to sections.
+func (state *dodataState) allocateDwarfSections(ctxt *Link) {
 
 	alignOne := func(datsize int64, s *sym.Symbol) int64 { return datsize }
 
