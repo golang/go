@@ -326,12 +326,16 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	}
 
 	setAddr := (*loader.SymbolBuilder).SetAddrPlus
-	if ctxt.IsExe() && ctxt.IsInternal() {
+	if ctxt.IsExe() && ctxt.IsInternal() && !ctxt.DynlinkingGo() {
 		// Internal linking static executable. At this point the function
 		// addresses are known, so we can just use them instead of emitting
 		// relocations.
 		// For other cases we are generating a relocatable binary so we
 		// still need to emit relocations.
+		//
+		// Also not do this optimization when using plugins (DynlinkingGo),
+		// as on darwin it does weird things with runtime.etext symbol.
+		// TODO: remove the weird thing and remove this condition.
 		setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
 			if v := ldr.SymValue(tgt); v != 0 {
 				return s.SetUint(arch, off, uint64(v+add))
