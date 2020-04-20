@@ -124,7 +124,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		right := s[signPos[idx]:]
 
 		if left == "" {
-			left = left + "0"
+			left = "0"
 		}
 
 		// Check if left and right are valid float64
