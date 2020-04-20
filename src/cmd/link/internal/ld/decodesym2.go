@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 // This file contains utilities to decode type.* symbols, for
@@ -128,4 +129,46 @@ func decodetypeStr2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) strin
 		return str[1:]
 	}
 	return str
+}
+
+func decodetypeGcmask2(ctxt *Link, s loader.Sym) []byte {
+	if ctxt.loader.SymType(s) == sym.SDYNIMPORT {
+		symData := ctxt.loader.Data(s)
+		addr := decodetypeGcprogShlib(ctxt, symData)
+		ptrdata := decodetypePtrdata(ctxt.Arch, symData)
+		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
+		if sect != nil {
+			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
+			sect.ReadAt(r, int64(addr-sect.Addr))
+			return r
+		}
+		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+		return nil
+	}
+	relocs := ctxt.loader.Relocs(s)
+	mask := decodeRelocSym2(ctxt.loader, s, &relocs, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
+	return ctxt.loader.Data(mask)
+}
+
+// Type.commonType.gc
+func decodetypeGcprog2(ctxt *Link, s loader.Sym) []byte {
+	if ctxt.loader.SymType(s) == sym.SDYNIMPORT {
+		symData := ctxt.loader.Data(s)
+		addr := decodetypeGcprogShlib(ctxt, symData)
+		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
+		if sect != nil {
+			// A gcprog is a 4-byte uint32 indicating length, followed by
+			// the actual program.
+			progsize := make([]byte, 4)
+			sect.ReadAt(progsize, int64(addr-sect.Addr))
+			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
+			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
+			return append(progsize, progbytes...)
+		}
+		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+		return nil
+	}
+	relocs := ctxt.loader.Relocs(s)
+	rs := decodeRelocSym2(ctxt.loader, s, &relocs, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
+	return ctxt.loader.Data(rs)
 }
