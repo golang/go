@@ -372,7 +372,7 @@ func (subst *subster) typ(typ Type) Type {
 	case *TypeParam:
 		return subst.smap.lookup(t)
 
-	case *Instance:
+	case *instance:
 		return subst.typ(t.expand())
 
 	default:

@@ -684,8 +684,11 @@ func (t *TypeParam) Bound() *Interface {
 	return iface
 }
 
-// An Instance represents an instantiated generic type.
-type Instance struct {
+// An instance represents an instantiated generic type syntactically
+// (without expanding the instantiation). Type instances appear only
+// during type-checking and are replaced by their fully instantiated
+// (expanded) types before the end of type-checking.
+type instance struct {
 	check   *Checker    // for lazy instantiation
 	pos     token.Pos   // position of type instantiation; for error reporting only
 	base    *Named      // parameterized type to be instantiated
@@ -695,12 +698,12 @@ type Instance struct {
 	aType
 }
 
-func (t *Instance) Named() *Named { return t.expand().Named() }
+func (t *instance) Named() *Named { return t.expand().Named() }
 
 // expand returns the instantiated (= expanded) type of t.
 // The result is either an instantiated *Named type, or
 // Typ[Invalid] if there was an error.
-func (t *Instance) expand() Type {
+func (t *instance) expand() Type {
 	v := t.value
 	if v == nil {
 		v = t.check.instantiate(t.pos, t.base, t.targs, t.poslist)
@@ -716,14 +719,11 @@ func (t *Instance) expand() Type {
 	return v
 }
 
-// Expand expands a type Instance into its instantiated
-// type and leaves all other types alone.
-func Expand(typ Type) Type { return expand(typ) }
-
-// expand is like Expand.
-// TODO(gri) If we keep the exported version, remove this one.
+// expand expands a type instance into its instantiated
+// type and leaves all other types alone. expand does
+// not recurse.
 func expand(typ Type) Type {
-	if t, _ := typ.(*Instance); t != nil {
+	if t, _ := typ.(*instance); t != nil {
 		return t.expand()
 	}
 	return typ
@@ -761,7 +761,7 @@ func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
 func (t *TypeParam) Underlying() Type { return t }
-func (t *Instance) Underlying() Type  { return t }
+func (t *instance) Underlying() Type  { return t }
 
 func (t *Basic) Under() Type     { return t }
 func (t *Array) Under() Type     { return t }
@@ -777,7 +777,7 @@ func (t *Chan) Under() Type      { return t }
 // see decl.go for implementation of Named.Under
 
 func (t *TypeParam) Under() Type { return t }
-func (t *Instance) Under() Type {
+func (t *instance) Under() Type {
 	typ := t.expand()
 	if n, _ := typ.(*Named); n != nil {
 		return n.Under()
@@ -797,4 +797,4 @@ func (t *Map) String() string       { return TypeString(t, nil) }
 func (t *Chan) String() string      { return TypeString(t, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
 func (t *TypeParam) String() string { return TypeString(t, nil) }
-func (i *Instance) String() string  { return TypeString(i, nil) }
+func (t *instance) String() string  { return TypeString(t, nil) }

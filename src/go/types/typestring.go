@@ -275,7 +275,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		buf.WriteString(s + subscript(t.id))
 
-	case *Instance:
+	case *instance:
 		buf.WriteByte('#') // indicate "non-evaluated" syntactic instance
 		writeTypeName(buf, t.base.obj, qf)
 		buf.WriteByte('(')
@@ -437,7 +437,7 @@ func embeddedFieldName(typ Type) string {
 		if _, ok := t.base.(*Pointer); !ok {
 			return embeddedFieldName(t.base)
 		}
-	case *Instance:
+	case *instance:
 		panic("unimplemented")
 	}
 	return "" // not a (pointer to) a defined type

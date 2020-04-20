@@ -13,7 +13,7 @@ import (
 
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *Instance:
+	case *Basic, *Named, *instance:
 		return true
 	}
 	return false

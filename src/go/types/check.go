@@ -294,6 +294,11 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	print("== recordUntyped ==")
 	check.recordUntyped()
 
+	if check.Info != nil {
+		print("== sanitizeInfo ==")
+		sanitizeInfo(check.Info)
+	}
+
 	check.pkg.complete = true
 	return
 }

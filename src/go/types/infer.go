@@ -185,7 +185,7 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 	case *TypeParam:
 		return true
 
-	case *Instance:
+	case *instance:
 		return isParameterizedList(t.targs, seen)
 
 	default:

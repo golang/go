@@ -426,7 +426,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		// create a new type Instance rather than instantiate the type
 		// TODO(gri) should do argument number check here rather than
 		// when instantiating the type?
-		typ := new(Instance)
+		typ := new(instance)
 		def.setUnderlying(typ)
 
 		typ.check = check
