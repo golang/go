@@ -566,3 +566,20 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	return walkexpr(clos, init)
 }
+
+// callpartMethod returns the *types.Field representing the method
+// referenced by method value n.
+func callpartMethod(n *Node) *types.Field {
+	if n.Op != OCALLPART {
+		Fatalf("expected OCALLPART, got %v", n)
+	}
+
+	// TODO(mdempsky): Optimize this. If necessary,
+	// makepartialcall could save m for us somewhere.
+	var m *types.Field
+	if lookdot0(n.Right.Sym, n.Left.Type, &m, false) != 1 {
+		Fatalf("failed to find field for OCALLPART")
+	}
+
+	return m
+}
