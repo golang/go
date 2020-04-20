@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -19,109 +19,100 @@ import (
 // NaN
 // ±Inf
 
-type tcase struct {
-	str       string
-	expAnswer complex128
-	expErr    error
-}
-
 func TestParseComplex(t *testing.T) {
-
-	tests := []tcase{
+	tests := []struct {
+		str     string
+		want    complex128
+		wantErr error
+	}{
 		{
-			str:       "99",
-			expAnswer: complex(99, 0),
+			str:  "99",
+			want: complex(99, 0),
 		},
 		{
-			str:       "+99",
-			expAnswer: complex(99, 0),
+			str:  "+99",
+			want: complex(99, 0),
 		},
 		{
-			str:       "-99",
-			expAnswer: complex(-99, 0),
+			str:  "-99",
+			want: complex(-99, 0),
 		},
 		{
-			str:       "+1i",
-			expAnswer: complex(0, 1),
+			str:  "+1i",
+			want: complex(0, 1),
 		},
 		{
-			str:       "-1i",
-			expAnswer: complex(0, -1),
+			str:  "-1i",
+			want: complex(0, -1),
 		},
 		{
-			str:       "+3-i",
-			expAnswer: complex(3, -1),
+			str:  "+3-i",
+			want: complex(3, -1),
 		},
 		{
-			str:       "+3+i",
-			expAnswer: complex(3, 1),
+			str:  "+3+i",
+			want: complex(3, 1),
 		},
 		{
-			str:       "3-i",
-			expAnswer: complex(3, -1),
+			str:  "3-i",
+			want: complex(3, -1),
 		},
 		{
-			str:       "3+i",
-			expAnswer: complex(3, 1),
+			str:  "3+i",
+			want: complex(3, 1),
 		},
 		{
-			str:       "+i",
-			expAnswer: complex(0, 1),
+			str:  "+i",
+			want: complex(0, 1),
 		},
 		{
-			str:       "-i",
-			expAnswer: complex(0, -1),
+			str:  "-i",
+			want: complex(0, -1),
 		},
 		{
-			str:       "3e3-i",
-			expAnswer: complex(3e3, -1),
+			str:  "3e3-i",
+			want: complex(3e3, -1),
 		},
 		{
-			str:       "-3e3-i",
-			expAnswer: complex(-3e3, -1),
+			str:  "-3e3-i",
+			want: complex(-3e3, -1),
 		},
 		{
-			str:       "+3e3-i",
-			expAnswer: complex(3e3, -1),
+			str:  "+3e3-i",
+			want: complex(3e3, -1),
 		},
 		{
-			str:       "3e+3-i",
-			expAnswer: complex(3e+3, -1),
+			str:  "3e+3-i",
+			want: complex(3e+3, -1),
 		},
 		{
-			str:       "-3e+3-i",
-			expAnswer: complex(-3e+3, -1),
+			str:  "-3e+3-i",
+			want: complex(-3e+3, -1),
 		},
 		{
-			str:       "-3e+3-i",
-			expAnswer: complex(-3e+3, -1),
+			str:  "-3e+3-i",
+			want: complex(-3e+3, -1),
 		},
 		{
-			str:       "+3e+3-3e+3i",
-			expAnswer: complex(3e+3, -3e+3),
+			str:  "+3e+3-3e+3i",
+			want: complex(3e+3, -3e+3),
 		},
 		{
-			str:       "+3e+3+3e+3i",
-			expAnswer: complex(3e+3, 3e+3),
+			str:  "+3e+3+3e+3i",
+			want: complex(3e+3, 3e+3),
 		},
 	}
 
-	for i, tc := range tests {
-
-		got, gotErr := ParseComplex(tc.str, 128)
-		if gotErr != nil {
-			if tc.expErr == nil {
-				t.Errorf("%d: |got: %v |expected: %v", i, gotErr, tc.expErr)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.str, func(t *testing.T) {
+			got, err := ParseComplex(tt.str, 128)
+			if g, w := err, tt.wantErr; g != w {
+				t.Fatalf("Error mismatch\nGot:  %v\nWant: %v", g, w)
 			}
-		} else {
-			if tc.expErr != nil {
-				t.Errorf("%d: |got: %v |expected: %v", i, got, tc.expErr)
-			} else {
-				if got != tc.expAnswer {
-					t.Errorf("%d: |got: %v |expected: %v", i, got, tc.expAnswer)
-				}
+			if got != tt.want {
+				t.Fatalf("Result mismatch\nGot:  %v\nWant: %v", got, tt.want)
 			}
-		}
+		})
 	}
-
 }
