@@ -7,7 +7,7 @@ package types
 func sanitizeInfo(info *Info) {
 	var s sanitizer = make(map[Type]Type)
 
-	// Note: Map entries are not pointers.
+	// Note: Some map entries are not references.
 	// If modified, they must be assigned back.
 
 	for e, tv := range info.Types {
@@ -23,29 +23,23 @@ func sanitizeInfo(info *Info) {
 		info.Inferred[e] = inf
 	}
 
-	if info.Defs != nil {
-		// not yet implemented
+	for _, obj := range info.Defs {
+		if obj != nil {
+			obj.setType(s.typ(obj.Type()))
+		}
 	}
 
-	if info.Uses != nil {
-		// not yet implemented
+	for _, obj := range info.Uses {
+		if obj != nil {
+			obj.setType(s.typ(obj.Type()))
+		}
 	}
 
-	if info.Implicits != nil {
-		// not yet implemented
-	}
-
-	if info.Selections != nil {
-		// not yet implemented
-	}
-
-	if info.Scopes != nil {
-		// not yet implemented
-	}
-
-	if info.InitOrder != nil {
-		// not yet implemented
-	}
+	// TODO(gri) sanitize as needed
+	// - info.Implicits
+	// - info.Selections
+	// - info.Scopes
+	// - info.InitOrder
 }
 
 type sanitizer map[Type]Type

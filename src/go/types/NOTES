@@ -4,6 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- given type T(type P) P, T(int) should be accepted as a constant type
 - fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
 - fix endless instantiation when printing: type T(type P) T(P)
 - review all direct accesses to Named.underlying and verify that they are still correct

@@ -287,6 +287,9 @@ func TestTypesInfo(t *testing.T) {
 		{`package t2; type t(type P interface{}) int; var _ t(int)`, `t`, `t2.t(type P₁)`},
 		{`package t3; type t(type P, Q interface{}) int; var _ t(int, int)`, `t`, `t3.t(type P₁, Q₂)`},
 		{`package t4; type t(type P, Q interface{ m() }) int; var _ t(int, int)`, `t`, `t4.t(type P₁, Q₂ interface{m()})`},
+
+		// instantiated types must be sanitized
+		{`package g0; type t(type P) int; var x struct{ f t(int) }; var _ = x.f`, `x.f`, `g0.t(int)`},
 	}
 
 	for _, test := range tests {
@@ -423,6 +426,96 @@ func TestInferredInfo(t *testing.T) {
 		// check that signature is correct
 		if got := sig.String(); got != test.sig {
 			t.Errorf("package %s: got %s; want %s", name, got, test.sig)
+		}
+	}
+}
+
+func TestDefsInfo(t *testing.T) {
+	var tests = []struct {
+		src  string
+		obj  string
+		want string
+	}{
+		{`package p0; const x = 42`, `x`, `const p0.x untyped int`},
+		{`package p1; const x int = 42`, `x`, `const p1.x int`},
+		{`package p2; var x int`, `x`, `var p2.x int`},
+		{`package p3; type x int`, `x`, `type p3.x int`},
+		{`package p4; func f()`, `f`, `func p4.f()`},
+
+		// generic types must be sanitized
+		// (need to use sufficiently nested types to provoke unexpanded types)
+		// TODO(gri) add analogous test for constants, once T(int) is accepted as constant type
+		{`package g1; type t(type P) P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
+		{`package g2; type t(type P) P; type x struct{ f t(int) }`, `x`, `type g2.x struct{f g2.t(int)}`},
+		{`package g3; type t(type P) P; func f(x struct{ f t(string) }); var g = f`, `g`, `var g3.g func(x struct{f g3.t(string)})`},
+	}
+
+	for _, test := range tests {
+		info := Info{
+			Defs: make(map[*ast.Ident]Object),
+		}
+		name := mustTypecheck(t, "DefsInfo", test.src, &info)
+
+		// find object
+		var def Object
+		for id, obj := range info.Defs {
+			if id.Name == test.obj {
+				def = obj
+				break
+			}
+		}
+		if def == nil {
+			t.Errorf("package %s: %s not found", name, test.obj)
+			continue
+		}
+
+		if got := def.String(); got != test.want {
+			t.Errorf("package %s: got %s; want %s", name, got, test.want)
+		}
+	}
+}
+
+func TestUsesInfo(t *testing.T) {
+	var tests = []struct {
+		src  string
+		obj  string
+		want string
+	}{
+		{`package p0; func _() { _ = x }; const x = 42`, `x`, `const p0.x untyped int`},
+		{`package p1; func _() { _ = x }; const x int = 42`, `x`, `const p1.x int`},
+		{`package p2; func _() { _ = x }; var x int`, `x`, `var p2.x int`},
+		{`package p3; func _() { type _ x }; type x int`, `x`, `type p3.x int`},
+		{`package p4; func _() { _ = f }; func f()`, `f`, `func p4.f()`},
+
+		// generic types must be sanitized
+		// (need to use sufficiently nested types to provoke unexpanded types)
+		// TODO(gri) add analogous test for constants, once T(int) is accepted as constant type
+		{`package g1; func _() { _ = x }; type t(type P) P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
+		{`package g2; func _() { type _ x }; type t(type P) P; type x struct{ f t(int) }`, `x`, `type g2.x struct{f g2.t(int)}`},
+		{`package g3; func _() { _ = f }; type t(type P) P; func f(x struct{ f t(string) })`, `f`, `func g3.f(x struct{f g3.t(string)})`},
+	}
+
+	for _, test := range tests {
+		info := Info{
+			Uses: make(map[*ast.Ident]Object),
+		}
+		name := mustTypecheck(t, "UsesInfo", test.src, &info)
+
+		// find object
+		var use Object
+		for id, obj := range info.Uses {
+			if id.Name == test.obj {
+				use = obj
+				break
+			}
+		}
+		if use == nil {
+			t.Errorf("package %s: %s not found", name, test.obj)
+			continue
+		}
+
+		if got := use.String(); got != test.want {
+			t.Errorf("package %s: got %s; want %s", name, got, test.want)
 		}
 	}
 }

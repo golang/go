@@ -36,6 +36,9 @@ type Object interface {
 	// color returns the object's color.
 	color() color
 
+	// setType sets the type of the object.
+	setType(Type)
+
 	// setOrder sets the order number of the object. It must be > 0.
 	setOrder(uint32)
 
@@ -149,6 +152,7 @@ func (obj *object) color() color        { return obj.color_ }
 func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
 
 func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
+func (obj *object) setType(typ Type)          { obj.typ = typ }
 func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
 func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
 func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
