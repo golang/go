@@ -547,6 +547,9 @@
 // tag "generate" so that files may be examined by go generate but ignored
 // during build.
 //
+// For packages with invalid code, generate processes only source files with a
+// valid package clause.
+//
 // If any generator returns an error exit status, "go generate" skips
 // all further processing for that package.
 //
