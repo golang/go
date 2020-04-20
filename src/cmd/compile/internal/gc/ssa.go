@@ -4638,12 +4638,12 @@ func (s *state) addr(n *Node) *ssa.Value {
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
 	case ODEREF:
-		return s.exprPtr(n.Left, false, n.Pos)
+		return s.exprPtr(n.Left, n.Bounded(), n.Pos)
 	case ODOT:
 		p := s.addr(n.Left)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
