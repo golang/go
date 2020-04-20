@@ -19,7 +19,7 @@ import (
 )
 
 func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.Range, error) {
-	ctx, done := event.StartSpan(ctx, "source.Highlight")
+	ctx, done := event.Start(ctx, "source.Highlight")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)

@@ -69,7 +69,7 @@ func Call(ctx context.Context, conn *jsonrpc2.Conn, method string, params interf
 
 func cancelCall(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
 	ctx = xcontext.Detach(ctx)
-	ctx, done := event.StartSpan(ctx, "protocol.canceller")
+	ctx, done := event.Start(ctx, "protocol.canceller")
 	defer done()
 	// Note that only *jsonrpc2.ID implements json.Marshaler.
 	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: &id})

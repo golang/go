@@ -378,7 +378,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		if err == nil {
 			return netConn, nil
 		}
-		event.Print(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
+		event.Log(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
 		// In case our failure was a fast-failure, ensure we wait at least
 		// f.dialTimeout before trying again.
 		if retry != f.retries-1 {

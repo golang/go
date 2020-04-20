@@ -40,7 +40,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly.
 func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) map[diagnosticKey][]*source.Diagnostic {
-	ctx, done := event.StartSpan(ctx, "lsp:background-worker")
+	ctx, done := event.Start(ctx, "lsp:background-worker")
 	defer done()
 
 	// Wait for a free diagnostics slot.

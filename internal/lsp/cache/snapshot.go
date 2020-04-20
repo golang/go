@@ -113,7 +113,7 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 		},
 		Logf: func(format string, args ...interface{}) {
 			if verboseOutput {
-				event.Print(ctx, fmt.Sprintf(format, args...))
+				event.Log(ctx, fmt.Sprintf(format, args...))
 			}
 		},
 		Tests: true,

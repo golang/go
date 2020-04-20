@@ -104,7 +104,7 @@ func (ev Event) Find(key Key) Tag {
 	return Tag{}
 }
 
-func makeEvent(typ eventType, static sTags, tags []Tag) Event {
+func MakeEvent(typ eventType, static [3]Tag, tags []Tag) Event {
 	return Event{
 		typ:     typ,
 		static:  static,

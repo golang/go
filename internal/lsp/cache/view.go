@@ -343,9 +343,9 @@ func (v *view) refreshProcessEnv() {
 	v.importsMu.Unlock()
 
 	// We don't have a context handy to use for logging, so use the stdlib for now.
-	event.Print(v.baseCtx, "background imports cache refresh starting")
+	event.Log(v.baseCtx, "background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
-	event.Print(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), core.Err.Of(err))
+	event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), core.Err.Of(err))
 
 	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)
@@ -366,7 +366,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	}
 	if verboseOutput {
 		processEnv.Logf = func(format string, args ...interface{}) {
-			event.Print(ctx, fmt.Sprintf(format, args...))
+			event.Log(ctx, fmt.Sprintf(format, args...))
 		}
 	}
 	for _, kv := range env {

@@ -262,7 +262,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 }
 
 func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles, compiledGoFiles []*parseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
-	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
+	ctx, done := event.Start(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
 	var rawErrors []error

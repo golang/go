@@ -425,7 +425,7 @@ func (e ErrIsDefinition) Error() string {
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
 func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos protocol.Position) ([]CompletionItem, *Selection, error) {
-	ctx, done := event.StartSpan(ctx, "source.Completion")
+	ctx, done := event.Start(ctx, "source.Completion")
 	defer done()
 
 	startTime := time.Now()

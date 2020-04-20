@@ -168,7 +168,7 @@ type diagnosticSet struct {
 }
 
 func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, pkg Package, hasMissingDeps bool) (bool, bool, error) {
-	ctx, done := event.StartSpan(ctx, "source.diagnostics", tag.Package.Of(pkg.ID()))
+	ctx, done := event.Start(ctx, "source.diagnostics", tag.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
 

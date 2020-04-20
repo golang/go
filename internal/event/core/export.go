@@ -43,8 +43,8 @@ func deliver(ctx context.Context, exporter Exporter, ev Event) context.Context {
 	return exporter(ctx, ev, ev)
 }
 
-// dispatch is called to deliver an event to the global exporter if set.
-func dispatch(ctx context.Context, ev Event) context.Context {
+// Export is called to deliver an event to the global exporter if set.
+func Export(ctx context.Context, ev Event) context.Context {
 	// get the global exporter and abort early if there is not one
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
@@ -53,11 +53,11 @@ func dispatch(ctx context.Context, ev Event) context.Context {
 	return deliver(ctx, *exporterPtr, ev)
 }
 
-// dispatchPair is called to deliver a start event to the supplied exporter.
+// ExportPair is called to deliver a start event to the supplied exporter.
 // It also returns a function that will deliver the end event to the same
 // exporter.
 // it will fill in the time and generate the basic tag source.
-func dispatchPair(ctx context.Context, begin, end Event) (context.Context, func()) {
+func ExportPair(ctx context.Context, begin, end Event) (context.Context, func()) {
 	// get the global exporter and abort early if there is not one
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {

@@ -61,7 +61,7 @@ type eventWriter struct {
 }
 
 func (ew *eventWriter) Write(p []byte) (n int, err error) {
-	event.Print(ew.ctx, string(p), tag.Operation.Of("generate"))
+	event.Log(ew.ctx, string(p), tag.Operation.Of("generate"))
 	return len(p), nil
 }
 

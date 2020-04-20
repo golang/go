@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/core"
 )
 
 func TestTrace(t *testing.T) {
@@ -38,7 +39,7 @@ func TestTrace(t *testing.T) {
 		{
 			name: "no tags",
 			run: func(ctx context.Context) {
-				event.Log(ctx)
+				core.Export(ctx, core.MakeEvent(core.LogType, [3]core.Tag{}, nil))
 			},
 			want: prefix + `
 					"timeEvent":[{"time":"1970-01-01T00:00:40Z"}]
@@ -47,7 +48,7 @@ func TestTrace(t *testing.T) {
 		{
 			name: "description no error",
 			run: func(ctx context.Context) {
-				event.Print(ctx, "cache miss", keyDB.Of("godb"))
+				event.Log(ctx, "cache miss", keyDB.Of("godb"))
 			},
 			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
 "description": { "value": "cache miss" },
@@ -97,7 +98,7 @@ func TestTrace(t *testing.T) {
 		{
 			name: "enumerate all attribute types",
 			run: func(ctx context.Context) {
-				event.Print(ctx, "cache miss",
+				event.Log(ctx, "cache miss",
 					key1DB.Of("godb"),
 
 					key2aAge.Of(0.456), // Constant converted into "float64"
@@ -148,7 +149,7 @@ func TestTrace(t *testing.T) {
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, done := event.StartSpan(ctx, "event span")
+			ctx, done := event.Start(ctx, "event span")
 			tt.run(ctx)
 			done()
 			got := exporter.Output("/v1/trace")

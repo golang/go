@@ -24,7 +24,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if realURI == "" || tempURI == "" {
 		return nil, nil, nil
 	}
-	ctx, done := event.StartSpan(ctx, "mod.Diagnostics", tag.URI.Of(realURI))
+	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(realURI))
 	defer done()
 
 	realfh, err := snapshot.GetFile(realURI)
@@ -118,7 +118,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 		return nil, nil
 	}
 
-	ctx, done := event.StartSpan(ctx, "mod.SuggestedGoFixes", tag.URI.Of(realURI))
+	ctx, done := event.Start(ctx, "mod.SuggestedGoFixes", tag.URI.Of(realURI))
 	defer done()
 
 	realfh, err := snapshot.GetFile(realURI)

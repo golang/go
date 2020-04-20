@@ -19,7 +19,7 @@ import (
 )
 
 func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*protocol.SignatureInformation, int, error) {
-	ctx, done := event.StartSpan(ctx, "source.SignatureHelp")
+	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)

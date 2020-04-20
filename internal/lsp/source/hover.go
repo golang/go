@@ -71,7 +71,7 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 }
 
 func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
-	ctx, done := event.StartSpan(ctx, "source.Hover")
+	ctx, done := event.Start(ctx, "source.Hover")
 	defer done()
 
 	h, err := i.Declaration.hover(ctx)
@@ -201,7 +201,7 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 }
 
 func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {
-	_, done := event.StartSpan(ctx, "source.hover")
+	_, done := event.Start(ctx, "source.hover")
 	defer done()
 
 	obj := d.obj

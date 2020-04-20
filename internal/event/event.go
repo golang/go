@@ -21,43 +21,45 @@ func SetExporter(e Exporter) {
 	core.SetExporter(core.Exporter(e))
 }
 
-// Log sends a log event with the supplied tag list to the exporter.
-func Log(ctx context.Context, tags ...core.Tag) {
-	core.Log(ctx, tags...)
-}
-
-// Print takes a message and a tag list and combines them into a single event
+// Log takes a message and a tag list and combines them into a single event
 // before delivering them to the exporter.
-func Print(ctx context.Context, message string, tags ...core.Tag) {
-	core.Print(ctx, message, tags...)
+func Log(ctx context.Context, message string, tags ...core.Tag) {
+	core.Export(ctx, core.MakeEvent(core.LogType, [3]core.Tag{
+		core.Msg.Of(message),
+	}, tags))
 }
 
 // Error takes a message and a tag list and combines them into a single event
 // before delivering them to the exporter. It captures the error in the
 // delivered event.
 func Error(ctx context.Context, message string, err error, tags ...core.Tag) {
-	core.Error(ctx, message, err, tags...)
+	core.Export(ctx, core.MakeEvent(core.LogType, [3]core.Tag{
+		core.Msg.Of(message),
+		core.Err.Of(err),
+	}, tags))
 }
 
-// Record sends a label event to the exporter with the supplied tags.
-func Record(ctx context.Context, tags ...core.Tag) context.Context {
-	return core.Record(ctx, tags...)
+// Metric sends a label event to the exporter with the supplied tags.
+func Metric(ctx context.Context, tags ...core.Tag) {
+	core.Export(ctx, core.MakeEvent(core.RecordType, [3]core.Tag{}, tags))
 }
 
 // Label sends a label event to the exporter with the supplied tags.
 func Label(ctx context.Context, tags ...core.Tag) context.Context {
-	return core.Label(ctx, tags...)
+	return core.Export(ctx, core.MakeEvent(core.LabelType, [3]core.Tag{}, tags))
 }
 
-// StartSpan sends a span start event with the supplied tag list to the exporter.
+// Start sends a span start event with the supplied tag list to the exporter.
 // It also returns a function that will end the span, which should normally be
 // deferred.
-func StartSpan(ctx context.Context, name string, tags ...core.Tag) (context.Context, func()) {
-	return core.StartSpan(ctx, name, tags...)
+func Start(ctx context.Context, name string, tags ...core.Tag) (context.Context, func()) {
+	return core.ExportPair(ctx,
+		core.MakeEvent(core.StartSpanType, [3]core.Tag{core.Name.Of(name)}, tags),
+		core.MakeEvent(core.EndSpanType, [3]core.Tag{}, nil))
 }
 
 // Detach returns a context without an associated span.
 // This allows the creation of spans that are not children of the current span.
 func Detach(ctx context.Context) context.Context {
-	return core.Detach(ctx)
+	return core.Export(ctx, core.MakeEvent(core.DetachType, [3]core.Tag{}, nil))
 }

@@ -48,7 +48,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 }
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
-	ctx, done := event.StartSpan(ctx, "cache.nativeFileHandle.Read", tag.File.Of(h.identity.URI.Filename()))
+	ctx, done := event.Start(ctx, "cache.nativeFileHandle.Read", tag.File.Of(h.identity.URI.Filename()))
 	_ = ctx
 	defer done()
 

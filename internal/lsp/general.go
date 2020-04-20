@@ -173,7 +173,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	// TODO: this event logging may be unnecessary. The version info is included in the initialize response.
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, buf, true, debug.PlainText)
-	event.Print(ctx, buf.String())
+	event.Log(ctx, buf.String())
 
 	s.addFolders(ctx, s.pendingFolders)
 	s.pendingFolders = nil
@@ -198,7 +198,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			event.Error(ctx, "failed to write environment", err, tag.Directory.Of(view.Folder()))
 			continue
 		}
-		event.Print(ctx, buf.String())
+		event.Log(ctx, buf.String())
 
 		// Diagnose the newly created view.
 		go s.diagnoseDetached(snapshot)
@@ -294,7 +294,7 @@ func (s *Server) shutdown(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 	if s.state < serverInitialized {
-		event.Print(ctx, "server shutdown without initialization")
+		event.Log(ctx, "server shutdown without initialization")
 	}
 	if s.state != serverShutDown {
 		// drop all the active views

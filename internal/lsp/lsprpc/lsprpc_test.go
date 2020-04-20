@@ -34,7 +34,7 @@ func (c fakeClient) LogMessage(ctx context.Context, params *protocol.LogMessageP
 type pingServer struct{ protocol.Server }
 
 func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	event.Print(ctx, "ping")
+	event.Log(ctx, "ping")
 	return nil
 }
 

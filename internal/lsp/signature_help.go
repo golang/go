@@ -21,7 +21,7 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHe
 	}
 	info, activeParameter, err := source.SignatureHelp(ctx, snapshot, fh, params.Position)
 	if err != nil {
-		event.Print(ctx, "no signature help", tag.Position.Of(params.Position), core.Err.Of(err))
+		event.Log(ctx, "no signature help", tag.Position.Of(params.Position), core.Err.Of(err))
 		return nil, nil
 	}
 	return &protocol.SignatureHelp{

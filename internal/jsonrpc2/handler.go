@@ -96,7 +96,7 @@ func AsyncHandler(handler Handler) Handler {
 			close(unlockNext)
 			return innerReply(ctx, result, err)
 		}
-		_, queueDone := event.StartSpan(ctx, "queued")
+		_, queueDone := event.Start(ctx, "queued")
 		go func() {
 			<-waitForPrevious
 			queueDone()

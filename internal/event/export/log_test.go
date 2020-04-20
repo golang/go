@@ -20,7 +20,7 @@ func ExampleLog() {
 	event.SetExporter(timeFixer(export.LogWriter(os.Stdout, false)))
 	anInt := core.NewIntKey("myInt", "an integer")
 	aString := core.NewStringKey("myString", "a string")
-	event.Print(ctx, "my event", anInt.Of(6))
+	event.Log(ctx, "my event", anInt.Of(6))
 	event.Error(ctx, "error event", errors.New("an error"), aString.Of("some string value"))
 	// Output:
 	// 2020/03/05 14:27:48 my event

@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
-	ctx, done := event.StartSpan(ctx, "lsp.Server.symbol")
+	ctx, done := event.Start(ctx, "lsp.Server.symbol")
 	defer done()
 
 	return source.WorkspaceSymbols(ctx, s.session.Views(), params.Query)

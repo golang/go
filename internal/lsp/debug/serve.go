@@ -462,7 +462,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 	if strings.HasSuffix(i.DebugAddress, ":0") {
 		log.Printf("debug server listening on port %d", port)
 	}
-	event.Print(ctx, "Debug serving", tag.Port.Of(port))
+	event.Log(ctx, "Debug serving", tag.Port.Of(port))
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))
@@ -493,7 +493,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 			event.Error(ctx, "Debug server failed", err)
 			return
 		}
-		event.Print(ctx, "Debug server finished")
+		event.Log(ctx, "Debug server finished")
 	}()
 	return nil
 }
@@ -511,7 +511,7 @@ func (i *Instance) MonitorMemory(ctx context.Context) {
 				continue
 			}
 			i.writeMemoryDebug(nextThresholdGiB)
-			event.Print(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
+			event.Log(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
 			nextThresholdGiB++
 		}
 	}()

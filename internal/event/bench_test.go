@@ -46,33 +46,33 @@ var (
 
 	Log = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			core.Print1(ctx, "A", aValue.Of(a))
+			core.Log1(ctx, "A", aValue.Of(a))
 			return ctx, func() {}
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			core.Print1(ctx, "B", bValue.Of(b))
+			core.Log1(ctx, "B", bValue.Of(b))
 			return ctx, func() {}
 		},
 	}
 
 	Trace = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			return core.StartSpan1(ctx, "A", aValue.Of(a))
+			return core.Start1(ctx, "A", aValue.Of(a))
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			return core.StartSpan1(ctx, "B", bValue.Of(b))
+			return core.Start1(ctx, "B", bValue.Of(b))
 		},
 	}
 
 	Stats = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			core.Record1(ctx, aStat.Of(a))
-			core.Record1(ctx, aCount.Of(1))
+			core.Metric1(ctx, aStat.Of(a))
+			core.Metric1(ctx, aCount.Of(1))
 			return ctx, func() {}
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			core.Record1(ctx, bLength.Of(len(b)))
-			core.Record1(ctx, bCount.Of(1))
+			core.Metric1(ctx, bLength.Of(len(b)))
+			core.Metric1(ctx, bCount.Of(1))
 			return ctx, func() {}
 		},
 	}

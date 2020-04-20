@@ -17,7 +17,7 @@ import (
 )
 
 func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
-	ctx, done := event.StartSpan(ctx, "source.Implementation")
+	ctx, done := event.Start(ctx, "source.Implementation")
 	defer done()
 
 	impls, err := implementations(ctx, s, f, pp)

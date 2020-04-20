@@ -58,7 +58,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshaling notify parameters: %v", err)
 	}
-	ctx, done := event.StartSpan(ctx, method,
+	ctx, done := event.Start(ctx, method,
 		tag.Method.Of(method),
 		tag.RPCDirection.Of(tag.Outbound),
 	)
@@ -67,9 +67,9 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 		done()
 	}()
 
-	event.Record(ctx, tag.Started.Of(1))
+	event.Metric(ctx, tag.Started.Of(1))
 	n, err := c.stream.Write(ctx, notify)
-	event.Record(ctx, tag.SentBytes.Of(n))
+	event.Metric(ctx, tag.SentBytes.Of(n))
 	return err
 }
 
@@ -83,7 +83,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	if err != nil {
 		return id, fmt.Errorf("marshaling call parameters: %v", err)
 	}
-	ctx, done := event.StartSpan(ctx, method,
+	ctx, done := event.Start(ctx, method,
 		tag.Method.Of(method),
 		tag.RPCDirection.Of(tag.Outbound),
 		tag.RPCID.Of(fmt.Sprintf("%q", id)),
@@ -92,7 +92,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		recordStatus(ctx, err)
 		done()
 	}()
-	event.Record(ctx, tag.Started.Of(1))
+	event.Metric(ctx, tag.Started.Of(1))
 	// We have to add ourselves to the pending map before we send, otherwise we
 	// are racing the response. Also add a buffer to rchan, so that if we get a
 	// wire response between the time this call is cancelled and id is deleted
@@ -108,7 +108,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	}()
 	// now we are ready to send
 	n, err := c.stream.Write(ctx, call)
-	event.Record(ctx, tag.SentBytes.Of(n))
+	event.Metric(ctx, tag.SentBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
 		return id, err
@@ -148,7 +148,7 @@ func replier(conn *Conn, req Request, spanDone func()) Replier {
 			return err
 		}
 		n, err := conn.stream.Write(ctx, response)
-		event.Record(ctx, tag.SentBytes.Of(n))
+		event.Metric(ctx, tag.SentBytes.Of(n))
 		if err != nil {
 			// TODO(iancottrell): if a stream write fails, we really need to shut down
 			// the whole stream
@@ -183,8 +183,8 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			} else {
 				tags = tags[:len(tags)-1]
 			}
-			reqCtx, spanDone := event.StartSpan(runCtx, msg.Method(), tags...)
-			event.Record(reqCtx,
+			reqCtx, spanDone := event.Start(runCtx, msg.Method(), tags...)
+			event.Metric(reqCtx,
 				tag.Started.Of(1),
 				tag.ReceivedBytes.Of(n))
 			if err := handler(reqCtx, replier(c, msg, spanDone), msg); err != nil {

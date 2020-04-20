@@ -124,7 +124,7 @@ func hashParseKeys(phs []*parseGoHandle) string {
 }
 
 func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
-	ctx, done := event.StartSpan(ctx, "cache.parseGo", tag.File.Of(fh.Identity().URI.Filename()))
+	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 
 	if fh.Identity().Kind != source.Go {

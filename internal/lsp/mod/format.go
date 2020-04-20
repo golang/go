@@ -9,7 +9,7 @@ import (
 )
 
 func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.TextEdit, error) {
-	ctx, done := event.StartSpan(ctx, "mod.Format")
+	ctx, done := event.Start(ctx, "mod.Format")
 	defer done()
 
 	file, m, err := snapshot.ModHandle(ctx, fh).Parse(ctx)

@@ -22,7 +22,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if uri != realURI {
 		return nil, nil
 	}
-	ctx, done := event.StartSpan(ctx, "mod.CodeLens", tag.URI.Of(realURI))
+	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(realURI))
 	defer done()
 
 	fh, err := snapshot.GetFile(realURI)
