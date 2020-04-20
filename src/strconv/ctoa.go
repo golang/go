@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,15 +27,15 @@ package strconv
 // The special precision -1 uses the smallest number of digits
 // necessary such that ParseComplex will return c exactly.
 func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
-
 	if bitSize == 64 {
 		bitSize = 32
 	} else {
 		bitSize = 64
 	}
 
+	// Check if imaginary part has a sign. If not, add one.
 	imag := FormatFloat(imag(c), fmt, prec, bitSize)
-	if imag[0:1] != "+" && imag[0:1] != "-" {
+	if imag[0] != '+' && imag[0] != '-' {
 		imag = "+" + imag
 	}
 
