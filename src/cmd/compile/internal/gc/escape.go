@@ -522,10 +522,26 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		// nop
 
 	case OCALLPART:
-		e.spill(k, n)
+		// Flow the receiver argument to both the closure and
+		// to the receiver parameter.
 
-		// TODO(mdempsky): We can do better here. See #27557.
-		e.assignHeap(n.Left, "call part", n)
+		closureK := e.spill(k, n)
+
+		m := callpartMethod(n)
+
+		// We don't know how the method value will be called
+		// later, so conservatively assume the result
+		// parameters all flow to the heap.
+		//
+		// TODO(mdempsky): Change ks into a callback, so that
+		// we don't have to create this dummy slice?
+		var ks []EscHole
+		for i := m.Type.NumResults(); i > 0; i-- {
+			ks = append(ks, e.heapHole())
+		}
+		paramK := e.tagHole(ks, asNode(m.Type.Nname()), m.Type.Recv())
+
+		e.expr(e.teeHole(paramK, closureK), n.Left)
 
 	case OPTRLIT:
 		e.expr(e.spill(k, n), n.Left)
