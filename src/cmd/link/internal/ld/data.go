@@ -1257,6 +1257,81 @@ func (p *GCProg) AddSym(s *sym.Symbol) {
 	p.w.Append(prog[4:], nptr)
 }
 
+type GCProg2 struct {
+	ctxt *Link
+	sym  *loader.SymbolBuilder
+	w    gcprog.Writer
+}
+
+func (p *GCProg2) Init(ctxt *Link, name string) {
+	p.ctxt = ctxt
+	symIdx := ctxt.loader.LookupOrCreateSym(name, 0)
+	p.sym = ctxt.loader.MakeSymbolUpdater(symIdx)
+	p.w.Init(p.writeByte())
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+		p.w.Debug(os.Stderr)
+	}
+}
+
+func (p *GCProg2) writeByte() func(x byte) {
+	return func(x byte) {
+		p.sym.AddUint8(x)
+	}
+}
+
+func (p *GCProg2) End(size int64) {
+	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
+	p.w.End()
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
+	}
+}
+
+func (p *GCProg2) AddSym(s loader.Sym) {
+	ldr := p.ctxt.loader
+	typ := ldr.SymGoType(s)
+
+	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
+	// everything we see should have pointers and should therefore have a type.
+	if typ == 0 {
+		switch p.sym.Name() {
+		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
+			// Ignore special symbols that are sometimes laid out
+			// as real symbols. See comment about dyld on darwin in
+			// the address function.
+			return
+		}
+		p.ctxt.Errorf(p.sym.Sym(), "missing Go type information for global symbol: size %d", ldr.SymSize(s))
+		return
+	}
+
+	ptrsize := int64(p.ctxt.Arch.PtrSize)
+	typData := ldr.Data(typ)
+	nptr := decodetypePtrdata(p.ctxt.Arch, typData) / ptrsize
+
+	if debugGCProg {
+		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/ptrsize, nptr)
+	}
+
+	sval := ldr.SymValue(s)
+	if decodetypeUsegcprog(p.ctxt.Arch, typData) == 0 {
+		// Copy pointers from mask into program.
+		mask := decodetypeGcmask2(p.ctxt, typ)
+		for i := int64(0); i < nptr; i++ {
+			if (mask[i/8]>>uint(i%8))&1 != 0 {
+				p.w.Ptr(sval/ptrsize + i)
+			}
+		}
+		return
+	}
+
+	// Copy program.
+	prog := decodetypeGcprog2(p.ctxt, typ)
+	p.w.ZeroUntil(sval / ptrsize)
+	p.w.Append(prog[4:], nptr)
+}
+
 // dataSortKey is used to sort a slice of data symbol *sym.Symbol pointers.
 // The sort keys are kept inline to improve cache behavior while sorting.
 type dataSortKey struct {
