@@ -1207,7 +1207,16 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	mp.p.ptr().mcache.next_sample = nextSample()
+	var c *mcache
+	if mp.p != 0 {
+		c = mp.p.ptr().mcache
+	} else {
+		c = mcache0
+		if c == nil {
+			throw("profilealloc called with no P")
+		}
+	}
+	c.next_sample = nextSample()
 	mProf_Malloc(x, size)
 }
 

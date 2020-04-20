@@ -331,25 +331,65 @@ func main() {
 }
 `
 
+const exampleWholeFileFunction = `package foo_test
+
+func Foo(x int) {
+}
+
+func Example() {
+	fmt.Println("Hello, world!")
+	// Output: Hello, world!
+}
+`
+
+const exampleWholeFileFunctionOutput = `package main
+
+func Foo(x int) {
+}
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+`
+
+var exampleWholeFileTestCases = []struct {
+	Title, Source, Play, Output string
+}{
+	{
+		"Methods",
+		exampleWholeFile,
+		exampleWholeFileOutput,
+		"Hello, world!\n",
+	},
+	{
+		"Function",
+		exampleWholeFileFunction,
+		exampleWholeFileFunctionOutput,
+		"Hello, world!\n",
+	},
+}
+
 func TestExamplesWholeFile(t *testing.T) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "test.go", strings.NewReader(exampleWholeFile), parser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
-	es := doc.Examples(file)
-	if len(es) != 1 {
-		t.Fatalf("wrong number of examples; got %d want 1", len(es))
-	}
-	e := es[0]
-	if e.Name != "" {
-		t.Errorf("got Name == %q, want %q", e.Name, "")
-	}
-	if g, w := formatFile(t, fset, e.Play), exampleWholeFileOutput; g != w {
-		t.Errorf("got Play == %q, want %q", g, w)
-	}
-	if g, w := e.Output, "Hello, world!\n"; g != w {
-		t.Errorf("got Output == %q, want %q", g, w)
+	for _, c := range exampleWholeFileTestCases {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, "test.go", strings.NewReader(c.Source), parser.ParseComments)
+		if err != nil {
+			t.Fatal(err)
+		}
+		es := doc.Examples(file)
+		if len(es) != 1 {
+			t.Fatalf("%s: wrong number of examples; got %d want 1", c.Title, len(es))
+		}
+		e := es[0]
+		if e.Name != "" {
+			t.Errorf("%s: got Name == %q, want %q", c.Title, e.Name, "")
+		}
+		if g, w := formatFile(t, fset, e.Play), c.Play; g != w {
+			t.Errorf("%s: got Play == %q, want %q", c.Title, g, w)
+		}
+		if g, w := e.Output, c.Output; g != w {
+			t.Errorf("%s: got Output == %q, want %q", c.Title, g, w)
+		}
 	}
 }
 

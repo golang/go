@@ -27,10 +27,25 @@ import (
 // on heavily loaded systems.
 //
 // The current value is set based on flakes observed in the Go builders.
-var settleTime = 250 * time.Millisecond
+var settleTime = 100 * time.Millisecond
 
 func init() {
-	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+	if testenv.Builder() == "solaris-amd64-oraclerel" {
+		// The solaris-amd64-oraclerel builder has been observed to time out in
+		// TestNohup even with a 250ms settle time.
+		//
+		// Use a much longer settle time on that builder to try to suss out whether
+		// the test is flaky due to builder slowness (which may mean we need a
+		// longer GO_TEST_TIMEOUT_SCALE) or due to a dropped signal (which may
+		// instead need a test-skip and upstream bug filed against the Solaris
+		// kernel).
+		//
+		// This constant is chosen so as to make the test as generous as possible
+		// while still reliably completing within 3 minutes in non-short mode.
+		//
+		// See https://golang.org/issue/33174.
+		settleTime = 11 * time.Second
+	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
 		if scale, err := strconv.Atoi(s); err == nil {
 			settleTime *= time.Duration(scale)
 		}

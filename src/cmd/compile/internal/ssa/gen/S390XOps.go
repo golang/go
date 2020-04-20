@@ -370,7 +370,7 @@ func init() {
 		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
 		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
 		//
-		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
+		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "S390XRotateParams", clobberFlags: true}, // rotate then xor selected bits
 
 		// unary ops
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
@@ -383,7 +383,7 @@ func init() {
 
 		// Conditional register-register moves.
 		// The aux for these values is an s390x.CCMask value representing the condition code mask.
-		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "ArchSpecific"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
+		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "S390XCCMask"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
 
 		{name: "MOVBreg", argLength: 1, reg: gp11sp, asm: "MOVB", typ: "Int64"},    // sign extend arg0 from int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11sp, asm: "MOVBZ", typ: "UInt64"}, // zero extend arg0 from int8 to int64
@@ -772,25 +772,25 @@ func init() {
 	// Note: that compare-and-branch instructions must not have bit 3 (0b0001) set.
 	var S390Xblocks = []blockData{
 		// branch on condition
-		{name: "BRC", controls: 1}, // condition code value (flags) is Controls[0]
+		{name: "BRC", controls: 1, aux: "S390XCCMask"}, // condition code value (flags) is Controls[0]
 
 		// compare-and-branch (register-register)
 		//  - integrates comparison of Controls[0] with Controls[1]
 		//  - both control values must be in general purpose registers
-		{name: "CRJ", controls: 2},   // signed 32-bit integer comparison
-		{name: "CGRJ", controls: 2},  // signed 64-bit integer comparison
-		{name: "CLRJ", controls: 2},  // unsigned 32-bit integer comparison
-		{name: "CLGRJ", controls: 2}, // unsigned 64-bit integer comparison
+		{name: "CRJ", controls: 2, aux: "S390XCCMask"},   // signed 32-bit integer comparison
+		{name: "CGRJ", controls: 2, aux: "S390XCCMask"},  // signed 64-bit integer comparison
+		{name: "CLRJ", controls: 2, aux: "S390XCCMask"},  // unsigned 32-bit integer comparison
+		{name: "CLGRJ", controls: 2, aux: "S390XCCMask"}, // unsigned 64-bit integer comparison
 
 		// compare-and-branch (register-immediate)
 		//  - integrates comparison of Controls[0] with AuxInt
 		//  - control value must be in a general purpose register
 		//  - the AuxInt value is sign-extended for signed comparisons
 		//    and zero-extended for unsigned comparisons
-		{name: "CIJ", controls: 1, auxint: "Int8"},    // signed 32-bit integer comparison
-		{name: "CGIJ", controls: 1, auxint: "Int8"},   // signed 64-bit integer comparison
-		{name: "CLIJ", controls: 1, auxint: "UInt8"},  // unsigned 32-bit integer comparison
-		{name: "CLGIJ", controls: 1, auxint: "UInt8"}, // unsigned 64-bit integer comparison
+		{name: "CIJ", controls: 1, aux: "S390XCCMaskInt8"},    // signed 32-bit integer comparison
+		{name: "CGIJ", controls: 1, aux: "S390XCCMaskInt8"},   // signed 64-bit integer comparison
+		{name: "CLIJ", controls: 1, aux: "S390XCCMaskUint8"},  // unsigned 32-bit integer comparison
+		{name: "CLGIJ", controls: 1, aux: "S390XCCMaskUint8"}, // unsigned 64-bit integer comparison
 	}
 
 	archs = append(archs, arch{

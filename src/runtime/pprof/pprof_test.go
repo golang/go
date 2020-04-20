@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"internal/profile"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -18,7 +19,6 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
-	"runtime/pprof/internal/profile"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -182,7 +182,7 @@ func dumpCallers(pcs []uintptr) {
 		return
 	}
 
-	skip := 2  // Callers and dumpCallers
+	skip := 2 // Callers and dumpCallers
 	runtime.Callers(skip, pcs)
 }
 
@@ -243,7 +243,7 @@ func recursionChainBottom(x int, pcs []uintptr) {
 	// can't make this conditional or this function won't be inlined.
 	dumpCallers(pcs)
 
-	recursionChainTop(x - 1, pcs)
+	recursionChainTop(x-1, pcs)
 }
 
 func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Location, map[string][]string)) *profile.Profile {

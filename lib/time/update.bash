@@ -28,6 +28,8 @@ rm -f ../../zoneinfo.zip
 zip -0 -r ../../zoneinfo.zip *
 cd ../..
 
+go generate time/tzdata
+
 echo
 if [ "$1" = "-work" ]; then
 	echo Left workspace behind in work/.

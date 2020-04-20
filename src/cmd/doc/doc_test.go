@@ -1000,6 +1000,25 @@ func TestDotSlashLookup(t *testing.T) {
 	}
 }
 
+// Test that we don't print spurious package clauses
+// when there should be no output at all. Issue 37969.
+func TestNoPackageClauseWhenNoMatch(t *testing.T) {
+	maybeSkip(t)
+	var b bytes.Buffer
+	var flagSet flag.FlagSet
+	err := do(&b, &flagSet, []string{"template.ZZZ"})
+	// Expect an error.
+	if err == nil {
+		t.Error("expect an error for template.zzz")
+	}
+	// And the output should not contain any package clauses.
+	const dontWant = `package template // import `
+	output := b.String()
+	if strings.Contains(output, dontWant) {
+		t.Fatalf("improper package clause printed:\n%s", output)
+	}
+}
+
 type trimTest struct {
 	path   string
 	prefix string

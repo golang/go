@@ -47,6 +47,8 @@ type pkixPublicKey struct {
 }
 
 // ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
+// The encoded public key is a SubjectPublicKeyInfo structure
+// (see RFC 5280, Section 4.1).
 //
 // It returns a *rsa.PublicKey, *dsa.PublicKey, *ecdsa.PublicKey, or
 // ed25519.PublicKey. More types might be supported in the future.
@@ -107,6 +109,8 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 }
 
 // MarshalPKIXPublicKey converts a public key to PKIX, ASN.1 DER form.
+// The encoded public key is a SubjectPublicKeyInfo structure
+// (see RFC 5280, Section 4.1).
 //
 // The following key types are currently supported: *rsa.PublicKey, *ecdsa.PublicKey
 // and ed25519.PublicKey. Unsupported key types result in an error.
