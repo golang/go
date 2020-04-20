@@ -586,7 +586,7 @@ s%~	%%g
 */
 
 func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
-	if s.Pkg != nil && flag&FmtShort == 0 {
+	if flag&FmtShort == 0 {
 		switch mode {
 		case FErr: // This is for the user
 			if s.Pkg == builtinpkg || s.Pkg == localpkg {

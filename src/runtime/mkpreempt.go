@@ -502,8 +502,33 @@ func genPPC64() {
 }
 
 func genRISCV64() {
-	p("// No async preemption on riscv64 - see issue 36711")
-	p("UNDEF")
+	// X0 (zero), X1 (LR), X2 (SP), X4 (g), X31 (TMP) are special.
+	var l = layout{sp: "X2", stack: 8}
+
+	// Add integer registers (X3, X5-X30).
+	for i := 3; i < 31; i++ {
+		if i == 4 {
+			continue
+		}
+		reg := fmt.Sprintf("X%d", i)
+		l.add("MOV", reg, 8)
+	}
+
+	// Add floating point registers (F0-F31).
+	for i := 0; i <= 31; i++ {
+		reg := fmt.Sprintf("F%d", i)
+		l.add("MOVD", reg, 8)
+	}
+
+	p("MOV X1, -%d(X2)", l.stack)
+	p("ADD $-%d, X2", l.stack)
+	l.save()
+	p("CALL ·asyncPreempt2(SB)")
+	l.restore()
+	p("MOV %d(X2), X1", l.stack)
+	p("MOV (X2), X31")
+	p("ADD $%d, X2", l.stack+8)
+	p("JMP (X31)")
 }
 
 func genS390X() {

@@ -1027,17 +1027,17 @@ func callbackasm1()
 var profiletimer uintptr
 
 func profilem(mp *m, thread uintptr) {
-	var r *context
-	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
+	// Align Context to 16 bytes.
+	var c *context
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 
-	// align Context to 16 bytes
-	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
-	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
+	c.contextflags = _CONTEXT_CONTROL
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
 	gp := gFromTLS(mp)
 
-	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
+	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
 }
 
 func gFromTLS(mp *m) *g {
@@ -1153,10 +1153,9 @@ func preemptM(mp *m) {
 	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	unlock(&mp.threadLock)
 
-	// Prepare thread context buffer.
+	// Prepare thread context buffer. This must be aligned to 16 bytes.
 	var c *context
-	cbuf := make([]byte, unsafe.Sizeof(*c)+15)
-	// Align Context to 16 bytes.
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
 	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 	c.contextflags = _CONTEXT_CONTROL
 

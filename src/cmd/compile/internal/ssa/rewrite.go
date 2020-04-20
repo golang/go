@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/s390x"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"encoding/binary"
@@ -590,6 +591,9 @@ func auxIntToInt32(i int64) int32 {
 func auxIntToInt64(i int64) int64 {
 	return i
 }
+func auxIntToUint8(i int64) uint8 {
+	return uint8(i)
+}
 func auxIntToFloat32(i int64) float32 {
 	return float32(math.Float64frombits(uint64(i)))
 }
@@ -624,6 +628,9 @@ func int32ToAuxInt(i int32) int64 {
 func int64ToAuxInt(i int64) int64 {
 	return int64(i)
 }
+func uint8ToAuxInt(i uint8) int64 {
+	return int64(int8(i))
+}
 func float32ToAuxInt(f float32) int64 {
 	return int64(math.Float64bits(float64(f)))
 }
@@ -651,6 +658,12 @@ func auxToSym(i interface{}) Sym {
 func auxToType(i interface{}) *types.Type {
 	return i.(*types.Type)
 }
+func auxToS390xCCMask(i interface{}) s390x.CCMask {
+	return i.(s390x.CCMask)
+}
+func auxToS390xRotateParams(i interface{}) s390x.RotateParams {
+	return i.(s390x.RotateParams)
+}
 
 func stringToAux(s string) interface{} {
 	return s
@@ -660,6 +673,12 @@ func symToAux(s Sym) interface{} {
 }
 func typeToAux(t *types.Type) interface{} {
 	return t
+}
+func s390xCCMaskToAux(c s390x.CCMask) interface{} {
+	return c
+}
+func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
+	return r
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.

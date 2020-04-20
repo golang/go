@@ -840,7 +840,6 @@ opswitch:
 			n.Left = cheapexpr(n.Left, init)
 			// byteindex widens n.Left so that the multiplication doesn't overflow.
 			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
-			index.SetBounded(true)
 			if thearch.LinkArch.ByteOrder == binary.BigEndian {
 				index = nod(OADD, index, nodintconst(7))
 			}
@@ -886,7 +885,7 @@ opswitch:
 			init.Append(nif)
 
 			// Build the result.
-			e := nod(OEFACE, tmp, ifaceData(c, types.NewPtr(types.Types[TUINT8])))
+			e := nod(OEFACE, tmp, ifaceData(n.Pos, c, types.NewPtr(types.Types[TUINT8])))
 			e.Type = toType // assign type manually, typecheck doesn't understand OEFACE.
 			e.SetTypecheck(1)
 			n = e
@@ -3165,7 +3164,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			eqtype = nod(andor, nonnil, match)
 		}
 		// Check for data equal.
-		eqdata := nod(eq, ifaceData(l, r.Type), r)
+		eqdata := nod(eq, ifaceData(n.Pos, l, r.Type), r)
 		// Put it all together.
 		expr := nod(andor, eqtype, eqdata)
 		n = finishcompare(n, expr, init)
@@ -3659,7 +3658,8 @@ func usemethod(n *Node) {
 
 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
 	//       (including global variables such as numImports - was issue #19028).
-	if s := res0.Type.Sym; s != nil && s.Name == "Method" && s.Pkg != nil && s.Pkg.Path == "reflect" {
+	// Also need to check for reflect package itself (see Issue #38515).
+	if s := res0.Type.Sym; s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
 		Curfn.Func.SetReflectMethod(true)
 	}
 }

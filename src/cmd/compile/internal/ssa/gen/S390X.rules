@@ -573,62 +573,61 @@
   && int64(uint8(c)) == c
   && int64(uint8(d)) == d
   && (!x.Type.IsSigned() || x.Type.Size() > 1)
-  -> x
+  => x
 
 // Fold boolean tests into blocks.
 // Note: this must match If statement lowering.
 (CLIJ {s390x.LessOrGreater} (LOCGR {d} (MOVDconst [0]) (MOVDconst [x]) cmp) [0] yes no)
   && int32(x) != 0
-  -> (BRC {d} cmp yes no)
+  => (BRC {d} cmp yes no)
 
 // Compare-and-branch.
 // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
-(BRC {c} (CMP   x y) yes no) -> (CGRJ  {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
-(BRC {c} (CMPW  x y) yes no) -> (CRJ   {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
-(BRC {c} (CMPU  x y) yes no) -> (CLGRJ {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
-(BRC {c} (CMPWU x y) yes no) -> (CLRJ  {c.(s390x.CCMask)&^s390x.Unordered} x y yes no)
+(BRC {c} (CMP   x y) yes no) => (CGRJ  {c&^s390x.Unordered} x y yes no)
+(BRC {c} (CMPW  x y) yes no) => (CRJ   {c&^s390x.Unordered} x y yes no)
+(BRC {c} (CMPU  x y) yes no) => (CLGRJ {c&^s390x.Unordered} x y yes no)
+(BRC {c} (CMPWU x y) yes no) => (CLRJ  {c&^s390x.Unordered} x y yes no)
 
 // Compare-and-branch (immediate).
 // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
-(BRC {c} (CMPconst   x [y]) yes no) && is8Bit(y)  -> (CGIJ  {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
-(BRC {c} (CMPWconst  x [y]) yes no) && is8Bit(y)  -> (CIJ   {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
-(BRC {c} (CMPUconst  x [y]) yes no) && isU8Bit(y) -> (CLGIJ {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
-(BRC {c} (CMPWUconst x [y]) yes no) && isU8Bit(y) -> (CLIJ  {c.(s390x.CCMask)&^s390x.Unordered} x [int64(int8(y))] yes no)
+(BRC {c} (CMPconst   x [y]) yes no) && y == int32( int8(y)) => (CGIJ  {c&^s390x.Unordered} x [ int8(y)] yes no)
+(BRC {c} (CMPWconst  x [y]) yes no) && y == int32( int8(y)) => (CIJ   {c&^s390x.Unordered} x [ int8(y)] yes no)
+(BRC {c} (CMPUconst  x [y]) yes no) && y == int32(uint8(y)) => (CLGIJ {c&^s390x.Unordered} x [uint8(y)] yes no)
+(BRC {c} (CMPWUconst x [y]) yes no) && y == int32(uint8(y)) => (CLIJ  {c&^s390x.Unordered} x [uint8(y)] yes no)
 
 // Absorb immediate into compare-and-branch.
-(C(R|GR)J  {c} x (MOVDconst [y]) yes no) && is8Bit(y)  -> (C(I|GI)J  {c} x [int64(int8(y))] yes no)
-(CL(R|GR)J {c} x (MOVDconst [y]) yes no) && isU8Bit(y) -> (CL(I|GI)J {c} x [int64(int8(y))] yes no)
-(C(R|GR)J  {c} (MOVDconst [x]) y yes no) && is8Bit(x)  -> (C(I|GI)J  {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
-(CL(R|GR)J {c} (MOVDconst [x]) y yes no) && isU8Bit(x) -> (CL(I|GI)J {c.(s390x.CCMask).ReverseComparison()} y [int64(int8(x))] yes no)
+(C(R|GR)J  {c} x (MOVDconst [y]) yes no) && is8Bit(y)  => (C(I|GI)J  {c} x [ int8(y)] yes no)
+(CL(R|GR)J {c} x (MOVDconst [y]) yes no) && isU8Bit(y) => (CL(I|GI)J {c} x [uint8(y)] yes no)
+(C(R|GR)J  {c} (MOVDconst [x]) y yes no) && is8Bit(x)  => (C(I|GI)J  {c.ReverseComparison()} y [ int8(x)] yes no)
+(CL(R|GR)J {c} (MOVDconst [x]) y yes no) && isU8Bit(x) => (CL(I|GI)J {c.ReverseComparison()} y [uint8(x)] yes no)
 
 // Prefer comparison with immediate to compare-and-branch.
-(CGRJ  {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  -> (BRC {c} (CMPconst   x [int64(int32(y))]) yes no)
-(CRJ   {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  -> (BRC {c} (CMPWconst  x [int64(int32(y))]) yes no)
-(CLGRJ {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) -> (BRC {c} (CMPUconst  x [int64(int32(y))]) yes no)
-(CLRJ  {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) -> (BRC {c} (CMPWUconst x [int64(int32(y))]) yes no)
-(CGRJ  {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPconst   y [int64(int32(x))]) yes no)
-(CRJ   {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWconst  y [int64(int32(x))]) yes no)
-(CLGRJ {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPUconst  y [int64(int32(x))]) yes no)
-(CLRJ  {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) -> (BRC {c.(s390x.CCMask).ReverseComparison()} (CMPWUconst y [int64(int32(x))]) yes no)
+(CGRJ  {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  => (BRC {c} (CMPconst   x [int32(y)]) yes no)
+(CRJ   {c} x (MOVDconst [y]) yes no) && !is8Bit(y)  && is32Bit(y)  => (BRC {c} (CMPWconst  x [int32(y)]) yes no)
+(CLGRJ {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) => (BRC {c} (CMPUconst  x [int32(y)]) yes no)
+(CLRJ  {c} x (MOVDconst [y]) yes no) && !isU8Bit(y) && isU32Bit(y) => (BRC {c} (CMPWUconst x [int32(y)]) yes no)
+(CGRJ  {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  => (BRC {c.ReverseComparison()} (CMPconst   y [int32(x)]) yes no)
+(CRJ   {c} (MOVDconst [x]) y yes no) && !is8Bit(x)  && is32Bit(x)  => (BRC {c.ReverseComparison()} (CMPWconst  y [int32(x)]) yes no)
+(CLGRJ {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) => (BRC {c.ReverseComparison()} (CMPUconst  y [int32(x)]) yes no)
+(CLRJ  {c} (MOVDconst [x]) y yes no) && !isU8Bit(x) && isU32Bit(x) => (BRC {c.ReverseComparison()} (CMPWUconst y [int32(x)]) yes no)
 
 // Absorb sign/zero extensions into 32-bit compare-and-branch.
-(CIJ  {c} (MOV(W|WZ)reg x) [y] yes no) -> (CIJ  {c} x [y] yes no)
-(CLIJ {c} (MOV(W|WZ)reg x) [y] yes no) -> (CLIJ {c} x [y] yes no)
+(CIJ  {c} (MOV(W|WZ)reg x) [y] yes no) => (CIJ  {c} x [y] yes no)
+(CLIJ {c} (MOV(W|WZ)reg x) [y] yes no) => (CLIJ {c} x [y] yes no)
 
 // Bring out-of-range signed immediates into range by varying branch condition.
-(BRC {s390x.Less}           (CMPconst  x [ 128]) yes no) -> (CGIJ {s390x.LessOrEqual}    x [ 127] yes no)
-(BRC {s390x.Less}           (CMPWconst x [ 128]) yes no) -> (CIJ  {s390x.LessOrEqual}    x [ 127] yes no)
-(BRC {s390x.LessOrEqual}    (CMPconst  x [-129]) yes no) -> (CGIJ {s390x.Less}           x [-128] yes no)
-(BRC {s390x.LessOrEqual}    (CMPWconst x [-129]) yes no) -> (CIJ  {s390x.Less}           x [-128] yes no)
-(BRC {s390x.Greater}        (CMPconst  x [-129]) yes no) -> (CGIJ {s390x.GreaterOrEqual} x [-128] yes no)
-(BRC {s390x.Greater}        (CMPWconst x [-129]) yes no) -> (CIJ  {s390x.GreaterOrEqual} x [-128] yes no)
-(BRC {s390x.GreaterOrEqual} (CMPconst  x [ 128]) yes no) -> (CGIJ {s390x.Greater}        x [ 127] yes no)
-(BRC {s390x.GreaterOrEqual} (CMPWconst x [ 128]) yes no) -> (CIJ  {s390x.Greater}        x [ 127] yes no)
+(BRC {s390x.Less}           (CMPconst  x [ 128]) yes no) => (CGIJ {s390x.LessOrEqual}    x [ 127] yes no)
+(BRC {s390x.Less}           (CMPWconst x [ 128]) yes no) => (CIJ  {s390x.LessOrEqual}    x [ 127] yes no)
+(BRC {s390x.LessOrEqual}    (CMPconst  x [-129]) yes no) => (CGIJ {s390x.Less}           x [-128] yes no)
+(BRC {s390x.LessOrEqual}    (CMPWconst x [-129]) yes no) => (CIJ  {s390x.Less}           x [-128] yes no)
+(BRC {s390x.Greater}        (CMPconst  x [-129]) yes no) => (CGIJ {s390x.GreaterOrEqual} x [-128] yes no)
+(BRC {s390x.Greater}        (CMPWconst x [-129]) yes no) => (CIJ  {s390x.GreaterOrEqual} x [-128] yes no)
+(BRC {s390x.GreaterOrEqual} (CMPconst  x [ 128]) yes no) => (CGIJ {s390x.Greater}        x [ 127] yes no)
+(BRC {s390x.GreaterOrEqual} (CMPWconst x [ 128]) yes no) => (CIJ  {s390x.Greater}        x [ 127] yes no)
 
 // Bring out-of-range unsigned immediates into range by varying branch condition.
-// Note: int64(int8(255)) == -1
-(BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) -> (C(L|LG)IJ {s390x.LessOrEqual} x [-1] yes no)
-(BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) -> (C(L|LG)IJ {s390x.Greater}     x [-1] yes no)
+(BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.LessOrEqual} x [255] yes no)
+(BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.Greater}     x [255] yes no)
 
 // Fold constants into instructions.
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
@@ -732,7 +731,7 @@
 (MOVDaddridx [c] {s} x (ADDconst [d] y)) && is20Bit(c+d) && y.Op != OpSB -> (MOVDaddridx [c+d] {s} x y)
 
 // reverse ordering of compare instruction
-(LOCGR {c} x y (InvertFlags cmp)) -> (LOCGR {c.(s390x.CCMask).ReverseComparison()} x y cmp)
+(LOCGR {c} x y (InvertFlags cmp)) => (LOCGR {c.ReverseComparison()} x y cmp)
 
 // replace load from same location as preceding store with copy
 (MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
@@ -1006,7 +1005,7 @@
        (MOVDaddridx [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // Absorb InvertFlags into branches.
-(BRC {c} (InvertFlags cmp) yes no) -> (BRC {c.(s390x.CCMask).ReverseComparison()} cmp yes no)
+(BRC {c} (InvertFlags cmp) yes no) => (BRC {c.ReverseComparison()} cmp yes no)
 
 // Constant comparisons.
 (CMPconst (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
@@ -1036,38 +1035,38 @@
 (CMPWUconst (ANDWconst _ [m]) [n]) && uint32(m) < uint32(n) -> (FlagLT)
 
 // Constant compare-and-branch with immediate.
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 &&  int64(x) ==  int64( int8(y)) -> (First yes no)
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 &&  int64(x) <   int64( int8(y)) -> (First yes no)
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 &&  int64(x) >   int64( int8(y)) -> (First yes no)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 &&  int32(x) ==  int32( int8(y)) -> (First yes no)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 &&  int32(x) <   int32( int8(y)) -> (First yes no)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 &&  int32(x) >   int32( int8(y)) -> (First yes no)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 && uint64(x) == uint64(uint8(y)) -> (First yes no)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 && uint64(x) <  uint64(uint8(y)) -> (First yes no)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 && uint64(x) >  uint64(uint8(y)) -> (First yes no)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   != 0 && uint32(x) == uint32(uint8(y)) -> (First yes no)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    != 0 && uint32(x) <  uint32(uint8(y)) -> (First yes no)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater != 0 && uint32(x) >  uint32(uint8(y)) -> (First yes no)
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 &&  int64(x) ==  int64( int8(y)) -> (First no yes)
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 &&  int64(x) <   int64( int8(y)) -> (First no yes)
-(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 &&  int64(x) >   int64( int8(y)) -> (First no yes)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 &&  int32(x) ==  int32( int8(y)) -> (First no yes)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 &&  int32(x) <   int32( int8(y)) -> (First no yes)
-(CIJ   {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 &&  int32(x) >   int32( int8(y)) -> (First no yes)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 && uint64(x) == uint64(uint8(y)) -> (First no yes)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 && uint64(x) <  uint64(uint8(y)) -> (First no yes)
-(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 && uint64(x) >  uint64(uint8(y)) -> (First no yes)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Equal   == 0 && uint32(x) == uint32(uint8(y)) -> (First no yes)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Less    == 0 && uint32(x) <  uint32(uint8(y)) -> (First no yes)
-(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c.(s390x.CCMask)&s390x.Greater == 0 && uint32(x) >  uint32(uint8(y)) -> (First no yes)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 &&  int64(x) ==  int64(y) => (First yes no)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 &&  int64(x) <   int64(y) => (First yes no)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 &&  int64(x) >   int64(y) => (First yes no)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 &&  int32(x) ==  int32(y) => (First yes no)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 &&  int32(x) <   int32(y) => (First yes no)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 &&  int32(x) >   int32(y) => (First yes no)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 && uint64(x) == uint64(y) => (First yes no)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 && uint64(x) <  uint64(y) => (First yes no)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 && uint64(x) >  uint64(y) => (First yes no)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   != 0 && uint32(x) == uint32(y) => (First yes no)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    != 0 && uint32(x) <  uint32(y) => (First yes no)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater != 0 && uint32(x) >  uint32(y) => (First yes no)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 &&  int64(x) ==  int64(y) => (First no yes)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 &&  int64(x) <   int64(y) => (First no yes)
+(CGIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 &&  int64(x) >   int64(y) => (First no yes)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 &&  int32(x) ==  int32(y) => (First no yes)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 &&  int32(x) <   int32(y) => (First no yes)
+(CIJ   {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 &&  int32(x) >   int32(y) => (First no yes)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 && uint64(x) == uint64(y) => (First no yes)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 && uint64(x) <  uint64(y) => (First no yes)
+(CLGIJ {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 && uint64(x) >  uint64(y) => (First no yes)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Equal   == 0 && uint32(x) == uint32(y) => (First no yes)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Less    == 0 && uint32(x) <  uint32(y) => (First no yes)
+(CLIJ  {c} (MOVDconst [x]) [y] yes no) && c&s390x.Greater == 0 && uint32(x) >  uint32(y) => (First no yes)
 
 // Constant compare-and-branch with immediate when unsigned comparison with zero.
-(C(L|LG)IJ {s390x.GreaterOrEqual} _ [0] yes no) -> (First yes no)
-(C(L|LG)IJ {s390x.Less}           _ [0] yes no) -> (First no yes)
+(C(L|LG)IJ {s390x.GreaterOrEqual} _ [0] yes no) => (First yes no)
+(C(L|LG)IJ {s390x.Less}           _ [0] yes no) => (First no yes)
 
 // Constant compare-and-branch when operands match.
-(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c.(s390x.CCMask)&s390x.Equal != 0 -> (First yes no)
-(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c.(s390x.CCMask)&s390x.Equal == 0 -> (First no yes)
+(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c&s390x.Equal != 0 => (First yes no)
+(C(GR|R|LGR|LR)J {c} x y yes no) && x == y && c&s390x.Equal == 0 => (First no yes)
 
 // Convert 64-bit comparisons to 32-bit comparisons and signed comparisons
 // to unsigned comparisons.
@@ -1086,26 +1085,26 @@
 (CMP(W|W|WU|WU)const (MOV(W|WZ|W|WZ)reg x) [c]) -> (CMP(W|W|WU|WU)const x [c])
 
 // Absorb flag constants into branches.
-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     != 0 -> (First yes no)
-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      != 0 -> (First yes no)
-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   != 0 -> (First yes no)
-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered != 0 -> (First yes no)
+(BRC {c} (FlagEQ) yes no) && c&s390x.Equal     != 0 => (First yes no)
+(BRC {c} (FlagLT) yes no) && c&s390x.Less      != 0 => (First yes no)
+(BRC {c} (FlagGT) yes no) && c&s390x.Greater   != 0 => (First yes no)
+(BRC {c} (FlagOV) yes no) && c&s390x.Unordered != 0 => (First yes no)
 
-(BRC {c} (FlagEQ) yes no) && c.(s390x.CCMask) & s390x.Equal     == 0 -> (First no yes)
-(BRC {c} (FlagLT) yes no) && c.(s390x.CCMask) & s390x.Less      == 0 -> (First no yes)
-(BRC {c} (FlagGT) yes no) && c.(s390x.CCMask) & s390x.Greater   == 0 -> (First no yes)
-(BRC {c} (FlagOV) yes no) && c.(s390x.CCMask) & s390x.Unordered == 0 -> (First no yes)
+(BRC {c} (FlagEQ) yes no) && c&s390x.Equal     == 0 => (First no yes)
+(BRC {c} (FlagLT) yes no) && c&s390x.Less      == 0 => (First no yes)
+(BRC {c} (FlagGT) yes no) && c&s390x.Greater   == 0 => (First no yes)
+(BRC {c} (FlagOV) yes no) && c&s390x.Unordered == 0 => (First no yes)
 
 // Absorb flag constants into SETxx ops.
-(LOCGR {c} _ x (FlagEQ)) && c.(s390x.CCMask) & s390x.Equal     != 0 -> x
-(LOCGR {c} _ x (FlagLT)) && c.(s390x.CCMask) & s390x.Less      != 0 -> x
-(LOCGR {c} _ x (FlagGT)) && c.(s390x.CCMask) & s390x.Greater   != 0 -> x
-(LOCGR {c} _ x (FlagOV)) && c.(s390x.CCMask) & s390x.Unordered != 0 -> x
+(LOCGR {c} _ x (FlagEQ)) && c&s390x.Equal     != 0 => x
+(LOCGR {c} _ x (FlagLT)) && c&s390x.Less      != 0 => x
+(LOCGR {c} _ x (FlagGT)) && c&s390x.Greater   != 0 => x
+(LOCGR {c} _ x (FlagOV)) && c&s390x.Unordered != 0 => x
 
-(LOCGR {c} x _ (FlagEQ)) && c.(s390x.CCMask) & s390x.Equal     == 0 -> x
-(LOCGR {c} x _ (FlagLT)) && c.(s390x.CCMask) & s390x.Less      == 0 -> x
-(LOCGR {c} x _ (FlagGT)) && c.(s390x.CCMask) & s390x.Greater   == 0 -> x
-(LOCGR {c} x _ (FlagOV)) && c.(s390x.CCMask) & s390x.Unordered == 0 -> x
+(LOCGR {c} x _ (FlagEQ)) && c&s390x.Equal     == 0 => x
+(LOCGR {c} x _ (FlagLT)) && c&s390x.Less      == 0 => x
+(LOCGR {c} x _ (FlagGT)) && c&s390x.Greater   == 0 => x
+(LOCGR {c} x _ (FlagOV)) && c&s390x.Unordered == 0 => x
 
 // Remove redundant *const ops
 (ADDconst [0] x) -> x
@@ -1218,10 +1217,17 @@
 (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
 (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
 
-// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
-// one of those instructions, we can use the generated flag and remove the comparison instruction.
-(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
-(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
+// FSUB, FSUBS, FADD, FADDS now produce a condition code representing the
+// comparison of the result with 0.0. If a compare with zero instruction
+// (e.g. LTDBR) is following one of those instructions, we can use the
+// generated flag and remove the comparison instruction.
+// Note: when inserting Select1 ops we need to ensure they are in the
+// same block as their argument. We could also use @x.Block for this
+// but moving the flag generating value to a different block seems to
+// increase the likelihood that the flags value will have to be regenerated
+// by flagalloc which is not what we want.
+(LTDBR (Select0 x:(F(ADD|SUB) _ _)))   && b == x.Block -> (Select1 x)
+(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) && b == x.Block -> (Select1 x)
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.

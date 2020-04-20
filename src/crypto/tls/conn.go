@@ -24,8 +24,9 @@ import (
 // It implements the net.Conn interface.
 type Conn struct {
 	// constant
-	conn     net.Conn
-	isClient bool
+	conn        net.Conn
+	isClient    bool
+	handshakeFn func() error // (*Conn).clientHandshake or serverHandshake
 
 	// handshakeStatus is 1 if the connection is currently transferring
 	// application data (i.e. is not currently processing a handshake).
@@ -1349,11 +1350,7 @@ func (c *Conn) Handshake() error {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	if c.isClient {
-		c.handshakeErr = c.clientHandshake()
-	} else {
-		c.handshakeErr = c.serverHandshake()
-	}
+	c.handshakeErr = c.handshakeFn()
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {
