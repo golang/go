@@ -5,8 +5,8 @@
 package debug
 
 import (
-	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export/metric"
+	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 )
 
@@ -18,34 +18,34 @@ var (
 	receivedBytes = metric.HistogramInt64{
 		Name:        "received_bytes",
 		Description: "Distribution of received bytes, by method.",
-		Keys:        []core.Key{tag.RPCDirection, tag.Method},
+		Keys:        []label.Key{tag.RPCDirection, tag.Method},
 		Buckets:     bytesDistribution,
 	}
 
 	sentBytes = metric.HistogramInt64{
 		Name:        "sent_bytes",
 		Description: "Distribution of sent bytes, by method.",
-		Keys:        []core.Key{tag.RPCDirection, tag.Method},
+		Keys:        []label.Key{tag.RPCDirection, tag.Method},
 		Buckets:     bytesDistribution,
 	}
 
 	latency = metric.HistogramFloat64{
 		Name:        "latency",
 		Description: "Distribution of latency in milliseconds, by method.",
-		Keys:        []core.Key{tag.RPCDirection, tag.Method},
+		Keys:        []label.Key{tag.RPCDirection, tag.Method},
 		Buckets:     millisecondsDistribution,
 	}
 
 	started = metric.Scalar{
 		Name:        "started",
 		Description: "Count of RPCs started by method.",
-		Keys:        []core.Key{tag.RPCDirection, tag.Method},
+		Keys:        []label.Key{tag.RPCDirection, tag.Method},
 	}
 
 	completed = metric.Scalar{
 		Name:        "completed",
 		Description: "Count of RPCs completed by method and status.",
-		Keys:        []core.Key{tag.RPCDirection, tag.Method, tag.StatusCode},
+		Keys:        []label.Key{tag.RPCDirection, tag.Method, tag.StatusCode},
 	}
 )
 

@@ -7,9 +7,9 @@ package ocagent
 import (
 	"time"
 
-	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent/wire"
+	"golang.org/x/tools/internal/event/label"
 )
 
 // dataToMetricDescriptor return a *wire.MetricDescriptor based on data.
@@ -201,7 +201,7 @@ func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds
 
 // infoKeysToLabelKeys returns an array of *wire.LabelKeys containing the
 // string values of the elements of labelKeys.
-func infoKeysToLabelKeys(infoKeys []core.Key) []*wire.LabelKey {
+func infoKeysToLabelKeys(infoKeys []label.Key) []*wire.LabelKey {
 	labelKeys := make([]*wire.LabelKey, 0, len(infoKeys))
 	for _, key := range infoKeys {
 		labelKeys = append(labelKeys, &wire.LabelKey{

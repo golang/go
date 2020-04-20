@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/label"
 )
 
 var traceTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
@@ -73,7 +74,7 @@ type traceEvent struct {
 	Tags   string
 }
 
-func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
+func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	span := export.GetSpan(ctx)
@@ -94,7 +95,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, tags core.TagM
 			ParentID: span.ParentID,
 			Name:     span.Name,
 			Start:    span.Start().At,
-			Tags:     renderTags(span.Start()),
+			Tags:     renderLabels(span.Start()),
 		}
 		t.unfinished[span.ID] = td
 		// and wire up parents if we have them
@@ -124,7 +125,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, tags core.TagM
 		for i, event := range events {
 			td.Events[i] = traceEvent{
 				Time: event.At,
-				Tags: renderTags(event),
+				Tags: renderLabels(event),
 			}
 		}
 
@@ -170,11 +171,11 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags core.TagList) string {
+func renderLabels(labels label.List) string {
 	buf := &bytes.Buffer{}
-	for index := 0; tags.Valid(index); index++ {
-		if tag := tags.Tag(index); tag.Valid() {
-			fmt.Fprintf(buf, "%v ", tag)
+	for index := 0; labels.Valid(index); index++ {
+		if l := labels.Label(index); l.Valid() {
+			fmt.Fprintf(buf, "%v ", l)
 		}
 	}
 	return buf.String()

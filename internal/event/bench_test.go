@@ -9,6 +9,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/label"
 )
 
 type Hooks struct {
@@ -147,6 +148,6 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
-func noopExporter(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func noopExporter(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	return ctx
 }

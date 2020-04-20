@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 )
 
 var Entries = core.NewKey("metric_entries", "The set of metrics calculated for an event")
@@ -20,9 +21,9 @@ type Config struct {
 	subscribers map[interface{}][]subscriber
 }
 
-type subscriber func(time.Time, core.TagMap, core.Tag) Data
+type subscriber func(time.Time, label.Map, label.Label) Data
 
-func (e *Config) subscribe(key core.Key, s subscriber) {
+func (e *Config) subscribe(key label.Key, s subscriber) {
 	if e.subscribers == nil {
 		e.subscribers = make(map[interface{}][]subscriber)
 	}
@@ -31,26 +32,26 @@ func (e *Config) subscribe(key core.Key, s subscriber) {
 
 func (e *Config) Exporter(output event.Exporter) event.Exporter {
 	var mu sync.Mutex
-	return func(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		if !ev.IsRecord() {
-			return output(ctx, ev, tagMap)
+			return output(ctx, ev, lm)
 		}
 		mu.Lock()
 		defer mu.Unlock()
 		var metrics []Data
 		for index := 0; ev.Valid(index); index++ {
-			tag := ev.Tag(index)
-			if !tag.Valid() {
+			l := ev.Label(index)
+			if !l.Valid() {
 				continue
 			}
-			id := tag.Key()
+			id := l.Key()
 			if list := e.subscribers[id]; len(list) > 0 {
 				for _, s := range list {
-					metrics = append(metrics, s(ev.At, tagMap, tag))
+					metrics = append(metrics, s(ev.At, lm, l))
 				}
 			}
 		}
-		tagMap = core.MergeTagMaps(core.NewTagMap(Entries.Of(metrics)), tagMap)
-		return output(ctx, ev, tagMap)
+		lm = label.MergeMaps(label.NewMap(Entries.Of(metrics)), lm)
+		return output(ctx, ev, lm)
 	}
 }

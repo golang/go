@@ -79,11 +79,11 @@ const (
 )
 
 type TimeEventValue interface {
-	tagTimeEventValue()
+	labelTimeEventValue()
 }
 
-func (Annotation) tagTimeEventValue()   {}
-func (MessageEvent) tagTimeEventValue() {}
+func (Annotation) labelTimeEventValue()   {}
+func (MessageEvent) labelTimeEventValue() {}
 
 type Links struct {
 	Link              []*Link `json:"link,omitempty"`

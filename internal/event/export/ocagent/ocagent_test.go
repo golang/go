@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent"
+	"golang.org/x/tools/internal/event/label"
 )
 
 const testNodeStr = `{
@@ -72,21 +73,21 @@ var (
 	metricLatency = metric.HistogramFloat64{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
-		Keys:        []core.Key{keyMethod, keyRoute},
+		Keys:        []label.Key{keyMethod, keyRoute},
 		Buckets:     []float64{0, 5, 10, 25, 50},
 	}
 
 	metricBytesIn = metric.HistogramInt64{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
-		Keys:        []core.Key{keyMethod, keyRoute},
+		Keys:        []label.Key{keyMethod, keyRoute},
 		Buckets:     []int64{0, 10, 50, 100, 500, 1000, 2000},
 	}
 
 	metricRecursiveCalls = metric.Scalar{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
-		Keys:        []core.Key{keyMethod, keyRoute},
+		Keys:        []label.Key{keyMethod, keyRoute},
 	}
 )
 
@@ -125,7 +126,7 @@ func timeFixer(output event.Exporter) event.Exporter {
 	start, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
 	at, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
 	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
-	return func(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		switch {
 		case ev.IsStartSpan():
 			ev.At = start
@@ -134,17 +135,17 @@ func timeFixer(output event.Exporter) event.Exporter {
 		default:
 			ev.At = at
 		}
-		return output(ctx, ev, tagMap)
+		return output(ctx, ev, lm)
 	}
 }
 
 func spanFixer(output event.Exporter) event.Exporter {
-	return func(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		if ev.IsStartSpan() {
 			span := export.GetSpan(ctx)
 			span.ID = export.SpanContext{}
 		}
-		return output(ctx, ev, tagMap)
+		return output(ctx, ev, lm)
 	}
 }
 

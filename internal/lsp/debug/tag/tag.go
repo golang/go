@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// create the tag keys we use
+	// create the label keys we use
 	Method        = core.NewStringKey("method", "")
 	StatusCode    = core.NewStringKey("status.code", "")
 	StatusMessage = core.NewStringKey("status.message", "")

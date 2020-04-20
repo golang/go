@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent"
 	"golang.org/x/tools/internal/event/export/prometheus"
+	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -543,7 +544,7 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 }
 
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
-	return func(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		i := GetInstance(ctx)
 
 		if ev.IsLog() {
@@ -556,27 +557,27 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 				fmt.Fprintf(stderr, "%v\n", ev)
 			}
 		}
-		ctx = protocol.LogEvent(ctx, ev, tags)
+		ctx = protocol.LogEvent(ctx, ev, lm)
 		if i == nil {
 			return ctx
 		}
-		return i.exporter(ctx, ev, tags)
+		return i.exporter(ctx, ev, lm)
 	}
 }
 
 func makeInstanceExporter(i *Instance) event.Exporter {
-	exporter := func(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
+	exporter := func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		if i.ocagent != nil {
-			ctx = i.ocagent.ProcessEvent(ctx, ev, tags)
+			ctx = i.ocagent.ProcessEvent(ctx, ev, lm)
 		}
 		if i.prometheus != nil {
-			ctx = i.prometheus.ProcessEvent(ctx, ev, tags)
+			ctx = i.prometheus.ProcessEvent(ctx, ev, lm)
 		}
 		if i.rpcs != nil {
-			ctx = i.rpcs.ProcessEvent(ctx, ev, tags)
+			ctx = i.rpcs.ProcessEvent(ctx, ev, lm)
 		}
 		if i.traces != nil {
-			ctx = i.traces.ProcessEvent(ctx, ev, tags)
+			ctx = i.traces.ProcessEvent(ctx, ev, lm)
 		}
 		return ctx
 	}

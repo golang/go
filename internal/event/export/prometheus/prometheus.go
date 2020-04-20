@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export/metric"
+	"golang.org/x/tools/internal/event/label"
 )
 
 func New() *Exporter {
@@ -25,13 +26,13 @@ type Exporter struct {
 	metrics []metric.Data
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, ln label.Map) context.Context {
 	if !ev.IsRecord() {
 		return ctx
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	metrics := metric.Entries.Get(tagMap).([]metric.Data)
+	metrics := metric.Entries.Get(ln).([]metric.Data)
 	for _, data := range metrics {
 		name := data.Handle()
 		// We keep the metrics in name sorted order so the page is stable and easy
@@ -64,7 +65,7 @@ func (e *Exporter) header(w http.ResponseWriter, name, description string, isGau
 	fmt.Fprintf(w, "# TYPE %s %s\n", name, kind)
 }
 
-func (e *Exporter) row(w http.ResponseWriter, name string, group []core.Tag, extra string, value interface{}) {
+func (e *Exporter) row(w http.ResponseWriter, name string, group []label.Label, extra string, value interface{}) {
 	fmt.Fprint(w, name)
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, group)

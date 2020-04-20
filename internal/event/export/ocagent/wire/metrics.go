@@ -122,13 +122,13 @@ type PointSummaryValue struct {
 }
 
 type PointValue interface {
-	tagPointValue()
+	labelPointValue()
 }
 
-func (PointInt64Value) tagPointValue()        {}
-func (PointDoubleValue) tagPointValue()       {}
-func (PointDistributionValue) tagPointValue() {}
-func (PointSummaryValue) tagPointValue()      {}
+func (PointInt64Value) labelPointValue()        {}
+func (PointDoubleValue) labelPointValue()       {}
+func (PointDistributionValue) labelPointValue() {}
+func (PointSummaryValue) labelPointValue()      {}
 
 type DistributionValue struct {
 	Count                 int64         `json:"count,omitempty"`
@@ -143,10 +143,10 @@ type BucketOptionsExplicit struct {
 }
 
 type BucketOptions interface {
-	tagBucketOptions()
+	labelBucketOptions()
 }
 
-func (*BucketOptionsExplicit) tagBucketOptions() {}
+func (*BucketOptionsExplicit) labelBucketOptions() {}
 
 var _ BucketOptions = (*BucketOptionsExplicit)(nil)
 var _ json.Marshaler = (*BucketOptionsExplicit)(nil)

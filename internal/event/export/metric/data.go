@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 )
 
 // Data represents a single point in the time series of a metric.
@@ -22,7 +23,7 @@ type Data interface {
 	//TODO: rethink the concept of metric handles
 	Handle() string
 	// Groups reports the rows that currently exist for this metric.
-	Groups() [][]core.Tag
+	Groups() [][]label.Label
 }
 
 // Int64Data is a concrete implementation of Data for int64 scalar metrics.
@@ -36,7 +37,7 @@ type Int64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups [][]core.Tag
+	groups [][]label.Label
 	key    *core.Int64Key
 }
 
@@ -51,7 +52,7 @@ type Float64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups [][]core.Tag
+	groups [][]label.Label
 	key    *core.Float64Key
 }
 
@@ -64,7 +65,7 @@ type HistogramInt64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups [][]core.Tag
+	groups [][]label.Label
 	key    *core.Int64Key
 }
 
@@ -91,7 +92,7 @@ type HistogramFloat64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups [][]core.Tag
+	groups [][]label.Label
 	key    *core.Float64Key
 }
 
@@ -109,44 +110,44 @@ type HistogramFloat64Row struct {
 	Max float64
 }
 
-func tagListEqual(a, b []core.Tag) bool {
+func labelListEqual(a, b []label.Label) bool {
 	//TODO: make this more efficient
 	return fmt.Sprint(a) == fmt.Sprint(b)
 }
 
-func tagListLess(a, b []core.Tag) bool {
+func labelListLess(a, b []label.Label) bool {
 	//TODO: make this more efficient
 	return fmt.Sprint(a) < fmt.Sprint(b)
 }
 
-func getGroup(tagMap core.TagMap, g *[][]core.Tag, keys []core.Key) (int, bool) {
-	group := make([]core.Tag, len(keys))
+func getGroup(lm label.Map, g *[][]label.Label, keys []label.Key) (int, bool) {
+	group := make([]label.Label, len(keys))
 	for i, key := range keys {
-		tag := tagMap.Find(key)
-		if tag.Valid() {
-			group[i] = tag
+		l := lm.Find(key)
+		if l.Valid() {
+			group[i] = l
 		}
 	}
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
-		return !tagListLess(old[i], group)
+		return !labelListLess(old[i], group)
 	})
-	if index < len(old) && tagListEqual(group, old[index]) {
+	if index < len(old) && labelListEqual(group, old[index]) {
 		// not a new group
 		return index, false
 	}
-	*g = make([][]core.Tag, len(old)+1)
+	*g = make([][]label.Label, len(old)+1)
 	copy(*g, old[:index])
 	copy((*g)[index+1:], old[index:])
 	(*g)[index] = group
 	return index, true
 }
 
-func (data *Int64Data) Handle() string       { return data.Info.Name }
-func (data *Int64Data) Groups() [][]core.Tag { return data.groups }
+func (data *Int64Data) Handle() string          { return data.Info.Name }
+func (data *Int64Data) Groups() [][]label.Label { return data.groups }
 
-func (data *Int64Data) modify(at time.Time, tagMap core.TagMap, f func(v int64) int64) Data {
-	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
+func (data *Int64Data) modify(at time.Time, lm label.Map, f func(v int64) int64) Data {
+	index, insert := getGroup(lm, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
 		data.Rows = make([]int64, len(old)+1)
@@ -162,29 +163,29 @@ func (data *Int64Data) modify(at time.Time, tagMap core.TagMap, f func(v int64) 
 	return &frozen
 }
 
-func (data *Int64Data) count(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v int64) int64 {
+func (data *Int64Data) count(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v int64) int64 {
 		return v + 1
 	})
 }
 
-func (data *Int64Data) sum(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v int64) int64 {
-		return v + data.key.From(tag)
+func (data *Int64Data) sum(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v int64) int64 {
+		return v + data.key.From(l)
 	})
 }
 
-func (data *Int64Data) latest(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v int64) int64 {
-		return data.key.From(tag)
+func (data *Int64Data) latest(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v int64) int64 {
+		return data.key.From(l)
 	})
 }
 
-func (data *Float64Data) Handle() string       { return data.Info.Name }
-func (data *Float64Data) Groups() [][]core.Tag { return data.groups }
+func (data *Float64Data) Handle() string          { return data.Info.Name }
+func (data *Float64Data) Groups() [][]label.Label { return data.groups }
 
-func (data *Float64Data) modify(at time.Time, tagMap core.TagMap, f func(v float64) float64) Data {
-	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
+func (data *Float64Data) modify(at time.Time, lm label.Map, f func(v float64) float64) Data {
+	index, insert := getGroup(lm, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
 		data.Rows = make([]float64, len(old)+1)
@@ -200,23 +201,23 @@ func (data *Float64Data) modify(at time.Time, tagMap core.TagMap, f func(v float
 	return &frozen
 }
 
-func (data *Float64Data) sum(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v float64) float64 {
-		return v + data.key.From(tag)
+func (data *Float64Data) sum(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v float64) float64 {
+		return v + data.key.From(l)
 	})
 }
 
-func (data *Float64Data) latest(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v float64) float64 {
-		return data.key.From(tag)
+func (data *Float64Data) latest(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v float64) float64 {
+		return data.key.From(l)
 	})
 }
 
-func (data *HistogramInt64Data) Handle() string       { return data.Info.Name }
-func (data *HistogramInt64Data) Groups() [][]core.Tag { return data.groups }
+func (data *HistogramInt64Data) Handle() string          { return data.Info.Name }
+func (data *HistogramInt64Data) Groups() [][]label.Label { return data.groups }
 
-func (data *HistogramInt64Data) modify(at time.Time, tagMap core.TagMap, f func(v *HistogramInt64Row)) Data {
-	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
+func (data *HistogramInt64Data) modify(at time.Time, lm label.Map, f func(v *HistogramInt64Row)) Data {
+	index, insert := getGroup(lm, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramInt64Row
 	if insert {
@@ -238,9 +239,9 @@ func (data *HistogramInt64Data) modify(at time.Time, tagMap core.TagMap, f func(
 	return &frozen
 }
 
-func (data *HistogramInt64Data) record(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v *HistogramInt64Row) {
-		value := data.key.From(tag)
+func (data *HistogramInt64Data) record(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v *HistogramInt64Row) {
+		value := data.key.From(l)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value
@@ -257,11 +258,11 @@ func (data *HistogramInt64Data) record(at time.Time, tagMap core.TagMap, tag cor
 	})
 }
 
-func (data *HistogramFloat64Data) Handle() string       { return data.Info.Name }
-func (data *HistogramFloat64Data) Groups() [][]core.Tag { return data.groups }
+func (data *HistogramFloat64Data) Handle() string          { return data.Info.Name }
+func (data *HistogramFloat64Data) Groups() [][]label.Label { return data.groups }
 
-func (data *HistogramFloat64Data) modify(at time.Time, tagMap core.TagMap, f func(v *HistogramFloat64Row)) Data {
-	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
+func (data *HistogramFloat64Data) modify(at time.Time, lm label.Map, f func(v *HistogramFloat64Row)) Data {
+	index, insert := getGroup(lm, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramFloat64Row
 	if insert {
@@ -283,9 +284,9 @@ func (data *HistogramFloat64Data) modify(at time.Time, tagMap core.TagMap, f fun
 	return &frozen
 }
 
-func (data *HistogramFloat64Data) record(at time.Time, tagMap core.TagMap, tag core.Tag) Data {
-	return data.modify(at, tagMap, func(v *HistogramFloat64Row) {
-		value := data.key.From(tag)
+func (data *HistogramFloat64Data) record(at time.Time, lm label.Map, l label.Label) Data {
+	return data.modify(at, lm, func(v *HistogramFloat64Row) {
+		value := data.key.From(l)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value

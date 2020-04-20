@@ -45,13 +45,13 @@ type DoubleAttribute struct {
 }
 
 type Attribute interface {
-	tagAttribute()
+	labelAttribute()
 }
 
-func (StringAttribute) tagAttribute() {}
-func (IntAttribute) tagAttribute()    {}
-func (BoolAttribute) tagAttribute()   {}
-func (DoubleAttribute) tagAttribute() {}
+func (StringAttribute) labelAttribute() {}
+func (IntAttribute) labelAttribute()    {}
+func (BoolAttribute) labelAttribute()   {}
+func (DoubleAttribute) labelAttribute() {}
 
 type StackTrace struct {
 	StackFrames      *StackFrames `json:"stack_frames,omitempty"`

@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 )
 
@@ -173,17 +173,17 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 		}
 		switch msg := msg.(type) {
 		case Request:
-			tags := []core.Tag{
+			labels := []label.Label{
 				tag.Method.Of(msg.Method()),
 				tag.RPCDirection.Of(tag.Inbound),
 				{}, // reserved for ID if present
 			}
 			if call, ok := msg.(*Call); ok {
-				tags[len(tags)-1] = tag.RPCID.Of(fmt.Sprintf("%q", call.ID()))
+				labels[len(labels)-1] = tag.RPCID.Of(fmt.Sprintf("%q", call.ID()))
 			} else {
-				tags = tags[:len(tags)-1]
+				labels = labels[:len(labels)-1]
 			}
-			reqCtx, spanDone := event.Start(runCtx, msg.Method(), tags...)
+			reqCtx, spanDone := event.Start(runCtx, msg.Method(), labels...)
 			event.Metric(reqCtx,
 				tag.Started.Of(1),
 				tag.ReceivedBytes.Of(n))

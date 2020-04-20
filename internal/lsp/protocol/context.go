@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -18,7 +19,7 @@ func WithClient(ctx context.Context, client Client) context.Context {
 	return context.WithValue(ctx, clientKey, client)
 }
 
-func LogEvent(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
+func LogEvent(ctx context.Context, ev core.Event, tags label.Map) context.Context {
 	if !ev.IsLog() {
 		return ctx
 	}

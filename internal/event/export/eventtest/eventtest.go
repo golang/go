@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/label"
 )
 
 func init() {
@@ -48,11 +49,11 @@ type testExporter struct {
 	logger event.Exporter
 }
 
-func (w *testExporter) processEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func (w *testExporter) processEvent(ctx context.Context, ev core.Event, tm label.Map) context.Context {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	// build our log message in buffer
-	result := w.logger(ctx, ev, tagMap)
+	result := w.logger(ctx, ev, tm)
 	v := ctx.Value(testingKey)
 	// get the testing.TB
 	if w.buffer.Len() > 0 && v != nil {

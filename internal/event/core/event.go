@@ -8,6 +8,8 @@ package core
 import (
 	"fmt"
 	"time"
+
+	"golang.org/x/tools/internal/event/label"
 )
 
 type eventType uint8
@@ -22,27 +24,26 @@ const (
 	RecordType    // a value that should be tracked
 )
 
-// sTags is used to hold a small number of tags inside an event whichout
-// requiring a separate allocation.
-// As tags are often on the stack, this avoids an allocation at all for
-// the very common cases of simple events.
-// The length needs to be large enough to cope with the majority of events
-// but no so large as to cause undue stack pressure.
-// A log message with two values will use 3 tags (one for each value and
-// one for the message itself).
-type sTags [3]Tag
-
 // Event holds the information about an event of note that ocurred.
 type Event struct {
 	At time.Time
 
-	typ     eventType
-	static  sTags // inline storage for the first few tags
-	dynamic []Tag // dynamically sized storage for remaining tags
+	typ eventType
+
+	// As events are often on the stack, storing the first few labels directly
+	// in the event can avoid an allocation at all for the very common cases of
+	// simple events.
+	// The length needs to be large enough to cope with the majority of events
+	// but no so large as to cause undue stack pressure.
+	// A log message with two values will use 3 labels (one for each value and
+	// one for the message itself).
+
+	static  [3]label.Label // inline storage for the first few labels
+	dynamic []label.Label  // dynamically sized storage for remaining labels
 }
 
-// eventTagMap implements TagMap for a the tags of an Event.
-type eventTagMap struct {
+// eventLabelMap implements label.Map for a the labels of an Event.
+type eventLabelMap struct {
 	event Event
 }
 
@@ -54,12 +55,12 @@ func (ev Event) IsDetach() bool    { return ev.typ == DetachType }
 func (ev Event) IsRecord() bool    { return ev.typ == RecordType }
 
 func (ev Event) Format(f fmt.State, r rune) {
-	tagMap := TagMap(ev)
+	lm := label.Map(ev)
 	if !ev.At.IsZero() {
 		fmt.Fprint(f, ev.At.Format("2006/01/02 15:04:05 "))
 	}
-	msg := Msg.Get(tagMap)
-	err := Err.Get(tagMap)
+	msg := Msg.Get(lm)
+	err := Err.Get(lm)
 	fmt.Fprint(f, msg)
 	if err != nil {
 		if f.Flag('+') {
@@ -69,13 +70,13 @@ func (ev Event) Format(f fmt.State, r rune) {
 		}
 	}
 	for index := 0; ev.Valid(index); index++ {
-		tag := ev.Tag(index)
+		l := ev.Label(index)
 		// msg and err were both already printed above, so we skip them to avoid
 		// double printing
-		if !tag.Valid() || tag.Key() == Msg || tag.Key() == Err {
+		if !l.Valid() || l.Key() == Msg || l.Key() == Err {
 			continue
 		}
-		fmt.Fprintf(f, "\n\t%v", tag)
+		fmt.Fprintf(f, "\n\t%v", l)
 	}
 }
 
@@ -83,31 +84,31 @@ func (ev Event) Valid(index int) bool {
 	return index >= 0 && index < len(ev.static)+len(ev.dynamic)
 }
 
-func (ev Event) Tag(index int) Tag {
+func (ev Event) Label(index int) label.Label {
 	if index < len(ev.static) {
 		return ev.static[index]
 	}
 	return ev.dynamic[index-len(ev.static)]
 }
 
-func (ev Event) Find(key Key) Tag {
-	for _, tag := range ev.static {
-		if tag.Key() == key {
-			return tag
+func (ev Event) Find(key label.Key) label.Label {
+	for _, l := range ev.static {
+		if l.Key() == key {
+			return l
 		}
 	}
-	for _, tag := range ev.dynamic {
-		if tag.Key() == key {
-			return tag
+	for _, l := range ev.dynamic {
+		if l.Key() == key {
+			return l
 		}
 	}
-	return Tag{}
+	return label.Label{}
 }
 
-func MakeEvent(typ eventType, static [3]Tag, tags []Tag) Event {
+func MakeEvent(typ eventType, static [3]label.Label, labels []label.Label) Event {
 	return Event{
 		typ:     typ,
 		static:  static,
-		dynamic: tags,
+		dynamic: labels,
 	}
 }

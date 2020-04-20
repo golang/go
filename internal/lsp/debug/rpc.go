@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 )
 
@@ -77,7 +78,7 @@ type rpcCodeBucket struct {
 	Count int64
 }
 
-func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -91,8 +92,8 @@ func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagM
 			endRPC(ctx, ev, span, stats)
 		}
 	case ev.IsRecord():
-		sent := byteUnits(tag.SentBytes.Get(tagMap))
-		rec := byteUnits(tag.ReceivedBytes.Get(tagMap))
+		sent := byteUnits(tag.SentBytes.Get(lm))
+		rec := byteUnits(tag.ReceivedBytes.Get(lm))
 		if sent != 0 || rec != 0 {
 			if _, stats := r.getRPCSpan(ctx, ev); stats != nil {
 				stats.Sent += sent
@@ -161,13 +162,13 @@ func (r *rpcs) getRPCSpan(ctx context.Context, ev core.Event) (*export.Span, *rp
 	return span, r.getRPCStats(span.Start())
 }
 
-func (r *rpcs) getRPCStats(tagMap core.TagMap) *rpcStats {
-	method := tag.Method.Get(tagMap)
+func (r *rpcs) getRPCStats(lm label.Map) *rpcStats {
+	method := tag.Method.Get(lm)
 	if method == "" {
 		return nil
 	}
 	set := &r.Inbound
-	if tag.RPCDirection.Get(tagMap) != tag.Inbound {
+	if tag.RPCDirection.Get(lm) != tag.Inbound {
 		set = &r.Outbound
 	}
 	// get the record for this method

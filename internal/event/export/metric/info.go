@@ -4,7 +4,10 @@
 
 package metric
 
-import "golang.org/x/tools/internal/event/core"
+import (
+	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
+)
 
 // Scalar represents the construction information for a scalar metric.
 type Scalar struct {
@@ -12,8 +15,8 @@ type Scalar struct {
 	Name string
 	// Description can be used by observers to describe the metric to users.
 	Description string
-	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []core.Key
+	// Keys is the set of labels that collectively describe rows of the metric.
+	Keys []label.Key
 }
 
 // HistogramInt64 represents the construction information for an int64 histogram metric.
@@ -22,8 +25,8 @@ type HistogramInt64 struct {
 	Name string
 	// Description can be used by observers to describe the metric to users.
 	Description string
-	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []core.Key
+	// Keys is the set of labels that collectively describe rows of the metric.
+	Keys []label.Key
 	// Buckets holds the inclusive upper bound of each bucket in the histogram.
 	Buckets []int64
 }
@@ -34,8 +37,8 @@ type HistogramFloat64 struct {
 	Name string
 	// Description can be used by observers to describe the metric to users.
 	Description string
-	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []core.Key
+	// Keys is the set of labels that collectively describe rows of the metric.
+	Keys []label.Key
 	// Buckets holds the inclusive upper bound of each bucket in the histogram.
 	Buckets []float64
 }
@@ -43,7 +46,7 @@ type HistogramFloat64 struct {
 // Count creates a new metric based on the Scalar information that counts
 // the number of times the supplied int64 measure is set.
 // Metrics of this type will use Int64Data.
-func (info Scalar) Count(e *Config, key core.Key) {
+func (info Scalar) Count(e *Config, key label.Key) {
 	data := &Int64Data{Info: &info, key: nil}
 	e.subscribe(key, data.count)
 }

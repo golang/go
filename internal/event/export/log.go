@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 )
 
 // LogWriter returns an Exporter that logs events to the supplied writer.
@@ -30,10 +31,10 @@ type logWriter struct {
 	onlyErrors bool
 }
 
-func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	switch {
 	case ev.IsLog():
-		if w.onlyErrors && core.Err.Get(tagMap) == nil {
+		if w.onlyErrors && core.Err.Get(lm) == nil {
 			return ctx
 		}
 		w.mu.Lock()
@@ -43,21 +44,21 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, tagMap core
 		if !ev.At.IsZero() {
 			w.writer.Write(ev.At.AppendFormat(buf, "2006/01/02 15:04:05 "))
 		}
-		msg := core.Msg.Get(tagMap)
+		msg := core.Msg.Get(lm)
 		io.WriteString(w.writer, msg)
-		if err := core.Err.Get(tagMap); err != nil {
+		if err := core.Err.Get(lm); err != nil {
 			io.WriteString(w.writer, ": ")
 			io.WriteString(w.writer, err.Error())
 		}
 		for index := 0; ev.Valid(index); index++ {
-			tag := ev.Tag(index)
-			if !tag.Valid() || tag.Key() == core.Msg || tag.Key() == core.Err {
+			l := ev.Label(index)
+			if !l.Valid() || l.Key() == core.Msg || l.Key() == core.Err {
 				continue
 			}
 			io.WriteString(w.writer, "\n\t")
-			io.WriteString(w.writer, tag.Key().Name())
+			io.WriteString(w.writer, l.Key().Name())
 			io.WriteString(w.writer, "=")
-			tag.Key().Format(w.writer, buf, tag)
+			l.Key().Format(w.writer, buf, l)
 		}
 		io.WriteString(w.writer, "\n")
 

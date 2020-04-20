@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent/wire"
+	"golang.org/x/tools/internal/event/label"
 )
 
 type Config struct {
@@ -85,7 +86,7 @@ func Connect(config *Config) *Exporter {
 	return exporter
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	switch {
 	case ev.IsEndSpan():
 		e.mu.Lock()
@@ -97,7 +98,7 @@ func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.
 	case ev.IsRecord():
 		e.mu.Lock()
 		defer e.mu.Unlock()
-		data := metric.Entries.Get(tagMap).([]metric.Data)
+		data := metric.Entries.Get(lm).([]metric.Data)
 		e.metrics = append(e.metrics, data...)
 	}
 	return ctx
@@ -200,7 +201,7 @@ func convertSpan(span *export.Span) *wire.Span {
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start().At),
 		EndTime:                 convertTimestamp(span.Finish().At),
-		Attributes:              convertAttributes(core.Filter(span.Start(), core.Name)),
+		Attributes:              convertAttributes(label.Filter(span.Start(), core.Name)),
 		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -227,68 +228,68 @@ func convertMetric(data metric.Data, start time.Time) *wire.Metric {
 	}
 }
 
-func skipToValidTag(l core.TagList) (int, core.Tag) {
-	// skip to the first valid tag
-	for index := 0; l.Valid(index); index++ {
-		if tag := l.Tag(index); tag.Valid() {
-			return index, tag
+func skipToValidLabel(list label.List) (int, label.Label) {
+	// skip to the first valid label
+	for index := 0; list.Valid(index); index++ {
+		if l := list.Label(index); l.Valid() {
+			return index, l
 		}
 	}
-	return -1, core.Tag{}
+	return -1, label.Label{}
 }
 
-func convertAttributes(l core.TagList) *wire.Attributes {
-	index, tag := skipToValidTag(l)
-	if !tag.Valid() {
+func convertAttributes(list label.List) *wire.Attributes {
+	index, l := skipToValidLabel(list)
+	if !l.Valid() {
 		return nil
 	}
 	attributes := make(map[string]wire.Attribute)
 	for {
-		if tag.Valid() {
-			attributes[tag.Key().Name()] = convertAttribute(tag)
+		if l.Valid() {
+			attributes[l.Key().Name()] = convertAttribute(l)
 		}
 		index++
-		if !l.Valid(index) {
+		if !list.Valid(index) {
 			return &wire.Attributes{AttributeMap: attributes}
 		}
-		tag = l.Tag(index)
+		l = list.Label(index)
 	}
 }
 
-func convertAttribute(tag core.Tag) wire.Attribute {
-	switch key := tag.Key().(type) {
+func convertAttribute(l label.Label) wire.Attribute {
+	switch key := l.Key().(type) {
 	case *core.IntKey:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.Int8Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.Int16Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.Int32Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.Int64Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.UIntKey:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.UInt8Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.UInt16Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.UInt32Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.UInt64Key:
-		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+		return wire.IntAttribute{IntValue: int64(key.From(l))}
 	case *core.Float32Key:
-		return wire.DoubleAttribute{DoubleValue: float64(key.From(tag))}
+		return wire.DoubleAttribute{DoubleValue: float64(key.From(l))}
 	case *core.Float64Key:
-		return wire.DoubleAttribute{DoubleValue: key.From(tag)}
+		return wire.DoubleAttribute{DoubleValue: key.From(l)}
 	case *core.BooleanKey:
-		return wire.BoolAttribute{BoolValue: key.From(tag)}
+		return wire.BoolAttribute{BoolValue: key.From(l)}
 	case *core.StringKey:
-		return wire.StringAttribute{StringValue: toTruncatableString(key.From(tag))}
+		return wire.StringAttribute{StringValue: toTruncatableString(key.From(l))}
 	case *core.ErrorKey:
-		return wire.StringAttribute{StringValue: toTruncatableString(key.From(tag).Error())}
+		return wire.StringAttribute{StringValue: toTruncatableString(key.From(l).Error())}
 	case *core.ValueKey:
-		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprint(key.From(tag)))}
+		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprint(key.From(l)))}
 	default:
 		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprintf("%T", key))}
 	}
@@ -311,21 +312,21 @@ func convertEvent(ev core.Event) wire.TimeEvent {
 }
 
 func convertAnnotation(ev core.Event) *wire.Annotation {
-	if _, tag := skipToValidTag(ev); !tag.Valid() {
+	if _, l := skipToValidLabel(ev); !l.Valid() {
 		return nil
 	}
-	tagMap := core.TagMap(ev)
-	description := core.Msg.Get(tagMap)
-	tags := core.Filter(ev, core.Msg)
+	lm := label.Map(ev)
+	description := core.Msg.Get(lm)
+	labels := label.Filter(ev, core.Msg)
 	if description == "" {
-		err := core.Err.Get(tagMap)
-		tags = core.Filter(tags, core.Err)
+		err := core.Err.Get(lm)
+		labels = label.Filter(labels, core.Err)
 		if err != nil {
 			description = err.Error()
 		}
 	}
 	return &wire.Annotation{
 		Description: toTruncatableString(description),
-		Attributes:  convertAttributes(tags),
+		Attributes:  convertAttributes(labels),
 	}
 }

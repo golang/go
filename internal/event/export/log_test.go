@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/label"
 )
 
 func ExampleLog() {
@@ -31,8 +32,8 @@ func ExampleLog() {
 
 func timeFixer(output event.Exporter) event.Exporter {
 	at, _ := time.Parse(time.RFC3339Nano, "2020-03-05T14:27:48Z")
-	return func(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		ev.At = at
-		return output(ctx, ev, tagMap)
+		return output(ctx, ev, lm)
 	}
 }

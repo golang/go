@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/label"
 )
 
 type SpanContext struct {
@@ -45,11 +46,11 @@ func GetSpan(ctx context.Context) *Span {
 
 // Spans creates an exporter that maintains hierarchical span structure in the
 // context.
-// It creates new spans on EventStartSpan, adds events to the current span on
-// EventLog or EventTag, and closes the span on EventEndSpan.
+// It creates new spans on start events, adds events to the current span on
+// log or label, and closes the span on end events.
 // The span structure can then be used by other exporters.
 func Spans(output event.Exporter) event.Exporter {
-	return func(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		switch {
 		case ev.IsLog(), ev.IsLabel():
 			if span := GetSpan(ctx); span != nil {
@@ -59,7 +60,7 @@ func Spans(output event.Exporter) event.Exporter {
 			}
 		case ev.IsStartSpan():
 			span := &Span{
-				Name:  core.Name.Get(tagMap),
+				Name:  core.Name.Get(lm),
 				start: ev,
 			}
 			if parent := GetSpan(ctx); parent != nil {
@@ -79,7 +80,7 @@ func Spans(output event.Exporter) event.Exporter {
 		case ev.IsDetach():
 			ctx = context.WithValue(ctx, spanContextKey, nil)
 		}
-		return output(ctx, ev, tagMap)
+		return output(ctx, ev, lm)
 	}
 }
 
