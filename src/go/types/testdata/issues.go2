@@ -174,14 +174,14 @@ func (l *List(T)) Init() {
 }
 
 // This is the original program causing the same issue.
-type Element(type TElem) struct {
-	next, prev *Element(TElem)
+type Element2(type TElem) struct {
+	next, prev *Element2(TElem)
 	list *List2(TElem)
 	Value TElem
 }
 
 type List2(type TElem) struct {
-	root Element(TElem)
+	root Element2(TElem)
 	len  int
 }
 
@@ -190,4 +190,30 @@ func (l *List2(TElem)) Init() *List2(TElem) {
 	l.root.prev = &l.root
 	l.len = 0
 	return l
+}
+
+// Self-recursive instantiations must work correctly.
+type A(type P) struct { _ *A(P) }
+
+type AB(type P) struct { _ *BA(P) }
+type BA(type P) struct { _ *AB(P) }
+
+// And a variation that also caused a problem with an
+// unresolved underlying type.
+type Element3(type TElem) struct {
+	next, prev *Element3(TElem)
+	list *List3(TElem)
+	Value TElem
+}
+
+func (e *Element3(TElem)) Next() *Element3(TElem) {
+	if p := e.next; e.list != nil && p != &e.list.root {
+		return p
+	}
+	return nil
+}
+
+type List3(type TElem) struct {
+	root Element3(TElem)
+	len  int
 }

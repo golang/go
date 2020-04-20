@@ -13,30 +13,36 @@ contract _C(T) {
 	* /* ERROR not yet supported */ T m()
 }
 
-// indexing on generic types containing type parameters in their type list
-// is not yet supported
+// Indexing on generic types containing type parameters in their type list
+// is not yet supported.
 func _(type T interface { type T })(x T) {
         _ = x /* ERROR type parameter */ /* ERROR cannot index */ [0]
 }
 
-// channel sends and receives on generic types is not yet supported
+// Indexing a generic type with an array type bound should check length.
+// (Example by mdempsky@.)
+func _(type T interface { type [10]int })(x T) {
+	_ = x[20] // this should report a compile-time error
+}
+
+// Channel sends and receives on generic types is not yet supported.
 func _(type T interface{ type chan int })(ch T) {
 	ch <- /* ERROR cannot send */ 0
 	_ = <- ch /* ERROR cannot receive */
 }
 
-// pointer indirection of generic types is not yet supported
+// Pointer indirection of generic types is not yet supported.
 func _(type T interface{ type *int })(p T) {
 	_ = *p /* ERROR cannot indirect */
 }
 
-// calling of a generic variable is not yet supported
+// Calling of a generic variable is not yet supported.
 func _(type T interface{ type func() })(f T) {
 	f /* ERROR cannot call */ ()
 	go f /* ERROR cannot call */ ()
 }
 
-// need to investigate the exact nature of a generic type (is it a named type)?
+// Need to investigate the exact nature of a generic type (is it a named type)?
 func _(type T interface{ type int})(x T) {
 	type myint int
 	var _ int = x /* ERROR cannot use */
@@ -56,3 +62,6 @@ func _() {
    _ = [](T1(int)){}                          // this works
    _ = [](T2(int, string)){}                  // T2(int, float) cannot be a conversion - should not need ()'s
 }
+
+// Infinite generic type declarations should lead to an error.
+type inf(type T) struct{ _ inf(T) } // should report an error

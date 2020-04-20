@@ -4,6 +4,9 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- fix endless instantiation when printing: type T(type P) T(P)
+- report error for infinite type: type A(type P) struct { _ A(P) }
+- review all direct accesses to Named.underlying and verify that they are still correct
 - track contract origin in interface bounds for better error messages
 - better error message when we need parentheses around a parameterized function parameter type
 - revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)

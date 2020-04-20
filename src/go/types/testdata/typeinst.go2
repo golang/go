@@ -44,3 +44,8 @@ var _ List(List(List(int)))
 type T3(type P) List(P)
 
 var _ T3(int) = T3(int)(List(int){1, 2, 3})
+
+// Self-recursive generic types are not permitted
+
+type self1(type P) self1 /* ERROR illegal cycle */ (P)
+type self2(type P) *self2(P) // this is ok
