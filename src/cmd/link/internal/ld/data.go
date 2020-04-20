@@ -1145,26 +1145,26 @@ func Addstring(s *sym.Symbol, str string) int64 {
 
 // addgostring adds str, as a Go string value, to s. symname is the name of the
 // symbol used to define the string data and must be unique per linked object.
-func addgostring(ctxt *Link, s *sym.Symbol, symname, str string) {
-	sdata := ctxt.Syms.Lookup(symname, 0)
-	if sdata.Type != sym.Sxxx {
-		Errorf(s, "duplicate symname in addgostring: %s", symname)
+func addgostring(ctxt *Link, ldr *loader.Loader, s *loader.SymbolBuilder, symname, str string) {
+	sdata := ldr.CreateSymForUpdate(symname, 0)
+	if sdata.Type() != sym.Sxxx {
+		ctxt.Errorf(s.Sym(), "duplicate symname in addgostring: %s", symname)
 	}
-	sdata.Attr |= sym.AttrReachable
-	sdata.Attr |= sym.AttrLocal
-	sdata.Type = sym.SRODATA
-	sdata.Size = int64(len(str))
-	sdata.P = []byte(str)
-	s.AddAddr(ctxt.Arch, sdata)
+	sdata.SetReachable(true)
+	sdata.SetLocal(true)
+	sdata.SetType(sym.SRODATA)
+	sdata.SetSize(int64(len(str)))
+	sdata.SetData([]byte(str))
+	s.AddAddr(ctxt.Arch, sdata.Sym())
 	s.AddUint(ctxt.Arch, uint64(len(str)))
 }
 
-func addinitarrdata(ctxt *Link, s *sym.Symbol) {
-	p := s.Name + ".ptr"
-	sp := ctxt.Syms.Lookup(p, 0)
-	sp.Type = sym.SINITARR
-	sp.Size = 0
-	sp.Attr |= sym.AttrDuplicateOK
+func addinitarrdata(ctxt *Link, ldr *loader.Loader, s loader.Sym) {
+	p := ldr.SymName(s) + ".ptr"
+	sp := ldr.CreateSymForUpdate(p, 0)
+	sp.SetType(sym.SINITARR)
+	sp.SetSize(0)
+	sp.SetDuplicateOK(true)
 	sp.AddAddr(ctxt.Arch, s)
 }
 

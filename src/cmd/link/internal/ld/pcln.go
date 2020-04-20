@@ -234,10 +234,8 @@ func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader
 var pclntabNfunc int32
 var pclntabFiletabOffset int32
 var pclntabPclntabOffset int32
-var pclntabFirstFunc *sym.Symbol
-var pclntabLastFunc *sym.Symbol
-var pclntabFirstFunc2 loader.Sym
-var pclntabLastFunc2 loader.Sym
+var pclntabFirstFunc loader.Sym
+var pclntabLastFunc loader.Sym
 
 // pclntab generates the pcln table for the link output. Return value
 // is a bitmap indexed by global symbol that marks 'container' text
@@ -276,8 +274,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 			continue
 		}
 		nfunc++
-		if pclntabFirstFunc2 == 0 {
-			pclntabFirstFunc2 = s
+		if pclntabFirstFunc == 0 {
+			pclntabFirstFunc = s
 		}
 		ss := ldr.SymSect(s)
 		if ss != prevSect {
@@ -527,7 +525,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	}
 
 	last := ctxt.Textp2[len(ctxt.Textp2)-1]
-	pclntabLastFunc2 = last
+	pclntabLastFunc = last
 	// Final entry of table is just end pc.
 	setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
 
