@@ -1909,8 +1909,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 	// Resolve ABI aliases for external symbols. This is only
 	// needed for internal cgo linking.
-	// (The old code does this in deadcode, but deadcode2 doesn't
-	// do this.)
 	for _, i := range l.extReader.syms {
 		if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
 			for ri := range s.R {

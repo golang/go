@@ -2772,6 +2772,24 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 	*order = append(*order, lib)
 }
 
+// addToTextp populates the context Textp slice.
+func addToTextp(ctxt *Link) {
+	// Set up ctxt.Textp, based on ctxt.Textp2.
+	textp := make([]*sym.Symbol, 0, len(ctxt.Textp2))
+	haveshlibs := len(ctxt.Shlibs) > 0
+	for _, tsym := range ctxt.Textp2 {
+		sp := ctxt.loader.Syms[tsym]
+		if sp == nil || !ctxt.loader.AttrReachable(tsym) {
+			panic("should never happen")
+		}
+		if haveshlibs && sp.Type == sym.SDYNIMPORT {
+			continue
+		}
+		textp = append(textp, sp)
+	}
+	ctxt.Textp = textp
+}
+
 func (ctxt *Link) loadlibfull() {
 
 	// Load full symbol contents, resolve indexed references.
