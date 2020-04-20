@@ -1571,7 +1571,7 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 		break
 	}
 	// match: (And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c])))
-	// cond: c >= int64(64-ntz16(m))
+	// cond: c >= int64(16-ntz16(m))
 	// result: (Const16 [0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1588,7 +1588,7 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1_1.AuxInt)
-			if !(c >= int64(64-ntz16(m))) {
+			if !(c >= int64(16-ntz16(m))) {
 				continue
 			}
 			v.reset(OpConst16)
@@ -1769,7 +1769,7 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 		break
 	}
 	// match: (And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c])))
-	// cond: c >= int64(64-ntz32(m))
+	// cond: c >= int64(32-ntz32(m))
 	// result: (Const32 [0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1786,7 +1786,7 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1_1.AuxInt)
-			if !(c >= int64(64-ntz32(m))) {
+			if !(c >= int64(32-ntz32(m))) {
 				continue
 			}
 			v.reset(OpConst32)
@@ -2165,7 +2165,7 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 		break
 	}
 	// match: (And8 (Const8 [m]) (Rsh8Ux64 _ (Const64 [c])))
-	// cond: c >= int64(64-ntz8(m))
+	// cond: c >= int64(8-ntz8(m))
 	// result: (Const8 [0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -2182,7 +2182,7 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1_1.AuxInt)
-			if !(c >= int64(64-ntz8(m))) {
+			if !(c >= int64(8-ntz8(m))) {
 				continue
 			}
 			v.reset(OpConst8)

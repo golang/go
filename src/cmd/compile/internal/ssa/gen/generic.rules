@@ -448,9 +448,9 @@
 
 // (x >> c) & uppermask = 0
 (And64 (Const64 [m]) (Rsh64Ux64 _ (Const64 [c]))) && c >= int64(64-ntz64(m)) => (Const64 [0])
-(And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c]))) && c >= int64(64-ntz32(m)) => (Const32 [0])
-(And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c]))) && c >= int64(64-ntz16(m)) => (Const16 [0])
-(And8  (Const8  [m]) (Rsh8Ux64  _ (Const64 [c]))) && c >= int64(64-ntz8(m))  => (Const8  [0])
+(And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c]))) && c >= int64(32-ntz32(m)) => (Const32 [0])
+(And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c]))) && c >= int64(16-ntz16(m)) => (Const16 [0])
+(And8  (Const8  [m]) (Rsh8Ux64  _ (Const64 [c]))) && c >= int64(8-ntz8(m))  => (Const8  [0])
 
 // (x << c) & lowermask = 0
 (And64 (Const64 [m]) (Lsh64x64  _ (Const64 [c]))) && c >= int64(64-nlz64(m)) => (Const64 [0])
