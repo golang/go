@@ -579,7 +579,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 				return
 			}
 		} else {
-			if url[len(url)-1] == '/' {
+			if url[len(url)-1] == '/' && url !="/" {
 				localRedirect(w, r, "../"+path.Base(url))
 				return
 			}
