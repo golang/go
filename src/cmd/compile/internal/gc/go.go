@@ -47,10 +47,6 @@ func isRuntimePkg(p *types.Pkg) bool {
 
 // isReflectPkg reports whether p is package reflect.
 func isReflectPkg(p *types.Pkg) bool {
-	// TODO(cuonglm): how to get rid this check.
-	if p == nil {
-		return false
-	}
 	if p == localpkg {
 		return myimportpath == "reflect"
 	}
