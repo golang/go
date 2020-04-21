@@ -134,7 +134,7 @@ func dwarfcompress(ctxt *Link) {
 			Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
 		} else {
 			compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
-			sect := addsection(ctxt.Arch, &Segdwarf, compressedSegName, 04)
+			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
 			sect.Length = uint64(len(z.compressed))
 			newSym := ctxt.Syms.Lookup(compressedSegName, 0)
 			newSym.P = z.compressed

@@ -198,7 +198,9 @@ type Loader struct {
 	payloadBatch []extSymPayload
 	payloads     []*extSymPayload // contents of linker-materialized external syms
 	values       []int64          // symbol values, indexed by global sym index
-	sects        []*sym.Section   // symbol's section, indexed by global index
+
+	sects    []*sym.Section // sections
+	symSects []uint16       // symbol's section, index to sects array
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -326,6 +328,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
 		elfsetstring:         elfsetstring,
+		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
 }
 
@@ -990,7 +993,6 @@ func (l *Loader) growValues(reqLen int) {
 	curLen := len(l.values)
 	if reqLen > curLen {
 		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
-		l.sects = append(l.sects, make([]*sym.Section, reqLen+1-curLen)...)
 	}
 }
 
@@ -1053,12 +1055,35 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 
 // SymValue returns the section of the i-th symbol. i is global index.
 func (l *Loader) SymSect(i Sym) *sym.Section {
-	return l.sects[i]
+	return l.sects[l.symSects[i]]
 }
 
 // SetSymValue sets the section of the i-th symbol. i is global index.
 func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
-	l.sects[i] = sect
+	if int(i) >= len(l.symSects) {
+		l.symSects = append(l.symSects, make([]uint16, l.NSym()-len(l.symSects))...)
+	}
+	l.symSects[i] = sect.Index
+}
+
+// growSects grows the slice used to store symbol sections.
+func (l *Loader) growSects(reqLen int) {
+	curLen := len(l.symSects)
+	if reqLen > curLen {
+		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
+	}
+}
+
+// NewSection creates a new (output) section.
+func (l *Loader) NewSection() *sym.Section {
+	sect := new(sym.Section)
+	idx := len(l.sects)
+	if idx != int(uint16(idx)) {
+		panic("too many sections created")
+	}
+	sect.Index = uint16(idx)
+	l.sects = append(l.sects, sect)
+	return sect
 }
 
 // SymDynImplib returns the "dynimplib" attribute for the specified
@@ -1842,6 +1867,7 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// create all Symbols first.
 	l.growSyms(l.NSym())
+	l.growSects(l.NSym())
 
 	nr := 0 // total number of sym.Reloc's we'll need
 	for _, o := range l.objs[1:] {

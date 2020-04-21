@@ -1518,7 +1518,7 @@ func (ctxt *Link) dodata() {
 // the section will go, "s" is the symbol to be placed into the new
 // section, and "rwx" contains permissions for the section.
 func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Symbol, rwx int) *sym.Section {
-	sect := addsection(state.ctxt.Arch, seg, s.Name, rwx)
+	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, s.Name, rwx)
 	sect.Align = symalign(s)
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	sect.Vaddr = uint64(state.datsize)
@@ -1531,7 +1531,7 @@ func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Sym
 // range of symbol types to be put into the section, and "rwx"
 // contains permissions for the section.
 func (state *dodataState) allocateNamedDataSection(seg *sym.Segment, sName string, types []sym.SymKind, rwx int) *sym.Section {
-	sect := addsection(state.ctxt.Arch, seg, sName, rwx)
+	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, sName, rwx)
 	if len(types) == 0 {
 		sect.Align = 1
 	} else if len(types) == 1 {
@@ -1718,7 +1718,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		var sect *sym.Section
 		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
-			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
+			sect = addsection(ctxt.loader, ctxt.Arch, &Segdata, ".tbss", 06)
 			sect.Align = int32(ctxt.Arch.PtrSize)
 			// FIXME: why does this need to be set to zero?
 			sect.Vaddr = 0
@@ -2119,7 +2119,7 @@ func (ctxt *Link) buildinfo() {
 
 // assign addresses to text
 func (ctxt *Link) textaddress() {
-	addsection(ctxt.Arch, &Segtext, ".text", 05)
+	addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
 
 	// Assign PCs in text segment.
 	// Could parallelize, by assigning to text
@@ -2231,7 +2231,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		sect.Length = va - sect.Vaddr
 
 		// Create new section, set the starting Vaddr
-		sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
+		sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
 		sect.Vaddr = va
 		ldr.SetSymSect(s, sect)
 

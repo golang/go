@@ -2218,8 +2218,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
 }
 
-func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
-	sect := new(sym.Section)
+func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+	sect := ldr.NewSection()
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
