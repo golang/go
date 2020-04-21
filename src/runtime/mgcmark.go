@@ -1161,7 +1161,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
-		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
+		bits := *addb(ptrmask, i/(sys.PtrSize*8))
 		if bits == 0 {
 			i += sys.PtrSize * 8
 			continue
