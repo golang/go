@@ -26,7 +26,7 @@ const (
 
 // Event holds the information about an event of note that ocurred.
 type Event struct {
-	At time.Time
+	at time.Time
 
 	typ eventType
 
@@ -47,6 +47,8 @@ type eventLabelMap struct {
 	event Event
 }
 
+func (ev Event) At() time.Time { return ev.at }
+
 func (ev Event) IsLog() bool       { return ev.typ == LogType }
 func (ev Event) IsEndSpan() bool   { return ev.typ == EndSpanType }
 func (ev Event) IsStartSpan() bool { return ev.typ == StartSpanType }
@@ -55,8 +57,8 @@ func (ev Event) IsDetach() bool    { return ev.typ == DetachType }
 func (ev Event) IsRecord() bool    { return ev.typ == RecordType }
 
 func (ev Event) Format(f fmt.State, r rune) {
-	if !ev.At.IsZero() {
-		fmt.Fprint(f, ev.At.Format("2006/01/02 15:04:05 "))
+	if !ev.at.IsZero() {
+		fmt.Fprint(f, ev.at.Format("2006/01/02 15:04:05 "))
 	}
 	for index := 0; ev.Valid(index); index++ {
 		l := ev.Label(index)
@@ -95,4 +97,10 @@ func MakeEvent(typ eventType, static [3]label.Label, labels []label.Label) Event
 		static:  static,
 		dynamic: labels,
 	}
+}
+
+// CloneEvent event returns a copy of the event with the time adjusted to at.
+func CloneEvent(ev Event, at time.Time) Event {
+	ev.at = at
+	return ev
 }

@@ -128,7 +128,7 @@ func endRPC(ctx context.Context, ev core.Event, span *export.Span, stats *rpcSta
 	}
 
 	// calculate latency if this was an rpc span
-	elapsedTime := span.Finish().At.Sub(span.Start().At)
+	elapsedTime := span.Finish().At().Sub(span.Start().At())
 	latencyMillis := timeUnits(elapsedTime) / timeUnits(time.Millisecond)
 	if stats.Latency.Count == 0 {
 		stats.Latency.Min = latencyMillis

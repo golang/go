@@ -130,11 +130,11 @@ func timeFixer(output event.Exporter) event.Exporter {
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		switch {
 		case ev.IsStartSpan():
-			ev.At = start
+			ev = core.CloneEvent(ev, start)
 		case ev.IsEndSpan():
-			ev.At = end
+			ev = core.CloneEvent(ev, end)
 		default:
-			ev.At = at
+			ev = core.CloneEvent(ev, at)
 		}
 		return output(ctx, ev, lm)
 	}

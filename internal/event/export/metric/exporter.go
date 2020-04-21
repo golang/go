@@ -48,7 +48,7 @@ func (e *Config) Exporter(output event.Exporter) event.Exporter {
 			id := l.Key()
 			if list := e.subscribers[id]; len(list) > 0 {
 				for _, s := range list {
-					metrics = append(metrics, s(ev.At, lm, l))
+					metrics = append(metrics, s(ev.At(), lm, l))
 				}
 			}
 		}

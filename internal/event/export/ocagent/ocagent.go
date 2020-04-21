@@ -200,8 +200,8 @@ func convertSpan(span *export.Span) *wire.Span {
 		ParentSpanID:            span.ParentID[:],
 		Name:                    toTruncatableString(span.Name),
 		Kind:                    wire.UnspecifiedSpanKind,
-		StartTime:               convertTimestamp(span.Start().At),
-		EndTime:                 convertTimestamp(span.Finish().At),
+		StartTime:               convertTimestamp(span.Start().At()),
+		EndTime:                 convertTimestamp(span.Finish().At()),
 		Attributes:              convertAttributes(label.Filter(span.Start(), keys.Name)),
 		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
@@ -307,7 +307,7 @@ func convertEvents(events []core.Event) *wire.TimeEvents {
 
 func convertEvent(ev core.Event) wire.TimeEvent {
 	return wire.TimeEvent{
-		Time:       convertTimestamp(ev.At),
+		Time:       convertTimestamp(ev.At()),
 		Annotation: convertAnnotation(ev),
 	}
 }

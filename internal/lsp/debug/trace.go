@@ -94,7 +94,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 			SpanID:   span.ID.SpanID,
 			ParentID: span.ParentID,
 			Name:     span.Name,
-			Start:    span.Start().At,
+			Start:    span.Start().At(),
 			Tags:     renderLabels(span.Start()),
 		}
 		t.unfinished[span.ID] = td
@@ -118,13 +118,13 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 		}
 		delete(t.unfinished, span.ID)
 
-		td.Finish = span.Finish().At
-		td.Duration = span.Finish().At.Sub(span.Start().At)
+		td.Finish = span.Finish().At()
+		td.Duration = span.Finish().At().Sub(span.Start().At())
 		events := span.Events()
 		td.Events = make([]traceEvent, len(events))
 		for i, event := range events {
 			td.Events[i] = traceEvent{
-				Time: event.At,
+				Time: event.At(),
 				Tags: renderLabels(event),
 			}
 		}

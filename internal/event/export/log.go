@@ -42,8 +42,8 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Ma
 		defer w.mu.Unlock()
 
 		buf := w.buffer[:0]
-		if !ev.At.IsZero() {
-			w.writer.Write(ev.At.AppendFormat(buf, "2006/01/02 15:04:05 "))
+		if !ev.At().IsZero() {
+			w.writer.Write(ev.At().AppendFormat(buf, "2006/01/02 15:04:05 "))
 		}
 		msg := keys.Msg.Get(lm)
 		io.WriteString(w.writer, msg)

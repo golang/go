@@ -40,7 +40,7 @@ func SetExporter(e Exporter) {
 // it will fill in the time.
 func deliver(ctx context.Context, exporter Exporter, ev Event) context.Context {
 	// add the current time to the event
-	ev.At = time.Now()
+	ev.at = time.Now()
 	// hand the event off to the current exporter
 	return exporter(ctx, ev, ev)
 }
