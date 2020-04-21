@@ -397,11 +397,11 @@ func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
 func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
 func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
 
-func oneBit(x int64) bool   { return x&(x-1) == 0 }
-func oneBit8(x int8) bool   { return x&(x-1) == 0 }
-func oneBit16(x int16) bool { return x&(x-1) == 0 }
-func oneBit32(x int32) bool { return x&(x-1) == 0 }
-func oneBit64(x int64) bool { return x&(x-1) == 0 }
+func oneBit(x int64) bool   { return bits.OnesCount64(uint64(x)) == 1 }
+func oneBit8(x int8) bool   { return bits.OnesCount8(uint8(x)) == 1 }
+func oneBit16(x int16) bool { return bits.OnesCount16(uint16(x)) == 1 }
+func oneBit32(x int32) bool { return bits.OnesCount32(uint32(x)) == 1 }
+func oneBit64(x int64) bool { return bits.OnesCount64(uint64(x)) == 1 }
 
 // nlo returns the number of leading ones.
 func nlo(x int64) int64 {
