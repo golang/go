@@ -379,7 +379,7 @@ type mspan struct {
 	// otherwise, object n is allocated. Bits starting at nelem are
 	// undefined and should never be referenced.
 	//
-	// Object n starts at address n*elemsize + (start << pageShift).
+	// Object n starts at address n*elemsize + s.base().
 	freeindex uintptr
 	// TODO: Look up nelems from sizeclass and remove this field if it
 	// helps performance.
