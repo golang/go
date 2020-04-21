@@ -34,6 +34,7 @@ type Workspace struct {
 	gopath   string
 	workdir  string
 	proxydir string
+	env      []string
 
 	watcherMu sync.Mutex
 	watchers  []func(context.Context, []FileEvent)
@@ -42,8 +43,11 @@ type Workspace struct {
 // NewWorkspace creates a named workspace populated by the txtar-encoded
 // content given by txt. It creates temporary directories for the workspace
 // content and for GOPATH.
-func NewWorkspace(name string, srctxt string, proxytxt string) (_ *Workspace, err error) {
-	w := &Workspace{name: name}
+func NewWorkspace(name, srctxt, proxytxt string, env ...string) (_ *Workspace, err error) {
+	w := &Workspace{
+		name: name,
+		env:  env,
+	}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
 		if err != nil {
@@ -219,12 +223,12 @@ func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
 // GoEnv returns the environment variables that should be used for invoking Go
 // commands in the workspace.
 func (w *Workspace) GoEnv() []string {
-	return []string{
+	return append([]string{
 		"GOPATH=" + w.GOPATH(),
 		"GOPROXY=" + w.GOPROXY(),
 		"GO111MODULE=",
 		"GOSUMDB=off",
-	}
+	}, w.env...)
 }
 
 // RunGoCommand executes a go command in the workspace.

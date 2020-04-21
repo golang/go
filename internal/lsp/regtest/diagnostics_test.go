@@ -344,3 +344,21 @@ func Hello() {
 		env.Await(env.DiagnosticAtRegexp("b/b.go", "x"))
 	})
 }
+
+func TestNoGOPATHIssue_37984(t *testing.T) {
+	const missingImport = `
+-- main.go --
+package main
+
+func _() {
+	fmt.Println("Hello World")
+}
+`
+	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
+		if err := env.E.OrganizeImports(env.Ctx, "main.go"); err == nil {
+			t.Fatalf("organize imports should fail with an empty GOPATH")
+		}
+	}, WithEnv("GOPATH="))
+}

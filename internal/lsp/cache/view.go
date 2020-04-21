@@ -388,6 +388,9 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 			processEnv.GOSUMDB = split[1]
 		}
 	}
+	if processEnv.GOPATH == "" {
+		return nil, fmt.Errorf("no GOPATH for view %s", v.folder)
+	}
 	return processEnv, nil
 }
 

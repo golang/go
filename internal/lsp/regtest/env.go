@@ -161,6 +161,7 @@ type runConfig struct {
 	modes    EnvMode
 	proxyTxt string
 	timeout  time.Duration
+	env      []string
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -202,6 +203,12 @@ func WithModes(modes EnvMode) RunOption {
 	})
 }
 
+func WithEnv(env ...string) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.env = env
+	})
+}
+
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
@@ -233,7 +240,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			ws, err := fake.NewWorkspace("regtest", filedata, config.proxyTxt)
+			ws, err := fake.NewWorkspace("regtest", filedata, config.proxyTxt, config.env...)
 			if err != nil {
 				t.Fatal(err)
 			}
