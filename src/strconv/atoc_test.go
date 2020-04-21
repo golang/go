@@ -12,8 +12,16 @@ import (
 	"testing"
 )
 
-// Test cases required:
-// hex form
+func mustFormatComplex(r, i float64) string {
+	s1 := FormatFloat(r, 'x', -1, 64)
+	s2 := FormatFloat(i, 'x', -1, 64)
+
+	if i > 0 {
+		return s1 + "+" + s2 + "i"
+	}
+
+	return s1 + s2 + "i"
+}
 
 func TestParseComplex(t *testing.T) {
 	tests := []struct {
@@ -133,23 +141,22 @@ func TestParseComplex(t *testing.T) {
 			str:  "NaN+NaNi",
 			want: complex(math.NaN(), math.NaN()),
 		},
-		// {
-		// 	str:  "0xBadFace+0x677a2fcc40c6i",
-		// 	want: complex(0xBadFace, 0x677a2fcc40c6),
-		// },
-		// {
-		// 	str:  "0x10.3p-8+0x3p3i",
-		// 	want: complex(0x10.3p-8, 0x3p3),
-		// },
-		// {
-		// 	str:  "+0x10.3p-8+0x3p3i",
-		// 	want: complex(+0x10.3p-8, 0x3p3),
-		// },
-		// {
-		// 	str:  "0x10.3p+8-0x3p3i",
-		// 	want: complex(0x10.3p+8, -0x3p3),
-		// },
-
+		{
+			str:  mustFormatComplex(0xBadFace, 0x677a2fcc40c6),
+			want: complex(0xBadFace, 0x677a2fcc40c6),
+		},
+		{
+			str:  "0x10.3p-8+0x3p3i",
+			want: complex(0x10.3p-8, 0x3p3),
+		},
+		{
+			str:  "+0x10.3p-8+0x3p3i",
+			want: complex(0x10.3p-8, 0x3p3),
+		},
+		{
+			str:  "0x10.3p+8-0x3p3i",
+			want: complex(0x10.3p+8, -0x3p3),
+		},
 		// Malformed cases
 		{
 			str:     "30+3i)",
