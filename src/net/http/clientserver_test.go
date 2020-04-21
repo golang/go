@@ -141,7 +141,8 @@ func TestNewClientServerTest(t *testing.T) {
 		}
 		cst.close()
 	}
-	got.Lock() // no need to unlock
+	got.Lock()
+	defer got.Unlock()
 	if want := []string{"HTTP/1.1", "HTTP/2.0"}; !reflect.DeepEqual(got.log, want) {
 		t.Errorf("got %q; want %q", got.log, want)
 	}
