@@ -972,7 +972,7 @@ func addpltsym2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		return
 	}
 
-	ld.Adddynsym2(ldr, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym2(ldr, &ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
 		plt := ldr.MakeSymbolUpdater(ctxt.PLT2)

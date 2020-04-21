@@ -1268,6 +1268,17 @@ func (l *Loader) SetSymDynid(i Sym, val int32) {
 	}
 }
 
+// DynIdSyms returns the set of symbols for which dynID is set to an
+// interesting (non-default) value. This is expected to be a fairly
+// small set.
+func (l *Loader) DynidSyms() []Sym {
+	sl := make([]Sym, 0, len(l.dynid))
+	for s := range l.dynid {
+		sl = append(sl, s)
+	}
+	return sl
+}
+
 // SymGoType returns the 'Gotype' property for a given symbol (set by
 // the Go compiler for variable symbols). This version relies on
 // reading aux symbols for the target sym -- it could be that a faster
@@ -2255,6 +2266,30 @@ func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUni
 	return s
 }
 
+// TopLevelSym tests a symbol (by name and kind) to determine whether
+// the symbol first class sym (participating in the link) or is an
+// anonymous aux or sub-symbol containing some sub-part or payload of
+// another symbol.
+func (l *Loader) TopLevelSym(s Sym) bool {
+	return topLevelSym(l.RawSymName(s), l.SymType(s))
+}
+
+// topLevelSym tests a symbol name and kind to determine whether
+// the symbol first class sym (participating in the link) or is an
+// anonymous aux or sub-symbol containing some sub-part or payload of
+// another symbol.
+func topLevelSym(sname string, skind sym.SymKind) bool {
+	if sname != "" {
+		return true
+	}
+	switch skind {
+	case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES, sym.SGOFUNC:
+		return true
+	default:
+		return false
+	}
+}
+
 // loadObjSyms creates sym.Symbol objects for the live Syms in the
 // object corresponding to object reader "r". Return value is the
 // number of sym.Reloc entries required for all the new symbols.
@@ -2268,16 +2303,11 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		osym := r.Sym(i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
-		// NB: for the test below, we can skip most anonymous symbols
-		// since they will never be turned into sym.Symbols (eg:
-		// funcdata). DWARF symbols are an exception however -- we
-		// want to include all reachable but nameless DWARF symbols.
-		if name == "" {
-			switch t {
-			case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES:
-			default:
-				continue
-			}
+
+		// Skip non-dwarf anonymous symbols (e.g. funcdata),
+		// since they will never be turned into sym.Symbols.
+		if !topLevelSym(name, t) {
+			continue
 		}
 		ver := abiToVer(osym.ABI(), r.version)
 		if t == sym.SXREF {

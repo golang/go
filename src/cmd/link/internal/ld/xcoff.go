@@ -567,11 +567,12 @@ var (
 
 // xcoffUpdateOuterSize stores the size of outer symbols in order to have it
 // in the symbol table.
-func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+func xcoffUpdateOuterSize2(ctxt *Link, size int64, stype sym.SymKind) {
 	if size == 0 {
 		return
 	}
 
+	ldr := ctxt.loader
 	switch stype {
 	default:
 		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
@@ -580,14 +581,16 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	case sym.STYPERELRO:
 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
 			// runtime.types size must be removed, as it's a real symbol.
-			outerSymSize["typerel.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
+			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+			outerSymSize["typerel.*"] = size - tsize
 			return
 		}
 		fallthrough
 	case sym.STYPE:
 		if !ctxt.DynlinkingGo() {
 			// runtime.types size must be removed, as it's a real symbol.
-			outerSymSize["type.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
+			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+			outerSymSize["type.*"] = size - tsize
 		}
 	case sym.SGOSTRING:
 		outerSymSize["go.string.*"] = size
@@ -603,7 +606,6 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		outerSymSize["runtime.itablink"] = size
 
 	}
-
 }
 
 // addSymbol writes a symbol or an auxiliary symbol entry on ctxt.out.

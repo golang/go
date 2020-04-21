@@ -232,6 +232,7 @@ type Arch struct {
 	Dragonflydynld string
 	Solarisdynld   string
 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
 	Archinit       func(*Link)
 	// Archreloc is an arch-specific hook that assists in
 	// relocation processing (invoked by 'relocsym'); it handles
@@ -2800,7 +2801,7 @@ func addToTextp(ctxt *Link) {
 	ctxt.Textp = textp
 }
 
-func (ctxt *Link) loadlibfull() {
+func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
 
 	// Load full symbol contents, resolve indexed references.
 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
@@ -2841,12 +2842,41 @@ func (ctxt *Link) loadlibfull() {
 		dwarfp = append(dwarfp, dwarfSecInfo2{syms: syms})
 	}
 
+	// Populate datap from datap2
+	ctxt.datap = make([]*sym.Symbol, len(ctxt.datap2))
+	for i, symIdx := range ctxt.datap2 {
+		s := ctxt.loader.Syms[symIdx]
+		if s == nil {
+			panic(fmt.Sprintf("nil sym for datap2 element %d", symIdx))
+		}
+		ctxt.datap[i] = s
+	}
+
+	// Populate the sym.Section 'Sym' fields based on their 'Sym2'
+	// fields.
+	allSegments := []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf}
+	for _, seg := range allSegments {
+		for _, sect := range seg.Sections {
+			if sect.Sym2 != 0 {
+				s := ctxt.loader.Syms[sect.Sym2]
+				if s == nil {
+					panic(fmt.Sprintf("nil sym for sect %s sym %d", sect.Name, sect.Sym2))
+				}
+				sect.Sym = s
+			}
+		}
+	}
+
 	// For now, overwrite symbol type with its "group" type, as dodata
 	// expected. Once we converted dodata, this will probably not be
 	// needed.
 	for i, t := range symGroupType {
 		if t != sym.Sxxx {
-			ctxt.loader.Syms[i].Type = t
+			s := ctxt.loader.Syms[i]
+			if s == nil {
+				panic(fmt.Sprintf("nil sym for symGroupType t=%s entry %d", t.String(), i))
+			}
+			s.Type = t
 		}
 	}
 	symGroupType = nil
