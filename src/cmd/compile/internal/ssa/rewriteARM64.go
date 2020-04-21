@@ -26073,7 +26073,7 @@ func rewriteBlockARM64(b *Block) bool {
 		}
 		// match: (EQ (TSTconst [c] x) yes no)
 		// cond: oneBit(c)
-		// result: (TBZ {ntz(c)} x yes no)
+		// result: (TBZ {int64(ntz64(c))} x yes no)
 		for b.Controls[0].Op == OpARM64TSTconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -26082,12 +26082,12 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
-			b.Aux = ntz(c)
+			b.Aux = int64(ntz64(c))
 			return true
 		}
 		// match: (EQ (TSTWconst [c] x) yes no)
 		// cond: oneBit(int64(uint32(c)))
-		// result: (TBZ {ntz(int64(uint32(c)))} x yes no)
+		// result: (TBZ {int64(ntz64(int64(uint32(c))))} x yes no)
 		for b.Controls[0].Op == OpARM64TSTWconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -26096,7 +26096,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
-			b.Aux = ntz(int64(uint32(c)))
+			b.Aux = int64(ntz64(int64(uint32(c))))
 			return true
 		}
 		// match: (EQ (FlagEQ) yes no)
@@ -28256,7 +28256,7 @@ func rewriteBlockARM64(b *Block) bool {
 		}
 		// match: (NE (TSTconst [c] x) yes no)
 		// cond: oneBit(c)
-		// result: (TBNZ {ntz(c)} x yes no)
+		// result: (TBNZ {int64(ntz64(c))} x yes no)
 		for b.Controls[0].Op == OpARM64TSTconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28265,12 +28265,12 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBNZ, x)
-			b.Aux = ntz(c)
+			b.Aux = int64(ntz64(c))
 			return true
 		}
 		// match: (NE (TSTWconst [c] x) yes no)
 		// cond: oneBit(int64(uint32(c)))
-		// result: (TBNZ {ntz(int64(uint32(c)))} x yes no)
+		// result: (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
 		for b.Controls[0].Op == OpARM64TSTWconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28279,7 +28279,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBNZ, x)
-			b.Aux = ntz(int64(uint32(c)))
+			b.Aux = int64(ntz64(int64(uint32(c))))
 			return true
 		}
 		// match: (NE (FlagEQ) yes no)
@@ -28436,7 +28436,7 @@ func rewriteBlockARM64(b *Block) bool {
 		}
 		// match: (NZ (ANDconst [c] x) yes no)
 		// cond: oneBit(c)
-		// result: (TBNZ {ntz(c)} x yes no)
+		// result: (TBNZ {int64(ntz64(c))} x yes no)
 		for b.Controls[0].Op == OpARM64ANDconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28445,7 +28445,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBNZ, x)
-			b.Aux = ntz(c)
+			b.Aux = int64(ntz64(c))
 			return true
 		}
 		// match: (NZ (MOVDconst [0]) yes no)
@@ -28474,7 +28474,7 @@ func rewriteBlockARM64(b *Block) bool {
 	case BlockARM64NZW:
 		// match: (NZW (ANDconst [c] x) yes no)
 		// cond: oneBit(int64(uint32(c)))
-		// result: (TBNZ {ntz(int64(uint32(c)))} x yes no)
+		// result: (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
 		for b.Controls[0].Op == OpARM64ANDconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28483,7 +28483,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBNZ, x)
-			b.Aux = ntz(int64(uint32(c)))
+			b.Aux = int64(ntz64(int64(uint32(c))))
 			return true
 		}
 		// match: (NZW (MOVDconst [c]) yes no)
@@ -28680,7 +28680,7 @@ func rewriteBlockARM64(b *Block) bool {
 	case BlockARM64Z:
 		// match: (Z (ANDconst [c] x) yes no)
 		// cond: oneBit(c)
-		// result: (TBZ {ntz(c)} x yes no)
+		// result: (TBZ {int64(ntz64(c))} x yes no)
 		for b.Controls[0].Op == OpARM64ANDconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28689,7 +28689,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
-			b.Aux = ntz(c)
+			b.Aux = int64(ntz64(c))
 			return true
 		}
 		// match: (Z (MOVDconst [0]) yes no)
@@ -28718,7 +28718,7 @@ func rewriteBlockARM64(b *Block) bool {
 	case BlockARM64ZW:
 		// match: (ZW (ANDconst [c] x) yes no)
 		// cond: oneBit(int64(uint32(c)))
-		// result: (TBZ {ntz(int64(uint32(c)))} x yes no)
+		// result: (TBZ {int64(ntz64(int64(uint32(c))))} x yes no)
 		for b.Controls[0].Op == OpARM64ANDconst {
 			v_0 := b.Controls[0]
 			c := v_0.AuxInt
@@ -28727,7 +28727,7 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
-			b.Aux = ntz(int64(uint32(c)))
+			b.Aux = int64(ntz64(int64(uint32(c))))
 			return true
 		}
 		// match: (ZW (MOVDconst [c]) yes no)
