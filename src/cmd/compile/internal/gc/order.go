@@ -407,11 +407,20 @@ func (o *Order) call(n *Node) {
 		// Caller should have already called o.init(n).
 		Fatalf("%v with unexpected ninit", n.Op)
 	}
+
+	// Builtin functions.
+	if n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER {
+		n.Left = o.expr(n.Left, nil)
+		n.Right = o.expr(n.Right, nil)
+		o.exprList(n.List)
+		return
+	}
+
+	fixVariadicCall(n)
 	n.Left = o.expr(n.Left, nil)
-	n.Right = o.expr(n.Right, nil) // ODDDARG temp
 	o.exprList(n.List)
 
-	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
+	if n.Op == OCALLINTER {
 		return
 	}
 	keepAlive := func(arg *Node) {
@@ -429,12 +438,12 @@ func (o *Order) call(n *Node) {
 	// Check for "unsafe-uintptr" tag provided by escape analysis.
 	for i, param := range n.Left.Type.Params().FieldSlice() {
 		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
-			if param.IsDDD() && !n.IsDDD() {
-				for _, arg := range n.List.Slice()[i:] {
-					keepAlive(arg)
+			if arg := n.List.Index(i); arg.Op == OSLICELIT {
+				for _, elt := range arg.List.Slice() {
+					keepAlive(elt)
 				}
 			} else {
-				keepAlive(n.List.Index(i))
+				keepAlive(arg)
 			}
 		}
 	}
@@ -1208,13 +1217,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
 		}
 
 	case ODDDARG:
-		if n.Transient() {
-			// The ddd argument does not live beyond the call it is created for.
-			// Allocate a temporary that will be cleaned up when this statement
-			// completes. We could be more aggressive and try to arrange for it
-			// to be cleaned up when the call completes.
-			prealloc[n] = o.newTemp(n.Type.Elem(), false)
-		}
+		Fatalf("unreachable")
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = o.expr(n.Left, nil)

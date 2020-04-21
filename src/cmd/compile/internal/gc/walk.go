@@ -1736,7 +1736,7 @@ func mkdotargslice(typ *types.Type, args []*Node) *Node {
 
 // fixVariadicCall rewrites calls to variadic functions to use an
 // explicit ... argument if one is not already present.
-func fixVariadicCall(call *Node, init *Nodes) {
+func fixVariadicCall(call *Node) {
 	fntype := call.Left.Type
 	if !fntype.IsVariadic() || call.IsDDD() {
 		return
@@ -1754,12 +1754,8 @@ func fixVariadicCall(call *Node, init *Nodes) {
 
 	if ddd := call.Right; ddd != nil && slice.Op == OSLICELIT {
 		slice.Esc = ddd.Esc
-		if prealloc[ddd] != nil {
-			prealloc[slice] = prealloc[ddd] // temporary to use
-		}
+		slice.SetTransient(ddd.Transient())
 	}
-
-	slice = walkexpr(slice, init)
 
 	call.List.Set(append(args[:vi], slice))
 	call.SetIsDDD(true)
@@ -1770,12 +1766,11 @@ func walkCall(n *Node, init *Nodes) {
 		return // already walked
 	}
 
-	n.Left = walkexpr(n.Left, init)
-	walkexprlist(n.List.Slice(), init)
-	fixVariadicCall(n, init)
-
 	params := n.Left.Type.Params()
 	args := n.List.Slice()
+
+	n.Left = walkexpr(n.Left, init)
+	walkexprlist(args, init)
 
 	// If this is a method call, add the receiver at the beginning of the args.
 	if n.Op == OCALLMETH {
