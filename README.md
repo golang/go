@@ -1,7 +1,7 @@
 # The Go Programming Language
 
 Go is an open source programming language that makes it easy to build simple,
-reliable, and efficient software.
+reliable, and efficient software by power of generics.
 
 ![Gopher image](doc/gopher/fiveyears.jpg)
 *Gopher image by [Renee French][rf], licensed under [Creative Commons 3.0 Attributions license][cc3-by].*
