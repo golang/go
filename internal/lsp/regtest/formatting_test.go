@@ -33,6 +33,56 @@ func TestFormatting(t *testing.T) {
 	})
 }
 
+// this is the fixed case from #36824
+const onelineProgram = `
+-- a.go --
+package main; func f() {}
+
+-- a.go.formatted --
+package main
+
+func f() {}
+`
+
+func TestFormattingOneLine36824(t *testing.T) {
+	runner.Run(t, onelineProgram, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		env.FormatBuffer("a.go")
+		got := env.E.BufferText("a.go")
+		want := env.ReadWorkspaceFile("a.go.formatted")
+		if got != want {
+			t.Errorf("got\n%q wanted\n%q", got, want)
+		}
+	})
+}
+
+const onelineProgramA = `
+-- a.go --
+package x; func f() {fmt.Println()}
+
+-- a.go.imported --
+package x
+
+import "fmt"
+
+func f() { fmt.Println() }
+`
+
+// this is the example from #36824 done properly
+// but gopls does not reformat before fixing the imports
+func TestFormattingOneLineImports36824(t *testing.T) {
+	runner.Run(t, onelineProgramA, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		env.FormatBuffer("a.go")
+		env.OrganizeImports("a.go")
+		got := env.E.BufferText("a.go")
+		want := env.ReadWorkspaceFile("a.go.imported")
+		if got != want {
+			t.Errorf("OneLineImports go\n%q wanted\n%q", got, want)
+		}
+	})
+}
+
 const disorganizedProgram = `
 -- main.go --
 package main
