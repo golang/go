@@ -447,3 +447,10 @@ func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch
 		return (*SymbolBuilder).AddAddrPlus
 	}
 }
+
+func (sb *SymbolBuilder) MakeWritable() {
+	if sb.ReadOnly() {
+		sb.data = append([]byte(nil), sb.data...)
+		sb.l.SetAttrReadOnly(sb.symIdx, false)
+	}
+}

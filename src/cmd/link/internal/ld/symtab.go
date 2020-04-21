@@ -327,9 +327,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 	return t.Sym(), uint32(n)
 }
 
-var symGroupType []sym.SymKind // temporarily assign a symbol's "group" type
-
-func (ctxt *Link) symtab() {
+func (ctxt *Link) symtab() []sym.SymKind {
 	ldr := ctxt.loader
 
 	if !ctxt.IsAIX() {
@@ -441,7 +439,7 @@ func (ctxt *Link) symtab() {
 	// just defined above will be first.
 	// hide the specific symbols.
 	nsym := loader.Sym(ldr.NSym())
-	symGroupType = make([]sym.SymKind, nsym)
+	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
 		name := ldr.SymName(s)
 		if !ctxt.IsExternal() && isStaticTemp(name) {
@@ -709,6 +707,7 @@ func (ctxt *Link) symtab() {
 		lastmoduledatap.SetData(nil)
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
 	}
+	return symGroupType
 }
 
 func isStaticTemp(name string) bool {

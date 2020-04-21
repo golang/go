@@ -92,6 +92,7 @@ type Link struct {
 	cgo_export_dynamic map[string]bool
 
 	datap   []*sym.Symbol
+	datap2  []loader.Sym
 	dynexp2 []loader.Sym
 
 	// Elf symtab variables.

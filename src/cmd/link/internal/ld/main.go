@@ -95,6 +95,7 @@ var (
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+	flagnewDoData  = flag.Bool("newdodata", true, "New style dodata")
 
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
@@ -152,6 +153,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 		if err := ctxt.HeadType.Set(*flagHeadType); err != nil {
 			Errorf(nil, "%v", err)
 			usage()
+		}
+	}
+
+	if *flagnewDoData {
+		// New dodata() is currently only implemented for linux/amd64.
+		if !(ctxt.IsElf() && ctxt.IsAMD64()) {
+			*flagnewDoData = false
 		}
 	}
 
@@ -297,11 +305,17 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dwarfGenerateDebugSyms")
 	dwarfGenerateDebugSyms(ctxt)
 	bench.Start("symtab")
-	ctxt.symtab()
+	symGroupType := ctxt.symtab()
+	if *flagnewDoData {
+		bench.Start("dodata")
+		ctxt.dodata2(symGroupType)
+	}
 	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
-	bench.Start("dodata")
-	ctxt.dodata()
+	ctxt.loadlibfull(symGroupType) // XXX do it here for now
+	if !*flagnewDoData {
+		bench.Start("dodata")
+		ctxt.dodata()
+	}
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
