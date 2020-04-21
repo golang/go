@@ -329,3 +329,18 @@ func TestMissingDependency(t *testing.T) {
 		env.Await(LogMatching(protocol.Error, "initial workspace load failed"))
 	})
 }
+
+func TestAdHocPackagesIssue_36951(t *testing.T) {
+	const adHoc = `
+-- b/b.go --
+package b
+
+func Hello() {
+	var x int
+}
+`
+	runner.Run(t, adHoc, func(t *testing.T, env *Env) {
+		env.OpenFile("b/b.go")
+		env.Await(env.DiagnosticAtRegexp("b/b.go", "x"))
+	})
+}
