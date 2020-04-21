@@ -1,25 +1,5 @@
 package p
 
-type E /* ERROR illegal cycle */ interface{
-	E
+type E(type P) struct {
+	(E /* ERROR illegal cycle */ (P))
 }
-
-func _(type T E)(x *T) {
-}
-
-/*
-package list
-
-type List(type T) struct {
-	root Elem(T)
-}
-
-type Elem(type T) struct {
-	next *Elem(T)
-	list *List(T)
-}
-
-func (l *List(T)) Init() {
-	l.root.next = &l.root
-}
-*/

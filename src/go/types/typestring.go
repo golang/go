@@ -438,7 +438,7 @@ func embeddedFieldName(typ Type) string {
 			return embeddedFieldName(t.base)
 		}
 	case *instance:
-		panic("unimplemented")
+		return t.base.obj.name
 	}
 	return "" // not a (pointer to) a defined type
 }

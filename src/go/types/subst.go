@@ -369,6 +369,7 @@ func (subst *subster) typ(typ Type) Type {
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
 		named.underlying = subst.typ(t.underlying)
+		named.orig = named.underlying // for cycle detection (Checker.validType)
 
 		return named
 

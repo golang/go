@@ -62,6 +62,3 @@ func _() {
    _ = [](T1(int)){}                          // this works
    _ = [](T2(int, string)){}                  // T2(int, float) cannot be a conversion - should not need ()'s
 }
-
-// Infinite generic type declarations should lead to an error.
-type inf(type T) struct{ _ inf(T) } // should report an error

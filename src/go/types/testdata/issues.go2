@@ -217,3 +217,7 @@ type List3(type TElem) struct {
 	root Element3(TElem)
 	len  int
 }
+
+// Infinite generic type declarations must lead to an error.
+type inf1(type T) struct{ _ inf1 /* ERROR illegal cycle */ (T) }
+type inf2(type T) struct{ (inf2 /* ERROR illegal cycle */ (T)) }

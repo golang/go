@@ -447,7 +447,12 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 		// make sure we check instantiation works at least once
-		check.atEnd(func() { typ.expand() })
+		// and that the resulting type is valid
+		check.atEnd(func() {
+			t := typ.expand()
+			check.validType(t, nil)
+		})
+
 		return typ
 
 	case *ast.ParenExpr:
@@ -949,37 +954,33 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 				addInvalid(name, pos)
 				continue
 			}
-			t, isPtr := deref(typ)
+			add(name, true, pos)
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
-			switch t := t.Under().(type) {
-			case *Basic:
-				if t == Typ[Invalid] {
-					// error was reported before
-					addInvalid(name, pos)
-					continue
+			// We must delay this check to the end because we don't want to instantiate
+			// (via t.Under()) a possibly incomplete type.
+			embeddedTyp := typ // for closure below
+			embeddedPos := pos
+			check.atEnd(func() {
+				t, isPtr := deref(embeddedTyp)
+				switch t := t.Under().(type) {
+				case *Basic:
+					if t == Typ[Invalid] {
+						// error was reported before
+						return
+					}
+					// unsafe.Pointer is treated like a regular pointer
+					if t.kind == UnsafePointer {
+						check.errorf(embeddedPos, "embedded field type cannot be unsafe.Pointer")
+					}
+				case *Pointer:
+					check.errorf(embeddedPos, "embedded field type cannot be a pointer")
+				case *Interface:
+					if isPtr {
+						check.errorf(embeddedPos, "embedded field type cannot be a pointer to an interface")
+					}
 				}
-
-				// unsafe.Pointer is treated like a regular pointer
-				if t.kind == UnsafePointer {
-					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
-					addInvalid(name, pos)
-					continue
-				}
-
-			case *Pointer:
-				check.errorf(pos, "embedded field type cannot be a pointer")
-				addInvalid(name, pos)
-				continue
-
-			case *Interface:
-				if isPtr {
-					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
-					addInvalid(name, pos)
-					continue
-				}
-			}
-			add(name, true, pos)
+			})
 		}
 	}
 
