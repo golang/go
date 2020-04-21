@@ -55,7 +55,8 @@ func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
 // ParseComplex returns f = ±Inf, err.Err = ErrRange.
 //
 // ParseComplex recognizes the strings "NaN", "+Inf", and "-Inf" as their
-// respective special floating point values for each component. It ignores case when matching.
+// respective special floating point values for each component. "NaN+NaNi" is also
+// recognized. It ignores case when matching.
 func ParseComplex(s string, bitSize int) (complex128, error) {
 	if len(s) == 0 {
 		return 0, syntaxError(fnParseComplex, s)
@@ -145,6 +146,8 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 
 		if imagStr == "+" || imagStr == "-" {
 			imagStr = imagStr + "1"
+		} else if imagStr == "+NaN" {
+			imagStr = "NaN"
 		}
 		imag, err := parseComplexComponent(imagStr, orig, bitSize)
 		if err != nil {
