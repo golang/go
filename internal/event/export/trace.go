@@ -53,15 +53,15 @@ func GetSpan(ctx context.Context) *Span {
 func Spans(output event.Exporter) event.Exporter {
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		switch {
-		case ev.IsLog(), ev.IsLabel():
+		case event.IsLog(ev), event.IsLabel(ev):
 			if span := GetSpan(ctx); span != nil {
 				span.mu.Lock()
 				span.events = append(span.events, ev)
 				span.mu.Unlock()
 			}
-		case ev.IsStartSpan():
+		case event.IsStart(ev):
 			span := &Span{
-				Name:  keys.Name.Get(lm),
+				Name:  keys.Start.Get(lm),
 				start: ev,
 			}
 			if parent := GetSpan(ctx); parent != nil {
@@ -72,13 +72,13 @@ func Spans(output event.Exporter) event.Exporter {
 			}
 			span.ID.SpanID = newSpanID()
 			ctx = context.WithValue(ctx, spanContextKey, span)
-		case ev.IsEndSpan():
+		case event.IsEnd(ev):
 			if span := GetSpan(ctx); span != nil {
 				span.mu.Lock()
 				span.finish = ev
 				span.mu.Unlock()
 			}
-		case ev.IsDetach():
+		case event.IsDetach(ev):
 			ctx = context.WithValue(ctx, spanContextKey, nil)
 		}
 		return output(ctx, ev, lm)

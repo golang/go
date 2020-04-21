@@ -34,8 +34,8 @@ type logWriter struct {
 
 func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	switch {
-	case ev.IsLog():
-		if w.onlyErrors && keys.Err.Get(lm) == nil {
+	case event.IsLog(ev):
+		if w.onlyErrors && !event.IsError(ev) {
 			return ctx
 		}
 		w.mu.Lock()
@@ -63,14 +63,14 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Ma
 		}
 		io.WriteString(w.writer, "\n")
 
-	case ev.IsStartSpan():
+	case event.IsStart(ev):
 		if span := GetSpan(ctx); span != nil {
 			fmt.Fprintf(w.writer, "start: %v %v", span.Name, span.ID)
 			if span.ParentID.IsValid() {
 				fmt.Fprintf(w.writer, "[%v]", span.ParentID)
 			}
 		}
-	case ev.IsEndSpan():
+	case event.IsEnd(ev):
 		if span := GetSpan(ctx); span != nil {
 			fmt.Fprintf(w.writer, "finish: %v %v", span.Name, span.ID)
 		}

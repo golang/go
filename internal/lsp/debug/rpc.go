@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/label"
@@ -82,16 +83,16 @@ func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) co
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
-	case ev.IsStartSpan():
+	case event.IsStart(ev):
 		if _, stats := r.getRPCSpan(ctx, ev); stats != nil {
 			stats.Started++
 		}
-	case ev.IsEndSpan():
+	case event.IsEnd(ev):
 		span, stats := r.getRPCSpan(ctx, ev)
 		if stats != nil {
 			endRPC(ctx, ev, span, stats)
 		}
-	case ev.IsRecord():
+	case event.IsMetric(ev):
 		sent := byteUnits(tag.SentBytes.Get(lm))
 		rec := byteUnits(tag.ReceivedBytes.Get(lm))
 		if sent != 0 || rec != 0 {

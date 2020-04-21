@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/export/metric"
@@ -89,14 +90,14 @@ func Connect(config *Config) *Exporter {
 
 func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	switch {
-	case ev.IsEndSpan():
+	case event.IsEnd(ev):
 		e.mu.Lock()
 		defer e.mu.Unlock()
 		span := export.GetSpan(ctx)
 		if span != nil {
 			e.spans = append(e.spans, span)
 		}
-	case ev.IsRecord():
+	case event.IsMetric(ev):
 		e.mu.Lock()
 		defer e.mu.Unlock()
 		data := metric.Entries.Get(lm).([]metric.Data)
@@ -202,7 +203,7 @@ func convertSpan(span *export.Span) *wire.Span {
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start().At()),
 		EndTime:                 convertTimestamp(span.Finish().At()),
-		Attributes:              convertAttributes(label.Filter(span.Start(), keys.Name)),
+		Attributes:              convertAttributes(span.Start(), 1),
 		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -229,18 +230,20 @@ func convertMetric(data metric.Data, start time.Time) *wire.Metric {
 	}
 }
 
-func skipToValidLabel(list label.List) (int, label.Label) {
+func skipToValidLabel(list label.List, index int) (int, label.Label) {
 	// skip to the first valid label
-	for index := 0; list.Valid(index); index++ {
-		if l := list.Label(index); l.Valid() {
-			return index, l
+	for ; list.Valid(index); index++ {
+		l := list.Label(index)
+		if !l.Valid() || l.Key() == keys.Label {
+			continue
 		}
+		return index, l
 	}
 	return -1, label.Label{}
 }
 
-func convertAttributes(list label.List) *wire.Attributes {
-	index, l := skipToValidLabel(list)
+func convertAttributes(list label.List, index int) *wire.Attributes {
+	index, l := skipToValidLabel(list, index)
 	if !l.Valid() {
 		return nil
 	}
@@ -312,22 +315,31 @@ func convertEvent(ev core.Event) wire.TimeEvent {
 	}
 }
 
-func convertAnnotation(ev core.Event) *wire.Annotation {
-	if _, l := skipToValidLabel(ev); !l.Valid() {
-		return nil
+func getAnnotationDescription(ev core.Event) (string, int) {
+	l := ev.Label(0)
+	if l.Key() != keys.Msg {
+		return "", 0
 	}
-	lm := label.Map(ev)
-	description := keys.Msg.Get(lm)
-	labels := label.Filter(ev, keys.Msg)
-	if description == "" {
-		err := keys.Err.Get(lm)
-		labels = label.Filter(labels, keys.Err)
-		if err != nil {
-			description = err.Error()
-		}
+	if msg := keys.Msg.From(l); msg != "" {
+		return msg, 1
+	}
+	l = ev.Label(1)
+	if l.Key() != keys.Err {
+		return "", 1
+	}
+	if err := keys.Err.From(l); err != nil {
+		return err.Error(), 2
+	}
+	return "", 2
+}
+
+func convertAnnotation(ev core.Event) *wire.Annotation {
+	description, index := getAnnotationDescription(ev)
+	if _, l := skipToValidLabel(ev, index); !l.Valid() && description == "" {
+		return nil
 	}
 	return &wire.Annotation{
 		Description: toTruncatableString(description),
-		Attributes:  convertAttributes(labels),
+		Attributes:  convertAttributes(ev, index),
 	}
 }

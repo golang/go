@@ -12,6 +12,7 @@ import (
 	"sort"
 	"sync"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/label"
@@ -27,7 +28,7 @@ type Exporter struct {
 }
 
 func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, ln label.Map) context.Context {
-	if !ev.IsRecord() {
+	if !event.IsMetric(ev) {
 		return ctx
 	}
 	e.mu.Lock()

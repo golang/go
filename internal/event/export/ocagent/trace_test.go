@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/core"
-	"golang.org/x/tools/internal/event/label"
 )
 
 func TestTrace(t *testing.T) {
@@ -40,7 +38,7 @@ func TestTrace(t *testing.T) {
 		{
 			name: "no labels",
 			run: func(ctx context.Context) {
-				core.Export(ctx, core.MakeEvent(core.LogType, [3]label.Label{}, nil))
+				event.Label(ctx)
 			},
 			want: prefix + `
 					"timeEvent":[{"time":"1970-01-01T00:00:40Z"}]

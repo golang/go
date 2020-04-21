@@ -45,6 +45,28 @@ func (k *Value) From(t label.Label) interface{} { return t.UnpackValue() }
 // Of creates a new Label with this key and the supplied value.
 func (k *Value) Of(value interface{}) label.Label { return label.OfValue(k, value) }
 
+// Tag represents a key for tagging labels that have no value.
+// These are used when the existence of the label is the entire information it
+// carries, such as marking events to be of a specific kind, or from a specific
+// package.
+type Tag struct {
+	name        string
+	description string
+}
+
+// NewTag creates a new Key for tagging labels.
+func NewTag(name, description string) *Tag {
+	return &Tag{name: name, description: description}
+}
+
+func (k *Tag) Name() string        { return k.name }
+func (k *Tag) Description() string { return k.description }
+
+func (k *Tag) Format(w io.Writer, buf []byte, l label.Label) {}
+
+// New creates a new Label with this key.
+func (k *Tag) New() label.Label { return label.OfValue(k, nil) }
+
 // Int represents a key
 type Int struct {
 	name        string

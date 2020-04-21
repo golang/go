@@ -548,7 +548,7 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		i := GetInstance(ctx)
 
-		if ev.IsLog() {
+		if event.IsLog(ev) {
 			// Don't log context cancellation errors.
 			if err := keys.Err.Get(ev); xerrors.Is(err, context.Canceled) {
 				return ctx

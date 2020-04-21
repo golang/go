@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/label"
@@ -83,7 +84,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 	}
 
 	switch {
-	case ev.IsStartSpan():
+	case event.IsStart(ev):
 		if t.sets == nil {
 			t.sets = make(map[string]*traceSet)
 			t.unfinished = make(map[export.SpanContext]*traceData)
@@ -110,7 +111,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 		}
 		parent.Children = append(parent.Children, td)
 
-	case ev.IsEndSpan():
+	case event.IsEnd(ev):
 		// finishing, must be already in the map
 		td, found := t.unfinished[span.ID]
 		if !found {

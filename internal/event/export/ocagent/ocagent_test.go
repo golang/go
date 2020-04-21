@@ -129,9 +129,9 @@ func timeFixer(output event.Exporter) event.Exporter {
 	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		switch {
-		case ev.IsStartSpan():
+		case event.IsStart(ev):
 			ev = core.CloneEvent(ev, start)
-		case ev.IsEndSpan():
+		case event.IsEnd(ev):
 			ev = core.CloneEvent(ev, end)
 		default:
 			ev = core.CloneEvent(ev, at)
@@ -142,7 +142,7 @@ func timeFixer(output event.Exporter) event.Exporter {
 
 func spanFixer(output event.Exporter) event.Exporter {
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
-		if ev.IsStartSpan() {
+		if event.IsStart(ev) {
 			span := export.GetSpan(ctx)
 			span.ID = export.SpanContext{}
 		}

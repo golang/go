@@ -34,7 +34,7 @@ func (e *Config) subscribe(key label.Key, s subscriber) {
 func (e *Config) Exporter(output event.Exporter) event.Exporter {
 	var mu sync.Mutex
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
-		if !ev.IsRecord() {
+		if !event.IsMetric(ev) {
 			return output(ctx, ev, lm)
 		}
 		mu.Lock()

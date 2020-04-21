@@ -12,23 +12,9 @@ import (
 	"golang.org/x/tools/internal/event/label"
 )
 
-type eventType uint8
-
-const (
-	invalidType   = eventType(iota)
-	LogType       // an event that should be recorded in a log
-	StartSpanType // the start of a span of time
-	EndSpanType   // the end of a span of time
-	LabelType     // some values that should be noted for later events
-	DetachType    // an event that causes a context to detach
-	RecordType    // a value that should be tracked
-)
-
 // Event holds the information about an event of note that ocurred.
 type Event struct {
 	at time.Time
-
-	typ eventType
 
 	// As events are often on the stack, storing the first few labels directly
 	// in the event can avoid an allocation at all for the very common cases of
@@ -48,13 +34,6 @@ type eventLabelMap struct {
 }
 
 func (ev Event) At() time.Time { return ev.at }
-
-func (ev Event) IsLog() bool       { return ev.typ == LogType }
-func (ev Event) IsEndSpan() bool   { return ev.typ == EndSpanType }
-func (ev Event) IsStartSpan() bool { return ev.typ == StartSpanType }
-func (ev Event) IsLabel() bool     { return ev.typ == LabelType }
-func (ev Event) IsDetach() bool    { return ev.typ == DetachType }
-func (ev Event) IsRecord() bool    { return ev.typ == RecordType }
 
 func (ev Event) Format(f fmt.State, r rune) {
 	if !ev.at.IsZero() {
@@ -92,9 +71,8 @@ func (ev Event) Find(key label.Key) label.Label {
 	return label.Label{}
 }
 
-func MakeEvent(typ eventType, static [3]label.Label, labels []label.Label) Event {
+func MakeEvent(static [3]label.Label, labels []label.Label) Event {
 	return Event{
-		typ:     typ,
 		static:  static,
 		dynamic: labels,
 	}

@@ -20,7 +20,7 @@ import (
 func Labels(output event.Exporter) event.Exporter {
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		stored, _ := ctx.Value(labelContextKey).(label.Map)
-		if ev.IsLabel() || ev.IsStartSpan() {
+		if event.IsLabel(ev) || event.IsStart(ev) {
 			// update the label map stored in the context
 			fromEvent := label.Map(ev)
 			if stored == nil {
