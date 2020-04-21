@@ -72,7 +72,7 @@ func newProgs(fn *Node, worker int) *Progs {
 	pp.settext(fn)
 	pp.nextLive = LivenessInvalid
 	// PCDATA tables implicitly start with index -1.
-	pp.prevLive = LivenessIndex{-1, -1}
+	pp.prevLive = LivenessIndex{-1, -1, false}
 	return pp
 }
 
@@ -109,13 +109,18 @@ func (pp *Progs) Free() {
 
 // Prog adds a Prog with instruction As to pp.
 func (pp *Progs) Prog(as obj.As) *obj.Prog {
-	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
+	if pp.nextLive.StackMapValid() && pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
 		// Emit stack map index change.
 		idx := pp.nextLive.stackMapIndex
 		pp.prevLive.stackMapIndex = idx
 		p := pp.Prog(obj.APCDATA)
 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 		Addrconst(&p.To, int64(idx))
+	}
+	if pp.nextLive.isUnsafePoint {
+		// Unsafe points are encoded as a special value in the
+		// register map.
+		pp.nextLive.regMapIndex = objabi.PCDATA_RegMapUnsafe
 	}
 	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
 		// Emit register map index change.
