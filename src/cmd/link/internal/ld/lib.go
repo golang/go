@@ -2812,7 +2812,7 @@ func (ctxt *Link) loadlibfull() {
 	}
 
 	// Pull the symbols out.
-	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
+	ctxt.loader.ExtractSymbols(ctxt.Syms)
 	ctxt.lookup = ctxt.Syms.ROLookup
 
 	// Recreate dynexp using *sym.Symbol instead of loader.Sym

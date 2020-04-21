@@ -45,7 +45,7 @@ type deadcodePass struct {
 func (d *deadcodePass) init() {
 	d.ldr.InitReachable()
 	d.ifaceMethod = make(map[methodsig]bool)
-	if d.ctxt.Reachparent != nil {
+	if objabi.Fieldtrack_enabled != 0 {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
 	heap.Init(&d.wq)
@@ -190,7 +190,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
 		d.wq.push(symIdx)
 		d.ldr.SetAttrReachable(symIdx, true)
-		if d.ctxt.Reachparent != nil {
+		if objabi.Fieldtrack_enabled != 0 {
 			d.ldr.Reachparent[symIdx] = parent
 		}
 		if *flagDumpDep {
