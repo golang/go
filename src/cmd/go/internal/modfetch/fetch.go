@@ -514,6 +514,7 @@ func checkModSum(mod module.Version, h string) error {
 	goSum.mu.Lock()
 	inited, err := initGoSum()
 	if err != nil {
+		goSum.mu.Unlock()
 		return err
 	}
 	done := inited && haveModSumLocked(mod, h)
