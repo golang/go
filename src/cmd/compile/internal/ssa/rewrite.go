@@ -404,11 +404,6 @@ func oneBit16(x int16) bool { return x&(x-1) == 0 && x != 0 }
 func oneBit32(x int32) bool { return x&(x-1) == 0 && x != 0 }
 func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
 
-// nlo returns the number of leading ones.
-func nlo(x int64) int64 {
-	return int64(nlz64(^x))
-}
-
 // nto returns the number of trailing ones.
 func nto(x int64) int64 {
 	return ntz(^x)
