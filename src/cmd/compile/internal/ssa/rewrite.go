@@ -386,7 +386,6 @@ func isSameSym(sym interface{}, name string) bool {
 }
 
 // nlz returns the number of leading zeros.
-func nlz(x int64) int64 { return int64(bits.LeadingZeros64(uint64(x))) } // TODO: remove when no longer used
 func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
 func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
 func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
@@ -407,7 +406,7 @@ func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
 
 // nlo returns the number of leading ones.
 func nlo(x int64) int64 {
-	return nlz(^x)
+	return int64(nlz64(^x))
 }
 
 // nto returns the number of trailing ones.
