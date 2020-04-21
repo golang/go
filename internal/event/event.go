@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -26,7 +27,7 @@ func SetExporter(e Exporter) {
 // before delivering them to the exporter.
 func Log(ctx context.Context, message string, labels ...label.Label) {
 	core.Export(ctx, core.MakeEvent(core.LogType, [3]label.Label{
-		core.Msg.Of(message),
+		keys.Msg.Of(message),
 	}, labels))
 }
 
@@ -35,8 +36,8 @@ func Log(ctx context.Context, message string, labels ...label.Label) {
 // delivered event.
 func Error(ctx context.Context, message string, err error, labels ...label.Label) {
 	core.Export(ctx, core.MakeEvent(core.LogType, [3]label.Label{
-		core.Msg.Of(message),
-		core.Err.Of(err),
+		keys.Msg.Of(message),
+		keys.Err.Of(err),
 	}, labels))
 }
 
@@ -56,7 +57,7 @@ func Label(ctx context.Context, labels ...label.Label) context.Context {
 func Start(ctx context.Context, name string, labels ...label.Label) (context.Context, func()) {
 	return core.ExportPair(ctx,
 		core.MakeEvent(core.StartSpanType, [3]label.Label{
-			core.Name.Of(name),
+			keys.Name.Of(name),
 		}, labels),
 		core.MakeEvent(core.EndSpanType, [3]label.Label{}, nil))
 }

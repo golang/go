@@ -13,14 +13,15 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
 func ExampleLog() {
 	ctx := context.Background()
 	event.SetExporter(timeFixer(export.LogWriter(os.Stdout, false)))
-	anInt := core.NewIntKey("myInt", "an integer")
-	aString := core.NewStringKey("myString", "a string")
+	anInt := keys.NewInt("myInt", "an integer")
+	aString := keys.NewString("myString", "a string")
 	event.Log(ctx, "my event", anInt.Of(6))
 	event.Error(ctx, "error event", errors.New("an error"), aString.Of("some string value"))
 	// Output:

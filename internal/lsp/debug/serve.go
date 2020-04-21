@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent"
 	"golang.org/x/tools/internal/event/export/prometheus"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -549,7 +550,7 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 
 		if ev.IsLog() {
 			// Don't log context cancellation errors.
-			if err := core.Err.Get(ev); xerrors.Is(err, context.Canceled) {
+			if err := keys.Err.Get(ev); xerrors.Is(err, context.Canceled) {
 				return ctx
 			}
 			// Make sure any log messages without an instance go to stderr.

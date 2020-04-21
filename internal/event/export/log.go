@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -34,7 +35,7 @@ type logWriter struct {
 func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	switch {
 	case ev.IsLog():
-		if w.onlyErrors && core.Err.Get(lm) == nil {
+		if w.onlyErrors && keys.Err.Get(lm) == nil {
 			return ctx
 		}
 		w.mu.Lock()
@@ -44,15 +45,15 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Ma
 		if !ev.At.IsZero() {
 			w.writer.Write(ev.At.AppendFormat(buf, "2006/01/02 15:04:05 "))
 		}
-		msg := core.Msg.Get(lm)
+		msg := keys.Msg.Get(lm)
 		io.WriteString(w.writer, msg)
-		if err := core.Err.Get(lm); err != nil {
+		if err := keys.Err.Get(lm); err != nil {
 			io.WriteString(w.writer, ": ")
 			io.WriteString(w.writer, err.Error())
 		}
 		for index := 0; ev.Valid(index); index++ {
 			l := ev.Label(index)
-			if !l.Valid() || l.Key() == core.Msg || l.Key() == core.Err {
+			if !l.Valid() || l.Key() == keys.Msg || l.Key() == keys.Err {
 				continue
 			}
 			io.WriteString(w.writer, "\n\t")

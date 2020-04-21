@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 )
 
 func TestEncodeMetric(t *testing.T) {
@@ -24,7 +24,7 @@ func TestEncodeMetric(t *testing.T) {
 			run: func(ctx context.Context) {
 				ctx = event.Label(ctx, keyMethod.Of("godoc.ServeHTTP"))
 				event.Metric(ctx, latencyMs.Of(96.58))
-				ctx = event.Label(ctx, core.Err.Of(errors.New("panic: fatal signal")))
+				ctx = event.Label(ctx, keys.Err.Of(errors.New("panic: fatal signal")))
 				event.Metric(ctx, bytesIn.Of(97e2))
 			},
 			want: prefix + `

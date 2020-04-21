@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -60,7 +61,7 @@ func Spans(output event.Exporter) event.Exporter {
 			}
 		case ev.IsStartSpan():
 			span := &Span{
-				Name:  core.Name.Get(lm),
+				Name:  keys.Name.Get(lm),
 				start: ev,
 			}
 			if parent := GetSpan(ctx); parent != nil {

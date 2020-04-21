@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -38,7 +38,7 @@ type Int64Data struct {
 	EndTime time.Time
 
 	groups [][]label.Label
-	key    *core.Int64Key
+	key    *keys.Int64
 }
 
 // Float64Data is a concrete implementation of Data for float64 scalar metrics.
@@ -53,7 +53,7 @@ type Float64Data struct {
 	EndTime time.Time
 
 	groups [][]label.Label
-	key    *core.Float64Key
+	key    *keys.Float64
 }
 
 // HistogramInt64Data is a concrete implementation of Data for int64 histogram metrics.
@@ -66,7 +66,7 @@ type HistogramInt64Data struct {
 	EndTime time.Time
 
 	groups [][]label.Label
-	key    *core.Int64Key
+	key    *keys.Int64
 }
 
 // HistogramInt64Row holds the values for a single row of a HistogramInt64Data.
@@ -93,7 +93,7 @@ type HistogramFloat64Data struct {
 	EndTime time.Time
 
 	groups [][]label.Label
-	key    *core.Float64Key
+	key    *keys.Float64
 }
 
 // HistogramFloat64Row holds the values for a single row of a HistogramFloat64Data.

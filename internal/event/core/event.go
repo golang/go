@@ -55,27 +55,11 @@ func (ev Event) IsDetach() bool    { return ev.typ == DetachType }
 func (ev Event) IsRecord() bool    { return ev.typ == RecordType }
 
 func (ev Event) Format(f fmt.State, r rune) {
-	lm := label.Map(ev)
 	if !ev.At.IsZero() {
 		fmt.Fprint(f, ev.At.Format("2006/01/02 15:04:05 "))
 	}
-	msg := Msg.Get(lm)
-	err := Err.Get(lm)
-	fmt.Fprint(f, msg)
-	if err != nil {
-		if f.Flag('+') {
-			fmt.Fprintf(f, ": %+v", err)
-		} else {
-			fmt.Fprintf(f, ": %v", err)
-		}
-	}
 	for index := 0; ev.Valid(index); index++ {
 		l := ev.Label(index)
-		// msg and err were both already printed above, so we skip them to avoid
-		// double printing
-		if !l.Valid() || l.Key() == Msg || l.Key() == Err {
-			continue
-		}
 		fmt.Fprintf(f, "\n\t%v", l)
 	}
 }

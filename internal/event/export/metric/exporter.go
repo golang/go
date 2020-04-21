@@ -12,10 +12,11 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
-var Entries = core.NewKey("metric_entries", "The set of metrics calculated for an event")
+var Entries = keys.New("metric_entries", "The set of metrics calculated for an event")
 
 type Config struct {
 	subscribers map[interface{}][]subscriber

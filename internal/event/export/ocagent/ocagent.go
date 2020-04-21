@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent/wire"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -201,7 +202,7 @@ func convertSpan(span *export.Span) *wire.Span {
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start().At),
 		EndTime:                 convertTimestamp(span.Finish().At),
-		Attributes:              convertAttributes(label.Filter(span.Start(), core.Name)),
+		Attributes:              convertAttributes(label.Filter(span.Start(), keys.Name)),
 		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -258,37 +259,37 @@ func convertAttributes(list label.List) *wire.Attributes {
 
 func convertAttribute(l label.Label) wire.Attribute {
 	switch key := l.Key().(type) {
-	case *core.IntKey:
+	case *keys.Int:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.Int8Key:
+	case *keys.Int8:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.Int16Key:
+	case *keys.Int16:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.Int32Key:
+	case *keys.Int32:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.Int64Key:
+	case *keys.Int64:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.UIntKey:
+	case *keys.UInt:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.UInt8Key:
+	case *keys.UInt8:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.UInt16Key:
+	case *keys.UInt16:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.UInt32Key:
+	case *keys.UInt32:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.UInt64Key:
+	case *keys.UInt64:
 		return wire.IntAttribute{IntValue: int64(key.From(l))}
-	case *core.Float32Key:
+	case *keys.Float32:
 		return wire.DoubleAttribute{DoubleValue: float64(key.From(l))}
-	case *core.Float64Key:
+	case *keys.Float64:
 		return wire.DoubleAttribute{DoubleValue: key.From(l)}
-	case *core.BooleanKey:
+	case *keys.Boolean:
 		return wire.BoolAttribute{BoolValue: key.From(l)}
-	case *core.StringKey:
+	case *keys.String:
 		return wire.StringAttribute{StringValue: toTruncatableString(key.From(l))}
-	case *core.ErrorKey:
+	case *keys.Error:
 		return wire.StringAttribute{StringValue: toTruncatableString(key.From(l).Error())}
-	case *core.ValueKey:
+	case *keys.Value:
 		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprint(key.From(l)))}
 	default:
 		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprintf("%T", key))}
@@ -316,11 +317,11 @@ func convertAnnotation(ev core.Event) *wire.Annotation {
 		return nil
 	}
 	lm := label.Map(ev)
-	description := core.Msg.Get(lm)
-	labels := label.Filter(ev, core.Msg)
+	description := keys.Msg.Get(lm)
+	labels := label.Filter(ev, keys.Msg)
 	if description == "" {
-		err := core.Err.Get(lm)
-		labels = label.Filter(labels, core.Err)
+		err := keys.Err.Get(lm)
+		labels = label.Filter(labels, keys.Err)
 		if err != nil {
 			description = err.Error()
 		}

@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/export/metric"
 	"golang.org/x/tools/internal/event/export/ocagent"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -41,34 +42,34 @@ const testNodeStr = `{
 	},`
 
 var (
-	keyDB     = core.NewStringKey("db", "the database name")
-	keyMethod = core.NewStringKey("method", "a metric grouping key")
-	keyRoute  = core.NewStringKey("route", "another metric grouping key")
+	keyDB     = keys.NewString("db", "the database name")
+	keyMethod = keys.NewString("method", "a metric grouping key")
+	keyRoute  = keys.NewString("route", "another metric grouping key")
 
-	key1DB = core.NewStringKey("1_db", "A test string key")
+	key1DB = keys.NewString("1_db", "A test string key")
 
-	key2aAge      = core.NewFloat64Key("2a_age", "A test float64 key")
-	key2bTTL      = core.NewFloat32Key("2b_ttl", "A test float32 key")
-	key2cExpiryMS = core.NewFloat64Key("2c_expiry_ms", "A test float64 key")
+	key2aAge      = keys.NewFloat64("2a_age", "A test float64 key")
+	key2bTTL      = keys.NewFloat32("2b_ttl", "A test float32 key")
+	key2cExpiryMS = keys.NewFloat64("2c_expiry_ms", "A test float64 key")
 
-	key3aRetry = core.NewBooleanKey("3a_retry", "A test boolean key")
-	key3bStale = core.NewBooleanKey("3b_stale", "Another test boolean key")
+	key3aRetry = keys.NewBoolean("3a_retry", "A test boolean key")
+	key3bStale = keys.NewBoolean("3b_stale", "Another test boolean key")
 
-	key4aMax      = core.NewIntKey("4a_max", "A test int key")
-	key4bOpcode   = core.NewInt8Key("4b_opcode", "A test int8 key")
-	key4cBase     = core.NewInt16Key("4c_base", "A test int16 key")
-	key4eChecksum = core.NewInt32Key("4e_checksum", "A test int32 key")
-	key4fMode     = core.NewInt64Key("4f_mode", "A test int64 key")
+	key4aMax      = keys.NewInt("4a_max", "A test int key")
+	key4bOpcode   = keys.NewInt8("4b_opcode", "A test int8 key")
+	key4cBase     = keys.NewInt16("4c_base", "A test int16 key")
+	key4eChecksum = keys.NewInt32("4e_checksum", "A test int32 key")
+	key4fMode     = keys.NewInt64("4f_mode", "A test int64 key")
 
-	key5aMin     = core.NewUIntKey("5a_min", "A test uint key")
-	key5bMix     = core.NewUInt8Key("5b_mix", "A test uint8 key")
-	key5cPort    = core.NewUInt16Key("5c_port", "A test uint16 key")
-	key5dMinHops = core.NewUInt32Key("5d_min_hops", "A test uint32 key")
-	key5eMaxHops = core.NewUInt64Key("5e_max_hops", "A test uint64 key")
+	key5aMin     = keys.NewUInt("5a_min", "A test uint key")
+	key5bMix     = keys.NewUInt8("5b_mix", "A test uint8 key")
+	key5cPort    = keys.NewUInt16("5c_port", "A test uint16 key")
+	key5dMinHops = keys.NewUInt32("5d_min_hops", "A test uint32 key")
+	key5eMaxHops = keys.NewUInt64("5e_max_hops", "A test uint64 key")
 
-	recursiveCalls = core.NewInt64Key("recursive_calls", "Number of recursive calls")
-	bytesIn        = core.NewInt64Key("bytes_in", "Number of bytes in")           //, unit.Bytes)
-	latencyMs      = core.NewFloat64Key("latency", "The latency in milliseconds") //, unit.Milliseconds)
+	recursiveCalls = keys.NewInt64("recursive_calls", "Number of recursive calls")
+	bytesIn        = keys.NewInt64("bytes_in", "Number of bytes in")           //, unit.Bytes)
+	latencyMs      = keys.NewFloat64("latency", "The latency in milliseconds") //, unit.Milliseconds)
 
 	metricLatency = metric.HistogramFloat64{
 		Name:        "latency_ms",

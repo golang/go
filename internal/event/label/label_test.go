@@ -9,14 +9,14 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
 var (
-	AKey = core.NewStringKey("A", "")
-	BKey = core.NewStringKey("B", "")
-	CKey = core.NewStringKey("C", "")
+	AKey = keys.NewString("A", "")
+	BKey = keys.NewString("B", "")
+	CKey = keys.NewString("C", "")
 	A    = AKey.Of("a")
 	B    = BKey.Of("b")
 	C    = CKey.Of("c")

@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -345,7 +345,7 @@ func (v *view) refreshProcessEnv() {
 	// We don't have a context handy to use for logging, so use the stdlib for now.
 	event.Log(v.baseCtx, "background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
-	event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), core.Err.Of(err))
+	event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
 
 	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)

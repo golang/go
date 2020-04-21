@@ -9,6 +9,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/event/label"
 )
 
@@ -18,12 +19,12 @@ type Hooks struct {
 }
 
 var (
-	aValue  = core.NewIntKey("a", "")
-	bValue  = core.NewStringKey("b", "")
-	aCount  = core.NewInt64Key("aCount", "Count of time A is called.")
-	aStat   = core.NewIntKey("aValue", "A value.")
-	bCount  = core.NewInt64Key("B", "Count of time B is called.")
-	bLength = core.NewIntKey("BLen", "B length.")
+	aValue  = keys.NewInt("a", "")
+	bValue  = keys.NewString("b", "")
+	aCount  = keys.NewInt64("aCount", "Count of time A is called.")
+	aStat   = keys.NewInt("aValue", "A value.")
+	bCount  = keys.NewInt64("B", "Count of time B is called.")
+	bLength = keys.NewInt("BLen", "B length.")
 
 	Baseline = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
