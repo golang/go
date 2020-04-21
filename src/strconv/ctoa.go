@@ -28,7 +28,7 @@ package strconv
 // necessary such that ParseComplex will return c exactly.
 func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
 	if bitSize == 64 {
-		bitSize = 32
+		bitSize = 32 // complex64 uses float32 internally
 	} else {
 		bitSize = 64
 	}

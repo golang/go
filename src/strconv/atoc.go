@@ -107,10 +107,22 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		return 0, syntaxError(fnParseComplex, orig)
 	}
 
-	// From here onwards, it is either a complex number with both a real and imaginary component
-	// XOR a pure imaginary number in exponential form.
+	// From here onwards, s is either of the forms:
+	// * Complex number with both a real and imaginary component: N+Ni
+	// * Purely an imaginary number in exponential form: Ni
+	//
+	// More precisely it should look like:
+	// * ⊞2±10i (len signPos = 1 or 2)
+	// * ⊞3e±10±3i (len signPos = 2 or 3) [real in exp form]
+	// * ⊞3e10±5i (len signPos = 1 or 2) [real in exp form]
+	// * ⊞3e±10±4e±10i (len signPos = 3 or 4) [real and imag in exp form]
+	//
+	// where ⊞ means ± or non-existent.
 
-	// Loop through signPos from middle of slice, outwards
+	// Loop through signPos from middle of slice, outwards.
+	// The idea is if len(signPos) is 3 or 4, then it is more efficient
+	// to call ParseFloat from the middle, which increases the chance of
+	// correctly separating the real and imaginary components.
 	mid := (len(signPos) - 1) >> 1
 	for j := 0; j < len(signPos); j++ {
 		var idx int
@@ -120,24 +132,21 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 			idx = mid + (j/2 + 1)
 		}
 
-		left := s[0:signPos[idx]]
-		right := s[signPos[idx]:]
-
-		if left == "" {
-			left = "0"
+		realStr, imagStr := s[0:signPos[idx]], s[signPos[idx]:]
+		if realStr == "" {
+			realStr = "0"
 		}
 
-		// Check if left and right are valid float64
-		real, err := parseComplexComponent(left, orig, bitSize)
+		// Check if realStr and imagStr are valid float64
+		real, err := parseComplexComponent(realStr, orig, bitSize)
 		if err != nil {
 			continue
 		}
 
-		if right == "+" || right == "-" {
-			right = right + "1"
+		if imagStr == "+" || imagStr == "-" {
+			imagStr = imagStr + "1"
 		}
-
-		imag, err := parseComplexComponent(right, orig, bitSize)
+		imag, err := parseComplexComponent(imagStr, orig, bitSize)
 		if err != nil {
 			continue
 		}
