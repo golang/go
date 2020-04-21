@@ -157,7 +157,6 @@ var knownFormats = map[string]string{
 	"int64 %+d":                                       "",
 	"int64 %-10d":                                     "",
 	"int64 %.5d":                                      "",
-	"int64 %X":                                        "",
 	"int64 %d":                                        "",
 	"int64 %v":                                        "",
 	"int64 %x":                                        "",
