@@ -510,6 +510,8 @@ General-purpose environment variables:
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched in an insecure
 		manner. Only applies to dependencies that are being fetched directly.
+		Unlike the -insecure flag on 'go get' this does not disable checksum
+		database validation; please use GOPRIVATE or GONOSUMDB to achieve that.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.

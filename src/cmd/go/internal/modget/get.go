@@ -114,7 +114,10 @@ require downgrading other dependencies, and 'go get' does
 this automatically as well.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
+custom domains using insecure schemes such as HTTP. Use with caution. It is
+recommended to use the GOINSECURE environment variable instead as it allows
+for more fine-grained control when fetching dependencies in this manner. See
+'go help environment' for details.
 
 The second step is to download (if needed), build, and install
 the named packages.
