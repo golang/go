@@ -145,7 +145,8 @@ func send(ctx context.Context, l *parse.Logmsg, stream jsonrpc2.Stream, id *json
 		if err != nil {
 			n = 0
 		}
-		id = jsonrpc2.NewIntID(int64(n))
+		nid := jsonrpc2.NewIntID(int64(n))
+		id = &nid
 	}
 	var msg jsonrpc2.Message
 	var err error

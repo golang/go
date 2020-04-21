@@ -27,7 +27,7 @@ func (s *loggingStream) Read(ctx context.Context) (jsonrpc2.Message, int64, erro
 	if err == nil {
 		s.logMu.Lock()
 		defer s.logMu.Unlock()
-		logIn(s.log, msg)
+		logCommon(s.log, msg, true)
 	}
 	return msg, count, err
 }
@@ -35,7 +35,7 @@ func (s *loggingStream) Read(ctx context.Context) (jsonrpc2.Message, int64, erro
 func (s *loggingStream) Write(ctx context.Context, msg jsonrpc2.Message) (int64, error) {
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
-	logOut(s.log, msg)
+	logCommon(s.log, msg, false)
 	count, err := s.stream.Write(ctx, msg)
 	return count, err
 }
@@ -60,23 +60,19 @@ var maps = &mapped{
 // these 4 methods are each used exactly once, but it seemed
 // better to have the encapsulation rather than ad hoc mutex
 // code in 4 places
-func (m *mapped) client(id string, del bool) req {
+func (m *mapped) client(id string) req {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	v := m.clientCalls[id]
-	if del {
-		delete(m.clientCalls, id)
-	}
+	delete(m.clientCalls, id)
 	return v
 }
 
-func (m *mapped) server(id string, del bool) req {
+func (m *mapped) server(id string) req {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	v := m.serverCalls[id]
-	if del {
-		delete(m.serverCalls, id)
-	}
+	delete(m.serverCalls, id)
 	return v
 }
 
@@ -94,7 +90,13 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func logCommon(outfd io.Writer, msg jsonrpc2.Message, direction, pastTense string) {
+func logCommon(outfd io.Writer, msg jsonrpc2.Message, isRead bool) {
+	direction, pastTense := "Received", "Received"
+	get, set := maps.client, maps.setServer
+	if isRead {
+		direction, pastTense = "Sending", "Sent"
+		get, set = maps.server, maps.setClient
+	}
 	if msg == nil || outfd == nil {
 		return
 	}
@@ -108,7 +110,7 @@ func logCommon(outfd io.Writer, msg jsonrpc2.Message, direction, pastTense strin
 		id := fmt.Sprint(msg.ID())
 		fmt.Fprintf(&buf, "%s request '%s - (%s)'.\n", direction, msg.Method(), id)
 		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
-		maps.setServer(id, req{method: msg.Method(), start: tm})
+		set(id, req{method: msg.Method(), start: tm})
 	case *jsonrpc2.Notification:
 		fmt.Fprintf(&buf, "%s notification '%s'.\n", direction, msg.Method())
 		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
@@ -118,21 +120,11 @@ func logCommon(outfd io.Writer, msg jsonrpc2.Message, direction, pastTense strin
 			fmt.Fprintf(outfd, "[Error - %s] %s #%s %s%s", pastTense, tmfmt, id, err, eor)
 			return
 		}
-		cc := maps.client(id, true)
+		cc := get(id)
 		elapsed := tm.Sub(cc.start)
-		fmt.Fprintf(&buf, "Received response '%s - (%s)' in %dms.\n",
-			cc.method, id, elapsed/time.Millisecond)
+		fmt.Fprintf(&buf, "%s response '%s - (%s)' in %dms.\n",
+			direction, cc.method, id, elapsed/time.Millisecond)
 		fmt.Fprintf(&buf, "Result: %s%s", msg.Result(), eor)
 	}
 	outfd.Write([]byte(buf.String()))
-}
-
-// Writing a message to the client, log it
-func logOut(outfd io.Writer, msg jsonrpc2.Message) {
-	logCommon(outfd, msg, "Received", "Received")
-}
-
-// Got a message from the client, log it
-func logIn(outfd io.Writer, msg jsonrpc2.Message) {
-	logCommon(outfd, msg, "Sending", "Sent")
 }

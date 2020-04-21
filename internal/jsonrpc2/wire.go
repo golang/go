@@ -125,22 +125,20 @@ func (wireVersionTag) UnmarshalJSON(data []byte) error {
 const invalidID int64 = math.MaxInt64
 
 // NewIntID returns a new numerical request ID.
-func NewIntID(v int64) *ID { return &ID{number: v} }
+func NewIntID(v int64) ID { return ID{number: v} }
 
 // NewStringID returns a new string request ID.
-func NewStringID(v string) *ID { return &ID{name: v} }
+func NewStringID(v string) ID { return ID{name: v} }
 
 // Format writes the ID to the formatter.
 // If the rune is q the representation is non ambiguous,
 // string forms are quoted, number forms are preceded by a #
-func (id *ID) Format(f fmt.State, r rune) {
+func (id ID) Format(f fmt.State, r rune) {
 	numF, strF := `%d`, `%s`
 	if r == 'q' {
 		numF, strF = `#%d`, `%q`
 	}
 	switch {
-	case id == nil:
-		fmt.Fprintf(f, numF, invalidID)
 	case id.name != "":
 		fmt.Fprintf(f, strF, id.name)
 	default:

@@ -49,9 +49,9 @@ func CancelHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 			return sendParseError(ctx, reply, err)
 		}
 		if n, ok := params.ID.(float64); ok {
-			canceller(*jsonrpc2.NewIntID(int64(n)))
+			canceller(jsonrpc2.NewIntID(int64(n)))
 		} else if s, ok := params.ID.(string); ok {
-			canceller(*jsonrpc2.NewStringID(s))
+			canceller(jsonrpc2.NewStringID(s))
 		} else {
 			return sendParseError(ctx, reply, fmt.Errorf("request ID %v malformed", params.ID))
 		}

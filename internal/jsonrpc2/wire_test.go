@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"testing"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -16,20 +15,13 @@ import (
 
 var wireIDTestData = []struct {
 	name    string
-	id      *jsonrpc2.ID
+	id      jsonrpc2.ID
 	encoded []byte
 	plain   string
 	quoted  string
 }{
 	{
-		name:    `nil`,
-		id:      nil,
-		encoded: []byte(`null`),
-		plain:   fmt.Sprintf(`%d`, int64(math.MaxInt64)),
-		quoted:  fmt.Sprintf(`#%d`, int64(math.MaxInt64)),
-	}, {
 		name:    `empty`,
-		id:      &jsonrpc2.ID{},
 		encoded: []byte(`0`),
 		plain:   `0`,
 		quoted:  `#0`,
@@ -64,7 +56,7 @@ func TestIDFormat(t *testing.T) {
 func TestIDEncode(t *testing.T) {
 	for _, test := range wireIDTestData {
 		t.Run(test.name, func(t *testing.T) {
-			data, err := json.Marshal(test.id)
+			data, err := json.Marshal(&test.id)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,12 +73,8 @@ func TestIDDecode(t *testing.T) {
 				t.Fatal(err)
 			}
 			if got == nil {
-				if test.id != nil {
-					t.Errorf("got nil want %s", test.id)
-				}
-			} else if test.id == nil {
-				t.Errorf("got %s want nil", got)
-			} else if *got != *test.id {
+				t.Errorf("got nil want %s", test.id)
+			} else if *got != test.id {
 				t.Errorf("got %s want %s", got, test.id)
 			}
 		})
