@@ -183,7 +183,7 @@ func TestTagMap(t *testing.T) {
 func TestTagMapMerge(t *testing.T) {
 	for _, test := range []struct {
 		name   string
-		tags   [][]event.Tag
+		maps   []event.TagMap
 		keys   []event.Key
 		expect string
 	}{{
@@ -192,41 +192,47 @@ func TestTagMapMerge(t *testing.T) {
 		expect: `nil`,
 	}, {
 		name:   "one map",
-		tags:   [][]event.Tag{all},
+		maps:   []event.TagMap{event.NewTagMap(all...)},
 		keys:   []event.Key{AKey},
 		expect: `A="a"`,
 	}, {
 		name:   "invalid map",
-		tags:   [][]event.Tag{{}},
+		maps:   []event.TagMap{event.NewTagMap()},
 		keys:   []event.Key{AKey},
 		expect: `nil`,
 	}, {
 		name:   "two maps",
-		tags:   [][]event.Tag{{B, C}, {A}},
+		maps:   []event.TagMap{event.NewTagMap(B, C), event.NewTagMap(A)},
 		keys:   []event.Key{AKey, BKey, CKey},
 		expect: `A="a", B="b", C="c"`,
 	}, {
 		name:   "invalid start map",
-		tags:   [][]event.Tag{{}, {B, C}},
+		maps:   []event.TagMap{event.NewTagMap(), event.NewTagMap(B, C)},
 		keys:   []event.Key{AKey, BKey, CKey},
 		expect: `nil, B="b", C="c"`,
 	}, {
 		name:   "invalid mid map",
-		tags:   [][]event.Tag{{A}, {}, {C}},
+		maps:   []event.TagMap{event.NewTagMap(A), event.NewTagMap(), event.NewTagMap(C)},
 		keys:   []event.Key{AKey, BKey, CKey},
 		expect: `A="a", nil, C="c"`,
 	}, {
 		name:   "invalid end map",
-		tags:   [][]event.Tag{{A, B}, {}},
+		maps:   []event.TagMap{event.NewTagMap(A, B), event.NewTagMap()},
+		keys:   []event.Key{AKey, BKey, CKey},
+		expect: `A="a", B="b", nil`,
+	}, {
+		name:   "three maps one nil",
+		maps:   []event.TagMap{event.NewTagMap(A), event.NewTagMap(B), nil},
+		keys:   []event.Key{AKey, BKey, CKey},
+		expect: `A="a", B="b", nil`,
+	}, {
+		name:   "two maps one nil",
+		maps:   []event.TagMap{event.NewTagMap(A, B), nil},
 		keys:   []event.Key{AKey, BKey, CKey},
 		expect: `A="a", B="b", nil`,
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			maps := make([]event.TagMap, len(test.tags))
-			for i, v := range test.tags {
-				maps[i] = event.NewTagMap(v...)
-			}
-			tagMap := event.MergeTagMaps(maps...)
+			tagMap := event.MergeTagMaps(test.maps...)
 			got := printTagMap(tagMap, test.keys)
 			if got != test.expect {
 				t.Errorf("got %q want %q", got, test.expect)

@@ -184,5 +184,14 @@ func NewTagMap(tags ...Tag) TagMap {
 }
 
 func MergeTagMaps(srcs ...TagMap) TagMap {
-	return tagMapChain{maps: srcs}
+	var nonNil []TagMap
+	for _, src := range srcs {
+		if src != nil {
+			nonNil = append(nonNil, src)
+		}
+	}
+	if len(nonNil) == 1 {
+		return nonNil[0]
+	}
+	return tagMapChain{maps: nonNil}
 }
