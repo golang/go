@@ -117,7 +117,6 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// * ⊞3e±10±3i (len signPos = 2 or 3) [real in exp form]
 	// * ⊞3e10±5i (len signPos = 1 or 2) [real in exp form]
 	// * ⊞3e±10±4e±10i (len signPos = 3 or 4) [real and imag in exp form]
-	//
 	// where ⊞ means ± or non-existent.
 
 	// Loop through signPos from middle of slice, outwards.

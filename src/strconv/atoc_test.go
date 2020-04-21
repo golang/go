@@ -133,14 +133,6 @@ func TestParseComplex(t *testing.T) {
 			str:  "NaN+NaNi",
 			want: complex(math.NaN(), math.NaN()),
 		},
-		{
-			str:  "NaN+NaNi",
-			want: complex(math.NaN(), math.NaN()),
-		},
-		{
-			str:  "NaN+NaNi",
-			want: complex(math.NaN(), math.NaN()),
-		},
 		// {
 		// 	str:  "0xBadFace+0x677a2fcc40c6i",
 		// 	want: complex(0xBadFace, 0x677a2fcc40c6),
@@ -208,11 +200,12 @@ func TestParseComplex(t *testing.T) {
 
 		// Test with parentheses
 		if tt.wantErr == nil {
-			tt.str = "(" + tt.str + ")"
-			t.Run(tt.str, func(t *testing.T) {
-				got, err := ParseComplex(tt.str, 128)
-				if g, w := err, tt.wantErr; g != w {
-					t.Fatalf("Error mismatch\nGot:  %v\nWant: %v", g, w)
+			str := "(" + tt.str + ")"
+
+			t.Run(str, func(t *testing.T) {
+				got, err := ParseComplex(str, 128)
+				if err != nil {
+					t.Fatalf("Error mismatch\nGot:  %v\nWant: %v", err, nil)
 				}
 
 				if !(cmplx.IsNaN(tt.want) && cmplx.IsNaN(got)) && got != tt.want {
