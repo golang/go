@@ -3623,6 +3623,7 @@ func TestTransportDialTLS(t *testing.T) {
 	}
 	res.Body.Close()
 	mu.Lock()
+	defer mu.Unlock()
 	if !gotReq {
 		t.Error("didn't get request")
 	}
@@ -3663,6 +3664,7 @@ func TestTransportDialContext(t *testing.T) {
 	}
 	res.Body.Close()
 	mu.Lock()
+	defer mu.Unlock()
 	if !gotReq {
 		t.Error("didn't get request")
 	}
@@ -3707,6 +3709,7 @@ func TestTransportDialTLSContext(t *testing.T) {
 	}
 	res.Body.Close()
 	mu.Lock()
+	defer mu.Unlock()
 	if !gotReq {
 		t.Error("didn't get request")
 	}
