@@ -143,6 +143,26 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
+// ReadFrom implements io.ReaderFrom.
+func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
+	if err := f.checkValid("write"); err != nil {
+		return 0, err
+	}
+	n, handled, e := f.readFrom(r)
+	if !handled {
+		return genericReadFrom(f, r) // without wrapping
+	}
+	return n, f.wrapErr("write", e)
+}
+
+func genericReadFrom(f *File, r io.Reader) (int64, error) {
+	return io.Copy(onlyWriter{f}, r)
+}
+
+type onlyWriter struct {
+	io.Writer
+}
+
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
