@@ -392,7 +392,6 @@ func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
 func nlz8(x int8) int   { return bits.LeadingZeros8(uint8(x)) }
 
 // ntzX returns the number of trailing zeros.
-func ntz(x int64) int64 { return int64(bits.TrailingZeros64(uint64(x))) } // TODO: remove when no longer used
 func ntz64(x int64) int { return bits.TrailingZeros64(uint64(x)) }
 func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
 func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
@@ -406,7 +405,7 @@ func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
 
 // nto returns the number of trailing ones.
 func nto(x int64) int64 {
-	return ntz(^x)
+	return int64(ntz64(^x))
 }
 
 // log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
