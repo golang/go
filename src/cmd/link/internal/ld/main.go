@@ -35,7 +35,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
-	"cmd/link/internal/sym"
 	"flag"
 	"log"
 	"os"
@@ -156,9 +155,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if objabi.Fieldtrack_enabled != 0 {
-		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
-	}
 	checkStrictDups = *FlagStrictDups
 
 	startProfile()
