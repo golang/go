@@ -192,37 +192,25 @@ func TestDeltaProfile(t *testing.T) {
 		<-done // wait for the goroutine to exit.
 	}()
 
-	for _, tc := range []struct {
-		endpoint             string
-		seconds              int
-		mutexHog1, mutexHog2 bool
-	}{
-		{"/debug/pprof/mutex?seconds=1", 1, false, true},
-		{"/debug/pprof/mutex", 0, true, true},
-	} {
-		t.Run(tc.endpoint, func(t *testing.T) {
-			p, err := query(tc.endpoint)
-			if err != nil {
-				t.Fatalf("failed to query profile: %v", err)
-			}
-			t.Logf("Profile=%v", p)
-
-			if got := seen(p, "mutexHog1"); got != tc.mutexHog1 {
-				t.Errorf("seen(mutexHog1) = %t, want %t", got, tc.mutexHog1)
-			}
-			if got := seen(p, "mutexHog2"); got != tc.mutexHog2 {
-				t.Errorf("seen(mutexHog2) = %t, want %t", got, tc.mutexHog2)
-			}
-
-			if tc.seconds > 0 {
-				got := time.Duration(p.DurationNanos) * time.Nanosecond
-				want := time.Duration(tc.seconds) * time.Second
-				if got < want/2 || got > 2*want {
-					t.Errorf("got duration = %v; want ~%v", got, want)
-				}
-			}
-
-		})
+	for _, d := range []int{1, 4, 16, 32} {
+		endpoint := fmt.Sprintf("/debug/pprof/mutex?seconds=%d", d)
+		p, err := query(endpoint)
+		if err != nil {
+			t.Fatalf("failed to query %q: %v", endpoint, err)
+		}
+		if !seen(p, "mutexHog1") && seen(p, "mutexHog2") && p.DurationNanos > 0 {
+			break // pass
+		}
+		if d == 32 {
+			t.Errorf("want mutexHog2 but no mutexHog1 in the profile, and non-zero p.DurationNanos, got %v", p)
+		}
+	}
+	p, err = query("/debug/pprof/mutex")
+	if err != nil {
+		t.Fatalf("failed to query mutex profile: %v", err)
+	}
+	if !seen(p, "mutexHog1") || !seen(p, "mutexHog2") {
+		t.Errorf("want both mutexHog1 and mutexHog2 in the profile, got %v", p)
 	}
 }
 
