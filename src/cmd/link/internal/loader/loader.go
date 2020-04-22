@@ -270,6 +270,8 @@ type Loader struct {
 
 	elfsetstring elfsetstringFunc
 
+	errorReporter *ErrorReporter
+
 	SymLookup func(name string, ver int) *sym.Symbol
 }
 
@@ -301,9 +303,9 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
-func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
+func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
 	nbuiltin := goobj2.NBuiltin()
-	return &Loader{
+	ldr := &Loader{
 		start:                make(map[*oReader]Sym),
 		objs:                 []objIdx{{}}, // reserve index 0 for nil symbol
 		objSyms:              []objSym{{}}, // reserve index 0 for nil symbol
@@ -332,8 +334,11 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
 		elfsetstring:         elfsetstring,
+		errorReporter:        reporter,
 		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
+	reporter.ldr = ldr
+	return ldr
 }
 
 // Add object file r, return the start index.
@@ -2752,6 +2757,42 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 	}
 
 	return textp2
+}
+
+// ErrorReporter is a helper class for reporting errors.
+type ErrorReporter struct {
+	ldr              *Loader
+	AfterErrorAction func()
+}
+
+// Errorf method logs an error message.
+//
+// After each error, the error actions function will be invoked; this
+// will either terminate the link immediately (if -h option given)
+// or it will keep a count and exit if more than 20 errors have been printed.
+//
+// Logging an error means that on exit cmd/link will delete any
+// output file and return a non-zero error code.
+//
+func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
+	if s != 0 && reporter.ldr.SymName(s) != "" {
+		format = reporter.ldr.SymName(s) + ": " + format
+	} else {
+		format = fmt.Sprintf("sym %d: %s", s, format)
+	}
+	format += "\n"
+	fmt.Fprintf(os.Stderr, format, args...)
+	reporter.AfterErrorAction()
+}
+
+// GetErrorReporter returns the loader's associated error reporter.
+func (l *Loader) GetErrorReporter() *ErrorReporter {
+	return l.errorReporter
+}
+
+// Errorf method logs an error message. See ErrorReporter.Errorf for details.
+func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
+	l.errorReporter.Errorf(s, format, args)
 }
 
 // For debugging.
