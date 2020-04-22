@@ -414,34 +414,27 @@ func (o *Order) call(n *Node) {
 	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
 		return
 	}
-	keepAlive := func(i int) {
+	keepAlive := func(arg *Node) {
 		// If the argument is really a pointer being converted to uintptr,
 		// arrange for the pointer to be kept alive until the call returns,
 		// by copying it into a temp and marking that temp
 		// still alive when we pop the temp stack.
-		xp := n.List.Addr(i)
-		for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
-			xp = &(*xp).Left
-		}
-		x := *xp
-		if x.Type.IsUnsafePtr() {
-			x = o.copyExpr(x, x.Type, false)
+		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
+			x := o.copyExpr(arg.Left, arg.Left.Type, false)
 			x.Name.SetKeepalive(true)
-			*xp = x
+			arg.Left = x
 		}
 	}
 
-	for i, t := range n.Left.Type.Params().FieldSlice() {
-		// Check for "unsafe-uintptr" tag provided by escape analysis.
-		if t.IsDDD() && !n.IsDDD() {
-			if t.Note == uintptrEscapesTag {
-				for ; i < n.List.Len(); i++ {
-					keepAlive(i)
+	// Check for "unsafe-uintptr" tag provided by escape analysis.
+	for i, param := range n.Left.Type.Params().FieldSlice() {
+		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
+			if param.IsDDD() && !n.IsDDD() {
+				for _, arg := range n.List.Slice()[i:] {
+					keepAlive(arg)
 				}
-			}
-		} else {
-			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
-				keepAlive(i)
+			} else {
+				keepAlive(n.List.Index(i))
 			}
 		}
 	}
