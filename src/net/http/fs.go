@@ -36,6 +36,10 @@ import (
 // remove the files/directories from the server or create a custom FileSystem
 // implementation.
 //
+// In addition, if Dir is used to serve files from a directory tree in which
+// users are able to create arbitrary symbolic links, these users can leak the
+// contents of any file the Go process can read.
+//
 // An empty Dir is treated as ".".
 type Dir string
 
