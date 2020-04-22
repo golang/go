@@ -2729,8 +2729,15 @@ func (rs *Rows) lasterrOrErrLocked(err error) error {
 	return err
 }
 
+// bypassRowsAwaitDone is only used for testing.
+// If true, it will not close the Rows automatically from the context.
+var bypassRowsAwaitDone = false
+
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
+		return
+	}
+	if bypassRowsAwaitDone {
 		return
 	}
 	ctx, rs.cancel = context.WithCancel(ctx)
