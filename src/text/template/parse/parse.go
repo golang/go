@@ -21,6 +21,7 @@ type Tree struct {
 	Name      string    // name of the template represented by the tree.
 	ParseName string    // name of the top-level template during parsing, for error messages.
 	Root      *ListNode // top-level root of the tree.
+	Mode      Mode      // parsing mode.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
 	funcs     []map[string]interface{}
@@ -29,7 +30,15 @@ type Tree struct {
 	peekCount int
 	vars      []string // variables defined at the moment.
 	treeSet   map[string]*Tree
+	mode      Mode
 }
+
+// A mode value is a set of flags (or 0). Modes control parser behavior.
+type Mode uint
+
+const (
+	ParseComments Mode = 1 << iota // parse comments and add them to AST
+)
 
 // Copy returns a copy of the Tree. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -220,7 +229,8 @@ func (t *Tree) stopParse() {
 func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim), treeSet)
+	emitComment := t.Mode&ParseComments != 0
+	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim, emitComment), treeSet)
 	t.text = text
 	t.parse()
 	t.add()
@@ -240,12 +250,14 @@ func (t *Tree) add() {
 	}
 }
 
-// IsEmptyTree reports whether this tree (node) is empty of everything but space.
+// IsEmptyTree reports whether this tree (node) is empty of everything but space or comments.
 func IsEmptyTree(n Node) bool {
 	switch n := n.(type) {
 	case nil:
 		return true
 	case *ActionNode:
+	case *CommentNode:
+		return true
 	case *IfNode:
 	case *ListNode:
 		for _, node := range n.Nodes {
@@ -276,6 +288,7 @@ func (t *Tree) parse() {
 			if t.nextNonSpace().typ == itemDefine {
 				newT := New("definition") // name will be updated once we know it.
 				newT.text = t.text
+				newT.Mode = t.Mode
 				newT.ParseName = t.ParseName
 				newT.startParse(t.funcs, t.lex, t.treeSet)
 				newT.parseDefinition()
@@ -331,13 +344,15 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
 }
 
 // textOrAction:
-//	text | action
+//	text | comment | action
 func (t *Tree) textOrAction() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemText:
 		return t.newText(token.pos, token.val)
 	case itemLeftDelim:
 		return t.action()
+	case itemComment:
+		return t.newComment(token.pos, token.val)
 	default:
 		t.unexpected(token, "input")
 	}
@@ -539,6 +554,7 @@ func (t *Tree) blockControl() Node {
 
 	block := New(name) // name will be updated once we know it.
 	block.text = t.text
+	block.Mode = t.Mode
 	block.ParseName = t.ParseName
 	block.startParse(t.funcs, t.lex, t.treeSet)
 	var end Node

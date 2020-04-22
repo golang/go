@@ -3,3 +3,17 @@ pkg unicode, var Chorasmian *RangeTable
 pkg unicode, var Dives_Akuru *RangeTable
 pkg unicode, var Khitan_Small_Script *RangeTable
 pkg unicode, var Yezidi *RangeTable
+pkg text/template/parse, const NodeComment = 20
+pkg text/template/parse, const NodeComment NodeType
+pkg text/template/parse, const ParseComments = 1
+pkg text/template/parse, const ParseComments Mode
+pkg text/template/parse, method (*CommentNode) Copy() Node
+pkg text/template/parse, method (*CommentNode) String() string
+pkg text/template/parse, method (CommentNode) Position() Pos
+pkg text/template/parse, method (CommentNode) Type() NodeType
+pkg text/template/parse, type CommentNode struct
+pkg text/template/parse, type CommentNode struct, Text string
+pkg text/template/parse, type CommentNode struct, embedded NodeType
+pkg text/template/parse, type CommentNode struct, embedded Pos
+pkg text/template/parse, type Mode uint
+pkg text/template/parse, type Tree struct, Mode Mode

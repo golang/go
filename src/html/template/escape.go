@@ -124,6 +124,8 @@ func (e *escaper) escape(c context, n parse.Node) context {
 	switch n := n.(type) {
 	case *parse.ActionNode:
 		return e.escapeAction(c, n)
+	case *parse.CommentNode:
+		return c
 	case *parse.IfNode:
 		return e.escapeBranch(c, &n.BranchNode, "if")
 	case *parse.ListNode:
