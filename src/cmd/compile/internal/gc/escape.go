@@ -1146,7 +1146,8 @@ func (e *Escape) walkAll() {
 	// transient->!transient and !escapes->escapes, which can each
 	// happen at most once. So we take Θ(len(e.allLocs)) walks.
 
-	var todo []*EscLocation // LIFO queue
+	// LIFO queue, has enough room for e.allLocs and e.heapLoc.
+	todo := make([]*EscLocation, 0, len(e.allLocs)+1)
 	enqueue := func(loc *EscLocation) {
 		if !loc.queued {
 			todo = append(todo, loc)
