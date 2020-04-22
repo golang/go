@@ -1804,26 +1804,27 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 
 // Add non-package symbols and references to external symbols (which are always
 // named).
-func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
+func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	for _, o := range l.objs[1:] {
 		l.preloadSyms(o.r, nonPkgDef)
 	}
 	for _, o := range l.objs[1:] {
-		loadObjRefs(l, o.r, syms)
+		loadObjRefs(l, o.r, arch)
 	}
 }
 
-func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
+func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
 		osym := r.Sym(ndef + i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+		gi := r.syms[ndef+i]
 		if osym.Local() {
-			gi := r.syms[ndef+i]
 			l.SetAttrLocal(gi, true)
 		}
+		l.preprocess(arch, gi, name)
 	}
 }
 
@@ -1841,24 +1842,29 @@ func abiToVer(abi uint16, localSymVersion int) int {
 	return v
 }
 
-func preprocess(arch *sys.Arch, s *sym.Symbol) {
-	if s.Name != "" && s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
-		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+// preprocess looks for integer/floating point constant symbols whose
+// content is encoded into the symbol name, and promotes them into
+// real symbols with RODATA type and a payload that matches the
+// encoded content.
+func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
+	if name != "" && name[0] == '$' && len(name) > 5 && l.SymType(s) == 0 && len(l.Data(s)) == 0 {
+		x, err := strconv.ParseUint(name[5:], 16, 64)
 		if err != nil {
-			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
+			log.Panicf("failed to parse $-symbol %s: %v", name, err)
 		}
-		s.Type = sym.SRODATA
-		s.Attr |= sym.AttrLocal
-		switch s.Name[:5] {
+		su := l.MakeSymbolUpdater(s)
+		su.SetType(sym.SRODATA)
+		su.SetLocal(true)
+		switch name[:5] {
 		case "$f32.":
 			if uint64(uint32(x)) != x {
-				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+				log.Panicf("$-symbol %s too large: %d", name, x)
 			}
-			s.AddUint32(arch, uint32(x))
+			su.AddUint32(arch, uint32(x))
 		case "$f64.", "$i64.":
-			s.AddUint64(arch, x)
+			su.AddUint64(arch, x)
 		default:
-			log.Panicf("unrecognized $-symbol: %s", s.Name)
+			log.Panicf("unrecognized $-symbol: %s", name)
 		}
 	}
 }
@@ -1929,9 +1935,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 		// Transfer over attributes.
 		l.migrateAttributes(i, s)
-
-		// Preprocess symbol. May set 'AttrLocal'.
-		preprocess(arch, s)
 	}
 
 	// load contents of defined symbols
