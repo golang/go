@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -117,6 +119,10 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 			}
 		},
 		Tests: true,
+	}
+	// We want to type check cgo code if go/types supports it.
+	if reflect.ValueOf(&types.Config{}).Elem().FieldByName("UsesCgo").IsValid() {
+		cfg.Mode |= packages.TypecheckCgo
 	}
 	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
 

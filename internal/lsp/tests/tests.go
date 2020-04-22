@@ -230,7 +230,10 @@ func DefaultOptions() source.Options {
 	return o
 }
 
-var haveCgo = false
+var (
+	haveCgo = false
+	go115   = false
+)
 
 // Load creates the folder structure required when testing with modules.
 // The directory structure of a test needs to look like the example below:
@@ -453,6 +456,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 					if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
 						t.Skip("test requires cgo, not supported")
 					}
+					if !go115 && strings.Contains(t.Name(), "declarecgo") {
+						t.Skip("test requires Go 1.15")
+					}
 					test(t, src, e, data.CompletionItems)
 				})
 			}
@@ -610,6 +616,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				t.Helper()
 				if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
 					t.Skip("test requires cgo, not supported")
+				}
+				if !go115 && strings.Contains(t.Name(), "declarecgo") {
+					t.Skip("test requires Go 1.15")
 				}
 				tests.Definition(t, spn, d)
 			})
@@ -809,7 +818,7 @@ func checkData(t *testing.T, data *Data) {
 	}))
 	got := buf.String()
 	if want != got {
-		t.Errorf("test summary does not match, want\n%s\ngot:\n%s", want, got)
+		t.Errorf("test summary does not match: %v", Diff(want, got))
 	}
 }
 

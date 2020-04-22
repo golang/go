@@ -10,9 +10,10 @@ void myprint(char* s) {
 */
 import "C"
 
-import "fmt"
-
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 func Example() { //@mark(funccgoexample, "Example"),item(funccgoexample, "Example", "func()", "func")
 	fmt.Println()
@@ -22,5 +23,5 @@ func Example() { //@mark(funccgoexample, "Example"),item(funccgoexample, "Exampl
 }
 
 func _() {
-	Example()
+	Example() //@godef("ample", funccgoexample),complete("ample", funccgoexample)
 }
