@@ -113,7 +113,9 @@ func (out *OutBuf) Close() error {
 		return viewCloseError
 	}
 	if out.isMmapped() {
-		return out.Munmap()
+		out.copyHeap()
+		out.munmap()
+		return nil
 	}
 	if out.f == nil {
 		return nil
@@ -135,25 +137,32 @@ func (out *OutBuf) isMmapped() bool {
 	return len(out.buf) != 0
 }
 
-// Munmap cleans up all the output buffer.
-func (out *OutBuf) Munmap() error {
-	wasMapped := out.isMmapped()
+// copyHeap copies the heap to the mmapped section of memory, returning true if
+// a copy takes place.
+func (out *OutBuf) copyHeap() bool {
+	if !out.isMmapped() { // only valuable for mmapped OutBufs.
+		return false
+	}
+	if out.isView {
+		panic("can't copyHeap a view")
+	}
+
 	bufLen := len(out.buf)
 	heapLen := len(out.heap)
 	total := uint64(bufLen + heapLen)
-	if wasMapped {
-		out.munmap()
-		if heapLen != 0 {
-			if err := out.Mmap(total); err != nil {
-				return err
-			}
-			copy(out.buf[bufLen:], out.heap[:heapLen])
-			out.heap = nil
-			out.munmap()
+	out.munmap()
+	if heapLen != 0 {
+		if err := out.Mmap(total); err != nil {
+			panic(err)
 		}
+		copy(out.buf[bufLen:], out.heap[:heapLen])
+		out.heap = out.heap[:0]
 	}
-	return nil
+	return true
 }
+
+// maxOutBufHeapLen limits the growth of the heap area.
+const maxOutBufHeapLen = 10 << 20
 
 // writeLoc determines the write location if a buffer is mmaped.
 // We maintain two write buffers, an mmapped section, and a heap section for
@@ -175,6 +184,11 @@ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
 		// try to use OutBuf in parallel. (Note this probably could be fixed.)
 		if out.isView {
 			panic("cannot write to heap in parallel")
+		}
+		// See if our heap would grow to be too large, and if so, copy it to the end
+		// of the mmapped area.
+		if heapLen > maxOutBufHeapLen && out.copyHeap() {
+			heapPos, heapLen, lenNeeded = 0, 0, lenToWrite
 		}
 		out.heap = append(out.heap, make([]byte, lenNeeded-heapLen)...)
 	}
