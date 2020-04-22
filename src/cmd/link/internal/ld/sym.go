@@ -34,19 +34,22 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"log"
 	"runtime"
 )
 
 func linknew(arch *sys.Arch) *Link {
+	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
 	ctxt := &Link{
-		Target:       Target{Arch: arch},
-		Syms:         sym.NewSymbols(),
-		outSem:       make(chan int, 2*runtime.GOMAXPROCS(0)),
-		Out:          NewOutBuf(arch),
-		LibraryByPkg: make(map[string]*sym.Library),
-		numelfsym:    1,
+		Target:        Target{Arch: arch},
+		Syms:          sym.NewSymbols(),
+		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
+		Out:           NewOutBuf(arch),
+		LibraryByPkg:  make(map[string]*sym.Library),
+		numelfsym:     1,
+		ErrorReporter: ErrorReporter{ErrorReporter: ler},
 	}
 
 	if objabi.GOARCH != arch.Name {
