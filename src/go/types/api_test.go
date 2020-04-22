@@ -444,7 +444,7 @@ func TestDefsInfo(t *testing.T) {
 
 		// generic types must be sanitized
 		// (need to use sufficiently nested types to provoke unexpanded types)
-		// TODO(gri) add analogous test for constants, once T(int) is accepted as constant type
+		{`package g0; type t(type P) P; const x = (t(int))(42)`, `x`, `const g0.x g0.t(int)`},
 		{`package g1; type t(type P) P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
 		{`package g2; type t(type P) P; type x struct{ f t(int) }`, `x`, `type g2.x struct{f g2.t(int)}`},
 		{`package g3; type t(type P) P; func f(x struct{ f t(string) }); var g = f`, `g`, `var g3.g func(x struct{f g3.t(string)})`},
@@ -489,7 +489,7 @@ func TestUsesInfo(t *testing.T) {
 
 		// generic types must be sanitized
 		// (need to use sufficiently nested types to provoke unexpanded types)
-		// TODO(gri) add analogous test for constants, once T(int) is accepted as constant type
+		{`package g0; func _() { _ = x }; type t(type P) P; const x = (t(int))(42)`, `x`, `const g0.x g0.t(int)`},
 		{`package g1; func _() { _ = x }; type t(type P) P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
 		{`package g2; func _() { type _ x }; type t(type P) P; type x struct{ f t(int) }`, `x`, `type g2.x struct{f g2.t(int)}`},
 		{`package g3; func _() { _ = f }; type t(type P) P; func f(x struct{ f t(string) })`, `f`, `func g3.f(x struct{f g3.t(string)})`},

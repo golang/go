@@ -19,12 +19,16 @@ type Type interface {
 
 	// Under returns the true expanded underlying type.
 	// If it doesn't exist, the result is Typ[Invalid].
+	// Under must only be called when a type is known
+	// to be fully set up.
 	Under() Type
 
 	// String returns a string representation of a type.
 	String() string
 
 	// Converters
+	// A converter must only be called when a type is
+	// known to be fully set up.
 	Basic() *Basic
 	Array() *Array
 	Slice() *Slice
@@ -698,7 +702,19 @@ type instance struct {
 	aType
 }
 
-func (t *instance) Named() *Named { return t.expand().Named() }
+// Converter methods
+func (t *instance) Basic() *Basic         { return t.Under().Basic() }
+func (t *instance) Array() *Array         { return t.Under().Array() }
+func (t *instance) Slice() *Slice         { return t.Under().Slice() }
+func (t *instance) Struct() *Struct       { return t.Under().Struct() }
+func (t *instance) Pointer() *Pointer     { return t.Under().Pointer() }
+func (t *instance) Tuple() *Tuple         { return t.Under().Tuple() }
+func (t *instance) Signature() *Signature { return t.Under().Signature() }
+func (t *instance) Interface() *Interface { return t.Under().Interface() }
+func (t *instance) Map() *Map             { return t.Under().Map() }
+func (t *instance) Chan() *Chan           { return t.Under().Chan() }
+func (t *instance) Named() *Named         { return t.expand().Named() }
+func (t *instance) TypeParam() *TypeParam { return t.Under().TypeParam() }
 
 // expand returns the instantiated (= expanded) type of t.
 // The result is either an instantiated *Named type, or
@@ -775,15 +791,8 @@ func (t *Map) Under() Type       { return t }
 func (t *Chan) Under() Type      { return t }
 
 // see decl.go for implementation of Named.Under
-
 func (t *TypeParam) Under() Type { return t }
-func (t *instance) Under() Type {
-	typ := t.expand()
-	if n, _ := typ.(*Named); n != nil {
-		return n.Under()
-	}
-	return typ
-}
+func (t *instance) Under() Type  { return t.expand().Under() }
 
 func (t *Basic) String() string     { return TypeString(t, nil) }
 func (t *Array) String() string     { return TypeString(t, nil) }

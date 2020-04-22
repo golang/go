@@ -11,6 +11,8 @@ import (
 	"sort"
 )
 
+// isNamed reports whether typ has a name.
+// isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
 	case *Basic, *Named, *instance:
@@ -44,14 +46,22 @@ func isComplex(typ Type) bool  { return is(typ, IsComplex) }
 func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
 func isString(typ Type) bool   { return is(typ, IsString) }
 
+// isTyped reports whether typ is typed; i.e., not an untyped
+// constant or boolean. isTyped may be called with types that
+// are not fully set up.
 func isTyped(typ Type) bool {
-	t := typ.Basic()
+	// isTyped is called with types that are not fully
+	// set up. Must not call Basic()!
+	// A *Named or *instance type is always typed, so
+	// we only need to check if we have a true *Basic
+	// type.
+	t, _ := typ.(*Basic)
 	return t == nil || t.info&IsUntyped == 0
 }
 
+// isUntyped(typ) is the same as !isTyped(typ).
 func isUntyped(typ Type) bool {
-	t := typ.Basic()
-	return t != nil && t.info&IsUntyped != 0
+	return !isTyped(typ)
 }
 
 func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
