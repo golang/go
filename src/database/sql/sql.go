@@ -1357,6 +1357,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 
 	if err != driver.ErrBadConn && dc.expired(db.maxLifetime) {
+		db.maxLifetimeClosed++
 		err = driver.ErrBadConn
 	}
 	if debugGetPut {
