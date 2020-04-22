@@ -43,10 +43,10 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
-	expandFuncCall := func(sig *types.Signature) {
+	expandFuncCall := func(sig *types.Signature) error {
 		s, err := newSignature(ctx, c.snapshot, c.pkg, "", sig, nil, c.qf)
 		if err != nil {
-			return
+			return err
 		}
 		snip = c.functionCallSnippet(label, s.params)
 		detail = "func" + s.format()
@@ -55,6 +55,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if sig.Results().Len() == 1 && c.inference.matchesVariadic(sig.Results().At(0).Type()) {
 			snip.WriteText("...")
 		}
+		return nil
 	}
 
 	switch obj := obj.(type) {
@@ -66,11 +67,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			var err error
-			detail, err = formatFieldType(ctx, c.snapshot, c.pkg, obj)
-			if err != nil {
-				detail = types.TypeString(obj.Type(), c.qf)
-			}
+			detail = formatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -83,7 +80,9 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 
 		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && cand.expandFuncCall {
-			expandFuncCall(sig)
+			if err := expandFuncCall(sig); err != nil {
+				return CompletionItem{}, err
+			}
 		}
 
 		// Add variadic "..." if we are using a variable to fill in a variadic parameter.
@@ -102,7 +101,9 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 
 		if cand.expandFuncCall {
-			expandFuncCall(sig)
+			if err := expandFuncCall(sig); err != nil {
+				return CompletionItem{}, err
+			}
 		}
 	case *types.PkgName:
 		kind = protocol.ModuleCompletion

@@ -1,0 +1,3 @@
+-- X(_ map[signatures.Alias]types.CoolAlias) map[signatures.Alias]types.CoolAlias-signature --
+X(_ map[signatures.Alias]types.CoolAlias) map[signatures.Alias]types.CoolAlias
+

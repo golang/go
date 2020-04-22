@@ -231,7 +231,7 @@ func DefaultOptions() source.Options {
 
 var haveCgo = false
 
-// For Load() to properly create the folder structure required when testing with modules.
+// Load creates the folder structure required when testing with modules.
 // The directory structure of a test needs to look like the example below:
 //
 // - dir

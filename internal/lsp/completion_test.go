@@ -26,7 +26,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
-		t.Errorf("%s: %s", src, diff)
+		t.Errorf("%s", diff)
 	}
 }
 
@@ -43,7 +43,7 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 		want = expected.PlaceholderSnippet
 	}
 	if diff := tests.DiffSnippets(want, got); diff != "" {
-		t.Errorf("%s: %v", src, diff)
+		t.Errorf("%s", diff)
 	}
 }
 
@@ -52,7 +52,7 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if diff := tests.CheckCompletionOrder(want, got, false); diff != "" {
-		t.Errorf("%s: %s", src, diff)
+		t.Errorf("%s", diff)
 	}
 }
 
@@ -65,7 +65,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s: %s", src, msg)
+		t.Errorf("%s", msg)
 	}
 }
 
@@ -78,7 +78,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s: %s", src, msg)
+		t.Errorf("%s", msg)
 	}
 }
 
@@ -90,7 +90,7 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s: %s", src, msg)
+		t.Errorf("%s", msg)
 	}
 }
 
@@ -102,7 +102,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	})
 	want := expected(t, test, items)
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {
-		t.Errorf("%s: %s", src, msg)
+		t.Errorf("%s", msg)
 	}
 }
 

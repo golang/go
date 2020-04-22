@@ -20,7 +20,17 @@ func (*myStruct) foo(e *json.Decoder) (*big.Int, error) {
 	return nil, nil
 }
 
+type MyType struct{}
+
 type MyFunc func(foo int) string
+
+type Alias = int
+type OtherAlias = int
+type StringAlias = string
+
+func AliasSlice(a []*Alias) (b Alias)                                 { return 0 }
+func AliasMap(a map[*Alias]StringAlias) (b, c map[*Alias]StringAlias) { return nil, nil }
+func OtherAliasMap(a, b map[Alias]OtherAlias) map[Alias]OtherAlias    { return nil }
 
 func Qux() {
 	Foo("foo", 123) //@signature("(", "Foo(a string, b int) (c bool)", 0)
@@ -66,6 +76,9 @@ func Qux() {
 		//@signature("//", "", 0)
 	})
 
+	AliasSlice()    //@signature(")", "AliasSlice(a []*Alias) (b Alias)", 0)
+	AliasMap()      //@signature(")", "AliasMap(a map[*Alias]StringAlias) (b map[*Alias]StringAlias, c map[*Alias]StringAlias)", 0)
+	OtherAliasMap() //@signature(")", "OtherAliasMap(a map[Alias]OtherAlias, b map[Alias]OtherAlias) map[Alias]OtherAlias", 0)
 }
 
 func Hello(func()) {}

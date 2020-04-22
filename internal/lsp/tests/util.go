@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -279,7 +281,7 @@ func summarizeCodeLens(i int, uri span.URI, want, got []protocol.CodeLens, reaso
 
 func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	decorate := func(f string, args ...interface{}) string {
-		return fmt.Sprintf("Invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
+		return fmt.Sprintf("invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
 
 	if len(got.Signatures) != 1 {
@@ -297,7 +299,8 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	gotSig := got.Signatures[int(got.ActiveSignature)]
 
 	if want.Signatures[0].Label != got.Signatures[0].Label {
-		return decorate("wanted label %q, got %q", want.Signatures[0].Label, got.Signatures[0].Label)
+		d := myers.ComputeEdits("", want.Signatures[0].Label, got.Signatures[0].Label)
+		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", want.Signatures[0].Label, d))
 	}
 
 	var paramParts []string

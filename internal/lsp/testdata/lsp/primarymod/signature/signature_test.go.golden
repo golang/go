@@ -1,0 +1,21 @@
+-- AliasMap(a map[*signature.Alias]signature.StringAlias) (b map[*signature.Alias]signature.StringAlias, c map[*signature.Alias]signature.StringAlias)-signature --
+AliasMap(a map[*signature.Alias]signature.StringAlias) (b map[*signature.Alias]signature.StringAlias, c map[*signature.Alias]signature.StringAlias)
+
+-- AliasSlice(a []*signature.Alias) (b signature.Alias)-signature --
+AliasSlice(a []*signature.Alias) (b signature.Alias)
+
+-- GetAlias() signature.Alias-signature --
+GetAlias() signature.Alias
+
+-- GetAliasPtr() *signature.Alias-signature --
+GetAliasPtr() *signature.Alias
+
+-- OtherAliasMap(a map[signature.Alias]signature.OtherAlias, b map[signature.Alias]signature.OtherAlias) map[signature.Alias]signature.OtherAlias-signature --
+OtherAliasMap(a map[signature.Alias]signature.OtherAlias, b map[signature.Alias]signature.OtherAlias) map[signature.Alias]signature.OtherAlias
+
+-- SetAliasSlice(a []*signature.Alias)-signature --
+SetAliasSlice(a []*signature.Alias)
+
+-- SetOtherAliasMap(a map[*signature.Alias]signature.OtherAlias)-signature --
+SetOtherAliasMap(a map[*signature.Alias]signature.OtherAlias)
+
