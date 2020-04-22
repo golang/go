@@ -2742,7 +2742,7 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 }
 
-// Issue 34755: Ensure that a Tx cannot commit after a rollback.
+// Issue 34775: Ensure that a Tx cannot commit after a rollback.
 func TestTxCannotCommitAfterRollback(t *testing.T) {
 	db := newTestDB(t, "tx_status")
 	defer closeDB(t, db)
@@ -2784,6 +2784,9 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	// 2. (A) Start a query, (B) begin Tx rollback through a ctx cancel.
 	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
 	sendQuery := make(chan struct{})
+	// The Tx status is returned through the row results, ensure
+	// that the rows results are not cancelled.
+	bypassRowsAwaitDone = true
 	hookTxGrabConn = func() {
 		cancel()
 		<-sendQuery
@@ -2794,6 +2797,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	defer func() {
 		hookTxGrabConn = nil
 		rollbackHook = nil
+		bypassRowsAwaitDone = false
 	}()
 
 	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
