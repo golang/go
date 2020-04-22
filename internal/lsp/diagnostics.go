@@ -25,14 +25,12 @@ type diagnosticKey struct {
 func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx = xcontext.Detach(ctx)
-
 	reports := s.diagnose(ctx, snapshot, false)
 	s.publishReports(ctx, snapshot, reports)
 }
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
-
 	reports := s.diagnose(ctx, snapshot, false)
 	s.publishReports(ctx, snapshot, reports)
 }

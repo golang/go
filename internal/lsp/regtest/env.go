@@ -203,6 +203,8 @@ func WithModes(modes EnvMode) RunOption {
 	})
 }
 
+// WithEnv overlays environment variables encoded by "<var>=<value" on top of
+// the default regtest environment.
 func WithEnv(env ...string) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.env = env
@@ -350,6 +352,7 @@ type State struct {
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
 	outstandingWork map[string]*workProgress
+	completedWork   map[string]int
 }
 
 type workProgress struct {
@@ -416,6 +419,7 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 		state: State{
 			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
 			outstandingWork: make(map[string]*workProgress),
+			completedWork:   make(map[string]int),
 		},
 		waiters: make(map[int]*condition),
 	}
@@ -439,6 +443,7 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 func (e *Env) onLogMessage(_ context.Context, m *protocol.LogMessageParams) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
 	e.state.logs = append(e.state.logs, m)
 	e.checkConditionsLocked()
 	return nil
@@ -447,7 +452,7 @@ func (e *Env) onLogMessage(_ context.Context, m *protocol.LogMessageParams) erro
 func (e *Env) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDoneProgressCreateParams) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	// panic if we don't have a string token.
+
 	token := m.Token.(string)
 	e.state.outstandingWork[token] = &workProgress{}
 	return nil
@@ -459,7 +464,7 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	token := m.Token.(string)
 	work, ok := e.state.outstandingWork[token]
 	if !ok {
-		panic(fmt.Sprintf("got progress report for unknown report %s", token))
+		panic(fmt.Sprintf("got progress report for unknown report %s: %v", token, m))
 	}
 	v := m.Value.(map[string]interface{})
 	switch kind := v["kind"]; kind {
@@ -470,6 +475,8 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 			work.percent = pct.(float64)
 		}
 	case "end":
+		title := e.state.outstandingWork[token].title
+		e.state.completedWork[title] = e.state.completedWork[title] + 1
 		delete(e.state.outstandingWork, token)
 	}
 	e.checkConditionsLocked()
@@ -567,12 +574,12 @@ func (v Verdict) String() string {
 
 // SimpleExpectation holds an arbitrary check func, and implements the Expectation interface.
 type SimpleExpectation struct {
-	check       func(State) Verdict
+	check       func(State) (Verdict, interface{})
 	description string
 }
 
 // Check invokes e.check.
-func (e SimpleExpectation) Check(s State) Verdict {
+func (e SimpleExpectation) Check(s State) (Verdict, interface{}) {
 	return e.check(s)
 }
 
@@ -584,15 +591,32 @@ func (e SimpleExpectation) Description() string {
 // NoOutstandingWork asserts that there is no work initiated using the LSP
 // $/progress API that has not completed.
 func NoOutstandingWork() SimpleExpectation {
-	check := func(s State) Verdict {
+	check := func(s State) (Verdict, interface{}) {
 		if len(s.outstandingWork) == 0 {
-			return Met
+			return Met, nil
 		}
-		return Unmet
+		return Unmet, nil
 	}
 	return SimpleExpectation{
 		check:       check,
 		description: "no outstanding work",
+	}
+}
+
+// CompletedWork expects a work item to have been completed >= atLeast times.
+//
+// Since the Progress API doesn't include any hidden metadata, we must use the
+// progress notification title to identify the work we expect to be completed.
+func CompletedWork(title string, atLeast int) SimpleExpectation {
+	check := func(s State) (Verdict, interface{}) {
+		if s.completedWork[title] >= atLeast {
+			return Met, title
+		}
+		return Unmet, nil
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("completed work %q at least %d time(s)", title, atLeast),
 	}
 }
 
@@ -678,14 +702,16 @@ func (e DiagnosticExpectation) Description() string {
 
 // EmptyDiagnostics asserts that diagnostics are empty for the
 // workspace-relative path name.
-func EmptyDiagnostics(name string) DiagnosticExpectation {
-	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
-		return len(diags.Diagnostics) == 0
+func EmptyDiagnostics(name string) Expectation {
+	check := func(s State) (Verdict, interface{}) {
+		if diags, ok := s.diagnostics[name]; !ok || len(diags.Diagnostics) == 0 {
+			return Met, nil
+		}
+		return Unmet, nil
 	}
-	return DiagnosticExpectation{
-		isMet:       isMet,
+	return SimpleExpectation{
+		check:       check,
 		description: "empty diagnostics",
-		path:        name,
 	}
 }
 
@@ -742,6 +768,7 @@ func (e *Env) Await(expectations ...Expectation) []interface{} {
 	// called.
 	switch verdict, summary, metBy := checkExpectations(e.state, expectations); verdict {
 	case Met:
+		e.mu.Unlock()
 		return metBy
 	case Unmeetable:
 		e.mu.Unlock()
@@ -771,7 +798,7 @@ func (e *Env) Await(expectations ...Expectation) []interface{} {
 	// Debugging an unmet expectation can be tricky, so we put some effort into
 	// nicely formatting the failure.
 	if err != nil {
-		e.T.Fatalf("waiting on:\n%s\nerr:%v\nstate:\n%v", err, summary, e.state)
+		e.T.Fatalf("waiting on:\n%s\nerr:%v\n\nstate:\n%v", summary, err, e.state)
 	}
 	return metBy
 }
