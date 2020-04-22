@@ -1725,6 +1725,7 @@ func mkdotargslice(typ *types.Type, args []*Node) *Node {
 	} else {
 		n = nod(OCOMPLIT, nil, typenod(typ))
 		n.List.Append(args...)
+		n.SetImplicit(true)
 	}
 
 	n = typecheck(n, ctxExpr)
@@ -1750,11 +1751,6 @@ func fixVariadicCall(call *Node) {
 	slice := mkdotargslice(vt, extra)
 	for i := range extra {
 		extra[i] = nil // allow GC
-	}
-
-	if ddd := call.Right; ddd != nil && slice.Op == OSLICELIT {
-		slice.Esc = ddd.Esc
-		slice.SetTransient(ddd.Transient())
 	}
 
 	call.List.Set(append(args[:vi], slice))

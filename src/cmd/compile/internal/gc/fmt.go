@@ -1404,6 +1404,10 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCOMPLIT:
 		if mode == FErr {
+			if n.Implicit() {
+				mode.Fprintf(s, "... argument")
+				return
+			}
 			if n.Right != nil {
 				mode.Fprintf(s, "%v literal", n.Right)
 				return
