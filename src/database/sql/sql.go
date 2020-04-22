@@ -432,7 +432,7 @@ type DB struct {
 	waitCount         int64 // Total number of connections waited for.
 	maxIdleClosed     int64 // Total number of connections closed due to idle count.
 	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
-	maxLifetimeClosed int64 // Total number of connections closed due to max free limit.
+	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
 
 	stop func() // stop cancels the connection opener and the session resetter.
 }
@@ -1208,11 +1208,13 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		copy(db.freeConn, db.freeConn[1:])
 		db.freeConn = db.freeConn[:numFree-1]
 		conn.inUse = true
-		db.mu.Unlock()
 		if conn.expired(lifetime) {
+			db.maxLifetimeClosed++
+			db.mu.Unlock()
 			conn.Close()
 			return nil, driver.ErrBadConn
 		}
+		db.mu.Unlock()
 
 		// Reset the session if required.
 		if err := conn.resetSession(ctx); err == driver.ErrBadConn {
@@ -1268,6 +1270,9 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			// This prioritizes giving a valid connection to a client over the exact connection
 			// lifetime, which could expire exactly after this point anyway.
 			if strategy == cachedOrNewConn && ret.err == nil && ret.conn.expired(lifetime) {
+				db.mu.Lock()
+				db.maxLifetimeClosed++
+				db.mu.Unlock()
 				ret.conn.Close()
 				return nil, driver.ErrBadConn
 			}
@@ -1352,6 +1357,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 
 	if err != driver.ErrBadConn && dc.expired(db.maxLifetime) {
+		db.maxLifetimeClosed++
 		err = driver.ErrBadConn
 	}
 	if debugGetPut {
