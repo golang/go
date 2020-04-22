@@ -950,10 +950,30 @@ func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
 // become regular linker symbols and symbols go on the Sub list of
 // their section) and for constructing the global offset table when
 // internally linking a dynamic executable.
+//
+// Note that in later stages of the linker, we set Outer(S) to some
+// container symbol C, but don't set Sub(C). Thus we have two
+// distinct scenarios:
+//
+// - Outer symbol covers the address ranges of its sub-symbols.
+//   Outer.Sub is set in this case.
+// - Outer symbol doesn't conver the address ranges. It is zero-sized
+//   and doesn't have sub-symbols. In the case, the inner symbol is
+//   not actually a "SubSymbol". (Tricky!)
+//
+// This method returns TRUE only for sub-symbols in the first scenario.
+//
+// FIXME: would be better to do away with this and have a better way
+// to represent container symbols.
+
 func (l *Loader) AttrSubSymbol(i Sym) bool {
 	// we don't explicitly store this attribute any more -- return
 	// a value based on the sub-symbol setting.
-	return l.OuterSym(i) != 0
+	o := l.OuterSym(i)
+	if o == 0 {
+		return false
+	}
+	return l.SubSym(o) != 0
 }
 
 // Note that we don't have a 'SetAttrSubSymbol' method in the loader;
@@ -2409,18 +2429,8 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 		dst.Sub = l.Syms[sub]
 	}
 
-	// Set sub-symbol attribute.
-	//
-	// In sym.Symbols world, it uses Outer to record container symbols.
-	// Currently there are two kinds
-	// - Outer symbol covers the address ranges of its sub-symbols.
-	//   Outer.Sub is set in this case.
-	// - Outer symbol doesn't conver the address ranges. It is zero-sized
-	//   and doesn't have sub-symbols. In the case, the inner symbol is
-	//   not actually a "SubSymbol". (Tricky!)
-	//
-	// FIXME: would be better to do away with this and have a better way
-	// to represent container symbols.
+	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
+	// method for more on this, there is some tricky stuff here.
 	dst.Attr.Set(sym.AttrSubSymbol, l.outer[src] != 0 && l.sub[l.outer[src]] != 0)
 
 	// Copy over dynimplib, dynimpvers, extname.
