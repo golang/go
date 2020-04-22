@@ -686,10 +686,8 @@ const (
 
 	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
 	// Prior to walk, they are: Left(List), where List is all regular arguments.
-	// If present, Right is an ODDDARG that holds the
-	// generated slice used in a call to a variadic function.
 	// After walk, List is a series of assignments to temporaries,
-	// and Rlist is an updated set of arguments, including any ODDDARG slice.
+	// and Rlist is an updated set of arguments.
 	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
 	OCALLFUNC  // Left(List/Rlist) (function call f(args))
 	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
