@@ -1127,8 +1127,8 @@
 
 (CMP x (MOVDconst [c])) -> (CMPconst [c] x)
 (CMP (MOVDconst [c]) x) -> (InvertFlags (CMPconst [c] x))
-(CMPW x (MOVDconst [c])) -> (CMPWconst [int64(int32(c))] x)
-(CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst [int64(int32(c))] x))
+(CMPW x (MOVDconst [c])) => (CMPWconst [int32(c)] x)
+(CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 ((CMP|CMPW) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW) y x))
