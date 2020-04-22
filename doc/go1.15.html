@@ -84,6 +84,18 @@ TODO
 TODO
 </p>
 
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- https://golang.org/cl/229578 -->
+  Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a> allow converting an <code>unsafe.Pointer</code>
+  into <code>uintptr</code> when calling certain
+  functions. Previously, in some cases, the compiler allowed multiple
+  chained conversions (for example, <code>syscall.Syscall(…,
+  uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
+  one conversion. Code that used multiple conversions should be
+  updated to satisfy the safety rules.
+</p>
 
 <h2 id="library">Core library</h2>
 
