@@ -1,21 +1,19 @@
-This file works as a sort of notebook/implementation log. It replaces my notebook-based approach
-so we have a better track record. I only switched to this file in Nov 2019, hence it is incomplete.
+This file works as a sort of notebook/implementation log. It replaces my notebook-based approach.
+I only switched to this file in Nov 2019, thus it doesn't contain earlier documentation.
 
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- given type T(type P) P, T(int) should be accepted as a constant type
+- track contract origin in interface bounds for better error messages
 - fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
 - fix endless instantiation when printing: type T(type P) T(P)
 - review all direct accesses to Named.underlying and verify that they are still correct
-- track contract origin in interface bounds for better error messages
 - better error message when we need parentheses around a parameterized function parameter type
 - revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
 - revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
-- improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
 - should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
 - TBD: in prose, should we use "generic" or "parameterized" (try to be consistent)

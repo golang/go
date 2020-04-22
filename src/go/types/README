@@ -5,10 +5,10 @@ PROTOTYPE. DO NOT REVIEW. DO NOT SUBMIT.
 This code contains changes to go/types and the go/* support libraries
 to type-check generic code as outlined in the latest contracts proposal
 and presented by Ian Lance Taylor at GopherCon 2019 in San Diego. Most
-aspects of the contracts proposal have been implemented and tested
-(but expect bugs). go/types can now type-check all the *.go2 test
-files in the testdata and examples directories. Additionally, this
-prototype supports interfaces as type bounds (see below for details).
+aspects of the contracts proposal have been implemented and tested.
+go/types can now type-check all the *.go2 test files in the testdata
+and examples directories. Additionally, this prototype supports interfaces
+as type bounds (see below for details).
 
 INTERFACES AS TYPE BOUNDS
 
@@ -74,8 +74,7 @@ MAJOR KNOWN ISSUES
 - Various type-specific operations (such as sending a message, type
   assertions, etc.) on expressions of a generic type don't work yet
   (but are relatively easy to implement going forward)
-- Error messages are reasonable but expect them to be significantly
-  better in a real implementation.
+- Error messages are pretty good but there's room to make them better.
 - Type parameters with pointer designation in contracts are not yet
   supported (e.g.: contract C(T) { *T m() } ).
 
@@ -84,7 +83,7 @@ See also the NOTES file for details of the current state and issues.
 TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 7c0ee1127b):
+  tip at 81df5e69fc):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
@@ -132,5 +131,6 @@ Updates:
 3/18/2020 : More bug fixes. Fixed type inference for directional channel types.
 4/2/2020  : More bug fixes. Improved gofmt for generic code. Better error messages.
 4/9/2020  : Minor improvements. Updated README. Rebased on top of latest (golang) master.
+4/22/2020 : Instantiated types are lazily expanded. Fixes many problems with cycles. Rebased.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
