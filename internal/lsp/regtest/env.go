@@ -346,6 +346,15 @@ type State struct {
 	// diagnostics are a map of relative path->diagnostics params
 	diagnostics map[string]*protocol.PublishDiagnosticsParams
 	logs        []*protocol.LogMessageParams
+	// outstandingWork is a map of token->work summary. All tokens are assumed to
+	// be string, though the spec allows for numeric tokens as well.  When work
+	// completes, it is deleted from this map.
+	outstandingWork map[string]*workProgress
+}
+
+type workProgress struct {
+	title   string
+	percent float64
 }
 
 func (s State) String() string {
@@ -367,6 +376,15 @@ func (s State) String() string {
 		for _, d := range params.Diagnostics {
 			fmt.Fprintf(&b, "\t\t(%d, %d): %s\n", int(d.Range.Start.Line), int(d.Range.Start.Character), d.Message)
 		}
+	}
+	b.WriteString("\n")
+	b.WriteString("#### outstanding work:\n")
+	for token, state := range s.outstandingWork {
+		name := state.title
+		if name == "" {
+			name = fmt.Sprintf("!NO NAME(token: %s)", token)
+		}
+		fmt.Fprintf(&b, "\t%s: %.2f", name, state.percent)
 	}
 	return b.String()
 }
@@ -396,12 +414,15 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 		Server: ts,
 		Conn:   conn,
 		state: State{
-			diagnostics: make(map[string]*protocol.PublishDiagnosticsParams),
+			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
+			outstandingWork: make(map[string]*workProgress),
 		},
 		waiters: make(map[int]*condition),
 	}
 	env.E.Client().OnDiagnostics(env.onDiagnostics)
 	env.E.Client().OnLogMessage(env.onLogMessage)
+	env.E.Client().OnWorkDoneProgressCreate(env.onWorkDoneProgressCreate)
+	env.E.Client().OnProgress(env.onProgress)
 	return env
 }
 
@@ -419,6 +440,38 @@ func (e *Env) onLogMessage(_ context.Context, m *protocol.LogMessageParams) erro
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.state.logs = append(e.state.logs, m)
+	e.checkConditionsLocked()
+	return nil
+}
+
+func (e *Env) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDoneProgressCreateParams) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	// panic if we don't have a string token.
+	token := m.Token.(string)
+	e.state.outstandingWork[token] = &workProgress{}
+	return nil
+}
+
+func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	token := m.Token.(string)
+	work, ok := e.state.outstandingWork[token]
+	if !ok {
+		panic(fmt.Sprintf("got progress report for unknown report %s", token))
+	}
+	v := m.Value.(map[string]interface{})
+	switch kind := v["kind"]; kind {
+	case "begin":
+		work.title = v["title"].(string)
+	case "report":
+		if pct, ok := v["percentage"]; ok {
+			work.percent = pct.(float64)
+		}
+	case "end":
+		delete(e.state.outstandingWork, token)
+	}
 	e.checkConditionsLocked()
 	return nil
 }
@@ -510,6 +563,37 @@ func (v Verdict) String() string {
 		return "Unmeetable"
 	}
 	return fmt.Sprintf("unrecognized verdict %d", v)
+}
+
+// SimpleExpectation holds an arbitrary check func, and implements the Expectation interface.
+type SimpleExpectation struct {
+	check       func(State) Verdict
+	description string
+}
+
+// Check invokes e.check.
+func (e SimpleExpectation) Check(s State) Verdict {
+	return e.check(s)
+}
+
+// Description returns e.descriptin.
+func (e SimpleExpectation) Description() string {
+	return e.description
+}
+
+// NoOutstandingWork asserts that there is no work initiated using the LSP
+// $/progress API that has not completed.
+func NoOutstandingWork() SimpleExpectation {
+	check := func(s State) Verdict {
+		if len(s.outstandingWork) == 0 {
+			return Met
+		}
+		return Unmet
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "no outstanding work",
+	}
 }
 
 // LogExpectation is an expectation on the log messages received by the editor

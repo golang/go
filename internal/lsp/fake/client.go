@@ -10,13 +10,16 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-// Client is an adapter that converts a *Client into an LSP Client.
+// Client is an adapter that converts an *Editor into an LSP Client. It mosly
+// delegates functionality to hooks that can be configured by tests.
 type Client struct {
 	*Editor
 
 	// Hooks for testing. Add additional hooks here as needed for testing.
-	onLogMessage  func(context.Context, *protocol.LogMessageParams) error
-	onDiagnostics func(context.Context, *protocol.PublishDiagnosticsParams) error
+	onLogMessage             func(context.Context, *protocol.LogMessageParams) error
+	onDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
+	onWorkDoneProgressCreate func(context.Context, *protocol.WorkDoneProgressCreateParams) error
+	onProgress               func(context.Context, *protocol.ProgressParams) error
 }
 
 // OnLogMessage sets the hook to run when the editor receives a log message.
@@ -31,6 +34,18 @@ func (c *Client) OnLogMessage(hook func(context.Context, *protocol.LogMessagePar
 func (c *Client) OnDiagnostics(hook func(context.Context, *protocol.PublishDiagnosticsParams) error) {
 	c.mu.Lock()
 	c.onDiagnostics = hook
+	c.mu.Unlock()
+}
+
+func (c *Client) OnWorkDoneProgressCreate(hook func(context.Context, *protocol.WorkDoneProgressCreateParams) error) {
+	c.mu.Lock()
+	c.onWorkDoneProgressCreate = hook
+	c.mu.Unlock()
+}
+
+func (c *Client) OnProgress(hook func(context.Context, *protocol.ProgressParams) error) {
+	c.mu.Lock()
+	c.onProgress = hook
 	c.mu.Unlock()
 }
 
@@ -97,11 +112,23 @@ func (c *Client) UnregisterCapability(context.Context, *protocol.UnregistrationP
 	return nil
 }
 
-func (c *Client) Progress(context.Context, *protocol.ProgressParams) error {
+func (c *Client) Progress(ctx context.Context, params *protocol.ProgressParams) error {
+	c.mu.Lock()
+	onProgress := c.onProgress
+	c.mu.Unlock()
+	if onProgress != nil {
+		return onProgress(ctx, params)
+	}
 	return nil
 }
 
-func (c *Client) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
+func (c *Client) WorkDoneProgressCreate(ctx context.Context, params *protocol.WorkDoneProgressCreateParams) error {
+	c.mu.Lock()
+	onCreate := c.onWorkDoneProgressCreate
+	c.mu.Unlock()
+	if onCreate != nil {
+		return onCreate(ctx, params)
+	}
 	return nil
 }
 
