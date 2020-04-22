@@ -110,7 +110,8 @@ func (e *Editor) configuration() map[string]interface{} {
 		env[kv[0]] = kv[1]
 	}
 	return map[string]interface{}{
-		"env": env,
+		"env":                     env,
+		"verboseWorkDoneProgress": true,
 	}
 }
 
@@ -120,7 +121,9 @@ func (e *Editor) initialize(ctx context.Context) error {
 	params.ClientInfo.Version = "v1.0.0"
 	params.RootURI = e.ws.RootURI()
 	params.Capabilities.Workspace.Configuration = true
+	params.Capabilities.Window.WorkDoneProgress = true
 	// TODO: set client capabilities
+	params.InitializationOptions = e.configuration()
 
 	params.Trace = "messages"
 	// TODO: support workspace folders.

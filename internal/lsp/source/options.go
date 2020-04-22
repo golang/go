@@ -203,11 +203,16 @@ func (o Options) AddDefaultAnalyzer(a *analysis.Analyzer) {
 	o.DefaultAnalyzers[a.Name] = Analyzer{Analyzer: a, enabled: true}
 }
 
+// ExperimentalOptions defines configuration for features under active
+// development. WARNING: This configuration will be changed in the future. It
+// only exists while these features are under development.
 type ExperimentalOptions struct {
-	// WARNING: This configuration will be changed in the future.
-	// It only exists while this feature is under development.
-	// Disable use of the -modfile flag in Go 1.14.
+	// TempModfile controls the use of the -modfile flag in Go 1.14.
 	TempModfile bool
+
+	// VerboseWorkDoneProgress controls whether the LSP server should send
+	// progress reports for all work done outside the scope of an RPC.
+	VerboseWorkDoneProgress bool
 }
 
 type DebuggingOptions struct {
@@ -415,6 +420,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "verboseOutput":
 		result.setBool(&o.VerboseOutput)
+
+	case "verboseWorkDoneProgress":
+		result.setBool(&o.VerboseWorkDoneProgress)
 
 	case "tempModfile":
 		result.setBool(&o.TempModfile)
