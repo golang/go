@@ -372,53 +372,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 }
 
 func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
-	var v uint32
-
-	rs := r.Xsym
-
-	if rs.Type == sym.SHOSTOBJ || r.Type == objabi.R_CALL {
-		if rs.Dynid < 0 {
-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
-			return false
-		}
-
-		v = uint32(rs.Dynid)
-		v |= 1 << 27 // external relocation
-	} else {
-		v = uint32(rs.Sect.Extnum)
-		if v == 0 {
-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, sym.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
-			return false
-		}
-	}
-
-	switch r.Type {
-	default:
-		return false
-	case objabi.R_ADDR:
-		v |= ld.MACHO_GENERIC_RELOC_VANILLA << 28
-	case objabi.R_CALL,
-		objabi.R_PCREL:
-		v |= 1 << 24 // pc-relative bit
-		v |= ld.MACHO_GENERIC_RELOC_VANILLA << 28
-	}
-
-	switch r.Siz {
-	default:
-		return false
-	case 1:
-		v |= 0 << 25
-	case 2:
-		v |= 1 << 25
-	case 4:
-		v |= 2 << 25
-	case 8:
-		v |= 3 << 25
-	}
-
-	out.Write32(uint32(sectoff))
-	out.Write32(v)
-	return true
+	return false
 }
 
 func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {

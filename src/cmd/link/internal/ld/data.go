@@ -465,14 +465,9 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 				} else if target.IsDarwin() {
 					if r.Type == objabi.R_CALL {
 						if target.IsExternal() && rs.Type == sym.SDYNIMPORT {
-							switch target.Arch.Family {
-							case sys.AMD64:
+							if target.IsAMD64() {
 								// AMD64 dynamic relocations are relative to the end of the relocation.
 								o += int64(r.Siz)
-							case sys.I386:
-								// I386 dynamic relocations are relative to the start of the section.
-								o -= int64(r.Off)                         // offset in symbol
-								o -= int64(s.Value - int64(s.Sect.Vaddr)) // offset of symbol in section
 							}
 						} else {
 							if rs.Type != sym.SHOSTOBJ {
@@ -480,9 +475,6 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 							}
 							o -= int64(r.Off) // relative to section offset, not symbol
 						}
-					} else if target.IsARM() {
-						// see ../arm/asm.go:/machoreloc1
-						o += Symaddr(rs) - s.Value - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}

@@ -455,14 +455,9 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				} else if ctxt.HeadType == objabi.Hdarwin {
 					if r.Type == objabi.R_CALL {
 						if ctxt.LinkMode == LinkExternal && rs.Type == sym.SDYNIMPORT {
-							switch ctxt.Arch.Family {
-							case sys.AMD64:
+							if ctxt.Arch.Family == sys.AMD64 {
 								// AMD64 dynamic relocations are relative to the end of the relocation.
 								o += int64(r.Siz)
-							case sys.I386:
-								// I386 dynamic relocations are relative to the start of the section.
-								o -= int64(r.Off)                         // offset in symbol
-								o -= int64(s.Value - int64(s.Sect.Vaddr)) // offset of symbol in section
 							}
 						} else {
 							if rs.Type != sym.SHOSTOBJ {
@@ -470,9 +465,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 							}
 							o -= int64(r.Off) // relative to section offset, not symbol
 						}
-					} else if ctxt.Arch.Family == sys.ARM {
-						// see ../arm/asm.go:/machoreloc1
-						o += Symaddr(rs) - s.Value - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
