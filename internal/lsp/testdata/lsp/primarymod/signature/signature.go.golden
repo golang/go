@@ -27,12 +27,18 @@ func(string, int) bool
 -- make(t Type, size ...int) Type-signature --
 make(t Type, size ...int) Type
 
+The make built-in function allocates and initializes an object of type slice, map, or chan (only).
+
 -- myFunc(foo int) string-signature --
 myFunc(foo int) string
 
 -- panic(v interface{})-signature --
 panic(v interface{})
 
+The panic built-in function stops normal execution of the current goroutine.
+
 -- println(args ...Type)-signature --
 println(args ...Type)
+
+The println built-in function formats its arguments in an implementation-specific way and writes the result to standard error.
 

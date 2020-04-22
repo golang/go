@@ -63,6 +63,8 @@ FindCall:
 		return nil, 0, errors.Errorf("cannot find an enclosing function")
 	}
 
+	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
+
 	// Get the object representing the function, if available.
 	// There is no object in certain cases such as calling a function returned by
 	// a function (e.g. "foo()()").
@@ -90,9 +92,6 @@ FindCall:
 		return nil, 0, errors.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
-	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
-	params := formatParams(ctx, snapshot, pkg, sig, qf)
-	results, writeResultParens := formatResults(sig.Results(), qf)
 	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
 
 	var (
@@ -122,51 +121,37 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	return signatureInformation(name, comment, params, results, writeResultParens), activeParam, nil
-}
-
-func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
-	astObj, err := v.LookupBuiltin(ctx, name)
+	s, err := newSignature(ctx, snapshot, pkg, name, sig, comment, qf)
 	if err != nil {
 		return nil, 0, err
 	}
-	decl, ok := astObj.Decl.(*ast.FuncDecl)
-	if !ok {
-		return nil, 0, errors.Errorf("no function declaration for builtin: %s", name)
-	}
-	params, _ := formatFieldList(ctx, v, decl.Type.Params)
-	results, writeResultParens := formatFieldList(ctx, v, decl.Type.Results)
-
-	var (
-		numParams int
-		variadic  bool
-	)
-	if decl.Type.Params.List != nil {
-		numParams = len(decl.Type.Params.List)
-		lastParam := decl.Type.Params.List[numParams-1]
-		if _, ok := lastParam.Type.(*ast.Ellipsis); ok {
-			variadic = true
-		}
-	}
-	activeParam := activeParameter(callExpr, numParams, variadic, pos)
-	return signatureInformation(name, nil, params, results, writeResultParens), activeParam, nil
-}
-
-func signatureInformation(name string, comment *ast.CommentGroup, params, results []string, writeResultParens bool) *protocol.SignatureInformation {
-	paramInfo := make([]protocol.ParameterInformation, 0, len(params))
-	for _, p := range params {
+	paramInfo := make([]protocol.ParameterInformation, 0, len(s.params))
+	for _, p := range s.params {
 		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})
 	}
-	label := name + formatFunction(params, results, writeResultParens)
-	var c string
-	if comment != nil {
-		c = doc.Synopsis(comment.Text())
-	}
 	return &protocol.SignatureInformation{
-		Label:         label,
-		Documentation: c,
+		Label:         name + s.format(),
+		Documentation: doc.Synopsis(s.doc),
 		Parameters:    paramInfo,
+	}, activeParam, nil
+}
+
+func builtinSignature(ctx context.Context, view View, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
+	sig, err := newBuiltinSignature(ctx, view, name)
+	if err != nil {
+		return nil, 0, err
 	}
+	paramInfo := make([]protocol.ParameterInformation, 0, len(sig.params))
+	for _, p := range sig.params {
+		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})
+	}
+	activeParam := activeParameter(callExpr, len(sig.params), sig.variadic, pos)
+	return &protocol.SignatureInformation{
+		Label:         sig.name + sig.format(),
+		Documentation: doc.Synopsis(sig.doc),
+		Parameters:    paramInfo,
+	}, activeParam, nil
+
 }
 
 func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos token.Pos) (activeParam int) {

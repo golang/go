@@ -376,6 +376,14 @@ func resolveInvalid(fset *token.FileSet, obj types.Object, node ast.Node, info *
 	return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
 }
 
+func formatNode(fset *token.FileSet, n ast.Node) string {
+	var buf strings.Builder
+	if err := printer.Fprint(&buf, fset, n); err != nil {
+		return ""
+	}
+	return buf.String()
+}
+
 func isPointer(T types.Type) bool {
 	_, ok := T.(*types.Pointer)
 	return ok
@@ -497,128 +505,6 @@ func fieldsAccessible(s *types.Struct, p *types.Package) bool {
 		}
 	}
 	return false
-}
-
-func formatParams(ctx context.Context, s Snapshot, pkg Package, sig *types.Signature, qf types.Qualifier) []string {
-	params := make([]string, 0, sig.Params().Len())
-	for i := 0; i < sig.Params().Len(); i++ {
-		el := sig.Params().At(i)
-		typ, err := formatFieldType(ctx, s, pkg, el)
-		if err != nil {
-			typ = types.TypeString(el.Type(), qf)
-		}
-
-		// Handle a variadic parameter (can only be the final parameter).
-		if sig.Variadic() && i == sig.Params().Len()-1 {
-			typ = strings.Replace(typ, "[]", "...", 1)
-		}
-
-		if el.Name() == "" {
-			params = append(params, typ)
-		} else {
-			params = append(params, el.Name()+" "+typ)
-		}
-	}
-	return params
-}
-
-func formatFieldType(ctx context.Context, s Snapshot, srcpkg Package, obj types.Object) (string, error) {
-	file, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
-	if err != nil {
-		return "", err
-	}
-	ident, err := findIdentifier(ctx, s, pkg, file, obj.Pos())
-	if err != nil {
-		return "", err
-	}
-	if i := ident.ident; i == nil || i.Obj == nil || i.Obj.Decl == nil {
-		return "", errors.Errorf("no object for ident %v", i.Name)
-	}
-	f, ok := ident.ident.Obj.Decl.(*ast.Field)
-	if !ok {
-		return "", errors.Errorf("ident %s is not a field type", ident.Name)
-	}
-	return formatNode(s.View().Session().Cache().FileSet(), f.Type), nil
-}
-
-func formatNode(fset *token.FileSet, n ast.Node) string {
-	var buf strings.Builder
-	if err := printer.Fprint(&buf, fset, n); err != nil {
-		return ""
-	}
-	return buf.String()
-}
-
-func formatResults(tup *types.Tuple, qf types.Qualifier) ([]string, bool) {
-	var writeResultParens bool
-	results := make([]string, 0, tup.Len())
-	for i := 0; i < tup.Len(); i++ {
-		if i >= 1 {
-			writeResultParens = true
-		}
-		el := tup.At(i)
-		typ := types.TypeString(el.Type(), qf)
-
-		if el.Name() == "" {
-			results = append(results, typ)
-		} else {
-			if i == 0 {
-				writeResultParens = true
-			}
-			results = append(results, el.Name()+" "+typ)
-		}
-	}
-	return results, writeResultParens
-}
-
-// formatType returns the detail and kind for an object of type *types.TypeName.
-func formatType(typ types.Type, qf types.Qualifier) (detail string, kind protocol.CompletionItemKind) {
-	if types.IsInterface(typ) {
-		detail = "interface{...}"
-		kind = protocol.InterfaceCompletion
-	} else if _, ok := typ.(*types.Struct); ok {
-		detail = "struct{...}"
-		kind = protocol.StructCompletion
-	} else if typ != typ.Underlying() {
-		detail, kind = formatType(typ.Underlying(), qf)
-	} else {
-		detail = types.TypeString(typ, qf)
-		kind = protocol.ClassCompletion
-	}
-	return detail, kind
-}
-
-func formatFunction(params []string, results []string, writeResultParens bool) string {
-	var detail strings.Builder
-
-	detail.WriteByte('(')
-	for i, p := range params {
-		if i > 0 {
-			detail.WriteString(", ")
-		}
-		detail.WriteString(p)
-	}
-	detail.WriteByte(')')
-
-	// Add space between parameters and results.
-	if len(results) > 0 {
-		detail.WriteByte(' ')
-	}
-
-	if writeResultParens {
-		detail.WriteByte('(')
-	}
-	for i, p := range results {
-		if i > 0 {
-			detail.WriteString(", ")
-		}
-		detail.WriteString(p)
-	}
-	if writeResultParens {
-		detail.WriteByte(')')
-	}
-
-	return detail.String()
 }
 
 func SortDiagnostics(d []*Diagnostic) {

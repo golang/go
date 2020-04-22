@@ -307,7 +307,10 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 }
 
 func FormatHover(h *HoverInformation, options Options) (string, error) {
-	signature := formatSignature(h.Signature, options)
+	signature := h.Signature
+	if options.PreferredContentFormat == protocol.Markdown {
+		signature = fmt.Sprintf("```go\n%s\n```", signature)
+	}
 	switch options.HoverKind {
 	case SingleLine:
 		return h.SingleLine, nil
@@ -345,13 +348,6 @@ func formatLink(h *HoverInformation, options Options) string {
 	default:
 		return plainLink
 	}
-}
-
-func formatSignature(signature string, options Options) string {
-	if options.PreferredContentFormat == protocol.Markdown {
-		signature = fmt.Sprintf("```go\n%s\n```", signature)
-	}
-	return signature
 }
 
 func formatDoc(doc string, options Options) string {

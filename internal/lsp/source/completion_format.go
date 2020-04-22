@@ -5,11 +5,9 @@
 package source
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
-	"go/printer"
 	"go/types"
 	"strings"
 
@@ -28,7 +26,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 
 	// Handle builtin types separately.
 	if obj.Parent() == types.Universe {
-		return c.formatBuiltin(ctx, cand), nil
+		return c.formatBuiltin(ctx, cand)
 	}
 
 	var (
@@ -46,10 +44,12 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
-		params := formatParams(ctx, c.snapshot, c.pkg, sig, c.qf)
-		snip = c.functionCallSnippet(label, params)
-		results, writeParens := formatResults(sig.Results(), c.qf)
-		detail = "func" + formatFunction(params, results, writeParens)
+		s, err := newSignature(ctx, c.snapshot, c.pkg, "", sig, nil, c.qf)
+		if err != nil {
+			return
+		}
+		snip = c.functionCallSnippet(label, s.params)
+		detail = "func" + s.format()
 
 		// Add variadic "..." if we are using a function result to fill in a variadic parameter.
 		if sig.Results().Len() == 1 && c.inference.matchesVariadic(sig.Results().At(0).Type()) {
@@ -232,7 +232,7 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 	})
 }
 
-func (c *completer) formatBuiltin(ctx context.Context, cand candidate) CompletionItem {
+func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (CompletionItem, error) {
 	obj := cand.obj
 	item := CompletionItem{
 		Label:      obj.Name(),
@@ -244,20 +244,12 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) Completio
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		astObj, err := c.snapshot.View().LookupBuiltin(ctx, obj.Name())
+		sig, err := newBuiltinSignature(ctx, c.snapshot.View(), obj.Name())
 		if err != nil {
-			event.Error(ctx, "no builtin package", err)
-			break
+			return CompletionItem{}, err
 		}
-		decl, ok := astObj.Decl.(*ast.FuncDecl)
-		if !ok {
-			break
-		}
-		params, _ := formatFieldList(ctx, c.snapshot.View(), decl.Type.Params)
-		results, writeResultParens := formatFieldList(ctx, c.snapshot.View(), decl.Type.Results)
-		item.Label = obj.Name()
-		item.Detail = "func" + formatFunction(params, results, writeResultParens)
-		item.snippet = c.functionCallSnippet(obj.Name(), params)
+		item.Detail = "func" + sig.format()
+		item.snippet = c.functionCallSnippet(obj.Name(), sig.params)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = protocol.InterfaceCompletion
@@ -267,48 +259,7 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) Completio
 	case *types.Nil:
 		item.Kind = protocol.VariableCompletion
 	}
-	return item
-}
-
-var replacer = strings.NewReplacer(
-	`ComplexType`, `complex128`,
-	`FloatType`, `float64`,
-	`IntegerType`, `int`,
-)
-
-func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string, bool) {
-	if list == nil {
-		return nil, false
-	}
-	var writeResultParens bool
-	var result []string
-	for i := 0; i < len(list.List); i++ {
-		if i >= 1 {
-			writeResultParens = true
-		}
-		p := list.List[i]
-		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
-		b := &bytes.Buffer{}
-		if err := cfg.Fprint(b, v.Session().Cache().FileSet(), p.Type); err != nil {
-			event.Error(ctx, "unable to print type", nil, tag.Type.Of(p.Type))
-			continue
-		}
-		typ := replacer.Replace(b.String())
-		if len(p.Names) == 0 {
-			result = append(result, typ)
-		}
-		for _, name := range p.Names {
-			if name.Name != "" {
-				if i == 0 {
-					writeResultParens = true
-				}
-				result = append(result, fmt.Sprintf("%s %s", name.Name, typ))
-			} else {
-				result = append(result, typ)
-			}
-		}
-	}
-	return result, writeResultParens
+	return item, nil
 }
 
 // qualifier returns a function that appropriately formats a types.PkgName
@@ -321,7 +272,6 @@ func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		if imp.Name != nil {
 			obj = info.Defs[imp.Name]
 		} else {
-
 			obj = info.Implicits[imp]
 		}
 		if pkgname, ok := obj.(*types.PkgName); ok {
