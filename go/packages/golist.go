@@ -544,6 +544,25 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			module:          p.Module,
 		}
 
+		if (state.cfg.Mode&TypecheckCgo) != 0 && len(p.CgoFiles) != 0 {
+			if len(p.CompiledGoFiles) > len(p.GoFiles) {
+				// We need the cgo definitions, which are in the first
+				// CompiledGoFile after the non-cgo ones. This is a hack but there
+				// isn't currently a better way to find it. We also need the pure
+				// Go files and unprocessed cgo files, all of which are already
+				// in pkg.GoFiles.
+				cgoTypes := p.CompiledGoFiles[len(p.GoFiles)]
+				pkg.CompiledGoFiles = append([]string{cgoTypes}, pkg.GoFiles...)
+			} else {
+				// golang/go#38990: go list silently fails to do cgo processing
+				pkg.CompiledGoFiles = nil
+				pkg.Errors = append(pkg.Errors, Error{
+					Msg:  "go list failed to return CompiledGoFiles; https://golang.org/issue/38990?",
+					Kind: ListError,
+				})
+			}
+		}
+
 		// Work around https://golang.org/issue/28749:
 		// cmd/go puts assembly, C, and C++ files in CompiledGoFiles.
 		// Filter out any elements of CompiledGoFiles that are also in OtherFiles.

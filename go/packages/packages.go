@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -48,6 +49,10 @@ const (
 
 	// NeedCompiledGoFiles adds CompiledGoFiles.
 	NeedCompiledGoFiles
+
+	// TypecheckCgo enables full support for type checking cgo. Requires Go 1.15+.
+	// Has no effect without NeedTypes.
+	TypecheckCgo
 
 	// NeedImports adds Imports. If NeedDeps is not set, the Imports field will contain
 	// "placeholder" Packages with only the ID set.
@@ -257,7 +262,7 @@ type Package struct {
 	GoFiles []string
 
 	// CompiledGoFiles lists the absolute file paths of the package's source
-	// files that were presented to the compiler.
+	// files that are suitable for type checking.
 	// This may differ from GoFiles if files are processed before compilation.
 	CompiledGoFiles []string
 
@@ -877,6 +882,19 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 
 		Error: appendError,
 		Sizes: ld.sizes,
+	}
+	if (ld.Mode & TypecheckCgo) != 0 {
+		// TODO: remove this when we stop supporting 1.14.
+		rtc := reflect.ValueOf(tc).Elem()
+		usesCgo := rtc.FieldByName("UsesCgo")
+		if !usesCgo.IsValid() {
+			appendError(Error{
+				Msg:  "TypecheckCgo requires Go 1.15+",
+				Kind: ListError,
+			})
+			return
+		}
+		usesCgo.SetBool(true)
 	}
 	types.NewChecker(tc, ld.Fset, lpkg.Types, lpkg.TypesInfo).Files(lpkg.Syntax)
 

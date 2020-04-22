@@ -7,6 +7,7 @@
 package packages_test
 
 import (
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
@@ -39,5 +40,53 @@ func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
 	}
 	if len(initial) != 3 {
 		t.Errorf("expected 3 packages, got %d", len(initial))
+	}
+}
+
+func TestTypecheckCgo(t *testing.T) {
+	packagestest.TestAll(t, testTypecheckCgo)
+}
+
+func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
+	// The android builders have a complex setup which causes this test to fail. See discussion on
+	// golang.org/cl/214943 for more details.
+	if !hasGoBuild() {
+		t.Skip("this test can't run on platforms without go build. See discussion on golang.org/cl/214943 for more details.")
+	}
+
+	const cgo = `package cgo
+		import "C"
+
+		func Example() {
+			C.CString("hi")
+		}
+	`
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"cgo/cgo.go": cgo,
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.NeedFiles | packages.NeedCompiledGoFiles |
+		packages.NeedSyntax | packages.NeedDeps | packages.NeedTypes |
+		packages.TypecheckCgo
+
+	initial, err := packages.Load(exported.Config, "golang.org/fake/cgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := initial[0]
+	if len(pkg.Errors) != 0 {
+		t.Fatalf("package has errors: %v", pkg.Errors)
+	}
+
+	expos := pkg.Types.Scope().Lookup("Example").Pos()
+	fname := pkg.Fset.File(expos).Name()
+	if !strings.HasSuffix(fname, "cgo.go") {
+		t.Errorf("position for cgo package was loaded from %v, wanted cgo.go", fname)
 	}
 }
