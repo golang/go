@@ -51,7 +51,7 @@ func (s sanitizer) typ(typ Type) Type {
 	s[typ] = typ
 
 	switch t := typ.(type) {
-	case nil, *Basic:
+	case nil, *Basic, *contractType:
 		// nothing to do
 
 	case *Array:
