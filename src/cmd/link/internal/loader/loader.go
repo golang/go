@@ -1779,7 +1779,11 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef, uint32(len(l.objs))}
 
 	// Autolib
-	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
+	autolib := r.Autolib()
+	for _, p := range autolib {
+		lib.ImportStrings = append(lib.ImportStrings, p.Pkg)
+		// TODO: fingerprint is ignored for now
+	}
 
 	// DWARF file table
 	nfile := r.NDwarfFile()
