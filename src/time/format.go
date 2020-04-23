@@ -67,7 +67,7 @@ import "errors"
 // that insist on that format, and RFC3339 should be preferred for new protocols.
 // RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
-// permitted by the RFCs.
+// permitted by the RFCs and they do accept time formats not formally defined.
 // The RFC3339Nano format removes trailing zeros from the seconds field
 // and thus may not sort correctly once formatted.
 const (
