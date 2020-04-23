@@ -300,10 +300,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	symGroupType := ctxt.symtab()
 	bench.Start("dodata")
 	ctxt.dodata2(symGroupType)
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull(symGroupType) // XXX do it here for now
 	bench.Start("address")
 	order := ctxt.address()
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull(symGroupType) // XXX do it here for now
 	bench.Start("dwarfcompress")
 	dwarfcompress(ctxt)
 	bench.Start("layout")
