@@ -16,7 +16,6 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -152,18 +151,8 @@ func (e *Exported) getNotes() error {
 	if err != nil {
 		return fmt.Errorf("unable to load packages for directories %s: %v", dirs, err)
 	}
-	// We need to avoid walking packages and their test variants, otherwise we
-	// double-count
-	pkgsWithTestVariants := make(map[string]bool)
+	seen := make(map[token.Position]struct{})
 	for _, pkg := range pkgs {
-		if forTest := packagesinternal.GetForTest(pkg); forTest != "" {
-			pkgsWithTestVariants[forTest] = true
-		}
-	}
-	for _, pkg := range pkgs {
-		if pkgsWithTestVariants[pkg.ID] {
-			continue
-		}
 		for _, filename := range pkg.GoFiles {
 			content, err := e.FileContents(filename)
 			if err != nil {
@@ -173,7 +162,14 @@ func (e *Exported) getNotes() error {
 			if err != nil {
 				return fmt.Errorf("failed to extract expectations: %v", err)
 			}
-			notes = append(notes, l...)
+			for _, note := range l {
+				pos := e.ExpectFileSet.Position(note.Pos)
+				if _, ok := seen[pos]; ok {
+					continue
+				}
+				notes = append(notes, note)
+				seen[pos] = struct{}{}
+			}
 		}
 	}
 	if _, ok := e.written[e.primary]; !ok {

@@ -113,8 +113,9 @@ func TestGroupFilesByModules(t *testing.T) {
 				{
 					Name: "testdata/groups/two",
 					Files: map[string]interface{}{
-						"main.go":      true,
-						"expect/yo.go": true,
+						"main.go":           true,
+						"expect/yo.go":      true,
+						"expect/yo_test.go": true,
 					},
 				},
 				{

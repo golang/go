@@ -65,7 +65,7 @@ func TestExpect(t *testing.T) {
 	// including _test.go files (XTest or otherwise). But to have walked the
 	// non-_test.go files only once. Hence wantCheck = 3 (testdata/test.go) + 1
 	// (testdata/test_test.go) + 1 (testdata/x_test.go)
-	wantCheck := 5
+	wantCheck := 7
 	if wantCheck != checkCount {
 		t.Fatalf("Expected @check count of %v; got %v", wantCheck, checkCount)
 	}
