@@ -1306,9 +1306,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 	case OPAREN:
 		mode.Fprintf(s, "(%v)", n.Left)
 
-	case ODDDARG:
-		fmt.Fprint(s, "... argument")
-
 	case OLITERAL: // this is a bit of a mess
 		if mode == FErr {
 			if n.Orig != nil && n.Orig != n {

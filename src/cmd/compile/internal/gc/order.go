@@ -1216,9 +1216,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
 			prealloc[n] = o.newTemp(t, false)
 		}
 
-	case ODDDARG:
-		Fatalf("unreachable")
-
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = o.expr(n.Left, nil)
 		if !isdirectiface(n.Type) || instrumenting {
