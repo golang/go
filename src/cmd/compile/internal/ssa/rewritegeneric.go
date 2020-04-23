@@ -12447,6 +12447,31 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		v.AddArg2(dst1, mem)
 		return true
 	}
+	// match: (Move {t} [n] dst (Addr {sym} (SB)) mem)
+	// cond: symIsROZero(sym)
+	// result: (Zero {t} [n] dst mem)
+	for {
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
+		dst := v_0
+		if v_1.Op != OpAddr {
+			break
+		}
+		sym := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		mem := v_2
+		if !(symIsROZero(sym)) {
+			break
+		}
+		v.reset(OpZero)
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
+		v.AddArg2(dst, mem)
+		return true
+	}
 	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
 	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)
 	// result: (Move {t1} [n] dst1 src1 mem)
