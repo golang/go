@@ -152,13 +152,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			b.Pos = b.Pos.WithIsStmt()
 			pendingLines.remove(b.Pos)
 		}
-		if j != len(b.Values) {
-			tail := b.Values[j:]
-			for j := range tail {
-				tail[j] = nil
-			}
-			b.Values = b.Values[:j]
-		}
+		b.truncateValues(j)
 	}
 }
 
