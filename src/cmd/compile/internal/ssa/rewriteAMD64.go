@@ -21833,6 +21833,30 @@ func rewriteValueAMD64_OpAMD64SETB(v *Value) bool {
 		v.AuxInt = 0
 		return true
 	}
+	// match: (SETB (BTLconst [0] x))
+	// result: (ANDLconst [1] x)
+	for {
+		if v_0.Op != OpAMD64BTLconst || auxIntToInt8(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDLconst)
+		v.AuxInt = int32ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SETB (BTQconst [0] x))
+	// result: (ANDQconst [1] x)
+	for {
+		if v_0.Op != OpAMD64BTQconst || auxIntToInt8(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDQconst)
+		v.AuxInt = int32ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
 	// match: (SETB (InvertFlags x))
 	// result: (SETA x)
 	for {
@@ -24176,6 +24200,30 @@ func rewriteValueAMD64_OpAMD64SETLstore(v *Value) bool {
 func rewriteValueAMD64_OpAMD64SETNE(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (SETNE (TESTBconst [1] x))
+	// result: (ANDLconst [1] x)
+	for {
+		if v_0.Op != OpAMD64TESTBconst || auxIntToInt8(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDLconst)
+		v.AuxInt = int32ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SETNE (TESTWconst [1] x))
+	// result: (ANDLconst [1] x)
+	for {
+		if v_0.Op != OpAMD64TESTWconst || auxIntToInt16(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDLconst)
+		v.AuxInt = int32ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
 	// match: (SETNE (TESTL (SHLL (MOVLconst [1]) x) y))
 	// result: (SETB (BTL x y))
 	for {
