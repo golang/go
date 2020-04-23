@@ -2310,13 +2310,14 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segdwarf.Length = va - Segdwarf.Vaddr
 	}
 
+	ldr := ctxt.loader
 	var (
 		text     = Segtext.Sections[0]
-		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
-		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
-		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
-		pclntab  = ctxt.Syms.Lookup("runtime.pclntab", 0).Sect
-		types    = ctxt.Syms.Lookup("runtime.types", 0).Sect
+		rodata   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
+		itablink = ldr.SymSect(ldr.LookupOrCreateSym("runtime.itablink", 0))
+		symtab   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
+		pclntab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
+		types    = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
 	)
 	lasttext := text
 	// Could be multiple .text sections
@@ -2326,38 +2327,41 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	for _, s := range ctxt.datap {
-		if s.Sect != nil {
-			s.Value += int64(s.Sect.Vaddr)
+	for _, s := range ctxt.datap2 {
+		if sect := ldr.SymSect(s); sect != nil {
+			ldr.AddToSymValue(s, int64(sect.Vaddr))
 		}
-		for sub := s.Sub; sub != nil; sub = sub.Sub {
-			sub.Value += s.Value
+		v := ldr.SymValue(s)
+		for sub := ldr.SubSym(s); sub != 0; sub = ldr.SubSym(sub) {
+			ldr.AddToSymValue(sub, v)
 		}
 	}
 
-	for _, si := range dwarfp {
+	for _, si := range dwarfp2 {
 		for _, s := range si.syms {
-			if s.Sect != nil {
-				s.Value += int64(s.Sect.Vaddr)
+			if sect := ldr.SymSect(s); sect != nil {
+				ldr.AddToSymValue(s, int64(sect.Vaddr))
 			}
-			if s.Sub != nil {
-				panic(fmt.Sprintf("unexpected sub-sym for %s %s", s.Name, s.Type.String()))
+			sub := ldr.SubSym(s)
+			if sub != 0 {
+				panic(fmt.Sprintf("unexpected sub-sym for %s %s", ldr.SymName(s), ldr.SymType(s).String()))
 			}
-			for sub := s.Sub; sub != nil; sub = sub.Sub {
-				sub.Value += s.Value
+			v := ldr.SymValue(s)
+			for ; sub != 0; sub = ldr.SubSym(sub) {
+				ldr.AddToSymValue(s, v)
 			}
 		}
 	}
 
 	if ctxt.BuildMode == BuildModeShared {
-		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
-		sectSym := ctxt.Syms.Lookup(".note.go.abihash", 0)
-		s.Sect = sectSym.Sect
-		s.Value = int64(sectSym.Sect.Vaddr + 16)
+		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		sect := ldr.SymSect(ldr.LookupOrCreateSym(".note.go.abihash", 0))
+		ldr.SetSymSect(s, sect)
+		ldr.SetSymValue(s, int64(sect.Vaddr+16))
 	}
 
-	ctxt.xdefine("runtime.text", sym.STEXT, int64(text.Vaddr))
-	ctxt.xdefine("runtime.etext", sym.STEXT, int64(lasttext.Vaddr+lasttext.Length))
+	ctxt.xdefine2("runtime.text", sym.STEXT, int64(text.Vaddr))
+	ctxt.xdefine2("runtime.etext", sym.STEXT, int64(lasttext.Vaddr+lasttext.Length))
 
 	// If there are multiple text sections, create runtime.text.n for
 	// their section Vaddr, using n for index
@@ -2370,58 +2374,58 @@ func (ctxt *Link) address() []*sym.Segment {
 		if ctxt.HeadType != objabi.Haix || ctxt.LinkMode != LinkExternal {
 			// Addresses are already set on AIX with external linker
 			// because these symbols are part of their sections.
-			ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
+			ctxt.xdefine2(symname, sym.STEXT, int64(sect.Vaddr))
 		}
 		n++
 	}
 
-	ctxt.xdefine("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
-	ctxt.xdefine("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
-	ctxt.xdefine("runtime.types", sym.SRODATA, int64(types.Vaddr))
-	ctxt.xdefine("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
-	ctxt.xdefine("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
-	ctxt.xdefine("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
+	ctxt.xdefine2("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
+	ctxt.xdefine2("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
+	ctxt.xdefine2("runtime.types", sym.SRODATA, int64(types.Vaddr))
+	ctxt.xdefine2("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
+	ctxt.xdefine2("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
+	ctxt.xdefine2("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
-	s := ctxt.Syms.Lookup("runtime.gcdata", 0)
-	s.Attr |= sym.AttrLocal
-	ctxt.xdefine("runtime.egcdata", sym.SRODATA, Symaddr(s)+s.Size)
-	ctxt.Syms.Lookup("runtime.egcdata", 0).Sect = s.Sect
+	s := ldr.Lookup("runtime.gcdata", 0)
+	ldr.SetAttrLocal(s, true)
+	ctxt.xdefine2("runtime.egcdata", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcdata", 0), ldr.SymSect(s))
 
-	s = ctxt.Syms.Lookup("runtime.gcbss", 0)
-	s.Attr |= sym.AttrLocal
-	ctxt.xdefine("runtime.egcbss", sym.SRODATA, Symaddr(s)+s.Size)
-	ctxt.Syms.Lookup("runtime.egcbss", 0).Sect = s.Sect
+	s = ldr.LookupOrCreateSym("runtime.gcbss", 0)
+	ldr.SetAttrLocal(s, true)
+	ctxt.xdefine2("runtime.egcbss", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcbss", 0), ldr.SymSect(s))
 
-	ctxt.xdefine("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
-	ctxt.xdefine("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
-	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
-	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
-	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
-	ctxt.xdefine("runtime.bss", sym.SBSS, int64(bss.Vaddr))
-	ctxt.xdefine("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
-	ctxt.xdefine("runtime.data", sym.SDATA, int64(data.Vaddr))
-	ctxt.xdefine("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
-	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
-	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
-	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+	ctxt.xdefine2("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
+	ctxt.xdefine2("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
+	ctxt.xdefine2("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
+	ctxt.xdefine2("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
+	ctxt.xdefine2("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
+	ctxt.xdefine2("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
+	ctxt.xdefine2("runtime.bss", sym.SBSS, int64(bss.Vaddr))
+	ctxt.xdefine2("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
+	ctxt.xdefine2("runtime.data", sym.SDATA, int64(data.Vaddr))
+	ctxt.xdefine2("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
+	ctxt.xdefine2("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
+	ctxt.xdefine2("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+	ctxt.xdefine2("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
 
 	if ctxt.IsSolaris() {
 		// On Solaris, in the runtime it sets the external names of the
 		// end symbols. Unset them and define separate symbols, so we
 		// keep both.
-		etext := ctxt.Syms.ROLookup("runtime.etext", 0)
-		edata := ctxt.Syms.ROLookup("runtime.edata", 0)
-		end := ctxt.Syms.ROLookup("runtime.end", 0)
-		etext.SetExtname("runtime.etext")
-		edata.SetExtname("runtime.edata")
-		end.SetExtname("runtime.end")
-		ctxt.xdefine("_etext", etext.Type, etext.Value)
-		ctxt.xdefine("_edata", edata.Type, edata.Value)
-		ctxt.xdefine("_end", end.Type, end.Value)
-		ctxt.Syms.ROLookup("_etext", 0).Sect = etext.Sect
-		ctxt.Syms.ROLookup("_edata", 0).Sect = edata.Sect
-		ctxt.Syms.ROLookup("_end", 0).Sect = end.Sect
+		etext := ldr.Lookup("runtime.etext", 0)
+		edata := ldr.Lookup("runtime.edata", 0)
+		end := ldr.Lookup("runtime.end", 0)
+		ldr.SetSymExtname(etext, "runtime.etext")
+		ldr.SetSymExtname(edata, "runtime.edata")
+		ldr.SetSymExtname(end, "runtime.end")
+		ctxt.xdefine2("_etext", ldr.SymType(etext), ldr.SymValue(etext))
+		ctxt.xdefine2("_edata", ldr.SymType(edata), ldr.SymValue(edata))
+		ctxt.xdefine2("_end", ldr.SymType(end), ldr.SymValue(end))
+		ldr.SetSymSect(ldr.Lookup("_etext", 0), ldr.SymSect(etext))
+		ldr.SetSymSect(ldr.Lookup("_edata", 0), ldr.SymSect(edata))
+		ldr.SetSymSect(ldr.Lookup("_end", 0), ldr.SymSect(end))
 	}
 
 	return order
