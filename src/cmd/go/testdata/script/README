@@ -85,6 +85,7 @@ should only run when the condition is satisfied. The available conditions are:
    - [link] for testenv.HasLink()
    - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
+   - [case-sensitive] for whether the file system is case-sensitive
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
    - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
    - [buildmode:value] for whether -buildmode=value is supported

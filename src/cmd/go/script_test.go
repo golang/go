@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -296,6 +297,8 @@ Script:
 				ok = os.Geteuid() == 0
 			case "symlink":
 				ok = testenv.HasSymlink()
+			case "case-sensitive":
+				ok = isCaseSensitive(ts.t)
 			default:
 				if strings.HasPrefix(cond.tag, "exec:") {
 					prog := cond.tag[len("exec:"):]
@@ -362,6 +365,41 @@ Script:
 	if !ts.stopped {
 		fmt.Fprintf(&ts.log, "PASS\n")
 	}
+}
+
+var (
+	onceCaseSensitive sync.Once
+	caseSensitive     bool
+)
+
+func isCaseSensitive(t *testing.T) bool {
+	onceCaseSensitive.Do(func() {
+		tmpdir, err := ioutil.TempDir("", "case-sensitive")
+		if err != nil {
+			t.Fatal("failed to create directory to determine case-sensitivity:", err)
+		}
+		defer os.RemoveAll(tmpdir)
+
+		fcap := filepath.Join(tmpdir, "FILE")
+		if err := ioutil.WriteFile(fcap, []byte{}, 0644); err != nil {
+			t.Fatal("error writing file to determine case-sensitivity:", err)
+		}
+
+		flow := filepath.Join(tmpdir, "file")
+		_, err = ioutil.ReadFile(flow)
+		switch {
+		case err == nil:
+			caseSensitive = false
+			return
+		case os.IsNotExist(err):
+			caseSensitive = true
+			return
+		default:
+			t.Fatal("unexpected error reading file when determining case-sensitivity:", err)
+		}
+	})
+
+	return caseSensitive
 }
 
 // scriptCmds are the script command implementations.
