@@ -1,3 +1,5 @@
+[short] skip
+
 # Run go test -json on a contrived test suite that
 # runs tests in parallel, some of which fail with
 # output. We assert here that the t.Error logs
@@ -9,12 +11,8 @@
 stdout '"Package":"parallel"'
 
 # Check for correctly attributed log/failure output
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"    Test1/this_will_fail: parallel_test.go:40: \\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"    Test2/this_will_fail: parallel_test.go:40: \\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"TestToUpper1/should_fail","Output":"    TestToUpper1/should_fail: parallel_test.go:32: strings.ToUpper\(\\"lower case\\"\) = \\"LOWER CASE\\"; want \\"lower case\\"\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"TestToUpper2/should_fail","Output":"    TestToUpper2/should_fail: parallel_test.go:32: strings.ToUpper\(\\"lower case\\"\) = \\"LOWER CASE\\"; want \\"lower case\\"\\n"}'
 
 # Check for run action via go tool test2json
 go test -o $WORK/tmp/parallel.test$GOEXE -c parallel
@@ -22,12 +20,8 @@ go test -o $WORK/tmp/parallel.test$GOEXE -c parallel
 stdout '"Package":"parallel"'
 
 # Check for correctly attributed log/failure output via go tool test2json
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"    Test1/this_will_fail: parallel_test.go:40: \\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"    Test2/this_will_fail: parallel_test.go:40: \\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
-stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"TestToUpper1/should_fail","Output":"    TestToUpper1/should_fail: parallel_test.go:32: strings.ToUpper\(\\"lower case\\"\) = \\"LOWER CASE\\"; want \\"lower case\\"\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"TestToUpper2/should_fail","Output":"    TestToUpper2/should_fail: parallel_test.go:32: strings.ToUpper\(\\"lower case\\"\) = \\"LOWER CASE\\"; want \\"lower case\\"\\n"}'
 
 -- parallel/parallel_test.go --
 package parallel
@@ -37,38 +31,32 @@ import (
 	"testing"
 )
 
-func Test1(t *testing.T) { runSuite(t) }
-func Test2(t *testing.T) { runSuite(t) }
+func TestToUpper1(t *testing.T) { testToUpper(t) }
+func TestToUpper2(t *testing.T) { testToUpper(t) }
 
-func runSuite(t *testing.T) {
-	t.Parallel() // run top-level tests in parallel
+func testToUpper(t *testing.T) {
+	t.Parallel()
 
-	for _, test := range testCases {
-		t.Run(test.input, test.execute)
+	cases := []struct{ name, in, want string }{
+		{
+			name: "should_pass",
+			in:   "upper case",
+			want: "UPPER CASE",
+		},
+		{
+			name: "should_fail",
+			in:   "lower case",
+			want: "lower case",
+		},
 	}
-}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-var testCases = []TestCase{
-	{
-		input:    "this passes",
-		expected: "THIS PASSES",
-	},
-	{
-		input:    "this will fail",
-		expected: "because this is wrong",
-	},
-}
-
-type TestCase struct {
-	input    string
-	expected string
-}
-
-func (test TestCase) execute(t *testing.T) {
-	t.Parallel() // run each sub-test in parallel
-
-	actual := strings.ToUpper(test.input)
-	if actual != test.expected {
-		t.Errorf("\ngot:  [%s]\nwant: [%s]", actual, test.expected)
+			if got := strings.ToUpper(tc.in); got != tc.want {
+				t.Errorf("strings.ToUpper(%q) = %q; want %q", tc.in, got, tc.want)
+			}
+		})
 	}
 }
