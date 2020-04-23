@@ -236,6 +236,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	DIVDEU R3, R4, R5               // 7ca41b12
 	DIVDEUCC R3, R4, R5             // 7ca41b13
 
+	REM R3, R4, R5                  // 7fe41bd67fff19d67cbf2050
+	REMU R3, R4, R5                 // 7fe41b967fff19d67bff00287cbf2050
+	REMD R3, R4, R5                 // 7fe41bd27fff19d27cbf2050
+	REMDU R3, R4, R5                // 7fe41b927fff19d27cbf2050
+
 	MODUD R3, R4, R5                // 7ca41a12
 	MODUW R3, R4, R5                // 7ca41a16
 	MODSD R3, R4, R5                // 7ca41e12
