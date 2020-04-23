@@ -59,6 +59,9 @@ func (h ValHeap) Less(i, j int) bool {
 			return c < 0 // smaller args comes later
 		}
 	}
+	if c := x.Uses - y.Uses; c != 0 {
+		return c < 0 // smaller uses come later
+	}
 	return x.ID > y.ID
 }
 
