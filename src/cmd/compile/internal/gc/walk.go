@@ -457,7 +457,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		nn := nod(ODEREF, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, ctxExpr)
 		nn = walkexpr(nn, init)
-		nn.Left.SetNonNil(true)
+		nn.Left.MarkNonNil()
 		return nn
 	}
 
@@ -762,7 +762,7 @@ opswitch:
 		if !a.isBlank() {
 			var_ := temp(types.NewPtr(t.Elem()))
 			var_.SetTypecheck(1)
-			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
+			var_.MarkNonNil() // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
 			n = walkexpr(n, init)
 			init.Append(n)
@@ -1103,7 +1103,7 @@ opswitch:
 			}
 		}
 		n.Type = types.NewPtr(t.Elem())
-		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
+		n.MarkNonNil() // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(ODEREF, n, nil)
 		n.Type = t.Elem()
 		n.SetTypecheck(1)
@@ -1382,7 +1382,7 @@ opswitch:
 
 			fn := syslook(fnname)
 			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
-			m.Left.SetNonNil(true)
+			m.Left.MarkNonNil()
 			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
 
 			m = typecheck(m, ctxExpr)
@@ -1717,57 +1717,65 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
 }
 
 // package all the arguments that match a ... T parameter into a []T.
-func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node {
-	esc := uint16(EscUnknown)
-	if ddd != nil {
-		esc = ddd.Esc
-	}
+func mkdotargslice(typ *types.Type, args []*Node) *Node {
+	var n *Node
 	if len(args) == 0 {
-		n := nodnil()
+		n = nodnil()
 		n.Type = typ
-		return n
+	} else {
+		n = nod(OCOMPLIT, nil, typenod(typ))
+		n.List.Append(args...)
 	}
 
-	n := nod(OCOMPLIT, nil, typenod(typ))
-	if ddd != nil && prealloc[ddd] != nil {
-		prealloc[n] = prealloc[ddd] // temporary to use
-	}
-	n.List.Set(args)
-	n.Esc = esc
 	n = typecheck(n, ctxExpr)
 	if n.Type == nil {
 		Fatalf("mkdotargslice: typecheck failed")
 	}
-	n = walkexpr(n, init)
 	return n
+}
+
+// fixVariadicCall rewrites calls to variadic functions to use an
+// explicit ... argument if one is not already present.
+func fixVariadicCall(call *Node, init *Nodes) {
+	fntype := call.Left.Type
+	if !fntype.IsVariadic() || call.IsDDD() {
+		return
+	}
+
+	vi := fntype.NumParams() - 1
+	vt := fntype.Params().Field(vi).Type
+
+	args := call.List.Slice()
+	extra := args[vi:]
+	slice := mkdotargslice(vt, extra)
+	for i := range extra {
+		extra[i] = nil // allow GC
+	}
+
+	if ddd := call.Right; ddd != nil && slice.Op == OSLICELIT {
+		slice.Esc = ddd.Esc
+		if prealloc[ddd] != nil {
+			prealloc[slice] = prealloc[ddd] // temporary to use
+		}
+	}
+
+	slice = walkexpr(slice, init)
+
+	call.List.Set(append(args[:vi], slice))
+	call.SetIsDDD(true)
 }
 
 func walkCall(n *Node, init *Nodes) {
 	if n.Rlist.Len() != 0 {
 		return // already walked
 	}
+
 	n.Left = walkexpr(n.Left, init)
 	walkexprlist(n.List.Slice(), init)
+	fixVariadicCall(n, init)
 
 	params := n.Left.Type.Params()
 	args := n.List.Slice()
-	// If there's a ... parameter (which is only valid as the final
-	// parameter) and this is not a ... call expression,
-	// then assign the remaining arguments as a slice.
-	if nf := params.NumFields(); nf > 0 {
-		if last := params.Field(nf - 1); last.IsDDD() && !n.IsDDD() {
-			// The callsite does not use a ..., but the called function is declared
-			// with a final argument that has a ... . Build the slice that we will
-			// pass as the ... argument.
-			tail := args[nf-1:]
-			slice := mkdotargslice(last.Type, tail, init, n.Right)
-			// Allow immediate GC.
-			for i := range tail {
-				tail[i] = nil
-			}
-			args = append(args[:nf-1], slice)
-		}
-	}
 
 	// If this is a method call, add the receiver at the beginning of the args.
 	if n.Op == OCALLMETH {
@@ -1952,7 +1960,7 @@ func callnew(t *types.Type) *Node {
 	n := nod(ONEWOBJ, typename(t), nil)
 	n.Type = types.NewPtr(t)
 	n.SetTypecheck(1)
-	n.SetNonNil(true)
+	n.MarkNonNil()
 	return n
 }
 
@@ -3979,10 +3987,8 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 
 	n = cheapexpr(n, init)
 
-	ddd := nodl(n.Pos, ODDDARG, nil, nil)
-	ddd.Type = types.NewPtr(types.NewArray(types.Types[TUNSAFEPTR], int64(len(originals))))
-	ddd.Esc = EscNone
-	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, ddd)
+	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals)
+	slice.Esc = EscNone
 
 	init.Append(mkcall("checkptrArithmetic", nil, init, convnop(n, types.Types[TUNSAFEPTR]), slice))
 	// TODO(khr): Mark backing store of slice as dead. This will allow us to reuse

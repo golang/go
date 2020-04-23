@@ -19,6 +19,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestTempDir(t *testing.T) {
+	testTempDir(t)
+	t.Run("InSubtest", testTempDir)
+}
+
+func testTempDir(t *testing.T) {
 	dirCh := make(chan string, 1)
 	t.Cleanup(func() {
 		// Verify directory has been removed.

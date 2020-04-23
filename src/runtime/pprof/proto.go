@@ -325,7 +325,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 				// gentraceback guarantees that PCs in the
 				// stack can be unconditionally decremented and
 				// still be valid, so we must do the same.
-				uint64(funcPC(lostProfileEvent)+1),
+				uint64(funcPC(lostProfileEvent) + 1),
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)

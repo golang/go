@@ -465,6 +465,14 @@ func mallocinit() {
 			physHugePageShift++
 		}
 	}
+	if pagesPerArena%pagesPerSpanRoot != 0 {
+		print("pagesPerArena (", pagesPerArena, ") is not divisible by pagesPerSpanRoot (", pagesPerSpanRoot, ")\n")
+		throw("bad pagesPerSpanRoot")
+	}
+	if pagesPerArena%pagesPerReclaimerChunk != 0 {
+		print("pagesPerArena (", pagesPerArena, ") is not divisible by pagesPerReclaimerChunk (", pagesPerReclaimerChunk, ")\n")
+		throw("bad pagesPerReclaimerChunk")
+	}
 
 	// Initialize the heap.
 	mheap_.init()
