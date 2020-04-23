@@ -28,20 +28,21 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-// EnvMode is a bitmask that defines in which execution environments a test
-// should run.
-type EnvMode int
+// Mode is a bitmask that defines for which execution modes a test should run.
+type Mode int
 
 const (
-	// Singleton mode uses a separate cache for each test.
-	Singleton EnvMode = 1 << iota
+	// Singleton mode uses a separate in-process gopls instance for each test,
+	// and communicates over pipes to mimic the gopls sidecar execution mode,
+	// which communicates over stdin/stderr.
+	Singleton Mode = 1 << iota
 
-	// Forwarded forwards connections to an in-process gopls instance.
+	// Forwarded forwards connections to a shared in-process gopls instance.
 	Forwarded
-	// SeparateProcess runs a separate gopls process, and forwards connections to
-	// it.
+	// SeparateProcess forwards connection to a shared separate gopls process.
 	SeparateProcess
-	// NormalModes runs tests in all modes.
+	// NormalModes are the global default execution modes, when unmodified by
+	// test flags or by individual test options.
 	NormalModes = Singleton | Forwarded
 )
 
@@ -50,7 +51,7 @@ const (
 // remote), any tests that execute on the same Runner will share the same
 // state.
 type Runner struct {
-	DefaultModes             EnvMode
+	DefaultModes             Mode
 	Timeout                  time.Duration
 	GoplsPath                string
 	AlwaysPrintLogs          bool
@@ -62,12 +63,6 @@ type Runner struct {
 	// closers is a queue of clean-up functions to run at the end of the entire
 	// test suite.
 	closers []io.Closer
-}
-
-// Modes returns the bitmask of environment modes this runner is configured to
-// test.
-func (r *Runner) Modes() EnvMode {
-	return r.DefaultModes
 }
 
 // getTestServer gets the test server instance to connect to, or creates one if
@@ -129,7 +124,7 @@ func (r *Runner) AddCloser(closer io.Closer) {
 }
 
 type runConfig struct {
-	modes    EnvMode
+	modes    Mode
 	proxyTxt string
 	timeout  time.Duration
 	env      []string
@@ -168,7 +163,7 @@ func WithProxy(txt string) RunOption {
 }
 
 // WithModes configures the execution modes that the test should run in.
-func WithModes(modes EnvMode) RunOption {
+func WithModes(modes Mode) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.modes = modes
 	})
@@ -194,12 +189,12 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 
 	tests := []struct {
 		name      string
-		mode      EnvMode
+		mode      Mode
 		getServer func(context.Context, *testing.T) jsonrpc2.StreamServer
 	}{
-		{"singleton", Singleton, singletonEnv},
-		{"forwarded", Forwarded, r.forwardedEnv},
-		{"separate_process", SeparateProcess, r.separateProcessEnv},
+		{"singleton", Singleton, singletonServer},
+		{"forwarded", Forwarded, r.forwardedServer},
+		{"separate_process", SeparateProcess, r.separateProcessServer},
 	}
 
 	for _, tc := range tests {
@@ -274,16 +269,16 @@ func (s *loggingServer) printBuffers(testname string, w io.Writer) {
 	}
 }
 
-func singletonEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+func singletonServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	return lsprpc.NewStreamServer(cache.New(ctx, nil))
 }
 
-func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	ts := r.getTestServer()
 	return lsprpc.NewForwarder("tcp", ts.Addr)
 }
 
-func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
 	socket := r.getRemoteSocket(t)

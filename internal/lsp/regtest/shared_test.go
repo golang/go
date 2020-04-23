@@ -24,7 +24,7 @@ func main() {
 
 func runShared(t *testing.T, program string, testFunc func(env1 *Env, env2 *Env)) {
 	// Only run these tests in forwarded modes.
-	modes := runner.Modes() & (Forwarded | SeparateProcess)
+	modes := runner.DefaultModes & (Forwarded | SeparateProcess)
 	runner.Run(t, sharedProgram, func(t *testing.T, env1 *Env) {
 		// Create a second test session connected to the same workspace and server
 		// as the first.
