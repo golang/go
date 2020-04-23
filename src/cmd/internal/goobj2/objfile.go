@@ -125,6 +125,8 @@ const stringRefSize = 8 // two uint32s
 
 type FingerprintType [8]byte
 
+func (fp FingerprintType) IsZero() bool { return fp == FingerprintType{} }
+
 // Package Index.
 const (
 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols

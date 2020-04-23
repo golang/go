@@ -130,11 +130,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.ImportStrings {
-		lib := addlib(ctxt, pkg, pn, importStr)
+	for _, imp := range l.Autolib {
+		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
 		if lib != nil {
 			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.ImportStrings = nil
+	l.Autolib = nil
 }
