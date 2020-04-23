@@ -1194,6 +1194,8 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 }
 
 func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string) string {
+	resname, expr := splitNameExpr(result)
+	result = expr
 	// TODO: when generating a constant result, use f.constVal to avoid
 	// introducing copies just to clean them up again.
 	if result[0] != '(' {
@@ -1225,7 +1227,11 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		if typ == "" {
 			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, rr.Loc)
 		}
-		v = fmt.Sprintf("v%d", rr.Alloc)
+		if resname == "" {
+			v = fmt.Sprintf("v%d", rr.Alloc)
+		} else {
+			v = resname
+		}
 		rr.Alloc++
 		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
