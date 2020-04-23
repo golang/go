@@ -58,7 +58,7 @@ type Reloc2 struct {
 
 	// External reloc types may not fit into a uint8 which the Go object file uses.
 	// Store it here, instead of in the byte of goobj2.Reloc2.
-	// For Go symbols this will always be 0.
+	// For Go symbols this will always be zero.
 	// goobj2.Reloc2.Type() + typ is always the right type, for both Go and external
 	// symbols.
 	typ objabi.RelocType
@@ -73,6 +73,10 @@ func (rel Reloc2) SetType(t objabi.RelocType) {
 		panic("SetType: type doesn't fit into Reloc2")
 	}
 	rel.Reloc.SetType(uint8(t))
+	if rel.typ != 0 {
+		// should use SymbolBuilder.SetRelocType
+		panic("wrong method to set reloc type")
+	}
 }
 
 // Aux2 holds a "handle" to access an aux symbol record from an
