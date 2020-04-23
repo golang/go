@@ -1760,7 +1760,8 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 // Preload a package: add autolibs, add defined package symbols to the symbol table.
 // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
 // Does not read symbol data.
-func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, flags int) {
+// Returns the fingerprint of the object.
+func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
 	roObject, readonly, err := f.Slice(uint64(length))
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
@@ -1779,11 +1780,7 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef, uint32(len(l.objs))}
 
 	// Autolib
-	autolib := r.Autolib()
-	for _, p := range autolib {
-		lib.ImportStrings = append(lib.ImportStrings, p.Pkg)
-		// TODO: fingerprint is ignored for now
-	}
+	lib.Autolib = append(lib.Autolib, r.Autolib()...)
 
 	// DWARF file table
 	nfile := r.NDwarfFile()
@@ -1797,6 +1794,8 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 
 	// The caller expects us consuming all the data
 	f.MustSeek(length, os.SEEK_CUR)
+
+	return r.Fingerprint()
 }
 
 // Preload symbols of given kind from an object.
