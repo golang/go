@@ -24204,6 +24204,46 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		v.AddArg2(dst1, v0)
 		return true
 	}
+	// match: (Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _))
+	// cond: isSamePtr(dst1, dst2)
+	// result: zero
+	for {
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
+		dst1 := v_0
+		zero := v_1
+		if zero.Op != OpZero || auxIntToInt64(zero.AuxInt) != s || auxToType(zero.Aux) != t {
+			break
+		}
+		dst2 := zero.Args[0]
+		if !(isSamePtr(dst1, dst2)) {
+			break
+		}
+		v.copyOf(zero)
+		return true
+	}
+	// match: (Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _)))
+	// cond: isSamePtr(dst1, dst2)
+	// result: vardef
+	for {
+		s := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
+		dst1 := v_0
+		vardef := v_1
+		if vardef.Op != OpVarDef {
+			break
+		}
+		vardef_0 := vardef.Args[0]
+		if vardef_0.Op != OpZero || auxIntToInt64(vardef_0.AuxInt) != s || auxToType(vardef_0.Aux) != t {
+			break
+		}
+		dst2 := vardef_0.Args[0]
+		if !(isSamePtr(dst1, dst2)) {
+			break
+		}
+		v.copyOf(vardef)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpZeroExt16to32(v *Value) bool {
