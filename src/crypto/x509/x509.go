@@ -2100,6 +2100,10 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: no SerialNumber given")
 	}
 
+	if template.BasicConstraintsValid && !template.IsCA && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
+		return nil, errors.New("x509: only CAs are allowed to specify MaxPathLen")
+	}
+
 	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(key.Public(), template.SignatureAlgorithm)
 	if err != nil {
 		return nil, err

@@ -581,6 +581,11 @@
   && int32(x) != 0
   => (BRC {d} cmp yes no)
 
+// Canonicalize BRC condition code mask by removing impossible conditions.
+// Integer comparisons cannot generate the unordered condition.
+(BRC {c} x:((CMP|CMPW|CMPU|CMPWU)    _ _) yes no) && c&s390x.Unordered != 0 => (BRC {c&^s390x.Unordered} x yes no)
+(BRC {c} x:((CMP|CMPW|CMPU|CMPWU)const _) yes no) && c&s390x.Unordered != 0 => (BRC {c&^s390x.Unordered} x yes no)
+
 // Compare-and-branch.
 // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
 (BRC {c} (CMP   x y) yes no) => (CGRJ  {c&^s390x.Unordered} x y yes no)
@@ -628,6 +633,12 @@
 // Bring out-of-range unsigned immediates into range by varying branch condition.
 (BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.LessOrEqual} x [255] yes no)
 (BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.Greater}     x [255] yes no)
+
+// Bring out-of-range immediates into range by switching signedness (only == and !=).
+(BRC {c} (CMPconst   x [y]) yes no) && y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CLGIJ {c} x [uint8(y)] yes no)
+(BRC {c} (CMPWconst  x [y]) yes no) && y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CLIJ  {c} x [uint8(y)] yes no)
+(BRC {c} (CMPUconst  x [y]) yes no) && y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CGIJ  {c} x [ int8(y)] yes no)
+(BRC {c} (CMPWUconst x [y]) yes no) && y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CIJ   {c} x [ int8(y)] yes no)
 
 // Fold constants into instructions.
 (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
@@ -1206,6 +1217,20 @@
 // collapse borrow chain
 (SUBE x y (Select1 (SUBC (MOVDconst [0]) (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) c))))))
   -> (SUBE x y c)
+
+// branch on carry
+(C(G|LG)IJ {s390x.Equal}         (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.NoCarry} carry)
+(C(G|LG)IJ {s390x.Equal}         (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1]) => (BRC {s390x.Carry}   carry)
+(C(G|LG)IJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.Carry}   carry)
+(C(G|LG)IJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1]) => (BRC {s390x.NoCarry} carry)
+(C(G|LG)IJ {s390x.Greater}       (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.Carry}   carry)
+
+// branch on borrow
+(C(G|LG)IJ {s390x.Equal}         (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.NoBorrow} borrow)
+(C(G|LG)IJ {s390x.Equal}         (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1]) => (BRC {s390x.Borrow}   borrow)
+(C(G|LG)IJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
+(C(G|LG)IJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1]) => (BRC {s390x.NoBorrow} borrow)
+(C(G|LG)IJ {s390x.Greater}       (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
 
 // fused multiply-add
 (Select0 (F(ADD|SUB) (FMUL y z) x)) -> (FM(ADD|SUB) x y z)

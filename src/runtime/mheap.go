@@ -27,6 +27,23 @@ const (
 	// maxPhysHugePageSize sets an upper-bound on the maximum huge page size
 	// that the runtime supports.
 	maxPhysHugePageSize = pallocChunkBytes
+
+	// pagesPerReclaimerChunk indicates how many pages to scan from the
+	// pageInUse bitmap at a time. Used by the page reclaimer.
+	//
+	// Higher values reduce contention on scanning indexes (such as
+	// h.reclaimIndex), but increase the minimum latency of the
+	// operation.
+	//
+	// The time required to scan this many pages can vary a lot depending
+	// on how many spans are actually freed. Experimentally, it can
+	// scan for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
+	// free spans at ~32 MB/ms. Using 512 pages bounds this at
+	// roughly 100µs.
+	//
+	// Must be a multiple of the pageInUse bitmap element size and
+	// must also evenly divid pagesPerArena.
+	pagesPerReclaimerChunk = 512
 )
 
 // Main malloc heap.
@@ -180,13 +197,19 @@ type mheap struct {
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
+	// markArenas is a snapshot of allArenas taken at the beginning
+	// of the mark cycle. Because allArenas is append-only, neither
+	// this slice nor its contents will change during the mark, so
+	// it can be read safely.
+	markArenas []arenaIdx
+
 	// curArena is the arena that the heap is currently growing
 	// into. This should always be physPageSize-aligned.
 	curArena struct {
 		base, end uintptr
 	}
 
-	_ uint32 // ensure 64-bit alignment of central
+	// _ uint32 // ensure 64-bit alignment of central
 
 	// central free lists for small size classes.
 	// the padding makes sure that the mcentrals are
@@ -255,6 +278,16 @@ type heapArena struct {
 	// faster scanning, but we don't have 64-bit atomic bit
 	// operations.
 	pageMarks [pagesPerArena / 8]uint8
+
+	// pageSpecials is a bitmap that indicates which spans have
+	// specials (finalizers or other). Like pageInUse, only the bit
+	// corresponding to the first page in each span is used.
+	//
+	// Writes are done atomically whenever a special is added to
+	// a span and whenever the last special is removed from a span.
+	// Reads are done atomically to find spans containing specials
+	// during marking.
+	pageSpecials [pagesPerArena / 8]uint8
 
 	// zeroedBase marks the first byte of the first page in this
 	// arena which hasn't been used yet and is therefore already
@@ -673,6 +706,7 @@ func (h *mheap) init() {
 	lockInit(&h.lock, lockRankMheap)
 	lockInit(&h.sweepSpans[0].spineLock, lockRankSpine)
 	lockInit(&h.sweepSpans[1].spineLock, lockRankSpine)
+	lockInit(&h.speciallock, lockRankMheapSpecial)
 
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
@@ -705,23 +739,10 @@ func (h *mheap) init() {
 //
 // h must NOT be locked.
 func (h *mheap) reclaim(npage uintptr) {
-	// This scans pagesPerChunk at a time. Higher values reduce
-	// contention on h.reclaimPos, but increase the minimum
-	// latency of performing a reclaim.
-	//
-	// Must be a multiple of the pageInUse bitmap element size.
-	//
-	// The time required by this can vary a lot depending on how
-	// many spans are actually freed. Experimentally, it can scan
-	// for pages at ~300 GB/ms on a 2.6GHz Core i7, but can only
-	// free spans at ~32 MB/ms. Using 512 pages bounds this at
-	// roughly 100µs.
-	//
 	// TODO(austin): Half of the time spent freeing spans is in
 	// locking/unlocking the heap (even with low contention). We
 	// could make the slow path here several times faster by
 	// batching heap frees.
-	const pagesPerChunk = 512
 
 	// Bail early if there's no more reclaim work.
 	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
@@ -754,7 +775,7 @@ func (h *mheap) reclaim(npage uintptr) {
 		}
 
 		// Claim a chunk of work.
-		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerChunk) - pagesPerChunk)
+		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
 		if idx/pagesPerArena >= uintptr(len(arenas)) {
 			// Page reclaiming is done.
 			atomic.Store64(&h.reclaimIndex, 1<<63)
@@ -768,7 +789,7 @@ func (h *mheap) reclaim(npage uintptr) {
 		}
 
 		// Scan this chunk.
-		nfound := h.reclaimChunk(arenas, idx, pagesPerChunk)
+		nfound := h.reclaimChunk(arenas, idx, pagesPerReclaimerChunk)
 		if nfound <= npage {
 			npage -= nfound
 		} else {
@@ -1592,6 +1613,22 @@ type special struct {
 	kind   byte     // kind of special
 }
 
+// spanHasSpecials marks a span as having specials in the arena bitmap.
+func spanHasSpecials(s *mspan) {
+	arenaPage := (s.base() / pageSize) % pagesPerArena
+	ai := arenaIndex(s.base())
+	ha := mheap_.arenas[ai.l1()][ai.l2()]
+	atomic.Or8(&ha.pageSpecials[arenaPage/8], uint8(1)<<(arenaPage%8))
+}
+
+// spanHasNoSpecials marks a span as having no specials in the arena bitmap.
+func spanHasNoSpecials(s *mspan) {
+	arenaPage := (s.base() / pageSize) % pagesPerArena
+	ai := arenaIndex(s.base())
+	ha := mheap_.arenas[ai.l1()][ai.l2()]
+	atomic.And8(&ha.pageSpecials[arenaPage/8], ^(uint8(1) << (arenaPage % 8)))
+}
+
 // Adds the special record s to the list of special records for
 // the object p. All fields of s should be filled in except for
 // offset & next, which this routine will fill in.
@@ -1637,6 +1674,9 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	s.offset = uint16(offset)
 	s.next = *t
 	*t = s
+	if go115NewMarkrootSpans {
+		spanHasSpecials(span)
+	}
 	unlock(&span.speciallock)
 	releasem(mp)
 
@@ -1660,6 +1700,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 
 	offset := uintptr(p) - span.base()
 
+	var result *special
 	lock(&span.speciallock)
 	t := &span.specials
 	for {
@@ -1671,15 +1712,17 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 		// "interior" specials (p must be exactly equal to s->offset).
 		if offset == uintptr(s.offset) && kind == s.kind {
 			*t = s.next
-			unlock(&span.speciallock)
-			releasem(mp)
-			return s
+			result = s
+			break
 		}
 		t = &s.next
 	}
+	if go115NewMarkrootSpans && span.specials == nil {
+		spanHasNoSpecials(span)
+	}
 	unlock(&span.speciallock)
 	releasem(mp)
-	return nil
+	return result
 }
 
 // The described object has a finalizer set for it.

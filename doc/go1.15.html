@@ -84,6 +84,18 @@ TODO
 TODO
 </p>
 
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- https://golang.org/cl/229578 -->
+  Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a> allow converting an <code>unsafe.Pointer</code>
+  into <code>uintptr</code> when calling certain
+  functions. Previously, in some cases, the compiler allowed multiple
+  chained conversions (for example, <code>syscall.Syscall(…,
+  uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
+  one conversion. Code that used multiple conversions should be
+  updated to satisfy the safety rules.
+</p>
 
 <h2 id="library">Core library</h2>
 
@@ -133,6 +145,18 @@ TODO
 TODO
 </p>
 
+<dl id="crypto/tls"><dt><a href="/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 214977 -->
+      The new
+      <a href="/pkg/crypto/tls/#Dialer"><code>Dialer</code></a>
+      type and its
+      <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
+      method permits using a context to both connect and handshake with a TLS server.
+    </p>
+  </dd>
+</dl>
+
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 221427 -->
@@ -165,6 +189,18 @@ TODO
   </dd>
 </dl>
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 228902 -->
+      Package reflect now disallows accessing methods of all
+      non-exported fields, whereas previously it allowed accessing
+      those of non-exported, embedded fields. Code that relies on the
+      previous behavior should be updated to instead access the
+      corresponding promoted method of the enclosing variable.
+    </p>
+  </dd>
+</dl>
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
@@ -173,6 +209,17 @@ TODO
       <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
       then the value will be printed, instead of just its address.
+    </p>
+
+    <p><!-- CL -->
+      On a Unix system, if the <code>kill</code> command
+      or <code>kill</code> system call is used to send
+      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+      or <code>SIGFPE</code> signal to a Go program, and if the signal
+      is not being handled via
+      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+      the Go program will now reliably crash with a stack trace.
+      In earlier releases the behavior was unpredictable.
     </p>
   </dd>
 </dl>

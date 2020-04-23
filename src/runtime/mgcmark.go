@@ -21,10 +21,6 @@ const (
 	// BSS root.
 	rootBlockBytes = 256 << 10
 
-	// rootBlockSpans is the number of spans to scan per span
-	// root.
-	rootBlockSpans = 8 * 1024 // 64MB worth of spans
-
 	// maxObletBytes is the maximum bytes of an object to scan at
 	// once. Larger objects will be split up into "oblets" of at
 	// most this size. Since we can scan 1–2 MB/ms, 128 KB bounds
@@ -41,14 +37,26 @@ const (
 	// a syscall, so its overhead is nontrivial). Higher values
 	// make the system less responsive to incoming work.
 	drainCheckThreshold = 100000
+
+	// pagesPerSpanRoot indicates how many pages to scan from a span root
+	// at a time. Used by special root marking.
+	//
+	// Higher values improve throughput by increasing locality, but
+	// increase the minimum latency of a marking operation.
+	//
+	// Must be a multiple of the pageInUse bitmap element size and
+	// must also evenly divide pagesPerArena.
+	pagesPerSpanRoot = 512
+
+	// go115NewMarkrootSpans is a feature flag that indicates whether
+	// to use the new bitmap-based markrootSpans implementation.
+	go115NewMarkrootSpans = true
 )
 
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
 // some miscellany) and initializes scanning-related state.
 //
 // The world must be stopped.
-//
-//go:nowritebarrier
 func gcMarkRootPrepare() {
 	work.nFlushCacheRoots = 0
 
@@ -79,13 +87,24 @@ func gcMarkRootPrepare() {
 	//
 	// We depend on addfinalizer to mark objects that get
 	// finalizers after root marking.
-	//
-	// We're only interested in scanning the in-use spans,
-	// which will all be swept at this point. More spans
-	// may be added to this list during concurrent GC, but
-	// we only care about spans that were allocated before
-	// this mark phase.
-	work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+	if go115NewMarkrootSpans {
+		// We're going to scan the whole heap (that was available at the time the
+		// mark phase started, i.e. markArenas) for in-use spans which have specials.
+		//
+		// Break up the work into arenas, and further into chunks.
+		//
+		// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
+		// is append-only.
+		mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
+		work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
+	} else {
+		// We're only interested in scanning the in-use spans,
+		// which will all be swept at this point. More spans
+		// may be added to this list during concurrent GC, but
+		// we only care about spans that were allocated before
+		// this mark phase.
+		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+	}
 
 	// Scan stacks.
 	//
@@ -293,10 +312,96 @@ func markrootFreeGStacks() {
 	unlock(&sched.gFree.lock)
 }
 
-// markrootSpans marks roots for one shard of work.spans.
+// markrootSpans marks roots for one shard of markArenas.
 //
 //go:nowritebarrier
 func markrootSpans(gcw *gcWork, shard int) {
+	if !go115NewMarkrootSpans {
+		oldMarkrootSpans(gcw, shard)
+		return
+	}
+	// Objects with finalizers have two GC-related invariants:
+	//
+	// 1) Everything reachable from the object must be marked.
+	// This ensures that when we pass the object to its finalizer,
+	// everything the finalizer can reach will be retained.
+	//
+	// 2) Finalizer specials (which are not in the garbage
+	// collected heap) are roots. In practice, this means the fn
+	// field must be scanned.
+	sg := mheap_.sweepgen
+
+	// Find the arena and page index into that arena for this shard.
+	ai := mheap_.markArenas[shard/(pagesPerArena/pagesPerSpanRoot)]
+	ha := mheap_.arenas[ai.l1()][ai.l2()]
+	arenaPage := uint(uintptr(shard) * pagesPerSpanRoot % pagesPerArena)
+
+	// Construct slice of bitmap which we'll iterate over.
+	specialsbits := ha.pageSpecials[arenaPage/8:]
+	specialsbits = specialsbits[:pagesPerSpanRoot/8]
+	for i := range specialsbits {
+		// Find set bits, which correspond to spans with specials.
+		specials := atomic.Load8(&specialsbits[i])
+		if specials == 0 {
+			continue
+		}
+		for j := uint(0); j < 8; j++ {
+			if specials&(1<<j) == 0 {
+				continue
+			}
+			// Find the span for this bit.
+			//
+			// This value is guaranteed to be non-nil because having
+			// specials implies that the span is in-use, and since we're
+			// currently marking we can be sure that we don't have to worry
+			// about the span being freed and re-used.
+			s := ha.spans[arenaPage+uint(i)*8+j]
+
+			// The state must be mSpanInUse if the specials bit is set, so
+			// sanity check that.
+			if state := s.state.get(); state != mSpanInUse {
+				print("s.state = ", state, "\n")
+				throw("non in-use span found with specials bit set")
+			}
+			// Check that this span was swept (it may be cached or uncached).
+			if !useCheckmark && !(s.sweepgen == sg || s.sweepgen == sg+3) {
+				// sweepgen was updated (+2) during non-checkmark GC pass
+				print("sweep ", s.sweepgen, " ", sg, "\n")
+				throw("gc: unswept span")
+			}
+
+			// Lock the specials to prevent a special from being
+			// removed from the list while we're traversing it.
+			lock(&s.speciallock)
+			for sp := s.specials; sp != nil; sp = sp.next {
+				if sp.kind != _KindSpecialFinalizer {
+					continue
+				}
+				// don't mark finalized object, but scan it so we
+				// retain everything it points to.
+				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+				// A finalizer can be set for an inner byte of an object, find object beginning.
+				p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+
+				// Mark everything that can be reached from
+				// the object (but *not* the object itself or
+				// we'll never collect it).
+				scanobject(p, gcw)
+
+				// The special itself is a root.
+				scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+			}
+			unlock(&s.speciallock)
+		}
+	}
+}
+
+// oldMarkrootSpans marks roots for one shard of work.spans.
+//
+// For go115NewMarkrootSpans = false.
+//
+//go:nowritebarrier
+func oldMarkrootSpans(gcw *gcWork, shard int) {
 	// Objects with finalizers have two GC-related invariants:
 	//
 	// 1) Everything reachable from the object must be marked.

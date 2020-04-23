@@ -8,7 +8,6 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -188,14 +187,38 @@ func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
 func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
 func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
 func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
-func (n *Node) SetNonNil(b bool)    { n.flags.set(nodeNonNil, b) }
 func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
-func (n *Node) SetBounded(b bool)   { n.flags.set(nodeBounded, b) }
 func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+
+// MarkNonNil marks a pointer n as being guaranteed non-nil,
+// on all code paths, at all times.
+// During conversion to SSA, non-nil pointers won't have nil checks
+// inserted before dereferencing. See state.exprPtr.
+func (n *Node) MarkNonNil() {
+	if !n.Type.IsPtr() && !n.Type.IsUnsafePtr() {
+		Fatalf("MarkNonNil(%v), type %v", n, n.Type)
+	}
+	n.flags.set(nodeNonNil, true)
+}
+
+// SetBounded indicates whether operation n does not need safety checks.
+// When n is an index or slice operation, n does not need bounds checks.
+// When n is a dereferencing operation, n does not need nil checks.
+func (n *Node) SetBounded(b bool) {
+	switch n.Op {
+	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
+		// No bounds checks needed.
+	case ODOTPTR, ODEREF:
+		// No nil check needed.
+	default:
+		Fatalf("SetBounded(%v)", n)
+	}
+	n.flags.set(nodeBounded, b)
+}
 
 // MarkReadonly indicates that n is an ONAME with readonly contents.
 func (n *Node) MarkReadonly() {
@@ -459,7 +482,7 @@ type Param struct {
 	// OTYPE
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma syntax.Pragma
+	Pragma PragmaFlag
 	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
@@ -541,7 +564,7 @@ type Func struct {
 	Endlineno src.XPos
 	WBPos     src.XPos // position of first write barrier; see SetWBPos
 
-	Pragma syntax.Pragma // go:xxx function annotations
+	Pragma PragmaFlag // go:xxx function annotations
 
 	flags      bitset16
 	numDefers  int // number of defer calls in the function

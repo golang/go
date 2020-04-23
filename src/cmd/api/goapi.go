@@ -444,6 +444,11 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
+// listSem is a semaphore restricting concurrent invocations of 'go list'.
+var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
+
+type semToken struct{}
+
 // loadImports populates w with information about the packages in the standard
 // library and the packages they themselves import in w's build context.
 //
@@ -468,6 +473,9 @@ func (w *Walker) loadImports() {
 
 	imports, ok := listCache.Load(name)
 	if !ok {
+		listSem <- semToken{}
+		defer func() { <-listSem }()
+
 		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
 		cmd.Env = listEnv(w.context)
 		out, err := cmd.CombinedOutput()

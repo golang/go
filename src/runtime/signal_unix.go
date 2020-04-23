@@ -546,10 +546,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
 	}
-	if flags&_SigPanic != 0 && gp.throwsplit {
+	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 && gp.throwsplit {
 		// We can't safely sigpanic because it may grow the
 		// stack. Abort in the signal handler instead.
-		flags = (flags &^ _SigPanic) | _SigThrow
+		flags = _SigThrow
 	}
 	if isAbortPC(c.sigpc()) {
 		// On many architectures, the abort function just
@@ -588,7 +588,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		dieFromSignal(sig)
 	}
 
-	if flags&_SigThrow == 0 {
+	// _SigThrow means that we should exit now.
+	// If we get here with _SigPanic, it means that the signal
+	// was sent to us by a program (c.sigcode() == _SI_USER);
+	// in that case, if we didn't handle it in sigsend, we exit now.
+	if flags&(_SigThrow|_SigPanic) == 0 {
 		return
 	}
 
