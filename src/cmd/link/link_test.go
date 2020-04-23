@@ -287,7 +287,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"-fembed-bitcode",
 		"-framework", "CoreFoundation",
 	}
-	lib := filepath.Join("testdata", "lib.go")
+	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
 	if err != nil {
 		t.Fatal(err)
@@ -308,7 +308,7 @@ func TestBuildForTvOS(t *testing.T) {
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
-	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
+	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
@@ -661,7 +661,6 @@ func TestTrampoline(t *testing.T) {
 	}
 	exe := filepath.Join(tmpdir, "hello.exe")
 
-	// Build and run with old object file format.
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
