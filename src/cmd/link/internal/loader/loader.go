@@ -1075,6 +1075,12 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 
 // SymValue returns the section of the i-th symbol. i is global index.
 func (l *Loader) SymSect(i Sym) *sym.Section {
+	if int(i) >= len(l.symSects) {
+		// symSects is extended lazily -- it the sym in question is
+		// outside the range of the existing slice, then we assume its
+		// section has not yet been set.
+		return nil
+	}
 	return l.sects[l.symSects[i]]
 }
 
