@@ -1381,6 +1381,20 @@ func symIsRO(sym interface{}) bool {
 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
 }
 
+// symIsROZero reports whether sym is a read-only global whose data contains all zeros.
+func symIsROZero(sym Sym) bool {
+	lsym := sym.(*obj.LSym)
+	if lsym.Type != objabi.SRODATA || len(lsym.R) != 0 {
+		return false
+	}
+	for _, b := range lsym.P {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // read8 reads one byte from the read-only global sym at offset off.
 func read8(sym interface{}, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
