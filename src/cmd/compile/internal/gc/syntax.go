@@ -815,7 +815,6 @@ const (
 
 	// misc
 	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
-	ODDDARG     // func f(args ...int), introduced by escape analysis.
 	OINLCALL    // intermediary representation of an inlined call.
 	OEFACE      // itable and data words of an empty-interface value.
 	OITAB       // itable word of an interface value.
