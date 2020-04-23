@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"container/heap"
 	"sort"
 )
@@ -61,6 +62,15 @@ func (h ValHeap) Less(i, j int) bool {
 	}
 	if c := x.Uses - y.Uses; c != 0 {
 		return c < 0 // smaller uses come later
+	}
+	// These comparisons are fairly arbitrary.
+	// The goal here is stability in the face
+	// of unrelated changes elsewhere in the compiler.
+	if c := x.AuxInt - y.AuxInt; c != 0 {
+		return c > 0
+	}
+	if cmp := x.Type.Compare(y.Type); cmp != types.CMPeq {
+		return cmp == types.CMPgt
 	}
 	return x.ID > y.ID
 }
