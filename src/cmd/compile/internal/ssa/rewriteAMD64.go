@@ -31641,7 +31641,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
-	// result: (DUFFCOPY [14*(64-s/16)] dst src mem)
+	// result: (DUFFCOPY [s] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
@@ -31651,7 +31651,7 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64DUFFCOPY)
-		v.AuxInt = int64ToAuxInt(14 * (64 - s/16))
+		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg3(dst, src, mem)
 		return true
 	}
