@@ -2391,7 +2391,7 @@
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
 
-(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
+(StaticCall {sym} x) && needRaceCleanup(sym, v) => x
 
 // Collapse moving A -> B -> C into just A -> C.
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.

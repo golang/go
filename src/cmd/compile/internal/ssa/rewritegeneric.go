@@ -21128,10 +21128,10 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		return true
 	}
 	// match: (StaticCall {sym} x)
-	// cond: needRaceCleanup(sym,v)
+	// cond: needRaceCleanup(sym, v)
 	// result: x
 	for {
-		sym := v.Aux
+		sym := auxToSym(v.Aux)
 		x := v_0
 		if !(needRaceCleanup(sym, v)) {
 			break

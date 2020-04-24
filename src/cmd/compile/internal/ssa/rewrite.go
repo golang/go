@@ -1340,12 +1340,12 @@ func registerizable(b *Block, typ *types.Type) bool {
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
-func needRaceCleanup(sym interface{}, v *Value) bool {
+func needRaceCleanup(sym Sym, v *Value) bool {
 	f := v.Block.Func
 	if !f.Config.Race {
 		return false
 	}
-	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
