@@ -84,9 +84,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]*Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
-		if err := clearReports(snapshot, reports, fh.File().Identity().URI); err != nil {
-			return nil, warn, err
-		}
+		clearReports(snapshot, reports, fh.File().Identity().URI)
 		if len(missing) > 0 {
 			if err := missingModulesDiagnostics(ctx, snapshot, reports, missing, fh.File().Identity().URI); err != nil {
 				return nil, warn, err
@@ -107,9 +105,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 				}
 			}
 		}
-		if err := clearReports(snapshot, reports, e.URI); err != nil {
-			return nil, warn, err
-		}
+		clearReports(snapshot, reports, e.URI)
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	hadDiagnostics, hadTypeErrors, err := diagnostics(ctx, snapshot, reports, pkg, len(ph.MissingDependencies()) > 0)
@@ -307,30 +303,29 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 	return nil
 }
 
-func clearReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI) error {
+func clearReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI) {
 	if snapshot.View().Ignore(uri) {
-		return nil
+		return
 	}
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
-		return err
+	fh := snapshot.FindFile(uri)
+	if fh == nil {
+		return
 	}
 	reports[fh.Identity()] = []*Diagnostic{}
-	return nil
 }
 
 func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
 	if snapshot.View().Ignore(uri) {
 		return nil
 	}
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
-		return err
+	fh := snapshot.FindFile(uri)
+	if fh == nil {
+		return nil
 	}
 	identity := fh.Identity()
 	existingDiagnostics, ok := reports[identity]
 	if !ok {
-		return errors.Errorf("diagnostics for unexpected file %s", uri)
+		return fmt.Errorf("diagnostics for unexpected file %s", uri)
 	}
 	if len(diagnostics) == 1 {
 		d1 := diagnostics[0]

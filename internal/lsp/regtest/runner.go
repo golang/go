@@ -71,6 +71,7 @@ type runConfig struct {
 	timeout     time.Duration
 	env         []string
 	skipCleanup bool
+	gopath      bool
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -120,6 +121,14 @@ func WithEnv(env ...string) RunOption {
 	})
 }
 
+// InGOPATH configures the workspace working directory to be GOPATH, rather
+// than a separate working directory for use with modules.
+func InGOPATH() RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.gopath = true
+	})
+}
+
 // SkipCleanup is used only for debugging: is skips cleaning up the tests state
 // after completion.
 func SkipCleanup() RunOption {
@@ -159,7 +168,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.env...)
+			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.gopath, config.env...)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -31,8 +31,12 @@ type Snapshot interface {
 	// Config returns the configuration for the view.
 	Config(ctx context.Context) *packages.Config
 
-	// GetFile returns the file object for a given URI, initializing it
-	// if it is not already part of the view.
+	// FindFile returns the FileHandle for the given URI, if it is already
+	// in the given snapshot.
+	FindFile(uri span.URI) FileHandle
+
+	// GetFile returns the FileHandle for a given URI, initializing it
+	// if it is not already part of the snapshot.
 	GetFile(uri span.URI) (FileHandle, error)
 
 	// IsOpen returns whether the editor currently has a file open.

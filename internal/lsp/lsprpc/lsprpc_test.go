@@ -190,7 +190,7 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	resetExitFuncs := OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	sb, err := fake.NewSandbox("gopls-lsprpc-test", exampleProgram, "")
+	sb, err := fake.NewSandbox("gopls-lsprpc-test", exampleProgram, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

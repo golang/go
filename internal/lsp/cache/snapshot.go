@@ -500,6 +500,17 @@ func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	scope, ok := s.workspacePackages[id]
 	return scope, ok
 }
+func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
+	f, err := s.view.getFile(uri)
+	if err != nil {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.files[f.URI()]
+}
 
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.

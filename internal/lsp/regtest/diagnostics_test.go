@@ -5,6 +5,8 @@
 package regtest
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
@@ -291,7 +293,7 @@ func main() {}
 			// package renaming was fully processed. Therefore, in order for this
 			// test to actually exercise the bug, we must wait until that work has
 			// completed.
-			EmptyDiagnostics("a.go"),
+			NoDiagnostics("a.go"),
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
 		)
 	})
@@ -405,6 +407,7 @@ var X = 0
 	}, WithEnv("GOFLAGS=-tags=foo"))
 }
 
+// Tests golang/go#38467.
 func TestNoSuggestedFixesForGeneratedFiles_Issue38467(t *testing.T) {
 	const generated = `
 -- go.mod --
@@ -441,36 +444,78 @@ func _() {
 	})
 }
 
-// Expect a module/gopath error if there is an error in the file at startup
+// Expect a module/GOPATH error if there is an error in the file at startup.
+// Tests golang/go#37279.
 func TestShowMessage_Issue37279(t *testing.T) {
 	const noModule = `
 -- a.go --
-	package foo
-	
-	func f() {
-		fmt.Printl()
-	}
-	`
+package foo
+
+func f() {
+	fmt.Printl()
+}
+`
 	runner.Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "fmt.Printl"), SomeShowMessage(""))
 	})
 }
 
-// Expecxt no module/gopath error if there is no error in the file
+// Expect no module/GOPATH error if there is no error in the file.
+// Tests golang/go#37279.
 func TestNoShowMessage_Issue37279(t *testing.T) {
 	const noModule = `
 -- a.go --
-	package foo
-	
-	func f() {
-	}
-	`
+package foo
+
+func f() {
+}
+`
 	runner.Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(EmptyDiagnostics("a.go"), EmptyShowMessage(""))
+		env.Await(NoDiagnostics("a.go"), EmptyShowMessage(""))
 		// introduce an error, expect no Show Message
 		env.RegexpReplace("a.go", "func", "fun")
 		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), EmptyShowMessage(""))
 	})
+}
+
+// Tests golang/go#38602.
+func TestNonexistentFileDiagnostics_Issue38602(t *testing.T) {
+	const collision = `
+-- x/x.go --
+package x
+
+import "x/hello"
+
+func Hello() {
+	hello.HiThere()
+}
+-- x/main.go --
+package main
+
+func main() {
+	fmt.Println("")
+}
+`
+	runner.Run(t, collision, func(t *testing.T, env *Env) {
+		env.OpenFile("x/main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("x/main.go", "fmt.Println"),
+		)
+		env.OrganizeImports("x/main.go")
+		// span.Parse misparses the error message when multiple packages are
+		// defined in the same directory, creating a garbage filename.
+		// Previously, we would send diagnostics for this nonexistent file.
+		// This test checks that we don't send diagnostics for this file.
+		dir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		badFile := fmt.Sprintf("%s/found packages main (main.go) and x (x.go) in %s/src/x", dir, env.Sandbox.GOPATH())
+		env.Await(
+			EmptyDiagnostics("x/main.go"),
+			NoDiagnostics(badFile),
+		)
+	}, InGOPATH())
 }

@@ -461,11 +461,26 @@ func (e DiagnosticExpectation) Description() string {
 	return fmt.Sprintf("%s: %s", e.path, e.description)
 }
 
-// EmptyDiagnostics asserts that diagnostics are empty for the
+// EmptyDiagnostics asserts that empty diagnostics are sent for the
 // workspace-relative path name.
 func EmptyDiagnostics(name string) Expectation {
 	check := func(s State) (Verdict, interface{}) {
-		if diags, ok := s.diagnostics[name]; !ok || len(diags.Diagnostics) == 0 {
+		if diags := s.diagnostics[name]; diags != nil && len(diags.Diagnostics) == 0 {
+			return Met, nil
+		}
+		return Unmet, nil
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "empty diagnostics",
+	}
+}
+
+// NoDiagnostics asserts that no diagnostics are sent for the
+// workspace-relative path name.
+func NoDiagnostics(name string) Expectation {
+	check := func(s State) (Verdict, interface{}) {
+		if _, ok := s.diagnostics[name]; !ok {
 			return Met, nil
 		}
 		return Unmet, nil
