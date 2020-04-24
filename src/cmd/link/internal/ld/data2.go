@@ -45,7 +45,8 @@ func (ctxt *Link) dodata() {
 	//
 	// On darwin, we need the symbol table numbers for dynreloc.
 	if ctxt.HeadType == objabi.Hdarwin {
-		machosymorder(ctxt)
+		panic("not supported")
+		//machosymorder(ctxt)
 	}
 	state.dynreloc(ctxt)
 

@@ -1355,8 +1355,7 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 	//
 	// On darwin, we need the symbol table numbers for dynreloc.
 	if ctxt.HeadType == objabi.Hdarwin {
-		panic("not yet implemented for darwin")
-		//	machosymorder(ctxt)
+		machosymorder(ctxt)
 	}
 	state.dynreloc2(ctxt)
 

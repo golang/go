@@ -202,8 +202,16 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	if *flagnewDoData {
 		// New dodata() is currently only implemented for selected targets.
-		if !(ctxt.IsElf() &&
-			(ctxt.IsAMD64() || ctxt.Is386())) {
+		switch {
+		case ctxt.IsElf():
+			if !(ctxt.IsAMD64() || ctxt.Is386()) {
+				*flagnewDoData = false
+			}
+		case ctxt.IsDarwin():
+			if !ctxt.IsAMD64() {
+				*flagnewDoData = false
+			}
+		default:
 			*flagnewDoData = false
 		}
 	}
