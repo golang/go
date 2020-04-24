@@ -286,6 +286,28 @@ func bgscavenge(c chan int) {
 			continue
 		}
 
+		if released < physPageSize {
+			// If this happens, it means that we may have attempted to release part
+			// of a physical page, but the likely effect of that is that it released
+			// the whole physical page, some of which may have still been in-use.
+			// This could lead to memory corruption. Throw.
+			throw("released less than one physical page of memory")
+		}
+
+		// On some platforms we may see crit as zero if the time it takes to scavenge
+		// memory is less than the minimum granularity of its clock (e.g. Windows).
+		// In this case, just assume scavenging takes 10 µs per regular physical page
+		// (determined empirically), and conservatively ignore the impact of huge pages
+		// on timing.
+		//
+		// We shouldn't ever see a crit value less than zero unless there's a bug of
+		// some kind, either on our side or in the platform we're running on, but be
+		// defensive in that case as well.
+		const approxCritNSPerPhysicalPage = 10e3
+		if crit <= 0 {
+			crit = approxCritNSPerPhysicalPage * float64(released/physPageSize)
+		}
+
 		// Multiply the critical time by 1 + the ratio of the costs of using
 		// scavenged memory vs. scavenging memory. This forces us to pay down
 		// the cost of reusing this memory eagerly by sleeping for a longer period
