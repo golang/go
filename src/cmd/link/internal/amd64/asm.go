@@ -85,7 +85,6 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		targType = ldr.SymType(targ)
 	}
 
-	su := ldr.MakeSymbolUpdater(s)
 	switch r.Type() {
 	default:
 		if r.Type() >= objabi.ElfRelocOffset {
@@ -103,6 +102,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+4)
 		return true
@@ -114,11 +114,13 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+8)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+4)
 		if targType == sym.SDYNIMPORT {
@@ -132,11 +134,11 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCREL),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCRELX),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
+		su := ldr.MakeSymbolUpdater(s)
 		if targType != sym.SDYNIMPORT {
 			// have symbol
 			sData := ldr.Data(s)
 			if r.Off() >= 2 && sData[r.Off()-2] == 0x8b {
-				su := ldr.MakeSymbolUpdater(s)
 				su.MakeWritable()
 				// turn MOVQ of GOT entry into LEAQ of symbol itself
 				writeableData := su.Data()
@@ -160,6 +162,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 		if target.IsPIE() && target.IsInternal() {
 			// For internal linking PIE, this R_ADDR relocation cannot
@@ -174,6 +177,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
 		// TODO: What is the difference between all these?
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 
 		if targType == sym.SDYNIMPORT {
@@ -184,6 +188,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
 		if targType == sym.SDYNIMPORT {
 			addpltsym2(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
 			su.SetRelocSym(rIdx, syms.PLT2)
 			su.SetRelocType(rIdx, objabi.R_PCREL)
 			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
@@ -196,6 +201,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 
 		if targType == sym.SDYNIMPORT {
@@ -227,6 +233,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
 		}
 		addgotsym2(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocSym(rIdx, syms.GOT2)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
@@ -251,12 +258,14 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		// Internal linking, for both ELF and Mach-O.
 		// Build a PLT entry and change the relocation target to that entry.
 		addpltsym2(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocSym(rIdx, syms.PLT2)
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+			su := ldr.MakeSymbolUpdater(s)
 			if target.IsSolaris() {
 				addpltsym2(target, ldr, syms, targ)
 				su.SetRelocSym(rIdx, syms.PLT2)
