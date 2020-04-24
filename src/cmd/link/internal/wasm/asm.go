@@ -187,8 +187,6 @@ func asmb2(ctxt *ld.Link) {
 	if !*ld.FlagS {
 		writeNameSec(ctxt, len(hostImports), fns)
 	}
-
-	ctxt.Out.Flush()
 }
 
 func lookupType(sig *wasmFuncType, types *[]*wasmFuncType) uint32 {

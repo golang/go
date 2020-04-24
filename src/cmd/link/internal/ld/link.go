@@ -82,9 +82,6 @@ type Link struct {
 
 	tramps []loader.Sym // trampolines
 
-	// Used to implement field tracking.
-	Reachparent map[*sym.Symbol]*sym.Symbol
-
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
 
