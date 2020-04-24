@@ -1447,8 +1447,14 @@ func Elfemitreloc(ctxt *Link) {
 	for _, sect := range Segdata.Sections {
 		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
-	for _, sect := range Segdwarf.Sections {
-		elfrelocsect(ctxt, sect, dwarfp)
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != sect.Sym ||
+			si.secSym().Sect != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
+		elfrelocsect(ctxt, sect, si.syms)
 	}
 }
 
@@ -2230,10 +2236,9 @@ elfobj:
 		for _, sect := range Segdata.Sections {
 			elfshreloc(ctxt.Arch, sect)
 		}
-		for _, s := range dwarfp {
-			if len(s.R) > 0 || s.Type == sym.SDWARFINFO || s.Type == sym.SDWARFLOC {
-				elfshreloc(ctxt.Arch, s.Sect)
-			}
+		for _, si := range dwarfp {
+			s := si.secSym()
+			elfshreloc(ctxt.Arch, s.Sect)
 		}
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		sh := elfshname(".note.GNU-stack")

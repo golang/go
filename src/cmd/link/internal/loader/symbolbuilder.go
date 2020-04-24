@@ -107,6 +107,7 @@ func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.
 func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetLocal(value bool)        { sb.l.SetAttrLocal(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetVisibilityHidden(value bool) {
 	sb.l.SetAttrVisibilityHidden(sb.symIdx, value)
 }
@@ -334,6 +335,10 @@ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int
 	return off + int64(r.Size)
 }
 
+func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
+	return sb.SetAddrPlus(arch, off, tgt, 0)
+}
+
 func (sb *SymbolBuilder) Addstring(str string) int64 {
 	sb.setReachable()
 	if sb.kind == 0 {
@@ -404,4 +409,25 @@ func (sb *SymbolBuilder) AddCURelativeAddrPlus(arch *sys.Arch, tgt Sym, add int6
 func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
 	sb.setReachable()
 	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
+}
+
+// GenAddAddrPlusFunc returns a function to be called when capturing
+// a function symbol's address. In later stages of the link (when
+// address assignment is done) when doing internal linking and
+// targeting an executable, we can just emit the address of a function
+// directly instead of generating a relocation. Clients can call
+// this function (setting 'internalExec' based on build mode and target)
+// and then invoke the returned function in roughly the same way that
+// loader.*SymbolBuilder.AddAddrPlus would be used.
+func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+	if internalExec {
+		return func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+			if v := s.l.SymValue(tgt); v != 0 {
+				return s.AddUint(arch, uint64(v+add))
+			}
+			return s.AddAddrPlus(arch, tgt, add)
+		}
+	} else {
+		return (*SymbolBuilder).AddAddrPlus
+	}
 }

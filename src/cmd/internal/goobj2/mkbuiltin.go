@@ -113,11 +113,18 @@ var extra = [...]struct {
 	name string
 	abi  int
 }{
-	{"gcWriteBarrier", 0}, // asm function, ABI0
+	// compiler frontend inserted calls (sysfunc)
 	{"deferproc", 1},
 	{"deferprocStack", 1},
 	{"deferreturn", 1},
 	{"newproc", 1},
+	{"panicoverflow", 1},
+	{"sigpanic", 1},
+
+	// compiler backend inserted calls
+	{"gcWriteBarrier", 0}, // asm function, ABI0
+
+	// assembler backend inserted calls
 	{"morestack", 0},        // asm function, ABI0
 	{"morestackc", 0},       // asm function, ABI0
 	{"morestack_noctxt", 0}, // asm function, ABI0
