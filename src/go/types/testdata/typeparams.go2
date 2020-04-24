@@ -363,3 +363,24 @@ func _(type T I3)(x I3, p T) {
         case I4 /* ERROR cannot have dynamic type I4 */ :
         }
 }
+
+// error messages related to type bounds mention those bounds
+contract C(P) {}
+
+func _(type P C) (x P) {
+	x.m /* ERROR contract C has no method m */ ()
+}
+
+type I interface {}
+
+func _(type P I) (x P) {
+	x.m /* ERROR interface I has no method m */ ()
+}
+
+func _(type P interface{}) (x P) {
+	x.m /* ERROR type bound for P has no method m */ ()
+}
+
+func _(type P) (x P) {
+	x.m /* ERROR type bound for P has no method m */ ()
+}

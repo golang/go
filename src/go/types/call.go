@@ -468,8 +468,22 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		case indirect:
 			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
 		default:
-			// Check if capitalization of sel matters and provide better error
-			// message in that case.
+			var why string
+			if tpar := x.typ.TypeParam(); tpar != nil {
+				// Type parameter bounds don't specify fields, so don't mention "field".
+				switch obj := tpar.Bound().obj.(type) {
+				case nil:
+					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
+				case *TypeName:
+					why = check.sprintf("interface %s has no method %s", obj.name, sel)
+				case *Contract:
+					why = check.sprintf("contract %s has no method %s", obj.name, sel)
+				}
+			} else {
+				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
+			}
+
+			// Check if capitalization of sel matters and provide better error message in that case.
 			if len(sel) > 0 {
 				var changeCase string
 				if r := rune(sel[0]); unicode.IsUpper(r) {
@@ -478,11 +492,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					changeCase = string(unicode.ToUpper(r)) + sel[1:]
 				}
 				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
-					check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
-					break
+					why += ", but does have " + changeCase
 				}
 			}
-			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
+
+			check.errorf(e.Sel.Pos(), "%s.%s undefined (%s)", x.expr, sel, why)
+
 		}
 		goto Error
 	}

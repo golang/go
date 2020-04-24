@@ -26,7 +26,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 	bounds := make([]*Named, len(tparams))
 	for i, tpar := range tparams {
 		tname := NewTypeName(tpar.Pos(), check.pkg, obj.name+string(subscript(uint64(i))), nil)
-		named := check.NewNamed(tname, new(Interface), nil)
+		named := check.NewNamed(tname, &Interface{obj: obj}, nil)
 		named.tparams = tparams
 		bounds[i] = named
 	}

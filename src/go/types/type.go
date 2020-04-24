@@ -313,6 +313,8 @@ type Interface struct {
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 	allTypes   []Type  // list of types declared with or embedded in this interface
 
+	obj Object // type or contract declaration defining this interface; or nil (for better error messages)
+
 	aType
 }
 

@@ -4,7 +4,7 @@ I only switched to this file in Nov 2019, thus it doesn't contain earlier docume
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- track contract origin in interface bounds for better error messages
+- report a better error when a type is not in a type list (investigate)
 - fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
 - fix endless instantiation when printing: type T(type P) T(P)
 - review all direct accesses to Named.underlying and verify that they are still correct
@@ -23,6 +23,7 @@ KNOWN ISSUES
 
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
+  example: type B(type P B(P)) interface{ m() } (need to delay all checking after seting up declarations)
 - contract instantiation requires the type arguments to be type parameters from the type of function
   type parameter list or enclosing contract
 - A type parameter that is constrained by multiple contracts will not get the correct type bound.
