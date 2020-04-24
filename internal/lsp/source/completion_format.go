@@ -44,7 +44,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) error {
-		s, err := newSignature(ctx, c.snapshot, c.pkg, "", sig, nil, c.qf)
+		s, err := newSignature(ctx, c.snapshot, c.pkg, c.file, "", sig, nil, c.qf)
 		if err != nil {
 			return err
 		}
@@ -67,7 +67,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = formatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
+			detail = formatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion

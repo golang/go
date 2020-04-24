@@ -3,11 +3,11 @@ package signature_test
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/signature"
+	sig "golang.org/x/tools/internal/lsp/signature"
 )
 
 func TestSignature(t *testing.T) {
-	signature.AliasSlice()    //@signature(")", "AliasSlice(a []*signature.Alias) (b signature.Alias)", 0)
-	signature.AliasMap()      //@signature(")", "AliasMap(a map[*signature.Alias]signature.StringAlias) (b map[*signature.Alias]signature.StringAlias, c map[*signature.Alias]signature.StringAlias)", 0)
-	signature.OtherAliasMap() //@signature(")", "OtherAliasMap(a map[signature.Alias]signature.OtherAlias, b map[signature.Alias]signature.OtherAlias) map[signature.Alias]signature.OtherAlias", 0)
+	sig.AliasSlice()    //@signature(")", "AliasSlice(a []*sig.Alias) (b sig.Alias)", 0)
+	sig.AliasMap()      //@signature(")", "AliasMap(a map[*sig.Alias]sig.StringAlias) (b map[*sig.Alias]sig.StringAlias, c map[*sig.Alias]sig.StringAlias)", 0)
+	sig.OtherAliasMap() //@signature(")", "OtherAliasMap(a map[sig.Alias]sig.OtherAlias, b map[sig.Alias]sig.OtherAlias) map[sig.Alias]sig.OtherAlias", 0)
 }

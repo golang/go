@@ -121,7 +121,7 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	s, err := newSignature(ctx, snapshot, pkg, name, sig, comment, qf)
+	s, err := newSignature(ctx, snapshot, pkg, file, name, sig, comment, qf)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -283,35 +283,30 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	decorate := func(f string, args ...interface{}) string {
 		return fmt.Sprintf("invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
-
 	if len(got.Signatures) != 1 {
 		return decorate("wanted 1 signature, got %d", len(got.Signatures))
 	}
-
 	if got.ActiveSignature != 0 {
 		return decorate("wanted active signature of 0, got %d", int(got.ActiveSignature))
 	}
-
 	if want.ActiveParameter != got.ActiveParameter {
 		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, int(got.ActiveParameter))
 	}
-
-	gotSig := got.Signatures[int(got.ActiveSignature)]
-
-	if want.Signatures[0].Label != got.Signatures[0].Label {
-		d := myers.ComputeEdits("", want.Signatures[0].Label, got.Signatures[0].Label)
-		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", want.Signatures[0].Label, d))
+	g := got.Signatures[0]
+	w := want.Signatures[0]
+	if w.Label != g.Label {
+		wLabel := w.Label + "\n"
+		d := myers.ComputeEdits("", wLabel, g.Label+"\n")
+		return decorate("mismatched labels:\n%q", diff.ToUnified("want", "got", wLabel, d))
 	}
-
 	var paramParts []string
-	for _, p := range gotSig.Parameters {
+	for _, p := range g.Parameters {
 		paramParts = append(paramParts, p.Label)
 	}
 	paramsStr := strings.Join(paramParts, ", ")
-	if !strings.Contains(gotSig.Label, paramsStr) {
-		return decorate("expected signature %q to contain params %q", gotSig.Label, paramsStr)
+	if !strings.Contains(g.Label, paramsStr) {
+		return decorate("expected signature %q to contain params %q", g.Label, paramsStr)
 	}
-
 	return ""
 }
 
