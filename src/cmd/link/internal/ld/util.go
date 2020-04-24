@@ -74,7 +74,7 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 // output file and return a non-zero error code.
 func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
 	if ctxt.loader != nil {
-		ctxt.loader.Errorf(s, format, args)
+		ctxt.loader.Errorf(s, format, args...)
 		return
 	}
 	// Note: this is not expected to happen very often.
