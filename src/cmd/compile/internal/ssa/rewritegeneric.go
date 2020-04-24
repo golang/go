@@ -12403,12 +12403,12 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: isSamePtr(src, dst2)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src := v_1
 		mem := v_2
-		if mem.Op != OpZero || mem.AuxInt != n || mem.Aux != t {
+		if mem.Op != OpZero || auxIntToInt64(mem.AuxInt) != n || auxToType(mem.Aux) != t {
 			break
 		}
 		dst2 := mem.Args[0]
@@ -12416,8 +12416,8 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v.AddArg2(dst1, mem)
 		return true
 	}
@@ -12425,8 +12425,8 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: isSamePtr(src, dst0)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src := v_1
 		mem := v_2
@@ -12434,7 +12434,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		mem_0 := mem.Args[0]
-		if mem_0.Op != OpZero || mem_0.AuxInt != n || mem_0.Aux != t {
+		if mem_0.Op != OpZero || auxIntToInt64(mem_0.AuxInt) != n || auxToType(mem_0.Aux) != t {
 			break
 		}
 		dst0 := mem_0.Args[0]
@@ -12442,37 +12442,37 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v.AddArg2(dst1, mem)
 		return true
 	}
 	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
-	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + sizeof(t2) && disjoint(src1, n, op, sizeof(t2)) && clobber(store)
+	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)
 	// result: (Move {t1} [n] dst1 src1 mem)
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst1 := v_0
 		src1 := v_1
 		store := v_2
 		if store.Op != OpStore {
 			break
 		}
-		t2 := store.Aux
+		t2 := auxToType(store.Aux)
 		mem := store.Args[2]
 		op := store.Args[0]
 		if op.Op != OpOffPtr {
 			break
 		}
-		o2 := op.AuxInt
+		o2 := auxIntToInt64(op.AuxInt)
 		dst2 := op.Args[0]
-		if !(isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+sizeof(t2) && disjoint(src1, n, op, sizeof(t2)) && clobber(store)) {
+		if !(isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = n
-		v.Aux = t1
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t1)
 		v.AddArg3(dst1, src1, mem)
 		return true
 	}
@@ -12480,12 +12480,12 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: move.Uses == 1 && isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n) && clobber(move)
 	// result: (Move {t} [n] dst1 src1 mem)
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src1 := v_1
 		move := v_2
-		if move.Op != OpMove || move.AuxInt != n || move.Aux != t {
+		if move.Op != OpMove || auxIntToInt64(move.AuxInt) != n || auxToType(move.Aux) != t {
 			break
 		}
 		mem := move.Args[2]
@@ -12494,8 +12494,8 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v.AddArg3(dst1, src1, mem)
 		return true
 	}
@@ -12503,17 +12503,17 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: move.Uses == 1 && vardef.Uses == 1 && isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n) && clobber(move, vardef)
 	// result: (Move {t} [n] dst1 src1 (VarDef {x} mem))
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src1 := v_1
 		vardef := v_2
 		if vardef.Op != OpVarDef {
 			break
 		}
-		x := vardef.Aux
+		x := auxToSym(vardef.Aux)
 		move := vardef.Args[0]
-		if move.Op != OpMove || move.AuxInt != n || move.Aux != t {
+		if move.Op != OpMove || auxIntToInt64(move.AuxInt) != n || auxToType(move.Aux) != t {
 			break
 		}
 		mem := move.Args[2]
@@ -12522,10 +12522,10 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v0 := b.NewValue0(v.Pos, OpVarDef, types.TypeMem)
-		v0.Aux = x
+		v0.Aux = symToAux(x)
 		v0.AddArg(mem)
 		v.AddArg3(dst1, src1, v0)
 		return true
@@ -12534,12 +12534,12 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: zero.Uses == 1 && isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n) && clobber(zero)
 	// result: (Move {t} [n] dst1 src1 mem)
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src1 := v_1
 		zero := v_2
-		if zero.Op != OpZero || zero.AuxInt != n || zero.Aux != t {
+		if zero.Op != OpZero || auxIntToInt64(zero.AuxInt) != n || auxToType(zero.Aux) != t {
 			break
 		}
 		mem := zero.Args[1]
@@ -12548,8 +12548,8 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v.AddArg3(dst1, src1, mem)
 		return true
 	}
@@ -12557,17 +12557,17 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	// cond: zero.Uses == 1 && vardef.Uses == 1 && isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n) && clobber(zero, vardef)
 	// result: (Move {t} [n] dst1 src1 (VarDef {x} mem))
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		src1 := v_1
 		vardef := v_2
 		if vardef.Op != OpVarDef {
 			break
 		}
-		x := vardef.Aux
+		x := auxToSym(vardef.Aux)
 		zero := vardef.Args[0]
-		if zero.Op != OpZero || zero.AuxInt != n || zero.Aux != t {
+		if zero.Op != OpZero || auxIntToInt64(zero.AuxInt) != n || auxToType(zero.Aux) != t {
 			break
 		}
 		mem := zero.Args[1]
@@ -12576,136 +12576,136 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v0 := b.NewValue0(v.Pos, OpVarDef, types.TypeMem)
-		v0.Aux = x
+		v0.Aux = symToAux(x)
 		v0.AddArg(mem)
 		v.AddArg3(dst1, src1, v0)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2) + sizeof(t3)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		op2 := mem.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		d2 := mem_2.Args[1]
 		op3 := mem_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		if op3.AuxInt != 0 {
+		if auxIntToInt64(op3.AuxInt) != 0 {
 			break
 		}
 		p3 := op3.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = 0
+		v2.AuxInt = int64ToAuxInt(0)
 		v2.AddArg(dst)
 		v1.AddArg3(v2, d2, mem)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		op2 := mem.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		op3 := mem_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d2 := mem_2.Args[1]
 		mem_2_2 := mem_2.Args[2]
 		if mem_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_2_2.Aux
+		t4 := auxToType(mem_2_2.Aux)
 		d3 := mem_2_2.Args[1]
 		op4 := mem_2_2.Args[0]
 		if op4.Op != OpOffPtr {
 			break
 		}
 		tt4 := op4.Type
-		if op4.AuxInt != 0 {
+		if auxIntToInt64(op4.AuxInt) != 0 {
 			break
 		}
 		p4 := op4.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)+sizeof(t4)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = 0
+		v4.AuxInt = int64ToAuxInt(0)
 		v4.AddArg(dst)
 		v3.AddArg3(v4, d3, mem)
 		v1.AddArg3(v2, d2, v3)
@@ -12713,92 +12713,92 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		op2 := mem.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		op3 := mem_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d2 := mem_2.Args[1]
 		mem_2_2 := mem_2.Args[2]
 		if mem_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_2_2.Aux
+		t4 := auxToType(mem_2_2.Aux)
 		_ = mem_2_2.Args[2]
 		op4 := mem_2_2.Args[0]
 		if op4.Op != OpOffPtr {
 			break
 		}
 		tt4 := op4.Type
-		o4 := op4.AuxInt
+		o4 := auxIntToInt64(op4.AuxInt)
 		p4 := op4.Args[0]
 		d3 := mem_2_2.Args[1]
 		mem_2_2_2 := mem_2_2.Args[2]
 		if mem_2_2_2.Op != OpStore {
 			break
 		}
-		t5 := mem_2_2_2.Aux
+		t5 := auxToType(mem_2_2_2.Aux)
 		d4 := mem_2_2_2.Args[1]
 		op5 := mem_2_2_2.Args[0]
 		if op5.Op != OpOffPtr {
 			break
 		}
 		tt5 := op5.Type
-		if op5.AuxInt != 0 {
+		if auxIntToInt64(op5.AuxInt) != 0 {
 			break
 		}
 		p5 := op5.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)+sizeof(t4)+sizeof(t5)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v5.Aux = t5
+		v5.Aux = typeToAux(t5)
 		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
-		v6.AuxInt = 0
+		v6.AuxInt = int64ToAuxInt(0)
 		v6.AddArg(dst)
 		v5.AddArg3(v6, d4, mem)
 		v3.AddArg3(v4, d3, v5)
@@ -12807,11 +12807,11 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2) + sizeof(t3)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -12822,54 +12822,54 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		op2 := mem_0.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		d2 := mem_0_2.Args[1]
 		op3 := mem_0_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		if op3.AuxInt != 0 {
+		if auxIntToInt64(op3.AuxInt) != 0 {
 			break
 		}
 		p3 := op3.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && o2 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = 0
+		v2.AuxInt = int64ToAuxInt(0)
 		v2.AddArg(dst)
 		v1.AddArg3(v2, d2, mem)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -12880,62 +12880,62 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		op2 := mem_0.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		_ = mem_0_2.Args[2]
 		op3 := mem_0_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d2 := mem_0_2.Args[1]
 		mem_0_2_2 := mem_0_2.Args[2]
 		if mem_0_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_0_2_2.Aux
+		t4 := auxToType(mem_0_2_2.Aux)
 		d3 := mem_0_2_2.Args[1]
 		op4 := mem_0_2_2.Args[0]
 		if op4.Op != OpOffPtr {
 			break
 		}
 		tt4 := op4.Type
-		if op4.AuxInt != 0 {
+		if auxIntToInt64(op4.AuxInt) != 0 {
 			break
 		}
 		p4 := op4.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)+sizeof(t4)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = 0
+		v4.AuxInt = int64ToAuxInt(0)
 		v4.AddArg(dst)
 		v3.AddArg3(v4, d3, mem)
 		v1.AddArg3(v2, d2, v3)
@@ -12943,11 +12943,11 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -12958,81 +12958,81 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		op2 := mem_0.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		_ = mem_0_2.Args[2]
 		op3 := mem_0_2.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
 		tt3 := op3.Type
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d2 := mem_0_2.Args[1]
 		mem_0_2_2 := mem_0_2.Args[2]
 		if mem_0_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_0_2_2.Aux
+		t4 := auxToType(mem_0_2_2.Aux)
 		_ = mem_0_2_2.Args[2]
 		op4 := mem_0_2_2.Args[0]
 		if op4.Op != OpOffPtr {
 			break
 		}
 		tt4 := op4.Type
-		o4 := op4.AuxInt
+		o4 := auxIntToInt64(op4.AuxInt)
 		p4 := op4.Args[0]
 		d3 := mem_0_2_2.Args[1]
 		mem_0_2_2_2 := mem_0_2_2.Args[2]
 		if mem_0_2_2_2.Op != OpStore {
 			break
 		}
-		t5 := mem_0_2_2_2.Aux
+		t5 := auxToType(mem_0_2_2_2.Aux)
 		d4 := mem_0_2_2_2.Args[1]
 		op5 := mem_0_2_2_2.Args[0]
 		if op5.Op != OpOffPtr {
 			break
 		}
 		tt5 := op5.Type
-		if op5.AuxInt != 0 {
+		if auxIntToInt64(op5.AuxInt) != 0 {
 			break
 		}
 		p5 := op5.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == sizeof(t5) && o3-o4 == sizeof(t4) && o2-o3 == sizeof(t3) && n == sizeof(t2)+sizeof(t3)+sizeof(t4)+sizeof(t5)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v5.Aux = t5
+		v5.Aux = typeToAux(t5)
 		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
-		v6.AuxInt = 0
+		v6.AuxInt = int64ToAuxInt(0)
 		v6.AddArg(dst)
 		v5.AddArg3(v6, d4, mem)
 		v3.AddArg3(v4, d3, v5)
@@ -13041,188 +13041,188 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Zero {t3} [n] p3 _)))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && n >= o2 + sizeof(t2)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Zero {t1} [n] dst mem))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		op2 := mem.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
-		if mem_2.Op != OpZero || mem_2.AuxInt != n {
+		if mem_2.Op != OpZero || auxIntToInt64(mem_2.AuxInt) != n {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		p3 := mem_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && n >= o2+sizeof(t2)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v1.AuxInt = n
-		v1.Aux = t1
+		v1.AuxInt = int64ToAuxInt(n)
+		v1.Aux = typeToAux(t1)
 		v1.AddArg2(dst, mem)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Zero {t4} [n] p4 _))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Zero {t1} [n] dst mem)))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		mem_0 := mem.Args[0]
 		if mem_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0.Type
-		o2 := mem_0.AuxInt
+		o2 := auxIntToInt64(mem_0.AuxInt)
 		p2 := mem_0.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		mem_2_0 := mem_2.Args[0]
 		if mem_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_2_0.Type
-		o3 := mem_2_0.AuxInt
+		o3 := auxIntToInt64(mem_2_0.AuxInt)
 		p3 := mem_2_0.Args[0]
 		d2 := mem_2.Args[1]
 		mem_2_2 := mem_2.Args[2]
-		if mem_2_2.Op != OpZero || mem_2_2.AuxInt != n {
+		if mem_2_2.Op != OpZero || auxIntToInt64(mem_2_2.AuxInt) != n {
 			break
 		}
-		t4 := mem_2_2.Aux
+		t4 := auxToType(mem_2_2.Aux)
 		p4 := mem_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v3.AuxInt = n
-		v3.Aux = t1
+		v3.AuxInt = int64ToAuxInt(n)
+		v3.Aux = typeToAux(t1)
 		v3.AddArg2(dst, mem)
 		v1.AddArg3(v2, d2, v3)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Zero {t5} [n] p5 _)))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3) && n >= o4 + sizeof(t4)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Zero {t1} [n] dst mem))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		mem_0 := mem.Args[0]
 		if mem_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0.Type
-		o2 := mem_0.AuxInt
+		o2 := auxIntToInt64(mem_0.AuxInt)
 		p2 := mem_0.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		mem_2_0 := mem_2.Args[0]
 		if mem_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_2_0.Type
-		o3 := mem_2_0.AuxInt
+		o3 := auxIntToInt64(mem_2_0.AuxInt)
 		p3 := mem_2_0.Args[0]
 		d2 := mem_2.Args[1]
 		mem_2_2 := mem_2.Args[2]
 		if mem_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_2_2.Aux
+		t4 := auxToType(mem_2_2.Aux)
 		_ = mem_2_2.Args[2]
 		mem_2_2_0 := mem_2_2.Args[0]
 		if mem_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt4 := mem_2_2_0.Type
-		o4 := mem_2_2_0.AuxInt
+		o4 := auxIntToInt64(mem_2_2_0.AuxInt)
 		p4 := mem_2_2_0.Args[0]
 		d3 := mem_2_2.Args[1]
 		mem_2_2_2 := mem_2_2.Args[2]
-		if mem_2_2_2.Op != OpZero || mem_2_2_2.AuxInt != n {
+		if mem_2_2_2.Op != OpZero || auxIntToInt64(mem_2_2_2.AuxInt) != n {
 			break
 		}
-		t5 := mem_2_2_2.Aux
+		t5 := auxToType(mem_2_2_2.Aux)
 		p5 := mem_2_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3) && n >= o4+sizeof(t4)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v5.AuxInt = n
-		v5.Aux = t1
+		v5.AuxInt = int64ToAuxInt(n)
+		v5.Aux = typeToAux(t1)
 		v5.AddArg2(dst, mem)
 		v3.AddArg3(v4, d3, v5)
 		v1.AddArg3(v2, d2, v3)
@@ -13230,101 +13230,101 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Store {t5} (OffPtr <tt5> [o5] p5) d4 (Zero {t6} [n] p6 _))))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && alignof(t6) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3) && n >= o4 + sizeof(t4) && n >= o5 + sizeof(t5)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [o5] dst) d4 (Zero {t1} [n] dst mem)))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
 		if mem.Op != OpStore {
 			break
 		}
-		t2 := mem.Aux
+		t2 := auxToType(mem.Aux)
 		_ = mem.Args[2]
 		mem_0 := mem.Args[0]
 		if mem_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0.Type
-		o2 := mem_0.AuxInt
+		o2 := auxIntToInt64(mem_0.AuxInt)
 		p2 := mem_0.Args[0]
 		d1 := mem.Args[1]
 		mem_2 := mem.Args[2]
 		if mem_2.Op != OpStore {
 			break
 		}
-		t3 := mem_2.Aux
+		t3 := auxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		mem_2_0 := mem_2.Args[0]
 		if mem_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_2_0.Type
-		o3 := mem_2_0.AuxInt
+		o3 := auxIntToInt64(mem_2_0.AuxInt)
 		p3 := mem_2_0.Args[0]
 		d2 := mem_2.Args[1]
 		mem_2_2 := mem_2.Args[2]
 		if mem_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_2_2.Aux
+		t4 := auxToType(mem_2_2.Aux)
 		_ = mem_2_2.Args[2]
 		mem_2_2_0 := mem_2_2.Args[0]
 		if mem_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt4 := mem_2_2_0.Type
-		o4 := mem_2_2_0.AuxInt
+		o4 := auxIntToInt64(mem_2_2_0.AuxInt)
 		p4 := mem_2_2_0.Args[0]
 		d3 := mem_2_2.Args[1]
 		mem_2_2_2 := mem_2_2.Args[2]
 		if mem_2_2_2.Op != OpStore {
 			break
 		}
-		t5 := mem_2_2_2.Aux
+		t5 := auxToType(mem_2_2_2.Aux)
 		_ = mem_2_2_2.Args[2]
 		mem_2_2_2_0 := mem_2_2_2.Args[0]
 		if mem_2_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt5 := mem_2_2_2_0.Type
-		o5 := mem_2_2_2_0.AuxInt
+		o5 := auxIntToInt64(mem_2_2_2_0.AuxInt)
 		p5 := mem_2_2_2_0.Args[0]
 		d4 := mem_2_2_2.Args[1]
 		mem_2_2_2_2 := mem_2_2_2.Args[2]
-		if mem_2_2_2_2.Op != OpZero || mem_2_2_2_2.AuxInt != n {
+		if mem_2_2_2_2.Op != OpZero || auxIntToInt64(mem_2_2_2_2.AuxInt) != n {
 			break
 		}
-		t6 := mem_2_2_2_2.Aux
+		t6 := auxToType(mem_2_2_2_2.Aux)
 		p6 := mem_2_2_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && alignof(t6) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3) && n >= o4+sizeof(t4) && n >= o5+sizeof(t5)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v5.Aux = t5
+		v5.Aux = typeToAux(t5)
 		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
-		v6.AuxInt = o5
+		v6.AuxInt = int64ToAuxInt(o5)
 		v6.AddArg(dst)
 		v7 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v7.AuxInt = n
-		v7.Aux = t1
+		v7.AuxInt = int64ToAuxInt(n)
+		v7.Aux = typeToAux(t1)
 		v7.AddArg2(dst, mem)
 		v5.AddArg3(v6, d4, v7)
 		v3.AddArg3(v4, d3, v5)
@@ -13333,11 +13333,11 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Zero {t3} [n] p3 _))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && n >= o2 + sizeof(t2)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Zero {t1} [n] dst mem))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -13348,43 +13348,43 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		op2 := mem_0.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
 		tt2 := op2.Type
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
-		if mem_0_2.Op != OpZero || mem_0_2.AuxInt != n {
+		if mem_0_2.Op != OpZero || auxIntToInt64(mem_0_2.AuxInt) != n {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		p3 := mem_0_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && registerizable(b, t2) && n >= o2+sizeof(t2)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v1.AuxInt = n
-		v1.Aux = t1
+		v1.AuxInt = int64ToAuxInt(n)
+		v1.Aux = typeToAux(t1)
 		v1.AddArg2(dst, mem)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Zero {t4} [n] p4 _)))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Zero {t1} [n] dst mem)))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -13395,63 +13395,63 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		mem_0_0 := mem_0.Args[0]
 		if mem_0_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0_0.Type
-		o2 := mem_0_0.AuxInt
+		o2 := auxIntToInt64(mem_0_0.AuxInt)
 		p2 := mem_0_0.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		_ = mem_0_2.Args[2]
 		mem_0_2_0 := mem_0_2.Args[0]
 		if mem_0_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_0_2_0.Type
-		o3 := mem_0_2_0.AuxInt
+		o3 := auxIntToInt64(mem_0_2_0.AuxInt)
 		p3 := mem_0_2_0.Args[0]
 		d2 := mem_0_2.Args[1]
 		mem_0_2_2 := mem_0_2.Args[2]
-		if mem_0_2_2.Op != OpZero || mem_0_2_2.AuxInt != n {
+		if mem_0_2_2.Op != OpZero || auxIntToInt64(mem_0_2_2.AuxInt) != n {
 			break
 		}
-		t4 := mem_0_2_2.Aux
+		t4 := auxToType(mem_0_2_2.Aux)
 		p4 := mem_0_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v3.AuxInt = n
-		v3.Aux = t1
+		v3.AuxInt = int64ToAuxInt(n)
+		v3.Aux = typeToAux(t1)
 		v3.AddArg2(dst, mem)
 		v1.AddArg3(v2, d2, v3)
 		v.AddArg3(v0, d1, v1)
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Zero {t5} [n] p5 _))))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3) && n >= o4 + sizeof(t4)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Zero {t1} [n] dst mem))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -13462,71 +13462,71 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		mem_0_0 := mem_0.Args[0]
 		if mem_0_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0_0.Type
-		o2 := mem_0_0.AuxInt
+		o2 := auxIntToInt64(mem_0_0.AuxInt)
 		p2 := mem_0_0.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		_ = mem_0_2.Args[2]
 		mem_0_2_0 := mem_0_2.Args[0]
 		if mem_0_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_0_2_0.Type
-		o3 := mem_0_2_0.AuxInt
+		o3 := auxIntToInt64(mem_0_2_0.AuxInt)
 		p3 := mem_0_2_0.Args[0]
 		d2 := mem_0_2.Args[1]
 		mem_0_2_2 := mem_0_2.Args[2]
 		if mem_0_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_0_2_2.Aux
+		t4 := auxToType(mem_0_2_2.Aux)
 		_ = mem_0_2_2.Args[2]
 		mem_0_2_2_0 := mem_0_2_2.Args[0]
 		if mem_0_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt4 := mem_0_2_2_0.Type
-		o4 := mem_0_2_2_0.AuxInt
+		o4 := auxIntToInt64(mem_0_2_2_0.AuxInt)
 		p4 := mem_0_2_2_0.Args[0]
 		d3 := mem_0_2_2.Args[1]
 		mem_0_2_2_2 := mem_0_2_2.Args[2]
-		if mem_0_2_2_2.Op != OpZero || mem_0_2_2_2.AuxInt != n {
+		if mem_0_2_2_2.Op != OpZero || auxIntToInt64(mem_0_2_2_2.AuxInt) != n {
 			break
 		}
-		t5 := mem_0_2_2_2.Aux
+		t5 := auxToType(mem_0_2_2_2.Aux)
 		p5 := mem_0_2_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3) && n >= o4+sizeof(t4)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v5.AuxInt = n
-		v5.Aux = t1
+		v5.AuxInt = int64ToAuxInt(n)
+		v5.Aux = typeToAux(t1)
 		v5.AddArg2(dst, mem)
 		v3.AddArg3(v4, d3, v5)
 		v1.AddArg3(v2, d2, v3)
@@ -13534,11 +13534,11 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Store {t5} (OffPtr <tt5> [o5] p5) d4 (Zero {t6} [n] p6 _)))))))
-	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && alignof(t6) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + sizeof(t2) && n >= o3 + sizeof(t3) && n >= o4 + sizeof(t4) && n >= o5 + sizeof(t5)
+	// cond: isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [o5] dst) d4 (Zero {t1} [n] dst mem)))))
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		p1 := v_1
 		mem := v_2
@@ -13549,90 +13549,90 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		if mem_0.Op != OpStore {
 			break
 		}
-		t2 := mem_0.Aux
+		t2 := auxToType(mem_0.Aux)
 		_ = mem_0.Args[2]
 		mem_0_0 := mem_0.Args[0]
 		if mem_0_0.Op != OpOffPtr {
 			break
 		}
 		tt2 := mem_0_0.Type
-		o2 := mem_0_0.AuxInt
+		o2 := auxIntToInt64(mem_0_0.AuxInt)
 		p2 := mem_0_0.Args[0]
 		d1 := mem_0.Args[1]
 		mem_0_2 := mem_0.Args[2]
 		if mem_0_2.Op != OpStore {
 			break
 		}
-		t3 := mem_0_2.Aux
+		t3 := auxToType(mem_0_2.Aux)
 		_ = mem_0_2.Args[2]
 		mem_0_2_0 := mem_0_2.Args[0]
 		if mem_0_2_0.Op != OpOffPtr {
 			break
 		}
 		tt3 := mem_0_2_0.Type
-		o3 := mem_0_2_0.AuxInt
+		o3 := auxIntToInt64(mem_0_2_0.AuxInt)
 		p3 := mem_0_2_0.Args[0]
 		d2 := mem_0_2.Args[1]
 		mem_0_2_2 := mem_0_2.Args[2]
 		if mem_0_2_2.Op != OpStore {
 			break
 		}
-		t4 := mem_0_2_2.Aux
+		t4 := auxToType(mem_0_2_2.Aux)
 		_ = mem_0_2_2.Args[2]
 		mem_0_2_2_0 := mem_0_2_2.Args[0]
 		if mem_0_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt4 := mem_0_2_2_0.Type
-		o4 := mem_0_2_2_0.AuxInt
+		o4 := auxIntToInt64(mem_0_2_2_0.AuxInt)
 		p4 := mem_0_2_2_0.Args[0]
 		d3 := mem_0_2_2.Args[1]
 		mem_0_2_2_2 := mem_0_2_2.Args[2]
 		if mem_0_2_2_2.Op != OpStore {
 			break
 		}
-		t5 := mem_0_2_2_2.Aux
+		t5 := auxToType(mem_0_2_2_2.Aux)
 		_ = mem_0_2_2_2.Args[2]
 		mem_0_2_2_2_0 := mem_0_2_2_2.Args[0]
 		if mem_0_2_2_2_0.Op != OpOffPtr {
 			break
 		}
 		tt5 := mem_0_2_2_2_0.Type
-		o5 := mem_0_2_2_2_0.AuxInt
+		o5 := auxIntToInt64(mem_0_2_2_2_0.AuxInt)
 		p5 := mem_0_2_2_2_0.Args[0]
 		d4 := mem_0_2_2_2.Args[1]
 		mem_0_2_2_2_2 := mem_0_2_2_2.Args[2]
-		if mem_0_2_2_2_2.Op != OpZero || mem_0_2_2_2_2.AuxInt != n {
+		if mem_0_2_2_2_2.Op != OpZero || auxIntToInt64(mem_0_2_2_2_2.AuxInt) != n {
 			break
 		}
-		t6 := mem_0_2_2_2_2.Aux
+		t6 := auxToType(mem_0_2_2_2_2.Aux)
 		p6 := mem_0_2_2_2_2.Args[0]
-		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && alignof(t2) <= alignof(t1) && alignof(t3) <= alignof(t1) && alignof(t4) <= alignof(t1) && alignof(t5) <= alignof(t1) && alignof(t6) <= alignof(t1) && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+sizeof(t2) && n >= o3+sizeof(t3) && n >= o4+sizeof(t4) && n >= o5+sizeof(t5)) {
+		if !(isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t2
+		v.Aux = typeToAux(t2)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, tt2)
-		v0.AuxInt = o2
+		v0.AuxInt = int64ToAuxInt(o2)
 		v0.AddArg(dst)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpOffPtr, tt3)
-		v2.AuxInt = o3
+		v2.AuxInt = int64ToAuxInt(o3)
 		v2.AddArg(dst)
 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = t4
+		v3.Aux = typeToAux(t4)
 		v4 := b.NewValue0(v.Pos, OpOffPtr, tt4)
-		v4.AuxInt = o4
+		v4.AuxInt = int64ToAuxInt(o4)
 		v4.AddArg(dst)
 		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v5.Aux = t5
+		v5.Aux = typeToAux(t5)
 		v6 := b.NewValue0(v.Pos, OpOffPtr, tt5)
-		v6.AuxInt = o5
+		v6.AuxInt = int64ToAuxInt(o5)
 		v6.AddArg(dst)
 		v7 := b.NewValue0(v.Pos, OpZero, types.TypeMem)
-		v7.AuxInt = n
-		v7.Aux = t1
+		v7.AuxInt = int64ToAuxInt(n)
+		v7.Aux = typeToAux(t1)
 		v7.AddArg2(dst, mem)
 		v5.AddArg3(v6, d4, v7)
 		v3.AddArg3(v4, d3, v5)
@@ -21647,25 +21647,25 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [0] p2) d2 m3:(Move [n] p3 _ mem)))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == sizeof(t2) && n == sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
-		if op2.Op != OpOffPtr || op2.AuxInt != 0 {
+		if op2.Op != OpOffPtr || auxIntToInt64(op2.AuxInt) != 0 {
 			break
 		}
 		p2 := op2.Args[0]
@@ -21674,53 +21674,53 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m3.Op != OpMove {
 			break
 		}
-		n := m3.AuxInt
+		n := auxIntToInt64(m3.AuxInt)
 		mem := m3.Args[2]
 		p3 := m3.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == sizeof(t2) && n == sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v0.AddArg3(op2, d2, mem)
 		v.AddArg3(op1, d1, v0)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [0] p3) d3 m4:(Move [n] p4 _ mem))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t3) + sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d2 := m2.Args[1]
 		m3 := m2.Args[2]
 		if m3.Op != OpStore {
 			break
 		}
-		t3 := m3.Aux
+		t3 := auxToType(m3.Aux)
 		_ = m3.Args[2]
 		op3 := m3.Args[0]
-		if op3.Op != OpOffPtr || op3.AuxInt != 0 {
+		if op3.Op != OpOffPtr || auxIntToInt64(op3.AuxInt) != 0 {
 			break
 		}
 		p3 := op3.Args[0]
@@ -21729,69 +21729,69 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m4.Op != OpMove {
 			break
 		}
-		n := m4.AuxInt
+		n := auxIntToInt64(m4.AuxInt)
 		mem := m4.Args[2]
 		p4 := m4.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t3)+sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v1.AddArg3(op3, d3, mem)
 		v0.AddArg3(op2, d2, v1)
 		v.AddArg3(op1, d1, v0)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [o3] p3) d3 m4:(Store {t4} op4:(OffPtr [0] p4) d4 m5:(Move [n] p5 _ mem)))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d2 := m2.Args[1]
 		m3 := m2.Args[2]
 		if m3.Op != OpStore {
 			break
 		}
-		t3 := m3.Aux
+		t3 := auxToType(m3.Aux)
 		_ = m3.Args[2]
 		op3 := m3.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d3 := m3.Args[1]
 		m4 := m3.Args[2]
 		if m4.Op != OpStore {
 			break
 		}
-		t4 := m4.Aux
+		t4 := auxToType(m4.Aux)
 		_ = m4.Args[2]
 		op4 := m4.Args[0]
-		if op4.Op != OpOffPtr || op4.AuxInt != 0 {
+		if op4.Op != OpOffPtr || auxIntToInt64(op4.AuxInt) != 0 {
 			break
 		}
 		p4 := op4.Args[0]
@@ -21800,20 +21800,20 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m5.Op != OpMove {
 			break
 		}
-		n := m5.AuxInt
+		n := auxIntToInt64(m5.AuxInt)
 		mem := m5.Args[2]
 		p5 := m5.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t4)+sizeof(t3)+sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v2.Aux = t4
+		v2.Aux = typeToAux(t4)
 		v2.AddArg3(op4, d4, mem)
 		v1.AddArg3(op3, d3, v2)
 		v0.AddArg3(op2, d2, v1)
@@ -21821,25 +21821,25 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [0] p2) d2 m3:(Zero [n] p3 mem)))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == sizeof(t2) && n == sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
-		if op2.Op != OpOffPtr || op2.AuxInt != 0 {
+		if op2.Op != OpOffPtr || auxIntToInt64(op2.AuxInt) != 0 {
 			break
 		}
 		p2 := op2.Args[0]
@@ -21848,53 +21848,53 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m3.Op != OpZero {
 			break
 		}
-		n := m3.AuxInt
+		n := auxIntToInt64(m3.AuxInt)
 		mem := m3.Args[1]
 		p3 := m3.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == sizeof(t2) && n == sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2, m3)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v0.AddArg3(op2, d2, mem)
 		v.AddArg3(op1, d1, v0)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [0] p3) d3 m4:(Zero [n] p4 mem))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t3) + sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d2 := m2.Args[1]
 		m3 := m2.Args[2]
 		if m3.Op != OpStore {
 			break
 		}
-		t3 := m3.Aux
+		t3 := auxToType(m3.Aux)
 		_ = m3.Args[2]
 		op3 := m3.Args[0]
-		if op3.Op != OpOffPtr || op3.AuxInt != 0 {
+		if op3.Op != OpOffPtr || auxIntToInt64(op3.AuxInt) != 0 {
 			break
 		}
 		p3 := op3.Args[0]
@@ -21903,69 +21903,69 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m4.Op != OpZero {
 			break
 		}
-		n := m4.AuxInt
+		n := auxIntToInt64(m4.AuxInt)
 		mem := m4.Args[1]
 		p4 := m4.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t3)+sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2, m3, m4)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v1.AddArg3(op3, d3, mem)
 		v0.AddArg3(op2, d2, v1)
 		v.AddArg3(op1, d1, v0)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [o3] p3) d3 m4:(Store {t4} op4:(OffPtr [0] p4) d4 m5:(Zero [n] p5 mem)))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 	for {
-		t1 := v.Aux
+		t1 := auxToType(v.Aux)
 		op1 := v_0
 		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := op1.AuxInt
+		o1 := auxIntToInt64(op1.AuxInt)
 		p1 := op1.Args[0]
 		d1 := v_1
 		m2 := v_2
 		if m2.Op != OpStore {
 			break
 		}
-		t2 := m2.Aux
+		t2 := auxToType(m2.Aux)
 		_ = m2.Args[2]
 		op2 := m2.Args[0]
 		if op2.Op != OpOffPtr {
 			break
 		}
-		o2 := op2.AuxInt
+		o2 := auxIntToInt64(op2.AuxInt)
 		p2 := op2.Args[0]
 		d2 := m2.Args[1]
 		m3 := m2.Args[2]
 		if m3.Op != OpStore {
 			break
 		}
-		t3 := m3.Aux
+		t3 := auxToType(m3.Aux)
 		_ = m3.Args[2]
 		op3 := m3.Args[0]
 		if op3.Op != OpOffPtr {
 			break
 		}
-		o3 := op3.AuxInt
+		o3 := auxIntToInt64(op3.AuxInt)
 		p3 := op3.Args[0]
 		d3 := m3.Args[1]
 		m4 := m3.Args[2]
 		if m4.Op != OpStore {
 			break
 		}
-		t4 := m4.Aux
+		t4 := auxToType(m4.Aux)
 		_ = m4.Args[2]
 		op4 := m4.Args[0]
-		if op4.Op != OpOffPtr || op4.AuxInt != 0 {
+		if op4.Op != OpOffPtr || auxIntToInt64(op4.AuxInt) != 0 {
 			break
 		}
 		p4 := op4.Args[0]
@@ -21974,20 +21974,20 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if m5.Op != OpZero {
 			break
 		}
-		n := m5.AuxInt
+		n := auxIntToInt64(m5.AuxInt)
 		mem := m5.Args[1]
 		p5 := m5.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == sizeof(t4) && o2-o3 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t4)+sizeof(t3)+sizeof(t2)+sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && clobber(m2, m3, m4, m5)) {
 			break
 		}
 		v.reset(OpStore)
-		v.Aux = t1
+		v.Aux = typeToAux(t1)
 		v0 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v0.Aux = t2
+		v0.Aux = typeToAux(t2)
 		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = t3
+		v1.Aux = typeToAux(t3)
 		v2 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v2.Aux = t4
+		v2.Aux = typeToAux(t4)
 		v2.AddArg3(op4, d4, mem)
 		v1.AddArg3(op3, d3, v2)
 		v0.AddArg3(op2, d2, v1)
@@ -24100,30 +24100,30 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero {t1} [n] p1 store:(Store {t2} (OffPtr [o2] p2) _ mem))
-	// cond: isSamePtr(p1, p2) && store.Uses == 1 && n >= o2 + sizeof(t2) && clobber(store)
+	// cond: isSamePtr(p1, p2) && store.Uses == 1 && n >= o2 + t2.Size() && clobber(store)
 	// result: (Zero {t1} [n] p1 mem)
 	for {
-		n := v.AuxInt
-		t1 := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		p1 := v_0
 		store := v_1
 		if store.Op != OpStore {
 			break
 		}
-		t2 := store.Aux
+		t2 := auxToType(store.Aux)
 		mem := store.Args[2]
 		store_0 := store.Args[0]
 		if store_0.Op != OpOffPtr {
 			break
 		}
-		o2 := store_0.AuxInt
+		o2 := auxIntToInt64(store_0.AuxInt)
 		p2 := store_0.Args[0]
-		if !(isSamePtr(p1, p2) && store.Uses == 1 && n >= o2+sizeof(t2) && clobber(store)) {
+		if !(isSamePtr(p1, p2) && store.Uses == 1 && n >= o2+t2.Size() && clobber(store)) {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = n
-		v.Aux = t1
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t1)
 		v.AddArg2(p1, mem)
 		return true
 	}
@@ -24131,11 +24131,11 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 	// cond: move.Uses == 1 && isSamePtr(dst1, dst2) && clobber(move)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		move := v_1
-		if move.Op != OpMove || move.AuxInt != n || move.Aux != t {
+		if move.Op != OpMove || auxIntToInt64(move.AuxInt) != n || auxToType(move.Aux) != t {
 			break
 		}
 		mem := move.Args[2]
@@ -24144,8 +24144,8 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v.AddArg2(dst1, mem)
 		return true
 	}
@@ -24153,16 +24153,16 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 	// cond: move.Uses == 1 && vardef.Uses == 1 && isSamePtr(dst1, dst2) && clobber(move, vardef)
 	// result: (Zero {t} [n] dst1 (VarDef {x} mem))
 	for {
-		n := v.AuxInt
-		t := v.Aux
+		n := auxIntToInt64(v.AuxInt)
+		t := auxToType(v.Aux)
 		dst1 := v_0
 		vardef := v_1
 		if vardef.Op != OpVarDef {
 			break
 		}
-		x := vardef.Aux
+		x := auxToSym(vardef.Aux)
 		move := vardef.Args[0]
-		if move.Op != OpMove || move.AuxInt != n || move.Aux != t {
+		if move.Op != OpMove || auxIntToInt64(move.AuxInt) != n || auxToType(move.Aux) != t {
 			break
 		}
 		mem := move.Args[2]
@@ -24171,10 +24171,10 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = n
-		v.Aux = t
+		v.AuxInt = int64ToAuxInt(n)
+		v.Aux = typeToAux(t)
 		v0 := b.NewValue0(v.Pos, OpVarDef, types.TypeMem)
-		v0.Aux = x
+		v0.Aux = symToAux(x)
 		v0.AddArg(mem)
 		v.AddArg2(dst1, v0)
 		return true
