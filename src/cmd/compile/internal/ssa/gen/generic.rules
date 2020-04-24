@@ -1853,58 +1853,58 @@
 (Xor8  (Xor8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Xor8  i (Xor8  <t> z x))
 
 // C + (D + x) -> (C + D) + x
-(Add64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Add64 (Const64 <t> [c+d]) x)
-(Add32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Add32 (Const32 <t> [int64(int32(c+d))]) x)
-(Add16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) -> (Add16 (Const16 <t> [int64(int16(c+d))]) x)
-(Add8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) -> (Add8  (Const8  <t> [int64(int8(c+d))]) x)
+(Add64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Add64 (Const64 <t> [c+d]) x)
+(Add32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Add32 (Const32 <t> [c+d]) x)
+(Add16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) => (Add16 (Const16 <t> [c+d]) x)
+(Add8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) => (Add8  (Const8  <t> [c+d]) x)
 
 // C + (D - x) -> (C + D) - x
-(Add64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x)) -> (Sub64 (Const64 <t> [c+d]) x)
-(Add32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x)) -> (Sub32 (Const32 <t> [int64(int32(c+d))]) x)
-(Add16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) -> (Sub16 (Const16 <t> [int64(int16(c+d))]) x)
-(Add8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) -> (Sub8  (Const8  <t> [int64(int8(c+d))]) x)
+(Add64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x)) => (Sub64 (Const64 <t> [c+d]) x)
+(Add32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x)) => (Sub32 (Const32 <t> [c+d]) x)
+(Add16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) => (Sub16 (Const16 <t> [c+d]) x)
+(Add8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) => (Sub8  (Const8  <t> [c+d]) x)
 
 // C + (x - D) -> (C - D) + x
-(Add64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) -> (Add64 (Const64 <t> [c-d]) x)
-(Add32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) -> (Add32 (Const32 <t> [int64(int32(c-d))]) x)
-(Add16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) -> (Add16 (Const16 <t> [int64(int16(c-d))]) x)
-(Add8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) -> (Add8  (Const8  <t> [int64(int8(c-d))]) x)
+(Add64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) => (Add64 (Const64 <t> [c-d]) x)
+(Add32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) => (Add32 (Const32 <t> [c-d]) x)
+(Add16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) => (Add16 (Const16 <t> [c-d]) x)
+(Add8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) => (Add8  (Const8  <t> [c-d]) x)
 
 // C - (x - D) -> (C + D) - x
-(Sub64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) -> (Sub64 (Const64 <t> [c+d]) x)
-(Sub32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) -> (Sub32 (Const32 <t> [int64(int32(c+d))]) x)
-(Sub16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) -> (Sub16 (Const16 <t> [int64(int16(c+d))]) x)
-(Sub8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) -> (Sub8  (Const8  <t> [int64(int8(c+d))]) x)
+(Sub64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) => (Sub64 (Const64 <t> [c+d]) x)
+(Sub32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) => (Sub32 (Const32 <t> [c+d]) x)
+(Sub16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) => (Sub16 (Const16 <t> [c+d]) x)
+(Sub8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) => (Sub8  (Const8  <t> [c+d]) x)
 
 // C - (D - x) -> (C - D) + x
-(Sub64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x)) -> (Add64 (Const64 <t> [c-d]) x)
-(Sub32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x)) -> (Add32 (Const32 <t> [int64(int32(c-d))]) x)
-(Sub16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) -> (Add16 (Const16 <t> [int64(int16(c-d))]) x)
-(Sub8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) -> (Add8  (Const8  <t> [int64(int8(c-d))]) x)
+(Sub64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x)) => (Add64 (Const64 <t> [c-d]) x)
+(Sub32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x)) => (Add32 (Const32 <t> [c-d]) x)
+(Sub16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) => (Add16 (Const16 <t> [c-d]) x)
+(Sub8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) => (Add8  (Const8  <t> [c-d]) x)
 
 // C & (D & x) -> (C & D) & x
-(And64 (Const64 <t> [c]) (And64 (Const64 <t> [d]) x)) -> (And64 (Const64 <t> [c&d]) x)
-(And32 (Const32 <t> [c]) (And32 (Const32 <t> [d]) x)) -> (And32 (Const32 <t> [int64(int32(c&d))]) x)
-(And16 (Const16 <t> [c]) (And16 (Const16 <t> [d]) x)) -> (And16 (Const16 <t> [int64(int16(c&d))]) x)
-(And8  (Const8  <t> [c]) (And8  (Const8  <t> [d]) x)) -> (And8  (Const8  <t> [int64(int8(c&d))]) x)
+(And64 (Const64 <t> [c]) (And64 (Const64 <t> [d]) x)) => (And64 (Const64 <t> [c&d]) x)
+(And32 (Const32 <t> [c]) (And32 (Const32 <t> [d]) x)) => (And32 (Const32 <t> [c&d]) x)
+(And16 (Const16 <t> [c]) (And16 (Const16 <t> [d]) x)) => (And16 (Const16 <t> [c&d]) x)
+(And8  (Const8  <t> [c]) (And8  (Const8  <t> [d]) x)) => (And8  (Const8  <t> [c&d]) x)
 
 // C | (D | x) -> (C | D) | x
-(Or64 (Const64 <t> [c]) (Or64 (Const64 <t> [d]) x)) -> (Or64 (Const64 <t> [c|d]) x)
-(Or32 (Const32 <t> [c]) (Or32 (Const32 <t> [d]) x)) -> (Or32 (Const32 <t> [int64(int32(c|d))]) x)
-(Or16 (Const16 <t> [c]) (Or16 (Const16 <t> [d]) x)) -> (Or16 (Const16 <t> [int64(int16(c|d))]) x)
-(Or8  (Const8  <t> [c]) (Or8  (Const8  <t> [d]) x)) -> (Or8  (Const8  <t> [int64(int8(c|d))]) x)
+(Or64 (Const64 <t> [c]) (Or64 (Const64 <t> [d]) x)) => (Or64 (Const64 <t> [c|d]) x)
+(Or32 (Const32 <t> [c]) (Or32 (Const32 <t> [d]) x)) => (Or32 (Const32 <t> [c|d]) x)
+(Or16 (Const16 <t> [c]) (Or16 (Const16 <t> [d]) x)) => (Or16 (Const16 <t> [c|d]) x)
+(Or8  (Const8  <t> [c]) (Or8  (Const8  <t> [d]) x)) => (Or8  (Const8  <t> [c|d]) x)
 
 // C ^ (D ^ x) -> (C ^ D) ^ x
-(Xor64 (Const64 <t> [c]) (Xor64 (Const64 <t> [d]) x)) -> (Xor64 (Const64 <t> [c^d]) x)
-(Xor32 (Const32 <t> [c]) (Xor32 (Const32 <t> [d]) x)) -> (Xor32 (Const32 <t> [int64(int32(c^d))]) x)
-(Xor16 (Const16 <t> [c]) (Xor16 (Const16 <t> [d]) x)) -> (Xor16 (Const16 <t> [int64(int16(c^d))]) x)
-(Xor8  (Const8  <t> [c]) (Xor8  (Const8  <t> [d]) x)) -> (Xor8  (Const8  <t> [int64(int8(c^d))]) x)
+(Xor64 (Const64 <t> [c]) (Xor64 (Const64 <t> [d]) x)) => (Xor64 (Const64 <t> [c^d]) x)
+(Xor32 (Const32 <t> [c]) (Xor32 (Const32 <t> [d]) x)) => (Xor32 (Const32 <t> [c^d]) x)
+(Xor16 (Const16 <t> [c]) (Xor16 (Const16 <t> [d]) x)) => (Xor16 (Const16 <t> [c^d]) x)
+(Xor8  (Const8  <t> [c]) (Xor8  (Const8  <t> [d]) x)) => (Xor8  (Const8  <t> [c^d]) x)
 
 // C * (D * x) = (C * D) * x
-(Mul64 (Const64 <t> [c]) (Mul64 (Const64 <t> [d]) x)) -> (Mul64 (Const64 <t> [c*d]) x)
-(Mul32 (Const32 <t> [c]) (Mul32 (Const32 <t> [d]) x)) -> (Mul32 (Const32 <t> [int64(int32(c*d))]) x)
-(Mul16 (Const16 <t> [c]) (Mul16 (Const16 <t> [d]) x)) -> (Mul16 (Const16 <t> [int64(int16(c*d))]) x)
-(Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) -> (Mul8  (Const8  <t> [int64(int8(c*d))]) x)
+(Mul64 (Const64 <t> [c]) (Mul64 (Const64 <t> [d]) x)) => (Mul64 (Const64 <t> [c*d]) x)
+(Mul32 (Const32 <t> [c]) (Mul32 (Const32 <t> [d]) x)) => (Mul32 (Const32 <t> [c*d]) x)
+(Mul16 (Const16 <t> [c]) (Mul16 (Const16 <t> [d]) x)) => (Mul16 (Const16 <t> [c*d]) x)
+(Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) => (Mul8  (Const8  <t> [c*d]) x)
 
 // floating point optimizations
 (Mul(32|64)F x (Const(32|64)F [auxFrom64F(1)])) -> x
