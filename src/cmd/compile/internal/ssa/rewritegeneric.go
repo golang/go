@@ -13641,35 +13641,35 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
-	// cond: t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
-		s := v.AuxInt
-		t1 := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		tmp1 := v_1
 		midmem := v_2
-		if midmem.Op != OpMove || midmem.AuxInt != s {
+		if midmem.Op != OpMove || auxIntToInt64(midmem.AuxInt) != s {
 			break
 		}
-		t2 := midmem.Aux
+		t2 := auxToType(midmem.Aux)
 		src := midmem.Args[1]
 		tmp2 := midmem.Args[0]
-		if !(t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = s
-		v.Aux = t1
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = typeToAux(t1)
 		v.AddArg3(dst, src, midmem)
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
-	// cond: t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
-		s := v.AuxInt
-		t1 := v.Aux
+		s := auxIntToInt64(v.AuxInt)
+		t1 := auxToType(v.Aux)
 		dst := v_0
 		tmp1 := v_1
 		midmem := v_2
@@ -13677,18 +13677,18 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		midmem_0 := midmem.Args[0]
-		if midmem_0.Op != OpMove || midmem_0.AuxInt != s {
+		if midmem_0.Op != OpMove || auxIntToInt64(midmem_0.AuxInt) != s {
 			break
 		}
-		t2 := midmem_0.Aux
+		t2 := auxToType(midmem_0.Aux)
 		src := midmem_0.Args[1]
 		tmp2 := midmem_0.Args[0]
-		if !(t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = s
-		v.Aux = t1
+		v.AuxInt = int64ToAuxInt(s)
+		v.Aux = typeToAux(t1)
 		v.AddArg3(dst, src, midmem)
 		return true
 	}
@@ -21054,10 +21054,10 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1, s2, s3)
-	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+	// cond: sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
+	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
 	for {
-		sym := v.Aux
+		sym := auxToSym(v.Aux)
 		s1 := v_0
 		if s1.Op != OpStore {
 			break
@@ -21067,7 +21067,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		if s1_1.Op != OpConst64 {
 			break
 		}
-		sz := s1_1.AuxInt
+		sz := auxIntToInt64(s1_1.AuxInt)
 		s2 := s1.Args[2]
 		if s2.Op != OpStore {
 			break
@@ -21078,23 +21078,23 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		if s3.Op != OpStore {
 			break
 		}
-		t := s3.Aux
+		t := auxToType(s3.Aux)
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3)) {
+		if !(sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = sz
-		v.Aux = t.(*types.Type).Elem()
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(t.Elem())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1, s2, s3)
-	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
+	// cond: sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)
+	// result: (Move {t.Elem()} [int64(sz)] dst src mem)
 	for {
-		sym := v.Aux
+		sym := auxToSym(v.Aux)
 		s1 := v_0
 		if s1.Op != OpStore {
 			break
@@ -21104,7 +21104,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		if s1_1.Op != OpConst32 {
 			break
 		}
-		sz := s1_1.AuxInt
+		sz := auxIntToInt32(s1_1.AuxInt)
 		s2 := s1.Args[2]
 		if s2.Op != OpStore {
 			break
@@ -21115,15 +21115,15 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		if s3.Op != OpStore {
 			break
 		}
-		t := s3.Aux
+		t := auxToType(s3.Aux)
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3)) {
+		if !(sz >= 0 && symNamed(sym, "runtime.memmove") && t.IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3)) {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = sz
-		v.Aux = t.(*types.Type).Elem()
+		v.AuxInt = int64ToAuxInt(int64(sz))
+		v.Aux = typeToAux(t.Elem())
 		v.AddArg3(dst, src, mem)
 		return true
 	}
