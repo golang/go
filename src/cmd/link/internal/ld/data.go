@@ -736,66 +736,7 @@ func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 }
 
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
-	if *flagA {
-		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
-	}
-
 	writeBlocks(out, ctxt.outSem, ctxt.Textp, addr, size, pad)
-
-	/* again for printing */
-	if !*flagA {
-		return
-	}
-
-	syms := ctxt.Textp
-	for i, s := range syms {
-		if !s.Attr.Reachable() {
-			continue
-		}
-		if s.Value >= addr {
-			syms = syms[i:]
-			break
-		}
-	}
-
-	eaddr := addr + size
-	for _, s := range syms {
-		if !s.Attr.Reachable() {
-			continue
-		}
-		if s.Value >= eaddr {
-			break
-		}
-
-		if addr < s.Value {
-			ctxt.Logf("%-20s %.8x|", "_", uint64(addr))
-			for ; addr < s.Value; addr++ {
-				ctxt.Logf(" %.2x", 0)
-			}
-			ctxt.Logf("\n")
-		}
-
-		ctxt.Logf("%.6x\t%-20s\n", uint64(addr), s.Name)
-		q := s.P
-
-		for len(q) >= 16 {
-			ctxt.Logf("%.6x\t% x\n", uint64(addr), q[:16])
-			addr += 16
-			q = q[16:]
-		}
-
-		if len(q) > 0 {
-			ctxt.Logf("%.6x\t% x\n", uint64(addr), q)
-			addr += int64(len(q))
-		}
-	}
-
-	if addr < eaddr {
-		ctxt.Logf("%-20s %.8x|", "_", uint64(addr))
-		for ; addr < eaddr; addr++ {
-			ctxt.Logf(" %.2x", 0)
-		}
-	}
 }
 
 const blockSize = 1 << 20 // 1MB chunks written at a time.
@@ -964,84 +905,10 @@ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
 }
 
 func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	if *flagA {
-		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
-	}
-
 	writeBlocks(out, ctxt.outSem, ctxt.datap, addr, size, zeros[:])
-
-	/* again for printing */
-	if !*flagA {
-		return
-	}
-
-	syms := ctxt.datap
-	for i, sym := range syms {
-		if sym.Value >= addr {
-			syms = syms[i:]
-			break
-		}
-	}
-
-	eaddr := addr + size
-	for _, sym := range syms {
-		if sym.Value >= eaddr {
-			break
-		}
-		if addr < sym.Value {
-			ctxt.Logf("\t%.8x| 00 ...\n", uint64(addr))
-			addr = sym.Value
-		}
-
-		ctxt.Logf("%s\n\t%.8x|", sym.Name, uint64(addr))
-		for i, b := range sym.P {
-			if i > 0 && i%16 == 0 {
-				ctxt.Logf("\n\t%.8x|", uint64(addr)+uint64(i))
-			}
-			ctxt.Logf(" %.2x", b)
-		}
-
-		addr += int64(len(sym.P))
-		for ; addr < sym.Value+sym.Size; addr++ {
-			ctxt.Logf(" %.2x", 0)
-		}
-		ctxt.Logf("\n")
-
-		if ctxt.LinkMode != LinkExternal {
-			continue
-		}
-		for i := range sym.R {
-			r := &sym.R[i] // Copying sym.Reloc has measurable impact on performance
-			rsname := ""
-			rsval := int64(0)
-			if r.Sym != nil {
-				rsname = r.Sym.Name
-				rsval = r.Sym.Value
-			}
-			typ := "?"
-			switch r.Type {
-			case objabi.R_ADDR:
-				typ = "addr"
-			case objabi.R_PCREL:
-				typ = "pcrel"
-			case objabi.R_CALL:
-				typ = "call"
-			}
-			ctxt.Logf("\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, rsval+r.Add)
-		}
-	}
-
-	if addr < eaddr {
-		ctxt.Logf("\t%.8x| 00 ...\n", uint(addr))
-	}
-	ctxt.Logf("\t%.8x|\n", uint(eaddr))
 }
 
 func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	if *flagA {
-		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
-	}
-
 	// Concatenate the section symbol lists into a single list to pass
 	// to writeBlocks.
 	//
