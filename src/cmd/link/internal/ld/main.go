@@ -204,7 +204,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 		// New dodata() is currently only implemented for selected targets.
 		switch {
 		case ctxt.IsElf():
-			if !(ctxt.IsAMD64() || ctxt.Is386()) {
+			if !(ctxt.IsAMD64() || ctxt.Is386() ||
+				ctxt.IsARM() || ctxt.IsARM64()) {
 				*flagnewDoData = false
 			}
 		case ctxt.IsDarwin():
