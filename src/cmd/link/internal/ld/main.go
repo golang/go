@@ -157,8 +157,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	if *flagnewDoData {
-		// New dodata() is currently only implemented for linux/amd64.
-		if !(ctxt.IsElf() && ctxt.IsAMD64()) {
+		// New dodata() is currently only implemented for selected targets.
+		if !(ctxt.IsElf() &&
+			(ctxt.IsAMD64() || ctxt.Is386())) {
 			*flagnewDoData = false
 		}
 	}
