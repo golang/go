@@ -505,7 +505,7 @@ func geneq(t *types.Type) *obj.LSym {
 		namedfield("p", types.NewPtr(t)),
 		namedfield("q", types.NewPtr(t)),
 	)
-	tfn.Rlist.Set1(anonfield(types.Types[TBOOL]))
+	tfn.Rlist.Set1(namedfield("r", types.Types[TBOOL]))
 
 	fn := dclfunc(sym, tfn)
 	np := asNode(tfn.Type.Params().Field(0).Nname)
@@ -519,35 +519,72 @@ func geneq(t *types.Type) *obj.LSym {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		// An array of pure memory would be handled by the
-		// standard memequal, so the element type must not be
-		// pure memory. Even if we unrolled the range loop,
-		// each iteration would be a function call, so don't bother
-		// unrolling.
-		nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
+		// rangedCheck generates:
+		//
+		// for idx := range *p {
+		//   if eq(p[i], q[i]) {
+		//   } else {
+		//     return
+		//   }
+		// }
+		rangedCheck := func(idx string, eq func(pi, qi *Node) *Node) {
+			// for idx := range *p
+			nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
+			ni := newname(lookup(idx))
+			ni.Type = types.Types[TINT]
+			nrange.List.Set1(ni)
+			nrange.SetColas(true)
+			colasdefn(nrange.List.Slice(), nrange)
+			ni = nrange.List.First()
 
-		ni := newname(lookup("i"))
-		ni.Type = types.Types[TINT]
-		nrange.List.Set1(ni)
-		nrange.SetColas(true)
-		colasdefn(nrange.List.Slice(), nrange)
-		ni = nrange.List.First()
+			// pi := p[i]
+			pi := nod(OINDEX, np, ni)
+			pi.SetBounded(true)
+			pi.Type = t.Elem()
+			// qi := q[i]
+			qi := nod(OINDEX, nq, ni)
+			qi.SetBounded(true)
+			qi.Type = t.Elem()
 
-		// if p[i] != q[i] { return false }
-		nx := nod(OINDEX, np, ni)
+			// if eq(pi, qi) {} else { return }
+			cmp := eq(pi, qi)
+			nif := nod(OIF, cmp, nil)
+			ret := nod(ORETURN, nil, nil)
+			nif.Rlist.Append(ret)
+			nrange.Nbody.Append(nif)
+			fn.Nbody.Append(nrange)
+		}
 
-		nx.SetBounded(true)
-		ny := nod(OINDEX, nq, ni)
-		ny.SetBounded(true)
-
-		nif := nod(OIF, nil, nil)
-		nif.Left = nod(ONE, nx, ny)
-		r := nod(ORETURN, nil, nil)
-		r.List.Append(nodbool(false))
-		nif.Nbody.Append(r)
-		nrange.Nbody.Append(nif)
-		fn.Nbody.Append(nrange)
-
+		switch t.Elem().Etype {
+		case TINTER:
+			// Do two loops. First, check that all the types match (cheap).
+			// Second, check that all the data match (expensive).
+			// TODO: when the array size is small, unroll the tab match checks.
+			rangedCheck("i", func(pi, qi *Node) *Node {
+				// Compare types.
+				pi = typecheck(pi, ctxExpr)
+				qi = typecheck(qi, ctxExpr)
+				eqtab, _ := eqinterface(pi, qi)
+				return eqtab
+			})
+			rangedCheck("j", func(pi, qi *Node) *Node {
+				// Compare data.
+				pi = typecheck(pi, ctxExpr)
+				qi = typecheck(qi, ctxExpr)
+				_, eqdata := eqinterface(pi, qi)
+				return eqdata
+			})
+		default:
+			// An array of pure memory would be handled by the standard memequal,
+			// so the element type must not be pure memory.
+			// Loop over each element, checking for equality.
+			// TODO(josharian): For element types that don't involve
+			// a function call, such as floats, unroll when array size is small.
+			rangedCheck("i", func(pi, qi *Node) *Node {
+				// p[i] == q[i]
+				return nod(OEQ, pi, qi)
+			})
+		}
 		// return true
 		ret := nod(ORETURN, nil, nil)
 		ret.List.Append(nodbool(true))
