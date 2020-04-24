@@ -3234,9 +3234,9 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 0 && s <= 256 && logLargeCopy(v, s)
-	// result: (MVC [makeValAndOff(s, 0)] dst src mem)
+	// result: (MVC [makeValAndOff32(int32(s), 0)] dst src mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -3244,15 +3244,15 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(s, 0)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(int32(s), 0))
 		v.AddArg3(dst, src, mem)
 		return true
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 256 && s <= 512 && logLargeCopy(v, s)
-	// result: (MVC [makeValAndOff(s-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
+	// result: (MVC [makeValAndOff32(int32(s)-256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -3260,18 +3260,18 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(s-256, 256)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(int32(s)-256, 256))
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v0.AuxInt = makeValAndOff(256, 0)
+		v0.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 0))
 		v0.AddArg3(dst, src, mem)
 		v.AddArg3(dst, src, v0)
 		return true
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 512 && s <= 768 && logLargeCopy(v, s)
-	// result: (MVC [makeValAndOff(s-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
+	// result: (MVC [makeValAndOff32(int32(s)-512, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem)))
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -3279,11 +3279,11 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(s-512, 512)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(int32(s)-512, 512))
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v0.AuxInt = makeValAndOff(256, 256)
+		v0.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 256))
 		v1 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v1.AuxInt = makeValAndOff(256, 0)
+		v1.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 0))
 		v1.AddArg3(dst, src, mem)
 		v0.AddArg3(dst, src, v1)
 		v.AddArg3(dst, src, v0)
@@ -3291,9 +3291,9 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 768 && s <= 1024 && logLargeCopy(v, s)
-	// result: (MVC [makeValAndOff(s-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
+	// result: (MVC [makeValAndOff32(int32(s)-768, 768)] dst src (MVC [makeValAndOff32(256, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))))
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -3301,13 +3301,13 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpS390XMVC)
-		v.AuxInt = makeValAndOff(s-768, 768)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(int32(s)-768, 768))
 		v0 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v0.AuxInt = makeValAndOff(256, 512)
+		v0.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 512))
 		v1 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v1.AuxInt = makeValAndOff(256, 256)
+		v1.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 256))
 		v2 := b.NewValue0(v.Pos, OpS390XMVC, types.TypeMem)
-		v2.AuxInt = makeValAndOff(256, 0)
+		v2.AuxInt = valAndOffToAuxInt(makeValAndOff32(256, 0))
 		v2.AddArg3(dst, src, mem)
 		v1.AddArg3(dst, src, v2)
 		v0.AddArg3(dst, src, v1)
@@ -3318,7 +3318,7 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 	// cond: s > 1024 && logLargeCopy(v, s)
 	// result: (LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -3326,10 +3326,10 @@ func rewriteValueS390X_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpS390XLoweredMove)
-		v.AuxInt = s % 256
+		v.AuxInt = int64ToAuxInt(s % 256)
 		v0 := b.NewValue0(v.Pos, OpS390XADD, src.Type)
 		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = (s / 256) * 256
+		v1.AuxInt = int64ToAuxInt((s / 256) * 256)
 		v0.AddArg2(src, v1)
 		v.AddArg4(dst, src, v0, mem)
 		return true
@@ -18912,98 +18912,98 @@ func rewriteValueS390X_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [3] destptr mem)
-	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr (MOVHstoreconst [0] destptr mem))
+	// result: (MOVBstoreconst [makeValAndOff32(0,2)] destptr (MOVHstoreconst [0] destptr mem))
 	for {
-		if v.AuxInt != 3 {
+		if auxIntToInt64(v.AuxInt) != 3 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpS390XMOVBstoreconst)
-		v.AuxInt = makeValAndOff(0, 2)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(0, 2))
 		v0 := b.NewValue0(v.Pos, OpS390XMOVHstoreconst, types.TypeMem)
-		v0.AuxInt = 0
+		v0.AuxInt = valAndOffToAuxInt(0)
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
 		return true
 	}
 	// match: (Zero [5] destptr mem)
-	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr (MOVWstoreconst [0] destptr mem))
+	// result: (MOVBstoreconst [makeValAndOff32(0,4)] destptr (MOVWstoreconst [0] destptr mem))
 	for {
-		if v.AuxInt != 5 {
+		if auxIntToInt64(v.AuxInt) != 5 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpS390XMOVBstoreconst)
-		v.AuxInt = makeValAndOff(0, 4)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(0, 4))
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWstoreconst, types.TypeMem)
-		v0.AuxInt = 0
+		v0.AuxInt = valAndOffToAuxInt(0)
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
 		return true
 	}
 	// match: (Zero [6] destptr mem)
-	// result: (MOVHstoreconst [makeValAndOff(0,4)] destptr (MOVWstoreconst [0] destptr mem))
+	// result: (MOVHstoreconst [makeValAndOff32(0,4)] destptr (MOVWstoreconst [0] destptr mem))
 	for {
-		if v.AuxInt != 6 {
+		if auxIntToInt64(v.AuxInt) != 6 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpS390XMOVHstoreconst)
-		v.AuxInt = makeValAndOff(0, 4)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(0, 4))
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWstoreconst, types.TypeMem)
-		v0.AuxInt = 0
+		v0.AuxInt = valAndOffToAuxInt(0)
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
 		return true
 	}
 	// match: (Zero [7] destptr mem)
-	// result: (MOVWstoreconst [makeValAndOff(0,3)] destptr (MOVWstoreconst [0] destptr mem))
+	// result: (MOVWstoreconst [makeValAndOff32(0,3)] destptr (MOVWstoreconst [0] destptr mem))
 	for {
-		if v.AuxInt != 7 {
+		if auxIntToInt64(v.AuxInt) != 7 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpS390XMOVWstoreconst)
-		v.AuxInt = makeValAndOff(0, 3)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(0, 3))
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWstoreconst, types.TypeMem)
-		v0.AuxInt = 0
+		v0.AuxInt = valAndOffToAuxInt(0)
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
 		return true
 	}
 	// match: (Zero [s] destptr mem)
 	// cond: s > 0 && s <= 1024
-	// result: (CLEAR [makeValAndOff(s, 0)] destptr mem)
+	// result: (CLEAR [makeValAndOff32(int32(s), 0)] destptr mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
 		if !(s > 0 && s <= 1024) {
 			break
 		}
 		v.reset(OpS390XCLEAR)
-		v.AuxInt = makeValAndOff(s, 0)
+		v.AuxInt = valAndOffToAuxInt(makeValAndOff32(int32(s), 0))
 		v.AddArg2(destptr, mem)
 		return true
 	}
 	// match: (Zero [s] destptr mem)
 	// cond: s > 1024
-	// result: (LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
+	// result: (LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
 		if !(s > 1024) {
 			break
 		}
 		v.reset(OpS390XLoweredZero)
-		v.AuxInt = s % 256
+		v.AuxInt = int64ToAuxInt(s % 256)
 		v0 := b.NewValue0(v.Pos, OpS390XADDconst, destptr.Type)
-		v0.AuxInt = (s / 256) * 256
+		v0.AuxInt = int32ToAuxInt((int32(s) / 256) * 256)
 		v0.AddArg(destptr)
 		v.AddArg3(destptr, v0, mem)
 		return true
