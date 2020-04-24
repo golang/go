@@ -3379,36 +3379,15 @@ func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
 }
 
 func walkcompareInterface(n *Node, init *Nodes) *Node {
-	// ifaceeq(i1 any-1, i2 any-2) (ret bool);
-	if !types.Identical(n.Left.Type, n.Right.Type) {
-		Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
-	}
-	var fn *Node
-	if n.Left.Type.IsEmptyInterface() {
-		fn = syslook("efaceeq")
-	} else {
-		fn = syslook("ifaceeq")
-	}
-
 	n.Right = cheapexpr(n.Right, init)
 	n.Left = cheapexpr(n.Left, init)
-	lt := nod(OITAB, n.Left, nil)
-	rt := nod(OITAB, n.Right, nil)
-	ld := nod(OIDATA, n.Left, nil)
-	rd := nod(OIDATA, n.Right, nil)
-	ld.Type = types.Types[TUNSAFEPTR]
-	rd.Type = types.Types[TUNSAFEPTR]
-	ld.SetTypecheck(1)
-	rd.SetTypecheck(1)
-	call := mkcall1(fn, n.Type, init, lt, ld, rd)
-
-	// Check itable/type before full compare.
-	// Note: short-circuited because order matters.
+	eqtab, eqdata := eqinterface(n.Left, n.Right)
 	var cmp *Node
 	if n.Op == OEQ {
-		cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
+		cmp = nod(OANDAND, eqtab, eqdata)
 	} else {
-		cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
+		eqtab.Op = ONE
+		cmp = nod(OOROR, eqtab, nod(ONOT, eqdata, nil))
 	}
 	return finishcompare(n, cmp, init)
 }

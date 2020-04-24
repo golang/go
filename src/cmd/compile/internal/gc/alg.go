@@ -699,6 +699,44 @@ func eqstring(s, t *Node) (eqlen, eqmem *Node) {
 	return cmp, call
 }
 
+// eqinterface returns the nodes
+//   s.tab == t.tab (or s.typ == t.typ, as appropriate)
+// and
+//   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
+// which can be used to construct interface equality comparison.
+// eqtab must be evaluated before eqdata, and shortcircuiting is required.
+func eqinterface(s, t *Node) (eqtab, eqdata *Node) {
+	if !types.Identical(s.Type, t.Type) {
+		Fatalf("eqinterface %v %v", s.Type, t.Type)
+	}
+	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+	var fn *Node
+	if s.Type.IsEmptyInterface() {
+		fn = syslook("efaceeq")
+	} else {
+		fn = syslook("ifaceeq")
+	}
+
+	stab := nod(OITAB, s, nil)
+	ttab := nod(OITAB, t, nil)
+	sdata := nod(OIDATA, s, nil)
+	tdata := nod(OIDATA, t, nil)
+	sdata.Type = types.Types[TUNSAFEPTR]
+	tdata.Type = types.Types[TUNSAFEPTR]
+	sdata.SetTypecheck(1)
+	tdata.SetTypecheck(1)
+
+	call := nod(OCALL, fn, nil)
+	call.List.Append(stab, sdata, tdata)
+	call = typecheck(call, ctxExpr|ctxMultiOK)
+
+	cmp := nod(OEQ, stab, ttab)
+	cmp = typecheck(cmp, ctxExpr)
+	cmp.Type = types.Types[TBOOL]
+	return cmp, call
+}
+
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
