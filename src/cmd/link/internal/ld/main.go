@@ -205,7 +205,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		switch {
 		case ctxt.IsElf():
 			if !(ctxt.IsAMD64() || ctxt.Is386() ||
-				ctxt.IsARM() || ctxt.IsARM64()) {
+				ctxt.IsARM() || ctxt.IsARM64() || ctxt.IsS390X()) {
 				*flagnewDoData = false
 			}
 		case ctxt.IsDarwin():
