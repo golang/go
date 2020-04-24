@@ -62,6 +62,8 @@ func ListenAndServe(ctx context.Context, network, addr string, server StreamServ
 // the provided server. If idleTimeout is non-zero, ListenAndServe exits after
 // there are no clients for this duration, otherwise it exits only on error.
 func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeout time.Duration) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	// Max duration: ~290 years; surely that's long enough.
 	const forever = 1<<63 - 1
 	if idleTimeout <= 0 {
@@ -77,7 +79,10 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 		for {
 			nc, err := ln.Accept()
 			if err != nil {
-				doneListening <- fmt.Errorf("Accept(): %v", err)
+				select {
+				case doneListening <- fmt.Errorf("Accept(): %v", err):
+				case <-ctx.Done():
+				}
 				return
 			}
 			newConns <- nc
