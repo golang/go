@@ -2017,77 +2017,77 @@
 
 // Convert Moves into Zeros when the source is known to be zeros.
 (Move {t} [n] dst1 src mem:(Zero {t} [n] dst2 _)) && isSamePtr(src, dst2)
-	-> (Zero {t} [n] dst1 mem)
+	=> (Zero {t} [n] dst1 mem)
 (Move {t} [n] dst1 src mem:(VarDef (Zero {t} [n] dst0 _))) && isSamePtr(src, dst0)
-	-> (Zero {t} [n] dst1 mem)
+	=> (Zero {t} [n] dst1 mem)
 
 // Don't Store to variables that are about to be overwritten by Move/Zero.
 (Zero {t1} [n] p1 store:(Store {t2} (OffPtr [o2] p2) _ mem))
 	&& isSamePtr(p1, p2) && store.Uses == 1
-	&& n >= o2 + sizeof(t2)
+	&& n >= o2 + t2.Size()
 	&& clobber(store)
-	-> (Zero {t1} [n] p1 mem)
+	=> (Zero {t1} [n] p1 mem)
 (Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
 	&& isSamePtr(dst1, dst2) && store.Uses == 1
-	&& n >= o2 + sizeof(t2)
-	&& disjoint(src1, n, op, sizeof(t2))
+	&& n >= o2 + t2.Size()
+	&& disjoint(src1, n, op, t2.Size())
 	&& clobber(store)
-	-> (Move {t1} [n] dst1 src1 mem)
+	=> (Move {t1} [n] dst1 src1 mem)
 
 // Don't Move to variables that are immediately completely overwritten.
 (Zero {t} [n] dst1 move:(Move {t} [n] dst2 _ mem))
 	&& move.Uses == 1
 	&& isSamePtr(dst1, dst2)
 	&& clobber(move)
-	-> (Zero {t} [n] dst1 mem)
+	=> (Zero {t} [n] dst1 mem)
 (Move {t} [n] dst1 src1 move:(Move {t} [n] dst2 _ mem))
 	&& move.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
 	&& clobber(move)
-	-> (Move {t} [n] dst1 src1 mem)
+	=> (Move {t} [n] dst1 src1 mem)
 (Zero {t} [n] dst1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2)
 	&& clobber(move, vardef)
-	-> (Zero {t} [n] dst1 (VarDef {x} mem))
+	=> (Zero {t} [n] dst1 (VarDef {x} mem))
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
 	&& clobber(move, vardef)
-	-> (Move {t} [n] dst1 src1 (VarDef {x} mem))
+	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [0] p2) d2
 		m3:(Move [n] p3 _ mem)))
 	&& m2.Uses == 1 && m3.Uses == 1
-	&& o1 == sizeof(t2)
-	&& n == sizeof(t2) + sizeof(t1)
+	&& o1 == t2.Size()
+	&& n == t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
 	&& clobber(m2, m3)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
 		m3:(Store {t3} op3:(OffPtr [0] p3) d3
 			m4:(Move [n] p4 _ mem))))
 	&& m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1
-	&& o2 == sizeof(t3)
-	&& o1-o2 == sizeof(t2)
-	&& n == sizeof(t3) + sizeof(t2) + sizeof(t1)
+	&& o2 == t3.Size()
+	&& o1-o2 == t2.Size()
+	&& n == t3.Size() + t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
 	&& clobber(m2, m3, m4)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
 		m3:(Store {t3} op3:(OffPtr [o3] p3) d3
 			m4:(Store {t4} op4:(OffPtr [0] p4) d4
 				m5:(Move [n] p5 _ mem)))))
 	&& m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1
-	&& o3 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& o1-o2 == sizeof(t2)
-	&& n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1)
+	&& o3 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& o1-o2 == t2.Size()
+	&& n == t4.Size() + t3.Size() + t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
 	&& clobber(m2, m3, m4, m5)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
 // Don't Zero variables that are immediately completely overwritten
 // before being accessed.
@@ -2095,45 +2095,45 @@
 	&& zero.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
 	&& clobber(zero)
-	-> (Move {t} [n] dst1 src1 mem)
+	=> (Move {t} [n] dst1 src1 mem)
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} zero:(Zero {t} [n] dst2 mem)))
 	&& zero.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
 	&& clobber(zero, vardef)
-	-> (Move {t} [n] dst1 src1 (VarDef {x} mem))
+	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [0] p2) d2
 		m3:(Zero [n] p3 mem)))
 	&& m2.Uses == 1 && m3.Uses == 1
-	&& o1 == sizeof(t2)
-	&& n == sizeof(t2) + sizeof(t1)
+	&& o1 == t2.Size()
+	&& n == t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
 	&& clobber(m2, m3)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
 		m3:(Store {t3} op3:(OffPtr [0] p3) d3
 			m4:(Zero [n] p4 mem))))
 	&& m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1
-	&& o2 == sizeof(t3)
-	&& o1-o2 == sizeof(t2)
-	&& n == sizeof(t3) + sizeof(t2) + sizeof(t1)
+	&& o2 == t3.Size()
+	&& o1-o2 == t2.Size()
+	&& n == t3.Size() + t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
 	&& clobber(m2, m3, m4)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
 		m3:(Store {t3} op3:(OffPtr [o3] p3) d3
 			m4:(Store {t4} op4:(OffPtr [0] p4) d4
 				m5:(Zero [n] p5 mem)))))
 	&& m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1
-	&& o3 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& o1-o2 == sizeof(t2)
-	&& n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1)
+	&& o3 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& o1-o2 == t2.Size()
+	&& n == t4.Size() + t3.Size() + t2.Size() + t1.Size()
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
 	&& clobber(m2, m3, m4, m5)
-	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
+	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
 // Don't Move from memory if the values are likely to already be
 // in registers.
@@ -2141,29 +2141,29 @@
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
-	&& o2 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o2 == t3.Size()
+	&& n == t2.Size() + t3.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 (Move {t1} [n] dst p1
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 			(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
-	&& o3 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o3 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& n == t2.Size() + t3.Size() + t4.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 (Move {t1} [n] dst p1
@@ -2172,19 +2172,19 @@
 			(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
 				(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
 	&& registerizable(b, t5)
-	&& o4 == sizeof(t5)
-	&& o3-o4 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o4 == t5.Size()
+	&& o3-o4 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
@@ -2195,13 +2195,13 @@
 		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 			(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
-	&& o2 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o2 == t3.Size()
+	&& n == t2.Size() + t3.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 (Move {t1} [n] dst p1
 	mem:(VarDef
@@ -2209,16 +2209,16 @@
 			(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 				(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
-	&& o3 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o3 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& n == t2.Size() + t3.Size() + t4.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 (Move {t1} [n] dst p1
@@ -2228,19 +2228,19 @@
 				(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
 					(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
 	&& registerizable(b, t5)
-	&& o4 == sizeof(t5)
-	&& o3-o4 == sizeof(t4)
-	&& o2-o3 == sizeof(t3)
-	&& n == sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& o4 == t5.Size()
+	&& o3-o4 == t4.Size()
+	&& o2-o3 == t3.Size()
+	&& n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
@@ -2250,25 +2250,25 @@
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Zero {t3} [n] p3 _)))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
-	&& n >= o2 + sizeof(t2)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Zero {t1} [n] dst mem))
 (Move {t1} [n] dst p1
 	mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1
 		(Store {t3} (OffPtr <tt3> [o3] p3) d2
 			(Zero {t4} [n] p4 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Zero {t1} [n] dst mem)))
 (Move {t1} [n] dst p1
@@ -2277,17 +2277,17 @@
 			(Store {t4} (OffPtr <tt4> [o4] p4) d3
 				(Zero {t5} [n] p5 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	&& n >= o4 + sizeof(t4)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	&& n >= o4 + t4.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Zero {t1} [n] dst mem))))
@@ -2298,20 +2298,20 @@
 				(Store {t5} (OffPtr <tt5> [o5] p5) d4
 					(Zero {t6} [n] p6 _))))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
-	&& alignof(t6) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
+	&& t6.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
 	&& registerizable(b, t5)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	&& n >= o4 + sizeof(t4)
-	&& n >= o5 + sizeof(t5)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	&& n >= o4 + t4.Size()
+	&& n >= o5 + t5.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
@@ -2321,11 +2321,11 @@
 		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 			(Zero {t3} [n] p3 _))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
-	&& n >= o2 + sizeof(t2)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Zero {t1} [n] dst mem))
 (Move {t1} [n] dst p1
 	mem:(VarDef
@@ -2333,14 +2333,14 @@
 			(Store {t3} (OffPtr <tt3> [o3] p3) d2
 				(Zero {t4} [n] p4 _)))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Zero {t1} [n] dst mem)))
 (Move {t1} [n] dst p1
@@ -2350,17 +2350,17 @@
 				(Store {t4} (OffPtr <tt4> [o4] p4) d3
 					(Zero {t5} [n] p5 _))))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	&& n >= o4 + sizeof(t4)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	&& n >= o4 + t4.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Zero {t1} [n] dst mem))))
@@ -2372,20 +2372,20 @@
 					(Store {t5} (OffPtr <tt5> [o5] p5) d4
 						(Zero {t6} [n] p6 _)))))))
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5) && isSamePtr(p5, p6)
-	&& alignof(t2) <= alignof(t1)
-	&& alignof(t3) <= alignof(t1)
-	&& alignof(t4) <= alignof(t1)
-	&& alignof(t5) <= alignof(t1)
-	&& alignof(t6) <= alignof(t1)
+	&& t2.Alignment() <= t1.Alignment()
+	&& t3.Alignment() <= t1.Alignment()
+	&& t4.Alignment() <= t1.Alignment()
+	&& t5.Alignment() <= t1.Alignment()
+	&& t6.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
 	&& registerizable(b, t3)
 	&& registerizable(b, t4)
 	&& registerizable(b, t5)
-	&& n >= o2 + sizeof(t2)
-	&& n >= o3 + sizeof(t3)
-	&& n >= o4 + sizeof(t4)
-	&& n >= o5 + sizeof(t5)
-	-> (Store {t2} (OffPtr <tt2> [o2] dst) d1
+	&& n >= o2 + t2.Size()
+	&& n >= o3 + t3.Size()
+	&& n >= o4 + t4.Size()
+	&& n >= o5 + t5.Size()
+	=> (Store {t2} (OffPtr <tt2> [o2] dst) d1
 		(Store {t3} (OffPtr <tt3> [o3] dst) d2
 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
@@ -2419,4 +2419,4 @@
 
 // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
 // However, this rule is needed to prevent the previous rule from looping forever in such cases.
-(Move dst src mem) && isSamePtr(dst, src) -> mem
+(Move dst src mem) && isSamePtr(dst, src) => mem

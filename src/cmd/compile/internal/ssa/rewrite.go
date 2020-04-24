@@ -1326,18 +1326,10 @@ func sizeof(t interface{}) int64 {
 	return t.(*types.Type).Size()
 }
 
-// alignof returns the alignment of t in bytes.
-// It will panic if t is not a *types.Type.
-func alignof(t interface{}) int64 {
-	return t.(*types.Type).Alignment()
-}
-
 // registerizable reports whether t is a primitive type that fits in
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
-// It will panic if t is not a *types.Type.
-func registerizable(b *Block, t interface{}) bool {
-	typ := t.(*types.Type)
+func registerizable(b *Block, typ *types.Type) bool {
 	if typ.IsPtrShaped() || typ.IsFloat() {
 		return true
 	}
