@@ -1923,31 +1923,31 @@
 	&& mem.Op == OpStaticCall
 	&& isSameSym(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	-> mem
+	=> mem
 (Store (Load (OffPtr [c] (SP)) mem) x mem)
 	&& isConstZero(x)
 	&& mem.Op == OpStaticCall
 	&& isSameSym(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	-> mem
+	=> mem
 (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
 	&& isConstZero(x)
 	&& mem.Op == OpStaticCall
 	&& isSameSym(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	-> mem
+	=> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
 (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	&& isSameSym(sym, "runtime.newobject")
+	&& symNamed(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	-> (Invalid)
+	=> (Invalid)
 (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	&& isSameSym(sym, "runtime.newobject")
+	&& symNamed(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	-> (Invalid)
+	=> (Invalid)
 
 // Evaluate constant address comparisons.
 (EqPtr  x x) -> (ConstBool [1])
