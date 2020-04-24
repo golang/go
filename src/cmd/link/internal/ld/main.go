@@ -200,24 +200,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
 
-	if *flagnewDoData {
-		// New dodata() is currently only implemented for selected targets.
-		switch {
-		case ctxt.IsElf():
-			switch {
-			case ctxt.Is386(), ctxt.IsAMD64(), ctxt.IsARM(), ctxt.IsARM64(),
-				ctxt.IsMIPS(), ctxt.IsMIPS64(), ctxt.IsRISCV64(), ctxt.IsS390X():
-				// supported
-			default:
-				*flagnewDoData = false
-			}
-		case ctxt.IsDarwin(), ctxt.IsPlan9(), ctxt.IsWasm():
-			// supported
-		default:
-			*flagnewDoData = false
-		}
-	}
-
 	if ctxt.linkShared && !ctxt.IsELF {
 		Exitf("-linkshared can only be used on elf systems")
 	}
