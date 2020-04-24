@@ -92,6 +92,10 @@ func (t *Target) IsARM() bool {
 	return t.Arch.Family == sys.ARM
 }
 
+func (t *Target) IsARM64() bool {
+	return t.Arch.Family == sys.ARM64
+}
+
 func (t *Target) IsAMD64() bool {
 	return t.Arch.Family == sys.AMD64
 }
