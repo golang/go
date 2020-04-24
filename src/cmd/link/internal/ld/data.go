@@ -1084,14 +1084,14 @@ func (p *GCProg2) AddSym(s loader.Sym) {
 	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
 	// everything we see should have pointers and should therefore have a type.
 	if typ == 0 {
-		switch p.sym.Name() {
+		switch ldr.SymName(s) {
 		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
 			// Ignore special symbols that are sometimes laid out
 			// as real symbols. See comment about dyld on darwin in
 			// the address function.
 			return
 		}
-		p.ctxt.Errorf(p.sym.Sym(), "missing Go type information for global symbol: size %d", ldr.SymSize(s))
+		p.ctxt.Errorf(p.sym.Sym(), "missing Go type information for global symbol %s: size %d", ldr.SymName(s), ldr.SymSize(s))
 		return
 	}
 
