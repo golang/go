@@ -211,6 +211,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 			if !ctxt.IsAMD64() {
 				*flagnewDoData = false
 			}
+		case ctxt.IsPlan9(), ctxt.IsWasm():
+			// supported
 		default:
 			*flagnewDoData = false
 		}
