@@ -112,6 +112,7 @@
 //	- "go1.12", from Go version 1.12 onward
 //	- "go1.13", from Go version 1.13 onward
 //	- "go1.14", from Go version 1.14 onward
+//	- "go1.15", from Go version 1.15 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // There are no build tags for beta or minor releases.
