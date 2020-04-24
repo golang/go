@@ -106,14 +106,31 @@ func (c *mcentral) cacheSpan() *mspan {
 	if trace.enabled {
 		traceGCSweepStart()
 	}
+
+	// If we sweep spanBudget spans without finding any free
+	// space, just allocate a fresh span. This limits the amount
+	// of time we can spend trying to find free space and
+	// amortizes the cost of small object sweeping over the
+	// benefit of having a full free span to allocate from. By
+	// setting this to 100, we limit the space overhead to 1%.
+	//
+	// TODO(austin,mknyszek): This still has bad worst-case
+	// throughput. For example, this could find just one free slot
+	// on the 100th swept span. That limits allocation latency, but
+	// still has very poor throughput. We could instead keep a
+	// running free-to-used budget and switch to fresh span
+	// allocation if the budget runs low.
+	spanBudget := 100
+
 	var s *mspan
 
 	// Try partial swept spans first.
 	if s = c.partialSwept(sg).pop(); s != nil {
 		goto havespan
 	}
+
 	// Now try partial unswept spans.
-	for {
+	for ; spanBudget >= 0; spanBudget-- {
 		s = c.partialUnswept(sg).pop()
 		if s == nil {
 			break
@@ -132,7 +149,7 @@ func (c *mcentral) cacheSpan() *mspan {
 	}
 	// Now try full unswept spans, sweeping them and putting them into the
 	// right list if we fail to get a span.
-	for {
+	for ; spanBudget >= 0; spanBudget-- {
 		s = c.fullUnswept(sg).pop()
 		if s == nil {
 			break
