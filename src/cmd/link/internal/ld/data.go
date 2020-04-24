@@ -684,10 +684,6 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At2(ri)
-		// FIXME: the call to Adddynrel2 below is going to wind up
-		// eagerly promoting the symbol to external, which is not great--
-		// it would improve things for internal/PIE if we could
-		// create the symbol updater lazily.
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
