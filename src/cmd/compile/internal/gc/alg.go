@@ -578,7 +578,16 @@ func geneq(t *types.Type) *obj.LSym {
 
 			// Compare non-memory fields with field equality.
 			if !IsRegularMemory(f.Type) {
-				and(eqfield(np, nq, f.Sym))
+				p := nodSym(OXDOT, np, f.Sym)
+				q := nodSym(OXDOT, nq, f.Sym)
+				switch {
+				case f.Type.IsString():
+					eqlen, eqmem := eqstring(p, q)
+					and(eqlen)
+					and(eqmem)
+				default:
+					and(nod(OEQ, p, q))
+				}
 				i++
 				continue
 			}
