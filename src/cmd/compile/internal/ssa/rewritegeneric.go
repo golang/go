@@ -8697,9 +8697,9 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
 	// cond: devirt(v, itab, off) != nil
-	// result: (StaticCall [argsize] {devirt(v, itab, off)} mem)
+	// result: (StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
 	for {
-		argsize := v.AuxInt
+		argsize := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpLoad {
 			break
 		}
@@ -8707,7 +8707,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 		if v_0_0.Op != OpOffPtr {
 			break
 		}
-		off := v_0_0.AuxInt
+		off := auxIntToInt64(v_0_0.AuxInt)
 		v_0_0_0 := v_0_0.Args[0]
 		if v_0_0_0.Op != OpITab {
 			break
@@ -8720,7 +8720,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 		if v_0_0_0_0_0.Op != OpAddr {
 			break
 		}
-		itab := v_0_0_0_0_0.Aux
+		itab := auxToSym(v_0_0_0_0_0.Aux)
 		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
 		if v_0_0_0_0_0_0.Op != OpSB {
 			break
@@ -8730,8 +8730,8 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 			break
 		}
 		v.reset(OpStaticCall)
-		v.AuxInt = argsize
-		v.Aux = devirt(v, itab, off)
+		v.AuxInt = int32ToAuxInt(int32(argsize))
+		v.Aux = symToAux(devirt(v, itab, off))
 		v.AddArg(mem)
 		return true
 	}

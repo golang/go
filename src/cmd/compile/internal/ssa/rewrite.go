@@ -695,7 +695,7 @@ func uaddOvf(a, b int64) bool {
 
 // de-virtualize an InterCall
 // 'sym' is the symbol for the itab
-func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
+func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
 	f := v.Block.Func
 	n, ok := sym.(*obj.LSym)
 	if !ok {
