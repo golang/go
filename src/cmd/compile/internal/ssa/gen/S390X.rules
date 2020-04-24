@@ -380,17 +380,17 @@
 			(MOVWstore dst (MOVWZload src mem) mem)))
 
 // MVC for other moves. Use up to 4 instructions (sizes up to 1024 bytes).
-(Move [s] dst src mem) && s > 0 && s <= 256 && logLargeCopy(v, s) ->
-	(MVC [makeValAndOff(s, 0)] dst src mem)
-(Move [s] dst src mem) && s > 256 && s <= 512 && logLargeCopy(v, s) ->
-	(MVC [makeValAndOff(s-256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))
-(Move [s] dst src mem) && s > 512 && s <= 768 && logLargeCopy(v, s) ->
-	(MVC [makeValAndOff(s-512, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem)))
-(Move [s] dst src mem) && s > 768 && s <= 1024 && logLargeCopy(v, s) ->
-	(MVC [makeValAndOff(s-768, 768)] dst src (MVC [makeValAndOff(256, 512)] dst src (MVC [makeValAndOff(256, 256)] dst src (MVC [makeValAndOff(256, 0)] dst src mem))))
+(Move [s] dst src mem) && s > 0 && s <= 256 && logLargeCopy(v, s) =>
+	(MVC [makeValAndOff32(int32(s), 0)] dst src mem)
+(Move [s] dst src mem) && s > 256 && s <= 512 && logLargeCopy(v, s) =>
+	(MVC [makeValAndOff32(int32(s)-256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))
+(Move [s] dst src mem) && s > 512 && s <= 768 && logLargeCopy(v, s) =>
+	(MVC [makeValAndOff32(int32(s)-512, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem)))
+(Move [s] dst src mem) && s > 768 && s <= 1024 && logLargeCopy(v, s) =>
+	(MVC [makeValAndOff32(int32(s)-768, 768)] dst src (MVC [makeValAndOff32(256, 512)] dst src (MVC [makeValAndOff32(256, 256)] dst src (MVC [makeValAndOff32(256, 0)] dst src mem))))
 
 // Move more than 1024 bytes using a loop.
-(Move [s] dst src mem) && s > 1024 && logLargeCopy(v, s) ->
+(Move [s] dst src mem) && s > 1024 && logLargeCopy(v, s) =>
 	(LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
 
 // Lowering Zero instructions
@@ -399,25 +399,25 @@
 (Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
 (Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
 (Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
-(Zero [3] destptr mem) ->
-	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+(Zero [3] destptr mem) =>
+	(MOVBstoreconst [makeValAndOff32(0,2)] destptr
 		(MOVHstoreconst [0] destptr mem))
-(Zero [5] destptr mem) ->
-	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+(Zero [5] destptr mem) =>
+	(MOVBstoreconst [makeValAndOff32(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
-(Zero [6] destptr mem) ->
-	(MOVHstoreconst [makeValAndOff(0,4)] destptr
+(Zero [6] destptr mem) =>
+	(MOVHstoreconst [makeValAndOff32(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
-(Zero [7] destptr mem) ->
-	(MOVWstoreconst [makeValAndOff(0,3)] destptr
+(Zero [7] destptr mem) =>
+	(MOVWstoreconst [makeValAndOff32(0,3)] destptr
 		(MOVWstoreconst [0] destptr mem))
 
-(Zero [s] destptr mem) && s > 0 && s <= 1024 ->
-	(CLEAR [makeValAndOff(s, 0)] destptr mem)
+(Zero [s] destptr mem) && s > 0 && s <= 1024 =>
+	(CLEAR [makeValAndOff32(int32(s), 0)] destptr mem)
 
 // Zero more than 1024 bytes using a loop.
-(Zero [s] destptr mem) && s > 1024 ->
-	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
+(Zero [s] destptr mem) && s > 1024 =>
+	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
 
 // Lowering constants
 (Const(64|32|16|8) ...) -> (MOVDconst ...)
