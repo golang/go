@@ -2825,7 +2825,7 @@ func (l *Loader) GetErrorReporter() *ErrorReporter {
 
 // Errorf method logs an error message. See ErrorReporter.Errorf for details.
 func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
-	l.errorReporter.Errorf(s, format, args)
+	l.errorReporter.Errorf(s, format, args...)
 }
 
 // For debugging.
