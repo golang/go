@@ -4948,9 +4948,7 @@ func rewriteValuePPC64_OpPPC64FGreaterEqual(v *Value) bool {
 		v0.AuxInt = int64ToAuxInt(1)
 		v1 := b.NewValue0(v.Pos, OpPPC64ISELB, typ.Int32)
 		v1.AuxInt = int32ToAuxInt(1)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
-		v2.AuxInt = int64ToAuxInt(1)
-		v1.AddArg2(v2, cmp)
+		v1.AddArg2(v0, cmp)
 		v.AddArg3(v0, v1, cmp)
 		return true
 	}
@@ -4985,9 +4983,7 @@ func rewriteValuePPC64_OpPPC64FLessEqual(v *Value) bool {
 		v0.AuxInt = int64ToAuxInt(1)
 		v1 := b.NewValue0(v.Pos, OpPPC64ISELB, typ.Int32)
 		v1.AuxInt = int32ToAuxInt(0)
-		v2 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
-		v2.AuxInt = int64ToAuxInt(1)
-		v1.AddArg2(v2, cmp)
+		v1.AddArg2(v0, cmp)
 		v.AddArg3(v0, v1, cmp)
 		return true
 	}
