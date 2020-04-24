@@ -259,6 +259,29 @@ const (
 	Unmeetable
 )
 
+// OnceMet returns an Expectation that, once the precondition is met, asserts
+// that mustMeet is met.
+func OnceMet(precondition Expectation, mustMeet Expectation) *SimpleExpectation {
+	check := func(s State) (Verdict, interface{}) {
+		switch pre, _ := precondition.Check(s); pre {
+		case Unmeetable:
+			return Unmeetable, nil
+		case Met:
+			verdict, metBy := mustMeet.Check(s)
+			if verdict != Met {
+				return Unmeetable, metBy
+			}
+			return Met, metBy
+		default:
+			return Unmet, nil
+		}
+	}
+	return &SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("once %q is met, must have %q", precondition.Description(), mustMeet.Description()),
+	}
+}
+
 func (v Verdict) String() string {
 	switch v {
 	case Met:

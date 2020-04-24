@@ -28,13 +28,21 @@ func main() {
 }`
 
 func TestDiagnosticErrorInEditedFile(t *testing.T) {
+	// This test is very basic: start with a clean Go program, make an error, and
+	// get a diagnostic for that error. However, it also demonstrates how to
+	// combine Expectations to await more complex state in the editor.
 	runner.Run(t, exampleProgram, func(t *testing.T, env *Env) {
 		// Deleting the 'n' at the end of Println should generate a single error
 		// diagnostic.
 		env.OpenFile("main.go")
 		env.RegexpReplace("main.go", "Printl(n)", "")
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "Printl"),
+			// Once we have gotten diagnostics for the change above, we should
+			// satisfy the DiagnosticAtRegexp assertion.
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				env.DiagnosticAtRegexp("main.go", "Printl"),
+			),
 			// Assert that this test has sent no error logs to the client. This is not
 			// strictly necessary for testing this regression, but is included here
 			// as an example of using the NoErrorLogs() expectation. Feel free to
