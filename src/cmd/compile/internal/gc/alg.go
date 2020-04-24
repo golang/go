@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
+	"sort"
 )
 
 // AlgKind describes the kind of algorithms used for comparing and
@@ -553,13 +554,15 @@ func geneq(t *types.Type) *obj.LSym {
 		fn.Nbody.Append(ret)
 
 	case TSTRUCT:
-		var cond *Node
+		// Build a list of conditions to satisfy.
+		// Track their order so that we can preserve aspects of that order.
+		type nodeIdx struct {
+			n   *Node
+			idx int
+		}
+		var conds []nodeIdx
 		and := func(n *Node) {
-			if cond == nil {
-				cond = n
-				return
-			}
-			cond = nod(OANDAND, cond, n)
+			conds = append(conds, nodeIdx{n: n, idx: len(conds)})
 		}
 
 		// Walk the struct using memequal for runs of AMEM
@@ -597,8 +600,24 @@ func geneq(t *types.Type) *obj.LSym {
 			i = next
 		}
 
-		if cond == nil {
+		// Sort conditions to put runtime calls last.
+		// Preserve the rest of the ordering.
+		sort.SliceStable(conds, func(i, j int) bool {
+			x, y := conds[i], conds[j]
+			if (x.n.Op != OCALL) == (y.n.Op != OCALL) {
+				return x.idx < y.idx
+			}
+			return x.n.Op != OCALL
+		})
+
+		var cond *Node
+		if len(conds) == 0 {
 			cond = nodbool(true)
+		} else {
+			cond = conds[0].n
+			for _, c := range conds[1:] {
+				cond = nod(OANDAND, cond, c.n)
+			}
 		}
 
 		ret := nod(ORETURN, nil, nil)
