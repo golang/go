@@ -313,7 +313,11 @@ func _loadSystemRootsWithCgo() (*CertPool, error) {
 	untrustedRoots.AppendCertsFromPEM(buf)
 
 	trustedRoots := NewCertPool()
-	for _, c := range roots.certs {
+	for _, lc := range roots.lazyCerts {
+		c, err := lc.getCert()
+		if err != nil {
+			return nil, err
+		}
 		if !untrustedRoots.contains(c) {
 			trustedRoots.AddCert(c)
 		}

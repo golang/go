@@ -38,7 +38,11 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 	}
 
 	if opts.Intermediates != nil {
-		for _, intermediate := range opts.Intermediates.certs {
+		for i := 0; i < opts.Intermediates.len(); i++ {
+			intermediate, err := opts.Intermediates.cert(i)
+			if err != nil {
+				return nil, err
+			}
 			ctx, err := syscall.CertCreateCertificateContext(syscall.X509_ASN_ENCODING|syscall.PKCS_7_ASN_ENCODING, &intermediate.Raw[0], uint32(len(intermediate.Raw)))
 			if err != nil {
 				return nil, err
