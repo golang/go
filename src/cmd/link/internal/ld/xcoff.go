@@ -360,7 +360,8 @@ type XcoffLdRel64 struct {
 // xcoffLoaderReloc holds information about a relocation made by the loader.
 type xcoffLoaderReloc struct {
 	sym    *sym.Symbol
-	rel    *sym.Reloc
+	sym2   loader.Sym
+	roff   int32
 	rtype  uint16
 	symndx int32
 }
@@ -1108,51 +1109,55 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
-func Xcoffadddynrel(target *Target, ldr *loader.Loader, s *sym.Symbol, r *sym.Reloc) bool {
+func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
 	if target.IsExternal() {
 		return true
 	}
-	if s.Type <= sym.SPCLNTAB {
-		Errorf(s, "cannot have a relocation to %s in a text section symbol", r.Sym.Name)
+	if ldr.SymType(s) <= sym.SPCLNTAB {
+		ldr.Errorf(s, "cannot have a relocation to %s in a text section symbol", ldr.SymName(r.Sym()))
 		return false
 	}
 
 	xldr := &xcoffLoaderReloc{
-		sym: s,
-		rel: r,
+		sym2: s,
+		roff: r.Off(),
+	}
+	targ := r.Sym()
+	var targType sym.SymKind
+	if targ != 0 {
+		targType = ldr.SymType(targ)
 	}
 
-	switch r.Type {
+	switch r.Type() {
 	default:
-		Errorf(s, "unexpected .loader relocation to symbol: %s (type: %s)", r.Sym.Name, r.Type.String())
+		ldr.Errorf(s, "unexpected .loader relocation to symbol: %s (type: %s)", ldr.SymName(targ), r.Type().String())
 		return false
 	case objabi.R_ADDR:
-		if s.Type == sym.SXCOFFTOC && r.Sym.Type == sym.SDYNIMPORT {
+		if ldr.SymType(s) == sym.SXCOFFTOC && targType == sym.SDYNIMPORT {
 			// Imported symbol relocation
 			for i, dynsym := range xfile.loaderSymbols {
-				if ldr.Syms[dynsym.sym].Name == r.Sym.Name {
+				if ldr.SymName(dynsym.sym) == ldr.SymName(targ) {
 					xldr.symndx = int32(i + 3) // +3 because of 3 section symbols
 					break
 				}
 			}
-		} else if s.Type == sym.SDATA {
-			switch r.Sym.Sect.Seg {
+		} else if ldr.SymType(s) == sym.SDATA {
+			switch ldr.SymSect(targ).Seg {
 			default:
-				Errorf(s, "unknown segment for .loader relocation with symbol %s", r.Sym.Name)
+				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
 			case &Segtext:
 			case &Segrodata:
 				xldr.symndx = 0 // .text
 			case &Segdata:
-				if r.Sym.Type == sym.SBSS || r.Sym.Type == sym.SNOPTRBSS {
+				if targType == sym.SBSS || targType == sym.SNOPTRBSS {
 					xldr.symndx = 2 // .bss
 				} else {
 					xldr.symndx = 1 // .data
 				}
-
 			}
 
 		} else {
-			Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", r.Sym.Name, s.Type, r.Sym.Type)
+			ldr.Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", ldr.SymName(targ), ldr.SymType(s), ldr.SymType(targ))
 			return false
 		}
 
@@ -1303,14 +1308,18 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 
 	off += uint64(16 * len(f.loaderReloc))
 	for _, r := range f.loaderReloc {
+		symp := r.sym
+		if symp == nil {
+			symp = ctxt.loader.Syms[r.sym2]
+		}
 		xldr = &XcoffLdRel64{
-			Lvaddr:  uint64(r.sym.Value + int64(r.rel.Off)),
+			Lvaddr:  uint64(symp.Value + int64(r.roff)),
 			Lrtype:  r.rtype,
 			Lsymndx: r.symndx,
 		}
 
-		if r.sym.Sect != nil {
-			xldr.Lrsecnm = f.getXCOFFscnum(r.sym.Sect)
+		if symp.Sect != nil {
+			xldr.Lrsecnm = f.getXCOFFscnum(symp.Sect)
 		}
 
 		reloctab = append(reloctab, xldr)
