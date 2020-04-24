@@ -1065,8 +1065,14 @@ func Machoemitreloc(ctxt *Link) {
 	for _, sect := range Segdata.Sections {
 		machorelocsect(ctxt, sect, ctxt.datap)
 	}
-	for _, sect := range Segdwarf.Sections {
-		machorelocsect(ctxt, sect, dwarfp)
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != sect.Sym ||
+			si.secSym().Sect != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
+		machorelocsect(ctxt, sect, si.syms)
 	}
 }
 

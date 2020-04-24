@@ -35,7 +35,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
-	"cmd/link/internal/sym"
 	"flag"
 	"log"
 	"os"
@@ -156,9 +155,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if objabi.Fieldtrack_enabled != 0 {
-		ctxt.Reachparent = make(map[*sym.Symbol]*sym.Symbol)
-	}
 	checkStrictDups = *FlagStrictDups
 
 	startProfile()
@@ -298,10 +294,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 	container := ctxt.pclntab()
 	bench.Start("findfunctab")
 	ctxt.findfunctab(container)
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
+	bench.Start("dwarfGenerateDebugSyms")
+	dwarfGenerateDebugSyms(ctxt)
 	bench.Start("symtab")
 	ctxt.symtab()
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull() // XXX do it here for now
 	bench.Start("dodata")
 	ctxt.dodata()
 	bench.Start("address")
@@ -317,22 +315,18 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// for which we have computed the size and offset, in a
 	// mmap'd region. The second part writes more content, for
 	// which we don't know the size.
-	var outputMmapped bool
 	if ctxt.Arch.Family != sys.Wasm {
 		// Don't mmap if we're building for Wasm. Wasm file
 		// layout is very different so filesize is meaningless.
-		err := ctxt.Out.Mmap(filesize)
-		outputMmapped = err == nil
-	}
-	if outputMmapped {
+		if err := ctxt.Out.Mmap(filesize); err != nil {
+			panic(err)
+		}
 		// Asmb will redirect symbols to the output file mmap, and relocations
 		// will be applied directly there.
 		bench.Start("Asmb")
 		thearch.Asmb(ctxt)
 		bench.Start("reloc")
 		ctxt.reloc()
-		bench.Start("Munmap")
-		ctxt.Out.Munmap()
 	} else {
 		// If we don't mmap, we need to apply relocations before
 		// writing out.
@@ -343,6 +337,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)
+
+	bench.Start("Munmap")
+	ctxt.Out.Close() // Close handles Munmapping if necessary.
 
 	bench.Start("undef")
 	ctxt.undef()

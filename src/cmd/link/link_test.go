@@ -287,7 +287,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"-fembed-bitcode",
 		"-framework", "CoreFoundation",
 	}
-	lib := filepath.Join("testdata", "lib.go")
+	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
 	if err != nil {
 		t.Fatal(err)
@@ -308,7 +308,7 @@ func TestBuildForTvOS(t *testing.T) {
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
-	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
+	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
@@ -626,5 +626,52 @@ func TestFuncAlign(t *testing.T) {
 	}
 	if string(out) != "PASS" {
 		t.Errorf("unexpected output: %s\n", out)
+	}
+}
+
+const helloSrc = `
+package main
+import "fmt"
+func main() { fmt.Println("hello") }
+`
+
+func TestTrampoline(t *testing.T) {
+	// Test that trampoline insertion works as expected.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err = ioutil.WriteFile(src, []byte(helloSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
 	}
 }
