@@ -24,7 +24,7 @@ func TestSystemRoots(t *testing.T) {
 
 	// There are 174 system roots on Catalina, and 163 on iOS right now, require
 	// at least 100 to make sure this is not completely broken.
-	if want, have := 100, len(sysRoots.certs); have < want {
+	if want, have := 100, sysRoots.len(); have < want {
 		t.Errorf("want at least %d system roots, have %d", want, have)
 	}
 
@@ -43,11 +43,14 @@ func TestSystemRoots(t *testing.T) {
 	t.Logf("loadSystemRootsWithCgo: %v", cgoSysRootsDuration)
 
 	// Check that the two cert pools are the same.
-	sysPool := make(map[string]*Certificate, len(sysRoots.certs))
-	for _, c := range sysRoots.certs {
+	sysPool := make(map[string]*Certificate, sysRoots.len())
+	for i := 0; i < sysRoots.len(); i++ {
+		c := sysRoots.mustCert(t, i)
 		sysPool[string(c.Raw)] = c
 	}
-	for _, c := range cgoRoots.certs {
+	for i := 0; i < cgoRoots.len(); i++ {
+		c := cgoRoots.mustCert(t, i)
+
 		if _, ok := sysPool[string(c.Raw)]; ok {
 			delete(sysPool, string(c.Raw))
 		} else {
