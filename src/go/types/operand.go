@@ -266,7 +266,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
-					*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+					if check.identical(m.typ, wrongType.typ) {
+						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+					} else {
+						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+					}
+
 				} else {
 					*reason = "missing method " + m.Name()
 				}
