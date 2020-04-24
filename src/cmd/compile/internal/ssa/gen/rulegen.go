@@ -962,7 +962,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		}
 
 		// Generate a new control value (or copy an existing value).
-		genControls[i] = genResult0(rr, arch, control, false, false, newpos)
+		genControls[i] = genResult0(rr, arch, control, false, false, newpos, nil)
 	}
 	switch outdata.controls {
 	case 0:
@@ -1190,10 +1190,11 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 		rr.add(stmtf("b = %s", s[0]))
 		result = s[1]
 	}
-	genResult0(rr, arch, result, true, move, pos)
+	cse := make(map[string]string)
+	genResult0(rr, arch, result, true, move, pos, cse)
 }
 
-func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string) string {
+func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string, cse map[string]string) string {
 	resname, expr := splitNameExpr(result)
 	result = expr
 	// TODO: when generating a constant result, use f.constVal to avoid
@@ -1207,6 +1208,11 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			rr.add(stmtf("v.copyOf(%s)", result))
 		}
 		return result
+	}
+
+	w := normalizeWhitespace(result)
+	if prev := cse[w]; prev != "" {
+		return prev
 	}
 
 	op, oparch, typ, auxint, aux, args := parseValue(result, arch, rr.Loc)
@@ -1258,7 +1264,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	}
 	all := new(strings.Builder)
 	for i, arg := range args {
-		x := genResult0(rr, arch, arg, false, move, pos)
+		x := genResult0(rr, arch, arg, false, move, pos, cse)
 		if i > 0 {
 			all.WriteString(", ")
 		}
@@ -1270,6 +1276,10 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(stmtf("%s.AddArg(%s)", v, all.String()))
 	default:
 		rr.add(stmtf("%s.AddArg%d(%s)", v, len(args), all.String()))
+	}
+
+	if cse != nil {
+		cse[w] = v
 	}
 	return v
 }

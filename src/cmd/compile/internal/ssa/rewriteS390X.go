@@ -18537,18 +18537,16 @@ func rewriteValueS390X_OpSelect1(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
 		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
 		v1.AuxInt = 0
-		v2 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v2.AuxInt = 0
-		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v4 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v5 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v6 := b.NewValue0(v.Pos, OpS390XADDCconst, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v6.AuxInt = -1
-		v6.AddArg(c)
-		v5.AddArg(v6)
-		v4.AddArg3(x, y, v5)
-		v3.AddArg(v4)
-		v0.AddArg3(v1, v2, v3)
+		v2 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v3 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v4 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v5 := b.NewValue0(v.Pos, OpS390XADDCconst, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v5.AuxInt = -1
+		v5.AddArg(c)
+		v4.AddArg(v5)
+		v3.AddArg3(x, y, v4)
+		v2.AddArg(v3)
+		v0.AddArg3(v1, v1, v2)
 		v.AddArg(v0)
 		return true
 	}
@@ -18566,19 +18564,15 @@ func rewriteValueS390X_OpSelect1(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
 		v2 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
 		v2.AuxInt = 0
-		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v3.AuxInt = 0
-		v4 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v5 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v6 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v7 := b.NewValue0(v.Pos, OpS390XSUBC, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v8 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v8.AuxInt = 0
-		v7.AddArg2(v8, c)
-		v6.AddArg(v7)
-		v5.AddArg3(x, y, v6)
-		v4.AddArg(v5)
-		v1.AddArg3(v2, v3, v4)
+		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v4 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v5 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v6 := b.NewValue0(v.Pos, OpS390XSUBC, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v6.AddArg2(v2, c)
+		v5.AddArg(v6)
+		v4.AddArg3(x, y, v5)
+		v3.AddArg(v4)
+		v1.AddArg3(v2, v2, v3)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true

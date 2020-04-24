@@ -15728,9 +15728,7 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 		v.reset(OpAMD64LEAL8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [37] x)
@@ -15769,9 +15767,7 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 		v.reset(OpAMD64LEAL8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [73] x)
@@ -15797,9 +15793,7 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 		v.reset(OpAMD64LEAL8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [c] x)
@@ -16181,9 +16175,7 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 		v.reset(OpAMD64LEAQ8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULQconst [37] x)
@@ -16222,9 +16214,7 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 		v.reset(OpAMD64LEAQ8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULQconst [73] x)
@@ -16250,9 +16240,7 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 		v.reset(OpAMD64LEAQ8)
 		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULQconst [c] x)
@@ -28541,9 +28529,7 @@ func rewriteValueAMD64_OpBitLen16(v *Value) bool {
 		v0.AuxInt = int32ToAuxInt(1)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
 		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
-		v2.AddArg(x)
-		v0.AddArg2(v1, v2)
+		v0.AddArg2(v1, v1)
 		v.AddArg(v0)
 		return true
 	}
@@ -28562,9 +28548,7 @@ func rewriteValueAMD64_OpBitLen32(v *Value) bool {
 		v1.AuxInt = int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
 		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
-		v3.AddArg(x)
-		v1.AddArg2(v2, v3)
+		v1.AddArg2(v2, v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -28589,9 +28573,7 @@ func rewriteValueAMD64_OpBitLen64(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpAMD64MOVQconst, t)
 		v3.AuxInt = int64ToAuxInt(-1)
 		v4 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v5 := b.NewValue0(v.Pos, OpAMD64BSRQ, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v5.AddArg(x)
-		v4.AddArg(v5)
+		v4.AddArg(v2)
 		v0.AddArg3(v1, v3, v4)
 		v.AddArg(v0)
 		return true
@@ -28610,9 +28592,7 @@ func rewriteValueAMD64_OpBitLen8(v *Value) bool {
 		v0.AuxInt = int32ToAuxInt(1)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
 		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
-		v2.AddArg(x)
-		v0.AddArg2(v1, v2)
+		v0.AddArg2(v1, v1)
 		v.AddArg(v0)
 		return true
 	}
@@ -29591,9 +29571,7 @@ func rewriteValueAMD64_OpCtz64(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, t)
 		v2.AuxInt = int64ToAuxInt(64)
 		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v4 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
-		v4.AddArg(x)
-		v3.AddArg(v4)
+		v3.AddArg(v1)
 		v.AddArg3(v0, v2, v3)
 		return true
 	}
@@ -34047,9 +34025,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
 		v1.AuxInt = int128ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
-		v3 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v3.AuxInt = int128ToAuxInt(0)
-		v2.AddArg3(destptr, v3, mem)
+		v2.AddArg3(destptr, v1, mem)
 		v.AddArg3(v0, v1, v2)
 		return true
 	}
@@ -34075,13 +34051,9 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
 		v3.AuxInt = int64ToAuxInt(16)
 		v3.AddArg(destptr)
-		v4 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v4.AuxInt = int128ToAuxInt(0)
-		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
-		v6 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v6.AuxInt = int128ToAuxInt(0)
-		v5.AddArg3(destptr, v6, mem)
-		v2.AddArg3(v3, v4, v5)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+		v4.AddArg3(destptr, v1, mem)
+		v2.AddArg3(v3, v1, v4)
 		v.AddArg3(v0, v1, v2)
 		return true
 	}
@@ -34107,20 +34079,14 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
 		v3.AuxInt = int64ToAuxInt(32)
 		v3.AddArg(destptr)
-		v4 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v4.AuxInt = int128ToAuxInt(0)
-		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
-		v6 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
-		v6.AuxInt = int64ToAuxInt(16)
-		v6.AddArg(destptr)
-		v7 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v7.AuxInt = int128ToAuxInt(0)
-		v8 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
-		v9 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
-		v9.AuxInt = int128ToAuxInt(0)
-		v8.AddArg3(destptr, v9, mem)
-		v5.AddArg3(v6, v7, v8)
-		v2.AddArg3(v3, v4, v5)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+		v5 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+		v5.AuxInt = int64ToAuxInt(16)
+		v5.AddArg(destptr)
+		v6 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+		v6.AddArg3(destptr, v1, mem)
+		v4.AddArg3(v5, v1, v6)
+		v2.AddArg3(v3, v1, v4)
 		v.AddArg3(v0, v1, v2)
 		return true
 	}
