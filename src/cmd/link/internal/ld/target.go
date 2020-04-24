@@ -61,6 +61,7 @@ func (t *Target) CanUsePlugins() bool {
 }
 
 func (t *Target) IsElf() bool {
+	t.mustSetHeadType()
 	return t.IsELF
 }
 
@@ -112,35 +113,49 @@ func (t *Target) IsWasm() bool {
 //
 
 func (t *Target) IsLinux() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hlinux
 }
 
 func (t *Target) IsDarwin() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hdarwin
 }
 
 func (t *Target) IsWindows() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hwindows
 }
 
 func (t *Target) IsPlan9() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hplan9
 }
 
 func (t *Target) IsAIX() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Haix
 }
 
 func (t *Target) IsSolaris() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hsolaris
 }
 
 func (t *Target) IsNetbsd() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hnetbsd
 }
 
 func (t *Target) IsOpenbsd() bool {
+	t.mustSetHeadType()
 	return t.HeadType == objabi.Hopenbsd
+}
+
+func (t *Target) mustSetHeadType() {
+	if t.HeadType == objabi.Hunknown {
+		panic("HeadType is not set")
+	}
 }
 
 //
