@@ -155,13 +155,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 			usage()
 		}
 	}
-
-	if *flagnewDoData {
-		// New dodata() is currently only implemented for selected targets.
-		if !(ctxt.IsElf() &&
-			(ctxt.IsAMD64() || ctxt.Is386())) {
-			*flagnewDoData = false
-		}
+	if ctxt.HeadType == objabi.Hunknown {
+		ctxt.HeadType.Set(objabi.GOOS)
 	}
 
 	checkStrictDups = *FlagStrictDups
@@ -199,15 +194,18 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("libinit")
 	libinit(ctxt) // creates outfile
-
-	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
-	}
-
 	bench.Start("computeTLSOffset")
 	ctxt.computeTLSOffset()
 	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
+
+	if *flagnewDoData {
+		// New dodata() is currently only implemented for selected targets.
+		if !(ctxt.IsElf() &&
+			(ctxt.IsAMD64() || ctxt.Is386())) {
+			*flagnewDoData = false
+		}
+	}
 
 	if ctxt.linkShared && !ctxt.IsELF {
 		Exitf("-linkshared can only be used on elf systems")
