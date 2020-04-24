@@ -143,6 +143,7 @@ pre {
     float: left;
     overflow: hidden;
     text-align: right;
+    margin-top: 7px;
 }
 
 .lines div {
