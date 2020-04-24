@@ -10,4 +10,4 @@ package goversion
 //
 // When incrementing this, also add to the list at src/go/build/doc.go
 // (search for "onward").
-const Version = 15
+const Version = 14
