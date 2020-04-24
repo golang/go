@@ -373,6 +373,11 @@ func canMergeLoad(target, load *Value) bool {
 	return true
 }
 
+// symNamed reports whether sym's name is name.
+func symNamed(sym Sym, name string) bool {
+	return sym.String() == name
+}
+
 // isSameSym reports whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)

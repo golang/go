@@ -16009,7 +16009,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		return true
 	}
 	// match: (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	// cond: isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
 	// result: (Invalid)
 	for {
 		if v_0.Op != OpLoad {
@@ -16020,7 +16020,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		if v_0_0.Op != OpOffPtr {
 			break
 		}
-		c := v_0_0.AuxInt
+		c := auxIntToInt64(v_0_0.AuxInt)
 		v_0_0_0 := v_0_0.Args[0]
 		if v_0_0_0.Op != OpSP {
 			break
@@ -16029,15 +16029,15 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		if v_0_1.Op != OpStaticCall {
 			break
 		}
-		sym := v_0_1.Aux
-		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+		sym := auxToSym(v_0_1.Aux)
+		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
 		return true
 	}
 	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	// cond: isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
+	// cond: symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize() + config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")
 	// result: (Invalid)
 	for {
 		if v_0.Op != OpOffPtr {
@@ -16052,7 +16052,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		if v_0_0_0.Op != OpOffPtr {
 			break
 		}
-		c := v_0_0_0.AuxInt
+		c := auxIntToInt64(v_0_0_0.AuxInt)
 		v_0_0_0_0 := v_0_0_0.Args[0]
 		if v_0_0_0_0.Op != OpSP {
 			break
@@ -16061,8 +16061,8 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		if v_0_0_1.Op != OpStaticCall {
 			break
 		}
-		sym := v_0_0_1.Aux
-		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+		sym := auxToSym(v_0_0_1.Aux)
+		if !(symNamed(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil(), v, "removed nil check")) {
 			break
 		}
 		v.reset(OpInvalid)
@@ -21606,7 +21606,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if v_0_0.Op != OpOffPtr {
 			break
 		}
-		c := v_0_0.AuxInt
+		c := auxIntToInt64(v_0_0.AuxInt)
 		v_0_0_0 := v_0_0.Args[0]
 		if v_0_0_0.Op != OpSP {
 			break
@@ -21634,7 +21634,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		if v_0_0_0.Op != OpOffPtr {
 			break
 		}
-		c := v_0_0_0.AuxInt
+		c := auxIntToInt64(v_0_0_0.AuxInt)
 		v_0_0_0_0 := v_0_0_0.Args[0]
 		if v_0_0_0_0.Op != OpSP {
 			break
@@ -24091,7 +24091,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		if v_0_0.Op != OpOffPtr {
 			break
 		}
-		c := v_0_0.AuxInt
+		c := auxIntToInt64(v_0_0.AuxInt)
 		v_0_0_0 := v_0_0.Args[0]
 		if v_0_0_0.Op != OpSP || mem != v_1 || !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
 			break
