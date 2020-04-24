@@ -475,7 +475,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		vcs, repo, rootPath = rr.vcs, rr.Repo, rr.Root
 	}
-	if !blindRepo && !vcs.isSecure(repo) && security == web.SecureOnly {
+	if !blindRepo && !vcs.isSecure(repo) && security != web.Insecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 
