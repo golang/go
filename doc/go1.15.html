@@ -172,6 +172,17 @@ TODO
   </dd>
 </dl>
 
+<dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+  <dd>
+    <p><!-- CL 147598, 229537 -->
+      All profile endpoints now support a "seconds" parameter. When present,
+      the endpoint profiles for the specified number of seconds and reports the difference.
+      The meaning of the "seconds" parameter in the <code>cpu</code> profile and
+      the trace endpoints is unchanged.
+    </p>
+  </dd>
+</dl>
+
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
     <p><!-- CL 227645 -->
@@ -220,6 +231,16 @@ TODO
       <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
       the Go program will now reliably crash with a stack trace.
       In earlier releases the behavior was unpredictable.
+    </p>
+  </dd>
+</dl>
+
+<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 189318 -->
+      The goroutine profile includes the profile labels associated with each goroutine
+      at the time of profiling. This feature is not yet implemented for the profile
+      reported with <code>debug=2</code>.
     </p>
   </dd>
 </dl>
