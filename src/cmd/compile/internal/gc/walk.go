@@ -3518,27 +3518,16 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 		// prepare for rewrite below
 		n.Left = cheapexpr(n.Left, init)
 		n.Right = cheapexpr(n.Right, init)
-
-		lstr := conv(n.Left, types.Types[TSTRING])
-		rstr := conv(n.Right, types.Types[TSTRING])
-		lptr := nod(OSPTR, lstr, nil)
-		rptr := nod(OSPTR, rstr, nil)
-		llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
-		rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
-
-		fn := syslook("memequal")
-		fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
-		r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
-
+		eqlen, eqmem := eqstring(n.Left, n.Right)
 		// quick check of len before full compare for == or !=.
 		// memequal then tests equality up to length len.
 		if n.Op == OEQ {
 			// len(left) == len(right) && memequal(left, right, len)
-			r = nod(OANDAND, nod(OEQ, llen, rlen), r)
+			r = nod(OANDAND, eqlen, eqmem)
 		} else {
 			// len(left) != len(right) || !memequal(left, right, len)
-			r = nod(ONOT, r, nil)
-			r = nod(OOROR, nod(ONE, llen, rlen), r)
+			eqlen.Op = ONE
+			r = nod(OOROR, eqlen, nod(ONOT, eqmem, nil))
 		}
 	} else {
 		// sys_cmpstring(s1, s2) :: 0

@@ -664,6 +664,32 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 	return ne
 }
 
+// eqstring returns the nodes
+//   len(s) == len(t)
+// and
+//   memequal(s.ptr, t.ptr, len(s))
+// which can be used to construct string equality comparison.
+// eqlen must be evaluated before eqmem, and shortcircuiting is required.
+func eqstring(s, t *Node) (eqlen, eqmem *Node) {
+	s = conv(s, types.Types[TSTRING])
+	t = conv(t, types.Types[TSTRING])
+	sptr := nod(OSPTR, s, nil)
+	tptr := nod(OSPTR, t, nil)
+	slen := conv(nod(OLEN, s, nil), types.Types[TUINTPTR])
+	tlen := conv(nod(OLEN, t, nil), types.Types[TUINTPTR])
+
+	fn := syslook("memequal")
+	fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
+	call := nod(OCALL, fn, nil)
+	call.List.Append(sptr, tptr, slen.copy())
+	call = typecheck(call, ctxExpr|ctxMultiOK)
+
+	cmp := nod(OEQ, slen, tlen)
+	cmp = typecheck(cmp, ctxExpr)
+	cmp.Type = types.Types[TBOOL]
+	return cmp, call
+}
+
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
