@@ -1391,45 +1391,6 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	}
 
 	f.loaderSize = off + uint64(stlen)
-
-	/* again for printing */
-	if !*flagA {
-		return
-	}
-
-	ctxt.Logf("\n.loader section")
-	// write in buf
-	var buf bytes.Buffer
-
-	binary.Write(&buf, ctxt.Arch.ByteOrder, hdr)
-	for _, s := range symtab {
-		binary.Write(&buf, ctxt.Arch.ByteOrder, s)
-
-	}
-	for _, f := range importtab {
-		buf.WriteString(f.Limpidpath)
-		buf.WriteByte(0)
-		buf.WriteString(f.Limpidbase)
-		buf.WriteByte(0)
-		buf.WriteString(f.Limpidmem)
-		buf.WriteByte(0)
-	}
-	for _, s := range strtab {
-		binary.Write(&buf, ctxt.Arch.ByteOrder, s.size)
-		buf.WriteString(s.name)
-		buf.WriteByte(0) // null terminator
-	}
-
-	// Log buffer
-	ctxt.Logf("\n\t%.8x|", globalOff)
-	for i, b := range buf.Bytes() {
-		if i > 0 && i%16 == 0 {
-			ctxt.Logf("\n\t%.8x|", uint64(globalOff)+uint64(i))
-		}
-		ctxt.Logf(" %.2x", b)
-	}
-	ctxt.Logf("\n")
-
 }
 
 // XCOFF assembling and writing file

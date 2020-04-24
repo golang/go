@@ -74,7 +74,7 @@ var (
 	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
-	flagA           = flag.Bool("a", false, "disassemble output")
+	flagA           = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC           = flag.Bool("c", false, "dump call graph")
 	FlagD           = flag.Bool("d", false, "disable dynamic executable")
 	flagF           = flag.Bool("f", false, "ignore version mismatch")
