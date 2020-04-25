@@ -386,7 +386,7 @@ func TestReverseProxyFlushIntervalHeaders(t *testing.T) {
 	}
 }
 
-func TestReverseProxyCancelation(t *testing.T) {
+func TestReverseProxyCancellation(t *testing.T) {
 	const backendResponse = "I am the backend"
 
 	reqInFlight := make(chan struct{})
