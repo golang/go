@@ -2555,7 +2555,10 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		return true
 	}
 
-	for _, s := range ctxt.Syms.Allsym {
+	for _, s := range ctxt.loader.Syms {
+		if s == nil {
+			continue
+		}
 		if !shouldBeInSymbolTable(s) {
 			continue
 		}
@@ -2909,7 +2912,10 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
 }
 
 func (ctxt *Link) dumpsyms() {
-	for _, s := range ctxt.Syms.Allsym {
+	for _, s := range ctxt.loader.Syms {
+		if s == nil {
+			continue
+		}
 		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
 		for i := range s.R {
 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
