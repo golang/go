@@ -1893,18 +1893,6 @@ func (state *dodataState) allocateDwarfSections2(ctxt *Link) {
 }
 
 func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
-	if ctxt.HeadType == objabi.Hdarwin {
-		// Some symbols may no longer belong in syms
-		// due to movement in machosymorder.
-		newSyms := make([]loader.Sym, 0, len(syms))
-		for _, s := range syms {
-			if state.symType(s) == symn {
-				newSyms = append(newSyms, s)
-			}
-		}
-		syms = newSyms
-	}
-
 	var head, tail loader.Sym
 	ldr := ctxt.loader
 	for _, s := range syms {
