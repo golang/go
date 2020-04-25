@@ -1,7 +1,7 @@
 -- summary --
 CodeLensCount = 2
 CompletionsCount = 237
-CompletionSnippetCount = 75
+CompletionSnippetCount = 76
 UnimportedCompletionsCount = 6
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 8

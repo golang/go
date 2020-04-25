@@ -1734,8 +1734,7 @@ func (ci candidateInference) applyTypeNameModifiers(typ types.Type) types.Type {
 // matchesVariadic returns true if we are completing a variadic
 // parameter and candType is a compatible slice type.
 func (ci candidateInference) matchesVariadic(candType types.Type) bool {
-	return ci.variadicType != nil && types.AssignableTo(ci.objType, candType)
-
+	return ci.variadicType != nil && types.AssignableTo(candType, ci.objType)
 }
 
 // findSwitchStmt returns an *ast.CaseClause's corresponding *ast.SwitchStmt or

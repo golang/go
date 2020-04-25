@@ -8,9 +8,10 @@ func bar() []string { //@item(vFunc, "bar", "func() []string", "func")
 
 func _() {
 	var (
-		i  int      //@item(vInt, "i", "int", "var")
-		s  string   //@item(vStr, "s", "string", "var")
-		ss []string //@item(vStrSlice, "ss", "[]string", "var")
+		i  int        //@item(vInt, "i", "int", "var")
+		s  string     //@item(vStr, "s", "string", "var")
+		ss []string   //@item(vStrSlice, "ss", "[]string", "var")
+		v interface{} //@item(vIntf, "v", "interface{}", "var")
 	)
 
 	foo()           //@rank(")", vInt, vStr),rank(")", vInt, vStrSlice)
@@ -20,6 +21,9 @@ func _() {
 
   // snippet will add the "..." for you
 	foo(123, ) //@snippet(")", vStrSlice, "ss...", "ss..."),snippet(")", vFunc, "bar()...", "bar()..."),snippet(")", vStr, "s", "s")
+
+	// don't add "..." for interface{}
+	foo(123, ) //@snippet(")", vIntf, "v", "v")
 }
 
 func qux(...func()) {}
