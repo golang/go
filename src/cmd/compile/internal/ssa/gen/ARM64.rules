@@ -315,95 +315,95 @@
 (LocalAddr {sym} base _) => (MOVDaddr {sym} base)
 
 // loads
-(Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t)) -> (MOVWload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) -> (MOVWUload ptr mem)
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
-(Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
-(Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
+(Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t)  && isSigned(t))  => (MOVBload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t)  && !isSigned(t)) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t))  => (MOVHload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t))  => (MOVWload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
 
 // stores
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && !is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
 
 // zeroing
-(Zero [0] _ mem) -> mem
-(Zero [1] ptr mem) -> (MOVBstore ptr (MOVDconst [0]) mem)
-(Zero [2] ptr mem) -> (MOVHstore ptr (MOVDconst [0]) mem)
-(Zero [4] ptr mem) -> (MOVWstore ptr (MOVDconst [0]) mem)
-(Zero [8] ptr mem) -> (MOVDstore ptr (MOVDconst [0]) mem)
+(Zero [0] _ mem) => mem
+(Zero [1] ptr mem) => (MOVBstore ptr (MOVDconst [0]) mem)
+(Zero [2] ptr mem) => (MOVHstore ptr (MOVDconst [0]) mem)
+(Zero [4] ptr mem) => (MOVWstore ptr (MOVDconst [0]) mem)
+(Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst [0]) mem)
 
-(Zero [3] ptr mem) ->
+(Zero [3] ptr mem) =>
 	(MOVBstore [2] ptr (MOVDconst [0])
 		(MOVHstore ptr (MOVDconst [0]) mem))
-(Zero [5] ptr mem) ->
+(Zero [5] ptr mem) =>
 	(MOVBstore [4] ptr (MOVDconst [0])
 		(MOVWstore ptr (MOVDconst [0]) mem))
-(Zero [6] ptr mem) ->
+(Zero [6] ptr mem) =>
 	(MOVHstore [4] ptr (MOVDconst [0])
 		(MOVWstore ptr (MOVDconst [0]) mem))
-(Zero [7] ptr mem) ->
+(Zero [7] ptr mem) =>
 	(MOVBstore [6] ptr (MOVDconst [0])
 		(MOVHstore [4] ptr (MOVDconst [0])
 			(MOVWstore ptr (MOVDconst [0]) mem)))
-(Zero [9] ptr mem) ->
+(Zero [9] ptr mem) =>
 	(MOVBstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [10] ptr mem) ->
+(Zero [10] ptr mem) =>
 	(MOVHstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [11] ptr mem) ->
+(Zero [11] ptr mem) =>
 	(MOVBstore [10] ptr (MOVDconst [0])
 		(MOVHstore [8] ptr (MOVDconst [0])
 			(MOVDstore ptr (MOVDconst [0]) mem)))
-(Zero [12] ptr mem) ->
+(Zero [12] ptr mem) =>
 	(MOVWstore [8] ptr (MOVDconst [0])
 		(MOVDstore ptr (MOVDconst [0]) mem))
-(Zero [13] ptr mem) ->
+(Zero [13] ptr mem) =>
 	(MOVBstore [12] ptr (MOVDconst [0])
 		(MOVWstore [8] ptr (MOVDconst [0])
 			(MOVDstore ptr (MOVDconst [0]) mem)))
-(Zero [14] ptr mem) ->
+(Zero [14] ptr mem) =>
 	(MOVHstore [12] ptr (MOVDconst [0])
 		(MOVWstore [8] ptr (MOVDconst [0])
 			(MOVDstore ptr (MOVDconst [0]) mem)))
-(Zero [15] ptr mem) ->
+(Zero [15] ptr mem) =>
 	(MOVBstore [14] ptr (MOVDconst [0])
 		(MOVHstore [12] ptr (MOVDconst [0])
 			(MOVWstore [8] ptr (MOVDconst [0])
 				(MOVDstore ptr (MOVDconst [0]) mem))))
-(Zero [16] ptr mem) ->
+(Zero [16] ptr mem) =>
 	(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)
 
-(Zero [32] ptr mem) ->
+(Zero [32] ptr mem) =>
 	(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
 		(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))
 
-(Zero [48] ptr mem) ->
+(Zero [48] ptr mem) =>
 	(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
 		(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
 			(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem)))
 
-(Zero [64] ptr mem) ->
+(Zero [64] ptr mem) =>
 	(STP [48] ptr (MOVDconst [0]) (MOVDconst [0])
 		(STP [32] ptr (MOVDconst [0]) (MOVDconst [0])
 			(STP [16] ptr (MOVDconst [0]) (MOVDconst [0])
 				(STP [0] ptr (MOVDconst [0]) (MOVDconst [0]) mem))))
 
 // strip off fractional word zeroing
-(Zero [s] ptr mem) && s%16 != 0 && s%16 <= 8 && s > 16 ->
+(Zero [s] ptr mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
 	(Zero [8]
 		(OffPtr <ptr.Type> ptr [s-8])
 		(Zero [s-s%16] ptr mem))
-(Zero [s] ptr mem) && s%16 != 0 && s%16 > 8 && s > 16 ->
+(Zero [s] ptr mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
 	(Zero [16]
 		(OffPtr <ptr.Type> ptr [s-16])
 		(Zero [s-s%16] ptr mem))
@@ -412,50 +412,50 @@
 // 4, 16, and 64 are magic constants, see runtime/mkduff.go
 (Zero [s] ptr mem)
 	&& s%16 == 0 && s > 64 && s <= 16*64
-	&& !config.noDuffDevice ->
+	&& !config.noDuffDevice =>
 	(DUFFZERO [4 * (64 - s/16)] ptr mem)
 
 // large zeroing uses a loop
 (Zero [s] ptr mem)
-	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice) ->
+	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice) =>
 	(LoweredZero
 		ptr
 		(ADDconst <ptr.Type> [s-16] ptr)
 		mem)
 
 // moves
-(Move [0] _ _ mem) -> mem
-(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
-(Move [2] dst src mem) -> (MOVHstore dst (MOVHUload src mem) mem)
-(Move [4] dst src mem) -> (MOVWstore dst (MOVWUload src mem) mem)
-(Move [8] dst src mem) -> (MOVDstore dst (MOVDload src mem) mem)
+(Move [0] _ _ mem) => mem
+(Move [1] dst src mem) => (MOVBstore dst (MOVBUload src mem) mem)
+(Move [2] dst src mem) => (MOVHstore dst (MOVHUload src mem) mem)
+(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
+(Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
 
-(Move [3] dst src mem) ->
+(Move [3] dst src mem) =>
 	(MOVBstore [2] dst (MOVBUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
-(Move [5] dst src mem) ->
+(Move [5] dst src mem) =>
 	(MOVBstore [4] dst (MOVBUload [4] src mem)
 		(MOVWstore dst (MOVWUload src mem) mem))
-(Move [6] dst src mem) ->
+(Move [6] dst src mem) =>
 	(MOVHstore [4] dst (MOVHUload [4] src mem)
 		(MOVWstore dst (MOVWUload src mem) mem))
-(Move [7] dst src mem) ->
+(Move [7] dst src mem) =>
 	(MOVBstore [6] dst (MOVBUload [6] src mem)
 		(MOVHstore [4] dst (MOVHUload [4] src mem)
 			(MOVWstore dst (MOVWUload src mem) mem)))
-(Move [12] dst src mem) ->
+(Move [12] dst src mem) =>
 	(MOVWstore [8] dst (MOVWUload [8] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [16] dst src mem) ->
+(Move [16] dst src mem) =>
 	(MOVDstore [8] dst (MOVDload [8] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [24] dst src mem) ->
+(Move [24] dst src mem) =>
 	(MOVDstore [16] dst (MOVDload [16] src mem)
 		(MOVDstore [8] dst (MOVDload [8] src mem)
 			(MOVDstore dst (MOVDload src mem) mem)))
 
 // strip off fractional word move
-(Move [s] dst src mem) && s%8 != 0 && s > 8 ->
+(Move [s] dst src mem) && s%8 != 0 && s > 8 =>
 	(Move [s%8]
 		(OffPtr <dst.Type> dst [s-s%8])
 		(OffPtr <src.Type> src [s-s%8])
@@ -464,12 +464,12 @@
 // medium move uses a duff device
 (Move [s] dst src mem)
 	&& s > 32 && s <= 16*64 && s%16 == 8
-	&& !config.noDuffDevice && logLargeCopy(v, s) ->
-	(MOVDstore [s-8] dst (MOVDload [s-8] src mem)
+	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
 		(DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
 (Move [s] dst src mem)
 	&& s > 32 && s <= 16*64 && s%16 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) ->
+	&& !config.noDuffDevice && logLargeCopy(v, s) =>
 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
 // 8 is the number of bytes to encode:
 //
@@ -480,7 +480,7 @@
 
 // large move uses a loop
 (Move [s] dst src mem)
-	&& s > 24 && s%8 == 0 && logLargeCopy(v, s) ->
+	&& s > 24 && s%8 == 0 && logLargeCopy(v, s) =>
 	(LoweredMove
 		dst
 		src
@@ -488,67 +488,67 @@
 		mem)
 
 // calls
-(StaticCall ...) -> (CALLstatic ...)
-(ClosureCall ...) -> (CALLclosure ...)
-(InterCall ...) -> (CALLinter ...)
+(StaticCall ...) => (CALLstatic ...)
+(ClosureCall ...) => (CALLclosure ...)
+(InterCall ...) => (CALLinter ...)
 
 // checks
-(NilCheck ...) -> (LoweredNilCheck ...)
-(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
-(IsInBounds idx len) -> (LessThanU (CMP idx len))
-(IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
+(NilCheck ...) => (LoweredNilCheck ...)
+(IsNonNil ptr) => (NotEqual (CMPconst [0] ptr))
+(IsInBounds idx len) => (LessThanU (CMP idx len))
+(IsSliceInBounds idx len) => (LessEqualU (CMP idx len))
 
 // pseudo-ops
-(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
-(GetCallerSP ...) -> (LoweredGetCallerSP ...)
-(GetCallerPC ...) -> (LoweredGetCallerPC ...)
+(GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+(GetCallerSP ...) => (LoweredGetCallerSP ...)
+(GetCallerPC ...) => (LoweredGetCallerPC ...)
 
 // Absorb pseudo-ops into blocks.
-(If (Equal cc) yes no) -> (EQ cc yes no)
-(If (NotEqual cc) yes no) -> (NE cc yes no)
-(If (LessThan cc) yes no) -> (LT cc yes no)
-(If (LessThanU cc) yes no) -> (ULT cc yes no)
-(If (LessEqual cc) yes no) -> (LE cc yes no)
-(If (LessEqualU cc) yes no) -> (ULE cc yes no)
-(If (GreaterThan cc) yes no) -> (GT cc yes no)
-(If (GreaterThanU cc) yes no) -> (UGT cc yes no)
-(If (GreaterEqual cc) yes no) -> (GE cc yes no)
-(If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
-(If (LessThanF cc) yes no) -> (FLT cc yes no)
-(If (LessEqualF cc) yes no) -> (FLE cc yes no)
-(If (GreaterThanF cc) yes no) -> (FGT cc yes no)
-(If (GreaterEqualF cc) yes no) -> (FGE cc yes no)
+(If (Equal cc) yes no) => (EQ cc yes no)
+(If (NotEqual cc) yes no) => (NE cc yes no)
+(If (LessThan cc) yes no) => (LT cc yes no)
+(If (LessThanU cc) yes no) => (ULT cc yes no)
+(If (LessEqual cc) yes no) => (LE cc yes no)
+(If (LessEqualU cc) yes no) => (ULE cc yes no)
+(If (GreaterThan cc) yes no) => (GT cc yes no)
+(If (GreaterThanU cc) yes no) => (UGT cc yes no)
+(If (GreaterEqual cc) yes no) => (GE cc yes no)
+(If (GreaterEqualU cc) yes no) => (UGE cc yes no)
+(If (LessThanF cc) yes no) => (FLT cc yes no)
+(If (LessEqualF cc) yes no) => (FLE cc yes no)
+(If (GreaterThanF cc) yes no) => (FGT cc yes no)
+(If (GreaterEqualF cc) yes no) => (FGE cc yes no)
 
-(If cond yes no) -> (NZ cond yes no)
+(If cond yes no) => (NZ cond yes no)
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
-(AtomicLoad8   ...) -> (LDARB ...)
-(AtomicLoad32  ...) -> (LDARW ...)
-(AtomicLoad64  ...) -> (LDAR  ...)
-(AtomicLoadPtr ...) -> (LDAR  ...)
+(AtomicLoad8   ...) => (LDARB ...)
+(AtomicLoad32  ...) => (LDARW ...)
+(AtomicLoad64  ...) => (LDAR  ...)
+(AtomicLoadPtr ...) => (LDAR  ...)
 
-(AtomicStore8       ...) -> (STLRB ...)
-(AtomicStore32      ...) -> (STLRW ...)
-(AtomicStore64      ...) -> (STLR  ...)
-(AtomicStorePtrNoWB ...) -> (STLR  ...)
+(AtomicStore8       ...) => (STLRB ...)
+(AtomicStore32      ...) => (STLRW ...)
+(AtomicStore64      ...) => (STLR  ...)
+(AtomicStorePtrNoWB ...) => (STLR  ...)
 
-(AtomicExchange(32|64) ...) -> (LoweredAtomicExchange(32|64) ...)
-(AtomicAdd(32|64) ...) -> (LoweredAtomicAdd(32|64) ...)
-(AtomicCompareAndSwap(32|64) ...) -> (LoweredAtomicCas(32|64) ...)
+(AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
+(AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
+(AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64) ...)
 
 // Currently the updated value is not used, but we need a register to temporarily hold it.
-(AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
-(AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
+(AtomicAnd8 ptr val mem) => (Select1 (LoweredAtomicAnd8 ptr val mem))
+(AtomicOr8  ptr val mem) => (Select1 (LoweredAtomicOr8  ptr val mem))
 
-(AtomicAdd(32|64)Variant ...) -> (LoweredAtomicAdd(32|64)Variant ...)
+(AtomicAdd(32|64)Variant ...) => (LoweredAtomicAdd(32|64)Variant ...)
 
 // Write barrier.
-(WB ...) -> (LoweredWB ...)
+(WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 -> (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
 
 // Optimizations
 
