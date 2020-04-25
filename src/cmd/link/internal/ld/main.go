@@ -306,8 +306,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	dwarfcompress(ctxt)
 	bench.Start("layout")
 	filesize := ctxt.layout(order)
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull(symGroupType) // XXX do it here for now
 
 	// Write out the output file.
 	// It is split into two parts (Asmb and Asmb2). The first
@@ -325,7 +323,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// Asmb will redirect symbols to the output file mmap, and relocations
 	// will be applied directly there.
 	bench.Start("Asmb")
+	ctxt.loader.InitOutData()
 	thearch.Asmb(ctxt, ctxt.loader)
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull(symGroupType) // XXX do it here for now
 	bench.Start("reloc")
 	ctxt.reloc()
 	bench.Start("Asmb2")

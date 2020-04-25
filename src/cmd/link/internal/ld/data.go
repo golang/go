@@ -716,7 +716,7 @@ func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 }
 
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
-	writeBlocks(out, ctxt.outSem, ctxt.Textp, addr, size, pad)
+	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp2, addr, size, pad)
 }
 
 const blockSize = 1 << 20 // 1MB chunks written at a time.
@@ -726,9 +726,9 @@ const blockSize = 1 << 20 // 1MB chunks written at a time.
 // as many goroutines as necessary to accomplish this task. This call then
 // blocks, waiting on the writes to complete. Note that we use the sem parameter
 // to limit the number of concurrent writes taking place.
-func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64, pad []byte) {
+func writeBlocks(out *OutBuf, sem chan int, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
 	for i, s := range syms {
-		if s.Value >= addr && !s.Attr.SubSymbol() {
+		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
 			syms = syms[i:]
 			break
 		}
@@ -740,13 +740,14 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 		// Find the last symbol we'd write.
 		idx := -1
 		for i, s := range syms {
-			if s.Attr.SubSymbol() {
+			if ldr.AttrSubSymbol(s) {
 				continue
 			}
 
 			// If the next symbol's size would put us out of bounds on the total length,
 			// stop looking.
-			if s.Value+s.Size > lastAddr {
+			end := ldr.SymValue(s) + ldr.SymSize(s)
+			if end > lastAddr {
 				break
 			}
 
@@ -754,7 +755,7 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 			idx = i
 
 			// If we cross over the max size, we've got enough symbols.
-			if s.Value+s.Size > addr+max {
+			if end > addr+max {
 				break
 			}
 		}
@@ -775,11 +776,11 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 			// Skip over sub symbols so we won't split a containter symbol
 			// into two blocks.
 			next := syms[idx+1]
-			for next.Attr.SubSymbol() {
+			for ldr.AttrSubSymbol(next) {
 				idx++
 				next = syms[idx+1]
 			}
-			length = next.Value - addr
+			length = ldr.SymValue(next) - addr
 		}
 		if length == 0 || length > lastAddr-addr {
 			length = lastAddr - addr
@@ -789,13 +790,13 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 		if o, err := out.View(uint64(out.Offset() + written)); err == nil {
 			sem <- 1
 			wg.Add(1)
-			go func(o *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
-				writeBlock(o, syms, addr, size, pad)
+			go func(o *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
+				writeBlock(o, ldr, syms, addr, size, pad)
 				wg.Done()
 				<-sem
-			}(o, syms, addr, length, pad)
+			}(o, ldr, syms, addr, length, pad)
 		} else { // output not mmaped, don't parallelize.
-			writeBlock(out, syms, addr, length, pad)
+			writeBlock(out, ldr, syms, addr, length, pad)
 		}
 
 		// Prepare for the next loop.
@@ -808,9 +809,9 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 	wg.Wait()
 }
 
-func writeBlock(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+func writeBlock(out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
 	for i, s := range syms {
-		if s.Value >= addr && !s.Attr.SubSymbol() {
+		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
 			syms = syms[i:]
 			break
 		}
@@ -822,31 +823,33 @@ func writeBlock(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	// so dwarfcompress will fix this up later if necessary.
 	eaddr := addr + size
 	for _, s := range syms {
-		if s.Attr.SubSymbol() {
+		if ldr.AttrSubSymbol(s) {
 			continue
 		}
-		if s.Value >= eaddr {
+		val := ldr.SymValue(s)
+		if val >= eaddr {
 			break
 		}
-		if s.Value < addr {
-			Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
+		if val < addr {
+			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, val, ldr.SymType(s))
 			errorexit()
 		}
-		if addr < s.Value {
-			out.WriteStringPad("", int(s.Value-addr), pad)
-			addr = s.Value
+		if addr < val {
+			out.WriteStringPad("", int(val-addr), pad)
+			addr = val
 		}
-		out.WriteSym(s)
-		addr += int64(len(s.P))
-		if addr < s.Value+s.Size {
-			out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
-			addr = s.Value + s.Size
+		out.WriteSym(ldr, s)
+		addr += int64(len(ldr.Data(s)))
+		siz := ldr.SymSize(s)
+		if addr < val+siz {
+			out.WriteStringPad("", int(val+siz-addr), pad)
+			addr = val + siz
 		}
-		if addr != s.Value+s.Size {
-			Errorf(s, "phase error: addr=%#x value+size=%#x", addr, s.Value+s.Size)
+		if addr != val+siz {
+			ldr.Errorf(s, "phase error: addr=%#x value+size=%#x", addr, val+siz)
 			errorexit()
 		}
-		if s.Value+s.Size >= eaddr {
+		if val+siz >= eaddr {
 			break
 		}
 	}
@@ -885,7 +888,7 @@ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
 }
 
 func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	writeBlocks(out, ctxt.outSem, ctxt.datap, addr, size, zeros[:])
+	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap2, addr, size, zeros[:])
 }
 
 func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
@@ -896,14 +899,14 @@ func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	// section, but this would run the risk of undoing any file offset
 	// adjustments made during layout.
 	n := 0
-	for i := range dwarfp {
-		n += len(dwarfp[i].syms)
+	for i := range dwarfp2 {
+		n += len(dwarfp2[i].syms)
 	}
-	syms := make([]*sym.Symbol, 0, n)
-	for i := range dwarfp {
-		syms = append(syms, dwarfp[i].syms...)
+	syms := make([]loader.Sym, 0, n)
+	for i := range dwarfp2 {
+		syms = append(syms, dwarfp2[i].syms...)
 	}
-	writeBlocks(out, ctxt.outSem, syms, addr, size, zeros[:])
+	writeBlocks(out, ctxt.outSem, ctxt.loader, syms, addr, size, zeros[:])
 }
 
 var zeros [512]byte
