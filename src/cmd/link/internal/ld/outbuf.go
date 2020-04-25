@@ -291,5 +291,4 @@ func (out *OutBuf) WriteSym(s *sym.Symbol) {
 	copy(buf[pos:], s.P)
 	out.off += n
 	s.P = buf[pos : pos+n]
-	s.Attr.Set(sym.AttrReadOnly, false)
 }
