@@ -216,6 +216,8 @@ type Loader struct {
 	sects    []*sym.Section // sections
 	symSects []uint16       // symbol's section, index to sects array
 
+	outdata [][]byte // symbol's data in the output buffer
+
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
@@ -1078,6 +1080,32 @@ func (l *Loader) Data(i Sym) []byte {
 	}
 	r, li := l.toLocal(i)
 	return r.Data(li)
+}
+
+// Returns the data of the i-th symbol in the output buffer.
+func (l *Loader) OutData(i Sym) []byte {
+	if int(i) < len(l.outdata) && l.outdata[i] != nil {
+		return l.outdata[i]
+	}
+	return l.Data(i)
+}
+
+// SetOutData sets the position of the data of the i-th symbol in the output buffer.
+// i is global index.
+func (l *Loader) SetOutData(i Sym, data []byte) {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		if pp != nil {
+			pp.data = data
+			return
+		}
+	}
+	l.outdata[i] = data
+}
+
+// InitOutData initializes the slice used to store symbol output data.
+func (l *Loader) InitOutData() {
+	l.outdata = make([][]byte, l.extStart)
 }
 
 // SymAlign returns the alignment for a symbol.
@@ -2592,8 +2620,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		size := osym.Siz()
 
 		// Symbol data
-		s.P = r.Data(i)
-		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
+		s.P = l.OutData(gi)
 
 		// Relocs
 		relocs := l.relocs(r, i)
