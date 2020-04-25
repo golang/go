@@ -100,8 +100,20 @@ func (t *Target) IsAMD64() bool {
 	return t.Arch.Family == sys.AMD64
 }
 
+func (t *Target) IsMIPS() bool {
+	return t.Arch.Family == sys.MIPS
+}
+
+func (t *Target) IsMIPS64() bool {
+	return t.Arch.Family == sys.MIPS64
+}
+
 func (t *Target) IsPPC64() bool {
 	return t.Arch.Family == sys.PPC64
+}
+
+func (t *Target) IsRISCV64() bool {
+	return t.Arch.Family == sys.RISCV64
 }
 
 func (t *Target) IsS390X() bool {
