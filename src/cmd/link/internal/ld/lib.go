@@ -2824,7 +2824,7 @@ func addToTextp(ctxt *Link) {
 	ctxt.Textp = textp
 }
 
-func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
+func (ctxt *Link) loadlibfull() {
 
 	// Load full symbol contents, resolve indexed references.
 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
@@ -2889,20 +2889,6 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
 			}
 		}
 	}
-
-	// For now, overwrite symbol type with its "group" type, as dodata
-	// expected. Once we converted dodata, this will probably not be
-	// needed.
-	for i, t := range symGroupType {
-		if t != sym.Sxxx {
-			s := ctxt.loader.Syms[i]
-			if s == nil {
-				panic(fmt.Sprintf("nil sym for symGroupType t=%s entry %d", t.String(), i))
-			}
-			s.Type = t
-		}
-	}
-	symGroupType = nil
 
 	if ctxt.Debugvlog > 1 {
 		// loadlibfull is likely a good place to dump.
