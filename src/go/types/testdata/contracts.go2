@@ -272,7 +272,11 @@ func adderSum(type T Adder(T))(data []T) T {
         return s
 }
 
-func _(type T Adder /* ERROR cannot use generic type Adder */)(data []T) T
+// If we have exactly one type parameter and a type bound
+// expecting exactly one type argument, we can leave the
+// type argument away with the type bound as a form of
+// syntactic sugar.
+func _(type T Adder)(data []T) T
 
 // --------------------------------------------------------------------------------------
 // Type lists may contain type parameters... :-)

@@ -1,5 +1,15 @@
 package p
 
-type T(type P) P
+type Adder(type T) interface {
+	Add(T) T
+}
 
-const _ T(int) = 0
+// We don't need to explicitly instantiate the Adder bound
+// if we have exactly one type parameter.
+func Sum(type T Adder)(list []T) T {
+	var sum T
+	for _, x := range list {
+		sum = sum.Add(x)
+	}
+	return sum
+}

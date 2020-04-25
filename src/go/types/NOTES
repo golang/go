@@ -155,3 +155,8 @@ DESIGN/IMPLEMENTATION
   method signature, and 3) a type parameter followed by a type list. This is what the type
   checker currently supports and the printer can print. (The parser still accepts a list of
   method signatures or types, freely mixed.)
+
+- 4/24/2020: Permit omission of explicit type bound instantiation if the type bound is an
+  interface that applies to exactly one type parameter and the type bound expects exactly
+  one type argument. This makes parameterized interface type bounds easier to use in a common
+  case.

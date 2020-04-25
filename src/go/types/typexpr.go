@@ -133,6 +133,15 @@ func (check *Checker) typ(e ast.Expr) Type {
 	return check.definedType(e, nil)
 }
 
+// anyType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type may be generic or instantiated.
+func (check *Checker) anyType(e ast.Expr) Type {
+	typ := check.typInternal(e, nil)
+	assert(isTyped(typ))
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
+}
+
 // definedType is like typ but also accepts a type name def.
 // If def != nil, e is the type specification for the defined type def, declared
 // in a type declaration, and def.underlying will be set to the type of e before

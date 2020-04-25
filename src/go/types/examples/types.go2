@@ -100,7 +100,8 @@ func _() {
 	xint = xbool // ERROR assignment
 }
 
-// Generic types cannot be used without instantiation.
+// Generic types cannot be used without instantiation
+// (except in special cases in type parameter lists).
 var _ T // ERROR cannot use generic type T
 
 // In type context, parameterized (generic) types cannot use instantiation syntax.
@@ -199,3 +200,36 @@ func _(type T interface{ m(); type int })() {
 	y.m()
 	_ = y < 0
 }
+
+// As a special case, an explicit type parameter may be omitted
+// from a type parameter bound if there is exactly one type
+// parameter to which the type bound applies, and the type bound
+// expects exactly one type argument.
+type Adder(type T) interface {
+	Add(T) T
+}
+
+// We don't need to explicitly instantiate the Adder bound
+// if we have exactly one type parameter.
+func Sum(type T Adder)(list []T) T {
+	var sum T
+	for _, x := range list {
+		sum = sum.Add(x)
+	}
+	return sum
+}
+
+// Valid and invalid variations.
+type B0 interface {}
+type B1(type _) interface{}
+type B2(type _, _) interface{}
+
+func _(type T1 B0)()
+func _(type T1 B1)()
+func _(type T1 B2 /* ERROR cannot use generic type .* without instantiation */ )()
+
+func _(type T1, T2 B0)()
+func _(type T1, T2 B1 /* ERROR cannot use generic type .* without instantiation */ )()
+func _(type T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ )()
+
+func _(type T1 B0, T2 B1)() // here B1 applies to T2
