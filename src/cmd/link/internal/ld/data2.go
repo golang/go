@@ -28,7 +28,10 @@ func (ctxt *Link) dodata() {
 
 	// Collect data symbols by type into data.
 	state := dodataState{ctxt: ctxt}
-	for _, s := range ctxt.Syms.Allsym {
+	for _, s := range ctxt.loader.Syms {
+		if s == nil {
+			continue
+		}
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
 			continue
 		}

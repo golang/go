@@ -1646,7 +1646,10 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 	fname = filepath.Join(*flagTmpdir, "export_file.exp")
 	var buf bytes.Buffer
 
-	for _, s := range ctxt.Syms.Allsym {
+	for _, s := range ctxt.loader.Syms {
+		if s == nil {
+			continue
+		}
 		if !s.Attr.CgoExport() {
 			continue
 		}
