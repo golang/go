@@ -2286,9 +2286,17 @@ stop:
 
 	// wasm only:
 	// If a callback returned and no other goroutine is awake,
-	// then pause execution until a callback was triggered.
-	if beforeIdle(delta) {
-		// At least one goroutine got woken.
+	// then wake event handler goroutine which pauses execution
+	// until a callback was triggered.
+	gp, otherReady := beforeIdle(delta)
+	if gp != nil {
+		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.enabled {
+			traceGoUnpark(gp, 0)
+		}
+		return gp, false
+	}
+	if otherReady {
 		goto top
 	}
 
