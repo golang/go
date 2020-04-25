@@ -2897,7 +2897,7 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
 		if t != sym.Sxxx {
 			s := ctxt.loader.Syms[i]
 			if s == nil {
-				panic(fmt.Sprintf("nil sym for symGroupType t=%s entry %d", t.String(), i))
+				continue // in dwarfcompress we drop compressed DWARF symbols
 			}
 			s.Type = t
 		}
