@@ -574,6 +574,20 @@ func geneq(t *types.Type) *obj.LSym {
 				_, eqdata := eqinterface(pi, qi)
 				return eqdata
 			})
+		case TSTRING:
+			// Do two loops. First, check that all the lengths match (cheap).
+			// Second, check that all the contents match (expensive).
+			// TODO: when the array size is small, unroll the length match checks.
+			rangedCheck("i", func(pi, qi *Node) *Node {
+				// Compare lengths.
+				eqlen, _ := eqstring(pi, qi)
+				return eqlen
+			})
+			rangedCheck("j", func(pi, qi *Node) *Node {
+				// Compare contents.
+				_, eqmem := eqstring(pi, qi)
+				return eqmem
+			})
 		default:
 			// An array of pure memory would be handled by the standard memequal,
 			// so the element type must not be pure memory.
