@@ -414,9 +414,9 @@
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
 (OrB  ...) => (OR  ...)
-(EqB  x y) => (XORI [1] (XOR <typ.Bool> x y))
+(EqB  x y) => (SEQZ (XOR <typ.Bool> x y))
 (NeqB ...) => (XOR ...)
-(Not  x)   => (XORI [1] x)
+(Not  ...) => (SEQZ ...)
 
 // Lowering pointer arithmetic
 // TODO: Special handling for SP offsets, like ARM
