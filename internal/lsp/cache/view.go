@@ -345,8 +345,11 @@ func (v *view) refreshProcessEnv() {
 	// We don't have a context handy to use for logging, so use the stdlib for now.
 	event.Log(v.baseCtx, "background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
-	event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
-
+	if err == nil {
+		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)))
+	} else {
+		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
+	}
 	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)
 	v.cacheRefreshTimer = nil
