@@ -519,40 +519,75 @@ func geneq(t *types.Type) *obj.LSym {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		// rangedCheck generates:
+		nelem := t.NumElem()
+
+		// checkAll generates code to check the equality of all array elements.
+		// If unroll is greater than nelem, checkAll generates:
 		//
-		// for idx := range *p {
+		// if eq(p[0], q[0]) && eq(p[1], q[1]) && ... {
+		// } else {
+		//   return
+		// }
+		//
+		// And so on.
+		//
+		// Otherwise it generates:
+		//
+		// for i := 0; i < nelem; i++ {
 		//   if eq(p[i], q[i]) {
 		//   } else {
 		//     return
 		//   }
 		// }
-		rangedCheck := func(idx string, eq func(pi, qi *Node) *Node) {
-			// for idx := range *p
-			nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
-			ni := newname(lookup(idx))
-			ni.Type = types.Types[TINT]
-			nrange.List.Set1(ni)
-			nrange.SetColas(true)
-			colasdefn(nrange.List.Slice(), nrange)
-			ni = nrange.List.First()
+		//
+		// TODO(josharian): consider doing some loop unrolling
+		// for larger nelem as well, processing a few elements at a time in a loop.
+		checkAll := func(unroll int64, eq func(pi, qi *Node) *Node) {
+			// checkIdx generates a node to check for equality at index i.
+			checkIdx := func(i *Node) *Node {
+				// pi := p[i]
+				pi := nod(OINDEX, np, i)
+				pi.SetBounded(true)
+				pi.Type = t.Elem()
+				// qi := q[i]
+				qi := nod(OINDEX, nq, i)
+				qi.SetBounded(true)
+				qi.Type = t.Elem()
+				return eq(pi, qi)
+			}
 
-			// pi := p[i]
-			pi := nod(OINDEX, np, ni)
-			pi.SetBounded(true)
-			pi.Type = t.Elem()
-			// qi := q[i]
-			qi := nod(OINDEX, nq, ni)
-			qi.SetBounded(true)
-			qi.Type = t.Elem()
+			if nelem <= unroll {
+				// Generate a series of checks.
+				var cond *Node
+				for i := int64(0); i < nelem; i++ {
+					c := nodintconst(i)
+					check := checkIdx(c)
+					if cond == nil {
+						cond = check
+						continue
+					}
+					cond = nod(OANDAND, cond, check)
+				}
+				nif := nod(OIF, cond, nil)
+				nif.Rlist.Append(nod(ORETURN, nil, nil))
+				fn.Nbody.Append(nif)
+				return
+			}
 
+			// Generate a for loop.
+			// for i := 0; i < nelem; i++
+			i := temp(types.Types[TINT])
+			init := nod(OAS, i, nodintconst(0))
+			cond := nod(OLT, i, nodintconst(nelem))
+			post := nod(OAS, i, nod(OADD, i, nodintconst(1)))
+			loop := nod(OFOR, cond, post)
+			loop.Ninit.Append(init)
 			// if eq(pi, qi) {} else { return }
-			cmp := eq(pi, qi)
-			nif := nod(OIF, cmp, nil)
-			ret := nod(ORETURN, nil, nil)
-			nif.Rlist.Append(ret)
-			nrange.Nbody.Append(nif)
-			fn.Nbody.Append(nrange)
+			check := checkIdx(i)
+			nif := nod(OIF, check, nil)
+			nif.Rlist.Append(nod(ORETURN, nil, nil))
+			loop.Nbody.Append(nif)
+			fn.Nbody.Append(loop)
 		}
 
 		switch t.Elem().Etype {
@@ -560,14 +595,14 @@ func geneq(t *types.Type) *obj.LSym {
 			// Do two loops. First, check that all the types match (cheap).
 			// Second, check that all the data match (expensive).
 			// TODO: when the array size is small, unroll the tab match checks.
-			rangedCheck("i", func(pi, qi *Node) *Node {
+			checkAll(3, func(pi, qi *Node) *Node {
 				// Compare types.
 				pi = typecheck(pi, ctxExpr)
 				qi = typecheck(qi, ctxExpr)
 				eqtab, _ := eqinterface(pi, qi)
 				return eqtab
 			})
-			rangedCheck("j", func(pi, qi *Node) *Node {
+			checkAll(1, func(pi, qi *Node) *Node {
 				// Compare data.
 				pi = typecheck(pi, ctxExpr)
 				qi = typecheck(qi, ctxExpr)
@@ -578,23 +613,24 @@ func geneq(t *types.Type) *obj.LSym {
 			// Do two loops. First, check that all the lengths match (cheap).
 			// Second, check that all the contents match (expensive).
 			// TODO: when the array size is small, unroll the length match checks.
-			rangedCheck("i", func(pi, qi *Node) *Node {
+			checkAll(3, func(pi, qi *Node) *Node {
 				// Compare lengths.
 				eqlen, _ := eqstring(pi, qi)
 				return eqlen
 			})
-			rangedCheck("j", func(pi, qi *Node) *Node {
+			checkAll(1, func(pi, qi *Node) *Node {
 				// Compare contents.
 				_, eqmem := eqstring(pi, qi)
 				return eqmem
 			})
+		case TFLOAT32, TFLOAT64:
+			checkAll(2, func(pi, qi *Node) *Node {
+				// p[i] == q[i]
+				return nod(OEQ, pi, qi)
+			})
+		// TODO: pick apart structs, do them piecemeal too
 		default:
-			// An array of pure memory would be handled by the standard memequal,
-			// so the element type must not be pure memory.
-			// Loop over each element, checking for equality.
-			// TODO(josharian): For element types that don't involve
-			// a function call, such as floats, unroll when array size is small.
-			rangedCheck("i", func(pi, qi *Node) *Node {
+			checkAll(1, func(pi, qi *Node) *Node {
 				// p[i] == q[i]
 				return nod(OEQ, pi, qi)
 			})
