@@ -16,7 +16,7 @@ func mustFormatComplex(r, i float64) string {
 	s1 := FormatFloat(r, 'x', -1, 64)
 	s2 := FormatFloat(i, 'x', -1, 64)
 
-	if i > 0 {
+	if i >= 0 {
 		return s1 + "+" + s2 + "i"
 	}
 
@@ -64,6 +64,10 @@ func TestParseComplex(t *testing.T) {
 		{
 			str:  "3+i",
 			want: complex(3, 1),
+		},
+		{
+			str:  "i",
+			want: complex(0, 1),
 		},
 		{
 			str:  "+i",
