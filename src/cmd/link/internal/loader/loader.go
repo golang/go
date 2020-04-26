@@ -1276,6 +1276,7 @@ func (l *Loader) DynidSyms() []Sym {
 	for s := range l.dynid {
 		sl = append(sl, s)
 	}
+	sort.Slice(sl, func(i, j int) bool { return sl[i] < sl[j] })
 	return sl
 }
 
