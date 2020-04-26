@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 )
 
 // Temporary dumping around for sym.Symbol version of helper
@@ -199,7 +200,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 				if thearch.TLSIEtoLE == nil {
 					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
 				}
-				thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+				thearch.TLSIEtoLE(s.P, int(off), int(r.Siz))
 				o = int64(syms.Tlsoffset)
 				// TODO: o += r.Add when !target.IsAmd64()?
 				// Why do we treat r.Add differently on AMD64?
@@ -482,4 +483,36 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 			target.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
 		}
 	}
+}
+
+func (ctxt *Link) reloc2() {
+	var wg sync.WaitGroup
+	target := &ctxt.Target
+	ldr := ctxt.loader
+	reporter := &ctxt.ErrorReporter
+	syms := &ctxt.ArchSyms
+	wg.Add(3)
+	go func() {
+		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
+			for _, s := range ctxt.Textp {
+				relocsym2(target, ldr, reporter, syms, s)
+			}
+		}
+		wg.Done()
+	}()
+	go func() {
+		for _, s := range ctxt.datap {
+			relocsym2(target, ldr, reporter, syms, s)
+		}
+		wg.Done()
+	}()
+	go func() {
+		for _, si := range dwarfp {
+			for _, s := range si.syms {
+				relocsym2(target, ldr, reporter, syms, s)
+			}
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 }
