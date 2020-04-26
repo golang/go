@@ -16,7 +16,7 @@ func convErr(err error, s string) error {
 
 func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
 	if bitSize == 64 {
-		bitSize = 32
+		bitSize = 32 // complex64 uses float32 internally
 	} else {
 		bitSize = 64
 	}
