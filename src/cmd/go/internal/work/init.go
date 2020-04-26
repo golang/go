@@ -155,6 +155,8 @@ func buildModeInit() {
 		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
+		case "windows":
+			ldBuildmode = "pie"
 		case "darwin":
 			switch cfg.Goarch {
 			case "arm64":
