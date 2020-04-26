@@ -326,14 +326,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loader.InitOutData()
 	thearch.Asmb(ctxt, ctxt.loader)
 
-	newreloc := ctxt.IsInternal() && (ctxt.IsAMD64() || ctxt.Is386())
+	newreloc := ctxt.IsAMD64() || ctxt.Is386()
 	if newreloc {
 		bench.Start("reloc")
 		ctxt.reloc()
 		bench.Start("loadlibfull")
 		// We don't need relocations at this point.
-		// An exception is Windows, see pe.go:addPEBaseRelocSym
-		needReloc := ctxt.IsWindows()
+		// An exception is internal linking on Windows, see pe.go:addPEBaseRelocSym
+		needReloc := ctxt.IsWindows() && ctxt.IsInternal()
 		ctxt.loadlibfull(symGroupType, needReloc) // XXX do it here for now
 	} else {
 		bench.Start("loadlibfull")
