@@ -1336,11 +1336,6 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 		}
 		state.data2[st] = append(state.data2[st], s)
 
-		// Set explicit alignment here, so as to avoid having to update
-		// symbol alignment in doDataSect2, which would cause a concurrent
-		// map read/write violation.
-		state.symalign2(s)
-
 		// Similarly with checking the onlist attr.
 		if ldr.AttrOnList(s) {
 			log.Fatalf("symbol %s listed multiple times", ldr.SymName(s))
@@ -1361,6 +1356,17 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 
 	// Move any RO data with relocations to a separate section.
 	state.makeRelroForSharedLib2(ctxt)
+
+	// Set explicit alignment here, so as to avoid having to update
+	// symbol alignment in doDataSect2, which would cause a concurrent
+	// map read/write violation.
+	// NOTE: this needs to be done after dynreloc2, where symbol size
+	// may change.
+	for _, list := range state.data2 {
+		for _, s := range list {
+			state.symalign2(s)
+		}
+	}
 
 	// Sort symbols.
 	var wg sync.WaitGroup
