@@ -49,6 +49,17 @@ type Reloc struct {
 	Sym  Sym              // global index of symbol the reloc addresses
 }
 
+// ExtReloc contains the payload for an external relocation.
+type ExtReloc struct {
+	Off  int32            // offset to rewrite
+	Siz  uint8            // number of bytes to rewrite: 0, 1, 2, or 4
+	Type objabi.RelocType // the relocation type
+	Sym  Sym              // global index of symbol the reloc addresses
+	Add  int64            // addend
+	Xsym Sym
+	Xadd int64
+}
+
 // Reloc2 holds a "handle" to access a relocation record from an
 // object file.
 type Reloc2 struct {
@@ -216,7 +227,8 @@ type Loader struct {
 	sects    []*sym.Section // sections
 	symSects []uint16       // symbol's section, index to sects array
 
-	outdata [][]byte // symbol's data in the output buffer
+	outdata   [][]byte     // symbol's data in the output buffer
+	extRelocs [][]ExtReloc // symbol's external relocations
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -1106,6 +1118,16 @@ func (l *Loader) SetOutData(i Sym, data []byte) {
 // InitOutData initializes the slice used to store symbol output data.
 func (l *Loader) InitOutData() {
 	l.outdata = make([][]byte, l.extStart)
+}
+
+// SetExtRelocs sets the section of the i-th symbol. i is global index.
+func (l *Loader) SetExtRelocs(i Sym, relocs []ExtReloc) {
+	l.extRelocs[i] = relocs
+}
+
+// InitExtRelocs initialize the slice used to store external relocations.
+func (l *Loader) InitExtRelocs() {
+	l.extRelocs = make([][]ExtReloc, l.NSym())
 }
 
 // SymAlign returns the alignment for a symbol.
@@ -2072,6 +2094,8 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 			l.convertRelocations(i, &relocs, s, false)
 		}
 
+		l.convertExtRelocs(s, i)
+
 		// Copy data
 		s.P = pp.data
 
@@ -2632,6 +2656,8 @@ func loadObjFull(l *Loader, r *oReader, needReloc bool) {
 			l.convertRelocations(gi, &relocs, s, false)
 		}
 
+		l.convertExtRelocs(s, gi)
+
 		// Aux symbol info
 		auxs := r.Auxs(i)
 		for j := range auxs {
@@ -2694,6 +2720,33 @@ func (l *Loader) convertRelocations(symIdx Sym, src *Relocs, dst *sym.Symbol, st
 			dst.R[j].InitExt()
 			dst.R[j].Variant = rv
 		}
+	}
+}
+
+// Convert external relocations to sym.Relocs on symbol dst.
+func (l *Loader) convertExtRelocs(dst *sym.Symbol, src Sym) {
+	if int(src) >= len(l.extRelocs) {
+		return
+	}
+	relocs := l.extRelocs[src]
+	if len(relocs) == 0 {
+		return
+	}
+	if len(dst.R) != 0 {
+		panic("bad")
+	}
+	dst.R = make([]sym.Reloc, len(relocs))
+	for i := range dst.R {
+		sr := &relocs[i]
+		r := &dst.R[i]
+		r.InitExt()
+		r.Off = sr.Off
+		r.Siz = sr.Siz
+		r.Type = sr.Type
+		r.Sym = l.Syms[sr.Sym]
+		r.Add = sr.Add
+		r.Xsym = l.Syms[sr.Xsym]
+		r.Xadd = sr.Xadd
 	}
 }
 
