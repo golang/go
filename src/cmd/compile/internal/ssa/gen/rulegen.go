@@ -186,14 +186,14 @@ func genRulesSuffix(arch arch, suff string) {
 			if strings.Contains(oprules[op][0].Rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
 				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
 			}
-			swc := &Case{Expr: exprf(op)}
+			swc := &Case{Expr: exprf("%s", op)}
 			swc.add(stmtf("v.Op = %s", eop))
 			swc.add(stmtf("return true"))
 			sw.add(swc)
 			continue
 		}
 
-		swc := &Case{Expr: exprf(op)}
+		swc := &Case{Expr: exprf("%s", op)}
 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
@@ -623,16 +623,6 @@ func fprint(w io.Writer, n Node) {
 			fprint(w, n)
 		}
 		fmt.Fprintf(w, "}\n")
-	case *If:
-		fmt.Fprintf(w, "if ")
-		fprint(w, n.Cond)
-		fmt.Fprintf(w, " {\n")
-		fprint(w, n.Then)
-		if n.Else != nil {
-			fmt.Fprintf(w, "} else {\n")
-			fprint(w, n.Else)
-		}
-		fmt.Fprintf(w, "}\n")
 	case *Case:
 		fmt.Fprintf(w, "case ")
 		fprint(w, n.Expr)
@@ -780,11 +770,6 @@ type (
 		Suffix string
 		ArgLen int32 // if kind == "Value", number of args for this op
 	}
-	If struct {
-		Cond ast.Expr
-		Then Statement
-		Else Statement
-	}
 	Switch struct {
 		BodyBase // []*Case
 		Expr     ast.Expr
@@ -807,7 +792,6 @@ type (
 		Name  string
 		Value ast.Expr
 	}
-	// TODO: implement CondBreak as If + Break instead?
 	CondBreak struct {
 		Cond              ast.Expr
 		InsideCommuteLoop bool
