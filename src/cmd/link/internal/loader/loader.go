@@ -2016,7 +2016,7 @@ func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
 }
 
 // Load full contents.
-func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 	// create all Symbols first.
 	l.growSyms(l.NSym())
 	l.growSects(l.NSym())
@@ -2049,7 +2049,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	}
 
 	// allocate a single large slab of relocations for all live symbols
-	l.relocBatch = make([]sym.Reloc, nr)
+	if needReloc {
+		l.relocBatch = make([]sym.Reloc, nr)
+	}
 
 	// convert payload-based external symbols into sym.Symbol-based
 	for _, i := range toConvert {
@@ -2062,11 +2064,13 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		s.Size = pp.size
 
 		// Copy relocations
-		batch := l.relocBatch
-		s.R = batch[:len(pp.relocs):len(pp.relocs)]
-		l.relocBatch = batch[len(pp.relocs):]
-		relocs := l.Relocs(i)
-		l.convertRelocations(i, &relocs, s, false)
+		if needReloc {
+			batch := l.relocBatch
+			s.R = batch[:len(pp.relocs):len(pp.relocs)]
+			l.relocBatch = batch[len(pp.relocs):]
+			relocs := l.Relocs(i)
+			l.convertRelocations(i, &relocs, s, false)
+		}
 
 		// Copy data
 		s.P = pp.data
@@ -2077,7 +2081,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 	// load contents of defined symbols
 	for _, o := range l.objs[1:] {
-		loadObjFull(l, o.r)
+		loadObjFull(l, o.r, needReloc)
 	}
 
 	// Note: resolution of ABI aliases is now also handled in
@@ -2598,7 +2602,7 @@ func (l *Loader) CreateStaticSym(name string) Sym {
 	return l.newExtSym(name, l.anonVersion)
 }
 
-func loadObjFull(l *Loader, r *oReader) {
+func loadObjFull(l *Loader, r *oReader, needReloc bool) {
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// A symbol may be a dup or overwritten. In this case, its
 		// content will actually be provided by a different object
@@ -2623,11 +2627,13 @@ func loadObjFull(l *Loader, r *oReader) {
 		s.P = l.OutData(gi)
 
 		// Relocs
-		relocs := l.relocs(r, i)
-		batch := l.relocBatch
-		s.R = batch[:relocs.Count():relocs.Count()]
-		l.relocBatch = batch[relocs.Count():]
-		l.convertRelocations(gi, &relocs, s, false)
+		if needReloc {
+			relocs := l.relocs(r, i)
+			batch := l.relocBatch
+			s.R = batch[:relocs.Count():relocs.Count()]
+			l.relocBatch = batch[relocs.Count():]
+			l.convertRelocations(gi, &relocs, s, false)
+		}
 
 		// Aux symbol info
 		auxs := r.Auxs(i)

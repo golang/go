@@ -271,7 +271,6 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 				log.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
 			}
 		case objabi.R_TLS_IE:
-			panic("not implemented")
 			//if target.IsExternal() && target.IsElf() {
 			//	r.Done = false
 			//	if r.Sym == nil {
@@ -285,17 +284,17 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 			//	}
 			//	break
 			//}
-			//if target.IsPIE() && target.IsElf() {
-			//	// We are linking the final executable, so we
-			//	// can optimize any TLS IE relocation to LE.
-			//	if thearch.TLSIEtoLE == nil {
-			//		log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
-			//	}
-			//	thearch.TLSIEtoLE(ldr, s, int(off), int(siz))
-			//	o = int64(syms.Tlsoffset)
-			//} else {
-			//	log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
-			//}
+			if target.IsPIE() && target.IsElf() {
+				// We are linking the final executable, so we
+				// can optimize any TLS IE relocation to LE.
+				if thearch.TLSIEtoLE == nil {
+					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
+				}
+				thearch.TLSIEtoLE(P, int(off), int(siz))
+				o = int64(syms.Tlsoffset)
+			} else {
+				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+			}
 		case objabi.R_ADDR:
 			//if target.IsExternal() && r.Sym.Type != sym.SCONST {
 			//	r.Done = false
@@ -562,22 +561,22 @@ func (ctxt *Link) reloc() {
 	wg.Add(3)
 	go func() {
 		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
-			for _, s := range ctxt.Textp {
-				relocsym2(target, ldr, reporter, syms, s)
+			for _, s := range ctxt.Textp2 {
+				relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
 			}
 		}
 		wg.Done()
 	}()
 	go func() {
-		for _, s := range ctxt.datap {
-			relocsym2(target, ldr, reporter, syms, s)
+		for _, s := range ctxt.datap2 {
+			relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
 		}
 		wg.Done()
 	}()
 	go func() {
-		for _, si := range dwarfp {
+		for _, si := range dwarfp2 {
 			for _, s := range si.syms {
-				relocsym2(target, ldr, reporter, syms, s)
+				relocsym(target, ldr, reporter, syms, s, ldr.OutData(s))
 			}
 		}
 		wg.Done()
