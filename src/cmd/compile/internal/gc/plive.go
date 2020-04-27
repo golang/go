@@ -147,32 +147,29 @@ type openDeferVarInfo struct {
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
 type LivenessMap struct {
-	m []LivenessIndex
+	vals map[ssa.ID]LivenessIndex
 }
 
-func (m *LivenessMap) reset(ids int) {
-	m2 := m.m
-	if ids > cap(m2) {
-		m2 = make([]LivenessIndex, ids)
+func (m *LivenessMap) reset() {
+	if m.vals == nil {
+		m.vals = make(map[ssa.ID]LivenessIndex)
 	} else {
-		m2 = m2[:ids]
+		for k := range m.vals {
+			delete(m.vals, k)
+		}
 	}
-	none := LivenessInvalid
-	for i := range m2 {
-		m2[i] = none
-	}
-	m.m = m2
 }
 
 func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
-	m.m[v.ID] = i
+	m.vals[v.ID] = i
 }
 
 func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
-	if int(v.ID) < len(m.m) {
-		return m.m[int(v.ID)]
+	// All safe-points are in the map, so if v isn't in
+	// the map, it's an unsafe-point.
+	if idx, ok := m.vals[v.ID]; ok {
+		return idx
 	}
-	// Not a safe point.
 	return LivenessInvalid
 }
 
@@ -515,7 +512,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 
 	// Significant sources of allocation are kept in the ssa.Cache
 	// and reused. Surprisingly, the bit vectors themselves aren't
-	// a major source of allocation, but the slices are.
+	// a major source of allocation, but the liveness maps are.
 	if lc, _ := f.Cache.Liveness.(*livenessFuncCache); lc == nil {
 		// Prep the cache so liveness can fill it later.
 		f.Cache.Liveness = new(livenessFuncCache)
@@ -523,7 +520,8 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		if cap(lc.be) >= f.NumBlocks() {
 			lv.be = lc.be[:f.NumBlocks()]
 		}
-		lv.livenessMap = LivenessMap{lc.livenessMap.m[:0]}
+		lv.livenessMap = LivenessMap{lc.livenessMap.vals}
+		lc.livenessMap.vals = nil
 	}
 	if lv.be == nil {
 		lv.be = make([]BlockEffects, f.NumBlocks())
@@ -540,7 +538,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		be.livein = varRegVec{vars: bulk.next()}
 		be.liveout = varRegVec{vars: bulk.next()}
 	}
-	lv.livenessMap.reset(lv.f.NumValues())
+	lv.livenessMap.reset()
 
 	lv.markUnsafePoints()
 	return lv
@@ -1559,7 +1557,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 			}
 			cache.be = lv.be
 		}
-		if cap(lv.livenessMap.m) < 2000 {
+		if len(lv.livenessMap.vals) < 2000 {
 			cache.livenessMap = lv.livenessMap
 		}
 	}
