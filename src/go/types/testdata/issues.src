@@ -130,8 +130,12 @@ func issue10260() {
 		t2 *T2
 	)
 
-	var x I1 = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+	var x I1
+	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
 	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
+
+	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
 
 	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
 
@@ -341,7 +345,7 @@ type E1 struct{ f int }
 type E2 struct{ f int }
 
 func issue26234b(x T) {
-	_ = x.f /* ERROR ambiguous selector f */
+	_ = x.f /* ERROR ambiguous selector x.f */
 }
 
 func issue26234c() {
