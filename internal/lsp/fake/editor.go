@@ -590,3 +590,26 @@ func (e *Editor) checkBufferPosition(path string, pos Pos) error {
 	}
 	return nil
 }
+
+// RunGenerate runs `go generate` non-recursively in the workdir-relative dir
+// path. It does not report any resulting file changes as a watched file
+// change, so must be followed by a call to Workspace.CheckForFileChanges once
+// the generate command has completed.
+func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
+	if e.server == nil {
+		return nil
+	}
+	absDir := e.ws.filePath(dir)
+	params := &protocol.ExecuteCommandParams{
+		Command:   "generate",
+		Arguments: []interface{}{absDir, false},
+	}
+	if _, err := e.server.ExecuteCommand(ctx, params); err != nil {
+		return fmt.Errorf("running generate: %v", err)
+	}
+	// Unfortunately we can't simply poll the workspace for file changes here,
+	// because server-side command may not have completed. In regtests, we can
+	// Await this state change, but here we must delegate that responsibility to
+	// the caller.
+	return nil
+}

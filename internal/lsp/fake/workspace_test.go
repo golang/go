@@ -6,7 +6,10 @@ package fake
 
 import (
 	"context"
+	"os"
+	"sort"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -89,6 +92,74 @@ func TestWorkspace_WriteFile(t *testing.T) {
 			t.Errorf("ws.ReadFile(%q) = %q, want %q", test.path, got, want)
 		}
 	}
+}
+
+func TestWorkspace_ListFiles(t *testing.T) {
+	ws, _, cleanup := newWorkspace(t)
+	defer cleanup()
+
+	checkFiles := func(dir string, want []string) {
+		files, err := ws.ListFiles(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sort.Strings(want)
+		var got []string
+		for p := range files {
+			got = append(got, p)
+		}
+		sort.Strings(got)
+		if len(got) != len(want) {
+			t.Fatalf("ListFiles(): len = %d, want %d; got=%v; want=%v", len(got), len(want), got, want)
+		}
+		for i, f := range got {
+			if f != want[i] {
+				t.Errorf("ListFiles()[%d] = %s, want %s", i, f, want[i])
+			}
+		}
+	}
+
+	checkFiles(".", []string{"go.mod", "nested/README.md"})
+	checkFiles("nested", []string{"nested/README.md"})
+}
+
+func TestWorkspace_CheckForFileChanges(t *testing.T) {
+	ws, events, cleanup := newWorkspace(t)
+	defer cleanup()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	checkChange := func(path string, typ protocol.FileChangeType) {
+		if err := ws.CheckForFileChanges(ctx); err != nil {
+			t.Fatal(err)
+		}
+		var gotEvt FileEvent
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case ev := <-events:
+			gotEvt = ev[0]
+		}
+		// Only check relative path and Type
+		if gotEvt.Path != path || gotEvt.ProtocolEvent.Type != typ {
+			t.Errorf("file events: got %v, want {Path: %s, Type: %v}", gotEvt, path, typ)
+		}
+	}
+	// Sleep some positive amount of time to ensure a distinct mtime.
+	time.Sleep(10 * time.Millisecond)
+	if err := ws.writeFileData("go.mod", "module foo.test\n"); err != nil {
+		t.Fatal(err)
+	}
+	checkChange("go.mod", protocol.Changed)
+	if err := ws.writeFileData("newFile", "something"); err != nil {
+		t.Fatal(err)
+	}
+	checkChange("newFile", protocol.Created)
+	fp := ws.filePath("newFile")
+	if err := os.Remove(fp); err != nil {
+		t.Fatal(err)
+	}
+	checkChange("newFile", protocol.Deleted)
 }
 
 func TestSplitModuleVersionPath(t *testing.T) {

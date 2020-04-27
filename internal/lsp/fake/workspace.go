@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -38,6 +39,9 @@ type Workspace struct {
 
 	watcherMu sync.Mutex
 	watchers  []func(context.Context, []FileEvent)
+
+	fileMu sync.Mutex
+	files  map[string]time.Time
 }
 
 // NewWorkspace creates a named workspace populated by the txtar-encoded
@@ -77,6 +81,10 @@ func NewWorkspace(name, srctxt, proxytxt string, env ...string) (_ *Workspace, e
 	w.proxydir = pd
 	if err := writeProxyDir(unpackTxt(proxytxt), w.proxydir); err != nil {
 		return nil, fmt.Errorf("writing proxy dir: %w", err)
+	}
+	// Poll to capture the current file state.
+	if _, err := w.pollFiles(); err != nil {
+		return nil, fmt.Errorf("polling files: %v", err)
 	}
 	return w, nil
 }
@@ -171,12 +179,18 @@ func (w *Workspace) URI(path string) protocol.DocumentURI {
 // URIToPath converts a uri to a workspace-relative path (or an absolute path,
 // if the uri is outside of the workspace).
 func (w *Workspace) URIToPath(uri protocol.DocumentURI) string {
+	fp := uri.SpanURI().Filename()
+	return w.relPath(fp)
+}
+
+// relPath returns a '/'-encoded path relative to the working directory (or an
+// absolute path if the file is outside of workdir)
+func (w *Workspace) relPath(fp string) string {
 	root := w.RootURI().SpanURI().Filename()
-	path := uri.SpanURI().Filename()
-	if rel, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(rel, "..") {
+	if rel, err := filepath.Rel(root, fp); err == nil && !strings.HasPrefix(rel, "..") {
 		return filepath.ToSlash(rel)
 	}
-	return filepath.ToSlash(path)
+	return filepath.ToSlash(fp)
 }
 
 func toURI(fp string) protocol.DocumentURI {
@@ -260,6 +274,9 @@ func (w *Workspace) RunGoCommand(ctx context.Context, verb string, args ...strin
 }
 
 func (w *Workspace) sendEvents(ctx context.Context, evts []FileEvent) {
+	if len(evts) == 0 {
+		return
+	}
 	w.watcherMu.Lock()
 	watchers := make([]func(context.Context, []FileEvent), len(w.watchers))
 	copy(watchers, w.watchers)
@@ -305,6 +322,84 @@ func (w *Workspace) writeFileData(path string, content string) error {
 		return fmt.Errorf("writing %q: %w", path, err)
 	}
 	return nil
+}
+
+// ListFiles lists files in the given directory, returning a map of relative
+// path to modification time.
+func (w *Workspace) ListFiles(dir string) (map[string]time.Time, error) {
+	files := make(map[string]time.Time)
+	absDir := w.filePath(dir)
+	if err := filepath.Walk(absDir, func(fp string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		path := w.relPath(fp)
+		files[path] = info.ModTime()
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+// CheckForFileChanges walks the working directory and checks for any files
+// that have changed since the last poll.
+func (w *Workspace) CheckForFileChanges(ctx context.Context) error {
+	evts, err := w.pollFiles()
+	if err != nil {
+		return err
+	}
+	w.sendEvents(ctx, evts)
+	return nil
+}
+
+// pollFiles updates w.files and calculates FileEvents corresponding to file
+// state changes since the last poll. It does not call sendEvents.
+func (w *Workspace) pollFiles() ([]FileEvent, error) {
+	w.fileMu.Lock()
+	defer w.fileMu.Unlock()
+
+	files, err := w.ListFiles(".")
+	if err != nil {
+		return nil, err
+	}
+	var evts []FileEvent
+	// Check which files have been added or modified.
+	for path, mtime := range files {
+		oldmtime, ok := w.files[path]
+		delete(w.files, path)
+		var typ protocol.FileChangeType
+		switch {
+		case !ok:
+			typ = protocol.Created
+		case oldmtime != mtime:
+			typ = protocol.Changed
+		default:
+			continue
+		}
+		evts = append(evts, FileEvent{
+			Path: path,
+			ProtocolEvent: protocol.FileEvent{
+				URI:  w.URI(path),
+				Type: typ,
+			},
+		})
+	}
+	// Any remaining files must have been deleted.
+	for path := range w.files {
+		evts = append(evts, FileEvent{
+			Path: path,
+			ProtocolEvent: protocol.FileEvent{
+				URI:  w.URI(path),
+				Type: protocol.Deleted,
+			},
+		})
+	}
+	w.files = files
+	return evts, nil
 }
 
 func (w *Workspace) removeAll() error {

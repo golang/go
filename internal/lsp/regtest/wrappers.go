@@ -5,6 +5,7 @@
 package regtest
 
 import (
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -137,6 +138,31 @@ func (e *Env) CloseEditor() {
 		e.T.Fatal(err)
 	}
 	if err := e.E.Exit(e.Ctx); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+// RunGenerate runs go:generate on the given dir, calling t.Fatal on any error.
+// It waits for the generate command to complete and checks for file changes
+// before returning.
+func (e *Env) RunGenerate(dir string) {
+	e.T.Helper()
+	if err := e.E.RunGenerate(e.Ctx, dir); err != nil {
+		e.T.Fatal(err)
+	}
+	e.Await(CompletedWork(lsp.GenerateWorkDoneTitle, 1))
+	// Ideally the fake.Workspace would handle all synthetic file watching, but
+	// we help it out here as we need to wait for the generate command to
+	// complete before checking the filesystem.
+	e.CheckForFileChanges()
+}
+
+// CheckForFileChanges triggers a manual poll of the workspace for any file
+// changes since creation, or since last polling. It is a workaround for the
+// lack of true file watching support in the fake workspace.
+func (e *Env) CheckForFileChanges() {
+	e.T.Helper()
+	if err := e.W.CheckForFileChanges(e.Ctx); err != nil {
 		e.T.Fatal(err)
 	}
 }

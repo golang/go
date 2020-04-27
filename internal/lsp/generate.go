@@ -15,6 +15,10 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// GenerateWorkDoneTitle is the title used in progress reporting for go
+// generate commands. It is exported for testing purposes.
+const GenerateWorkDoneTitle = "generate"
+
 func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -62,7 +66,7 @@ func (ew *eventWriter) Write(p []byte) (n int, err error) {
 // client capabilities.
 func (s *Server) newProgressWriter(ctx context.Context, cancel func()) io.WriteCloser {
 	if s.supportsWorkDoneProgress {
-		wd := s.StartWork(ctx, "generate", "running go generate", cancel)
+		wd := s.StartWork(ctx, GenerateWorkDoneTitle, "running go generate", cancel)
 		return &workDoneWriter{ctx, wd}
 	}
 	mw := &messageWriter{ctx, cancel, s.client}
