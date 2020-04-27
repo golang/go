@@ -211,11 +211,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 			default:
 				*flagnewDoData = false
 			}
-		case ctxt.IsDarwin():
-			if !ctxt.IsAMD64() {
-				*flagnewDoData = false
-			}
-		case ctxt.IsPlan9(), ctxt.IsWasm():
+		case ctxt.IsDarwin(), ctxt.IsPlan9(), ctxt.IsWasm():
 			// supported
 		default:
 			*flagnewDoData = false
