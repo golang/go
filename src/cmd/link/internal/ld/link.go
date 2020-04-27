@@ -66,7 +66,6 @@ type Link struct {
 
 	compressDWARF bool
 
-	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
