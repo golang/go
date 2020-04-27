@@ -61,8 +61,9 @@ func (ev Event) Format(f fmt.State, r rune) {
 		fmt.Fprint(f, ev.at.Format("2006/01/02 15:04:05 "))
 	}
 	for index := 0; ev.Valid(index); index++ {
-		l := ev.Label(index)
-		fmt.Fprintf(f, "\n\t%v", l)
+		if l := ev.Label(index); l.Valid() {
+			fmt.Fprintf(f, "\n\t%v", l)
+		}
 	}
 }
 
