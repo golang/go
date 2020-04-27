@@ -22,9 +22,6 @@ import (
 const (
 	// ErrIdleTimeout is returned when serving timed out waiting for new connections.
 	ErrIdleTimeout = constError("timed out waiting for new connections")
-
-	// ErrDisconnected signals that the stream or connection exited normally.
-	ErrDisconnected = constError("disconnected")
 )
 
 // Conn is a JSON RPC 2 client server connection.

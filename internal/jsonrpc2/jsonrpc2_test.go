@@ -126,7 +126,7 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 			wg.Done()
 		}()
 		err := conn.Run(ctx, testHandler(*logRPC))
-		if err != nil && !errors.Is(err, jsonrpc2.ErrDisconnected) {
+		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
 			t.Errorf("Stream failed: %v", err)
 		}
 	}()

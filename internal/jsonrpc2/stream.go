@@ -52,9 +52,6 @@ func (s *plainStream) Read(ctx context.Context) (Message, int64, error) {
 	}
 	var raw json.RawMessage
 	if err := s.in.Decode(&raw); err != nil {
-		if err == io.EOF {
-			return nil, 0, ErrDisconnected
-		}
 		return nil, 0, err
 	}
 	msg, err := DecodeMessage(raw)
@@ -104,12 +101,8 @@ func (s *headerStream) Read(ctx context.Context) (Message, int64, error) {
 	for {
 		line, err := s.in.ReadString('\n')
 		total += int64(len(line))
-		if err == io.EOF {
-			// A normal disconnection will terminate with EOF before the next header.
-			return nil, total, ErrDisconnected
-		}
 		if err != nil {
-			return nil, total, fmt.Errorf("failed reading header line %q", err)
+			return nil, total, fmt.Errorf("failed reading header line: %w", err)
 		}
 		line = strings.TrimSpace(line)
 		// check we have a header line
