@@ -27,8 +27,6 @@ const (
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
 	commaok                      // like value, but operand may be used in a comma,ok expression
-	commaerr                     // like commaok, but second value is error, not boolean
-	cgofunc                      // operand is a cgo function
 )
 
 var operandModeString = [...]string{
@@ -41,8 +39,6 @@ var operandModeString = [...]string{
 	mapindex:  "map index expression",
 	value:     "value",
 	commaok:   "comma, ok expression",
-	commaerr:  "comma, error expression",
-	cgofunc:   "cgo function",
 }
 
 // An operand represents an intermediate value during type checking.
@@ -97,12 +93,6 @@ func (x *operand) pos() token.Pos {
 //
 // commaok    <expr> (<untyped kind> <mode>                    )
 // commaok    <expr> (               <mode>       of type <typ>)
-//
-// commaerr   <expr> (<untyped kind> <mode>                    )
-// commaerr   <expr> (               <mode>       of type <typ>)
-//
-// cgofunc    <expr> (<untyped kind> <mode>                    )
-// cgofunc    <expr> (               <mode>       of type <typ>)
 //
 func operandString(x *operand, qf Qualifier) string {
 	var buf bytes.Buffer
