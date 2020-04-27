@@ -783,19 +783,19 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 		// Trampoline don't have a FILE so there are considered
 		// in the current file.
 		// Same goes for runtime.text.X symbols.
-	} else if x.File == "" { // Undefined global symbol
+	} else if symPkg(ctxt, x) == "" { // Undefined global symbol
 		// If this happens, the algorithm must be redone.
 		if currSymSrcFile.name != "" {
 			Exitf("undefined global symbol found inside another file")
 		}
 	} else {
 		// Current file has changed. New C_FILE, C_DWARF, etc must be generated.
-		if currSymSrcFile.name != x.File {
+		if currSymSrcFile.name != symPkg(ctxt, x) {
 			if ctxt.LinkMode == LinkInternal {
 				// update previous file values
 				xfile.updatePreviousFile(ctxt, false)
-				currSymSrcFile.name = x.File
-				f.writeSymbolNewFile(ctxt, x.File, uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
+				currSymSrcFile.name = symPkg(ctxt, x)
+				f.writeSymbolNewFile(ctxt, symPkg(ctxt, x), uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
 			} else {
 				// With external linking, ld will crash if there is several
 				// .FILE and DWARF debugging enable, somewhere during
@@ -805,7 +805,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
 				// TODO(aix); remove once ld has been fixed or the triggering
 				// relocation has been found and fixed.
 				if currSymSrcFile.name == "" {
-					currSymSrcFile.name = x.File
+					currSymSrcFile.name = symPkg(ctxt, x)
 					f.writeSymbolNewFile(ctxt, "go_functions", uint64(x.Value), xfile.getXCOFFscnum(x.Sect))
 				}
 			}
@@ -866,7 +866,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64) 
 		return
 
 	case TextSym:
-		if x.File != "" || strings.Contains(x.Name, "-tramp") || strings.HasPrefix(x.Name, "runtime.text.") {
+		if symPkg(ctxt, x) != "" || strings.Contains(x.Name, "-tramp") || strings.HasPrefix(x.Name, "runtime.text.") {
 			// Function within a file
 			syms = xfile.writeSymbolFunc(ctxt, x)
 		} else {
