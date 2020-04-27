@@ -30,7 +30,6 @@ type Symbol struct {
 	SymIdx      LoaderSym
 	auxinfo     *AuxSymbol
 	Sect        *Section
-	Unit        *CompilationUnit
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc

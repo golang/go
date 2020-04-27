@@ -324,7 +324,8 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 		case objabi.R_ADDRCUOFF:
 			// debug_range and debug_loc elements use this relocation type to get an
 			// offset from the start of the compile unit.
-			o = Symaddr(r.Sym) + r.Add - Symaddr(ldr.Syms[r.Sym.Unit.Textp2[0]])
+			u := ldr.SymUnit(loader.Sym(r.Sym.SymIdx))
+			o = Symaddr(r.Sym) + r.Add - Symaddr(ldr.Syms[u.Textp2[0]])
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
@@ -482,4 +483,3 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 		}
 	}
 }
-
