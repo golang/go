@@ -37,6 +37,11 @@ type Config struct {
 	Rate    time.Duration
 }
 
+var (
+	connectMu sync.Mutex
+	exporters = make(map[Config]*Exporter)
+)
+
 // Discover finds the local agent to export to, it will return nil if there
 // is not one running.
 // TODO: Actually implement a discovery protocol rather than a hard coded address
@@ -60,26 +65,34 @@ func Connect(config *Config) *Exporter {
 	if config == nil || config.Address == "off" {
 		return nil
 	}
-	exporter := &Exporter{config: *config}
-	if exporter.config.Start.IsZero() {
-		exporter.config.Start = time.Now()
+	resolved := *config
+	if resolved.Start.IsZero() {
+		resolved.Start = time.Now()
 	}
-	if exporter.config.Host == "" {
+	if resolved.Host == "" {
 		hostname, _ := os.Hostname()
-		exporter.config.Host = hostname
+		resolved.Host = hostname
 	}
-	if exporter.config.Process == 0 {
-		exporter.config.Process = uint32(os.Getpid())
+	if resolved.Process == 0 {
+		resolved.Process = uint32(os.Getpid())
 	}
-	if exporter.config.Client == nil {
-		exporter.config.Client = http.DefaultClient
+	if resolved.Client == nil {
+		resolved.Client = http.DefaultClient
 	}
-	if exporter.config.Service == "" {
-		exporter.config.Service = filepath.Base(os.Args[0])
+	if resolved.Service == "" {
+		resolved.Service = filepath.Base(os.Args[0])
 	}
-	if exporter.config.Rate == 0 {
-		exporter.config.Rate = 2 * time.Second
+	if resolved.Rate == 0 {
+		resolved.Rate = 2 * time.Second
 	}
+
+	connectMu.Lock()
+	defer connectMu.Unlock()
+	if exporter, found := exporters[resolved]; found {
+		return exporter
+	}
+	exporter := &Exporter{config: resolved}
+	exporters[resolved] = exporter
 	go func() {
 		for range time.Tick(exporter.config.Rate) {
 			exporter.Flush()
