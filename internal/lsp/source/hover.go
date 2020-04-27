@@ -281,7 +281,14 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 			fieldList = t.Methods
 		}
 	case *ast.ValueSpec:
-		return &HoverInformation{source: obj, comment: spec.Doc}
+		comment := decl.Doc
+		if comment == nil {
+			comment = spec.Doc
+		}
+		if comment == nil {
+			comment = spec.Comment
+		}
+		return &HoverInformation{source: obj, comment: comment}
 	}
 	// If we have a struct or interface declaration,
 	// we need to match the object to the corresponding field or method.
@@ -296,14 +303,7 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 			}
 		}
 	}
-	// If we have a package level variable that does have a
-	// comment group attached to it but not in the ast.spec.
-	if decl.Doc.Text() != "" {
-		return &HoverInformation{source: obj, comment: decl.Doc}
-	}
-
-	// If we weren't able to find documentation for the object.
-	return &HoverInformation{source: obj}
+	return &HoverInformation{source: obj, comment: decl.Doc}
 }
 
 func FormatHover(h *HoverInformation, options Options) (string, error) {

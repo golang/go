@@ -29,7 +29,7 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 package a ("golang.org/x/tools/internal/lsp/godef/a")
 ```
 -- AString-definition --
-godef/a/a.go:16:6-7: defined here as ```go
+godef/a/a.go:19:6-7: defined here as ```go
 A string //@mark(AString, "A")
 
 ```
@@ -40,14 +40,14 @@ A string //@mark(AString, "A")
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 16,
+			"line": 19,
 			"column": 6,
-			"offset": 159
+			"offset": 216
 		},
 		"end": {
-			"line": 16,
+			"line": 19,
 			"column": 7,
-			"offset": 160
+			"offset": 217
 		}
 	},
 	"description": "```go\nA string //@mark(AString, \"A\")\n\n```\n\n[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)"
@@ -61,7 +61,7 @@ A string //@mark(AString, "A")
 
 ```
 -- AStuff-definition --
-godef/a/a.go:18:6-12: defined here as ```go
+godef/a/a.go:21:6-12: defined here as ```go
 func a.AStuff()
 ```
 
@@ -71,14 +71,14 @@ func a.AStuff()
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 18,
+			"line": 21,
 			"column": 6,
-			"offset": 196
+			"offset": 253
 		},
 		"end": {
-			"line": 18,
+			"line": 21,
 			"column": 12,
-			"offset": 202
+			"offset": 259
 		}
 	},
 	"description": "```go\nfunc a.AStuff()\n```\n\n[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)"
@@ -308,6 +308,8 @@ const X untyped int = 0
 ```
 
 [`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)
+
+\@mark\(bX, \"X\"\),godef\(\"X\", bX\)
 -- bX-definition-json --
 {
 	"span": {
@@ -323,10 +325,12 @@ const X untyped int = 0
 			"offset": 814
 		}
 	},
-	"description": "```go\nconst X untyped int = 0\n```\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)"
+	"description": "```go\nconst X untyped int = 0\n```\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)\n\n\\@mark\\(bX, \\\"X\\\"\\),godef\\(\\\"X\\\", bX\\)"
 }
 
 -- bX-hover --
+\@mark\(bX, \"X\"\),godef\(\"X\", bX\)
+
 [`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)
 
 ```go

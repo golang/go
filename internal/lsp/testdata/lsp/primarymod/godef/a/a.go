@@ -13,6 +13,9 @@ var (
 	x string //@x,hover("x", x)
 )
 
+// z is a variable too.
+var z string //@z,hover("z", z)
+
 type A string //@mark(AString, "A")
 
 func AStuff() { //@AStuff

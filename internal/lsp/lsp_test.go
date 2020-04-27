@@ -486,7 +486,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 			return []byte(hover.Contents.Value), nil
 		}))
 		if hover.Contents.Value != expectHover {
-			t.Errorf("for %v got %q want %q", d.Src, hover.Contents.Value, expectHover)
+			t.Errorf("%s:\n%s", d.Src, tests.Diff(expectHover, hover.Contents.Value))
 		}
 	}
 	if !d.OnlyHover {

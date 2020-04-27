@@ -522,3 +522,14 @@ func EnableAllAnalyzers(snapshot source.Snapshot, opts *source.Options) {
 		}
 	}
 }
+
+func Diff(want, got string) string {
+	if want == got {
+		return ""
+	}
+	// Add newlines to avoid newline messages in diff.
+	want += "\n"
+	got += "\n"
+	d := myers.ComputeEdits("", want, got)
+	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
+}

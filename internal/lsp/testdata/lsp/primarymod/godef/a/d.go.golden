@@ -68,6 +68,8 @@ var Other Thing
 ```
 
 [`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+
+\@Other
 -- Other-definition-json --
 {
 	"span": {
@@ -83,10 +85,12 @@ var Other Thing
 			"offset": 91
 		}
 	},
-	"description": "```go\nvar Other Thing\n```\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
+	"description": "```go\nvar Other Thing\n```\n\n[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)\n\n\\@Other"
 }
 
 -- Other-hover --
+\@Other
+
 [`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
 
 ```go

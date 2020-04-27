@@ -75,28 +75,32 @@ func Random2(y int) int
 func Random2(y int) int
 ```
 -- err-definition --
-godef/a/a.go:23:6-9: defined here as ```go
+godef/a/a.go:26:6-9: defined here as ```go
 var err error
 ```
+
+\@err
 -- err-definition-json --
 {
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 23,
+			"line": 26,
 			"column": 6,
-			"offset": 304
+			"offset": 361
 		},
 		"end": {
-			"line": 23,
+			"line": 26,
 			"column": 9,
-			"offset": 307
+			"offset": 364
 		}
 	},
-	"description": "```go\nvar err error\n```"
+	"description": "```go\nvar err error\n```\n\n\\@err"
 }
 
 -- err-hover --
+\@err
+
 ```go
 var err error
 ```
@@ -117,4 +121,10 @@ x is a variable\.
 
 ```go
 var x string
+```
+-- z-hover --
+z is a variable too\.
+
+```go
+var z string
 ```
