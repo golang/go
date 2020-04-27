@@ -88,6 +88,78 @@ func TestImage(t *testing.T) {
 	}
 }
 
+func TestNewXxxBadRectangle(t *testing.T) {
+	// call calls f(r) and reports whether it ran without panicking.
+	call := func(f func(Rectangle), r Rectangle) (ok bool) {
+		defer func() {
+			if recover() != nil {
+				ok = false
+			}
+		}()
+		f(r)
+		return true
+	}
+
+	testCases := []struct {
+		name string
+		f    func(Rectangle)
+	}{
+		{"RGBA", func(r Rectangle) { NewRGBA(r) }},
+		{"RGBA64", func(r Rectangle) { NewRGBA64(r) }},
+		{"NRGBA", func(r Rectangle) { NewNRGBA(r) }},
+		{"NRGBA64", func(r Rectangle) { NewNRGBA64(r) }},
+		{"Alpha", func(r Rectangle) { NewAlpha(r) }},
+		{"Alpha16", func(r Rectangle) { NewAlpha16(r) }},
+		{"Gray", func(r Rectangle) { NewGray(r) }},
+		{"Gray16", func(r Rectangle) { NewGray16(r) }},
+		{"CMYK", func(r Rectangle) { NewCMYK(r) }},
+		{"Paletted", func(r Rectangle) { NewPaletted(r, color.Palette{color.Black, color.White}) }},
+		{"YCbCr", func(r Rectangle) { NewYCbCr(r, YCbCrSubsampleRatio422) }},
+		{"NYCbCrA", func(r Rectangle) { NewNYCbCrA(r, YCbCrSubsampleRatio444) }},
+	}
+
+	for _, tc := range testCases {
+		// Calling NewXxx(r) should fail (panic, since NewXxx doesn't return an
+		// error) unless r's width and height are both non-negative.
+		for _, negDx := range []bool{false, true} {
+			for _, negDy := range []bool{false, true} {
+				r := Rectangle{
+					Min: Point{15, 28},
+					Max: Point{16, 29},
+				}
+				if negDx {
+					r.Max.X = 14
+				}
+				if negDy {
+					r.Max.Y = 27
+				}
+
+				got := call(tc.f, r)
+				want := !negDx && !negDy
+				if got != want {
+					t.Errorf("New%s: negDx=%t, negDy=%t: got %t, want %t",
+						tc.name, negDx, negDy, got, want)
+				}
+			}
+		}
+
+		// Passing a Rectangle whose width and height is MaxInt should also fail
+		// (panic), due to overflow.
+		{
+			zeroAsUint := uint(0)
+			maxUint := zeroAsUint - 1
+			maxInt := int(maxUint / 2)
+			got := call(tc.f, Rectangle{
+				Min: Point{0, 0},
+				Max: Point{maxInt, maxInt},
+			})
+			if got {
+				t.Errorf("New%s: overflow: got ok, want !ok", tc.name)
+			}
+		}
+	}
+}
+
 func Test16BitsPerColorChannel(t *testing.T) {
 	testColorModel := []color.Model{
 		color.RGBA64Model,
