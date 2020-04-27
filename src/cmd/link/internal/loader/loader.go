@@ -2307,7 +2307,6 @@ func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUni
 		t = s.Type
 	}
 	s.Type = t
-	s.Unit = unit
 	l.growSyms(int(i))
 	l.installSym(i, s)
 	return s
