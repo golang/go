@@ -84,7 +84,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, s *sym.Symbol, r *sym.Re
 					break
 				}
 			}
-		} else if s.Type == sym.SDATA {
+		} else if s.Type == sym.SDATA || s.Type == sym.SNOPTRDATA || s.Type == sym.SBUILDINFO || s.Type == sym.SXCOFFTOC {
 			switch r.Sym.Sect.Seg {
 			default:
 				Errorf(s, "unknown segment for .loader relocation with symbol %s", r.Sym.Name)
