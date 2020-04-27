@@ -308,7 +308,7 @@ func (w *Workspace) writeFileData(path string, content string) error {
 }
 
 func (w *Workspace) removeAll() error {
-	var wsErr, gopathErr error
+	var wsErr, gopathErr, proxyErr error
 	if w.gopath != "" {
 		if err := w.RunGoCommand(context.Background(), "clean", "-modcache"); err != nil {
 			gopathErr = fmt.Errorf("cleaning modcache: %v", err)
@@ -319,8 +319,11 @@ func (w *Workspace) removeAll() error {
 	if w.workdir != "" {
 		wsErr = os.RemoveAll(w.workdir)
 	}
-	if wsErr != nil || gopathErr != nil {
-		return fmt.Errorf("error(s) cleaning workspace: removing workdir: %v; removing gopath: %v", wsErr, gopathErr)
+	if w.proxydir != "" {
+		proxyErr = os.RemoveAll(w.proxydir)
+	}
+	if wsErr != nil || gopathErr != nil || proxyErr != nil {
+		return fmt.Errorf("error(s) cleaning workspace: removing workdir: %v; removing gopath: %v; removing proxy: %v", wsErr, gopathErr, proxyErr)
 	}
 	return nil
 }
