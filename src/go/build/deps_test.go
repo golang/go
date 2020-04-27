@@ -84,7 +84,7 @@ var pkgDeps = map[string][]string{
 	},
 
 	// L2 adds Unicode and strings processing.
-	"bufio":   {"L0", "unicode/utf8", "bytes"},
+	"bufio":   {"L0", "unicode/utf8", "bytes", "strings"},
 	"bytes":   {"L0", "unicode", "unicode/utf8"},
 	"path":    {"L0", "unicode/utf8", "strings"},
 	"strings": {"L0", "unicode", "unicode/utf8"},
