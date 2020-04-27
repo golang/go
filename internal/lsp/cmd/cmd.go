@@ -170,6 +170,7 @@ func (app *Application) mainCommands() []tool.Application {
 func (app *Application) featureCommands() []tool.Application {
 	return []tool.Application{
 		&check{app: app},
+		&definition{app: app},
 		&foldingRanges{app: app},
 		&format{app: app},
 		&highlight{app: app},
@@ -178,7 +179,6 @@ func (app *Application) featureCommands() []tool.Application {
 		&inspect{app: app},
 		&links{app: app},
 		&prepareRename{app: app},
-		&query{app: app},
 		&references{app: app},
 		&rename{app: app},
 		&signature{app: app},

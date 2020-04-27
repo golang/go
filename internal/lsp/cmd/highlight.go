@@ -15,7 +15,7 @@ import (
 	"golang.org/x/tools/internal/tool"
 )
 
-// highlight implements the highlight verb for gopls
+// highlight implements the highlight verb for gopls.
 type highlight struct {
 	app *Application
 }

@@ -12,7 +12,6 @@ import (
 	"os"
 	"strings"
 
-	guru "golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -35,9 +34,12 @@ const (
 	exampleOffset = 1270
 )
 
-// definition implements the definition noun for the query command.
+// definition implements the definition verb for gopls.
 type definition struct {
-	query *query
+	app *Application
+
+	JSON              bool `flag:"json" help:"emit output in JSON format"`
+	MarkdownSupported bool `flag:"markdown" help:"support markdown in responses"`
 }
 
 func (d *definition) Name() string      { return "definition" }
@@ -62,17 +64,17 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 		return tool.CommandLineErrorf("definition expects 1 argument")
 	}
 	// Plaintext makes more sense for the command line.
-	opts := d.query.app.options
-	d.query.app.options = func(o *source.Options) {
+	opts := d.app.options
+	d.app.options = func(o *source.Options) {
 		if opts != nil {
 			opts(o)
 		}
 		o.PreferredContentFormat = protocol.PlainText
-		if d.query.MarkdownSupported {
+		if d.MarkdownSupported {
 			o.PreferredContentFormat = protocol.Markdown
 		}
 	}
-	conn, err := d.query.app.connect(ctx)
+	conn, err := d.app.connect(ctx)
 	if err != nil {
 		return err
 	}
@@ -120,34 +122,15 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 		return errors.Errorf("%v: %v", from, err)
 	}
 	description := strings.TrimSpace(hover.Contents.Value)
-	var result interface{}
-	switch d.query.Emulate {
-	case "":
-		result = &Definition{
-			Span:        definition,
-			Description: description,
-		}
-	case emulateGuru:
-		pos := span.New(definition.URI(), definition.Start(), definition.Start())
-		result = &guru.Definition{
-			ObjPos: fmt.Sprint(pos),
-			Desc:   description,
-		}
-	default:
-		return errors.Errorf("unknown emulation for definition: %s", d.query.Emulate)
+	result := &Definition{
+		Span:        definition,
+		Description: description,
 	}
-	if d.query.JSON {
+	if d.JSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "\t")
 		return enc.Encode(result)
 	}
-	switch d := result.(type) {
-	case *Definition:
-		fmt.Printf("%v: defined here as %s", d.Span, d.Description)
-	case *guru.Definition:
-		fmt.Printf("%s: defined here as %s", d.ObjPos, d.Desc)
-	default:
-		return errors.Errorf("no printer for type %T", result)
-	}
+	fmt.Printf("%v: defined here as %s", result.Span, result.Description)
 	return nil
 }

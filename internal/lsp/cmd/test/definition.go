@@ -35,13 +35,12 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 	d.Src = span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})
 	for _, mode := range godefModes {
-		args := []string{"query", "-markdown"}
+		args := []string{"definition", "-markdown"}
 		tag := d.Name + "-definition"
 		if mode&jsonGoDef != 0 {
 			tag += "-json"
 			args = append(args, "-json")
 		}
-		args = append(args, "definition")
 		uri := d.Src.URI()
 		args = append(args, fmt.Sprint(d.Src))
 		got, _ := r.NormalizeGoplsCmd(t, args...)
