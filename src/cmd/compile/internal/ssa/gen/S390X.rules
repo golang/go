@@ -475,50 +475,50 @@
 // OpCopy (i.e. "(... x:(...) ...) -> x").
 
 // Merge double extensions.
-(MOV(H|HZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(W|WZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(W|WZ)reg e:(MOV(H|HZ)reg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
+(MOV(H|HZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(W|WZ)reg e:(MOV(B|BZ)reg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(W|WZ)reg e:(MOV(H|HZ)reg x)) && clobberIfDead(e) => (MOV(H|HZ)reg x)
 
 // Bypass redundant sign extensions.
-(MOV(B|BZ)reg e:(MOVBreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(B|BZ)reg e:(MOVHreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(B|BZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(H|HZ)reg e:(MOVHreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
-(MOV(H|HZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
-(MOV(W|WZ)reg e:(MOVWreg x)) && clobberIfDead(e) -> (MOV(W|WZ)reg x)
+(MOV(B|BZ)reg e:(MOVBreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVHreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVWreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(H|HZ)reg e:(MOVHreg x)) && clobberIfDead(e) => (MOV(H|HZ)reg x)
+(MOV(H|HZ)reg e:(MOVWreg x)) && clobberIfDead(e) => (MOV(H|HZ)reg x)
+(MOV(W|WZ)reg e:(MOVWreg x)) && clobberIfDead(e) => (MOV(W|WZ)reg x)
 
 // Bypass redundant zero extensions.
-(MOV(B|BZ)reg e:(MOVBZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(B|BZ)reg e:(MOVHZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(B|BZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(B|BZ)reg x)
-(MOV(H|HZ)reg e:(MOVHZreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
-(MOV(H|HZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(H|HZ)reg x)
-(MOV(W|WZ)reg e:(MOVWZreg x)) && clobberIfDead(e) -> (MOV(W|WZ)reg x)
+(MOV(B|BZ)reg e:(MOVBZreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVHZreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(B|BZ)reg e:(MOVWZreg x)) && clobberIfDead(e) => (MOV(B|BZ)reg x)
+(MOV(H|HZ)reg e:(MOVHZreg x)) && clobberIfDead(e) => (MOV(H|HZ)reg x)
+(MOV(H|HZ)reg e:(MOVWZreg x)) && clobberIfDead(e) => (MOV(H|HZ)reg x)
+(MOV(W|WZ)reg e:(MOVWZreg x)) && clobberIfDead(e) => (MOV(W|WZ)reg x)
 
 // Remove zero extensions after zero extending load.
 // Note: take care that if x is spilled it is restored correctly.
-(MOV(B|H|W)Zreg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
-(MOV(B|H|W)Zreg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
-(MOV(H|W)Zreg   x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
-(MOV(H|W)Zreg   x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
-(MOVWZreg       x:(MOVWZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) -> x
-(MOVWZreg       x:(MOVWZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) -> x
+(MOV(B|H|W)Zreg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) => x
+(MOV(B|H|W)Zreg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) => x
+(MOV(H|W)Zreg   x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) => x
+(MOV(H|W)Zreg   x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) => x
+(MOVWZreg       x:(MOVWZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) => x
+(MOVWZreg       x:(MOVWZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 4) => x
 
 // Remove sign extensions after sign extending load.
 // Note: take care that if x is spilled it is restored correctly.
-(MOV(B|H|W)reg x:(MOVBload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
-(MOV(B|H|W)reg x:(MOVBloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
-(MOV(H|W)reg   x:(MOVHload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
-(MOV(H|W)reg   x:(MOVHloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
-(MOVWreg       x:(MOVWload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
-(MOVWreg       x:(MOVWloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) -> x
+(MOV(B|H|W)reg x:(MOVBload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
+(MOV(B|H|W)reg x:(MOVBloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
+(MOV(H|W)reg   x:(MOVHload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
+(MOV(H|W)reg   x:(MOVHloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
+(MOVWreg       x:(MOVWload    _   _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
+(MOVWreg       x:(MOVWloadidx _ _ _)) && (x.Type.IsSigned() || x.Type.Size() == 8) => x
 
 // Remove sign extensions after zero extending load.
 // These type checks are probably unnecessary but do them anyway just in case.
-(MOV(H|W)reg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
-(MOV(H|W)reg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) -> x
-(MOVWreg     x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
-(MOVWreg     x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) -> x
+(MOV(H|W)reg x:(MOVBZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) => x
+(MOV(H|W)reg x:(MOVBZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 1) => x
+(MOVWreg     x:(MOVHZload    _   _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) => x
+(MOVWreg     x:(MOVHZloadidx _ _ _)) && (!x.Type.IsSigned() || x.Type.Size() > 2) => x
 
 // Fold sign and zero extensions into loads.
 //
@@ -533,39 +533,39 @@
 (MOV(B|H|W)Zreg <t> x:(MOV(B|H|W)load [o] {s} p mem))
   && x.Uses == 1
   && clobber(x)
-  -> @x.Block (MOV(B|H|W)Zload <t> [o] {s} p mem)
+  => @x.Block (MOV(B|H|W)Zload <t> [o] {s} p mem)
 (MOV(B|H|W)reg <t> x:(MOV(B|H|W)Zload [o] {s} p mem))
   && x.Uses == 1
   && clobber(x)
-  -> @x.Block (MOV(B|H|W)load <t> [o] {s} p mem)
+  => @x.Block (MOV(B|H|W)load <t> [o] {s} p mem)
 (MOV(B|H|W)Zreg <t> x:(MOV(B|H|W)loadidx [o] {s} p i mem))
   && x.Uses == 1
   && clobber(x)
-  -> @x.Block (MOV(B|H|W)Zloadidx <t> [o] {s} p i mem)
+  => @x.Block (MOV(B|H|W)Zloadidx <t> [o] {s} p i mem)
 (MOV(B|H|W)reg <t> x:(MOV(B|H|W)Zloadidx [o] {s} p i mem))
   && x.Uses == 1
   && clobber(x)
-  -> @x.Block (MOV(B|H|W)loadidx <t> [o] {s} p i mem)
+  => @x.Block (MOV(B|H|W)loadidx <t> [o] {s} p i mem)
 
 // Remove zero extensions after argument load.
-(MOVBZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() == 1 -> x
-(MOVHZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 2 -> x
-(MOVWZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 4 -> x
+(MOVBZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() == 1 => x
+(MOVHZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 2 => x
+(MOVWZreg x:(Arg <t>)) && !t.IsSigned() && t.Size() <= 4 => x
 
 // Remove sign extensions after argument load.
-(MOVBreg x:(Arg <t>)) && t.IsSigned() && t.Size() == 1 -> x
-(MOVHreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 2 -> x
-(MOVWreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 4 -> x
+(MOVBreg x:(Arg <t>)) && t.IsSigned() && t.Size() == 1 => x
+(MOVHreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 2 => x
+(MOVWreg x:(Arg <t>)) && t.IsSigned() && t.Size() <= 4 => x
 
 // Fold zero extensions into constants.
-(MOVBZreg (MOVDconst [c])) -> (MOVDconst [int64( uint8(c))])
-(MOVHZreg (MOVDconst [c])) -> (MOVDconst [int64(uint16(c))])
-(MOVWZreg (MOVDconst [c])) -> (MOVDconst [int64(uint32(c))])
+(MOVBZreg (MOVDconst [c])) => (MOVDconst [int64( uint8(c))])
+(MOVHZreg (MOVDconst [c])) => (MOVDconst [int64(uint16(c))])
+(MOVWZreg (MOVDconst [c])) => (MOVDconst [int64(uint32(c))])
 
 // Fold sign extensions into constants.
-(MOVBreg (MOVDconst [c])) -> (MOVDconst [int64( int8(c))])
-(MOVHreg (MOVDconst [c])) -> (MOVDconst [int64(int16(c))])
-(MOVWreg (MOVDconst [c])) -> (MOVDconst [int64(int32(c))])
+(MOVBreg (MOVDconst [c])) => (MOVDconst [int64( int8(c))])
+(MOVHreg (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
+(MOVWreg (MOVDconst [c])) => (MOVDconst [int64(int32(c))])
 
 // Remove zero extension of conditional move.
 // Note: only for MOVBZreg for now since it is added as part of 'if' statement lowering.
@@ -656,17 +656,17 @@
 // equivalent to the leftmost 32 bits being set.
 // TODO(mundaym): modify the assembler to accept 64-bit values
 // and use isU32Bit(^c).
-(AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
+(AND x (MOVDconst [c])) && is32Bit(c) && c < 0 => (ANDconst [c] x)
 (AND x (MOVDconst [c])) && is32Bit(c) && c >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(int32(c))] x))
 (ANDW x (MOVDconst [c])) -> (ANDWconst [int64(int32(c))] x)
 
-(ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
-(ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c & d] x)
+(ANDWconst [c] (ANDWconst [d] x)) => (ANDWconst [c & d] x)
+(ANDconst [c] (ANDconst [d] x)) => (ANDconst [c & d] x)
 
-(OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
+(OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
 (ORW x (MOVDconst [c])) -> (ORWconst [int64(int32(c))] x)
 
-(XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
+(XOR x (MOVDconst [c])) && isU32Bit(c) => (XORconst [c] x)
 (XORW x (MOVDconst [c])) -> (XORWconst [int64(int32(c))] x)
 
 // Constant shifts.
@@ -677,25 +677,25 @@
 (S(LD|RD|RAD|LW|RW|RAW) x (AND (MOVDconst [c]) y))
 	-> (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst <typ.UInt32> [c&63] y))
 (S(LD|RD|RAD|LW|RW|RAW) x (ANDWconst [c] y)) && c&63 == 63
-	-> (S(LD|RD|RAD|LW|RW|RAW) x y)
-(SLD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SLD  x y)
-(SRD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRD  x y)
-(SRAD x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRAD x y)
-(SLW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SLW  x y)
-(SRW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
-(SRAW x (MOV(W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
+	=> (S(LD|RD|RAD|LW|RW|RAW) x y)
+(SLD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SLD  x y)
+(SRD  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRD  x y)
+(SRAD x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRAD x y)
+(SLW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SLW  x y)
+(SRW  x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRW  x y)
+(SRAW x (MOV(W|H|B|WZ|HZ|BZ)reg y)) => (SRAW x y)
 
 // Constant rotate generation
 (RLL  x (MOVDconst [c])) -> (RLLconst  x [c&31])
 (RLLG x (MOVDconst [c])) -> (RLLGconst x [c&63])
 
-(ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
-( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
-(XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
+(ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
+( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
+(XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c => (RLLGconst [c] x)
 
-(ADDW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (RLLconst [c] x)
-( ORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (RLLconst [c] x)
-(XORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c -> (RLLconst [c] x)
+(ADDW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
+( ORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
+(XORW (SLWconst x [c]) (SRWconst x [d])) && d == 32-c => (RLLconst [c] x)
 
 (CMP x (MOVDconst [c])) && is32Bit(c) -> (CMPconst x [c])
 (CMP (MOVDconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPconst x [c]))
@@ -707,26 +707,26 @@
 (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(int32(c))]))
 
 // Canonicalize the order of arguments to comparisons - helps with CSE.
-((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // Using MOV{W,H,B}Zreg instead of AND is cheaper.
-(AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
-(AND x (MOVDconst [0xFFFF])) -> (MOVHZreg x)
-(AND x (MOVDconst [0xFFFFFFFF])) -> (MOVWZreg x)
-(ANDWconst [0xFF] x) -> (MOVBZreg x)
-(ANDWconst [0xFFFF] x) -> (MOVHZreg x)
+(AND x (MOVDconst [0xFF])) => (MOVBZreg x)
+(AND x (MOVDconst [0xFFFF])) => (MOVHZreg x)
+(AND x (MOVDconst [0xFFFFFFFF])) => (MOVWZreg x)
+(ANDWconst [0xFF] x) => (MOVBZreg x)
+(ANDWconst [0xFFFF] x) => (MOVHZreg x)
 
 // strength reduction
-(MULLDconst [-1] x) -> (NEG x)
-(MULLDconst [0] _) -> (MOVDconst [0])
-(MULLDconst [1] x) -> x
+(MULLDconst [-1] x) => (NEG x)
+(MULLDconst [0] _) => (MOVDconst [0])
+(MULLDconst [1] x) => x
 (MULLDconst [c] x) && isPowerOfTwo(c) -> (SLDconst [log2(c)] x)
 (MULLDconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUB (SLDconst <v.Type> [log2(c+1)] x) x)
 (MULLDconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (ADD (SLDconst <v.Type> [log2(c-1)] x) x)
 
-(MULLWconst [-1] x) -> (NEGW x)
-(MULLWconst [0] _) -> (MOVDconst [0])
-(MULLWconst [1] x) -> x
+(MULLWconst [-1] x) => (NEGW x)
+(MULLWconst [0] _) => (MOVDconst [0])
+(MULLWconst [1] x) => x
 (MULLWconst [c] x) && isPowerOfTwo(c) -> (SLWconst [log2(c)] x)
 (MULLWconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBW (SLWconst <v.Type> [log2(c+1)] x) x)
 (MULLWconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (ADDW (SLWconst <v.Type> [log2(c-1)] x) x)
@@ -734,7 +734,7 @@
 // Fold ADD into MOVDaddr. Odd offsets from SB shouldn't be folded (LARL can't handle them).
 (ADDconst [c] (MOVDaddr [d] {s} x:(SB))) && ((c+d)&1 == 0) && is32Bit(c+d) -> (MOVDaddr [c+d] {s} x)
 (ADDconst [c] (MOVDaddr [d] {s} x)) && x.Op != OpSB && is20Bit(c+d) -> (MOVDaddr [c+d] {s} x)
-(ADD idx (MOVDaddr [c] {s} ptr)) && ptr.Op != OpSB && idx.Op != OpSB -> (MOVDaddridx [c] {s} ptr idx)
+(ADD idx (MOVDaddr [c] {s} ptr)) && ptr.Op != OpSB && idx.Op != OpSB => (MOVDaddridx [c] {s} ptr idx)
 
 // fold ADDconst into MOVDaddrx
 (ADDconst [c] (MOVDaddridx [d] {s} x y)) && is20Bit(c+d) -> (MOVDaddridx [c+d] {s} x y)
@@ -745,59 +745,59 @@
 (LOCGR {c} x y (InvertFlags cmp)) => (LOCGR {c.ReverseComparison()} x y cmp)
 
 // replace load from same location as preceding store with copy
-(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
-(MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVWreg x)
-(MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVHreg x)
-(MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVBreg x)
-(MOVWZload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVWZreg x)
-(MOVHZload [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVHZreg x)
-(MOVBZload [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (MOVBZreg x)
-(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (LGDR x)
-(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> (LDGR x)
-(FMOVDload [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
-(FMOVSload [off] {sym} ptr1 (FMOVSstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) -> x
+(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => x
+(MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVWreg x)
+(MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVHreg x)
+(MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVBreg x)
+(MOVWZload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVWZreg x)
+(MOVHZload [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVHZreg x)
+(MOVBZload [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (MOVBZreg x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (LGDR x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => (LDGR x)
+(FMOVDload [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => x
+(FMOVSload [off] {sym} ptr1 (FMOVSstore [off] {sym} ptr2 x _)) && isSamePtr(ptr1, ptr2) => x
 
 // prefer FPR <-> GPR moves over combined load ops
-(MULLDload <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (MULLD x (LGDR <t> y))
-(ADDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (ADD   x (LGDR <t> y))
-(SUBload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (SUB   x (LGDR <t> y))
-(ORload    <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (OR    x (LGDR <t> y))
-(ANDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (AND   x (LGDR <t> y))
-(XORload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) -> (XOR   x (LGDR <t> y))
+(MULLDload <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (MULLD x (LGDR <t> y))
+(ADDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (ADD   x (LGDR <t> y))
+(SUBload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (SUB   x (LGDR <t> y))
+(ORload    <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (OR    x (LGDR <t> y))
+(ANDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (AND   x (LGDR <t> y))
+(XORload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && isSamePtr(ptr1, ptr2) => (XOR   x (LGDR <t> y))
 
 // detect attempts to set/clear the sign bit
 // may need to be reworked when NIHH/OIHH are added
-(SRDconst [1] (SLDconst [1] (LGDR <t> x))) -> (LGDR <t> (LPDFR <x.Type> x))
-(LDGR <t> (SRDconst [1] (SLDconst [1] x))) -> (LPDFR (LDGR <t> x))
-(AND (MOVDconst [^(-1<<63)]) (LGDR <t> x)) -> (LGDR <t> (LPDFR <x.Type> x))
-(LDGR <t> (AND (MOVDconst [^(-1<<63)]) x)) -> (LPDFR (LDGR <t> x))
-(OR (MOVDconst [-1<<63]) (LGDR <t> x))     -> (LGDR <t> (LNDFR <x.Type> x))
-(LDGR <t> (OR (MOVDconst [-1<<63]) x))     -> (LNDFR (LDGR <t> x))
+(SRDconst [1] (SLDconst [1] (LGDR <t> x))) => (LGDR <t> (LPDFR <x.Type> x))
+(LDGR <t> (SRDconst [1] (SLDconst [1] x))) => (LPDFR (LDGR <t> x))
+(AND (MOVDconst [^(-1<<63)]) (LGDR <t> x)) => (LGDR <t> (LPDFR <x.Type> x))
+(LDGR <t> (AND (MOVDconst [^(-1<<63)]) x)) => (LPDFR (LDGR <t> x))
+(OR (MOVDconst [-1<<63]) (LGDR <t> x))     => (LGDR <t> (LNDFR <x.Type> x))
+(LDGR <t> (OR (MOVDconst [-1<<63]) x))     => (LNDFR (LDGR <t> x))
 
 // detect attempts to set the sign bit with load
-(LDGR <t> x:(ORload <t1> [off] {sym} (MOVDconst [-1<<63]) ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (LNDFR <t> (LDGR <t> (MOVDload <t1> [off] {sym} ptr mem)))
+(LDGR <t> x:(ORload <t1> [off] {sym} (MOVDconst [-1<<63]) ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (LNDFR <t> (LDGR <t> (MOVDload <t1> [off] {sym} ptr mem)))
 
 // detect copysign
-(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y))) -> (LGDR (CPSDR <t> y x))
+(OR (SLDconst [63] (SRDconst [63] (LGDR x))) (LGDR (LPDFR <t> y))) => (LGDR (CPSDR <t> y x))
 (OR (SLDconst [63] (SRDconst [63] (LGDR x))) (MOVDconst [c])) && c & -1<<63 == 0 -> (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [c]) x))
-(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (LGDR (LPDFR <t> y))) -> (LGDR (CPSDR <t> y x))
+(OR (AND (MOVDconst [-1<<63]) (LGDR x)) (LGDR (LPDFR <t> y))) => (LGDR (CPSDR <t> y x))
 (OR (AND (MOVDconst [-1<<63]) (LGDR x)) (MOVDconst [c])) && c & -1<<63 == 0 -> (LGDR (CPSDR <x.Type> (FMOVDconst <x.Type> [c]) x))
 (CPSDR y (FMOVDconst [c])) && c & -1<<63 == 0 -> (LPDFR y)
 (CPSDR y (FMOVDconst [c])) && c & -1<<63 != 0 -> (LNDFR y)
 
 // absorb negations into set/clear sign bit
-(FNEG  (LPDFR x)) -> (LNDFR x)
-(FNEG  (LNDFR x)) -> (LPDFR x)
-(FNEGS (LPDFR x)) -> (LNDFR x)
-(FNEGS (LNDFR x)) -> (LPDFR x)
+(FNEG  (LPDFR x)) => (LNDFR x)
+(FNEG  (LNDFR x)) => (LPDFR x)
+(FNEGS (LPDFR x)) => (LNDFR x)
+(FNEGS (LNDFR x)) => (LPDFR x)
 
 // no need to convert float32 to float64 to set/clear sign bit
-(LEDBR (LPDFR (LDEBR x))) -> (LPDFR x)
-(LEDBR (LNDFR (LDEBR x))) -> (LNDFR x)
+(LEDBR (LPDFR (LDEBR x))) => (LPDFR x)
+(LEDBR (LNDFR (LDEBR x))) => (LNDFR x)
 
 // remove unnecessary FPR <-> GPR moves
-(LDGR (LGDR x)) -> x
-(LGDR (LDGR x)) -> x
+(LDGR (LGDR x)) => x
+(LGDR (LDGR x)) => x
 
 // Don't extend before storing
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
