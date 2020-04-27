@@ -56,6 +56,21 @@ type PalettedImage interface {
 	Image
 }
 
+// pixelBufferLength returns the length of the []uint8 typed Pix slice field
+// for the NewXxx functions. Conceptually, this is just (bpp * width * height),
+// but this function panics if at least one of those is negative or if the
+// computation would overflow the int type.
+//
+// This panics instead of returning an error because of backwards
+// compatibility. The NewXxx functions do not return an error.
+func pixelBufferLength(bytesPerPixel int, r Rectangle, imageTypeName string) int {
+	totalLength := mul3NonNeg(bytesPerPixel, r.Dx(), r.Dy())
+	if totalLength < 0 {
+		panic("image: New" + imageTypeName + " Rectangle has huge or negative dimensions")
+	}
+	return totalLength
+}
+
 // RGBA is an in-memory image whose At method returns color.RGBA values.
 type RGBA struct {
 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
@@ -153,9 +168,11 @@ func (p *RGBA) Opaque() bool {
 
 // NewRGBA returns a new RGBA image with the given bounds.
 func NewRGBA(r Rectangle) *RGBA {
-	w, h := r.Dx(), r.Dy()
-	buf := make([]uint8, 4*w*h)
-	return &RGBA{buf, 4 * w, r}
+	return &RGBA{
+		Pix:    make([]uint8, pixelBufferLength(4, r, "RGBA")),
+		Stride: 4 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // RGBA64 is an in-memory image whose At method returns color.RGBA64 values.
@@ -268,9 +285,11 @@ func (p *RGBA64) Opaque() bool {
 
 // NewRGBA64 returns a new RGBA64 image with the given bounds.
 func NewRGBA64(r Rectangle) *RGBA64 {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 8*w*h)
-	return &RGBA64{pix, 8 * w, r}
+	return &RGBA64{
+		Pix:    make([]uint8, pixelBufferLength(8, r, "RGBA64")),
+		Stride: 8 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // NRGBA is an in-memory image whose At method returns color.NRGBA values.
@@ -370,9 +389,11 @@ func (p *NRGBA) Opaque() bool {
 
 // NewNRGBA returns a new NRGBA image with the given bounds.
 func NewNRGBA(r Rectangle) *NRGBA {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 4*w*h)
-	return &NRGBA{pix, 4 * w, r}
+	return &NRGBA{
+		Pix:    make([]uint8, pixelBufferLength(4, r, "NRGBA")),
+		Stride: 4 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // NRGBA64 is an in-memory image whose At method returns color.NRGBA64 values.
@@ -485,9 +506,11 @@ func (p *NRGBA64) Opaque() bool {
 
 // NewNRGBA64 returns a new NRGBA64 image with the given bounds.
 func NewNRGBA64(r Rectangle) *NRGBA64 {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 8*w*h)
-	return &NRGBA64{pix, 8 * w, r}
+	return &NRGBA64{
+		Pix:    make([]uint8, pixelBufferLength(8, r, "NRGBA64")),
+		Stride: 8 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // Alpha is an in-memory image whose At method returns color.Alpha values.
@@ -577,9 +600,11 @@ func (p *Alpha) Opaque() bool {
 
 // NewAlpha returns a new Alpha image with the given bounds.
 func NewAlpha(r Rectangle) *Alpha {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 1*w*h)
-	return &Alpha{pix, 1 * w, r}
+	return &Alpha{
+		Pix:    make([]uint8, pixelBufferLength(1, r, "Alpha")),
+		Stride: 1 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // Alpha16 is an in-memory image whose At method returns color.Alpha16 values.
@@ -672,9 +697,11 @@ func (p *Alpha16) Opaque() bool {
 
 // NewAlpha16 returns a new Alpha16 image with the given bounds.
 func NewAlpha16(r Rectangle) *Alpha16 {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 2*w*h)
-	return &Alpha16{pix, 2 * w, r}
+	return &Alpha16{
+		Pix:    make([]uint8, pixelBufferLength(2, r, "Alpha16")),
+		Stride: 2 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // Gray is an in-memory image whose At method returns color.Gray values.
@@ -751,9 +778,11 @@ func (p *Gray) Opaque() bool {
 
 // NewGray returns a new Gray image with the given bounds.
 func NewGray(r Rectangle) *Gray {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 1*w*h)
-	return &Gray{pix, 1 * w, r}
+	return &Gray{
+		Pix:    make([]uint8, pixelBufferLength(1, r, "Gray")),
+		Stride: 1 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // Gray16 is an in-memory image whose At method returns color.Gray16 values.
@@ -833,9 +862,11 @@ func (p *Gray16) Opaque() bool {
 
 // NewGray16 returns a new Gray16 image with the given bounds.
 func NewGray16(r Rectangle) *Gray16 {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 2*w*h)
-	return &Gray16{pix, 2 * w, r}
+	return &Gray16{
+		Pix:    make([]uint8, pixelBufferLength(2, r, "Gray16")),
+		Stride: 2 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // CMYK is an in-memory image whose At method returns color.CMYK values.
@@ -922,9 +953,11 @@ func (p *CMYK) Opaque() bool {
 
 // NewCMYK returns a new CMYK image with the given bounds.
 func NewCMYK(r Rectangle) *CMYK {
-	w, h := r.Dx(), r.Dy()
-	buf := make([]uint8, 4*w*h)
-	return &CMYK{buf, 4 * w, r}
+	return &CMYK{
+		Pix:    make([]uint8, pixelBufferLength(4, r, "CMYK")),
+		Stride: 4 * r.Dx(),
+		Rect:   r,
+	}
 }
 
 // Paletted is an in-memory image of uint8 indices into a given palette.
@@ -1032,7 +1065,10 @@ func (p *Paletted) Opaque() bool {
 // NewPaletted returns a new Paletted image with the given width, height and
 // palette.
 func NewPaletted(r Rectangle, p color.Palette) *Paletted {
-	w, h := r.Dx(), r.Dy()
-	pix := make([]uint8, 1*w*h)
-	return &Paletted{pix, 1 * w, r, p}
+	return &Paletted{
+		Pix:     make([]uint8, pixelBufferLength(1, r, "Paletted")),
+		Stride:  1 * r.Dx(),
+		Rect:    r,
+		Palette: p,
+	}
 }
