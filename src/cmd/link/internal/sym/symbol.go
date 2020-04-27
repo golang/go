@@ -27,8 +27,7 @@ type Symbol struct {
 	Size        int64
 	Sub         *Symbol
 	Outer       *Symbol
-	Gotype      *Symbol
-	File        string // actually package!
+	SymIdx      LoaderSym
 	auxinfo     *AuxSymbol
 	Sect        *Section
 	Unit        *CompilationUnit

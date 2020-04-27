@@ -2911,6 +2911,13 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
 	}
 }
 
+func symPkg(ctxt *Link, s *sym.Symbol) string {
+	if s == nil {
+		return ""
+	}
+	return ctxt.loader.SymPkg(loader.Sym(s.SymIdx))
+}
+
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.loader.Syms {
 		if s == nil {
