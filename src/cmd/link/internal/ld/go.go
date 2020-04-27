@@ -347,22 +347,6 @@ func Adddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym
 	}
 }
 
-func Adddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
-	if s.Dynid >= 0 || target.LinkMode == LinkExternal {
-		return
-	}
-
-	if target.IsELF {
-		elfadddynsym(target, syms, s)
-	} else if target.HeadType == objabi.Hdarwin {
-		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname())
-	} else if target.HeadType == objabi.Hwindows {
-		// already taken care of
-	} else {
-		Errorf(s, "adddynsym: unsupported binary format")
-	}
-}
-
 func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {

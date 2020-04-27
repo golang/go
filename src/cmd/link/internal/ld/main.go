@@ -96,7 +96,6 @@ var (
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-	flagnewDoData  = flag.Bool("newdodata", true, "New style dodata")
 
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
@@ -299,16 +298,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	dwarfGenerateDebugSyms(ctxt)
 	bench.Start("symtab")
 	symGroupType := ctxt.symtab()
-	if *flagnewDoData {
-		bench.Start("dodata")
-		ctxt.dodata2(symGroupType)
-	}
+	bench.Start("dodata")
+	ctxt.dodata2(symGroupType)
 	bench.Start("loadlibfull")
 	ctxt.loadlibfull(symGroupType) // XXX do it here for now
-	if !*flagnewDoData {
-		bench.Start("dodata")
-		ctxt.dodata()
-	}
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
