@@ -232,14 +232,3 @@ func TestIssue23092(t *testing.T) {
 func TestIssue24392(t *testing.T) {
 	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
 }
-
-func TestCgo(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	testenv.MustHaveCGO(t)
-
-	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
-	_, err := importer.ImportFrom("./misc/cgo/test", runtime.GOROOT(), 0)
-	if err != nil {
-		t.Fatalf("Import failed: %v", err)
-	}
-}
