@@ -5,7 +5,6 @@
 package cmd_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,12 +13,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
-	"golang.org/x/tools/internal/jsonrpc2/servertest"
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/cmd"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
-	"golang.org/x/tools/internal/lsp/debug"
-	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -30,27 +25,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestCommandLine(t *testing.T) {
-	packagestest.TestAll(t, testCommandLine)
-}
-
-func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
-	ctx := tests.Context(t)
-	ts := testServer(ctx)
-	data := tests.Load(t, exporter, "../testdata")
-	for _, datum := range data {
-		defer datum.Exported.Cleanup()
-		t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
-			t.Helper()
-			tests.Run(t, cmdtest.NewRunner(exporter, datum, ctx, ts.Addr, nil), datum)
-		})
-	}
-}
-
-func testServer(ctx context.Context) *servertest.TCPServer {
-	ctx = debug.WithInstance(ctx, "", "")
-	cache := cache.New(ctx, nil)
-	ss := lsprpc.NewStreamServer(cache)
-	return servertest.NewTCPServer(ctx, ss)
+	packagestest.TestAll(t,
+		cmdtest.TestCommandLine(
+			"../testdata",
+			nil,
+		),
+	)
 }
 
 func TestDefinitionHelpExample(t *testing.T) {
@@ -65,7 +45,7 @@ func TestDefinitionHelpExample(t *testing.T) {
 		return
 	}
 	ctx := tests.Context(t)
-	ts := testServer(ctx)
+	ts := cmdtest.NewTestServer(ctx, nil)
 	thisFile := filepath.Join(dir, "definition.go")
 	baseArgs := []string{"query", "definition"}
 	expect := regexp.MustCompile(`(?s)^[\w/\\:_-]+flag[/\\]flag.go:\d+:\d+-\d+: defined here as FlagSet struct {.*}$`)
