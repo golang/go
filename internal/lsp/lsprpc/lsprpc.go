@@ -234,7 +234,7 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 	if err != nil {
 		return nil, fmt.Errorf("dialing remote: %w", err)
 	}
-	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
+	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	serverConn.Go(ctx, jsonrpc2.MethodNotFound)
 	var state ServerState
 	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
@@ -253,7 +253,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	if err != nil {
 		return fmt.Errorf("forwarder: connecting to remote: %w", err)
 	}
-	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
+	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	server := protocol.ServerDispatcher(serverConn)
 
 	// Forward between connections.

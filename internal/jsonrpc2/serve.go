@@ -97,7 +97,7 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 		case netConn := <-newConns:
 			activeConns++
 			connTimer.Stop()
-			stream := NewHeaderStream(netConn, netConn)
+			stream := NewHeaderStream(netConn)
 			go func() {
 				closedConns <- server.ServeStream(ctx, stream)
 				stream.Close()

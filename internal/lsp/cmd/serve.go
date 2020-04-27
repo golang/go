@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/tools/internal/fakenet"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -92,7 +93,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		addr := fmt.Sprintf(":%v", s.Port)
 		return jsonrpc2.ListenAndServe(ctx, "tcp", addr, ss, s.IdleTimeout)
 	}
-	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
+	stream := jsonrpc2.NewHeaderStream(fakenet.NewConn("stdio", os.Stdin, os.Stdout))
 	if s.Trace && di != nil {
 		stream = protocol.LoggingStream(stream, di.LogWriter)
 	}

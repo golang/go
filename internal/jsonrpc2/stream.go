@@ -13,8 +13,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
-	"golang.org/x/tools/internal/fakenet"
 )
 
 // Stream abstracts the transport mechanics from the JSON RPC protocol.
@@ -33,11 +31,15 @@ type Stream interface {
 	Close() error
 }
 
-// NewRawStream returns a Stream built on top of an io.Reader and io.Writer.
+// Framer wraps a network connection up into a Stream.
+// It is responsible for the framing and encoding of messages into wire form.
+// NewRawStream and NewHeaderStream are implementations of a Framer.
+type Framer func(conn net.Conn) Stream
+
+// NewRawStream returns a Stream built on top of a net.Conn.
 // The messages are sent with no wrapping, and rely on json decode consistency
 // to determine message boundaries.
-func NewRawStream(in io.ReadCloser, out io.WriteCloser) Stream {
-	conn := fakenet.NewConn("jsonrpc2.NewRawStream", in, out)
+func NewRawStream(conn net.Conn) Stream {
 	return &rawStream{
 		conn: conn,
 		in:   json.NewDecoder(conn),
@@ -81,11 +83,10 @@ func (s *rawStream) Close() error {
 	return s.conn.Close()
 }
 
-// NewHeaderStream returns a Stream built on top of an io.Reader and io.Writer.
+// NewHeaderStream returns a Stream built on top of a net.Conn.
 // The messages are sent with HTTP content length and MIME type headers.
 // This is the format used by LSP and others.
-func NewHeaderStream(in io.ReadCloser, out io.WriteCloser) Stream {
-	conn := fakenet.NewConn("jsonrpc2.NewHeaderStream", in, out)
+func NewHeaderStream(conn net.Conn) Stream {
 	return &headerStream{
 		conn: conn,
 		in:   bufio.NewReader(conn),

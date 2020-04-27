@@ -230,7 +230,7 @@ func (app *Application) connectRemote(ctx context.Context, remote string) (*conn
 	if err != nil {
 		return nil, err
 	}
-	stream := jsonrpc2.NewHeaderStream(conn, conn)
+	stream := jsonrpc2.NewHeaderStream(conn)
 	cc := jsonrpc2.NewConn(stream)
 	connection.Server = protocol.ServerDispatcher(cc)
 	ctx = protocol.WithClient(ctx, connection.Client)

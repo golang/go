@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/integration/parse"
+	"golang.org/x/tools/internal/fakenet"
 	"golang.org/x/tools/internal/jsonrpc2"
 	p "golang.org/x/tools/internal/lsp/protocol"
 )
@@ -227,7 +228,8 @@ func mimic(ctx context.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	stream := jsonrpc2.NewHeaderStream(fromServer, toServer)
+	conn := fakenet.NewConn("stdio", fromServer, toServer)
+	stream := jsonrpc2.NewHeaderStream(conn)
 	rchan := make(chan jsonrpc2.Message, 10) // do we need buffering?
 	rdr := func() {
 		for {

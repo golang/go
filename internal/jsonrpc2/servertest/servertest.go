@@ -9,7 +9,6 @@ package servertest
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 
@@ -53,7 +52,7 @@ func (s *TCPServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 	s.cls.add(func() {
 		netConn.Close()
 	})
-	return jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
+	return jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 }
 
 // Close closes all connected pipes.
@@ -75,21 +74,15 @@ func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer) *PipeServe
 
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
 func (s *PipeServer) Connect(ctx context.Context) *jsonrpc2.Conn {
-	// Pipes connect like this:
-	// Client🡒(sWriter)🡒(sReader)🡒Server
-	//       🡔(cReader)🡐(cWriter)🡗
-	sReader, sWriter := io.Pipe()
-	cReader, cWriter := io.Pipe()
+	sPipe, cPipe := net.Pipe()
 	s.cls.add(func() {
-		sReader.Close()
-		sWriter.Close()
-		cReader.Close()
-		cWriter.Close()
+		sPipe.Close()
+		cPipe.Close()
 	})
-	serverStream := jsonrpc2.NewRawStream(sReader, cWriter)
+	serverStream := jsonrpc2.NewRawStream(sPipe)
 	go s.server.ServeStream(ctx, serverStream)
 
-	clientStream := jsonrpc2.NewRawStream(cReader, sWriter)
+	clientStream := jsonrpc2.NewRawStream(cPipe)
 	return jsonrpc2.NewConn(clientStream)
 }
 

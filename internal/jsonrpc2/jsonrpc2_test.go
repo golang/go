@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
+	"net"
 	"path"
 	"reflect"
 	"testing"
@@ -92,10 +92,9 @@ func TestCall(t *testing.T) {
 
 func prepare(ctx context.Context, t *testing.T, withHeaders bool) (*jsonrpc2.Conn, *jsonrpc2.Conn, func()) {
 	// make a wait group that can be used to wait for the system to shut down
-	aR, bW := io.Pipe()
-	bR, aW := io.Pipe()
-	a := run(ctx, withHeaders, aR, aW)
-	b := run(ctx, withHeaders, bR, bW)
+	aPipe, bPipe := net.Pipe()
+	a := run(ctx, withHeaders, aPipe)
+	b := run(ctx, withHeaders, bPipe)
 	return a, b, func() {
 		a.Close()
 		b.Close()
@@ -104,12 +103,12 @@ func prepare(ctx context.Context, t *testing.T, withHeaders bool) (*jsonrpc2.Con
 	}
 }
 
-func run(ctx context.Context, withHeaders bool, r io.ReadCloser, w io.WriteCloser) *jsonrpc2.Conn {
+func run(ctx context.Context, withHeaders bool, nc net.Conn) *jsonrpc2.Conn {
 	var stream jsonrpc2.Stream
 	if withHeaders {
-		stream = jsonrpc2.NewHeaderStream(r, w)
+		stream = jsonrpc2.NewHeaderStream(nc)
 	} else {
-		stream = jsonrpc2.NewRawStream(r, w)
+		stream = jsonrpc2.NewRawStream(nc)
 	}
 	conn := jsonrpc2.NewConn(stream)
 	conn.Go(ctx, testHandler(*logRPC))
