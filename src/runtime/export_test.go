@@ -748,8 +748,8 @@ func (p *PageAlloc) InUse() []AddrRange {
 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
 	for _, r := range p.inUse.ranges {
 		ranges = append(ranges, AddrRange{
-			Base:  r.base,
-			Limit: r.limit,
+			Base:  r.base.addr(),
+			Limit: r.limit.addr(),
 		})
 	}
 	return ranges

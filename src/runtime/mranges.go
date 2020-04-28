@@ -15,23 +15,41 @@ import (
 )
 
 // addrRange represents a region of address space.
+//
+// An addrRange must never span a gap in the address space.
 type addrRange struct {
 	// base and limit together represent the region of address space
 	// [base, limit). That is, base is inclusive, limit is exclusive.
-	base, limit uintptr
+	// These are address over an offset view of the address space on
+	// platforms with a segmented address space, that is, on platforms
+	// where arenaBaseOffset != 0.
+	base, limit offAddr
+}
+
+// makeAddrRange creates a new address range from two virtual addresses.
+//
+// Throws if the base and limit are not in the same memory segment.
+func makeAddrRange(base, limit uintptr) addrRange {
+	r := addrRange{offAddr{base}, offAddr{limit}}
+	if (base+arenaBaseOffset >= arenaBaseOffset) != (limit+arenaBaseOffset >= arenaBaseOffset) {
+		throw("addr range base and limit are not in the same memory segment")
+	}
+	return r
 }
 
 // size returns the size of the range represented in bytes.
 func (a addrRange) size() uintptr {
-	if a.limit <= a.base {
+	if !a.base.lessThan(a.limit) {
 		return 0
 	}
-	return a.limit - a.base
+	// Subtraction is safe because limit and base must be in the same
+	// segment of the address space.
+	return a.limit.diff(a.base)
 }
 
 // contains returns whether or not the range contains a given address.
 func (a addrRange) contains(addr uintptr) bool {
-	return addr >= a.base && addr < a.limit
+	return a.base.lessEqual(offAddr{addr}) && (offAddr{addr}).lessThan(a.limit)
 }
 
 // subtract takes the addrRange toPrune and cuts out any overlap with
@@ -39,16 +57,63 @@ func (a addrRange) contains(addr uintptr) bool {
 // either don't overlap at all, only overlap on one side, or are equal.
 // If b is strictly contained in a, thus forcing a split, it will throw.
 func (a addrRange) subtract(b addrRange) addrRange {
-	if a.base >= b.base && a.limit <= b.limit {
+	if b.base.lessEqual(a.base) && a.limit.lessEqual(b.limit) {
 		return addrRange{}
-	} else if a.base < b.base && a.limit > b.limit {
+	} else if a.base.lessThan(b.base) && b.limit.lessThan(a.limit) {
 		throw("bad prune")
-	} else if a.limit > b.limit && a.base < b.limit {
+	} else if b.limit.lessThan(a.limit) && a.base.lessThan(b.limit) {
 		a.base = b.limit
-	} else if a.base < b.base && a.limit > b.base {
+	} else if a.base.lessThan(b.base) && b.base.lessThan(a.limit) {
 		a.limit = b.base
 	}
 	return a
+}
+
+// offAddr represents an address in a contiguous view
+// of the address space on systems where the address space is
+// segmented. On other systems, it's just a normal address.
+type offAddr struct {
+	a uintptr
+}
+
+// add adds a uintptr offset to the offAddr.
+func (l offAddr) add(bytes uintptr) offAddr {
+	return offAddr{a: l.a + bytes}
+}
+
+// sub subtracts a uintptr offset from the offAddr.
+func (l offAddr) sub(bytes uintptr) offAddr {
+	return offAddr{a: l.a - bytes}
+}
+
+// diff returns the amount of bytes in between the
+// two offAddrs.
+func (l1 offAddr) diff(l2 offAddr) uintptr {
+	return l1.a - l2.a
+}
+
+// lessThan returns true if l1 is less than l2 in the offset
+// address space.
+func (l1 offAddr) lessThan(l2 offAddr) bool {
+	return (l1.a + arenaBaseOffset) < (l2.a + arenaBaseOffset)
+}
+
+// lessEqual returns true if l1 is less than or equal to l2 in
+// the offset address space.
+func (l1 offAddr) lessEqual(l2 offAddr) bool {
+	return (l1.a + arenaBaseOffset) <= (l2.a + arenaBaseOffset)
+}
+
+// equal returns true if the two offAddr values are equal.
+func (l1 offAddr) equal(l2 offAddr) bool {
+	// No need to compare in the offset space, it
+	// means the same thing.
+	return l1 == l2
+}
+
+// addr returns the virtual address for this offset address.
+func (l offAddr) addr() uintptr {
+	return l.a
 }
 
 // addrRanges is a data structure holding a collection of ranges of
@@ -84,13 +149,14 @@ func (a *addrRanges) init(sysStat *uint64) {
 
 // findSucc returns the first index in a such that base is
 // less than the base of the addrRange at that index.
-func (a *addrRanges) findSucc(base uintptr) int {
+func (a *addrRanges) findSucc(addr uintptr) int {
 	// TODO(mknyszek): Consider a binary search for large arrays.
 	// While iterating over these ranges is potentially expensive,
 	// the expected number of ranges is small, ideally just 1,
 	// since Go heaps are usually mostly contiguous.
+	base := offAddr{addr}
 	for i := range a.ranges {
-		if base < a.ranges[i].base {
+		if base.lessThan(a.ranges[i].base) {
 			return i
 		}
 	}
@@ -121,9 +187,9 @@ func (a *addrRanges) add(r addrRange) {
 
 	// Because we assume r is not currently represented in a,
 	// findSucc gives us our insertion index.
-	i := a.findSucc(r.base)
-	coalescesDown := i > 0 && a.ranges[i-1].limit == r.base
-	coalescesUp := i < len(a.ranges) && r.limit == a.ranges[i].base
+	i := a.findSucc(r.base.addr())
+	coalescesDown := i > 0 && a.ranges[i-1].limit.equal(r.base)
+	coalescesUp := i < len(a.ranges) && r.limit.equal(a.ranges[i].base)
 	if coalescesUp && coalescesDown {
 		// We have neighbors and they both border us.
 		// Merge a.ranges[i-1], r, and a.ranges[i] together into a.ranges[i-1].
@@ -176,10 +242,10 @@ func (a *addrRanges) removeLast(nBytes uintptr) addrRange {
 	r := a.ranges[len(a.ranges)-1]
 	size := r.size()
 	if size > nBytes {
-		newLimit := r.limit - nBytes
-		a.ranges[len(a.ranges)-1].limit = newLimit
+		newEnd := r.limit.sub(nBytes)
+		a.ranges[len(a.ranges)-1].limit = newEnd
 		a.totalBytes -= nBytes
-		return addrRange{newLimit, r.limit}
+		return addrRange{newEnd, r.limit}
 	}
 	a.ranges = a.ranges[:len(a.ranges)-1]
 	a.totalBytes -= size
@@ -202,7 +268,7 @@ func (a *addrRanges) removeGreaterEqual(addr uintptr) {
 	}
 	if r := a.ranges[pivot-1]; r.contains(addr) {
 		removed += r.size()
-		r = r.subtract(addrRange{addr, maxSearchAddr})
+		r = r.subtract(makeAddrRange(addr, maxSearchAddr))
 		if r.size() == 0 {
 			pivot--
 		} else {
