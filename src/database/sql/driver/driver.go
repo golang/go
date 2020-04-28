@@ -123,7 +123,9 @@ type Connector interface {
 	//
 	// The provided context.Context is for dialing purposes only
 	// (see net.DialContext) and should not be stored or used for
-	// other purposes.
+	// other purposes. A default timeout should still be used
+	// when dialing as a connection pool may call Connect
+	// asynchronously to any query.
 	//
 	// The returned connection is only used by one goroutine at a
 	// time.
@@ -234,6 +236,9 @@ type Conn interface {
 	// connections and only calls Close when there's a surplus of
 	// idle connections, it shouldn't be necessary for drivers to
 	// do their own connection caching.
+	//
+	// Drivers must ensure all network calls made by Close
+	// do not block indefinitely (e.g. apply a timeout).
 	Close() error
 
 	// Begin starts and returns a new transaction.
@@ -320,6 +325,9 @@ type Stmt interface {
 	//
 	// As of Go 1.1, a Stmt will not be closed if it's in use
 	// by any queries.
+	//
+	// Drivers must ensure all network calls made by Close
+	// do not block indefinitely (e.g. apply a timeout).
 	Close() error
 
 	// NumInput returns the number of placeholder parameters.
