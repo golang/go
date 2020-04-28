@@ -838,7 +838,16 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 	// we only need stack maps at call sites. go:nosplit functions
 	// are similar.
 	if compiling_runtime || lv.f.NoSplit {
-		return v.Op.IsCall()
+		if !v.Op.IsCall() {
+			return false
+		}
+		// typedmemclr and typedmemmove are write barriers and
+		// deeply non-preemptible. They are unsafe points and
+		// hence should not have liveness maps.
+		if sym, _ := v.Aux.(*obj.LSym); sym == typedmemclr || sym == typedmemmove {
+			return false
+		}
+		return true
 	}
 
 	switch v.Op {
