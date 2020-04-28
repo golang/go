@@ -60,12 +60,10 @@ type spanSetBlock struct {
 	// Free spanSetBlocks are managed via a lock-free stack.
 	lfnode
 
-	// used represents the number of slots in the spans array which are
-	// currently in use. This number is used to help determine when a
-	// block may be safely recycled.
-	//
-	// Accessed and updated atomically.
-	used uint32
+	// popped is the number of pop operations that have occurred on
+	// this block. This number is used to help determine when a block
+	// may be safely recycled.
+	popped uint32
 
 	// spans is the set of spans in this block.
 	spans [spanSetBlockEntries]*mspan
@@ -135,7 +133,6 @@ retry:
 
 	// We have a block. Insert the span atomically, since there may be
 	// concurrent readers via the block API.
-	atomic.Xadd(&block.used, 1)
 	atomic.StorepNoWB(unsafe.Pointer(&block.spans[bottom]), unsafe.Pointer(s))
 }
 
@@ -202,8 +199,19 @@ claimLoop:
 	// corruption. This way, we'll get a nil pointer access instead.
 	atomic.StorepNoWB(unsafe.Pointer(&block.spans[bottom]), nil)
 
-	// If we're the last possible popper in the block, free the block.
-	if used := atomic.Xadd(&block.used, -1); used == 0 && bottom == spanSetBlockEntries-1 {
+	// Increase the popped count. If we are the last possible popper
+	// in the block (note that bottom need not equal spanSetBlockEntries-1
+	// due to races) then it's our resposibility to free the block.
+	//
+	// If we increment popped to spanSetBlockEntries, we can be sure that
+	// we're the last popper for this block, and it's thus safe to free it.
+	// Every other popper must have crossed this barrier (and thus finished
+	// popping its corresponding mspan) by the time we get here. Because
+	// we're the last popper, we also don't have to worry about concurrent
+	// pushers (there can't be any). Note that we may not be the popper
+	// which claimed the last slot in the block, we're just the last one
+	// to finish popping.
+	if atomic.Xadd(&block.popped, 1) == spanSetBlockEntries {
 		// Clear the block's pointer.
 		atomic.StorepNoWB(blockp, nil)
 
@@ -236,10 +244,20 @@ func (b *spanSet) reset() {
 		blockp := (**spanSetBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
 		block := *blockp
 		if block != nil {
-			// Sanity check the used value.
-			if block.used != 0 {
-				throw("found used block in empty span set")
+			// Sanity check the popped value.
+			if block.popped == 0 {
+				// popped should never be zero because that means we have
+				// pushed at least one value but not yet popped if this
+				// block pointer is not nil.
+				throw("span set block with unpopped elements found in reset")
 			}
+			if block.popped == spanSetBlockEntries {
+				// popped should also never be equal to spanSetBlockEntries
+				// because the last popper should have made the block pointer
+				// in this slot nil.
+				throw("fully empty unfreed span set block found in reset")
+			}
+
 			// Clear the pointer to the block.
 			atomic.StorepNoWB(unsafe.Pointer(blockp), nil)
 
@@ -270,6 +288,7 @@ func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
 
 // free returns a spanSetBlock back to the pool.
 func (p *spanSetBlockAlloc) free(block *spanSetBlock) {
+	atomic.Store(&block.popped, 0)
 	p.stack.push(&block.lfnode)
 }
 
