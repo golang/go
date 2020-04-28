@@ -301,7 +301,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dodata")
 	ctxt.dodata2(symGroupType)
 	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
+	ctxt.loadlibfull(symGroupType) // XXX do it here for now
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
