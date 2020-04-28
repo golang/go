@@ -59,4 +59,17 @@ func main() {
 	if v5 != (S{a: 0}) {
 		panic(fmt.Sprintf("wanted %#v got %#v", S{a: 0}, v5))
 	}
+
+	// check for map construction side effect.
+	i := 0
+	v6 := map[string]int{
+		"a": func() int { i++; return 7 }(),
+		"b": 8,
+	}["b"]
+	if i != 1 {
+		panic(fmt.Sprintf("i value should be changed to 1 got %d", i))
+	}
+	if v6 != 8 {
+		panic(fmt.Sprintf("wanted %#v got %#v", 8, v6))
+	}
 }
