@@ -373,7 +373,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		}
 	}
 	for _, kv := range env {
-		split := strings.Split(kv, "=")
+		split := strings.SplitN(kv, "=", 2)
 		if len(split) < 2 {
 			continue
 		}

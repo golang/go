@@ -245,7 +245,7 @@ func TestHello(t *testing.T) {
 }
 `
 
-func Test_Issue38267(t *testing.T) {
+func TestIssue38267(t *testing.T) {
 	runner.Run(t, testPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("lib_test.go")
 		env.Await(
@@ -330,7 +330,7 @@ func TestMissingDependency(t *testing.T) {
 	})
 }
 
-func TestAdHocPackagesIssue_36951(t *testing.T) {
+func TestAdHocPackages_Issue36951(t *testing.T) {
 	const adHoc = `
 -- b/b.go --
 package b
@@ -345,7 +345,7 @@ func Hello() {
 	})
 }
 
-func TestNoGOPATHIssue_37984(t *testing.T) {
+func TestNoGOPATH_Issue37984(t *testing.T) {
 	const missingImport = `
 -- main.go --
 package main
@@ -361,4 +361,25 @@ func _() {
 			t.Fatalf("organize imports should fail with an empty GOPATH")
 		}
 	}, WithEnv("GOPATH="))
+}
+
+func TestEqualInEnv_Issue38669(t *testing.T) {
+	const missingImport = `
+-- go.mod --
+module mod.com
+
+-- main.go --
+package main
+
+var _ = x.X
+-- x/x.go --
+package x
+
+var X = 0
+`
+	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.OrganizeImports("main.go")
+		env.Await(EmptyDiagnostics("main.go"))
+	}, WithEnv("GOFLAGS=-tags=foo"))
 }
