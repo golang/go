@@ -69,6 +69,31 @@ func (a addrRange) subtract(b addrRange) addrRange {
 	return a
 }
 
+var (
+	// minOffAddr is the minimum address in the offset space, and
+	// it corresponds to the virtual address -arenaBaseOffset.
+	//
+	// We don't initialize this with offAddrFromRaw because allocation
+	// may happen during bootstrapping, and we rely on this value
+	// being initialized.
+	//
+	// As a result, creating this value in Go is tricky because of
+	// overflow not being allowed in constants. In order to get
+	// the value we want, we take arenaBaseOffset and do a manual
+	// two's complement negation, then mask that into what can fit
+	// into a uintptr.
+	minOffAddr = offAddr{((^arenaBaseOffset) + 1) & uintptrMask}
+
+	// maxOffAddr is the maximum address in the offset address
+	// space, and it corresponds to the virtual address
+	// ^uintptr(0) - arenaBaseOffset.
+	//
+	// We don't initialize this with offAddrFromRaw because allocation
+	// may happen during bootstrapping, and we rely on this value
+	// being initialized.
+	maxOffAddr = offAddr{^uintptr(0) - arenaBaseOffset}
+)
+
 // offAddr represents an address in a contiguous view
 // of the address space on systems where the address space is
 // segmented. On other systems, it's just a normal address.
@@ -268,7 +293,7 @@ func (a *addrRanges) removeGreaterEqual(addr uintptr) {
 	}
 	if r := a.ranges[pivot-1]; r.contains(addr) {
 		removed += r.size()
-		r = r.subtract(makeAddrRange(addr, maxSearchAddr))
+		r = r.subtract(makeAddrRange(addr, maxOffAddr.addr()))
 		if r.size() == 0 {
 			pivot--
 		} else {
