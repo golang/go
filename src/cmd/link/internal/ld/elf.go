@@ -1411,7 +1411,8 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
 				continue
 			}
-			if r.Xsym.ElfsymForReloc() == 0 {
+			esr := ElfSymForReloc(ctxt, r.Xsym)
+			if esr == 0 {
 				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !r.Xsym.Attr.Reachable() {

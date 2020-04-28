@@ -15,21 +15,19 @@ import (
 
 // Symbol is an entry in the symbol table.
 type Symbol struct {
-	Name        string
-	Type        SymKind
-	Version     int16
-	Attr        Attribute
-	Dynid       int32
-	Align       int32
-	Elfsym      int32
-	LocalElfsym int32
-	Value       int64
-	Size        int64
-	Sub         *Symbol
-	Outer       *Symbol
-	SymIdx      LoaderSym
-	auxinfo     *AuxSymbol
-	Sect        *Section
+	Name    string
+	Type    SymKind
+	Version int16
+	Attr    Attribute
+	Dynid   int32
+	Align   int32
+	Value   int64
+	Size    int64
+	Sub     *Symbol
+	Outer   *Symbol
+	SymIdx  LoaderSym
+	auxinfo *AuxSymbol
+	Sect    *Section
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc
@@ -84,16 +82,6 @@ func (s *Symbol) String() string {
 
 func (s *Symbol) IsFileLocal() bool {
 	return s.Version >= SymVerStatic
-}
-
-func (s *Symbol) ElfsymForReloc() int32 {
-	// If putelfsym created a local version of this symbol, use that in all
-	// relocations.
-	if s.LocalElfsym != 0 {
-		return s.LocalElfsym
-	} else {
-		return s.Elfsym
-	}
 }
 
 func (s *Symbol) Len() int64 {
