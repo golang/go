@@ -294,6 +294,10 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
+		// Don't show non-vet analysis diagnostics for generated files.
+		if !isVetAnalyzer(e.Category) && IsGenerated(ctx, snapshot, e.URI) {
+			continue
+		}
 		if err := addReports(snapshot, reports, e.URI, &Diagnostic{
 			Range:          e.Range,
 			Message:        e.Message,

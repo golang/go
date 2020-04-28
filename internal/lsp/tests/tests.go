@@ -808,7 +808,7 @@ func checkData(t *testing.T, data *Data) {
 	}))
 	got := buf.String()
 	if want != got {
-		t.Errorf("test summary does not match, want\n%s\ngot:\n%s", want, got)
+		t.Errorf("test summary does not match:\n%s", Diff(want, got))
 	}
 }
 
