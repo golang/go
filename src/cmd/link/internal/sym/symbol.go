@@ -23,7 +23,6 @@ type Symbol struct {
 	Align   int32
 	Value   int64
 	Size    int64
-	Sub     *Symbol
 	Outer   *Symbol
 	SymIdx  LoaderSym
 	auxinfo *AuxSymbol

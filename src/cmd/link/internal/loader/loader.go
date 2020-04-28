@@ -2544,12 +2544,9 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Attr.Set(sym.AttrCgoExportStatic, l.AttrCgoExportStatic(src))
 	dst.Attr.Set(sym.AttrReadOnly, l.AttrReadOnly(src))
 
-	// Convert outer/sub relationships
+	// Convert outer relationship
 	if outer, ok := l.outer[src]; ok {
 		dst.Outer = l.Syms[outer]
-	}
-	if sub, ok := l.sub[src]; ok {
-		dst.Sub = l.Syms[sub]
 	}
 
 	// Set sub-symbol attribute. See the comment on the AttrSubSymbol

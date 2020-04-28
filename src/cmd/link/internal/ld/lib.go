@@ -2929,12 +2929,19 @@ func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
 	}
 }
 
+func symSub(ctxt *Link, s *sym.Symbol) *sym.Symbol {
+	if lsub := ctxt.loader.SubSym(loader.Sym(s.SymIdx)); lsub != 0 {
+		return ctxt.loader.Syms[lsub]
+	}
+	return nil
+}
+
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.loader.Syms {
 		if s == nil {
 			continue
 		}
-		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
+		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, symSub(ctxt, s))
 		for i := range s.R {
 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
 		}
