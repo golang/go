@@ -56,6 +56,7 @@ var valueConverterTests = []valueConverterTest{
 	{DefaultParameterConverter, b(true), true, ""},
 	{DefaultParameterConverter, bs{1}, []byte{1}, ""},
 	{DefaultParameterConverter, s("a"), "a", ""},
+	{DefaultParameterConverter, t(now), nil, "unsupported type driver.t, a struct"},
 	{DefaultParameterConverter, is{1}, nil, "unsupported type driver.is, a slice of int"},
 	{DefaultParameterConverter, dec{exponent: -6}, dec{exponent: -6}, ""},
 }
