@@ -118,6 +118,10 @@ func (m *sessionStateTLS13) unmarshal(data []byte) bool {
 }
 
 func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
+	if len(c.ticketKeys) == 0 {
+		return nil, errors.New("tls: internal error: session ticket keys unavailable")
+	}
+
 	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(state)+sha256.Size)
 	keyName := encrypted[:ticketKeyNameLen]
 	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
@@ -126,7 +130,7 @@ func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
 	if _, err := io.ReadFull(c.config.rand(), iv); err != nil {
 		return nil, err
 	}
-	key := c.config.ticketKeys()[0]
+	key := c.ticketKeys[0]
 	copy(keyName, key.keyName[:])
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
@@ -151,19 +155,17 @@ func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey boo
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
 
-	keys := c.config.ticketKeys()
 	keyIndex := -1
-	for i, candidateKey := range keys {
+	for i, candidateKey := range c.ticketKeys {
 		if bytes.Equal(keyName, candidateKey.keyName[:]) {
 			keyIndex = i
 			break
 		}
 	}
-
 	if keyIndex == -1 {
 		return nil, false
 	}
-	key := &keys[keyIndex]
+	key := &c.ticketKeys[keyIndex]
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
 	mac.Write(encrypted[:len(encrypted)-sha256.Size])

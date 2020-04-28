@@ -937,6 +937,21 @@ func testResumption(t *testing.T, version uint16) {
 		t.Fatal("ticket didn't change after resumption")
 	}
 
+	// An old session ticket can resume, but the server will provide a ticket encrypted with a fresh key.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	testResumeState("ResumeWithOldTicket", true)
+	if bytes.Equal(ticket[:ticketKeyNameLen], getTicket()[:ticketKeyNameLen]) {
+		t.Fatal("old first ticket matches the fresh one")
+	}
+
+	// Now the session tickey key is expired, so a full handshake should occur.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	testResumeState("ResumeWithExpiredTicket", false)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("expired first ticket matches the fresh one")
+	}
+
+	serverConfig.Time = func() time.Time { return time.Now() } // reset the time back
 	key1 := randomKey()
 	serverConfig.SetSessionTicketKeys([][32]byte{key1})
 
