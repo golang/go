@@ -37,10 +37,6 @@ type serverHandshakeState struct {
 
 // serverHandshake performs a TLS handshake as a server.
 func (c *Conn) serverHandshake() error {
-	// If this is the first server handshake, we generate a random key to
-	// encrypt the tickets with.
-	c.config.serverInitOnce.Do(func() { c.config.serverInit(nil) })
-
 	clientHello, err := c.readClientHello()
 	if err != nil {
 		return err
@@ -143,16 +139,18 @@ func (c *Conn) readClientHello() (*clientHelloMsg, error) {
 		return nil, unexpectedMessageError(clientHello, msg)
 	}
 
+	var configForClient *Config
+	originalConfig := c.config
 	if c.config.GetConfigForClient != nil {
 		chi := clientHelloInfo(c, clientHello)
-		if newConfig, err := c.config.GetConfigForClient(chi); err != nil {
+		if configForClient, err = c.config.GetConfigForClient(chi); err != nil {
 			c.sendAlert(alertInternalError)
 			return nil, err
-		} else if newConfig != nil {
-			newConfig.serverInitOnce.Do(func() { newConfig.serverInit(c.config) })
-			c.config = newConfig
+		} else if configForClient != nil {
+			c.config = configForClient
 		}
 	}
+	c.ticketKeys = originalConfig.ticketKeys(configForClient)
 
 	clientVersions := clientHello.supportedVersions
 	if len(clientHello.supportedVersions) == 0 {

@@ -62,6 +62,11 @@ type Conn struct {
 	// NewSessionTicket messages. nil if config.SessionTicketsDisabled.
 	resumptionSecret []byte
 
+	// ticketKeys is the set of active session ticket keys for this
+	// connection. The first one is used to encrypt new tickets and
+	// all are tried to decrypt tickets.
+	ticketKeys []ticketKey
+
 	// clientFinishedIsFirst is true if the client sent the first Finished
 	// message during the most recent handshake. This is recorded because
 	// the first transmitted Finished message is the tls-unique
