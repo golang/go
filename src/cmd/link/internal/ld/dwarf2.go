@@ -149,6 +149,7 @@ func dwarfcompress(ctxt *Link) {
 			// compressed symbols are no longer needed.
 			for _, s := range z.syms {
 				ldr.SetAttrReachable(s, false)
+				ldr.FreeSym(s)
 			}
 		}
 	}
