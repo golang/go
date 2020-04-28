@@ -255,15 +255,17 @@ type Loader struct {
 
 	align map[Sym]int32 // stores alignment for symbols
 
-	dynimplib  map[Sym]string      // stores Dynimplib symbol attribute
-	dynimpvers map[Sym]string      // stores Dynimpvers symbol attribute
-	localentry map[Sym]uint8       // stores Localentry symbol attribute
-	extname    map[Sym]string      // stores Extname symbol attribute
-	elfType    map[Sym]elf.SymType // stores elf type symbol property
-	symPkg     map[Sym]string      // stores package for symbol, or library for shlib-derived syms
-	plt        map[Sym]int32       // stores dynimport for pe objects
-	got        map[Sym]int32       // stores got for pe objects
-	dynid      map[Sym]int32       // stores Dynid for symbol
+	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
+	dynimpvers  map[Sym]string      // stores Dynimpvers symbol attribute
+	localentry  map[Sym]uint8       // stores Localentry symbol attribute
+	extname     map[Sym]string      // stores Extname symbol attribute
+	elfType     map[Sym]elf.SymType // stores elf type symbol property
+	elfSym      map[Sym]int32       // stores elf sym symbol property
+	localElfSym map[Sym]int32       // stores "local" elf sym symbol property
+	symPkg      map[Sym]string      // stores package for symbol, or library for shlib-derived syms
+	plt         map[Sym]int32       // stores dynimport for pe objects
+	got         map[Sym]int32       // stores got for pe objects
+	dynid       map[Sym]int32       // stores Dynid for symbol
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -331,6 +333,8 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		extname:              make(map[Sym]string),
 		attrReadOnly:         make(map[Sym]bool),
 		elfType:              make(map[Sym]elf.SymType),
+		elfSym:               make(map[Sym]int32),
+		localElfSym:          make(map[Sym]int32),
 		symPkg:               make(map[Sym]string),
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
@@ -1232,6 +1236,42 @@ func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 		delete(l.elfType, i)
 	} else {
 		l.elfType[i] = et
+	}
+}
+
+// SymElfSym returns the ELF symbol index for a given loader
+// symbol, assigned during ELF symtab generation.
+func (l *Loader) SymElfSym(i Sym) int32 {
+	return l.elfSym[i]
+}
+
+// SetSymElfSym sets the elf symbol index for a symbol.
+func (l *Loader) SetSymElfSym(i Sym, es int32) {
+	if i == 0 {
+		panic("bad sym index")
+	}
+	if es == 0 {
+		delete(l.elfSym, i)
+	} else {
+		l.elfSym[i] = es
+	}
+}
+
+// SymLocalElfSym returns the "local" ELF symbol index for a given loader
+// symbol, assigned during ELF symtab generation.
+func (l *Loader) SymLocalElfSym(i Sym) int32 {
+	return l.localElfSym[i]
+}
+
+// SetSymLocalElfSym sets the "local" elf symbol index for a symbol.
+func (l *Loader) SetSymLocalElfSym(i Sym, es int32) {
+	if i == 0 {
+		panic("bad sym index")
+	}
+	if es == 0 {
+		delete(l.localElfSym, i)
+	} else {
+		l.localElfSym[i] = es
 	}
 }
 
