@@ -2026,7 +2026,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		// sh.info is the index of first non-local symbol (number of local symbols)
 		s := ctxt.Syms.Lookup(".dynsym", 0)
 		i := uint32(0)
-		for sub := s; sub != nil; sub = sub.Sub {
+		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
 			i++
 			if !sub.Attr.Local() {
 				break
