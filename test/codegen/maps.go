@@ -129,21 +129,21 @@ func MapClearSideEffect(m map[int]int) int {
 
 // Optimization of lookups on map literals (Issue #35763)
 
-func MapLitLookupStringLit() int{
+func MapLitLookupStringLit() int {
 	v := map[string]int{
 		"a": 33333, // amd64:-".*mapassign"
-		"b": 66666,
-		"c": 99999,
+		"b": 66666, // amd64:-".*mapassign"
+		"c": 99999, // amd64:-".*mapassign"
 	}["b"] // amd64:-".*mapaccess"
 	return v
 }
 
 func MapLitLookupStringLitStructLitVal() int {
-	type S struct {a int}
+	type S struct{ a int }
 	v := map[string]S{
-		"a": S{42344}, // amd64:-".*mapassign"
-		"b": S{a:33242}, // amd64:-".*mapassign"
-		"c": S{},
+		"a": S{42344},    // amd64:-".*mapassign"
+		"b": S{a: 33242}, // amd64:-".*mapassign"
+		"c": S{},         // amd64:-".*mapassign"
 	}["b"] // amd64:-".*mapaccess"
 	return v.a
 }
