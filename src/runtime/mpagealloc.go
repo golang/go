@@ -375,7 +375,7 @@ func (s *pageAlloc) grow(base, size uintptr) {
 	// Note that [base, limit) will never overlap with any existing
 	// range inUse because grow only ever adds never-used memory
 	// regions to the page allocator.
-	s.inUse.add(addrRange{base, limit})
+	s.inUse.add(makeAddrRange(base, limit))
 
 	// A grow operation is a lot like a free operation, so if our
 	// chunk ends up below the (linearized) s.searchAddr, update
