@@ -2918,6 +2918,17 @@ func symPkg(ctxt *Link, s *sym.Symbol) string {
 	return ctxt.loader.SymPkg(loader.Sym(s.SymIdx))
 }
 
+func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
+	// If putelfsym created a local version of this symbol, use that in all
+	// relocations.
+	les := ctxt.loader.SymLocalElfSym(loader.Sym(s.SymIdx))
+	if les != 0 {
+		return les
+	} else {
+		return ctxt.loader.SymElfSym(loader.Sym(s.SymIdx))
+	}
+}
+
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.loader.Syms {
 		if s == nil {

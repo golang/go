@@ -453,7 +453,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	}
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := r.Xsym.ElfsymForReloc()
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch r.Type {
 	default:
 		return false

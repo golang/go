@@ -185,7 +185,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
 		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
-		x.LocalElfsym = int32(ctxt.numelfsym)
+		ctxt.loader.SetSymLocalElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
 		ctxt.numelfsym++
 		return
 	} else if bind != ctxt.elfbind {
@@ -193,13 +193,13 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 	}
 
 	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
-	x.Elfsym = int32(ctxt.numelfsym)
+	ctxt.loader.SetSymElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
 	ctxt.numelfsym++
 }
 
 func putelfsectionsym(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
 	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
-	s.Elfsym = int32(ctxt.numelfsym)
+	ctxt.loader.SetSymElfSym(loader.Sym(s.SymIdx), int32(ctxt.numelfsym))
 	ctxt.numelfsym++
 }
 
