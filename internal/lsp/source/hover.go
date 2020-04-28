@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/doc"
 	"go/format"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -74,7 +75,8 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	ctx, done := event.Start(ctx, "source.Hover")
 	defer done()
 
-	h, err := i.Declaration.hover(ctx)
+	fset := i.Snapshot.View().Session().Cache().FileSet()
+	h, err := hover(ctx, fset, i.pkg, i.Declaration)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +84,7 @@ func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	switch x := h.source.(type) {
 	case ast.Node:
 		var b strings.Builder
-		if err := format.Node(&b, i.Snapshot.View().Session().Cache().FileSet(), x); err != nil {
+		if err := format.Node(&b, fset, x); err != nil {
 			return nil, err
 		}
 		h.Signature = b.String()
@@ -200,13 +202,35 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 	return str
 }
 
-func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {
+func hover(ctx context.Context, fset *token.FileSet, pkg Package, d Declaration) (*HoverInformation, error) {
 	_, done := event.Start(ctx, "source.hover")
 	defer done()
 
 	obj := d.obj
 	switch node := d.node.(type) {
+	case *ast.Ident:
+		// The package declaration.
+		for _, f := range pkg.GetSyntax() {
+			if f.Name == node {
+				return &HoverInformation{comment: f.Doc}, nil
+			}
+		}
 	case *ast.ImportSpec:
+		// Try to find the package documentation for an imported package.
+		if pkgName, ok := obj.(*types.PkgName); ok {
+			imp, err := pkg.GetImport(pkgName.Imported().Path())
+			if err != nil {
+				return nil, err
+			}
+			// Assume that only one file will contain package documentation,
+			// so pick the first file that has a doc comment.
+			var doc *ast.CommentGroup
+			for _, file := range imp.GetSyntax() {
+				if file.Doc != nil {
+					return &HoverInformation{source: obj, comment: doc}, nil
+				}
+			}
+		}
 		return &HoverInformation{source: node}, nil
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
@@ -308,9 +332,10 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 
 func FormatHover(h *HoverInformation, options Options) (string, error) {
 	signature := h.Signature
-	if options.PreferredContentFormat == protocol.Markdown {
+	if signature != "" && options.PreferredContentFormat == protocol.Markdown {
 		signature = fmt.Sprintf("```go\n%s\n```", signature)
 	}
+
 	switch options.HoverKind {
 	case SingleLine:
 		return h.SingleLine, nil

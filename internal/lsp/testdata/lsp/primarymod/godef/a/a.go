@@ -1,6 +1,5 @@
-// A comment just to push the positions out
-
-package a
+// Package a is a package for testing go to definition.
+package a //@mark(aPackage, "a "),hover("a ", aPackage)
 
 import (
 	"fmt"
@@ -32,6 +31,6 @@ func AStuff() { //@AStuff
 	var mu sync.Mutex
 	mu.Lock() //@Lock,hover("Lock", Lock)
 
-	var typ *types.Named
-	typ.Obj().Name() //@Name,hover("Name", Name)
+	var typ *types.Named //@mark(typesImport, "types"),hover("types", typesImport)
+	typ.Obj().Name()     //@Name,hover("Name", Name)
 }

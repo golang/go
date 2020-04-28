@@ -74,8 +74,14 @@ func Random2(y int) int
 ```go
 func Random2(y int) int
 ```
+-- a-hover --
+```go
+
+```
+-- aPackage-hover --
+Package a is a package for testing go to definition\.
 -- err-definition --
-godef/a/a.go:26:6-9: defined here as ```go
+godef/a/a.go:25:6-9: defined here as ```go
 var err error
 ```
 
@@ -85,14 +91,14 @@ var err error
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 26,
+			"line": 25,
 			"column": 6,
-			"offset": 361
+			"offset": 418
 		},
 		"end": {
-			"line": 26,
+			"line": 25,
 			"column": 9,
-			"offset": 364
+			"offset": 421
 		}
 	},
 	"description": "```go\nvar err error\n```\n\n\\@err"
@@ -115,6 +121,12 @@ func(t Type, size ...IntegerType) Type
 -- string-hover --
 ```go
 string
+```
+-- typesImport-hover --
+[`types` on pkg.go.dev](https://pkg.go.dev/go/types)
+
+```go
+package types ("go/types")
 ```
 -- x-hover --
 x is a variable\.

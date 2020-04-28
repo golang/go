@@ -178,12 +178,12 @@ func newSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, 
 			results = append(results, el.Name()+" "+typ)
 		}
 	}
-	var c string
+	var doc string
 	if comment != nil {
-		c = comment.Text()
+		doc = comment.Text()
 	}
 	return &signature{
-		doc:              c,
+		doc:              doc,
 		params:           params,
 		results:          results,
 		variadic:         sig.Variadic(),

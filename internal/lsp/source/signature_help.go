@@ -107,12 +107,12 @@ FindCall:
 		if err != nil {
 			return nil, 0, err
 		}
-		decl := &Declaration{
+		decl := Declaration{
 			obj:  obj,
 			node: node,
 		}
 		decl.MappedRange = append(decl.MappedRange, rng)
-		d, err := decl.hover(ctx)
+		d, err := hover(ctx, snapshot.View().Session().Cache().FileSet(), pkg, decl)
 		if err != nil {
 			return nil, 0, err
 		}
