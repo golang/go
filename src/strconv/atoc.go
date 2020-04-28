@@ -15,12 +15,6 @@ func convErr(err error, s string) error {
 }
 
 func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
-	if bitSize == 64 {
-		bitSize = 32 // complex64 uses float32 internally
-	} else {
-		bitSize = 64
-	}
-
 	f, err := ParseFloat(s, bitSize)
 	if err != nil {
 		return 0, convErr(err, orig)
@@ -61,11 +55,19 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	if len(s) == 0 {
 		return 0, syntaxError(fnParseComplex, s)
 	}
+
 	orig := s
+
+	// Translate bitSize for ParseFloat function
+	if bitSize == 64 {
+		bitSize = 32 // complex64 uses float32 internally
+	} else {
+		bitSize = 64
+	}
 
 	endCh := s[len(s)-1]
 
-	// Remove brackets
+	// Remove parentheses
 	if len(s) > 1 && s[0] == '(' && endCh == ')' {
 		s = s[1 : len(s)-1]
 		endCh = s[len(s)-1]
@@ -132,7 +134,9 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 			idx = mid + (j/2 + 1)
 		}
 
-		realStr, imagStr := s[0:signPos[idx]], s[signPos[idx]:]
+		pos := signPos[idx]
+
+		realStr, imagStr := s[0:pos], s[pos:]
 		if realStr == "" {
 			realStr = "0"
 		}
