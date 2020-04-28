@@ -91,8 +91,8 @@ func (c *pageCache) flush(s *pageAlloc) {
 	}
 	// Since this is a lot like a free, we need to make sure
 	// we update the searchAddr just like free does.
-	if s.compareSearchAddrTo(c.base) < 0 {
-		s.searchAddr = c.base
+	if b := (offAddr{c.base}); b.lessThan(s.searchAddr) {
+		s.searchAddr = b
 	}
 	s.update(c.base, pageCachePages, false, false)
 	*c = pageCache{}
@@ -106,15 +106,15 @@ func (c *pageCache) flush(s *pageAlloc) {
 func (s *pageAlloc) allocToCache() pageCache {
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
-	if chunkIndex(s.searchAddr) >= s.end {
+	if chunkIndex(s.searchAddr.addr()) >= s.end {
 		return pageCache{}
 	}
 	c := pageCache{}
-	ci := chunkIndex(s.searchAddr) // chunk index
+	ci := chunkIndex(s.searchAddr.addr()) // chunk index
 	if s.summary[len(s.summary)-1][ci] != 0 {
 		// Fast path: there's free pages at or near the searchAddr address.
 		chunk := s.chunkOf(ci)
-		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
+		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr.addr()))
 		if j == ^uint(0) {
 			throw("bad summary data")
 		}
@@ -156,6 +156,6 @@ func (s *pageAlloc) allocToCache() pageCache {
 	// However, s.searchAddr is not allowed to point into unmapped heap memory
 	// unless it is maxSearchAddr, so make it the last page as opposed to
 	// the page after.
-	s.searchAddr = c.base + pageSize*(pageCachePages-1)
+	s.searchAddr = offAddr{c.base + pageSize*(pageCachePages-1)}
 	return c
 }
