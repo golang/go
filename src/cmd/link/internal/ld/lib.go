@@ -2493,7 +2493,7 @@ const (
 	DeletedAutoSym = 'x'
 )
 
-func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int64, *sym.Symbol)) {
+func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int64)) {
 	// These symbols won't show up in the first loop below because we
 	// skip sym.STEXT symbols. Normal sym.STEXT symbols are emitted by walking textp.
 	s := ctxt.Syms.Lookup("runtime.text", 0)
@@ -2503,7 +2503,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		// on AIX with external linker.
 		// See data.go:/textaddress
 		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
-			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+			put(ctxt, s, s.Name, TextSym, s.Value)
 		}
 	}
 
@@ -2524,7 +2524,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			break
 		}
 		if s.Type == sym.STEXT {
-			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+			put(ctxt, s, s.Name, TextSym, s.Value)
 		}
 		n++
 	}
@@ -2536,7 +2536,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 		// on AIX with external linker.
 		// See data.go:/textaddress
 		if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
-			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+			put(ctxt, s, s.Name, TextSym, s.Value)
 		}
 	}
 
@@ -2589,7 +2589,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			if !s.Attr.Reachable() {
 				continue
 			}
-			put(ctxt, s, s.Name, DataSym, Symaddr(s), s.Gotype)
+			put(ctxt, s, s.Name, DataSym, Symaddr(s))
 
 		case sym.SBSS, sym.SNOPTRBSS, sym.SLIBFUZZER_EXTRA_COUNTER:
 			if !s.Attr.Reachable() {
@@ -2598,11 +2598,11 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 			if len(s.P) > 0 {
 				Errorf(s, "should not be bss (size=%d type=%v special=%v)", len(s.P), s.Type, s.Attr.Special())
 			}
-			put(ctxt, s, s.Name, BSSSym, Symaddr(s), s.Gotype)
+			put(ctxt, s, s.Name, BSSSym, Symaddr(s))
 
 		case sym.SUNDEFEXT:
 			if ctxt.HeadType == objabi.Hwindows || ctxt.HeadType == objabi.Haix || ctxt.IsELF {
-				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
+				put(ctxt, s, s.Name, UndefinedSym, s.Value)
 			}
 
 		case sym.SHOSTOBJ:
@@ -2610,24 +2610,24 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 				continue
 			}
 			if ctxt.HeadType == objabi.Hwindows || ctxt.IsELF {
-				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
+				put(ctxt, s, s.Name, UndefinedSym, s.Value)
 			}
 
 		case sym.SDYNIMPORT:
 			if !s.Attr.Reachable() {
 				continue
 			}
-			put(ctxt, s, s.Extname(), UndefinedSym, 0, nil)
+			put(ctxt, s, s.Extname(), UndefinedSym, 0)
 
 		case sym.STLSBSS:
 			if ctxt.LinkMode == LinkExternal {
-				put(ctxt, s, s.Name, TLSSym, Symaddr(s), s.Gotype)
+				put(ctxt, s, s.Name, TLSSym, Symaddr(s))
 			}
 		}
 	}
 
 	for _, s := range ctxt.Textp {
-		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
+		put(ctxt, s, s.Name, TextSym, s.Value)
 	}
 
 	if ctxt.Debugvlog != 0 || *flagN {

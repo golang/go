@@ -74,7 +74,7 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 	}
 }
 
-func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go_ *sym.Symbol) {
+func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 	var typ int
 
 	switch t {
@@ -224,7 +224,7 @@ func Asmelfsym(ctxt *Link) {
 	genasmsym(ctxt, putelfsym)
 }
 
-func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64, go_ *sym.Symbol) {
+func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64) {
 	t := int(typ)
 	switch typ {
 	case TextSym, DataSym, BSSSym:
