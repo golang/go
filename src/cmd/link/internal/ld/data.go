@@ -221,24 +221,23 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 		var o int64
 		switch rt {
 		default:
-			panic("not implemented")
-			//switch siz {
-			//default:
-			//	err.Errorf(s, "bad reloc size %#x for %s", uint32(siz), ldr.SymName(rs))
-			//case 1:
-			//	o = int64(P[off])
-			//case 2:
-			//	o = int64(target.Arch.ByteOrder.Uint16(P[off:]))
-			//case 4:
-			//	o = int64(target.Arch.ByteOrder.Uint32(P[off:]))
-			//case 8:
-			//	o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
-			//}
-			//if out, ok := thearch.Archreloc(ldr, target, syms, &r, s, o); ok {
-			//	o = out
-			//} else {
-			//	err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))
-			//}
+			switch siz {
+			default:
+				err.Errorf(s, "bad reloc size %#x for %s", uint32(siz), ldr.SymName(rs))
+			case 1:
+				o = int64(P[off])
+			case 2:
+				o = int64(target.Arch.ByteOrder.Uint16(P[off:]))
+			case 4:
+				o = int64(target.Arch.ByteOrder.Uint32(P[off:]))
+			case 8:
+				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
+			}
+			if out, ok := thearch.Archreloc2(target, ldr, syms, &r, s, o); ok {
+				o = out
+			} else {
+				err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))
+			}
 		case objabi.R_TLS_LE:
 			//if target.IsExternal() && target.IsElf() {
 			//	r.Done = false
