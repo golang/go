@@ -2054,7 +2054,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 	// be copied in a later loop).
 	toConvert := make([]Sym, 0, len(l.payloads))
 	for _, i := range l.extReader.syms {
-		sname := l.RawSymName(i)
 		if !l.attrReachable.Has(i) {
 			continue
 		}
@@ -2065,7 +2064,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 		// outer/sub processing below. Note that once we do this,
 		// we'll need to get at the payload for a symbol with direct
 		// reference to l.payloads[] as opposed to calling l.getPayload().
-		s := l.allocSym(sname, 0)
+		s := l.allocSym(pp.name, 0)
 		l.installSym(i, s)
 		toConvert = append(toConvert, i)
 	}
@@ -2653,6 +2652,13 @@ func (l *Loader) CreateStaticSym(name string) Sym {
 	// ext syms to the sym.Symbols hash.
 	l.anonVersion--
 	return l.newExtSym(name, l.anonVersion)
+}
+
+func (l *Loader) FreeSym(i Sym) {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		*pp = extSymPayload{}
+	}
 }
 
 func loadObjFull(l *Loader, r *oReader, needReloc bool) {
