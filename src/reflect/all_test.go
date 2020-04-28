@@ -1680,6 +1680,26 @@ func TestSelectMaxCases(t *testing.T) {
 	_, _, _ = Select(sCases)
 }
 
+func BenchmarkSelect(b *testing.B) {
+	channel := make(chan int)
+	close(channel)
+	var cases []SelectCase
+	for i := 0; i < 8; i++ {
+		cases = append(cases, SelectCase{
+			Dir:  SelectRecv,
+			Chan: ValueOf(channel),
+		})
+	}
+	for _, numCases := range []int{1, 4, 8} {
+		b.Run(strconv.Itoa(numCases), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_, _, _ = Select(cases[:numCases])
+			}
+		})
+	}
+}
+
 // selectWatch and the selectWatcher are a watchdog mechanism for running Select.
 // If the selectWatcher notices that the select has been blocked for >1 second, it prints
 // an error describing the select and panics the entire test binary.
