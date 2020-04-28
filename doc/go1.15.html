@@ -78,6 +78,26 @@ TODO
   directory of each individual test).
 </p>
 
+<h4 id="module-cache">Module cache</h4>
+
+<p><!-- https://golang.org/cl/219538 -->
+  The location of the module cache may now be set with
+  the <code>GOMODCACHE</code> environment variable. The default value of
+  <code>GOMODCACHE</code> is <code>GOPATH[0]/pkg/mod</code>, the location of the
+  module cache before this change.
+</p>
+
+<p><!-- https://golang.org/cl/221157 -->
+  A workaround is now available for Windows "Access is denied" errors in
+  <code>go</code> commands that access the module cache, caused by external
+  programs concurrently scanning the file system (see
+  <a href="https://golang.org/issue/36568">issue #36568</a>). The workaround is
+  not enabled by default because it is not safe to use when Go versions lower
+  than 1.14.2 and 1.13.10 are running concurrently with the same module cache.
+  It can be enabled by explictly setting the environment variable
+  <code>GODEBUG=modcacheunzipinplace=1</code>.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
