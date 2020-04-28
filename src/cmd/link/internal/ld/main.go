@@ -325,7 +325,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// Asmb will redirect symbols to the output file mmap, and relocations
 	// will be applied directly there.
 	bench.Start("Asmb")
-	thearch.Asmb(ctxt)
+	thearch.Asmb(ctxt, ctxt.loader)
 	bench.Start("reloc")
 	ctxt.reloc()
 	bench.Start("Asmb2")

@@ -58,15 +58,6 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 	if len(s.R) == 0 {
 		return
 	}
-	if target.IsWasm() && s.Attr.ReadOnly() {
-		// The symbol's content is backed by read-only memory.
-		// Copy it to writable memory to apply relocations.
-		// Only need to do this on Wasm. On other platforms we
-		// apply relocations to the output buffer, which is
-		// always writeable.
-		s.P = append([]byte(nil), s.P...)
-		// No need to unset AttrReadOnly because it will not be used.
-	}
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r := &s.R[ri]
 		if r.Done {

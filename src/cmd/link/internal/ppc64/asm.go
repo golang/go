@@ -1082,7 +1082,7 @@ func ensureglinkresolver2(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuild
 	return glink
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
