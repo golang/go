@@ -316,7 +316,6 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if mode == invalid {
 		return // omit
 	}
-	assert(typ != nil)
 	if mode == constant_ {
 		assert(val != nil)
 		assert(typ == Typ[Invalid] || isConstType(typ))

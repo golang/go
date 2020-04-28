@@ -5980,8 +5980,11 @@ type countCloseListener struct {
 }
 
 func (p *countCloseListener) Close() error {
-	atomic.AddInt32(&p.closes, 1)
-	return nil
+	var err error
+	if n := atomic.AddInt32(&p.closes, 1); n == 1 && p.Listener != nil {
+		err = p.Listener.Close()
+	}
+	return err
 }
 
 // Issue 24803: don't call Listener.Close on Server.Shutdown.

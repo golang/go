@@ -309,13 +309,7 @@
 (Move [s] dst src mem)
 	&& s > 64 && s <= 16*64 && s%16 == 0
 	&& !config.noDuffDevice && logLargeCopy(v, s) =>
-	(DUFFCOPY [14*(64-s/16)] dst src mem)
-// 14 and 64 are magic constants.  14 is the number of bytes to encode:
-//	MOVUPS	(SI), X0
-//	ADDQ	$16, SI
-//	MOVUPS	X0, (DI)
-//	ADDQ	$16, DI
-// and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
+	(DUFFCOPY [s] dst src mem)
 
 // Large copying uses REP MOVSQ.
 (Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s) =>
@@ -570,6 +564,10 @@
 (UGE (TEST(Q|L|W|B) x x) yes no) -> (First yes no)
 (SETB (TEST(Q|L|W|B) x x)) -> (ConstBool [0])
 (SETAE (TEST(Q|L|W|B) x x)) -> (ConstBool [1])
+
+// x & 1 != 0 -> x & 1
+(SETNE (TEST(B|W)const [1] x)) => (AND(L|L)const [1] x)
+(SETB (BT(L|Q)const [0] x)) => (AND(L|Q)const [1] x)
 
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag

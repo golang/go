@@ -1913,10 +1913,10 @@ func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
 		return ptr
 	}
 	ptr.Type = types.NewPtr(t)
-	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
 	ind := nodl(pos, ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
+	ind.SetBounded(true)
 	return ind
 }

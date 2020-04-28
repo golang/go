@@ -1043,8 +1043,14 @@ loop:
 func TestBigGOMAXPROCS(t *testing.T) {
 	t.Parallel()
 	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
-	if strings.Contains(output, "failed to create new OS thread") {
-		t.Skipf("failed to create 1024 threads")
+	// Ignore error conditions on small machines.
+	for _, errstr := range []string{
+		"failed to create new OS thread",
+		"cannot allocate memory",
+	} {
+		if strings.Contains(output, errstr) {
+			t.Skipf("failed to create 1024 threads")
+		}
 	}
 	if !strings.Contains(output, "unknown function: NonexistentTest") {
 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)

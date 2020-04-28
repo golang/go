@@ -217,10 +217,7 @@ func (e *NoGoError) Error() string {
 // setLoadPackageDataError returns true if it's safe to load information about
 // imported packages, for example, if there was a parse error loading imports
 // in one file, but other files are okay.
-//
-// TODO(jayconrod): we should probably return nothing and always try to load
-// imported packages.
-func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) (canLoadImports bool) {
+func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) {
 	// Include the path on the import stack unless the error includes it already.
 	errHasPath := false
 	if impErr, ok := err.(ImportPathError); ok && impErr.ImportPath() == path {
@@ -263,7 +260,6 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		scanPos.Filename = base.ShortPath(scanPos.Filename)
 		pos = scanPos.String()
 		err = errors.New(scanErr[0].Msg)
-		canLoadImports = true
 	}
 
 	p.Error = &PackageError{
@@ -271,7 +267,6 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		Pos:         pos,
 		Err:         err,
 	}
-	return canLoadImports
 }
 
 // Resolve returns the resolved version of imports,
@@ -1601,10 +1596,7 @@ func (p *Package) load(path string, stk *ImportStack, bp *build.Package, err err
 
 	if err != nil {
 		p.Incomplete = true
-		canLoadImports := p.setLoadPackageDataError(err, path, stk)
-		if !canLoadImports {
-			return
-		}
+		p.setLoadPackageDataError(err, path, stk)
 	}
 
 	useBindir := p.Name == "main"

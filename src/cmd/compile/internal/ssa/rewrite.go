@@ -152,13 +152,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			b.Pos = b.Pos.WithIsStmt()
 			pendingLines.remove(b.Pos)
 		}
-		if j != len(b.Values) {
-			tail := b.Values[j:]
-			for j := range tail {
-				tail[j] = nil
-			}
-			b.Values = b.Values[:j]
-		}
+		b.truncateValues(j)
 	}
 }
 
@@ -207,8 +201,19 @@ func mergeSym(x, y interface{}) interface{} {
 	}
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
 }
+
 func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
+}
+
+func mergeSymTyped(x, y Sym) Sym {
+	if x == nil {
+		return y
+	}
+	if y == nil {
+		return x
+	}
+	panic(fmt.Sprintf("mergeSym with two non-nil syms %v %v", x, y))
 }
 
 // canMergeLoadClobber reports whether the load can be merged into target without
@@ -368,6 +373,11 @@ func canMergeLoad(target, load *Value) bool {
 	return true
 }
 
+// symNamed reports whether sym's name is name.
+func symNamed(sym Sym, name string) bool {
+	return sym.String() == name
+}
+
 // isSameSym reports whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
@@ -375,29 +385,26 @@ func isSameSym(sym interface{}, name string) bool {
 }
 
 // nlz returns the number of leading zeros.
-func nlz(x int64) int64 {
-	return int64(bits.LeadingZeros64(uint64(x)))
-}
+func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
+func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
+func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
+func nlz8(x int8) int   { return bits.LeadingZeros8(uint8(x)) }
 
 // ntzX returns the number of trailing zeros.
-func ntz(x int64) int64 { return int64(bits.TrailingZeros64(uint64(x))) } // TODO: remove when no longer used
 func ntz64(x int64) int { return bits.TrailingZeros64(uint64(x)) }
 func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
 func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
 func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
 
-func oneBit(x int64) bool {
-	return bits.OnesCount64(uint64(x)) == 1
-}
-
-// nlo returns the number of leading ones.
-func nlo(x int64) int64 {
-	return nlz(^x)
-}
+func oneBit(x int64) bool   { return x&(x-1) == 0 && x != 0 }
+func oneBit8(x int8) bool   { return x&(x-1) == 0 && x != 0 }
+func oneBit16(x int16) bool { return x&(x-1) == 0 && x != 0 }
+func oneBit32(x int32) bool { return x&(x-1) == 0 && x != 0 }
+func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
 
 // nto returns the number of trailing ones.
 func nto(x int64) int64 {
-	return ntz(^x)
+	return int64(ntz64(^x))
 }
 
 // log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
@@ -688,7 +695,7 @@ func uaddOvf(a, b int64) bool {
 
 // de-virtualize an InterCall
 // 'sym' is the symbol for the itab
-func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
+func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
 	f := v.Block.Func
 	n, ok := sym.(*obj.LSym)
 	if !ok {
@@ -1319,18 +1326,10 @@ func sizeof(t interface{}) int64 {
 	return t.(*types.Type).Size()
 }
 
-// alignof returns the alignment of t in bytes.
-// It will panic if t is not a *types.Type.
-func alignof(t interface{}) int64 {
-	return t.(*types.Type).Alignment()
-}
-
 // registerizable reports whether t is a primitive type that fits in
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
-// It will panic if t is not a *types.Type.
-func registerizable(b *Block, t interface{}) bool {
-	typ := t.(*types.Type)
+func registerizable(b *Block, typ *types.Type) bool {
 	if typ.IsPtrShaped() || typ.IsFloat() {
 		return true
 	}
@@ -1341,12 +1340,12 @@ func registerizable(b *Block, t interface{}) bool {
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
-func needRaceCleanup(sym interface{}, v *Value) bool {
+func needRaceCleanup(sym Sym, v *Value) bool {
 	f := v.Block.Func
 	if !f.Config.Race {
 		return false
 	}
-	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
@@ -1380,6 +1379,20 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 func symIsRO(sym interface{}) bool {
 	lsym := sym.(*obj.LSym)
 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
+}
+
+// symIsROZero reports whether sym is a read-only global whose data contains all zeros.
+func symIsROZero(sym Sym) bool {
+	lsym := sym.(*obj.LSym)
+	if lsym.Type != objabi.SRODATA || len(lsym.R) != 0 {
+		return false
+	}
+	for _, b := range lsym.P {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // read8 reads one byte from the read-only global sym at offset off.

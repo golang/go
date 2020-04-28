@@ -2972,13 +2972,13 @@ func mkAbsFiles(dir string, files []string) []string {
 	return abs
 }
 
-// passLongArgsInResponseFiles modifies cmd on Windows such that, for
+// passLongArgsInResponseFiles modifies cmd such that, for
 // certain programs, long arguments are passed in "response files", a
 // file on disk with the arguments, with one arg per line. An actual
 // argument starting with '@' means that the rest of the argument is
 // a filename of arguments to expand.
 //
-// See Issue 18468.
+// See issues 18468 (Windows) and 37768 (Darwin).
 func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	cleanup = func() {} // no cleanup by default
 
@@ -3016,11 +3016,6 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 }
 
 func useResponseFile(path string, argLen int) bool {
-	// Unless we're on Windows, don't use response files.
-	if runtime.GOOS != "windows" {
-		return false
-	}
-
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
 	// TODO: do we need more commands? asm? cgo? For now, no.
@@ -3033,6 +3028,8 @@ func useResponseFile(path string, argLen int) bool {
 
 	// Windows has a limit of 32 KB arguments. To be conservative and not
 	// worry about whether that includes spaces or not, just use 30 KB.
+	// Darwin's limit is less clear. The OS claims 256KB, but we've seen
+	// failures with arglen as small as 50KB.
 	if argLen > (30 << 10) {
 		return true
 	}

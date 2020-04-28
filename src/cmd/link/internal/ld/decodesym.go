@@ -106,7 +106,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 // Type.commonType.gc
 func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
 	if s.Type == sym.SDYNIMPORT {
-		addr := decodetypeGcprogShlib(ctxt, s)
+		addr := decodetypeGcprogShlib(ctxt, s.P)
 		sect := findShlibSection(ctxt, s.File, addr)
 		if sect != nil {
 			// A gcprog is a 4-byte uint32 indicating length, followed by
@@ -123,16 +123,16 @@ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
 	return decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize)).P
 }
 
-func decodetypeGcprogShlib(ctxt *Link, s *sym.Symbol) uint64 {
+func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
 	if ctxt.Arch.Family == sys.ARM64 {
 		return 0
 	}
-	return decodeInuxi(ctxt.Arch, s.P[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
 }
 
 func decodetypeGcmask(ctxt *Link, s *sym.Symbol) []byte {
 	if s.Type == sym.SDYNIMPORT {
-		addr := decodetypeGcprogShlib(ctxt, s)
+		addr := decodetypeGcprogShlib(ctxt, s.P)
 		ptrdata := decodetypePtrdata(ctxt.Arch, s.P)
 		sect := findShlibSection(ctxt, s.File, addr)
 		if sect != nil {

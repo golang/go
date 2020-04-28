@@ -183,6 +183,7 @@ const tmplHTML = `
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Go Coverage Report</title>
 		<style>
 			body {
 				background: black;

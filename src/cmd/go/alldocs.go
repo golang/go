@@ -547,6 +547,9 @@
 // tag "generate" so that files may be examined by go generate but ignored
 // during build.
 //
+// For packages with invalid code, generate processes only source files with a
+// valid package clause.
+//
 // If any generator returns an error exit status, "go generate" skips
 // all further processing for that package.
 //
@@ -657,7 +660,10 @@
 // this automatically as well.
 //
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
+// custom domains using insecure schemes such as HTTP. Use with caution. The
+// GOINSECURE environment variable is usually a better alternative, since it
+// provides control over which modules may be retrieved using an insecure scheme.
+// See 'go help environment' for details.
 //
 // The second step is to download (if needed), build, and install
 // the named packages.
@@ -1621,6 +1627,9 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
+// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+// 		to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.

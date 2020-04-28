@@ -385,6 +385,8 @@ var genericOps = []opData{
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
+	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
+	// to match StaticCall's 32 bit arg size limit.
 	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
 	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
 	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.

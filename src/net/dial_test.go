@@ -9,7 +9,6 @@ package net
 import (
 	"bufio"
 	"context"
-	"internal/poll"
 	"internal/testenv"
 	"io"
 	"os"
@@ -540,8 +539,8 @@ func TestDialerPartialDeadline(t *testing.T) {
 		{now, noDeadline, 1, noDeadline, nil},
 		// Step the clock forward and cross the deadline.
 		{now.Add(-1 * time.Millisecond), now, 1, now, nil},
-		{now.Add(0 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
-		{now.Add(1 * time.Millisecond), now, 1, noDeadline, poll.ErrTimeout},
+		{now.Add(0 * time.Millisecond), now, 1, noDeadline, errTimeout},
+		{now.Add(1 * time.Millisecond), now, 1, noDeadline, errTimeout},
 	}
 	for i, tt := range testCases {
 		deadline, err := partialDeadline(tt.now, tt.deadline, tt.addrs)
