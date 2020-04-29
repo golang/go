@@ -10316,98 +10316,98 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
-	// result: (Const64F [x])
+	// result: (Const64F [math.Float64frombits(uint64(x))])
 	for {
 		t1 := v.Type
 		p1 := v_0
 		if v_1.Op != OpStore {
 			break
 		}
-		t2 := v_1.Aux
+		t2 := auxToType(v_1.Aux)
 		_ = v_1.Args[1]
 		p2 := v_1.Args[0]
 		v_1_1 := v_1.Args[1]
 		if v_1_1.Op != OpConst64 {
 			break
 		}
-		x := v_1_1.AuxInt
+		x := auxIntToInt64(v_1_1.AuxInt)
 		if !(isSamePtr(p1, p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))) {
 			break
 		}
 		v.reset(OpConst64F)
-		v.AuxInt = x
+		v.AuxInt = float64ToAuxInt(math.Float64frombits(uint64(x)))
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))
-	// result: (Const32F [auxFrom32F(math.Float32frombits(uint32(x)))])
+	// result: (Const32F [math.Float32frombits(uint32(x))])
 	for {
 		t1 := v.Type
 		p1 := v_0
 		if v_1.Op != OpStore {
 			break
 		}
-		t2 := v_1.Aux
+		t2 := auxToType(v_1.Aux)
 		_ = v_1.Args[1]
 		p2 := v_1.Args[0]
 		v_1_1 := v_1.Args[1]
 		if v_1_1.Op != OpConst32 {
 			break
 		}
-		x := v_1_1.AuxInt
+		x := auxIntToInt32(v_1_1.AuxInt)
 		if !(isSamePtr(p1, p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))) {
 			break
 		}
 		v.reset(OpConst32F)
-		v.AuxInt = auxFrom32F(math.Float32frombits(uint32(x)))
+		v.AuxInt = float32ToAuxInt(math.Float32frombits(uint32(x)))
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)
-	// result: (Const64 [x])
+	// result: (Const64 [int64(math.Float64bits(x))])
 	for {
 		t1 := v.Type
 		p1 := v_0
 		if v_1.Op != OpStore {
 			break
 		}
-		t2 := v_1.Aux
+		t2 := auxToType(v_1.Aux)
 		_ = v_1.Args[1]
 		p2 := v_1.Args[0]
 		v_1_1 := v_1.Args[1]
 		if v_1_1.Op != OpConst64F {
 			break
 		}
-		x := v_1_1.AuxInt
+		x := auxIntToFloat64(v_1_1.AuxInt)
 		if !(isSamePtr(p1, p2) && sizeof(t2) == 8 && is64BitInt(t1)) {
 			break
 		}
 		v.reset(OpConst64)
-		v.AuxInt = x
+		v.AuxInt = int64ToAuxInt(int64(math.Float64bits(x)))
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
 	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)
-	// result: (Const32 [int64(int32(math.Float32bits(auxTo32F(x))))])
+	// result: (Const32 [int32(math.Float32bits(x))])
 	for {
 		t1 := v.Type
 		p1 := v_0
 		if v_1.Op != OpStore {
 			break
 		}
-		t2 := v_1.Aux
+		t2 := auxToType(v_1.Aux)
 		_ = v_1.Args[1]
 		p2 := v_1.Args[0]
 		v_1_1 := v_1.Args[1]
 		if v_1_1.Op != OpConst32F {
 			break
 		}
-		x := v_1_1.AuxInt
+		x := auxIntToFloat32(v_1_1.AuxInt)
 		if !(isSamePtr(p1, p2) && sizeof(t2) == 4 && is32BitInt(t1)) {
 			break
 		}
 		v.reset(OpConst32)
-		v.AuxInt = int64(int32(math.Float32bits(auxTo32F(x))))
+		v.AuxInt = int32ToAuxInt(int32(math.Float32bits(x)))
 		return true
 	}
 	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
