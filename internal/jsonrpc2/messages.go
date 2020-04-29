@@ -225,3 +225,11 @@ func DecodeMessage(data []byte) (Message, error) {
 	}
 	return call, nil
 }
+
+func marshalToRaw(obj interface{}) (json.RawMessage, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return json.RawMessage{}, err
+	}
+	return json.RawMessage(data), nil
+}

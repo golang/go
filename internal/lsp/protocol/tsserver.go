@@ -427,7 +427,7 @@ func ServerHandler(server Server, handler jsonrpc2.Handler) jsonrpc2.Handler {
 }
 
 type serverDispatcher struct {
-	*jsonrpc2.Conn
+	jsonrpc2.Conn
 }
 
 func (s *serverDispatcher) DidChangeWorkspaceFolders(ctx context.Context, params *DidChangeWorkspaceFoldersParams) error {

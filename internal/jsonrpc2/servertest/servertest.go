@@ -17,7 +17,7 @@ import (
 
 // Connector is the interface used to connect to a server.
 type Connector interface {
-	Connect(context.Context) *jsonrpc2.Conn
+	Connect(context.Context) jsonrpc2.Conn
 }
 
 // TCPServer is a helper for executing tests against a remote jsonrpc2
@@ -48,7 +48,7 @@ func NewTCPServer(ctx context.Context, server jsonrpc2.StreamServer, framer json
 
 // Connect dials the test server and returns a jsonrpc2 Connection that is
 // ready for use.
-func (s *TCPServer) Connect(ctx context.Context) *jsonrpc2.Conn {
+func (s *TCPServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	netConn, err := net.Dial("tcp", s.Addr)
 	if err != nil {
 		panic(fmt.Sprintf("servertest: failed to connect to test instance: %v", err))
@@ -81,7 +81,7 @@ func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer, framer jso
 }
 
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
-func (s *PipeServer) Connect(ctx context.Context) *jsonrpc2.Conn {
+func (s *PipeServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	sPipe, cPipe := net.Pipe()
 	s.cls.add(func() {
 		sPipe.Close()

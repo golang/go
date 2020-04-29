@@ -1096,7 +1096,7 @@ function output(side: side) {
       }`);
   f(`
         type ${side.name}Dispatcher struct {
-          *jsonrpc2.Conn
+          jsonrpc2.Conn
         }
         `);
   side.calls.forEach((v) => {f(v)});

@@ -31,7 +31,7 @@ type Env struct {
 	Sandbox *fake.Sandbox
 	Editor  *fake.Editor
 	Server  servertest.Connector
-	Conn    *jsonrpc2.Conn
+	Conn    jsonrpc2.Conn
 
 	// mu guards the fields below, for the purpose of checking conditions on
 	// every change to diagnostics.

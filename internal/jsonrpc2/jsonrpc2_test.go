@@ -90,7 +90,7 @@ func TestCall(t *testing.T) {
 	}
 }
 
-func prepare(ctx context.Context, t *testing.T, withHeaders bool) (*jsonrpc2.Conn, *jsonrpc2.Conn, func()) {
+func prepare(ctx context.Context, t *testing.T, withHeaders bool) (jsonrpc2.Conn, jsonrpc2.Conn, func()) {
 	// make a wait group that can be used to wait for the system to shut down
 	aPipe, bPipe := net.Pipe()
 	a := run(ctx, withHeaders, aPipe)
@@ -103,7 +103,7 @@ func prepare(ctx context.Context, t *testing.T, withHeaders bool) (*jsonrpc2.Con
 	}
 }
 
-func run(ctx context.Context, withHeaders bool, nc net.Conn) *jsonrpc2.Conn {
+func run(ctx context.Context, withHeaders bool, nc net.Conn) jsonrpc2.Conn {
 	var stream jsonrpc2.Stream
 	if withHeaders {
 		stream = jsonrpc2.NewHeaderStream(nc)

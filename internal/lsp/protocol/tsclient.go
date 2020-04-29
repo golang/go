@@ -129,7 +129,7 @@ func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
 }
 
 type clientDispatcher struct {
-	*jsonrpc2.Conn
+	jsonrpc2.Conn
 }
 
 func (s *clientDispatcher) ShowMessage(ctx context.Context, params *ShowMessageParams) error {

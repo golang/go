@@ -80,7 +80,7 @@ func NewEditor(ws *Sandbox, config EditorConfig) *Editor {
 //
 // It returns the editor, so that it may be called as follows:
 //   editor, err := NewEditor(s).Connect(ctx, conn)
-func (e *Editor) Connect(ctx context.Context, conn *jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
+func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
 	e.Server = protocol.ServerDispatcher(conn)
 	e.client = &Client{editor: e, hooks: hooks}
 	conn.Go(ctx,
