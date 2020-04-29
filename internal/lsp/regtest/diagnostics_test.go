@@ -440,3 +440,37 @@ func _() {
 		}
 	})
 }
+
+// Expect a module/gopath error if there is an error in the file at startup
+func TestShowMessage_Issue37279(t *testing.T) {
+	const noModule = `
+-- a.go --
+	package foo
+	
+	func f() {
+		fmt.Printl()
+	}
+	`
+	runner.Run(t, noModule, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		env.Await(env.DiagnosticAtRegexp("a.go", "fmt.Printl"), SomeShowMessage(""))
+	})
+}
+
+// Expecxt no module/gopath error if there is no error in the file
+func TestNoShowMessage_Issue37279(t *testing.T) {
+	const noModule = `
+-- a.go --
+	package foo
+	
+	func f() {
+	}
+	`
+	runner.Run(t, noModule, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		env.Await(EmptyDiagnostics("a.go"), EmptyShowMessage(""))
+		// introduce an error, expect no Show Message
+		env.RegexpReplace("a.go", "func", "fun")
+		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), EmptyShowMessage(""))
+	})
+}

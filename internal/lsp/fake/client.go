@@ -20,6 +20,14 @@ type Client struct {
 	onDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
 	onWorkDoneProgressCreate func(context.Context, *protocol.WorkDoneProgressCreateParams) error
 	onProgress               func(context.Context, *protocol.ProgressParams) error
+	onShowMessage            func(context.Context, *protocol.ShowMessageParams) error
+}
+
+// OnShowMessage sets the hook to run when the editor receives a showMessage notification
+func (c *Client) OnShowMessage(hook func(context.Context, *protocol.ShowMessageParams) error) {
+	c.mu.Lock()
+	c.onShowMessage = hook
+	c.mu.Unlock()
 }
 
 // OnLogMessage sets the hook to run when the editor receives a log message.
@@ -53,6 +61,9 @@ func (c *Client) ShowMessage(ctx context.Context, params *protocol.ShowMessagePa
 	c.mu.Lock()
 	c.lastMessage = params
 	c.mu.Unlock()
+	if c.onShowMessage != nil {
+		return c.onShowMessage(ctx, params)
+	}
 	return nil
 }
 

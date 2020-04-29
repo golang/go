@@ -47,6 +47,7 @@ type State struct {
 	// diagnostics are a map of relative path->diagnostics params
 	diagnostics map[string]*protocol.PublishDiagnosticsParams
 	logs        []*protocol.LogMessageParams
+	showMessage []*protocol.ShowMessageParams
 	// outstandingWork is a map of token->work summary. All tokens are assumed to
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
@@ -126,6 +127,7 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 	env.E.Client().OnLogMessage(env.onLogMessage)
 	env.E.Client().OnWorkDoneProgressCreate(env.onWorkDoneProgressCreate)
 	env.E.Client().OnProgress(env.onProgress)
+	env.E.Client().OnShowMessage(env.onShowMessage)
 	return env
 }
 
@@ -135,6 +137,15 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 
 	pth := e.W.URIToPath(d.URI)
 	e.state.diagnostics[pth] = d
+	e.checkConditionsLocked()
+	return nil
+}
+
+func (e *Env) onShowMessage(_ context.Context, m *protocol.ShowMessageParams) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.state.showMessage = append(e.state.showMessage, m)
 	e.checkConditionsLocked()
 	return nil
 }
@@ -322,6 +333,34 @@ func NoOutstandingWork() SimpleExpectation {
 	return SimpleExpectation{
 		check:       check,
 		description: "no outstanding work",
+	}
+}
+
+// EmptyShowMessage asserts that the editor has not received a ShowMessage.
+func EmptyShowMessage(title string) SimpleExpectation {
+	check := func(s State) (Verdict, interface{}) {
+		if len(s.showMessage) == 0 {
+			return Met, title
+		}
+		return Unmeetable, nil
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "no ShowMessage received",
+	}
+}
+
+// SomeShowMessage asserts that the editor has received a ShowMessage.
+func SomeShowMessage(title string) SimpleExpectation {
+	check := func(s State) (Verdict, interface{}) {
+		if len(s.showMessage) > 0 {
+			return Met, title
+		}
+		return Unmet, nil
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "received ShowMessage",
 	}
 }
 

@@ -126,7 +126,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 		r.diagnostics = make(map[span.URI][]*source.Diagnostic)
 		v := r.server.session.View(r.data.Config.Dir)
 		// Always run diagnostics with analysis.
-		reports := r.server.diagnose(r.ctx, v.Snapshot(), true)
+		reports, _ := r.server.diagnose(r.ctx, v.Snapshot(), true)
 		for key, diags := range reports {
 			r.diagnostics[key.id.URI] = diags
 		}
@@ -387,7 +387,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if r.diagnostics == nil {
 		r.diagnostics = make(map[span.URI][]*source.Diagnostic)
 		// Always run diagnostics with analysis.
-		reports := r.server.diagnose(r.ctx, view.Snapshot(), true)
+		reports, _ := r.server.diagnose(r.ctx, view.Snapshot(), true)
 		for key, diags := range reports {
 			r.diagnostics[key.id.URI] = diags
 		}
