@@ -30,6 +30,46 @@ func TestParseComplex(t *testing.T) {
 		wantErr error
 	}{
 		{
+			str:  "0",
+			want: complex(0, 0),
+		},
+		{
+			str:  "0i",
+			want: complex(0, 0),
+		},
+		{
+			str:  "0+0i",
+			want: complex(0, 0),
+		},
+		{
+			str:  "0.0",
+			want: complex(0, 0),
+		},
+		{
+			str:  "0.1",
+			want: complex(0.1, 0),
+		},
+		{
+			str:  "0.0i",
+			want: complex(0, 0),
+		},
+		{
+			str:  "0.1i",
+			want: complex(0, 0.1),
+		},
+		{
+			str:  "0.123",
+			want: complex(0.123, 0),
+		},
+		{
+			str:  "0.123i",
+			want: complex(0, 0.123),
+		},
+		{
+			str:  "0.123+0.123i",
+			want: complex(0.123, 0.123),
+		},
+		{
 			str:  "99",
 			want: complex(99, 0),
 		},
@@ -193,7 +233,7 @@ func TestParseComplex(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
+		tt := tt // for capture in Run closures below
 		if tt.wantErr != nil {
 			tt.wantErr = &NumError{Func: "ParseComplex", Num: tt.str, Err: tt.wantErr}
 		}
