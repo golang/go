@@ -230,6 +230,10 @@ func TestParseComplex(t *testing.T) {
 			str:     "10  + 5i",
 			wantErr: ErrSyntax,
 		},
+		{
+			str:     "NaN-NaNi",
+			wantErr: ErrSyntax,
+		},
 	}
 
 	for _, tt := range tests {
