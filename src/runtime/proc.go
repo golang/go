@@ -690,9 +690,7 @@ func ready(gp *g, traceskip int, next bool) {
 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
 	casgstatus(gp, _Gwaiting, _Grunnable)
 	runqput(_g_.m.p.ptr(), gp, next)
-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
-		wakep()
-	}
+	wakep()
 	releasem(mp)
 }
 
@@ -1072,9 +1070,7 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 	// Wakeup an additional proc in case we have excessive runnable goroutines
 	// in local queues or in the global queue. If we don't, the proc will park itself.
 	// If we have lots of excessive work, resetspinning will unpark additional procs as necessary.
-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
-		wakep()
-	}
+	wakep()
 
 	releasem(mp)
 
@@ -1999,8 +1995,11 @@ func handoffp(_p_ *p) {
 // Tries to add one more P to execute G's.
 // Called when a G is made runnable (newproc, ready).
 func wakep() {
+	if atomic.Load(&sched.npidle) == 0 {
+		return
+	}
 	// be conservative about spinning threads
-	if !atomic.Cas(&sched.nmspinning, 0, 1) {
+	if atomic.Load(&sched.nmspinning) != 0 || !atomic.Cas(&sched.nmspinning, 0, 1) {
 		return
 	}
 	startm(nil, true)
@@ -2464,9 +2463,7 @@ func resetspinning() {
 	// M wakeup policy is deliberately somewhat conservative, so check if we
 	// need to wakeup another P here. See "Worker thread parking/unparking"
 	// comment at the top of the file for details.
-	if nmspinning == 0 && atomic.Load(&sched.npidle) > 0 {
-		wakep()
-	}
+	wakep()
 }
 
 // injectglist adds each runnable G on the list to some run queue,
@@ -2640,9 +2637,7 @@ top:
 	// If about to schedule a not-normal goroutine (a GCworker or tracereader),
 	// wake a P if there is one.
 	if tryWakeP {
-		if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
-			wakep()
-		}
+		wakep()
 	}
 	if gp.lockedm != 0 {
 		// Hands off own p to the locked m,
@@ -3476,7 +3471,7 @@ func newproc(siz int32, fn *funcval) {
 		_p_ := getg().m.p.ptr()
 		runqput(_p_, newg, true)
 
-		if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 && mainStarted {
+		if mainStarted {
 			wakep()
 		}
 	})
