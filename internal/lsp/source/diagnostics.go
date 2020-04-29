@@ -27,8 +27,7 @@ type Diagnostic struct {
 	Severity protocol.DiagnosticSeverity
 	Tags     []protocol.DiagnosticTag
 
-	SuggestedFixes []SuggestedFix
-	Related        []RelatedInformation
+	Related []RelatedInformation
 }
 
 type SuggestedFix struct {
@@ -295,13 +294,12 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 			tags = append(tags, protocol.Unnecessary)
 		}
 		if err := addReports(snapshot, reports, e.URI, &Diagnostic{
-			Range:          e.Range,
-			Message:        e.Message,
-			Source:         e.Category,
-			Severity:       protocol.SeverityWarning,
-			Tags:           tags,
-			SuggestedFixes: e.SuggestedFixes,
-			Related:        e.Related,
+			Range:    e.Range,
+			Message:  e.Message,
+			Source:   e.Category,
+			Severity: protocol.SeverityWarning,
+			Tags:     tags,
+			Related:  e.Related,
 		}); err != nil {
 			return err
 		}
@@ -344,7 +342,6 @@ func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri s
 				if d1.Message != d2.Message {
 					continue
 				}
-				reports[identity][i].SuggestedFixes = append(reports[identity][i].SuggestedFixes, d1.SuggestedFixes...)
 				reports[identity][i].Tags = append(reports[identity][i].Tags, d1.Tags...)
 			}
 			return nil

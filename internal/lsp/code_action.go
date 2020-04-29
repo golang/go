@@ -67,6 +67,11 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			})
 		}
 	case source.Go:
+		// Don't suggest fixes for generated files, since they are generally
+		// not useful and some editors may apply them automatically on save.
+		if source.IsGenerated(ctx, snapshot, uri) {
+			return nil, nil
+		}
 		diagnostics := params.Context.Diagnostics
 
 		// First, process any missing imports and pair them with the

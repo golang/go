@@ -44,10 +44,9 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	}
 	for _, e := range parseErrors {
 		diag := &source.Diagnostic{
-			Message:        e.Message,
-			Range:          e.Range,
-			SuggestedFixes: e.SuggestedFixes,
-			Source:         e.Category,
+			Message: e.Message,
+			Range:   e.Range,
+			Source:  e.Category,
 		}
 		if e.Category == "syntax" {
 			diag.Severity = protocol.SeverityError

@@ -502,16 +502,16 @@ func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
 
 // ApplyQuickFixes requests and performs the quickfix codeAction.
 func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, diagnostics []protocol.Diagnostic) error {
-	return e.codeAction(ctx, path, diagnostics, protocol.QuickFix)
+	return e.codeAction(ctx, path, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
 }
 
-func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []protocol.Diagnostic, only protocol.CodeActionKind) error {
+func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) error {
 	if e.server == nil {
 		return nil
 	}
 	params := &protocol.CodeActionParams{}
 	params.TextDocument.URI = e.ws.URI(path)
-	params.Context.Only = []protocol.CodeActionKind{only}
+	params.Context.Only = only
 	if diagnostics != nil {
 		params.Context.Diagnostics = diagnostics
 	}
@@ -522,17 +522,25 @@ func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []prot
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, action := range actions {
-		if action.Kind == only {
-			for _, change := range action.Edit.DocumentChanges {
-				path := e.ws.URIToPath(change.TextDocument.URI)
-				if float64(e.buffers[path].version) != change.TextDocument.Version {
-					// Skip edits for old versions.
-					continue
-				}
-				edits := convertEdits(change.Edits)
-				if err := e.editBufferLocked(ctx, path, edits); err != nil {
-					return fmt.Errorf("editing buffer %q: %v", path, err)
-				}
+		var match bool
+		for _, o := range only {
+			if action.Kind == o {
+				match = true
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		for _, change := range action.Edit.DocumentChanges {
+			path := e.ws.URIToPath(change.TextDocument.URI)
+			if float64(e.buffers[path].version) != change.TextDocument.Version {
+				// Skip edits for old versions.
+				continue
+			}
+			edits := convertEdits(change.Edits)
+			if err := e.editBufferLocked(ctx, path, edits); err != nil {
+				return fmt.Errorf("editing buffer %q: %v", path, err)
 			}
 		}
 	}
