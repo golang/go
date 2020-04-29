@@ -647,6 +647,16 @@ func atof64(s string) (f float64, err error) {
 	return f, err
 }
 
+// TODO: See https://go-review.googlesource.com/c/go/+/216617#message-7befb50c86c0a4ecca842e783a687429eca0d0df
+func parseFloat(s string, bitSize int) (float64, int, error) {
+	if bitSize == 32 {
+		f, err := atof32(s)
+		return float64(f), len(s), err
+	}
+	f, err := atof64(s)
+	return f, len(s), err
+}
+
 // ParseFloat converts the string s to a floating-point number
 // with the precision specified by bitSize: 32 for float32, or 64 for float64.
 // When bitSize=32, the result still has type float64, but it will be
@@ -672,9 +682,12 @@ func atof64(s string) (f float64, err error) {
 // ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
 // respective special floating point values. It ignores case when matching.
 func ParseFloat(s string, bitSize int) (float64, error) {
-	if bitSize == 32 {
-		f, err := atof32(s)
-		return float64(f), err
+	f, n, err := parseFloat(s, bitSize)
+	if err != nil {
+		return 0, err
 	}
-	return atof64(s)
+	if n != len(s) {
+		return 0, syntaxError(fnParseFloat, s)
+	}
+	return f, nil
 }
