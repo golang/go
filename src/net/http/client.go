@@ -122,9 +122,10 @@ type RoundTripper interface {
 	// particular, RoundTrip must return err == nil if it obtained
 	// a response, regardless of the response's HTTP status code.
 	// A non-nil err should be reserved for failure to obtain a
-	// response. Similarly, RoundTrip should not attempt to
-	// handle higher-level protocol details such as redirects,
-	// authentication, or cookies.
+	// response. RoundTrip should return a nil *Response if
+	// and only if it returns a non-nil error. Similarly,
+	// RoundTrip should not attempt to handle higher-level protocol
+	// details such as redirects, authentication, or cookies.
 	//
 	// RoundTrip should not modify the request, except for
 	// consuming and closing the Request's Body. RoundTrip may
