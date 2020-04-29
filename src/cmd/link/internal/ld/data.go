@@ -1123,7 +1123,7 @@ func (p *GCProg2) AddSym(s loader.Sym) {
 	sval := ldr.SymValue(s)
 	if decodetypeUsegcprog(p.ctxt.Arch, typData) == 0 {
 		// Copy pointers from mask into program.
-		mask := decodetypeGcmask2(p.ctxt, typ)
+		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {
 			if (mask[i/8]>>uint(i%8))&1 != 0 {
 				p.w.Ptr(sval/ptrsize + i)
@@ -1133,7 +1133,7 @@ func (p *GCProg2) AddSym(s loader.Sym) {
 	}
 
 	// Copy program.
-	prog := decodetypeGcprog2(p.ctxt, typ)
+	prog := decodetypeGcprog(p.ctxt, typ)
 	p.w.ZeroUntil(sval / ptrsize)
 	p.w.Append(prog[4:], nptr)
 }

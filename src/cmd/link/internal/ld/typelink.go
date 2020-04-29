@@ -30,7 +30,7 @@ func (ctxt *Link) typelink() {
 	typelinks := byTypeStr{}
 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
 		if ldr.AttrReachable(s) && ldr.IsTypelink(s) {
-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr2(ldr, ctxt.Arch, s), s})
+			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ldr, ctxt.Arch, s), s})
 		}
 	}
 	sort.Sort(typelinks)
