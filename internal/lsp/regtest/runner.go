@@ -65,64 +65,6 @@ type Runner struct {
 	closers []io.Closer
 }
 
-// getTestServer gets the test server instance to connect to, or creates one if
-// it doesn't exist.
-func (r *Runner) getTestServer() *servertest.TCPServer {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.ts == nil {
-		ctx := context.Background()
-		ctx = debug.WithInstance(ctx, "", "")
-		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
-		r.ts = servertest.NewTCPServer(context.Background(), ss)
-	}
-	return r.ts
-}
-
-// runTestAsGoplsEnvvar triggers TestMain to run gopls instead of running
-// tests. It's a trick to allow tests to find a binary to use to start a gopls
-// subprocess.
-const runTestAsGoplsEnvvar = "_GOPLS_TEST_BINARY_RUN_AS_GOPLS"
-
-func (r *Runner) getRemoteSocket(t *testing.T) string {
-	t.Helper()
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	const daemonFile = "gopls-test-daemon"
-	if r.socketDir != "" {
-		return filepath.Join(r.socketDir, daemonFile)
-	}
-
-	if r.GoplsPath == "" {
-		t.Fatal("cannot run tests with a separate process unless a path to a gopls binary is configured")
-	}
-	var err error
-	r.socketDir, err = ioutil.TempDir("", "gopls-regtests")
-	if err != nil {
-		t.Fatalf("creating tempdir: %v", err)
-	}
-	socket := filepath.Join(r.socketDir, daemonFile)
-	args := []string{"serve", "-listen", "unix;" + socket, "-listen.timeout", "10s"}
-	cmd := exec.Command(r.GoplsPath, args...)
-	cmd.Env = append(os.Environ(), runTestAsGoplsEnvvar+"=true")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	go func() {
-		if err := cmd.Run(); err != nil {
-			panic(fmt.Sprintf("error running external gopls: %v\nstderr:\n%s", err, stderr.String()))
-		}
-	}()
-	return socket
-}
-
-// AddCloser schedules a closer to be closed at the end of the test run. This
-// is useful for Windows in particular, as
-func (r *Runner) AddCloser(closer io.Closer) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.closers = append(r.closers, closer)
-}
-
 type runConfig struct {
 	modes    Mode
 	proxyTxt string
@@ -278,11 +220,69 @@ func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.Str
 	return lsprpc.NewForwarder("tcp", ts.Addr)
 }
 
+// getTestServer gets the test server instance to connect to, or creates one if
+// it doesn't exist.
+func (r *Runner) getTestServer() *servertest.TCPServer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ts == nil {
+		ctx := context.Background()
+		ctx = debug.WithInstance(ctx, "", "")
+		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
+		r.ts = servertest.NewTCPServer(context.Background(), ss)
+	}
+	return r.ts
+}
+
 func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
 	socket := r.getRemoteSocket(t)
 	return lsprpc.NewForwarder("unix", socket)
+}
+
+// runTestAsGoplsEnvvar triggers TestMain to run gopls instead of running
+// tests. It's a trick to allow tests to find a binary to use to start a gopls
+// subprocess.
+const runTestAsGoplsEnvvar = "_GOPLS_TEST_BINARY_RUN_AS_GOPLS"
+
+func (r *Runner) getRemoteSocket(t *testing.T) string {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	const daemonFile = "gopls-test-daemon"
+	if r.socketDir != "" {
+		return filepath.Join(r.socketDir, daemonFile)
+	}
+
+	if r.GoplsPath == "" {
+		t.Fatal("cannot run tests with a separate process unless a path to a gopls binary is configured")
+	}
+	var err error
+	r.socketDir, err = ioutil.TempDir("", "gopls-regtests")
+	if err != nil {
+		t.Fatalf("creating tempdir: %v", err)
+	}
+	socket := filepath.Join(r.socketDir, daemonFile)
+	args := []string{"serve", "-listen", "unix;" + socket, "-listen.timeout", "10s"}
+	cmd := exec.Command(r.GoplsPath, args...)
+	cmd.Env = append(os.Environ(), runTestAsGoplsEnvvar+"=true")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	go func() {
+		if err := cmd.Run(); err != nil {
+			panic(fmt.Sprintf("error running external gopls: %v\nstderr:\n%s", err, stderr.String()))
+		}
+	}()
+	return socket
+}
+
+// AddCloser schedules a closer to be closed at the end of the test run. This
+// is useful for Windows in particular, as
+func (r *Runner) AddCloser(closer io.Closer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closers = append(r.closers, closer)
 }
 
 // Close cleans up resource that have been allocated to this workspace.
