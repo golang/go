@@ -2347,12 +2347,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 		i := l.Lookup(name, ver)
 		return l.Syms[i]
 	}
-	syms.Newsym = func(name string, ver int) *sym.Symbol {
-		i := l.newExtSym(name, ver)
-		s := l.allocSym(name, ver)
-		l.installSym(i, s)
-		return s
-	}
 }
 
 // allocSym allocates a new symbol backing.
