@@ -743,39 +743,10 @@ func elfhash(name string) uint32 {
 	return h
 }
 
-func elfWriteDynEnt(arch *sys.Arch, s *sym.Symbol, tag int, val uint64) {
-	if elf64 {
-		s.AddUint64(arch, uint64(tag))
-		s.AddUint64(arch, val)
-	} else {
-		s.AddUint32(arch, uint32(tag))
-		s.AddUint32(arch, uint32(val))
-	}
-}
-
-func elfWriteDynEntSym2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+func elfWriteDynEntSym(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
 	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
 }
 
-func Elfwritedynentsymplus(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
-	if elf64 {
-		s.AddUint64(arch, uint64(tag))
-	} else {
-		s.AddUint32(arch, uint32(tag))
-	}
-	s.AddAddrPlus(arch, t, add)
-}
-
-func elfWriteDynEntSymSize(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
-	if elf64 {
-		s.AddUint64(arch, uint64(tag))
-	} else {
-		s.AddUint32(arch, uint32(tag))
-	}
-	s.AddSize(arch, t)
-}
-
-// temporary
 func Elfwritedynent2(arch *sys.Arch, s *loader.SymbolBuilder, tag int, val uint64) {
 	if elf64 {
 		s.AddUint64(arch, uint64(tag))
@@ -1175,9 +1146,9 @@ func elfdynhash2(ctxt *Link) {
 	s = ldr.CreateSymForUpdate(".dynamic", 0)
 	elfverneed = nfile
 	if elfverneed != 0 {
-		elfWriteDynEntSym2(ctxt, s, DT_VERNEED, gnuVersionR.Sym())
+		elfWriteDynEntSym(ctxt, s, DT_VERNEED, gnuVersionR.Sym())
 		Elfwritedynent2(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
-		elfWriteDynEntSym2(ctxt, s, DT_VERSYM, gnuVersion.Sym())
+		elfWriteDynEntSym(ctxt, s, DT_VERSYM, gnuVersion.Sym())
 	}
 
 	sy := ldr.CreateSymForUpdate(elfRelType+".plt", 0)
@@ -1188,7 +1159,7 @@ func elfdynhash2(ctxt *Link) {
 			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_REL)
 		}
 		elfwritedynentsymsize2(ctxt, s, DT_PLTRELSZ, sy.Sym())
-		elfWriteDynEntSym2(ctxt, s, DT_JMPREL, sy.Sym())
+		elfWriteDynEntSym(ctxt, s, DT_JMPREL, sy.Sym())
 	}
 
 	Elfwritedynent2(ctxt.Arch, s, DT_NULL, 0)
