@@ -4481,16 +4481,16 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 		return true
 	}
 	// match: (Div16 <t> x (Const16 [c]))
-	// cond: smagicOK(16,c)
-	// result: (Sub16 <t> (Rsh32x64 <t> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(smagic(16,c).m)]) (SignExt16to32 x)) (Const64 <typ.UInt64> [16+smagic(16,c).s])) (Rsh32x64 <t> (SignExt16to32 x) (Const64 <typ.UInt64> [31])))
+	// cond: smagicOK16(c)
+	// result: (Sub16 <t> (Rsh32x64 <t> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(smagic16(c).m)]) (SignExt16to32 x)) (Const64 <typ.UInt64> [16+smagic16(c).s])) (Rsh32x64 <t> (SignExt16to32 x) (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(16, c)) {
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(smagicOK16(c)) {
 			break
 		}
 		v.reset(OpSub16)
@@ -4498,16 +4498,16 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(smagic(16, c).m)
+		v2.AuxInt = int32ToAuxInt(int32(smagic16(c).m))
 		v3 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 16 + smagic(16, c).s
+		v4.AuxInt = int64ToAuxInt(16 + smagic16(c).s)
 		v0.AddArg2(v1, v4)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 31
+		v6.AuxInt = int64ToAuxInt(31)
 		v5.AddArg2(v3, v6)
 		v.AddArg2(v0, v5)
 		return true
@@ -4558,97 +4558,97 @@ func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 		return true
 	}
 	// match: (Div16u x (Const16 [c]))
-	// cond: umagicOK(16, c) && config.RegSize == 8
-	// result: (Trunc64to16 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<16+umagic(16,c).m)]) (ZeroExt16to64 x)) (Const64 <typ.UInt64> [16+umagic(16,c).s])))
+	// cond: umagicOK16(c) && config.RegSize == 8
+	// result: (Trunc64to16 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<16+umagic16(c).m)]) (ZeroExt16to64 x)) (Const64 <typ.UInt64> [16+umagic16(c).s])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(16, c) && config.RegSize == 8) {
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(umagicOK16(c) && config.RegSize == 8) {
 			break
 		}
 		v.reset(OpTrunc64to16)
 		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(1<<16 + umagic(16, c).m)
+		v2.AuxInt = int64ToAuxInt(int64(1<<16 + umagic16(c).m))
 		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 16 + umagic(16, c).s
+		v4.AuxInt = int64ToAuxInt(16 + umagic16(c).s)
 		v0.AddArg2(v1, v4)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div16u x (Const16 [c]))
-	// cond: umagicOK(16, c) && config.RegSize == 4 && umagic(16,c).m&1 == 0
-	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(1<<15+umagic(16,c).m/2)]) (ZeroExt16to32 x)) (Const64 <typ.UInt64> [16+umagic(16,c).s-1])))
+	// cond: umagicOK16(c) && config.RegSize == 4 && umagic16(c).m&1 == 0
+	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(1<<15+umagic16(c).m/2)]) (ZeroExt16to32 x)) (Const64 <typ.UInt64> [16+umagic16(c).s-1])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(16, c) && config.RegSize == 4 && umagic(16, c).m&1 == 0) {
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(umagicOK16(c) && config.RegSize == 4 && umagic16(c).m&1 == 0) {
 			break
 		}
 		v.reset(OpTrunc32to16)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(1<<15 + umagic(16, c).m/2)
+		v2.AuxInt = int32ToAuxInt(int32(1<<15 + umagic16(c).m/2))
 		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 16 + umagic(16, c).s - 1
+		v4.AuxInt = int64ToAuxInt(16 + umagic16(c).s - 1)
 		v0.AddArg2(v1, v4)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div16u x (Const16 [c]))
-	// cond: umagicOK(16, c) && config.RegSize == 4 && c&1 == 0
-	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(1<<15+(umagic(16,c).m+1)/2)]) (Rsh32Ux64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [16+umagic(16,c).s-2])))
+	// cond: umagicOK16(c) && config.RegSize == 4 && c&1 == 0
+	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(1<<15+(umagic16(c).m+1)/2)]) (Rsh32Ux64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [16+umagic16(c).s-2])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(16, c) && config.RegSize == 4 && c&1 == 0) {
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(umagicOK16(c) && config.RegSize == 4 && c&1 == 0) {
 			break
 		}
 		v.reset(OpTrunc32to16)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(1<<15 + (umagic(16, c).m+1)/2)
+		v2.AuxInt = int32ToAuxInt(int32(1<<15 + (umagic16(c).m+1)/2))
 		v3 := b.NewValue0(v.Pos, OpRsh32Ux64, typ.UInt32)
 		v4 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v4.AddArg(x)
 		v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v5.AuxInt = 1
+		v5.AuxInt = int64ToAuxInt(1)
 		v3.AddArg2(v4, v5)
 		v1.AddArg2(v2, v3)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 16 + umagic(16, c).s - 2
+		v6.AuxInt = int64ToAuxInt(16 + umagic16(c).s - 2)
 		v0.AddArg2(v1, v6)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div16u x (Const16 [c]))
-	// cond: umagicOK(16, c) && config.RegSize == 4 && config.useAvg
-	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Avg32u (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16])) (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(umagic(16,c).m)]) (ZeroExt16to32 x))) (Const64 <typ.UInt64> [16+umagic(16,c).s-1])))
+	// cond: umagicOK16(c) && config.RegSize == 4 && config.useAvg
+	// result: (Trunc32to16 (Rsh32Ux64 <typ.UInt32> (Avg32u (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16])) (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(umagic16(c).m)]) (ZeroExt16to32 x))) (Const64 <typ.UInt64> [16+umagic16(c).s-1])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(16, c) && config.RegSize == 4 && config.useAvg) {
+		c := auxIntToInt16(v_1.AuxInt)
+		if !(umagicOK16(c) && config.RegSize == 4 && config.useAvg) {
 			break
 		}
 		v.reset(OpTrunc32to16)
@@ -4658,15 +4658,15 @@ func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 16
+		v4.AuxInt = int64ToAuxInt(16)
 		v2.AddArg2(v3, v4)
 		v5 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v6.AuxInt = int64(umagic(16, c).m)
+		v6.AuxInt = int32ToAuxInt(int32(umagic16(c).m))
 		v5.AddArg2(v6, v3)
 		v1.AddArg2(v2, v5)
 		v7 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v7.AuxInt = 16 + umagic(16, c).s - 1
+		v7.AuxInt = int64ToAuxInt(16 + umagic16(c).s - 1)
 		v0.AddArg2(v1, v7)
 		v.AddArg(v0)
 		return true
@@ -4785,16 +4785,16 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
-	// cond: smagicOK(32,c) && config.RegSize == 8
-	// result: (Sub32 <t> (Rsh64x64 <t> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(smagic(32,c).m)]) (SignExt32to64 x)) (Const64 <typ.UInt64> [32+smagic(32,c).s])) (Rsh64x64 <t> (SignExt32to64 x) (Const64 <typ.UInt64> [63])))
+	// cond: smagicOK32(c) && config.RegSize == 8
+	// result: (Sub32 <t> (Rsh64x64 <t> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(smagic32(c).m)]) (SignExt32to64 x)) (Const64 <typ.UInt64> [32+smagic32(c).s])) (Rsh64x64 <t> (SignExt32to64 x) (Const64 <typ.UInt64> [63])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(32, c) && config.RegSize == 8) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(smagicOK32(c) && config.RegSize == 8) {
 			break
 		}
 		v.reset(OpSub32)
@@ -4802,31 +4802,31 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(smagic(32, c).m)
+		v2.AuxInt = int64ToAuxInt(int64(smagic32(c).m))
 		v3 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 32 + smagic(32, c).s
+		v4.AuxInt = int64ToAuxInt(32 + smagic32(c).s)
 		v0.AddArg2(v1, v4)
 		v5 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 63
+		v6.AuxInt = int64ToAuxInt(63)
 		v5.AddArg2(v3, v6)
 		v.AddArg2(v0, v5)
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
-	// cond: smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 == 0 && config.useHmul
-	// result: (Sub32 <t> (Rsh32x64 <t> (Hmul32 <t> (Const32 <typ.UInt32> [int64(int32(smagic(32,c).m/2))]) x) (Const64 <typ.UInt64> [smagic(32,c).s-1])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
+	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0 && config.useHmul
+	// result: (Sub32 <t> (Rsh32x64 <t> (Hmul32 <t> (Const32 <typ.UInt32> [int32(smagic32(c).m/2)]) x) (Const64 <typ.UInt64> [smagic32(c).s-1])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(32, c) && config.RegSize == 4 && smagic(32, c).m&1 == 0 && config.useHmul) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpSub32)
@@ -4834,29 +4834,29 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v1 := b.NewValue0(v.Pos, OpHmul32, t)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(int32(smagic(32, c).m / 2))
+		v2.AuxInt = int32ToAuxInt(int32(smagic32(c).m / 2))
 		v1.AddArg2(v2, x)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = smagic(32, c).s - 1
+		v3.AuxInt = int64ToAuxInt(smagic32(c).s - 1)
 		v0.AddArg2(v1, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v5.AuxInt = 31
+		v5.AuxInt = int64ToAuxInt(31)
 		v4.AddArg2(x, v5)
 		v.AddArg2(v0, v4)
 		return true
 	}
 	// match: (Div32 <t> x (Const32 [c]))
-	// cond: smagicOK(32,c) && config.RegSize == 4 && smagic(32,c).m&1 != 0 && config.useHmul
-	// result: (Sub32 <t> (Rsh32x64 <t> (Add32 <t> (Hmul32 <t> (Const32 <typ.UInt32> [int64(int32(smagic(32,c).m))]) x) x) (Const64 <typ.UInt64> [smagic(32,c).s])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
+	// cond: smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0 && config.useHmul
+	// result: (Sub32 <t> (Rsh32x64 <t> (Add32 <t> (Hmul32 <t> (Const32 <typ.UInt32> [int32(smagic32(c).m)]) x) x) (Const64 <typ.UInt64> [smagic32(c).s])) (Rsh32x64 <t> x (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(32, c) && config.RegSize == 4 && smagic(32, c).m&1 != 0 && config.useHmul) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(smagicOK32(c) && config.RegSize == 4 && smagic32(c).m&1 != 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpSub32)
@@ -4865,15 +4865,15 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpAdd32, t)
 		v2 := b.NewValue0(v.Pos, OpHmul32, t)
 		v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v3.AuxInt = int64(int32(smagic(32, c).m))
+		v3.AuxInt = int32ToAuxInt(int32(smagic32(c).m))
 		v2.AddArg2(v3, x)
 		v1.AddArg2(v2, x)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = smagic(32, c).s
+		v4.AuxInt = int64ToAuxInt(smagic32(c).s)
 		v0.AddArg2(v1, v4)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 31
+		v6.AuxInt = int64ToAuxInt(31)
 		v5.AddArg2(x, v6)
 		v.AddArg2(v0, v5)
 		return true
@@ -4968,65 +4968,65 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 4 && umagic(32,c).m&1 == 0 && config.useHmul
-	// result: (Rsh32Ux64 <typ.UInt32> (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(1<<31+umagic(32,c).m/2))]) x) (Const64 <typ.UInt64> [umagic(32,c).s-1]))
+	// cond: umagicOK32(c) && config.RegSize == 4 && umagic32(c).m&1 == 0 && config.useHmul
+	// result: (Rsh32Ux64 <typ.UInt32> (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int32(1<<31+umagic32(c).m/2)]) x) (Const64 <typ.UInt64> [umagic32(c).s-1]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 4 && umagic(32, c).m&1 == 0 && config.useHmul) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 4 && umagic32(c).m&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
 		v.Type = typ.UInt32
 		v0 := b.NewValue0(v.Pos, OpHmul32u, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v1.AuxInt = int64(int32(1<<31 + umagic(32, c).m/2))
+		v1.AuxInt = int32ToAuxInt(int32(1<<31 + umagic32(c).m/2))
 		v0.AddArg2(v1, x)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = umagic(32, c).s - 1
+		v2.AuxInt = int64ToAuxInt(umagic32(c).s - 1)
 		v.AddArg2(v0, v2)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 && config.useHmul
-	// result: (Rsh32Ux64 <typ.UInt32> (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(1<<31+(umagic(32,c).m+1)/2))]) (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [umagic(32,c).s-2]))
+	// cond: umagicOK32(c) && config.RegSize == 4 && c&1 == 0 && config.useHmul
+	// result: (Rsh32Ux64 <typ.UInt32> (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int32(1<<31+(umagic32(c).m+1)/2)]) (Rsh32Ux64 <typ.UInt32> x (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [umagic32(c).s-2]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 4 && c&1 == 0 && config.useHmul) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 4 && c&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
 		v.Type = typ.UInt32
 		v0 := b.NewValue0(v.Pos, OpHmul32u, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v1.AuxInt = int64(int32(1<<31 + (umagic(32, c).m+1)/2))
+		v1.AuxInt = int32ToAuxInt(int32(1<<31 + (umagic32(c).m+1)/2))
 		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = 1
+		v3.AuxInt = int64ToAuxInt(1)
 		v2.AddArg2(x, v3)
 		v0.AddArg2(v1, v2)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = umagic(32, c).s - 2
+		v4.AuxInt = int64ToAuxInt(umagic32(c).s - 2)
 		v.AddArg2(v0, v4)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 4 && config.useAvg && config.useHmul
-	// result: (Rsh32Ux64 <typ.UInt32> (Avg32u x (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(umagic(32,c).m))]) x)) (Const64 <typ.UInt64> [umagic(32,c).s-1]))
+	// cond: umagicOK32(c) && config.RegSize == 4 && config.useAvg && config.useHmul
+	// result: (Rsh32Ux64 <typ.UInt32> (Avg32u x (Hmul32u <typ.UInt32> (Const32 <typ.UInt32> [int32(umagic32(c).m)]) x)) (Const64 <typ.UInt64> [umagic32(c).s-1]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 4 && config.useAvg && config.useHmul) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 4 && config.useAvg && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -5034,80 +5034,80 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAvg32u, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpHmul32u, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(int32(umagic(32, c).m))
+		v2.AuxInt = int32ToAuxInt(int32(umagic32(c).m))
 		v1.AddArg2(v2, x)
 		v0.AddArg2(x, v1)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = umagic(32, c).s - 1
+		v3.AuxInt = int64ToAuxInt(umagic32(c).s - 1)
 		v.AddArg2(v0, v3)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 8 && umagic(32,c).m&1 == 0
-	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<31+umagic(32,c).m/2)]) (ZeroExt32to64 x)) (Const64 <typ.UInt64> [32+umagic(32,c).s-1])))
+	// cond: umagicOK32(c) && config.RegSize == 8 && umagic32(c).m&1 == 0
+	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<31+umagic32(c).m/2)]) (ZeroExt32to64 x)) (Const64 <typ.UInt64> [32+umagic32(c).s-1])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 8 && umagic(32, c).m&1 == 0) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 8 && umagic32(c).m&1 == 0) {
 			break
 		}
 		v.reset(OpTrunc64to32)
 		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(1<<31 + umagic(32, c).m/2)
+		v2.AuxInt = int64ToAuxInt(int64(1<<31 + umagic32(c).m/2))
 		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 32 + umagic(32, c).s - 1
+		v4.AuxInt = int64ToAuxInt(32 + umagic32(c).s - 1)
 		v0.AddArg2(v1, v4)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 8 && c&1 == 0
-	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<31+(umagic(32,c).m+1)/2)]) (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [32+umagic(32,c).s-2])))
+	// cond: umagicOK32(c) && config.RegSize == 8 && c&1 == 0
+	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<31+(umagic32(c).m+1)/2)]) (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [32+umagic32(c).s-2])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 8 && c&1 == 0) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 8 && c&1 == 0) {
 			break
 		}
 		v.reset(OpTrunc64to32)
 		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(1<<31 + (umagic(32, c).m+1)/2)
+		v2.AuxInt = int64ToAuxInt(int64(1<<31 + (umagic32(c).m+1)/2))
 		v3 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
 		v4 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v4.AddArg(x)
 		v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v5.AuxInt = 1
+		v5.AuxInt = int64ToAuxInt(1)
 		v3.AddArg2(v4, v5)
 		v1.AddArg2(v2, v3)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 32 + umagic(32, c).s - 2
+		v6.AuxInt = int64ToAuxInt(32 + umagic32(c).s - 2)
 		v0.AddArg2(v1, v6)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (Div32u x (Const32 [c]))
-	// cond: umagicOK(32, c) && config.RegSize == 8 && config.useAvg
-	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (Const64 <typ.UInt32> [int64(umagic(32,c).m)]) (ZeroExt32to64 x))) (Const64 <typ.UInt64> [32+umagic(32,c).s-1])))
+	// cond: umagicOK32(c) && config.RegSize == 8 && config.useAvg
+	// result: (Trunc64to32 (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (Const64 <typ.UInt32> [int64(umagic32(c).m)]) (ZeroExt32to64 x))) (Const64 <typ.UInt64> [32+umagic32(c).s-1])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(32, c) && config.RegSize == 8 && config.useAvg) {
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 8 && config.useAvg) {
 			break
 		}
 		v.reset(OpTrunc64to32)
@@ -5117,15 +5117,15 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 32
+		v4.AuxInt = int64ToAuxInt(32)
 		v2.AddArg2(v3, v4)
 		v5 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt32)
-		v6.AuxInt = int64(umagic(32, c).m)
+		v6.AuxInt = int64ToAuxInt(int64(umagic32(c).m))
 		v5.AddArg2(v6, v3)
 		v1.AddArg2(v2, v5)
 		v7 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v7.AuxInt = 32 + umagic(32, c).s - 1
+		v7.AuxInt = int64ToAuxInt(32 + umagic32(c).s - 1)
 		v0.AddArg2(v1, v7)
 		v.AddArg(v0)
 		return true
@@ -5256,16 +5256,16 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 		return true
 	}
 	// match: (Div64 <t> x (Const64 [c]))
-	// cond: smagicOK(64,c) && smagic(64,c).m&1 == 0 && config.useHmul
-	// result: (Sub64 <t> (Rsh64x64 <t> (Hmul64 <t> (Const64 <typ.UInt64> [int64(smagic(64,c).m/2)]) x) (Const64 <typ.UInt64> [smagic(64,c).s-1])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
+	// cond: smagicOK64(c) && smagic64(c).m&1 == 0 && config.useHmul
+	// result: (Sub64 <t> (Rsh64x64 <t> (Hmul64 <t> (Const64 <typ.UInt64> [int64(smagic64(c).m/2)]) x) (Const64 <typ.UInt64> [smagic64(c).s-1])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(64, c) && smagic(64, c).m&1 == 0 && config.useHmul) {
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(smagicOK64(c) && smagic64(c).m&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpSub64)
@@ -5273,29 +5273,29 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v1 := b.NewValue0(v.Pos, OpHmul64, t)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(smagic(64, c).m / 2)
+		v2.AuxInt = int64ToAuxInt(int64(smagic64(c).m / 2))
 		v1.AddArg2(v2, x)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = smagic(64, c).s - 1
+		v3.AuxInt = int64ToAuxInt(smagic64(c).s - 1)
 		v0.AddArg2(v1, v3)
 		v4 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v5.AuxInt = 63
+		v5.AuxInt = int64ToAuxInt(63)
 		v4.AddArg2(x, v5)
 		v.AddArg2(v0, v4)
 		return true
 	}
 	// match: (Div64 <t> x (Const64 [c]))
-	// cond: smagicOK(64,c) && smagic(64,c).m&1 != 0 && config.useHmul
-	// result: (Sub64 <t> (Rsh64x64 <t> (Add64 <t> (Hmul64 <t> (Const64 <typ.UInt64> [int64(smagic(64,c).m)]) x) x) (Const64 <typ.UInt64> [smagic(64,c).s])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
+	// cond: smagicOK64(c) && smagic64(c).m&1 != 0 && config.useHmul
+	// result: (Sub64 <t> (Rsh64x64 <t> (Add64 <t> (Hmul64 <t> (Const64 <typ.UInt64> [int64(smagic64(c).m)]) x) x) (Const64 <typ.UInt64> [smagic64(c).s])) (Rsh64x64 <t> x (Const64 <typ.UInt64> [63])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(64, c) && smagic(64, c).m&1 != 0 && config.useHmul) {
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(smagicOK64(c) && smagic64(c).m&1 != 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpSub64)
@@ -5304,15 +5304,15 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpAdd64, t)
 		v2 := b.NewValue0(v.Pos, OpHmul64, t)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = int64(smagic(64, c).m)
+		v3.AuxInt = int64ToAuxInt(int64(smagic64(c).m))
 		v2.AddArg2(v3, x)
 		v1.AddArg2(v2, x)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = smagic(64, c).s
+		v4.AuxInt = int64ToAuxInt(smagic64(c).s)
 		v0.AddArg2(v1, v4)
 		v5 := b.NewValue0(v.Pos, OpRsh64x64, t)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 63
+		v6.AuxInt = int64ToAuxInt(63)
 		v5.AddArg2(x, v6)
 		v.AddArg2(v0, v5)
 		return true
@@ -5420,65 +5420,65 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
-	// cond: umagicOK(64, c) && config.RegSize == 8 && umagic(64,c).m&1 == 0 && config.useHmul
-	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+umagic(64,c).m/2)]) x) (Const64 <typ.UInt64> [umagic(64,c).s-1]))
+	// cond: umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul
+	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+umagic64(c).m/2)]) x) (Const64 <typ.UInt64> [umagic64(c).s-1]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(64, c) && config.RegSize == 8 && umagic(64, c).m&1 == 0 && config.useHmul) {
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
 		v.Type = typ.UInt64
 		v0 := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v1.AuxInt = int64(1<<63 + umagic(64, c).m/2)
+		v1.AuxInt = int64ToAuxInt(int64(1<<63 + umagic64(c).m/2))
 		v0.AddArg2(v1, x)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = umagic(64, c).s - 1
+		v2.AuxInt = int64ToAuxInt(umagic64(c).s - 1)
 		v.AddArg2(v0, v2)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
-	// cond: umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 && config.useHmul
-	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+(umagic(64,c).m+1)/2)]) (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [umagic(64,c).s-2]))
+	// cond: umagicOK64(c) && config.RegSize == 8 && c&1 == 0 && config.useHmul
+	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+(umagic64(c).m+1)/2)]) (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [1]))) (Const64 <typ.UInt64> [umagic64(c).s-2]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(64, c) && config.RegSize == 8 && c&1 == 0 && config.useHmul) {
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(umagicOK64(c) && config.RegSize == 8 && c&1 == 0 && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
 		v.Type = typ.UInt64
 		v0 := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v1.AuxInt = int64(1<<63 + (umagic(64, c).m+1)/2)
+		v1.AuxInt = int64ToAuxInt(int64(1<<63 + (umagic64(c).m+1)/2))
 		v2 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = 1
+		v3.AuxInt = int64ToAuxInt(1)
 		v2.AddArg2(x, v3)
 		v0.AddArg2(v1, v2)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = umagic(64, c).s - 2
+		v4.AuxInt = int64ToAuxInt(umagic64(c).s - 2)
 		v.AddArg2(v0, v4)
 		return true
 	}
 	// match: (Div64u x (Const64 [c]))
-	// cond: umagicOK(64, c) && config.RegSize == 8 && config.useAvg && config.useHmul
-	// result: (Rsh64Ux64 <typ.UInt64> (Avg64u x (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(umagic(64,c).m)]) x)) (Const64 <typ.UInt64> [umagic(64,c).s-1]))
+	// cond: umagicOK64(c) && config.RegSize == 8 && config.useAvg && config.useHmul
+	// result: (Rsh64Ux64 <typ.UInt64> (Avg64u x (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(umagic64(c).m)]) x)) (Const64 <typ.UInt64> [umagic64(c).s-1]))
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(64, c) && config.RegSize == 8 && config.useAvg && config.useHmul) {
+		c := auxIntToInt64(v_1.AuxInt)
+		if !(umagicOK64(c) && config.RegSize == 8 && config.useAvg && config.useHmul) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -5486,11 +5486,11 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAvg64u, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v2.AuxInt = int64(umagic(64, c).m)
+		v2.AuxInt = int64ToAuxInt(int64(umagic64(c).m))
 		v1.AddArg2(v2, x)
 		v0.AddArg2(x, v1)
 		v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v3.AuxInt = umagic(64, c).s - 1
+		v3.AuxInt = int64ToAuxInt(umagic64(c).s - 1)
 		v.AddArg2(v0, v3)
 		return true
 	}
@@ -5607,16 +5607,16 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 		return true
 	}
 	// match: (Div8 <t> x (Const8 [c]))
-	// cond: smagicOK(8,c)
-	// result: (Sub8 <t> (Rsh32x64 <t> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(smagic(8,c).m)]) (SignExt8to32 x)) (Const64 <typ.UInt64> [8+smagic(8,c).s])) (Rsh32x64 <t> (SignExt8to32 x) (Const64 <typ.UInt64> [31])))
+	// cond: smagicOK8(c)
+	// result: (Sub8 <t> (Rsh32x64 <t> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(smagic8(c).m)]) (SignExt8to32 x)) (Const64 <typ.UInt64> [8+smagic8(c).s])) (Rsh32x64 <t> (SignExt8to32 x) (Const64 <typ.UInt64> [31])))
 	for {
 		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(smagicOK(8, c)) {
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(smagicOK8(c)) {
 			break
 		}
 		v.reset(OpSub8)
@@ -5624,16 +5624,16 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(smagic(8, c).m)
+		v2.AuxInt = int32ToAuxInt(int32(smagic8(c).m))
 		v3 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 8 + smagic(8, c).s
+		v4.AuxInt = int64ToAuxInt(8 + smagic8(c).s)
 		v0.AddArg2(v1, v4)
 		v5 := b.NewValue0(v.Pos, OpRsh32x64, t)
 		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v6.AuxInt = 31
+		v6.AuxInt = int64ToAuxInt(31)
 		v5.AddArg2(v3, v6)
 		v.AddArg2(v0, v5)
 		return true
@@ -5683,27 +5683,27 @@ func rewriteValuegeneric_OpDiv8u(v *Value) bool {
 		return true
 	}
 	// match: (Div8u x (Const8 [c]))
-	// cond: umagicOK(8, c)
-	// result: (Trunc32to8 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(1<<8+umagic(8,c).m)]) (ZeroExt8to32 x)) (Const64 <typ.UInt64> [8+umagic(8,c).s])))
+	// cond: umagicOK8(c)
+	// result: (Trunc32to8 (Rsh32Ux64 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(1<<8+umagic8(c).m)]) (ZeroExt8to32 x)) (Const64 <typ.UInt64> [8+umagic8(c).s])))
 	for {
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
-		c := v_1.AuxInt
-		if !(umagicOK(8, c)) {
+		c := auxIntToInt8(v_1.AuxInt)
+		if !(umagicOK8(c)) {
 			break
 		}
 		v.reset(OpTrunc32to8)
 		v0 := b.NewValue0(v.Pos, OpRsh32Ux64, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-		v2.AuxInt = int64(1<<8 + umagic(8, c).m)
+		v2.AuxInt = int32ToAuxInt(int32(1<<8 + umagic8(c).m))
 		v3 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
 		v3.AddArg(x)
 		v1.AddArg2(v2, v3)
 		v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-		v4.AuxInt = 8 + umagic(8, c).s
+		v4.AuxInt = int64ToAuxInt(8 + umagic8(c).s)
 		v0.AddArg2(v1, v4)
 		v.AddArg(v0)
 		return true
@@ -5776,8 +5776,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		break
 	}
 	// match: (Eq16 (Mod16u x (Const16 [c])) (Const16 [0]))
-	// cond: x.Op != OpConst16 && udivisibleOK(16,c) && !hasSmallRotate(config)
-	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xffff])) (Const32 <typ.UInt32> [0]))
+	// cond: x.Op != OpConst16 && udivisibleOK16(c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(uint16(c))])) (Const32 <typ.UInt32> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpMod16u {
@@ -5789,8 +5789,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			if v_0_1.Op != OpConst16 {
 				continue
 			}
-			c := v_0_1.AuxInt
-			if v_1.Op != OpConst16 || v_1.AuxInt != 0 || !(x.Op != OpConst16 && udivisibleOK(16, c) && !hasSmallRotate(config)) {
+			c := auxIntToInt16(v_0_1.AuxInt)
+			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 0 || !(x.Op != OpConst16 && udivisibleOK16(c) && !hasSmallRotate(config)) {
 				continue
 			}
 			v.reset(OpEq32)
@@ -5798,18 +5798,18 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 			v1.AddArg(x)
 			v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-			v2.AuxInt = c & 0xffff
+			v2.AuxInt = int32ToAuxInt(int32(uint16(c)))
 			v0.AddArg2(v1, v2)
 			v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-			v3.AuxInt = 0
+			v3.AuxInt = int32ToAuxInt(0)
 			v.AddArg2(v0, v3)
 			return true
 		}
 		break
 	}
 	// match: (Eq16 (Mod16 x (Const16 [c])) (Const16 [0]))
-	// cond: x.Op != OpConst16 && sdivisibleOK(16,c) && !hasSmallRotate(config)
-	// result: (Eq32 (Mod32 <typ.Int32> (SignExt16to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
+	// cond: x.Op != OpConst16 && sdivisibleOK16(c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32 <typ.Int32> (SignExt16to32 <typ.Int32> x) (Const32 <typ.Int32> [int32(c)])) (Const32 <typ.Int32> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpMod16 {
@@ -5821,8 +5821,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			if v_0_1.Op != OpConst16 {
 				continue
 			}
-			c := v_0_1.AuxInt
-			if v_1.Op != OpConst16 || v_1.AuxInt != 0 || !(x.Op != OpConst16 && sdivisibleOK(16, c) && !hasSmallRotate(config)) {
+			c := auxIntToInt16(v_0_1.AuxInt)
+			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 0 || !(x.Op != OpConst16 && sdivisibleOK16(c) && !hasSmallRotate(config)) {
 				continue
 			}
 			v.reset(OpEq32)
@@ -5830,18 +5830,18 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
 			v1.AddArg(x)
 			v2 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
-			v2.AuxInt = c
+			v2.AuxInt = int32ToAuxInt(int32(c))
 			v0.AddArg2(v1, v2)
 			v3 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
-			v3.AuxInt = 0
+			v3.AuxInt = int32ToAuxInt(0)
 			v.AddArg2(v0, v3)
 			return true
 		}
 		break
 	}
 	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc64to16 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt16to64 x)) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s && x.Op != OpConst16 && udivisibleOK(16,c)
-	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic16(c).m) && s == 16+umagic16(c).s && x.Op != OpConst16 && udivisibleOK16(c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int16(udivisible16(c).m)]) x) (Const16 <typ.UInt16> [int16(16-udivisible16(c).k)]) ) (Const16 <typ.UInt16> [int16(udivisible16(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -5855,7 +5855,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 				if v_1_0.Op != OpConst16 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt16(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc64to16 {
 					continue
 				}
@@ -5875,7 +5875,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt16to64 || x != mul_1.Args[0] {
 						continue
 					}
@@ -5883,21 +5883,21 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic(16, c).m) && s == 16+umagic(16, c).s && x.Op != OpConst16 && udivisibleOK(16, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<16+umagic16(c).m) && s == 16+umagic16(c).s && x.Op != OpConst16 && udivisibleOK16(c)) {
 						continue
 					}
 					v.reset(OpLeq16U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
 					v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
 					v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v2.AuxInt = int64(int16(udivisible(16, c).m))
+					v2.AuxInt = int16ToAuxInt(int16(udivisible16(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v3.AuxInt = int64(16 - udivisible(16, c).k)
+					v3.AuxInt = int16ToAuxInt(int16(16 - udivisible16(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v4.AuxInt = int64(int16(udivisible(16, c).max))
+					v4.AuxInt = int16ToAuxInt(int16(udivisible16(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -5906,8 +5906,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x)) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
-	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<15+umagic16(c).m/2) && s == 16+umagic16(c).s-1 && x.Op != OpConst16 && udivisibleOK16(c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int16(udivisible16(c).m)]) x) (Const16 <typ.UInt16> [int16(16-udivisible16(c).k)]) ) (Const16 <typ.UInt16> [int16(udivisible16(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -5921,7 +5921,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 				if v_1_0.Op != OpConst16 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt16(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc32to16 {
 					continue
 				}
@@ -5941,7 +5941,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt16to32 || x != mul_1.Args[0] {
 						continue
 					}
@@ -5949,21 +5949,21 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+umagic(16, c).m/2) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<15+umagic16(c).m/2) && s == 16+umagic16(c).s-1 && x.Op != OpConst16 && udivisibleOK16(c)) {
 						continue
 					}
 					v.reset(OpLeq16U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
 					v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
 					v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v2.AuxInt = int64(int16(udivisible(16, c).m))
+					v2.AuxInt = int16ToAuxInt(int16(udivisible16(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v3.AuxInt = int64(16 - udivisible(16, c).k)
+					v3.AuxInt = int16ToAuxInt(int16(16 - udivisible16(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v4.AuxInt = int64(int16(udivisible(16, c).max))
+					v4.AuxInt = int16ToAuxInt(int16(udivisible16(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -5972,8 +5972,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1]))) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2 && x.Op != OpConst16 && udivisibleOK(16,c)
-	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<15+(umagic16(c).m+1)/2) && s == 16+umagic16(c).s-2 && x.Op != OpConst16 && udivisibleOK16(c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int16(udivisible16(c).m)]) x) (Const16 <typ.UInt16> [int16(16-udivisible16(c).k)]) ) (Const16 <typ.UInt16> [int16(udivisible16(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -5987,7 +5987,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 				if v_1_0.Op != OpConst16 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt16(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc32to16 {
 					continue
 				}
@@ -6007,7 +6007,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpRsh32Ux64 {
 						continue
 					}
@@ -6017,28 +6017,28 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 						continue
 					}
 					mul_1_1 := mul_1.Args[1]
-					if mul_1_1.Op != OpConst64 || mul_1_1.AuxInt != 1 {
+					if mul_1_1.Op != OpConst64 || auxIntToInt64(mul_1_1.AuxInt) != 1 {
 						continue
 					}
 					v_1_1_0_1 := v_1_1_0.Args[1]
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<15+(umagic(16, c).m+1)/2) && s == 16+umagic(16, c).s-2 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<15+(umagic16(c).m+1)/2) && s == 16+umagic16(c).s-2 && x.Op != OpConst16 && udivisibleOK16(c)) {
 						continue
 					}
 					v.reset(OpLeq16U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
 					v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
 					v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v2.AuxInt = int64(int16(udivisible(16, c).m))
+					v2.AuxInt = int16ToAuxInt(int16(udivisible16(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v3.AuxInt = int64(16 - udivisible(16, c).k)
+					v3.AuxInt = int16ToAuxInt(int16(16 - udivisible16(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v4.AuxInt = int64(int16(udivisible(16, c).max))
+					v4.AuxInt = int16ToAuxInt(int16(udivisible16(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6047,8 +6047,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 (Const16 [c]) (Trunc32to16 (Rsh32Ux64 (Avg32u (Lsh32x64 (ZeroExt16to32 x) (Const64 [16])) mul:(Mul32 (Const32 [m]) (ZeroExt16to32 x))) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1 && x.Op != OpConst16 && udivisibleOK(16,c)
-	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(umagic16(c).m) && s == 16+umagic16(c).s-1 && x.Op != OpConst16 && udivisibleOK16(c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int16(udivisible16(c).m)]) x) (Const16 <typ.UInt16> [int16(16-udivisible16(c).k)]) ) (Const16 <typ.UInt16> [int16(udivisible16(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6062,7 +6062,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 				if v_1_0.Op != OpConst16 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt16(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc32to16 {
 					continue
 				}
@@ -6086,7 +6086,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					continue
 				}
 				v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
-				if v_1_1_0_0_0_1.Op != OpConst64 || v_1_1_0_0_0_1.AuxInt != 16 {
+				if v_1_1_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_1_1_0_0_0_1.AuxInt) != 16 {
 					continue
 				}
 				mul := v_1_1_0_0.Args[1]
@@ -6100,7 +6100,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt16to32 || x != mul_1.Args[0] {
 						continue
 					}
@@ -6108,21 +6108,21 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(16, c).m) && s == 16+umagic(16, c).s-1 && x.Op != OpConst16 && udivisibleOK(16, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(umagic16(c).m) && s == 16+umagic16(c).s-1 && x.Op != OpConst16 && udivisibleOK16(c)) {
 						continue
 					}
 					v.reset(OpLeq16U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft16, typ.UInt16)
 					v1 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
 					v2 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v2.AuxInt = int64(int16(udivisible(16, c).m))
+					v2.AuxInt = int16ToAuxInt(int16(udivisible16(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v3.AuxInt = int64(16 - udivisible(16, c).k)
+					v3.AuxInt = int16ToAuxInt(int16(16 - udivisible16(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v4.AuxInt = int64(int16(udivisible(16, c).max))
+					v4.AuxInt = int16ToAuxInt(int16(udivisible16(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6131,8 +6131,8 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		break
 	}
 	// match: (Eq16 x (Mul16 (Const16 [c]) (Sub16 (Rsh32x64 mul:(Mul32 (Const32 [m]) (SignExt16to32 x)) (Const64 [s])) (Rsh32x64 (SignExt16to32 x) (Const64 [31]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(16,c).m) && s == 16+smagic(16,c).s && x.Op != OpConst16 && sdivisibleOK(16,c)
-	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Add16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).m))]) x) (Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).a))]) ) (Const16 <typ.UInt16> [int64(16-sdivisible(16,c).k)]) ) (Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic16(c).m) && s == 16+smagic16(c).s && x.Op != OpConst16 && sdivisibleOK16(c)
+	// result: (Leq16U (RotateLeft16 <typ.UInt16> (Add16 <typ.UInt16> (Mul16 <typ.UInt16> (Const16 <typ.UInt16> [int16(sdivisible16(c).m)]) x) (Const16 <typ.UInt16> [int16(sdivisible16(c).a)]) ) (Const16 <typ.UInt16> [int16(16-sdivisible16(c).k)]) ) (Const16 <typ.UInt16> [int16(sdivisible16(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6146,7 +6146,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 				if v_1_0.Op != OpConst16 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt16(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub16 {
 					continue
 				}
@@ -6167,7 +6167,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpSignExt16to32 || x != mul_1.Args[0] {
 						continue
 					}
@@ -6175,7 +6175,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpRsh32x64 {
 						continue
@@ -6186,7 +6186,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 						continue
 					}
 					v_1_1_1_1 := v_1_1_1.Args[1]
-					if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(16, c).m) && s == 16+smagic(16, c).s && x.Op != OpConst16 && sdivisibleOK(16, c)) {
+					if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic16(c).m) && s == 16+smagic16(c).s && x.Op != OpConst16 && sdivisibleOK16(c)) {
 						continue
 					}
 					v.reset(OpLeq16U)
@@ -6194,16 +6194,16 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 					v1 := b.NewValue0(v.Pos, OpAdd16, typ.UInt16)
 					v2 := b.NewValue0(v.Pos, OpMul16, typ.UInt16)
 					v3 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v3.AuxInt = int64(int16(sdivisible(16, c).m))
+					v3.AuxInt = int16ToAuxInt(int16(sdivisible16(c).m))
 					v2.AddArg2(v3, x)
 					v4 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v4.AuxInt = int64(int16(sdivisible(16, c).a))
+					v4.AuxInt = int16ToAuxInt(int16(sdivisible16(c).a))
 					v1.AddArg2(v2, v4)
 					v5 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v5.AuxInt = int64(16 - sdivisible(16, c).k)
+					v5.AuxInt = int16ToAuxInt(int16(16 - sdivisible16(c).k))
 					v0.AddArg2(v1, v5)
 					v6 := b.NewValue0(v.Pos, OpConst16, typ.UInt16)
-					v6.AuxInt = int64(int16(sdivisible(16, c).max))
+					v6.AuxInt = int16ToAuxInt(int16(sdivisible16(c).max))
 					v.AddArg2(v0, v6)
 					return true
 				}
@@ -6399,8 +6399,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 [m]) x) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<31+umagic32(c).m/2) && s == umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6414,7 +6414,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh32Ux64 {
 					continue
 				}
@@ -6430,7 +6430,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -6438,21 +6438,21 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+umagic(32, c).m/2)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<31+umagic32(c).m/2) && s == umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6461,8 +6461,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 mul:(Hmul32u (Const32 <typ.UInt32> [m]) (Rsh32Ux64 x (Const64 [1]))) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<31+(umagic32(c).m+1)/2) && s == umagic32(c).s-2 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6476,7 +6476,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh32Ux64 {
 					continue
 				}
@@ -6492,7 +6492,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst32 || mul_0.Type != typ.UInt32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpRsh32Ux64 {
 						continue
 					}
@@ -6501,28 +6501,28 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						continue
 					}
 					mul_1_1 := mul_1.Args[1]
-					if mul_1_1.Op != OpConst64 || mul_1_1.AuxInt != 1 {
+					if mul_1_1.Op != OpConst64 || auxIntToInt64(mul_1_1.AuxInt) != 1 {
 						continue
 					}
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(1<<31+(umagic(32, c).m+1)/2)) && s == umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<31+(umagic32(c).m+1)/2) && s == umagic32(c).s-2 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6531,8 +6531,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Rsh32Ux64 (Avg32u x mul:(Hmul32u (Const32 [m]) x)) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(umagic32(c).m) && s == umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6546,7 +6546,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh32Ux64 {
 					continue
 				}
@@ -6570,7 +6570,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -6578,21 +6578,21 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(umagic(32, c).m)) && s == umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(umagic32(c).m) && s == umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6601,8 +6601,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x)) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic32(c).m/2) && s == 32+umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6616,7 +6616,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc64to32 {
 					continue
 				}
@@ -6636,7 +6636,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt32to64 || x != mul_1.Args[0] {
 						continue
 					}
@@ -6644,21 +6644,21 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic(32, c).m/2) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+umagic32(c).m/2) && s == 32+umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6667,8 +6667,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 mul:(Mul64 (Const64 [m]) (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1]))) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic32(c).m+1)/2) && s == 32+umagic32(c).s-2 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6682,7 +6682,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc64to32 {
 					continue
 				}
@@ -6702,7 +6702,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpRsh64Ux64 {
 						continue
 					}
@@ -6712,28 +6712,28 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						continue
 					}
 					mul_1_1 := mul_1.Args[1]
-					if mul_1_1.Op != OpConst64 || mul_1_1.AuxInt != 1 {
+					if mul_1_1.Op != OpConst64 || auxIntToInt64(mul_1_1.AuxInt) != 1 {
 						continue
 					}
 					v_1_1_0_1 := v_1_1_0.Args[1]
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic(32, c).m+1)/2) && s == 32+umagic(32, c).s-2 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<31+(umagic32(c).m+1)/2) && s == 32+umagic32(c).s-2 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6742,8 +6742,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Trunc64to32 (Rsh64Ux64 (Avg64u (Lsh64x64 (ZeroExt32to64 x) (Const64 [32])) mul:(Mul64 (Const64 [m]) (ZeroExt32to64 x))) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1 && x.Op != OpConst32 && udivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic32(c).m) && s == 32+umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(udivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(32-udivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(udivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6757,7 +6757,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc64to32 {
 					continue
 				}
@@ -6781,7 +6781,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					continue
 				}
 				v_1_1_0_0_0_1 := v_1_1_0_0_0.Args[1]
-				if v_1_1_0_0_0_1.Op != OpConst64 || v_1_1_0_0_0_1.AuxInt != 32 {
+				if v_1_1_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_1_1_0_0_0_1.AuxInt) != 32 {
 					continue
 				}
 				mul := v_1_1_0_0.Args[1]
@@ -6795,7 +6795,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt32to64 || x != mul_1.Args[0] {
 						continue
 					}
@@ -6803,21 +6803,21 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(32, c).m) && s == 32+umagic(32, c).s-1 && x.Op != OpConst32 && udivisibleOK(32, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic32(c).m) && s == 32+umagic32(c).s-1 && x.Op != OpConst32 && udivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft32, typ.UInt32)
 					v1 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v2.AuxInt = int64(int32(udivisible(32, c).m))
+					v2.AuxInt = int32ToAuxInt(int32(udivisible32(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(32 - udivisible(32, c).k)
+					v3.AuxInt = int32ToAuxInt(int32(32 - udivisible32(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(udivisible(32, c).max))
+					v4.AuxInt = int32ToAuxInt(int32(udivisible32(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -6826,8 +6826,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Sub32 (Rsh64x64 mul:(Mul64 (Const64 [m]) (SignExt32to64 x)) (Const64 [s])) (Rsh64x64 (SignExt32to64 x) (Const64 [63]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(32,c).m) && s == 32+smagic(32,c).s && x.Op != OpConst32 && sdivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))]) ) (Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic32(c).m) && s == 32+smagic32(c).s && x.Op != OpConst32 && sdivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(sdivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(sdivisible32(c).a)]) ) (Const32 <typ.UInt32> [int32(32-sdivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(sdivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6841,7 +6841,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub32 {
 					continue
 				}
@@ -6862,7 +6862,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpSignExt32to64 || x != mul_1.Args[0] {
 						continue
 					}
@@ -6870,7 +6870,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpRsh64x64 {
 						continue
@@ -6881,7 +6881,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						continue
 					}
 					v_1_1_1_1 := v_1_1_1.Args[1]
-					if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(32, c).m) && s == 32+smagic(32, c).s && x.Op != OpConst32 && sdivisibleOK(32, c)) {
+					if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic32(c).m) && s == 32+smagic32(c).s && x.Op != OpConst32 && sdivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
@@ -6889,16 +6889,16 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					v1 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(int32(sdivisible(32, c).m))
+					v3.AuxInt = int32ToAuxInt(int32(sdivisible32(c).m))
 					v2.AddArg2(v3, x)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(sdivisible(32, c).a))
+					v4.AuxInt = int32ToAuxInt(int32(sdivisible32(c).a))
 					v1.AddArg2(v2, v4)
 					v5 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v5.AuxInt = int64(32 - sdivisible(32, c).k)
+					v5.AuxInt = int32ToAuxInt(int32(32 - sdivisible32(c).k))
 					v0.AddArg2(v1, v5)
 					v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v6.AuxInt = int64(int32(sdivisible(32, c).max))
+					v6.AuxInt = int32ToAuxInt(int32(sdivisible32(c).max))
 					v.AddArg2(v0, v6)
 					return true
 				}
@@ -6907,8 +6907,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Sub32 (Rsh32x64 mul:(Hmul32 (Const32 [m]) x) (Const64 [s])) (Rsh32x64 x (Const64 [31]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(smagic(32,c).m/2)) && s == smagic(32,c).s-1 && x.Op != OpConst32 && sdivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))]) ) (Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic32(c).m/2) && s == smagic32(c).s-1 && x.Op != OpConst32 && sdivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(sdivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(sdivisible32(c).a)]) ) (Const32 <typ.UInt32> [int32(32-sdivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(sdivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -6922,7 +6922,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub32 {
 					continue
 				}
@@ -6943,7 +6943,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -6951,7 +6951,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpRsh32x64 {
 						continue
@@ -6961,7 +6961,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						continue
 					}
 					v_1_1_1_1 := v_1_1_1.Args[1]
-					if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(smagic(32, c).m/2)) && s == smagic(32, c).s-1 && x.Op != OpConst32 && sdivisibleOK(32, c)) {
+					if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic32(c).m/2) && s == smagic32(c).s-1 && x.Op != OpConst32 && sdivisibleOK32(c)) {
 						continue
 					}
 					v.reset(OpLeq32U)
@@ -6969,16 +6969,16 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 					v1 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
 					v2 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 					v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v3.AuxInt = int64(int32(sdivisible(32, c).m))
+					v3.AuxInt = int32ToAuxInt(int32(sdivisible32(c).m))
 					v2.AddArg2(v3, x)
 					v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v4.AuxInt = int64(int32(sdivisible(32, c).a))
+					v4.AuxInt = int32ToAuxInt(int32(sdivisible32(c).a))
 					v1.AddArg2(v2, v4)
 					v5 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v5.AuxInt = int64(32 - sdivisible(32, c).k)
+					v5.AuxInt = int32ToAuxInt(int32(32 - sdivisible32(c).k))
 					v0.AddArg2(v1, v5)
 					v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-					v6.AuxInt = int64(int32(sdivisible(32, c).max))
+					v6.AuxInt = int32ToAuxInt(int32(sdivisible32(c).max))
 					v.AddArg2(v0, v6)
 					return true
 				}
@@ -6987,8 +6987,8 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 		break
 	}
 	// match: (Eq32 x (Mul32 (Const32 [c]) (Sub32 (Rsh32x64 (Add32 mul:(Hmul32 (Const32 [m]) x) x) (Const64 [s])) (Rsh32x64 x (Const64 [31]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(smagic(32,c).m)) && s == smagic(32,c).s && x.Op != OpConst32 && sdivisibleOK(32,c)
-	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))]) x) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))]) ) (Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)]) ) (Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic32(c).m) && s == smagic32(c).s && x.Op != OpConst32 && sdivisibleOK32(c)
+	// result: (Leq32U (RotateLeft32 <typ.UInt32> (Add32 <typ.UInt32> (Mul32 <typ.UInt32> (Const32 <typ.UInt32> [int32(sdivisible32(c).m)]) x) (Const32 <typ.UInt32> [int32(sdivisible32(c).a)]) ) (Const32 <typ.UInt32> [int32(32-sdivisible32(c).k)]) ) (Const32 <typ.UInt32> [int32(sdivisible32(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7002,7 +7002,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 				if v_1_0.Op != OpConst32 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt32(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub32 {
 					continue
 				}
@@ -7031,7 +7031,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						if mul_0.Op != OpConst32 {
 							continue
 						}
-						m := mul_0.AuxInt
+						m := auxIntToInt32(mul_0.AuxInt)
 						if x != mul_1 || x != v_1_1_0_0_1 {
 							continue
 						}
@@ -7039,7 +7039,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						if v_1_1_0_1.Op != OpConst64 {
 							continue
 						}
-						s := v_1_1_0_1.AuxInt
+						s := auxIntToInt64(v_1_1_0_1.AuxInt)
 						v_1_1_1 := v_1_1.Args[1]
 						if v_1_1_1.Op != OpRsh32x64 {
 							continue
@@ -7049,7 +7049,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 							continue
 						}
 						v_1_1_1_1 := v_1_1_1.Args[1]
-						if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(int32(smagic(32, c).m)) && s == smagic(32, c).s && x.Op != OpConst32 && sdivisibleOK(32, c)) {
+						if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic32(c).m) && s == smagic32(c).s && x.Op != OpConst32 && sdivisibleOK32(c)) {
 							continue
 						}
 						v.reset(OpLeq32U)
@@ -7057,16 +7057,16 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 						v1 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
 						v2 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
 						v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-						v3.AuxInt = int64(int32(sdivisible(32, c).m))
+						v3.AuxInt = int32ToAuxInt(int32(sdivisible32(c).m))
 						v2.AddArg2(v3, x)
 						v4 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-						v4.AuxInt = int64(int32(sdivisible(32, c).a))
+						v4.AuxInt = int32ToAuxInt(int32(sdivisible32(c).a))
 						v1.AddArg2(v2, v4)
 						v5 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-						v5.AuxInt = int64(32 - sdivisible(32, c).k)
+						v5.AuxInt = int32ToAuxInt(int32(32 - sdivisible32(c).k))
 						v0.AddArg2(v1, v5)
 						v6 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-						v6.AuxInt = int64(int32(sdivisible(32, c).max))
+						v6.AuxInt = int32ToAuxInt(int32(sdivisible32(c).max))
 						v.AddArg2(v0, v6)
 						return true
 					}
@@ -7286,8 +7286,8 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) x) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
-	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic64(c).m/2) && s == umagic64(c).s-1 && x.Op != OpConst64 && udivisibleOK64(c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible64(c).m)]) x) (Const64 <typ.UInt64> [64-udivisible64(c).k]) ) (Const64 <typ.UInt64> [int64(udivisible64(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7301,7 +7301,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 				if v_1_0.Op != OpConst64 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt64(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh64Ux64 {
 					continue
 				}
@@ -7317,7 +7317,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -7325,21 +7325,21 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic(64, c).m/2) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+umagic64(c).m/2) && s == umagic64(c).s-1 && x.Op != OpConst64 && udivisibleOK64(c)) {
 						continue
 					}
 					v.reset(OpLeq64U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
 					v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 					v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v2.AuxInt = int64(udivisible(64, c).m)
+					v2.AuxInt = int64ToAuxInt(int64(udivisible64(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v3.AuxInt = int64(64 - udivisible(64, c).k)
+					v3.AuxInt = int64ToAuxInt(64 - udivisible64(c).k)
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v4.AuxInt = int64(udivisible(64, c).max)
+					v4.AuxInt = int64ToAuxInt(int64(udivisible64(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -7348,8 +7348,8 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 mul:(Hmul64u (Const64 [m]) (Rsh64Ux64 x (Const64 [1]))) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2 && x.Op != OpConst64 && udivisibleOK(64,c)
-	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic64(c).m+1)/2) && s == umagic64(c).s-2 && x.Op != OpConst64 && udivisibleOK64(c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible64(c).m)]) x) (Const64 <typ.UInt64> [64-udivisible64(c).k]) ) (Const64 <typ.UInt64> [int64(udivisible64(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7363,7 +7363,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 				if v_1_0.Op != OpConst64 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt64(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh64Ux64 {
 					continue
 				}
@@ -7379,7 +7379,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if mul_1.Op != OpRsh64Ux64 {
 						continue
 					}
@@ -7388,28 +7388,28 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 						continue
 					}
 					mul_1_1 := mul_1.Args[1]
-					if mul_1_1.Op != OpConst64 || mul_1_1.AuxInt != 1 {
+					if mul_1_1.Op != OpConst64 || auxIntToInt64(mul_1_1.AuxInt) != 1 {
 						continue
 					}
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic(64, c).m+1)/2) && s == umagic(64, c).s-2 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<63+(umagic64(c).m+1)/2) && s == umagic64(c).s-2 && x.Op != OpConst64 && udivisibleOK64(c)) {
 						continue
 					}
 					v.reset(OpLeq64U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
 					v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 					v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v2.AuxInt = int64(udivisible(64, c).m)
+					v2.AuxInt = int64ToAuxInt(int64(udivisible64(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v3.AuxInt = int64(64 - udivisible(64, c).k)
+					v3.AuxInt = int64ToAuxInt(64 - udivisible64(c).k)
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v4.AuxInt = int64(udivisible(64, c).max)
+					v4.AuxInt = int64ToAuxInt(int64(udivisible64(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -7418,8 +7418,8 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 (Const64 [c]) (Rsh64Ux64 (Avg64u x mul:(Hmul64u (Const64 [m]) x)) (Const64 [s])) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1 && x.Op != OpConst64 && udivisibleOK(64,c)
-	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(udivisible(64,c).max)]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic64(c).m) && s == umagic64(c).s-1 && x.Op != OpConst64 && udivisibleOK64(c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(udivisible64(c).m)]) x) (Const64 <typ.UInt64> [64-udivisible64(c).k]) ) (Const64 <typ.UInt64> [int64(udivisible64(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7433,7 +7433,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 				if v_1_0.Op != OpConst64 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt64(v_1_0.AuxInt)
 				if v_1_1.Op != OpRsh64Ux64 {
 					continue
 				}
@@ -7457,7 +7457,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -7465,21 +7465,21 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if v_1_1_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic(64, c).m) && s == umagic(64, c).s-1 && x.Op != OpConst64 && udivisibleOK(64, c)) {
+					s := auxIntToInt64(v_1_1_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(umagic64(c).m) && s == umagic64(c).s-1 && x.Op != OpConst64 && udivisibleOK64(c)) {
 						continue
 					}
 					v.reset(OpLeq64U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft64, typ.UInt64)
 					v1 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 					v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v2.AuxInt = int64(udivisible(64, c).m)
+					v2.AuxInt = int64ToAuxInt(int64(udivisible64(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v3.AuxInt = int64(64 - udivisible(64, c).k)
+					v3.AuxInt = int64ToAuxInt(64 - udivisible64(c).k)
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v4.AuxInt = int64(udivisible(64, c).max)
+					v4.AuxInt = int64ToAuxInt(int64(udivisible64(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -7488,8 +7488,8 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 (Const64 [c]) (Sub64 (Rsh64x64 mul:(Hmul64 (Const64 [m]) x) (Const64 [s])) (Rsh64x64 x (Const64 [63]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(64,c).m/2) && s == smagic(64,c).s-1 && x.Op != OpConst64 && sdivisibleOK(64,c)
-	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Add64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(sdivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(sdivisible(64,c).a)]) ) (Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(sdivisible(64,c).max)]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic64(c).m/2) && s == smagic64(c).s-1 && x.Op != OpConst64 && sdivisibleOK64(c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Add64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(sdivisible64(c).m)]) x) (Const64 <typ.UInt64> [int64(sdivisible64(c).a)]) ) (Const64 <typ.UInt64> [64-sdivisible64(c).k]) ) (Const64 <typ.UInt64> [int64(sdivisible64(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7503,7 +7503,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 				if v_1_0.Op != OpConst64 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt64(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub64 {
 					continue
 				}
@@ -7524,7 +7524,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if mul_0.Op != OpConst64 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt64(mul_0.AuxInt)
 					if x != mul_1 {
 						continue
 					}
@@ -7532,7 +7532,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpRsh64x64 {
 						continue
@@ -7542,7 +7542,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 						continue
 					}
 					v_1_1_1_1 := v_1_1_1.Args[1]
-					if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(64, c).m/2) && s == smagic(64, c).s-1 && x.Op != OpConst64 && sdivisibleOK(64, c)) {
+					if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic64(c).m/2) && s == smagic64(c).s-1 && x.Op != OpConst64 && sdivisibleOK64(c)) {
 						continue
 					}
 					v.reset(OpLeq64U)
@@ -7550,16 +7550,16 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 					v1 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
 					v2 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 					v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v3.AuxInt = int64(sdivisible(64, c).m)
+					v3.AuxInt = int64ToAuxInt(int64(sdivisible64(c).m))
 					v2.AddArg2(v3, x)
 					v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v4.AuxInt = int64(sdivisible(64, c).a)
+					v4.AuxInt = int64ToAuxInt(int64(sdivisible64(c).a))
 					v1.AddArg2(v2, v4)
 					v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v5.AuxInt = int64(64 - sdivisible(64, c).k)
+					v5.AuxInt = int64ToAuxInt(64 - sdivisible64(c).k)
 					v0.AddArg2(v1, v5)
 					v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-					v6.AuxInt = int64(sdivisible(64, c).max)
+					v6.AuxInt = int64ToAuxInt(int64(sdivisible64(c).max))
 					v.AddArg2(v0, v6)
 					return true
 				}
@@ -7568,8 +7568,8 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 		break
 	}
 	// match: (Eq64 x (Mul64 (Const64 [c]) (Sub64 (Rsh64x64 (Add64 mul:(Hmul64 (Const64 [m]) x) x) (Const64 [s])) (Rsh64x64 x (Const64 [63]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(64,c).m) && s == smagic(64,c).s && x.Op != OpConst64 && sdivisibleOK(64,c)
-	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Add64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(sdivisible(64,c).m)]) x) (Const64 <typ.UInt64> [int64(sdivisible(64,c).a)]) ) (Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)]) ) (Const64 <typ.UInt64> [int64(sdivisible(64,c).max)]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic64(c).m) && s == smagic64(c).s && x.Op != OpConst64 && sdivisibleOK64(c)
+	// result: (Leq64U (RotateLeft64 <typ.UInt64> (Add64 <typ.UInt64> (Mul64 <typ.UInt64> (Const64 <typ.UInt64> [int64(sdivisible64(c).m)]) x) (Const64 <typ.UInt64> [int64(sdivisible64(c).a)]) ) (Const64 <typ.UInt64> [64-sdivisible64(c).k]) ) (Const64 <typ.UInt64> [int64(sdivisible64(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7583,7 +7583,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 				if v_1_0.Op != OpConst64 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt64(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub64 {
 					continue
 				}
@@ -7612,7 +7612,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 						if mul_0.Op != OpConst64 {
 							continue
 						}
-						m := mul_0.AuxInt
+						m := auxIntToInt64(mul_0.AuxInt)
 						if x != mul_1 || x != v_1_1_0_0_1 {
 							continue
 						}
@@ -7620,7 +7620,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 						if v_1_1_0_1.Op != OpConst64 {
 							continue
 						}
-						s := v_1_1_0_1.AuxInt
+						s := auxIntToInt64(v_1_1_0_1.AuxInt)
 						v_1_1_1 := v_1_1.Args[1]
 						if v_1_1_1.Op != OpRsh64x64 {
 							continue
@@ -7630,7 +7630,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 							continue
 						}
 						v_1_1_1_1 := v_1_1_1.Args[1]
-						if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(64, c).m) && s == smagic(64, c).s && x.Op != OpConst64 && sdivisibleOK(64, c)) {
+						if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 63 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic64(c).m) && s == smagic64(c).s && x.Op != OpConst64 && sdivisibleOK64(c)) {
 							continue
 						}
 						v.reset(OpLeq64U)
@@ -7638,16 +7638,16 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 						v1 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
 						v2 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
 						v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-						v3.AuxInt = int64(sdivisible(64, c).m)
+						v3.AuxInt = int64ToAuxInt(int64(sdivisible64(c).m))
 						v2.AddArg2(v3, x)
 						v4 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-						v4.AuxInt = int64(sdivisible(64, c).a)
+						v4.AuxInt = int64ToAuxInt(int64(sdivisible64(c).a))
 						v1.AddArg2(v2, v4)
 						v5 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-						v5.AuxInt = int64(64 - sdivisible(64, c).k)
+						v5.AuxInt = int64ToAuxInt(64 - sdivisible64(c).k)
 						v0.AddArg2(v1, v5)
 						v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-						v6.AuxInt = int64(sdivisible(64, c).max)
+						v6.AuxInt = int64ToAuxInt(int64(sdivisible64(c).max))
 						v.AddArg2(v0, v6)
 						return true
 					}
@@ -7868,8 +7868,8 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 		break
 	}
 	// match: (Eq8 (Mod8u x (Const8 [c])) (Const8 [0]))
-	// cond: x.Op != OpConst8 && udivisibleOK(8,c) && !hasSmallRotate(config)
-	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xff])) (Const32 <typ.UInt32> [0]))
+	// cond: x.Op != OpConst8 && udivisibleOK8(c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(uint8(c))])) (Const32 <typ.UInt32> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpMod8u {
@@ -7881,8 +7881,8 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			if v_0_1.Op != OpConst8 {
 				continue
 			}
-			c := v_0_1.AuxInt
-			if v_1.Op != OpConst8 || v_1.AuxInt != 0 || !(x.Op != OpConst8 && udivisibleOK(8, c) && !hasSmallRotate(config)) {
+			c := auxIntToInt8(v_0_1.AuxInt)
+			if v_1.Op != OpConst8 || auxIntToInt8(v_1.AuxInt) != 0 || !(x.Op != OpConst8 && udivisibleOK8(c) && !hasSmallRotate(config)) {
 				continue
 			}
 			v.reset(OpEq32)
@@ -7890,18 +7890,18 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			v1 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
 			v1.AddArg(x)
 			v2 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-			v2.AuxInt = c & 0xff
+			v2.AuxInt = int32ToAuxInt(int32(uint8(c)))
 			v0.AddArg2(v1, v2)
 			v3 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
-			v3.AuxInt = 0
+			v3.AuxInt = int32ToAuxInt(0)
 			v.AddArg2(v0, v3)
 			return true
 		}
 		break
 	}
 	// match: (Eq8 (Mod8 x (Const8 [c])) (Const8 [0]))
-	// cond: x.Op != OpConst8 && sdivisibleOK(8,c) && !hasSmallRotate(config)
-	// result: (Eq32 (Mod32 <typ.Int32> (SignExt8to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
+	// cond: x.Op != OpConst8 && sdivisibleOK8(c) && !hasSmallRotate(config)
+	// result: (Eq32 (Mod32 <typ.Int32> (SignExt8to32 <typ.Int32> x) (Const32 <typ.Int32> [int32(c)])) (Const32 <typ.Int32> [0]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpMod8 {
@@ -7913,8 +7913,8 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			if v_0_1.Op != OpConst8 {
 				continue
 			}
-			c := v_0_1.AuxInt
-			if v_1.Op != OpConst8 || v_1.AuxInt != 0 || !(x.Op != OpConst8 && sdivisibleOK(8, c) && !hasSmallRotate(config)) {
+			c := auxIntToInt8(v_0_1.AuxInt)
+			if v_1.Op != OpConst8 || auxIntToInt8(v_1.AuxInt) != 0 || !(x.Op != OpConst8 && sdivisibleOK8(c) && !hasSmallRotate(config)) {
 				continue
 			}
 			v.reset(OpEq32)
@@ -7922,18 +7922,18 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
 			v1.AddArg(x)
 			v2 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
-			v2.AuxInt = c
+			v2.AuxInt = int32ToAuxInt(int32(c))
 			v0.AddArg2(v1, v2)
 			v3 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
-			v3.AuxInt = 0
+			v3.AuxInt = int32ToAuxInt(0)
 			v.AddArg2(v0, v3)
 			return true
 		}
 		break
 	}
 	// match: (Eq8 x (Mul8 (Const8 [c]) (Trunc32to8 (Rsh32Ux64 mul:(Mul32 (Const32 [m]) (ZeroExt8to32 x)) (Const64 [s]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s && x.Op != OpConst8 && udivisibleOK(8,c)
-	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<8+umagic8(c).m) && s == 8+umagic8(c).s && x.Op != OpConst8 && udivisibleOK8(c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int8(udivisible8(c).m)]) x) (Const8 <typ.UInt8> [int8(8-udivisible8(c).k)]) ) (Const8 <typ.UInt8> [int8(udivisible8(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -7947,7 +7947,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 				if v_1_0.Op != OpConst8 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt8(v_1_0.AuxInt)
 				if v_1_1.Op != OpTrunc32to8 {
 					continue
 				}
@@ -7967,7 +7967,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpZeroExt8to32 || x != mul_1.Args[0] {
 						continue
 					}
@@ -7975,21 +7975,21 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
-					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(1<<8+umagic(8, c).m) && s == 8+umagic(8, c).s && x.Op != OpConst8 && udivisibleOK(8, c)) {
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
+					if !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(1<<8+umagic8(c).m) && s == 8+umagic8(c).s && x.Op != OpConst8 && udivisibleOK8(c)) {
 						continue
 					}
 					v.reset(OpLeq8U)
 					v0 := b.NewValue0(v.Pos, OpRotateLeft8, typ.UInt8)
 					v1 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
 					v2 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v2.AuxInt = int64(int8(udivisible(8, c).m))
+					v2.AuxInt = int8ToAuxInt(int8(udivisible8(c).m))
 					v1.AddArg2(v2, x)
 					v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v3.AuxInt = int64(8 - udivisible(8, c).k)
+					v3.AuxInt = int8ToAuxInt(int8(8 - udivisible8(c).k))
 					v0.AddArg2(v1, v3)
 					v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v4.AuxInt = int64(int8(udivisible(8, c).max))
+					v4.AuxInt = int8ToAuxInt(int8(udivisible8(c).max))
 					v.AddArg2(v0, v4)
 					return true
 				}
@@ -7998,8 +7998,8 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 		break
 	}
 	// match: (Eq8 x (Mul8 (Const8 [c]) (Sub8 (Rsh32x64 mul:(Mul32 (Const32 [m]) (SignExt8to32 x)) (Const64 [s])) (Rsh32x64 (SignExt8to32 x) (Const64 [31]))) ) )
-	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(8,c).m) && s == 8+smagic(8,c).s && x.Op != OpConst8 && sdivisibleOK(8,c)
-	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Add8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).m))]) x) (Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).a))]) ) (Const8 <typ.UInt8> [int64(8-sdivisible(8,c).k)]) ) (Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).max))]) )
+	// cond: v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic8(c).m) && s == 8+smagic8(c).s && x.Op != OpConst8 && sdivisibleOK8(c)
+	// result: (Leq8U (RotateLeft8 <typ.UInt8> (Add8 <typ.UInt8> (Mul8 <typ.UInt8> (Const8 <typ.UInt8> [int8(sdivisible8(c).m)]) x) (Const8 <typ.UInt8> [int8(sdivisible8(c).a)]) ) (Const8 <typ.UInt8> [int8(8-sdivisible8(c).k)]) ) (Const8 <typ.UInt8> [int8(sdivisible8(c).max)]) )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -8013,7 +8013,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 				if v_1_0.Op != OpConst8 {
 					continue
 				}
-				c := v_1_0.AuxInt
+				c := auxIntToInt8(v_1_0.AuxInt)
 				if v_1_1.Op != OpSub8 {
 					continue
 				}
@@ -8034,7 +8034,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 					if mul_0.Op != OpConst32 {
 						continue
 					}
-					m := mul_0.AuxInt
+					m := auxIntToInt32(mul_0.AuxInt)
 					if mul_1.Op != OpSignExt8to32 || x != mul_1.Args[0] {
 						continue
 					}
@@ -8042,7 +8042,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 					if v_1_1_0_1.Op != OpConst64 {
 						continue
 					}
-					s := v_1_1_0_1.AuxInt
+					s := auxIntToInt64(v_1_1_0_1.AuxInt)
 					v_1_1_1 := v_1_1.Args[1]
 					if v_1_1_1.Op != OpRsh32x64 {
 						continue
@@ -8053,7 +8053,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 						continue
 					}
 					v_1_1_1_1 := v_1_1_1.Args[1]
-					if v_1_1_1_1.Op != OpConst64 || v_1_1_1_1.AuxInt != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int64(smagic(8, c).m) && s == 8+smagic(8, c).s && x.Op != OpConst8 && sdivisibleOK(8, c)) {
+					if v_1_1_1_1.Op != OpConst64 || auxIntToInt64(v_1_1_1_1.AuxInt) != 31 || !(v.Block.Func.pass.name != "opt" && mul.Uses == 1 && m == int32(smagic8(c).m) && s == 8+smagic8(c).s && x.Op != OpConst8 && sdivisibleOK8(c)) {
 						continue
 					}
 					v.reset(OpLeq8U)
@@ -8061,16 +8061,16 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 					v1 := b.NewValue0(v.Pos, OpAdd8, typ.UInt8)
 					v2 := b.NewValue0(v.Pos, OpMul8, typ.UInt8)
 					v3 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v3.AuxInt = int64(int8(sdivisible(8, c).m))
+					v3.AuxInt = int8ToAuxInt(int8(sdivisible8(c).m))
 					v2.AddArg2(v3, x)
 					v4 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v4.AuxInt = int64(int8(sdivisible(8, c).a))
+					v4.AuxInt = int8ToAuxInt(int8(sdivisible8(c).a))
 					v1.AddArg2(v2, v4)
 					v5 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v5.AuxInt = int64(8 - sdivisible(8, c).k)
+					v5.AuxInt = int8ToAuxInt(int8(8 - sdivisible8(c).k))
 					v0.AddArg2(v1, v5)
 					v6 := b.NewValue0(v.Pos, OpConst8, typ.UInt8)
-					v6.AuxInt = int64(int8(sdivisible(8, c).max))
+					v6.AuxInt = int8ToAuxInt(int8(sdivisible8(c).max))
 					v.AddArg2(v0, v6)
 					return true
 				}
