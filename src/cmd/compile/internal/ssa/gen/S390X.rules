@@ -22,7 +22,7 @@
 (Div32F ...) => (FDIVS ...)
 (Div64F ...) => (FDIV ...)
 
-(Div64 ...) -> (DIVD ...)
+(Div64 x y) => (DIVD x y)
 (Div64u ...) => (DIVDU ...)
 // DIVW/DIVWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
@@ -37,7 +37,7 @@
 (Hmul32  x y) => (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
 (Hmul32u x y) => (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
 
-(Mod64 ...) -> (MODD ...)
+(Mod64 x y) => (MODD x y)
 (Mod64u ...) => (MODDU ...)
 // MODW/MODWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
@@ -76,9 +76,9 @@
 (Not x) => (XORWconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
-(OffPtr [off] ptr) && is32Bit(off) -> (ADDconst [off] ptr)
-(OffPtr [off] ptr) -> (ADD (MOVDconst [off]) ptr)
+(OffPtr [off] ptr:(SP)) => (MOVDaddr [int32(off)] ptr)
+(OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
+(OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
 // TODO: optimize these cases?
 (Ctz64NonZero ...) => (Ctz64 ...)
@@ -146,11 +146,11 @@
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,
 // store-store and load-store) are already guaranteed not to be reordered.
-(AtomicLoad(8|32|Acq32|64|Ptr) ...) -> (MOV(BZ|WZ|WZ|D|D)atomicload ...)
+(AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) => (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
 (AtomicStore(8|32|64|PtrNoWB) ptr val mem) => (SYNC (MOV(B|W|D|D)atomicstore ptr val mem))
 
 // Store-release doesn't require store-load ordering.
-(AtomicStoreRel32 ...) -> (MOVWatomicstore ...)
+(AtomicStoreRel32 ptr val mem) => (MOVWatomicstore ptr val mem)
 
 // Atomic adds.
 (AtomicAdd32 ptr val mem) => (AddTupleFirst32 val (LAA ptr val mem))
@@ -161,12 +161,12 @@
 (Select1     (AddTupleFirst64   _ tuple)) => (Select1 tuple)
 
 // Atomic exchanges.
-(AtomicExchange32 ...) -> (LoweredAtomicExchange32 ...)
-(AtomicExchange64 ...) -> (LoweredAtomicExchange64 ...)
+(AtomicExchange32 ptr val mem) => (LoweredAtomicExchange32 ptr val mem)
+(AtomicExchange64 ptr val mem) => (LoweredAtomicExchange64 ptr val mem)
 
 // Atomic compare and swap.
-(AtomicCompareAndSwap32 ...) -> (LoweredAtomicCas32 ...)
-(AtomicCompareAndSwap64 ...) -> (LoweredAtomicCas64 ...)
+(AtomicCompareAndSwap32 ptr old new_ mem) => (LoweredAtomicCas32 ptr old new_ mem)
+(AtomicCompareAndSwap64 ptr old new_ mem) => (LoweredAtomicCas64 ptr old new_ mem)
 
 // Atomic and: *(*uint8)(ptr) &= val
 //
@@ -342,13 +342,13 @@
 
 // Lowering stores
 // These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
 
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 8 -> (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 4 -> (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 2 -> (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.(*types.Type).Size() == 1 -> (MOVBstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 
 // Lowering moves
 
@@ -420,10 +420,10 @@
 	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
 
 // Lowering constants
-(Const(64|32|16|8) ...) -> (MOVDconst ...)
+(Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
 (ConstNil) => (MOVDconst [0])
-(ConstBool ...) -> (MOVDconst ...)
+(ConstBool [b]) => (MOVDconst [b2i(b)])
 
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)
@@ -439,8 +439,8 @@
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
-(Addr ...) -> (MOVDaddr ...)
-(LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
+(Addr {sym} base) => (MOVDaddr {sym} base)
+(LocalAddr {sym} base _) => (MOVDaddr {sym} base)
 (ITab (Load ptr mem)) => (MOVDload ptr mem)
 
 // block rewrites
