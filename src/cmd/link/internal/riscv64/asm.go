@@ -42,43 +42,45 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	switch r.Type {
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+	rs := r.Sym()
+	rs = ldr.ResolveABIAlias(rs)
+	switch r.Type() {
 	case objabi.R_CALLRISCV:
 		// Nothing to do.
-		return val, true
+		return val, false, true
 
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
-		pc := s.Value + int64(r.Off)
-		off := ld.Symaddr(r.Sym) + r.Add - pc
+		pc := ldr.SymValue(s) + int64(r.Off())
+		off := ldr.SymValue(rs) + r.Add() - pc
 
 		// Generate AUIPC and second instruction immediates.
 		low, high, err := riscv.Split32BitImmediate(off)
 		if err != nil {
-			ld.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32-bits: %d", off)
+			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32-bits: %d", off)
 		}
 
 		auipcImm, err := riscv.EncodeUImmediate(high)
 		if err != nil {
-			ld.Errorf(s, "cannot encode R_RISCV_PCREL_ AUIPC relocation offset for %s: %v", r.Sym.Name, err)
+			ldr.Errorf(s, "cannot encode R_RISCV_PCREL_ AUIPC relocation offset for %s: %v", ldr.SymName(rs), err)
 		}
 
 		var secondImm, secondImmMask int64
-		switch r.Type {
+		switch r.Type() {
 		case objabi.R_RISCV_PCREL_ITYPE:
 			secondImmMask = riscv.ITypeImmMask
 			secondImm, err = riscv.EncodeIImmediate(low)
 			if err != nil {
-				ld.Errorf(s, "cannot encode R_RISCV_PCREL_ITYPE I-type instruction relocation offset for %s: %v", r.Sym.Name, err)
+				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_ITYPE I-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
 			}
 		case objabi.R_RISCV_PCREL_STYPE:
 			secondImmMask = riscv.STypeImmMask
 			secondImm, err = riscv.EncodeSImmediate(low)
 			if err != nil {
-				ld.Errorf(s, "cannot encode R_RISCV_PCREL_STYPE S-type instruction relocation offset for %s: %v", r.Sym.Name, err)
+				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_STYPE S-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
 			}
 		default:
-			panic(fmt.Sprintf("Unknown relocation type: %v", r.Type))
+			panic(fmt.Sprintf("Unknown relocation type: %v", r.Type()))
 		}
 
 		auipc := int64(uint32(val))
@@ -87,10 +89,10 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
 		auipc = (auipc &^ riscv.UTypeImmMask) | int64(uint32(auipcImm))
 		second = (second &^ secondImmMask) | int64(uint32(secondImm))
 
-		return second<<32 | auipc, true
+		return second<<32 | auipc, false, true
 	}
 
-	return val, false
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
