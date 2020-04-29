@@ -147,6 +147,7 @@ const a = 3`)
 	})
 }
 
+// Tests golang/go#37978.
 func TestIssue37978(t *testing.T) {
 	runner.Run(t, exampleProgram, func(t *testing.T, env *Env) {
 		// Create a new workspace-level directory and empty file.
@@ -171,7 +172,10 @@ const a = http.MethodGet
 	})
 }
 
-const noMod = `
+// TestNoMod confirms that gopls continues to work when a user adds a go.mod
+// file to their workspace.
+func TestNoMod(t *testing.T) {
+	const noMod = `
 -- main.go --
 package main
 
@@ -188,9 +192,6 @@ func Hello() {
 }
 `
 
-// TestNoMod confirms that gopls continues to work when a user adds a go.mod
-// file to their workspace.
-func TestNoMod(t *testing.T) {
 	t.Run("manual", func(t *testing.T) {
 		runner.Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
@@ -223,7 +224,9 @@ func TestNoMod(t *testing.T) {
 	})
 }
 
-const testPackage = `
+// Tests golang/go#38267.
+func TestIssue38267(t *testing.T) {
+	const testPackage = `
 -- go.mod --
 module mod.com
 
@@ -254,7 +257,6 @@ func TestHello(t *testing.T) {
 }
 `
 
-func TestIssue38267(t *testing.T) {
 	runner.Run(t, testPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("lib_test.go")
 		env.Await(
@@ -270,15 +272,15 @@ func TestIssue38267(t *testing.T) {
 	})
 }
 
-const packageChange = `
+// Tests golang/go#38328.
+func TestPackageChange_Issue38328(t *testing.T) {
+	const packageChange = `
 -- go.mod --
 module fake
 -- a.go --
 package foo
 func main() {}
 `
-
-func TestPackageChange_Issue38328(t *testing.T) {
 	runner.Run(t, packageChange, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.RegexpReplace("a.go", "foo", "foox")
@@ -345,6 +347,7 @@ func TestMissingDependency(t *testing.T) {
 	})
 }
 
+// Tests golang/go#36951.
 func TestAdHocPackages_Issue36951(t *testing.T) {
 	const adHoc = `
 -- b/b.go --
@@ -360,6 +363,7 @@ func Hello() {
 	})
 }
 
+// Tests golang/go#37984.
 func TestNoGOPATH_Issue37984(t *testing.T) {
 	const missingImport = `
 -- main.go --
@@ -378,6 +382,7 @@ func _() {
 	}, WithEnv("GOPATH="))
 }
 
+// Tests golang/go#38669.
 func TestEqualInEnv_Issue38669(t *testing.T) {
 	const missingImport = `
 -- go.mod --
