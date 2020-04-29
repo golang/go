@@ -28,23 +28,23 @@ type Stream interface {
 	Write(context.Context, Message) (int64, error)
 }
 
-// NewStream returns a Stream built on top of an io.Reader and io.Writer
+// NewRawStream returns a Stream built on top of an io.Reader and io.Writer.
 // The messages are sent with no wrapping, and rely on json decode consistency
 // to determine message boundaries.
-func NewStream(in io.Reader, out io.Writer) Stream {
-	return &plainStream{
+func NewRawStream(in io.Reader, out io.Writer) Stream {
+	return &rawStream{
 		in:  json.NewDecoder(in),
 		out: out,
 	}
 }
 
-type plainStream struct {
+type rawStream struct {
 	in    *json.Decoder
 	outMu sync.Mutex
 	out   io.Writer
 }
 
-func (s *plainStream) Read(ctx context.Context) (Message, int64, error) {
+func (s *rawStream) Read(ctx context.Context) (Message, int64, error) {
 	select {
 	case <-ctx.Done():
 		return nil, 0, ctx.Err()
@@ -58,7 +58,7 @@ func (s *plainStream) Read(ctx context.Context) (Message, int64, error) {
 	return msg, int64(len(raw)), err
 }
 
-func (s *plainStream) Write(ctx context.Context, msg Message) (int64, error) {
+func (s *rawStream) Write(ctx context.Context, msg Message) (int64, error) {
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -74,7 +74,7 @@ func (s *plainStream) Write(ctx context.Context, msg Message) (int64, error) {
 	return int64(n), err
 }
 
-// NewHeaderStream returns a Stream built on top of an io.Reader and io.Writer
+// NewHeaderStream returns a Stream built on top of an io.Reader and io.Writer.
 // The messages are sent with HTTP content length and MIME type headers.
 // This is the format used by LSP and others.
 func NewHeaderStream(in io.Reader, out io.Writer) Stream {

@@ -111,7 +111,7 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 	if withHeaders {
 		stream = jsonrpc2.NewHeaderStream(r, w)
 	} else {
-		stream = jsonrpc2.NewStream(r, w)
+		stream = jsonrpc2.NewRawStream(r, w)
 	}
 	conn := jsonrpc2.NewConn(stream)
 	wg.Add(1)

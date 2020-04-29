@@ -86,10 +86,10 @@ func (s *PipeServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 		cReader.Close()
 		cWriter.Close()
 	})
-	serverStream := jsonrpc2.NewStream(sReader, cWriter)
+	serverStream := jsonrpc2.NewRawStream(sReader, cWriter)
 	go s.server.ServeStream(ctx, serverStream)
 
-	clientStream := jsonrpc2.NewStream(cReader, sWriter)
+	clientStream := jsonrpc2.NewRawStream(cReader, sWriter)
 	return jsonrpc2.NewConn(clientStream)
 }
 
