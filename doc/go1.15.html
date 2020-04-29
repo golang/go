@@ -78,6 +78,26 @@ TODO
   directory of each individual test).
 </p>
 
+<h4 id="module-cache">Module cache</h4>
+
+<p><!-- https://golang.org/cl/219538 -->
+  The location of the module cache may now be set with
+  the <code>GOMODCACHE</code> environment variable. The default value of
+  <code>GOMODCACHE</code> is <code>GOPATH[0]/pkg/mod</code>, the location of the
+  module cache before this change.
+</p>
+
+<p><!-- https://golang.org/cl/221157 -->
+  A workaround is now available for Windows "Access is denied" errors in
+  <code>go</code> commands that access the module cache, caused by external
+  programs concurrently scanning the file system (see
+  <a href="https://golang.org/issue/36568">issue #36568</a>). The workaround is
+  not enabled by default because it is not safe to use when Go versions lower
+  than 1.14.2 and 1.13.10 are running concurrently with the same module cache.
+  It can be enabled by explictly setting the environment variable
+  <code>GODEBUG=modcacheunzipinplace=1</code>.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
@@ -172,6 +192,36 @@ TODO
   </dd>
 </dl>
 
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
+      <code>Conn.SetReadDeadline</code>,
+      or <code>Conn.SetWriteDeadline</code> methods, it will now
+      return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+  <dd>
+    <p><!-- CL 147598, 229537 -->
+      All profile endpoints now support a "seconds" parameter. When present,
+      the endpoint profiles for the specified number of seconds and reports the difference.
+      The meaning of the "seconds" parameter in the <code>cpu</code> profile and
+      the trace endpoints is unchanged.
+    </p>
+  </dd>
+</dl>
+
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
     <p><!-- CL 227645 -->
@@ -185,6 +235,25 @@ TODO
       The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
       method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
       returns the URL in string form with any password replaced with <code>xxxxx</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/os/#File.SetDeadline"><code>File.SetDeadline</code></a>,
+      <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
+      or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
+      methods, it will now return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
     </p>
   </dd>
 </dl>
@@ -220,6 +289,16 @@ TODO
       <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
       the Go program will now reliably crash with a stack trace.
       In earlier releases the behavior was unpredictable.
+    </p>
+  </dd>
+</dl>
+
+<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 189318 -->
+      The goroutine profile includes the profile labels associated with each goroutine
+      at the time of profiling. This feature is not yet implemented for the profile
+      reported with <code>debug=2</code>.
     </p>
   </dd>
 </dl>

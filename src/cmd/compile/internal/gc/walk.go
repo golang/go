@@ -1725,6 +1725,7 @@ func mkdotargslice(typ *types.Type, args []*Node) *Node {
 	} else {
 		n = nod(OCOMPLIT, nil, typenod(typ))
 		n.List.Append(args...)
+		n.SetImplicit(true)
 	}
 
 	n = typecheck(n, ctxExpr)
@@ -1736,7 +1737,7 @@ func mkdotargslice(typ *types.Type, args []*Node) *Node {
 
 // fixVariadicCall rewrites calls to variadic functions to use an
 // explicit ... argument if one is not already present.
-func fixVariadicCall(call *Node, init *Nodes) {
+func fixVariadicCall(call *Node) {
 	fntype := call.Left.Type
 	if !fntype.IsVariadic() || call.IsDDD() {
 		return
@@ -1752,15 +1753,6 @@ func fixVariadicCall(call *Node, init *Nodes) {
 		extra[i] = nil // allow GC
 	}
 
-	if ddd := call.Right; ddd != nil && slice.Op == OSLICELIT {
-		slice.Esc = ddd.Esc
-		if prealloc[ddd] != nil {
-			prealloc[slice] = prealloc[ddd] // temporary to use
-		}
-	}
-
-	slice = walkexpr(slice, init)
-
 	call.List.Set(append(args[:vi], slice))
 	call.SetIsDDD(true)
 }
@@ -1770,12 +1762,11 @@ func walkCall(n *Node, init *Nodes) {
 		return // already walked
 	}
 
-	n.Left = walkexpr(n.Left, init)
-	walkexprlist(n.List.Slice(), init)
-	fixVariadicCall(n, init)
-
 	params := n.Left.Type.Params()
 	args := n.List.Slice()
+
+	n.Left = walkexpr(n.Left, init)
+	walkexprlist(args, init)
 
 	// If this is a method call, add the receiver at the beginning of the args.
 	if n.Op == OCALLMETH {
@@ -3388,36 +3379,15 @@ func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
 }
 
 func walkcompareInterface(n *Node, init *Nodes) *Node {
-	// ifaceeq(i1 any-1, i2 any-2) (ret bool);
-	if !types.Identical(n.Left.Type, n.Right.Type) {
-		Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
-	}
-	var fn *Node
-	if n.Left.Type.IsEmptyInterface() {
-		fn = syslook("efaceeq")
-	} else {
-		fn = syslook("ifaceeq")
-	}
-
 	n.Right = cheapexpr(n.Right, init)
 	n.Left = cheapexpr(n.Left, init)
-	lt := nod(OITAB, n.Left, nil)
-	rt := nod(OITAB, n.Right, nil)
-	ld := nod(OIDATA, n.Left, nil)
-	rd := nod(OIDATA, n.Right, nil)
-	ld.Type = types.Types[TUNSAFEPTR]
-	rd.Type = types.Types[TUNSAFEPTR]
-	ld.SetTypecheck(1)
-	rd.SetTypecheck(1)
-	call := mkcall1(fn, n.Type, init, lt, ld, rd)
-
-	// Check itable/type before full compare.
-	// Note: short-circuited because order matters.
+	eqtab, eqdata := eqinterface(n.Left, n.Right)
 	var cmp *Node
 	if n.Op == OEQ {
-		cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
+		cmp = nod(OANDAND, eqtab, eqdata)
 	} else {
-		cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
+		eqtab.Op = ONE
+		cmp = nod(OOROR, eqtab, nod(ONOT, eqdata, nil))
 	}
 	return finishcompare(n, cmp, init)
 }
@@ -3527,27 +3497,16 @@ func walkcompareString(n *Node, init *Nodes) *Node {
 		// prepare for rewrite below
 		n.Left = cheapexpr(n.Left, init)
 		n.Right = cheapexpr(n.Right, init)
-
-		lstr := conv(n.Left, types.Types[TSTRING])
-		rstr := conv(n.Right, types.Types[TSTRING])
-		lptr := nod(OSPTR, lstr, nil)
-		rptr := nod(OSPTR, rstr, nil)
-		llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
-		rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
-
-		fn := syslook("memequal")
-		fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
-		r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
-
+		eqlen, eqmem := eqstring(n.Left, n.Right)
 		// quick check of len before full compare for == or !=.
 		// memequal then tests equality up to length len.
 		if n.Op == OEQ {
 			// len(left) == len(right) && memequal(left, right, len)
-			r = nod(OANDAND, nod(OEQ, llen, rlen), r)
+			r = nod(OANDAND, eqlen, eqmem)
 		} else {
 			// len(left) != len(right) || !memequal(left, right, len)
-			r = nod(ONOT, r, nil)
-			r = nod(OOROR, nod(ONE, llen, rlen), r)
+			eqlen.Op = ONE
+			r = nod(OOROR, eqlen, nod(ONOT, eqmem, nil))
 		}
 	} else {
 		// sys_cmpstring(s1, s2) :: 0

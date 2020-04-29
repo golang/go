@@ -220,7 +220,7 @@ func ExampleTx_Prepare() {
 	}
 }
 
-func ExampleConn_BeginTx() {
+func ExampleDB_BeginTx() {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		log.Fatal(err)

@@ -799,9 +799,6 @@ func (r *importReader) node() *Node {
 	// case OPAREN:
 	// 	unreachable - unpacked by exporter
 
-	// case ODDDARG:
-	//	unimplemented
-
 	case OLITERAL:
 		pos := r.pos()
 		typ, val := r.value()

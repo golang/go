@@ -137,10 +137,12 @@ func genRulesSuffix(arch arch, suff string) {
 			ruleLineno = lineno
 		}
 		if strings.HasSuffix(rule, "->") || strings.HasSuffix(rule, "=>") {
-			continue
+			continue // continue on the next line
 		}
-		if unbalanced(rule) {
-			continue
+		if n := balance(rule); n > 0 {
+			continue // open parentheses remain, continue on the next line
+		} else if n < 0 {
+			break // continuing the line can't help, and it will only make errors worse
 		}
 
 		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
@@ -162,7 +164,7 @@ func genRulesSuffix(arch arch, suff string) {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
-	if unbalanced(rule) {
+	if balance(rule) != 0 {
 		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
 	}
 
@@ -184,14 +186,14 @@ func genRulesSuffix(arch arch, suff string) {
 			if strings.Contains(oprules[op][0].Rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
 				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
 			}
-			swc := &Case{Expr: exprf(op)}
+			swc := &Case{Expr: exprf("%s", op)}
 			swc.add(stmtf("v.Op = %s", eop))
 			swc.add(stmtf("return true"))
 			sw.add(swc)
 			continue
 		}
 
-		swc := &Case{Expr: exprf(op)}
+		swc := &Case{Expr: exprf("%s", op)}
 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
@@ -607,9 +609,8 @@ func fprint(w io.Writer, n Node) {
 					}
 					if prev, ok := seenRewrite[k]; ok {
 						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.Loc, prev)
-					} else {
-						seenRewrite[k] = rr.Loc
 					}
+					seenRewrite[k] = rr.Loc
 				}
 			}
 			fmt.Fprintf(w, "}\n")
@@ -620,16 +621,6 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, " {\n")
 		for _, n := range n.List {
 			fprint(w, n)
-		}
-		fmt.Fprintf(w, "}\n")
-	case *If:
-		fmt.Fprintf(w, "if ")
-		fprint(w, n.Cond)
-		fmt.Fprintf(w, " {\n")
-		fprint(w, n.Then)
-		if n.Else != nil {
-			fmt.Fprintf(w, "} else {\n")
-			fprint(w, n.Else)
 		}
 		fmt.Fprintf(w, "}\n")
 	case *Case:
@@ -779,11 +770,6 @@ type (
 		Suffix string
 		ArgLen int32 // if kind == "Value", number of args for this op
 	}
-	If struct {
-		Cond ast.Expr
-		Then Statement
-		Else Statement
-	}
 	Switch struct {
 		BodyBase // []*Case
 		Expr     ast.Expr
@@ -806,7 +792,6 @@ type (
 		Name  string
 		Value ast.Expr
 	}
-	// TODO: implement CondBreak as If + Break instead?
 	CondBreak struct {
 		Cond              ast.Expr
 		InsideCommuteLoop bool
@@ -878,7 +863,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 				if rr.Check == "" {
 					rr.Check = check
 				} else {
-					rr.Check = rr.Check + " && " + check
+					rr.Check += " && " + check
 				}
 			}
 			if p == "" {
@@ -962,7 +947,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		}
 
 		// Generate a new control value (or copy an existing value).
-		genControls[i] = genResult0(rr, arch, control, false, false, newpos)
+		genControls[i] = genResult0(rr, arch, control, false, false, newpos, nil)
 	}
 	switch outdata.controls {
 	case 0:
@@ -1118,10 +1103,8 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 			rr.add(declf(vname, "%s.Args[%d]", v, i))
 		}
 	}
-	var commuteDepth int
 	if commutative {
-		commuteDepth = rr.CommuteDepth
-		rr.add(StartCommuteLoop{commuteDepth, v})
+		rr.add(StartCommuteLoop{rr.CommuteDepth, v})
 		rr.CommuteDepth++
 	}
 	for i, arg := range args {
@@ -1190,10 +1173,13 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 		rr.add(stmtf("b = %s", s[0]))
 		result = s[1]
 	}
-	genResult0(rr, arch, result, true, move, pos)
+	cse := make(map[string]string)
+	genResult0(rr, arch, result, true, move, pos, cse)
 }
 
-func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string) string {
+func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string, cse map[string]string) string {
+	resname, expr := splitNameExpr(result)
+	result = expr
 	// TODO: when generating a constant result, use f.constVal to avoid
 	// introducing copies just to clean them up again.
 	if result[0] != '(' {
@@ -1205,6 +1191,11 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			rr.add(stmtf("v.copyOf(%s)", result))
 		}
 		return result
+	}
+
+	w := normalizeWhitespace(result)
+	if prev := cse[w]; prev != "" {
+		return prev
 	}
 
 	op, oparch, typ, auxint, aux, args := parseValue(result, arch, rr.Loc)
@@ -1225,7 +1216,11 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		if typ == "" {
 			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, rr.Loc)
 		}
-		v = fmt.Sprintf("v%d", rr.Alloc)
+		if resname == "" {
+			v = fmt.Sprintf("v%d", rr.Alloc)
+		} else {
+			v = resname
+		}
 		rr.Alloc++
 		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
@@ -1252,7 +1247,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	}
 	all := new(strings.Builder)
 	for i, arg := range args {
-		x := genResult0(rr, arch, arg, false, move, pos)
+		x := genResult0(rr, arch, arg, false, move, pos, cse)
 		if i > 0 {
 			all.WriteString(", ")
 		}
@@ -1264,6 +1259,10 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(stmtf("%s.AddArg(%s)", v, all.String()))
 	default:
 		rr.add(stmtf("%s.AddArg%d(%s)", v, len(args), all.String()))
+	}
+
+	if cse != nil {
+		cse[w] = v
 	}
 	return v
 }
@@ -1491,17 +1490,23 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced reports whether there are a different number of ( and ) in the string.
-func unbalanced(s string) bool {
+// balance returns the number of unclosed '(' characters in s.
+// If a ')' appears without a corresponding '(', balance returns -1.
+func balance(s string) int {
 	balance := 0
 	for _, c := range s {
-		if c == '(' {
+		switch c {
+		case '(':
 			balance++
-		} else if c == ')' {
+		case ')':
 			balance--
+			if balance < 0 {
+				// don't allow ")(" to return 0
+				return -1
+			}
 		}
 	}
-	return balance != 0
+	return balance
 }
 
 // findAllOpcode is a function to find the opcode portion of s-expressions.

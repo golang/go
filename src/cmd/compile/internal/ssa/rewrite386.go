@@ -5838,9 +5838,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		v.reset(Op386LEAL8)
 		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [37] x)
@@ -5879,9 +5877,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		v.reset(Op386LEAL8)
 		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [73] x)
@@ -5907,9 +5903,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		v.reset(Op386LEAL8)
 		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
-		v1 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
-		v1.AddArg2(x, x)
-		v.AddArg2(v0, v1)
+		v.AddArg2(v0, v0)
 		return true
 	}
 	// match: (MULLconst [c] x)

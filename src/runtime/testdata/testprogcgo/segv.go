@@ -10,8 +10,8 @@ package main
 import "C"
 
 import (
-	"sync"
 	"syscall"
+	"time"
 )
 
 func init() {
@@ -23,12 +23,9 @@ var Sum int
 
 func Segv() {
 	c := make(chan bool)
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		close(c)
-		for i := 0; i < 10000; i++ {
+		for i := 0; ; i++ {
 			Sum += i
 		}
 	}()
@@ -37,17 +34,15 @@ func Segv() {
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
 
-	wg.Wait()
+	// Give the OS time to deliver the signal.
+	time.Sleep(time.Second)
 }
 
 func SegvInCgo() {
 	c := make(chan bool)
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		close(c)
-		for i := 0; i < 10000; i++ {
+		for {
 			C.nop()
 		}
 	}()
@@ -56,5 +51,6 @@ func SegvInCgo() {
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
 
-	wg.Wait()
+	// Give the OS time to deliver the signal.
+	time.Sleep(time.Second)
 }
