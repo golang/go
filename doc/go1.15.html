@@ -200,7 +200,7 @@ TODO
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
-    <p><!-- CL -->
+    <p><!-- CL 228645 -->
       If an I/O operation exceeds a deadline set by
       the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
       <code>Conn.SetReadDeadline</code>,
@@ -217,12 +217,23 @@ TODO
   </dd>
 </dl>
 
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 230937 -->
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now supports not modifying the <code>X-Forwarded-For</code>
+      header when the incoming <code>Request.Header</code> map entry
+      for that field is <code>nil</code>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
   <dd>
-    <p><!-- CL 147598, 229537 -->
-      All profile endpoints now support a "seconds" parameter. When present,
+    <p><!-- CL 147598, CL 229537 -->
+      All profile endpoints now support a "<code>seconds</code>" parameter. When present,
       the endpoint profiles for the specified number of seconds and reports the difference.
-      The meaning of the "seconds" parameter in the <code>cpu</code> profile and
+      The meaning of the "<code>seconds</code>" parameter in the <code>cpu</code> profile and
       the trace endpoints is unchanged.
     </p>
   </dd>
