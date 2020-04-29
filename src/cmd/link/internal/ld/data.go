@@ -1879,6 +1879,11 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 		Errorf(nil, "read-only data segment too large: %d", state.datsize)
 	}
 
+	siz := 0
+	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
+		siz += len(state.data2[symn])
+	}
+	ctxt.datap2 = make([]loader.Sym, 0, siz)
 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
 		ctxt.datap2 = append(ctxt.datap2, state.data2[symn]...)
 	}
@@ -1919,11 +1924,19 @@ func (state *dodataState) allocateDwarfSections2(ctxt *Link) {
 	}
 }
 
+type symNameSize struct {
+	name string
+	sz   int64
+	sym  loader.Sym
+}
+
 func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
 	var head, tail loader.Sym
 	ldr := ctxt.loader
-	for _, s := range syms {
+	sl := make([]symNameSize, len(syms))
+	for k, s := range syms {
 		ss := ldr.SymSize(s)
+		sl[k] = symNameSize{name: ldr.SymName(s), sz: ss, sym: s}
 		ds := int64(len(ldr.Data(s)))
 		switch {
 		case ss < ds:
@@ -1956,8 +1969,8 @@ func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loade
 	checkSize := symn != sym.SELFGOT
 
 	// Perform the sort.
-	sort.Slice(syms, func(i, j int) bool {
-		si, sj := syms[i], syms[j]
+	sort.Slice(sl, func(i, j int) bool {
+		si, sj := sl[i].sym, sl[j].sym
 		switch {
 		case si == head, sj == tail:
 			return true
@@ -1965,29 +1978,31 @@ func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loade
 			return false
 		}
 		if checkSize {
-			isz := ldr.SymSize(si)
-			jsz := ldr.SymSize(sj)
+			isz := sl[i].sz
+			jsz := sl[j].sz
 			if isz != jsz {
 				return isz < jsz
 			}
 		}
-		iname := ldr.SymName(si)
-		jname := ldr.SymName(sj)
+		iname := sl[i].name
+		jname := sl[j].name
 		if iname != jname {
 			return iname < jname
 		}
 		return si < sj
 	})
 
-	// Reap alignment.
-	for k := range syms {
-		s := syms[k]
+	// Reap alignment, construct result
+	syms = syms[:0]
+	for k := range sl {
+		s := sl[k].sym
 		if s != head && s != tail {
 			align := state.symalign2(s)
 			if maxAlign < align {
 				maxAlign = align
 			}
 		}
+		syms = append(syms, s)
 	}
 
 	return syms, maxAlign
