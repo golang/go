@@ -26,12 +26,12 @@ type Env struct {
 	T   *testing.T
 	Ctx context.Context
 
-	// Most tests should not need to access the workspace, editor, server, or
+	// Most tests should not need to access the scratch area, editor, server, or
 	// connection, but they are available if needed.
-	W      *fake.Workspace
-	E      *fake.Editor
-	Server servertest.Connector
-	Conn   *jsonrpc2.Conn
+	Sandbox *fake.Sandbox
+	Editor  *fake.Editor
+	Server  servertest.Connector
+	Conn    *jsonrpc2.Conn
 
 	// mu guards the fields below, for the purpose of checking conditions on
 	// every change to diagnostics.
@@ -100,22 +100,22 @@ type condition struct {
 	verdict      chan Verdict
 }
 
-// NewEnv creates a new test environment using the given workspace and gopls
-// server.
-func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest.Connector) *Env {
+// NewEnv creates a new test environment using the given scratch environment
+// and gopls server.
+func NewEnv(ctx context.Context, t *testing.T, scratch *fake.Sandbox, ts servertest.Connector) *Env {
 	t.Helper()
 	conn := ts.Connect(ctx)
-	editor, err := fake.NewConnectedEditor(ctx, ws, conn)
+	editor, err := fake.NewEditor(scratch).Connect(ctx, conn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	env := &Env{
-		T:      t,
-		Ctx:    ctx,
-		W:      ws,
-		E:      editor,
-		Server: ts,
-		Conn:   conn,
+		T:       t,
+		Ctx:     ctx,
+		Sandbox: scratch,
+		Editor:  editor,
+		Server:  ts,
+		Conn:    conn,
 		state: State{
 			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
 			outstandingWork: make(map[string]*workProgress),
@@ -123,11 +123,11 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 		},
 		waiters: make(map[int]*condition),
 	}
-	env.E.Client().OnDiagnostics(env.onDiagnostics)
-	env.E.Client().OnLogMessage(env.onLogMessage)
-	env.E.Client().OnWorkDoneProgressCreate(env.onWorkDoneProgressCreate)
-	env.E.Client().OnProgress(env.onProgress)
-	env.E.Client().OnShowMessage(env.onShowMessage)
+	env.Editor.Client().OnDiagnostics(env.onDiagnostics)
+	env.Editor.Client().OnLogMessage(env.onLogMessage)
+	env.Editor.Client().OnWorkDoneProgressCreate(env.onWorkDoneProgressCreate)
+	env.Editor.Client().OnProgress(env.onProgress)
+	env.Editor.Client().OnShowMessage(env.onShowMessage)
 	return env
 }
 
@@ -135,7 +135,7 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	pth := e.W.URIToPath(d.URI)
+	pth := e.Sandbox.Workdir.URIToPath(d.URI)
 	e.state.diagnostics[pth] = d
 	e.checkConditionsLocked()
 	return nil
@@ -444,7 +444,7 @@ type DiagnosticExpectation struct {
 	isMet func(*protocol.PublishDiagnosticsParams) bool
 	// Description is a human-readable description of the diagnostic expectation.
 	description string
-	// Path is the workspace-relative path to the file being asserted on.
+	// Path is the scratch workdir-relative path to the file being asserted on.
 	path string
 }
 
@@ -478,9 +478,9 @@ func EmptyDiagnostics(name string) Expectation {
 
 // AnyDiagnosticAtCurrentVersion asserts that there is a diagnostic report for
 // the current edited version of the buffer corresponding to the given
-// workspace-relative pathname.
+// workdir-relative pathname.
 func (e *Env) AnyDiagnosticAtCurrentVersion(name string) DiagnosticExpectation {
-	version := e.E.BufferVersion(name)
+	version := e.Editor.BufferVersion(name)
 	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
 		return int(diags.Version) == version
 	}
@@ -502,7 +502,7 @@ func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 }
 
 // DiagnosticAt asserts that there is a diagnostic entry at the position
-// specified by line and col, for the workspace-relative path name.
+// specified by line and col, for the workdir-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
 		for _, d := range diags.Diagnostics {

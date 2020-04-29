@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package fake provides fake implementations of a text editor, LSP client
-// plugin, and workspace for use in tests.
+// plugin, and Sandbox environment for use in tests.
 //
 // The Editor type provides a high level API for text editor operations
 // (open/modify/save/close a buffer, jump to definition, etc.), and the Client
@@ -14,6 +14,6 @@
 // types may allow them to misbehave in configurable ways, but that is not
 // their primary use.
 //
-// The Workspace type provides a facility for executing tests in a clean
-// workspace and GOPATH.
+// The Sandbox type provides a facility for executing tests with a temporary
+// directory, module proxy, and GOPATH.
 package fake

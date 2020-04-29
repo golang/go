@@ -6,6 +6,7 @@ package fake
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"sort"
 	"testing"
@@ -21,16 +22,20 @@ go 1.12
 Hello World!
 `
 
-func newWorkspace(t *testing.T) (*Workspace, <-chan []FileEvent, func()) {
+func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
 	t.Helper()
 
-	ws, err := NewWorkspace("default", data, "")
+	tmpdir, err := ioutil.TempDir("", "goplstest-workdir-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wd, err := NewWorkdir(tmpdir, data)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {
-		if err := ws.Close(); err != nil {
-			t.Errorf("closing workspace: %v", err)
+		if err := os.RemoveAll(tmpdir); err != nil {
+			t.Error(err)
 		}
 	}
 
@@ -38,26 +43,26 @@ func newWorkspace(t *testing.T) (*Workspace, <-chan []FileEvent, func()) {
 	watch := func(_ context.Context, events []FileEvent) {
 		fileEvents <- events
 	}
-	ws.AddWatcher(watch)
-	return ws, fileEvents, cleanup
+	wd.AddWatcher(watch)
+	return wd, fileEvents, cleanup
 }
 
-func TestWorkspace_ReadFile(t *testing.T) {
-	ws, _, cleanup := newWorkspace(t)
+func TestWorkdir_ReadFile(t *testing.T) {
+	wd, _, cleanup := newWorkdir(t)
 	defer cleanup()
 
-	got, err := ws.ReadFile("nested/README.md")
+	got, err := wd.ReadFile("nested/README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "Hello World!\n"
 	if got != want {
-		t.Errorf("reading workspace file, got %q, want %q", got, want)
+		t.Errorf("reading workdir file, got %q, want %q", got, want)
 	}
 }
 
-func TestWorkspace_WriteFile(t *testing.T) {
-	ws, events, cleanup := newWorkspace(t)
+func TestWorkdir_WriteFile(t *testing.T) {
+	wd, events, cleanup := newWorkdir(t)
 	defer cleanup()
 	ctx := context.Background()
 
@@ -70,7 +75,7 @@ func TestWorkspace_WriteFile(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if err := ws.WriteFile(ctx, test.path, "42"); err != nil {
+		if err := wd.WriteFile(ctx, test.path, "42"); err != nil {
 			t.Fatal(err)
 		}
 		es := <-events
@@ -83,7 +88,7 @@ func TestWorkspace_WriteFile(t *testing.T) {
 		if es[0].ProtocolEvent.Type != test.wantType {
 			t.Errorf("event type = %v, want %v", es[0].ProtocolEvent.Type, test.wantType)
 		}
-		got, err := ws.ReadFile(test.path)
+		got, err := wd.ReadFile(test.path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,12 +99,12 @@ func TestWorkspace_WriteFile(t *testing.T) {
 	}
 }
 
-func TestWorkspace_ListFiles(t *testing.T) {
-	ws, _, cleanup := newWorkspace(t)
+func TestWorkdir_ListFiles(t *testing.T) {
+	wd, _, cleanup := newWorkdir(t)
 	defer cleanup()
 
 	checkFiles := func(dir string, want []string) {
-		files, err := ws.ListFiles(dir)
+		files, err := wd.ListFiles(dir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,15 +128,15 @@ func TestWorkspace_ListFiles(t *testing.T) {
 	checkFiles("nested", []string{"nested/README.md"})
 }
 
-func TestWorkspace_CheckForFileChanges(t *testing.T) {
+func TestWorkdir_CheckForFileChanges(t *testing.T) {
 	t.Skip("broken on darwin-amd64-10_12")
-	ws, events, cleanup := newWorkspace(t)
+	wd, events, cleanup := newWorkdir(t)
 	defer cleanup()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	checkChange := func(path string, typ protocol.FileChangeType) {
-		if err := ws.CheckForFileChanges(ctx); err != nil {
+		if err := wd.CheckForFileChanges(ctx); err != nil {
 			t.Fatal(err)
 		}
 		var gotEvt FileEvent
@@ -147,16 +152,16 @@ func TestWorkspace_CheckForFileChanges(t *testing.T) {
 		}
 	}
 	// Sleep some positive amount of time to ensure a distinct mtime.
-	time.Sleep(10 * time.Millisecond)
-	if err := ws.writeFileData("go.mod", "module foo.test\n"); err != nil {
+	time.Sleep(100 * time.Millisecond)
+	if err := wd.writeFileData("go.mod", "module foo.test\n"); err != nil {
 		t.Fatal(err)
 	}
 	checkChange("go.mod", protocol.Changed)
-	if err := ws.writeFileData("newFile", "something"); err != nil {
+	if err := wd.writeFileData("newFile", "something"); err != nil {
 		t.Fatal(err)
 	}
 	checkChange("newFile", protocol.Created)
-	fp := ws.filePath("newFile")
+	fp := wd.filePath("newFile")
 	if err := os.Remove(fp); err != nil {
 		t.Fatal(err)
 	}

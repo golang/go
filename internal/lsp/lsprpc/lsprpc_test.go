@@ -190,12 +190,12 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	resetExitFuncs := OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	ws, err := fake.NewWorkspace("gopls-lsprpc-test", exampleProgram, "")
+	sb, err := fake.NewSandbox("gopls-lsprpc-test", exampleProgram, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ws.Close(); err != nil {
+		if err := sb.Close(); err != nil {
 			// TODO(golang/go#38490): we can't currently make this an error because
 			// it fails on Windows: the workspace directory is still locked by a
 			// separate Go process.
@@ -218,13 +218,13 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder)
 
 	conn1 := tsForwarder.Connect(clientCtx)
-	ed1, err := fake.NewConnectedEditor(clientCtx, ws, conn1)
+	ed1, err := fake.NewEditor(sb).Connect(clientCtx, conn1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ed1.Shutdown(clientCtx)
 	conn2 := tsBackend.Connect(baseCtx)
-	ed2, err := fake.NewConnectedEditor(baseCtx, ws, conn2)
+	ed2, err := fake.NewEditor(sb).Connect(baseCtx, conn2)
 	if err != nil {
 		t.Fatal(err)
 	}

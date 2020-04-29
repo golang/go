@@ -29,7 +29,7 @@ func TestHoverSerialization(t *testing.T) {
 	runner.Run(t, simpleProgram, func(t *testing.T, env *Env) {
 		// Hover on an empty line.
 		params := protocol.HoverParams{}
-		params.TextDocument.URI = env.W.URI("main.go")
+		params.TextDocument.URI = env.Sandbox.Workdir.URI("main.go")
 		params.Position.Line = 3
 		params.Position.Character = 0
 		var resp json.RawMessage

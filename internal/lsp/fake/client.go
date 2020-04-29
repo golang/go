@@ -150,7 +150,7 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 		return &protocol.ApplyWorkspaceEditResponse{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
 	for _, change := range params.Edit.DocumentChanges {
-		path := c.ws.URIToPath(change.TextDocument.URI)
+		path := c.sandbox.Workdir.URIToPath(change.TextDocument.URI)
 		edits := convertEdits(change.Edits)
 		c.EditBuffer(ctx, path, edits)
 	}

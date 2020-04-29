@@ -214,7 +214,7 @@ func Hello() {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			)
-			if err := env.W.RunGoCommand(env.Ctx, "mod", "init", "mod.com"); err != nil {
+			if err := env.Sandbox.RunGoCommand(env.Ctx, "mod", "init", "mod.com"); err != nil {
 				t.Fatal(err)
 			}
 			env.Await(
@@ -377,7 +377,7 @@ func _() {
 	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
-		if err := env.E.OrganizeImports(env.Ctx, "main.go"); err == nil {
+		if err := env.Editor.OrganizeImports(env.Ctx, "main.go"); err == nil {
 			t.Fatalf("organize imports should fail with an empty GOPATH")
 		}
 	}, WithEnv("GOPATH="))

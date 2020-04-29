@@ -159,7 +159,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			ws, err := fake.NewWorkspace("regtest", filedata, config.proxyTxt, config.env...)
+			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.env...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -171,10 +171,10 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			// exited before we clean up.
 			if config.skipCleanup {
 				defer func() {
-					t.Logf("Skipping workspace cleanup: running in %s", ws.RootURI())
+					t.Logf("Skipping workspace cleanup: running in %s", sandbox.Workdir.RootURI())
 				}()
 			} else {
-				r.AddCloser(ws)
+				r.AddCloser(sandbox)
 			}
 			ss := tc.getServer(ctx, t)
 			ls := &loggingServer{delegate: ss}
@@ -182,7 +182,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer func() {
 				ts.Close()
 			}()
-			env := NewEnv(ctx, t, ws, ts)
+			env := NewEnv(ctx, t, sandbox, ts)
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
@@ -190,7 +190,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 				if t.Failed() || r.AlwaysPrintLogs {
 					ls.printBuffers(t.Name(), os.Stderr)
 				}
-				if err := env.E.Shutdown(ctx); err != nil {
+				if err := env.Editor.Shutdown(ctx); err != nil {
 					panic(err)
 				}
 			}()
