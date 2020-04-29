@@ -25,17 +25,13 @@ func LoggingStream(str jsonrpc2.Stream, w io.Writer) jsonrpc2.Stream {
 func (s *loggingStream) Read(ctx context.Context) (jsonrpc2.Message, int64, error) {
 	msg, count, err := s.stream.Read(ctx)
 	if err == nil {
-		s.logMu.Lock()
-		defer s.logMu.Unlock()
-		logCommon(s.log, msg, true)
+		s.logCommon(msg, true)
 	}
 	return msg, count, err
 }
 
 func (s *loggingStream) Write(ctx context.Context, msg jsonrpc2.Message) (int64, error) {
-	s.logMu.Lock()
-	defer s.logMu.Unlock()
-	logCommon(s.log, msg, false)
+	s.logCommon(msg, false)
 	count, err := s.stream.Write(ctx, msg)
 	return count, err
 }
@@ -90,14 +86,16 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func logCommon(outfd io.Writer, msg jsonrpc2.Message, isRead bool) {
+func (s *loggingStream) logCommon(msg jsonrpc2.Message, isRead bool) {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
 	direction, pastTense := "Received", "Received"
 	get, set := maps.client, maps.setServer
 	if isRead {
 		direction, pastTense = "Sending", "Sent"
 		get, set = maps.server, maps.setClient
 	}
-	if msg == nil || outfd == nil {
+	if msg == nil || s.log == nil {
 		return
 	}
 	tm := time.Now()
@@ -117,7 +115,7 @@ func logCommon(outfd io.Writer, msg jsonrpc2.Message, isRead bool) {
 	case *jsonrpc2.Response:
 		id := fmt.Sprint(msg.ID())
 		if err := msg.Err(); err != nil {
-			fmt.Fprintf(outfd, "[Error - %s] %s #%s %s%s", pastTense, tmfmt, id, err, eor)
+			fmt.Fprintf(s.log, "[Error - %s] %s #%s %s%s", pastTense, tmfmt, id, err, eor)
 			return
 		}
 		cc := get(id)
@@ -126,5 +124,5 @@ func logCommon(outfd io.Writer, msg jsonrpc2.Message, isRead bool) {
 			direction, cc.method, id, elapsed/time.Millisecond)
 		fmt.Fprintf(&buf, "Result: %s%s", msg.Result(), eor)
 	}
-	outfd.Write([]byte(buf.String()))
+	s.log.Write([]byte(buf.String()))
 }
