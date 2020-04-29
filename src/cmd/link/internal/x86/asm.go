@@ -436,29 +436,6 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 }
 
 func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, sym loader.Sym, val int64) (int64, bool) {
-	if target.IsExternal() {
-		return val, false
-	}
-	switch r.Type() {
-	case objabi.R_CONST:
-		return r.Add(), true
-	case objabi.R_GOTOFF:
-		return ldr.SymValue(r.Sym()) + r.Add() - ldr.SymValue(syms.GOT2), true
-	}
-	return val, false
-}
-
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if target.IsExternal() {
-		return val, false
-	}
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
-	}
-
 	return val, false
 }
 
