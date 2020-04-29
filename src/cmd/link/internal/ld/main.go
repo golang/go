@@ -319,7 +319,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loader.InitOutData()
 	thearch.Asmb(ctxt, ctxt.loader)
 
-	newreloc := ctxt.IsAMD64() || ctxt.Is386() || ctxt.IsWasm() || ctxt.IsS390X()
+	newreloc := ctxt.Is386() || ctxt.IsAMD64() || ctxt.IsMIPS64() || ctxt.IsS390X() || ctxt.IsWasm()
 	if newreloc {
 		bench.Start("reloc")
 		ctxt.reloc()

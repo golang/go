@@ -101,63 +101,63 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+	rs := r.Sym()
+	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
-		switch r.Type {
+		switch r.Type() {
 		default:
-			return val, false
+			return val, false, false
+
 		case objabi.R_ADDRMIPS,
 			objabi.R_ADDRMIPSU:
-			r.Done = false
-
 			// set up addend for eventual relocation via outer symbol.
-			rs := ld.ApplyOuterToXAdd(r)
-			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
-				ld.Errorf(s, "missing section for %s", rs.Name)
+			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+			rr.Xadd = r.Add() + off
+			rst := ldr.SymType(rs)
+			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
-			r.Xsym = rs
+			rr.Xsym = rs
+			return val, true, true
 
-			return val, true
 		case objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
 			objabi.R_JMPMIPS:
-			r.Done = false
-			r.Xsym = r.Sym
-			r.Xadd = r.Add
-			return val, true
+			rr.Xsym = rs
+			rr.Xadd = r.Add()
+			return val, true, true
 		}
 	}
 
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
+	const isOk = true
+	const noExtReloc = false
+	switch r.Type() {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
-		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
-		if r.Type == objabi.R_ADDRMIPS {
-			return int64(o1&0xffff0000 | uint32(t)&0xffff), true
+		t := ldr.SymValue(rs) + r.Add()
+		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+		if r.Type() == objabi.R_ADDRMIPS {
+			return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
 		}
-		return int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff), true
+		return int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff), noExtReloc, isOk
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
-		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+		t := ldr.SymValue(rs) + r.Add() - 0x7000
 		if t < -32768 || t >= 32678 {
-			ld.Errorf(s, "TLS offset out of range %d", t)
+			ldr.Errorf(s, "TLS offset out of range %d", t)
 		}
-		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
-		return int64(o1&0xffff0000 | uint32(t)&0xffff), true
+		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+		return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
-		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
-		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), true
+		t := ldr.SymValue(rs) + r.Add()
+		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), noExtReloc, isOk
 	}
 
-	return val, false
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
