@@ -513,6 +513,12 @@ func readGCStats_m(pauses *[]uint64) {
 
 //go:nowritebarrier
 func updatememstats() {
+	// Flush mcaches to mcentral before doing anything else.
+	//
+	// Flushing to the mcentral may in general cause stats to
+	// change as mcentral data structures are manipulated.
+	systemstack(flushallmcaches)
+
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
@@ -536,9 +542,6 @@ func updatememstats() {
 		memstats.by_size[i].nmalloc = 0
 		memstats.by_size[i].nfree = 0
 	}
-
-	// Flush mcache's to mcentral.
-	systemstack(flushallmcaches)
 
 	// Aggregate local stats.
 	cachestats()

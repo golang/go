@@ -526,7 +526,20 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		p.getErrorHandler()(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
 		return
 	}
-	defer backConn.Close()
+
+	backConnCloseCh := make(chan bool)
+	go func() {
+		// Ensure that the cancelation of a request closes the backend.
+		// See issue https://golang.org/issue/35559.
+		select {
+		case <-req.Context().Done():
+		case <-backConnCloseCh:
+		}
+		backConn.Close()
+	}()
+
+	defer close(backConnCloseCh)
+
 	conn, brw, err := hj.Hijack()
 	if err != nil {
 		p.getErrorHandler()(rw, req, fmt.Errorf("Hijack failed on protocol switch: %v", err))

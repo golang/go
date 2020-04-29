@@ -96,6 +96,13 @@ func umagicOK(n uint, c int64) bool {
 	return d&(d-1) != 0
 }
 
+// umagicOKn reports whether we should strength reduce an n-bit divide by c.
+// We can strength reduce when c != 0 and c is not a power of two.
+func umagicOK8(c int8) bool   { return c&(c-1) != 0 }
+func umagicOK16(c int16) bool { return c&(c-1) != 0 }
+func umagicOK32(c int32) bool { return c&(c-1) != 0 }
+func umagicOK64(c int64) bool { return c&(c-1) != 0 }
+
 type umagicData struct {
 	s int64  // ⎡log2(c)⎤
 	m uint64 // ⎡2^(n+s)/c⎤ - 2^n

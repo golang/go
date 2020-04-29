@@ -1171,9 +1171,15 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 	// pays the debt down to npage pages.
 	deductSweepCredit(npages*_PageSize, npages)
 
-	s := mheap_.alloc(npages, makeSpanClass(0, noscan), needzero)
+	spc := makeSpanClass(0, noscan)
+	s := mheap_.alloc(npages, spc, needzero)
 	if s == nil {
 		throw("out of memory")
+	}
+	if go115NewMCentralImpl {
+		// Put the large span in the mcentral swept list so that it's
+		// visible to the background sweeper.
+		mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
 	}
 	s.limit = s.base() + size
 	heapBitsForAddr(s.base()).initSpan(s)

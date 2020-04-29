@@ -125,12 +125,14 @@ type Sym interface {
 // The low 32 bits hold a pointer offset.
 type ValAndOff int64
 
-func (x ValAndOff) Val() int64 {
-	return int64(x) >> 32
-}
-func (x ValAndOff) Off() int64 {
-	return int64(int32(x))
-}
+func (x ValAndOff) Val() int64   { return int64(x) >> 32 }
+func (x ValAndOff) Val32() int32 { return int32(int64(x) >> 32) }
+func (x ValAndOff) Val16() int16 { return int16(int64(x) >> 32) }
+func (x ValAndOff) Val8() int8   { return int8(int64(x) >> 32) }
+
+func (x ValAndOff) Off() int64   { return int64(int32(x)) }
+func (x ValAndOff) Off32() int32 { return int32(x) }
+
 func (x ValAndOff) Int64() int64 {
 	return int64(x)
 }
@@ -171,18 +173,6 @@ func makeValAndOff(val, off int64) int64 {
 }
 func makeValAndOff32(val, off int32) ValAndOff {
 	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
-}
-
-// offOnly returns the offset half of ValAndOff vo.
-// It is intended for use in rewrite rules.
-func offOnly(vo int64) int64 {
-	return ValAndOff(vo).Off()
-}
-
-// valOnly returns the value half of ValAndOff vo.
-// It is intended for use in rewrite rules.
-func valOnly(vo int64) int64 {
-	return ValAndOff(vo).Val()
 }
 
 func (x ValAndOff) canAdd(off int64) bool {

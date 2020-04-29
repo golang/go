@@ -373,6 +373,11 @@ func canMergeLoad(target, load *Value) bool {
 	return true
 }
 
+// symNamed reports whether sym's name is name.
+func symNamed(sym Sym, name string) bool {
+	return sym.String() == name
+}
+
 // isSameSym reports whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
@@ -690,7 +695,7 @@ func uaddOvf(a, b int64) bool {
 
 // de-virtualize an InterCall
 // 'sym' is the symbol for the itab
-func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
+func devirt(v *Value, sym Sym, offset int64) *obj.LSym {
 	f := v.Block.Func
 	n, ok := sym.(*obj.LSym)
 	if !ok {
@@ -1321,18 +1326,10 @@ func sizeof(t interface{}) int64 {
 	return t.(*types.Type).Size()
 }
 
-// alignof returns the alignment of t in bytes.
-// It will panic if t is not a *types.Type.
-func alignof(t interface{}) int64 {
-	return t.(*types.Type).Alignment()
-}
-
 // registerizable reports whether t is a primitive type that fits in
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
-// It will panic if t is not a *types.Type.
-func registerizable(b *Block, t interface{}) bool {
-	typ := t.(*types.Type)
+func registerizable(b *Block, typ *types.Type) bool {
 	if typ.IsPtrShaped() || typ.IsFloat() {
 		return true
 	}
@@ -1343,12 +1340,12 @@ func registerizable(b *Block, t interface{}) bool {
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
-func needRaceCleanup(sym interface{}, v *Value) bool {
+func needRaceCleanup(sym Sym, v *Value) bool {
 	f := v.Block.Func
 	if !f.Config.Race {
 		return false
 	}
-	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+	if !symNamed(sym, "runtime.racefuncenter") && !symNamed(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
@@ -1382,6 +1379,20 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
 func symIsRO(sym interface{}) bool {
 	lsym := sym.(*obj.LSym)
 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
+}
+
+// symIsROZero reports whether sym is a read-only global whose data contains all zeros.
+func symIsROZero(sym Sym) bool {
+	lsym := sym.(*obj.LSym)
+	if lsym.Type != objabi.SRODATA || len(lsym.R) != 0 {
+		return false
+	}
+	for _, b := range lsym.P {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // read8 reads one byte from the read-only global sym at offset off.

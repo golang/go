@@ -2527,3 +2527,15 @@ func TestReaddirSmallSeek(t *testing.T) {
 		t.Fatalf("first names: %v, second names: %v", names1, names2)
 	}
 }
+
+// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
+// We also check that the error has a Timeout method that returns true.
+func isDeadlineExceeded(err error) bool {
+	if !IsTimeout(err) {
+		return false
+	}
+	if !errors.Is(err, ErrDeadlineExceeded) {
+		return false
+	}
+	return true
+}

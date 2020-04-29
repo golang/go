@@ -46,233 +46,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-const (
-	ElfClassNone = 0
-	ElfClass32   = 1
-	ElfClass64   = 2
-)
 
 const (
-	ElfDataNone = 0
-	ElfDataLsb  = 1
-	ElfDataMsb  = 2
-)
-
-const (
-	ElfTypeNone         = 0
-	ElfTypeRelocatable  = 1
-	ElfTypeExecutable   = 2
-	ElfTypeSharedObject = 3
-	ElfTypeCore         = 4
-)
-
-const (
-	ElfMachNone        = 0
-	ElfMach32100       = 1
-	ElfMachSparc       = 2
-	ElfMach386         = 3
-	ElfMach68000       = 4
-	ElfMach88000       = 5
-	ElfMach486         = 6
-	ElfMach860         = 7
-	ElfMachMips        = 8
-	ElfMachS370        = 9
-	ElfMachMipsLe      = 10
-	ElfMachParisc      = 15
-	ElfMachVpp500      = 17
-	ElfMachSparc32Plus = 18
-	ElfMach960         = 19
-	ElfMachPower       = 20
-	ElfMachPower64     = 21
-	ElfMachS390        = 22
-	ElfMachV800        = 36
-	ElfMachFr20        = 37
-	ElfMachRh32        = 38
-	ElfMachRce         = 39
-	ElfMachArm         = 40
-	ElfMachAlpha       = 41
-	ElfMachSH          = 42
-	ElfMachSparc9      = 43
-	ElfMachAmd64       = 62
-	ElfMachArm64       = 183
-)
-
-const (
-	ElfAbiNone     = 0
-	ElfAbiSystemV  = 0
-	ElfAbiHPUX     = 1
-	ElfAbiNetBSD   = 2
-	ElfAbiLinux    = 3
-	ElfAbiSolaris  = 6
-	ElfAbiAix      = 7
-	ElfAbiIrix     = 8
-	ElfAbiFreeBSD  = 9
-	ElfAbiTru64    = 10
-	ElfAbiModesto  = 11
-	ElfAbiOpenBSD  = 12
-	ElfAbiARM      = 97
-	ElfAbiEmbedded = 255
-)
-
-const (
-	ElfSectNone      = 0
-	ElfSectProgbits  = 1
-	ElfSectSymtab    = 2
-	ElfSectStrtab    = 3
-	ElfSectRela      = 4
-	ElfSectHash      = 5
-	ElfSectDynamic   = 6
-	ElfSectNote      = 7
-	ElfSectNobits    = 8
-	ElfSectRel       = 9
-	ElfSectShlib     = 10
-	ElfSectDynsym    = 11
-	ElfSectFlagWrite = 0x1
-	ElfSectFlagAlloc = 0x2
-	ElfSectFlagExec  = 0x4
-)
-
-const (
-	ElfSymBindLocal  = 0
-	ElfSymBindGlobal = 1
-	ElfSymBindWeak   = 2
-)
-
-const (
-	ElfSymTypeNone    = 0
-	ElfSymTypeObject  = 1
-	ElfSymTypeFunc    = 2
-	ElfSymTypeSection = 3
-	ElfSymTypeFile    = 4
-	ElfSymTypeCommon  = 5
-	ElfSymTypeTLS     = 6
-)
-
-const (
-	ElfSymShnNone   = 0
-	ElfSymShnAbs    = 0xFFF1
-	ElfSymShnCommon = 0xFFF2
-)
-
-const (
-	ElfProgNone      = 0
-	ElfProgLoad      = 1
-	ElfProgDynamic   = 2
-	ElfProgInterp    = 3
-	ElfProgNote      = 4
-	ElfProgShlib     = 5
-	ElfProgPhdr      = 6
-	ElfProgFlagExec  = 0x1
-	ElfProgFlagWrite = 0x2
-	ElfProgFlagRead  = 0x4
-)
-
-const (
-	ElfNotePrStatus     = 1
-	ElfNotePrFpreg      = 2
-	ElfNotePrPsinfo     = 3
-	ElfNotePrTaskstruct = 4
-	ElfNotePrAuxv       = 6
-	ElfNotePrXfpreg     = 0x46e62b7f
-)
-
-// TODO(crawshaw): de-duplicate with cmd/link/internal/ld/elf.go.
-const (
-	ELF64SYMSIZE = 24
-	ELF32SYMSIZE = 16
-
 	SHT_ARM_ATTRIBUTES = 0x70000003
 )
-
-type ElfHdrBytes struct {
-	Ident     [16]uint8
-	Type      [2]uint8
-	Machine   [2]uint8
-	Version   [4]uint8
-	Entry     [4]uint8
-	Phoff     [4]uint8
-	Shoff     [4]uint8
-	Flags     [4]uint8
-	Ehsize    [2]uint8
-	Phentsize [2]uint8
-	Phnum     [2]uint8
-	Shentsize [2]uint8
-	Shnum     [2]uint8
-	Shstrndx  [2]uint8
-}
-
-type ElfSectBytes struct {
-	Name    [4]uint8
-	Type    [4]uint8
-	Flags   [4]uint8
-	Addr    [4]uint8
-	Off     [4]uint8
-	Size    [4]uint8
-	Link    [4]uint8
-	Info    [4]uint8
-	Align   [4]uint8
-	Entsize [4]uint8
-}
-
-type ElfProgBytes struct {
-}
-
-type ElfSymBytes struct {
-	Name  [4]uint8
-	Value [4]uint8
-	Size  [4]uint8
-	Info  uint8
-	Other uint8
-	Shndx [2]uint8
-}
-
-type ElfHdrBytes64 struct {
-	Ident     [16]uint8
-	Type      [2]uint8
-	Machine   [2]uint8
-	Version   [4]uint8
-	Entry     [8]uint8
-	Phoff     [8]uint8
-	Shoff     [8]uint8
-	Flags     [4]uint8
-	Ehsize    [2]uint8
-	Phentsize [2]uint8
-	Phnum     [2]uint8
-	Shentsize [2]uint8
-	Shnum     [2]uint8
-	Shstrndx  [2]uint8
-}
-
-type ElfSectBytes64 struct {
-	Name    [4]uint8
-	Type    [4]uint8
-	Flags   [8]uint8
-	Addr    [8]uint8
-	Off     [8]uint8
-	Size    [8]uint8
-	Link    [4]uint8
-	Info    [4]uint8
-	Align   [8]uint8
-	Entsize [8]uint8
-}
-
-type ElfProgBytes64 struct {
-}
-
-type ElfSymBytes64 struct {
-	Name  [4]uint8
-	Info  uint8
-	Other uint8
-	Shndx [2]uint8
-	Value [8]uint8
-	Size  [8]uint8
-}
 
 type ElfSect struct {
 	name        string
 	nameoff     uint32
-	type_       uint32
-	flags       uint64
+	type_       elf.SectionType
+	flags       elf.SectionFlag
 	addr        uint64
 	off         uint64
 	size        uint64
@@ -316,14 +99,12 @@ type ElfSym struct {
 	name  string
 	value uint64
 	size  uint64
-	bind  uint8
-	type_ uint8
+	bind  elf.SymBind
+	type_ elf.SymType
 	other uint8
-	shndx uint16
+	shndx elf.SectionIndex
 	sym   loader.Sym
 }
-
-var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
 
 const (
 	TagFile               = 1
@@ -377,9 +158,9 @@ func (a *elfAttributeList) armAttr() elfAttribute {
 		attr.ival = a.uleb128()
 		attr.sval = a.string()
 
-	case attr.tag == 64: // Tag_nodefaults has no argument
+	case attr.tag == TagNoDefaults: // Tag_nodefaults has no argument
 
-	case attr.tag == 65: // Tag_also_compatible_with
+	case attr.tag == TagAlsoCompatibleWith:
 		// Not really, but we don't actually care about this tag.
 		attr.sval = a.string()
 
@@ -473,25 +254,28 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 	base := f.Offset()
 
-	var hdrbuf [64]uint8
+	var hdrbuf [64]byte
 	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
 		return errorf("malformed elf file: %v", err)
 	}
-	hdr := new(ElfHdrBytes)
-	binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
-	if string(hdr.Ident[:4]) != "\x7FELF" {
-		return errorf("malformed elf file, bad header")
-	}
+
 	var e binary.ByteOrder
-	switch hdr.Ident[5] {
-	case ElfDataLsb:
+	switch elf.Data(hdrbuf[elf.EI_DATA]) {
+	case elf.ELFDATA2LSB:
 		e = binary.LittleEndian
 
-	case ElfDataMsb:
+	case elf.ELFDATA2MSB:
 		e = binary.BigEndian
 
 	default:
 		return errorf("malformed elf file, unknown header")
+	}
+
+	hdr := new(elf.Header32)
+	binary.Read(bytes.NewReader(hdrbuf[:]), e, hdr)
+
+	if string(hdr.Ident[:elf.EI_CLASS]) != elf.ELFMAG {
+		return errorf("malformed elf file, bad header")
 	}
 
 	// read header
@@ -504,89 +288,92 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	elfobj.name = pn
 
 	is64 := 0
-	if hdr.Ident[4] == ElfClass64 {
+	class := elf.Class(hdrbuf[elf.EI_CLASS])
+	if class == elf.ELFCLASS64 {
 		is64 = 1
-		hdr := new(ElfHdrBytes64)
-		binary.Read(bytes.NewReader(hdrbuf[:]), binary.BigEndian, hdr) // only byte arrays; byte order doesn't matter
-		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
-		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
-		elfobj.version = e.Uint32(hdr.Version[:])
-		elfobj.phoff = e.Uint64(hdr.Phoff[:])
-		elfobj.shoff = e.Uint64(hdr.Shoff[:])
-		elfobj.flags = e.Uint32(hdr.Flags[:])
-		elfobj.ehsize = uint32(e.Uint16(hdr.Ehsize[:]))
-		elfobj.phentsize = uint32(e.Uint16(hdr.Phentsize[:]))
-		elfobj.phnum = uint32(e.Uint16(hdr.Phnum[:]))
-		elfobj.shentsize = uint32(e.Uint16(hdr.Shentsize[:]))
-		elfobj.shnum = uint32(e.Uint16(hdr.Shnum[:]))
-		elfobj.shstrndx = uint32(e.Uint16(hdr.Shstrndx[:]))
+		hdr := new(elf.Header64)
+		binary.Read(bytes.NewReader(hdrbuf[:]), e, hdr)
+		elfobj.type_ = uint32(hdr.Type)
+		elfobj.machine = uint32(hdr.Machine)
+		elfobj.version = hdr.Version
+		elfobj.entry = hdr.Entry
+		elfobj.phoff = hdr.Phoff
+		elfobj.shoff = hdr.Shoff
+		elfobj.flags = hdr.Flags
+		elfobj.ehsize = uint32(hdr.Ehsize)
+		elfobj.phentsize = uint32(hdr.Phentsize)
+		elfobj.phnum = uint32(hdr.Phnum)
+		elfobj.shentsize = uint32(hdr.Shentsize)
+		elfobj.shnum = uint32(hdr.Shnum)
+		elfobj.shstrndx = uint32(hdr.Shstrndx)
 	} else {
-		elfobj.type_ = uint32(e.Uint16(hdr.Type[:]))
-		elfobj.machine = uint32(e.Uint16(hdr.Machine[:]))
-		elfobj.version = e.Uint32(hdr.Version[:])
-		elfobj.entry = uint64(e.Uint32(hdr.Entry[:]))
-		elfobj.phoff = uint64(e.Uint32(hdr.Phoff[:]))
-		elfobj.shoff = uint64(e.Uint32(hdr.Shoff[:]))
-		elfobj.flags = e.Uint32(hdr.Flags[:])
-		elfobj.ehsize = uint32(e.Uint16(hdr.Ehsize[:]))
-		elfobj.phentsize = uint32(e.Uint16(hdr.Phentsize[:]))
-		elfobj.phnum = uint32(e.Uint16(hdr.Phnum[:]))
-		elfobj.shentsize = uint32(e.Uint16(hdr.Shentsize[:]))
-		elfobj.shnum = uint32(e.Uint16(hdr.Shnum[:]))
-		elfobj.shstrndx = uint32(e.Uint16(hdr.Shstrndx[:]))
+		elfobj.type_ = uint32(hdr.Type)
+		elfobj.machine = uint32(hdr.Machine)
+		elfobj.version = hdr.Version
+		elfobj.entry = uint64(hdr.Entry)
+		elfobj.phoff = uint64(hdr.Phoff)
+		elfobj.shoff = uint64(hdr.Shoff)
+		elfobj.flags = hdr.Flags
+		elfobj.ehsize = uint32(hdr.Ehsize)
+		elfobj.phentsize = uint32(hdr.Phentsize)
+		elfobj.phnum = uint32(hdr.Phnum)
+		elfobj.shentsize = uint32(hdr.Shentsize)
+		elfobj.shnum = uint32(hdr.Shnum)
+		elfobj.shstrndx = uint32(hdr.Shstrndx)
 	}
 
 	elfobj.is64 = is64
 
-	if v := uint32(hdr.Ident[6]); v != elfobj.version {
+	if v := uint32(hdrbuf[elf.EI_VERSION]); v != elfobj.version {
 		return errorf("malformed elf version: got %d, want %d", v, elfobj.version)
 	}
 
-	if e.Uint16(hdr.Type[:]) != ElfTypeRelocatable {
+	if elf.Type(elfobj.type_) != elf.ET_REL {
 		return errorf("elf but not elf relocatable object")
 	}
 
+	mach := elf.Machine(elfobj.machine)
 	switch arch.Family {
 	default:
 		return errorf("elf %s unimplemented", arch.Name)
 
 	case sys.MIPS:
-		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass32 {
+		if mach != elf.EM_MIPS || class != elf.ELFCLASS32 {
 			return errorf("elf object but not mips")
 		}
 
 	case sys.MIPS64:
-		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
+		if mach != elf.EM_MIPS || class != elf.ELFCLASS64 {
 			return errorf("elf object but not mips64")
 		}
 
 	case sys.ARM:
-		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
+		if e != binary.LittleEndian || mach != elf.EM_ARM || class != elf.ELFCLASS32 {
 			return errorf("elf object but not arm")
 		}
 
 	case sys.AMD64:
-		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
+		if e != binary.LittleEndian || mach != elf.EM_X86_64 || class != elf.ELFCLASS64 {
 			return errorf("elf object but not amd64")
 		}
 
 	case sys.ARM64:
-		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
+		if e != binary.LittleEndian || mach != elf.EM_AARCH64 || class != elf.ELFCLASS64 {
 			return errorf("elf object but not arm64")
 		}
 
 	case sys.I386:
-		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
+		if e != binary.LittleEndian || mach != elf.EM_386 || class != elf.ELFCLASS32 {
 			return errorf("elf object but not 386")
 		}
 
 	case sys.PPC64:
-		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
+		if mach != elf.EM_PPC64 || class != elf.ELFCLASS64 {
 			return errorf("elf object but not ppc64")
 		}
 
 	case sys.S390X:
-		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
+		if mach != elf.EM_S390 || class != elf.ELFCLASS64 {
 			return errorf("elf object but not s390x")
 		}
 	}
@@ -599,38 +386,37 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		f.MustSeek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0)
 		sect := &elfobj.sect[i]
 		if is64 != 0 {
-			var b ElfSectBytes64
+			var b elf.Section64
 			if err := binary.Read(f, e, &b); err != nil {
 				return errorf("malformed elf file: %v", err)
 			}
 
-			sect.nameoff = e.Uint32(b.Name[:])
-			sect.type_ = e.Uint32(b.Type[:])
-			sect.flags = e.Uint64(b.Flags[:])
-			sect.addr = e.Uint64(b.Addr[:])
-			sect.off = e.Uint64(b.Off[:])
-			sect.size = e.Uint64(b.Size[:])
-			sect.link = e.Uint32(b.Link[:])
-			sect.info = e.Uint32(b.Info[:])
-			sect.align = e.Uint64(b.Align[:])
-			sect.entsize = e.Uint64(b.Entsize[:])
+			sect.nameoff = b.Name
+			sect.type_ = elf.SectionType(b.Type)
+			sect.flags = elf.SectionFlag(b.Flags)
+			sect.addr = b.Addr
+			sect.off = b.Off
+			sect.size = b.Size
+			sect.link = b.Link
+			sect.info = b.Info
+			sect.align = b.Addralign
+			sect.entsize = b.Entsize
 		} else {
-			var b ElfSectBytes
+			var b elf.Section32
 
 			if err := binary.Read(f, e, &b); err != nil {
 				return errorf("malformed elf file: %v", err)
 			}
-
-			sect.nameoff = e.Uint32(b.Name[:])
-			sect.type_ = e.Uint32(b.Type[:])
-			sect.flags = uint64(e.Uint32(b.Flags[:]))
-			sect.addr = uint64(e.Uint32(b.Addr[:]))
-			sect.off = uint64(e.Uint32(b.Off[:]))
-			sect.size = uint64(e.Uint32(b.Size[:]))
-			sect.link = e.Uint32(b.Link[:])
-			sect.info = e.Uint32(b.Info[:])
-			sect.align = uint64(e.Uint32(b.Align[:]))
-			sect.entsize = uint64(e.Uint32(b.Entsize[:]))
+			sect.nameoff = b.Name
+			sect.type_ = elf.SectionType(b.Type)
+			sect.flags = elf.SectionFlag(b.Flags)
+			sect.addr = uint64(b.Addr)
+			sect.off = uint64(b.Off)
+			sect.size = uint64(b.Size)
+			sect.link = b.Link
+			sect.info = b.Info
+			sect.align = uint64(b.Addralign)
+			sect.entsize = uint64(b.Entsize)
 		}
 	}
 
@@ -663,9 +449,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 	elfobj.symstr = &elfobj.sect[elfobj.symtab.link]
 	if is64 != 0 {
-		elfobj.nsymtab = int(elfobj.symtab.size / ELF64SYMSIZE)
+		elfobj.nsymtab = int(elfobj.symtab.size / elf.Sym64Size)
 	} else {
-		elfobj.nsymtab = int(elfobj.symtab.size / ELF32SYMSIZE)
+		elfobj.nsymtab = int(elfobj.symtab.size / elf.Sym32Size)
 	}
 
 	if err := elfmap(elfobj, elfobj.symtab); err != nil {
@@ -704,10 +490,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				ehdrFlags = newEhdrFlags
 			}
 		}
-		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
+		if (sect.type_ != elf.SHT_PROGBITS && sect.type_ != elf.SHT_NOBITS) || sect.flags&elf.SHF_ALLOC == 0 {
 			continue
 		}
-		if sect.type_ != ElfSectNobits {
+		if sect.type_ != elf.SHT_NOBITS {
 			if err := elfmap(elfobj, sect); err != nil {
 				return errorf("%s: malformed elf file: %v", pn, err)
 			}
@@ -722,28 +508,28 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 		sb := l.MakeSymbolUpdater(lookup(name, localSymVersion))
 
-		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
+		switch sect.flags & (elf.SHF_ALLOC | elf.SHF_WRITE | elf.SHF_EXECINSTR) {
 		default:
 			return errorf("%s: unexpected flags for ELF section %s", pn, sect.name)
 
-		case ElfSectFlagAlloc:
+		case elf.SHF_ALLOC:
 			sb.SetType(sym.SRODATA)
 
-		case ElfSectFlagAlloc + ElfSectFlagWrite:
-			if sect.type_ == ElfSectNobits {
+		case elf.SHF_ALLOC + elf.SHF_WRITE:
+			if sect.type_ == elf.SHT_NOBITS {
 				sb.SetType(sym.SNOPTRBSS)
 			} else {
 				sb.SetType(sym.SNOPTRDATA)
 			}
 
-		case ElfSectFlagAlloc + ElfSectFlagExec:
+		case elf.SHF_ALLOC + elf.SHF_EXECINSTR:
 			sb.SetType(sym.STEXT)
 		}
 
 		if sect.name == ".got" || sect.name == ".toc" {
 			sb.SetType(sym.SELFGOT)
 		}
-		if sect.type_ == ElfSectProgbits {
+		if sect.type_ == elf.SHT_PROGBITS {
 			sb.SetData(sect.base[:sect.size])
 		}
 
@@ -764,10 +550,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
-		if elfsym.type_ != ElfSymTypeFunc && elfsym.type_ != ElfSymTypeObject && elfsym.type_ != ElfSymTypeNone && elfsym.type_ != ElfSymTypeCommon {
+		if elfsym.type_ != elf.STT_FUNC && elfsym.type_ != elf.STT_OBJECT && elfsym.type_ != elf.STT_NOTYPE && elfsym.type_ != elf.STT_COMMON {
 			continue
 		}
-		if elfsym.shndx == ElfSymShnCommon || elfsym.type_ == ElfSymTypeCommon {
+		if elfsym.shndx == elf.SHN_COMMON || elfsym.type_ == elf.STT_COMMON {
 			sb := l.MakeSymbolUpdater(elfsym.sym)
 			if uint64(sb.Size()) < elfsym.size {
 				sb.SetSize(int64(elfsym.size))
@@ -837,7 +623,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			l.SetAttrExternal(s, true)
 		}
 
-		if elfobj.machine == ElfMachPower64 {
+		if elf.Machine(elfobj.machine) == elf.EM_PPC64 {
 			flag := int(elfsym.other) >> 5
 			if 2 <= flag && flag <= 6 {
 				l.SetSymLocalentry(s, 1<<uint(flag-2))
@@ -879,7 +665,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	// load relocations
 	for i := uint(0); i < elfobj.nsect; i++ {
 		rsect := &elfobj.sect[i]
-		if rsect.type_ != ElfSectRela && rsect.type_ != ElfSectRel {
+		if rsect.type_ != elf.SHT_RELA && rsect.type_ != elf.SHT_REL {
 			continue
 		}
 		if rsect.info >= uint32(elfobj.nsect) || elfobj.sect[rsect.info].base == nil {
@@ -890,7 +676,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			return errorf("malformed elf file: %v", err)
 		}
 		rela := 0
-		if rsect.type_ == ElfSectRela {
+		if rsect.type_ == elf.SHT_RELA {
 			rela = 1
 		}
 		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
@@ -1038,24 +824,24 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 	}
 
 	if elfobj.is64 != 0 {
-		b := new(ElfSymBytes64)
-		binary.Read(bytes.NewReader(elfobj.symtab.base[i*ELF64SYMSIZE:(i+1)*ELF64SYMSIZE]), elfobj.e, b)
-		elfsym.name = cstring(elfobj.symstr.base[elfobj.e.Uint32(b.Name[:]):])
-		elfsym.value = elfobj.e.Uint64(b.Value[:])
-		elfsym.size = elfobj.e.Uint64(b.Size[:])
-		elfsym.shndx = elfobj.e.Uint16(b.Shndx[:])
-		elfsym.bind = b.Info >> 4
-		elfsym.type_ = b.Info & 0xf
+		b := new(elf.Sym64)
+		binary.Read(bytes.NewReader(elfobj.symtab.base[i*elf.Sym64Size:(i+1)*elf.Sym64Size]), elfobj.e, b)
+		elfsym.name = cstring(elfobj.symstr.base[b.Name:])
+		elfsym.value = b.Value
+		elfsym.size = b.Size
+		elfsym.shndx = elf.SectionIndex(b.Shndx)
+		elfsym.bind = elf.ST_BIND(b.Info)
+		elfsym.type_ = elf.ST_TYPE(b.Info)
 		elfsym.other = b.Other
 	} else {
-		b := new(ElfSymBytes)
-		binary.Read(bytes.NewReader(elfobj.symtab.base[i*ELF32SYMSIZE:(i+1)*ELF32SYMSIZE]), elfobj.e, b)
-		elfsym.name = cstring(elfobj.symstr.base[elfobj.e.Uint32(b.Name[:]):])
-		elfsym.value = uint64(elfobj.e.Uint32(b.Value[:]))
-		elfsym.size = uint64(elfobj.e.Uint32(b.Size[:]))
-		elfsym.shndx = elfobj.e.Uint16(b.Shndx[:])
-		elfsym.bind = b.Info >> 4
-		elfsym.type_ = b.Info & 0xf
+		b := new(elf.Sym32)
+		binary.Read(bytes.NewReader(elfobj.symtab.base[i*elf.Sym32Size:(i+1)*elf.Sym32Size]), elfobj.e, b)
+		elfsym.name = cstring(elfobj.symstr.base[b.Name:])
+		elfsym.value = uint64(b.Value)
+		elfsym.size = uint64(b.Size)
+		elfsym.shndx = elf.SectionIndex(b.Shndx)
+		elfsym.bind = elf.ST_BIND(b.Info)
+		elfsym.type_ = elf.ST_TYPE(b.Info)
 		elfsym.other = b.Other
 	}
 
@@ -1067,16 +853,16 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 	if elfsym.name == ".TOC." {
 		// Magic symbol on ppc64.  Will be set to this object
 		// file's .got+0x8000.
-		elfsym.bind = ElfSymBindLocal
+		elfsym.bind = elf.STB_LOCAL
 	}
 
 	switch elfsym.type_ {
-	case ElfSymTypeSection:
+	case elf.STT_SECTION:
 		s = elfobj.sect[elfsym.shndx].sym
 
-	case ElfSymTypeObject, ElfSymTypeFunc, ElfSymTypeNone, ElfSymTypeCommon:
+	case elf.STT_OBJECT, elf.STT_FUNC, elf.STT_NOTYPE, elf.STT_COMMON:
 		switch elfsym.bind {
-		case ElfSymBindGlobal:
+		case elf.STB_GLOBAL:
 			if needSym != 0 {
 				s = lookup(elfsym.name, 0)
 
@@ -1096,7 +882,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 				}
 			}
 
-		case ElfSymBindLocal:
+		case elf.STB_LOCAL:
 			if (arch.Family == sys.ARM || arch.Family == sys.ARM64) && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d") || strings.HasPrefix(elfsym.name, "$x")) {
 				// binutils for arm and arm64 generate these mapping
 				// symbols, ignore these
@@ -1124,7 +910,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 				l.SetAttrVisibilityHidden(s, true)
 			}
 
-		case ElfSymBindWeak:
+		case elf.STB_WEAK:
 			if needSym != 0 {
 				s = lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
@@ -1145,7 +931,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 
 	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
 	// sense and should be removed when someone has thought about it properly.
-	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != ElfSymTypeSection {
+	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != elf.STT_SECTION {
 		sb := l.MakeSymbolUpdater(s)
 		sb.SetType(sym.SXREF)
 	}

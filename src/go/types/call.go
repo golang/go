@@ -9,6 +9,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	"unicode"
 )
 
 func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
@@ -375,12 +376,24 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel.Pos(), "ambiguous selector %s.%s", x.expr, sel)
 		case indirect:
-			// TODO(gri) be more specific with this error message
-			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
 		default:
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
+			// Check if capitalization of sel matters and provide better error
+			// message in that case.
+			if len(sel) > 0 {
+				var changeCase string
+				if r := rune(sel[0]); unicode.IsUpper(r) {
+					changeCase = string(unicode.ToLower(r)) + sel[1:]
+				} else {
+					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+				}
+				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+					check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s, but does have %s)", x.expr, sel, x.typ, sel, changeCase)
+					break
+				}
+			}
 			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
 		}
 		goto Error
