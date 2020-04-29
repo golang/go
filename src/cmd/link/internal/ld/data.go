@@ -253,7 +253,10 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 			case 8:
 				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
 			}
-			if out, ok := thearch.Archreloc2(target, ldr, syms, &r, s, o); ok {
+			var out int64
+			var ok bool
+			out, needExtReloc, ok = thearch.Archreloc2(target, ldr, syms, &r, &rr, s, o)
+			if ok {
 				o = out
 			} else {
 				err.Errorf(s, "unknown reloc to %v: %d (%s)", ldr.SymName(rs), rt, sym.RelocName(target.Arch, rt))

@@ -435,8 +435,8 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 	return true
 }
 
-func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, sym loader.Sym, val int64) (int64, bool) {
-	return val, false
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r *loader.Reloc2, rr *loader.ExtReloc, sym loader.Sym, val int64) (int64, bool, bool) {
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {

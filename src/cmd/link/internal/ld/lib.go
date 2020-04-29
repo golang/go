@@ -235,18 +235,18 @@ type Arch struct {
 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
 	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
 	Archinit       func(*Link)
-	// Archreloc is an arch-specific hook that assists in
-	// relocation processing (invoked by 'relocsym'); it handles
-	// target-specific relocation tasks. Here "rel" is the current
-	// relocation being examined, "sym" is the symbol containing the
-	// chunk of data to which the relocation applies, and "off" is the
-	// contents of the to-be-relocated data item (from sym.P). Return
-	// value is the appropriately relocated value (to be written back
-	// to the same spot in sym.P) and a boolean indicating
-	// success/failure (a failing value indicates a fatal error).
+	// Archreloc is an arch-specific hook that assists in relocation processing
+	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
+	// Here "rel" is the current relocation being examined, "sym" is the symbol
+	// containing the chunk of data to which the relocation applies, and "off"
+	// is the contents of the to-be-relocated data item (from sym.P). Return
+	// value is the appropriately relocated value (to be written back to the
+	// same spot in sym.P), a boolean indicating if the external relocations'
+	// been used, and a boolean indicating success/failure (a failing value
+	// indicates a fatal error).
 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64, success bool)
-	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, loader.Sym, int64) (int64, bool)
+	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
 	// insufficient to describe the relocation (r.Variant !=
