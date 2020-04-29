@@ -55,7 +55,7 @@ func TestClientLogging(t *testing.T) {
 	ts := servertest.NewPipeServer(ctx, ss)
 	defer checkClose(t, ts.Close)
 	cc := ts.Connect(ctx)
-	go cc.Run(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
+	cc.Go(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
 
 	protocol.ServerDispatcher(cc).DidOpen(ctx, &protocol.DidOpenTextDocumentParams{})
 
@@ -136,7 +136,7 @@ func TestRequestCancellation(t *testing.T) {
 		t.Run(test.serverType, func(t *testing.T) {
 			cc := test.ts.Connect(baseCtx)
 			sd := protocol.ServerDispatcher(cc)
-			go cc.Run(baseCtx,
+			cc.Go(baseCtx,
 				protocol.Handlers(
 					jsonrpc2.MethodNotFound))
 

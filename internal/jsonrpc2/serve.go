@@ -39,7 +39,9 @@ func (f ServerFunc) ServeStream(ctx context.Context, s Stream) error {
 func HandlerServer(h Handler) StreamServer {
 	return ServerFunc(func(ctx context.Context, s Stream) error {
 		conn := NewConn(s)
-		return conn.Run(ctx, h)
+		conn.Go(ctx, h)
+		<-conn.Done()
+		return conn.Err()
 	})
 }
 

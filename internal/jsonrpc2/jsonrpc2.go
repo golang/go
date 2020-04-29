@@ -32,6 +32,9 @@ type Conn struct {
 	stream    Stream
 	pendingMu sync.Mutex // protects the pending map
 	pending   map[ID]chan *Response
+
+	done chan struct{}
+	err  atomic.Value
 }
 
 type constError string
@@ -44,6 +47,7 @@ func NewConn(s Stream) *Conn {
 	conn := &Conn{
 		stream:  s,
 		pending: make(map[ID]chan *Response),
+		done:    make(chan struct{}),
 	}
 	return conn
 }
@@ -162,18 +166,25 @@ func (c *Conn) write(ctx context.Context, msg Message) (int64, error) {
 	return c.stream.Write(ctx, msg)
 }
 
-// Run blocks until the connection is terminated, and returns any error that
-// caused the termination.
+// Go starts a goroutine to handle the connection.
 // It must be called exactly once for each Conn.
-// It returns only when the reader is closed or there is an error in the stream.
-func (c *Conn) Run(runCtx context.Context, handler Handler) error {
+// It returns immediately.
+// You must block on Done() to wait for the connection to shut down.
+// This is a temporary measure, this should be started automatically in the
+// future.
+func (c *Conn) Go(ctx context.Context, handler Handler) {
+	go c.run(ctx, handler)
+}
+
+func (c *Conn) run(ctx context.Context, handler Handler) {
+	defer close(c.done)
 	for {
 		// get the next message
-		msg, n, err := c.stream.Read(runCtx)
+		msg, n, err := c.stream.Read(ctx)
 		if err != nil {
-			// The stream failed, we cannot continue. If the client disconnected
-			// normally, we should get ErrDisconnected here.
-			return err
+			// The stream failed, we cannot continue.
+			c.fail(err)
+			return
 		}
 		switch msg := msg.(type) {
 		case Request:
@@ -187,7 +198,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			} else {
 				labels = labels[:len(labels)-1]
 			}
-			reqCtx, spanDone := event.Start(runCtx, msg.Method(), labels...)
+			reqCtx, spanDone := event.Start(ctx, msg.Method(), labels...)
 			event.Metric(reqCtx,
 				tag.Started.Of(1),
 				tag.ReceivedBytes.Of(n))
@@ -206,6 +217,32 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			}
 		}
 	}
+}
+
+// Close closes the underlying stream.
+// This does not wait for the underlying handler to finish, block on the done
+// channel with <-Done() for that purpose.
+func (c *Conn) Close() error {
+	return c.stream.Close()
+}
+
+// Done returns a channel that will be closed when the processing goroutine has
+// terminated, which will happen if Close() is called or the underlying
+// stream is closed.
+func (c *Conn) Done() <-chan struct{} {
+	return c.done
+}
+
+// Err returns an error if there was one from within the processing goroutine.
+// If err returns non nil, the connection will be already closed or closing.
+func (c *Conn) Err() error {
+	return c.err.Load().(error)
+}
+
+// fail sets a failure condition on the stream and closes it.
+func (c *Conn) fail(err error) {
+	c.err.Store(err)
+	c.stream.Close()
 }
 
 func marshalToRaw(obj interface{}) (json.RawMessage, error) {

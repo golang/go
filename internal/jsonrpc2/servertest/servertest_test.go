@@ -40,7 +40,7 @@ func TestTestServer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			conn := test.connector.Connect(ctx)
-			go conn.Run(ctx, jsonrpc2.MethodNotFound)
+			conn.Go(ctx, jsonrpc2.MethodNotFound)
 			var got msg
 			if _, err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
 				t.Fatal(err)

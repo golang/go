@@ -83,7 +83,7 @@ func NewEditor(ws *Sandbox, config EditorConfig) *Editor {
 func (e *Editor) Connect(ctx context.Context, conn *jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
 	e.Server = protocol.ServerDispatcher(conn)
 	e.client = &Client{editor: e, hooks: hooks}
-	go conn.Run(ctx,
+	conn.Go(ctx,
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))

@@ -17,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
@@ -140,11 +139,13 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 		executable = ""
 	}
 	ctx = protocol.WithClient(ctx, client)
-	return conn.Run(ctx,
+	conn.Go(ctx,
 		protocol.Handlers(
 			handshaker(dc, executable,
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
+	<-conn.Done()
+	return conn.Err()
 }
 
 // A Forwarder is a jsonrpc2.StreamServer that handles an LSP stream by
@@ -234,7 +235,7 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 		return nil, fmt.Errorf("dialing remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
-	go serverConn.Run(ctx, jsonrpc2.MethodNotFound)
+	serverConn.Go(ctx, jsonrpc2.MethodNotFound)
 	var state ServerState
 	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
 		return nil, fmt.Errorf("querying server state: %w", err)
@@ -256,13 +257,10 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	server := protocol.ServerDispatcher(serverConn)
 
 	// Forward between connections.
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		return serverConn.Run(ctx,
-			protocol.Handlers(
-				protocol.ClientHandler(client,
-					jsonrpc2.MethodNotFound)))
-	})
+	serverConn.Go(ctx,
+		protocol.Handlers(
+			protocol.ClientHandler(client,
+				jsonrpc2.MethodNotFound)))
 	// Don't run the clientConn yet, so that we can complete the handshake before
 	// processing any client messages.
 
@@ -298,15 +296,19 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 			clientID: hresp.ClientID,
 		})
 	}
-	g.Go(func() error {
-		return clientConn.Run(ctx,
-			protocol.Handlers(
-				forwarderHandler(
-					protocol.ServerHandler(server,
-						jsonrpc2.MethodNotFound))))
-	})
+	clientConn.Go(ctx,
+		protocol.Handlers(
+			forwarderHandler(
+				protocol.ServerHandler(server,
+					jsonrpc2.MethodNotFound))))
 
-	return g.Wait()
+	<-serverConn.Done()
+	<-clientConn.Done()
+	err = serverConn.Err()
+	if err == nil {
+		err = clientConn.Err()
+	}
+	return err
 }
 
 func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
