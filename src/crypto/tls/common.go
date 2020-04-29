@@ -207,6 +207,10 @@ const (
 	downgradeCanaryTLS11 = "DOWNGRD\x00"
 )
 
+// testingOnlyForceDowngradeCanary is set in tests to force the server side to
+// include downgrade canaries even if it's using its highers supported version.
+var testingOnlyForceDowngradeCanary bool
+
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
