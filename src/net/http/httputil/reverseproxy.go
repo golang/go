@@ -25,10 +25,15 @@ import (
 // sends it to another server, proxying the response back to the
 // client.
 //
-// ReverseProxy automatically sets the client IP as the value of the
+// ReverseProxy by default sets the client IP as the value of the
 // X-Forwarded-For header.
+//
 // If an X-Forwarded-For header already exists, the client IP is
-// appended to the existing values.
+// appended to the existing values. As a special case, if the header
+// exists in the Request.Header map but has a nil value (such as when
+// set by the Director func), the X-Forwarded-For header is
+// not modified.
+//
 // To prevent IP spoofing, be sure to delete any pre-existing
 // X-Forwarded-For header coming from the client or
 // an untrusted proxy.
@@ -248,10 +253,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// If we aren't the first proxy retain prior
 		// X-Forwarded-For information as a comma+space
 		// separated list and fold multiple headers into one.
-		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
+		prior, ok := outreq.Header["X-Forwarded-For"]
+		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+		if len(prior) > 0 {
 			clientIP = strings.Join(prior, ", ") + ", " + clientIP
 		}
-		outreq.Header.Set("X-Forwarded-For", clientIP)
+		if !omit {
+			outreq.Header.Set("X-Forwarded-For", clientIP)
+		}
 	}
 
 	res, err := transport.RoundTrip(outreq)
