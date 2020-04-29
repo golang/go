@@ -528,6 +528,12 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 		case objabi.R_DWARFFILEREF:
 			// We don't renumber files in dwarf.go:writelines anymore.
 			continue
+
+		case objabi.R_CONST:
+			o = r.Add()
+
+		case objabi.R_GOTOFF:
+			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT2)
 		}
 
 		//if target.IsPPC64() || target.IsS390X() {

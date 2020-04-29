@@ -48,7 +48,6 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		Adddynrel2:       adddynrel2,
 		Archinit:         archinit,
-		Archreloc:        archreloc,
 		Archreloc2:       archreloc2,
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
