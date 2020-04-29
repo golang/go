@@ -84,9 +84,9 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) int64 {
-	o := arch.ByteOrder.Uint32(s.P[r.Off:])
-	switch r.Type {
+func applyrel(arch *sys.Arch, ldr *loader.Loader, rt objabi.RelocType, off int32, s loader.Sym, val int64, t int64) int64 {
+	o := arch.ByteOrder.Uint32(ldr.OutData(s)[off:])
+	switch rt {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
 		return int64(o&0xffff0000 | uint32(t)&0xffff)
 	case objabi.R_ADDRMIPSU:
@@ -98,60 +98,61 @@ func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) i
 	}
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+	rs := r.Sym()
+	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
-		switch r.Type {
+		switch r.Type() {
 		default:
-			return val, false
-		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
-			r.Done = false
+			return val, false, false
 
+		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 			// set up addend for eventual relocation via outer symbol.
-			rs := ld.ApplyOuterToXAdd(r)
-			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
-				ld.Errorf(s, "missing section for %s", rs.Name)
+			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+			rr.Xadd = r.Add() + off
+			rst := ldr.SymType(rs)
+			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
-			r.Xsym = rs
-			return applyrel(target.Arch, r, s, val, r.Xadd), true
+			rr.Xsym = rs
+			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, rr.Xadd), true, true
+
 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
-			r.Done = false
-			r.Xsym = r.Sym
-			r.Xadd = r.Add
-			return applyrel(target.Arch, r, s, val, r.Add), true
+			rr.Xsym = rs
+			rr.Xadd = r.Add()
+			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, rr.Xadd), true, true
 		}
 	}
 
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
+	const isOk = true
+	const noExtReloc = false
+	switch rt := r.Type(); rt {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
-		t := ld.Symaddr(r.Sym) + r.Add
-		return applyrel(target.Arch, r, s, val, t), true
+		t := ldr.SymValue(rs) + r.Add()
+		return applyrel(target.Arch, ldr, rt, r.Off(), s, val, t), noExtReloc, isOk
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
-		t := ld.Symaddr(r.Sym) + r.Add
+		t := ldr.SymValue(rs) + r.Add()
 
 		if t&3 != 0 {
-			ld.Errorf(s, "direct call is not aligned: %s %x", r.Sym.Name, t)
+			ldr.Errorf(s, "direct call is not aligned: %s %x", ldr.SymName(rs), t)
 		}
 
 		// check if target address is in the same 256 MB region as the next instruction
-		if (s.Value+int64(r.Off)+4)&0xf0000000 != (t & 0xf0000000) {
-			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
+		if (ldr.SymValue(s)+int64(r.Off())+4)&0xf0000000 != (t & 0xf0000000) {
+			ldr.Errorf(s, "direct call too far: %s %x", ldr.SymName(rs), t)
 		}
 
-		return applyrel(target.Arch, r, s, val, t), true
+		return applyrel(target.Arch, ldr, rt, r.Off(), s, val, t), noExtReloc, isOk
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
-		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+		t := ldr.SymValue(rs) + r.Add() - 0x7000
 		if t < -32768 || t >= 32678 {
-			ld.Errorf(s, "TLS offset out of range %d", t)
+			ldr.Errorf(s, "TLS offset out of range %d", t)
 		}
-		return applyrel(target.Arch, r, s, val, t), true
+		return applyrel(target.Arch, ldr, rt, r.Off(), s, val, t), noExtReloc, isOk
 	}
 
-	return val, false
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
