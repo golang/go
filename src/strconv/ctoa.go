@@ -4,34 +4,18 @@
 
 package strconv
 
-// FormatComplex converts the complex number c to a string,
-// according to the format fmt and precision prec. It rounds the
-// result assuming that the original was obtained from a complex
-// value of bitSize bits (128 for complex128, 64 for complex64).
+// FormatComplex converts the complex number c to a string of the
+// form (a+bi) where a and b are the real and imaginary parts,
+// formatted according to the format fmt and precision prec.
 //
-// The format fmt is one of
-// 'b' (-ddddp±ddd, a binary exponent),
-// 'e' (-d.dddde±dd, a decimal exponent),
-// 'E' (-d.ddddE±dd, a decimal exponent),
-// 'f' (-ddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise),
-// 'G' ('E' for large exponents, 'f' otherwise),
-// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
-// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
-//
-// The precision prec controls the number of digits (excluding the exponent)
-// printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.
-// For 'e', 'E', 'f', 'x', and 'X', it is the number of digits after the decimal point.
-// For 'g' and 'G' it is the maximum number of significant digits (trailing
-// zeros are removed).
-// The special precision -1 uses the smallest number of digits
-// necessary such that ParseComplex will return c exactly.
+// The format fmt and precision prec have the same meaning as in FormatFloat.
+// It rounds the result assuming that the original was obtained from a complex
+// value of bitSize bits, which must be 64 for complex64 and 128 for complex128.
 func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
-	if bitSize == 64 {
-		bitSize = 32 // complex64 uses float32 internally
-	} else {
-		bitSize = 64
+	if bitSize != 64 && bitSize != 128 {
+		panic("invalid bitSize")
 	}
+	bitSize >>= 1 // complex64 uses float32 internally
 
 	// Check if imaginary part has a sign. If not, add one.
 	imag := FormatFloat(imag(c), fmt, prec, bitSize)
