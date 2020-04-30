@@ -203,6 +203,14 @@ func TestParseComplex(t *testing.T) {
 		},
 		// Malformed cases
 		{
+			str:     "",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     " ",
+			wantErr: ErrSyntax,
+		},
+		{
 			str:     "30+3i)",
 			wantErr: ErrSyntax,
 		},
@@ -231,7 +239,31 @@ func TestParseComplex(t *testing.T) {
 			wantErr: ErrSyntax,
 		},
 		{
+			str:     "+NaN",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     "-NaN",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     "+NaNi",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     "-NaNi",
+			wantErr: ErrSyntax,
+		},
+		{
 			str:     "NaN-NaNi",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     "3+3+5.5",
+			wantErr: ErrSyntax,
+		},
+		{
+			str:     "3+3+5.5i",
 			wantErr: ErrSyntax,
 		},
 	}
