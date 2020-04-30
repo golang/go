@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"cmd/internal/goobj2"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io/ioutil"
@@ -155,11 +156,12 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 	return pname, isshlib
 }
 
-func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType) *sym.Library {
 	pkg := pkgname(ctxt, lib)
 
 	// already loaded?
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		checkFingerprint(l, l.Fingerprint, src, fingerprint)
 		return l
 	}
 
@@ -170,9 +172,9 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
 	}
 
 	if isshlib {
-		return addlibpath(ctxt, src, obj, "", pkg, pname)
+		return addlibpath(ctxt, src, obj, "", pkg, pname, fingerprint)
 	}
-	return addlibpath(ctxt, src, obj, pname, pkg, "")
+	return addlibpath(ctxt, src, obj, pname, pkg, "", fingerprint)
 }
 
 /*
@@ -182,14 +184,16 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  *	shlib: path to shared library, or .shlibname file holding path
+ *	fingerprint: if not 0, expected fingerprint for import from srcref
+ *	             fingerprint is 0 if the library is not imported (e.g. main)
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
+func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint goobj2.FingerprintType) *sym.Library {
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
 		return l
 	}
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", srcref, objref, file, pkg, shlib)
+		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s fingerprint: %x\n", srcref, objref, file, pkg, shlib, fingerprint)
 	}
 
 	l := &sym.Library{}
@@ -199,6 +203,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	l.Srcref = srcref
 	l.File = file
 	l.Pkg = pkg
+	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
 			data, err := ioutil.ReadFile(shlib)
