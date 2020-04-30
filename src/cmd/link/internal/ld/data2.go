@@ -213,14 +213,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
-				rs := r.Sym
-
-				r.Xadd = r.Add
-				for rs.Outer != nil {
-					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
-					rs = rs.Outer
-				}
-
+				rs := ApplyOuterToXAdd(r)
 				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
 					Errorf(s, "missing section for relocation target %s", rs.Name)
 				}
@@ -357,14 +350,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
-				rs := r.Sym
-
-				r.Xadd = r.Add
-				for rs.Outer != nil {
-					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
-					rs = rs.Outer
-				}
-
+				rs := ApplyOuterToXAdd(r)
 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
 				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 					Errorf(s, "missing section for relocation target %s", rs.Name)

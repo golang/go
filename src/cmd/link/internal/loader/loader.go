@@ -1596,6 +1596,11 @@ func (l *Loader) SubSym(i Sym) Sym {
 func (l *Loader) SetOuterSym(i Sym, o Sym) {
 	if o != 0 {
 		l.outer[i] = o
+		// relocsym's foldSubSymbolOffset requires that we only
+		// have a single level of containment-- enforce here.
+		if l.outer[o] != 0 {
+			panic("multiply nested outer sym")
+		}
 	} else {
 		delete(l.outer, i)
 	}
@@ -2662,6 +2667,11 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	// Convert outer relationship
 	if outer, ok := l.outer[src]; ok {
 		dst.Outer = l.Syms[outer]
+		// relocsym's foldSubSymbolOffset requires that we only
+		// have a single level of containment-- enforce here.
+		if l.outer[outer] != 0 {
+			panic("multiply nested outer syms")
+		}
 	}
 
 	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
