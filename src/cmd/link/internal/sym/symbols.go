@@ -34,8 +34,6 @@ type Symbols struct {
 	// Symbol lookup based on name and indexed by version.
 	versions int
 
-	Allsym []*Symbol
-
 	// Provided by the loader
 
 	// Look up the symbol with the given name and version, creating the
@@ -55,7 +53,6 @@ type Symbols struct {
 func NewSymbols() *Symbols {
 	return &Symbols{
 		versions: SymVerStatic,
-		Allsym:   make([]*Symbol, 0, 100000),
 	}
 }
 

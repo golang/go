@@ -98,7 +98,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return -1
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}

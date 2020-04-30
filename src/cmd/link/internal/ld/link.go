@@ -66,7 +66,6 @@ type Link struct {
 
 	compressDWARF bool
 
-	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
@@ -92,6 +91,7 @@ type Link struct {
 	cgo_export_dynamic map[string]bool
 
 	datap   []*sym.Symbol
+	datap2  []loader.Sym
 	dynexp2 []loader.Sym
 
 	// Elf symtab variables.
@@ -129,11 +129,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.ImportStrings {
-		lib := addlib(ctxt, pkg, pn, importStr)
+	for _, imp := range l.Autolib {
+		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
 		if lib != nil {
 			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.ImportStrings = nil
+	l.Autolib = nil
 }

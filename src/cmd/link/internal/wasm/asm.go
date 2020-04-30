@@ -92,7 +92,30 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
 	return sect, n, va
 }
 
-func asmb(ctxt *ld.Link) {} // dummy
+type wasmDataSect struct {
+	sect *sym.Section
+	data []byte
+}
+
+var dataSects []wasmDataSect
+
+func asmb(ctxt *ld.Link, ldr *loader.Loader) {
+	sections := []*sym.Section{
+		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
+	}
+
+	dataSects = make([]wasmDataSect, len(sections))
+	for i, sect := range sections {
+		data := ld.DatblkBytes(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		dataSects[i] = wasmDataSect{sect, data}
+	}
+}
 
 // asmb writes the final WebAssembly module binary.
 // Spec: https://webassembly.github.io/spec/core/binary/modules.html
@@ -396,16 +419,6 @@ func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeDataSec(ctxt *ld.Link) {
 	sizeOffset := writeSecHeader(ctxt, sectionData)
 
-	sections := []*sym.Section{
-		ctxt.Syms.Lookup("runtime.rodata", 0).Sect,
-		ctxt.Syms.Lookup("runtime.typelink", 0).Sect,
-		ctxt.Syms.Lookup("runtime.itablink", 0).Sect,
-		ctxt.Syms.Lookup("runtime.symtab", 0).Sect,
-		ctxt.Syms.Lookup("runtime.pclntab", 0).Sect,
-		ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect,
-		ctxt.Syms.Lookup("runtime.data", 0).Sect,
-	}
-
 	type dataSegment struct {
 		offset int32
 		data   []byte
@@ -420,9 +433,9 @@ func writeDataSec(ctxt *ld.Link) {
 	const maxNumSegments = 100000
 
 	var segments []*dataSegment
-	for secIndex, sec := range sections {
-		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
-		offset := int32(sec.Vaddr)
+	for secIndex, ds := range dataSects {
+		data := ds.data
+		offset := int32(ds.sect.Vaddr)
 
 		// skip leading zeroes
 		for len(data) > 0 && data[0] == 0 {
@@ -433,7 +446,7 @@ func writeDataSec(ctxt *ld.Link) {
 		for len(data) > 0 {
 			dataLen := int32(len(data))
 			var segmentEnd, zeroEnd int32
-			if len(segments)+(len(sections)-secIndex) == maxNumSegments {
+			if len(segments)+(len(dataSects)-secIndex) == maxNumSegments {
 				segmentEnd = dataLen
 				zeroEnd = dataLen
 			} else {

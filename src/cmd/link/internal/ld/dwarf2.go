@@ -101,20 +101,20 @@ func dwarfcompress(ctxt *Link) {
 	type compressedSect struct {
 		index      int
 		compressed []byte
-		syms       []*sym.Symbol
+		syms       []loader.Sym
 	}
 
-	supported := ctxt.IsELF || ctxt.HeadType == objabi.Hwindows || ctxt.HeadType == objabi.Hdarwin
-	if !ctxt.compressDWARF || !supported || ctxt.LinkMode != LinkInternal {
+	supported := ctxt.IsELF || ctxt.IsWindows() || ctxt.IsDarwin()
+	if !ctxt.compressDWARF || !supported || ctxt.IsExternal() {
 		return
 	}
 
 	var compressedCount int
 	resChannel := make(chan compressedSect)
-	for i := range dwarfp {
-		go func(resIndex int, syms []*sym.Symbol) {
+	for i := range dwarfp2 {
+		go func(resIndex int, syms []loader.Sym) {
 			resChannel <- compressedSect{resIndex, compressSyms(ctxt, syms), syms}
-		}(compressedCount, dwarfp[i].syms)
+		}(compressedCount, dwarfp2[i].syms)
 		compressedCount++
 	}
 	res := make([]compressedSect, compressedCount)
@@ -123,46 +123,55 @@ func dwarfcompress(ctxt *Link) {
 		res[r.index] = r
 	}
 
-	var newDwarfp []dwarfSecInfo2
+	ldr := ctxt.loader
+	var newDwarfp []dwarfSecInfo
 	Segdwarf.Sections = Segdwarf.Sections[:0]
 	for _, z := range res {
 		s := z.syms[0]
 		if z.compressed == nil {
 			// Compression didn't help.
-			ds := dwarfSecInfo2{syms: z.syms}
+			ds := dwarfSecInfo{syms: z.syms}
 			newDwarfp = append(newDwarfp, ds)
-			Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
+			Segdwarf.Sections = append(Segdwarf.Sections, ldr.SymSect(s))
 		} else {
-			compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
+			compressedSegName := ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
 			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
+			sect.Align = 1
 			sect.Length = uint64(len(z.compressed))
-			newSym := ctxt.Syms.Lookup(compressedSegName, 0)
-			newSym.P = z.compressed
-			newSym.Size = int64(len(z.compressed))
-			newSym.Sect = sect
-			ds := dwarfSecInfo2{syms: []*sym.Symbol{newSym}}
+			newSym := ldr.CreateSymForUpdate(compressedSegName, 0)
+			newSym.SetReachable(true)
+			newSym.SetData(z.compressed)
+			newSym.SetSize(int64(len(z.compressed)))
+			ldr.SetSymSect(newSym.Sym(), sect)
+			ds := dwarfSecInfo{syms: []loader.Sym{newSym.Sym()}}
 			newDwarfp = append(newDwarfp, ds)
+
+			// compressed symbols are no longer needed.
+			for _, s := range z.syms {
+				ldr.SetAttrReachable(s, false)
+			}
 		}
 	}
-	dwarfp = newDwarfp
+	dwarfp2 = newDwarfp
 
 	// Re-compute the locations of the compressed DWARF symbols
 	// and sections, since the layout of these within the file is
 	// based on Section.Vaddr and Symbol.Value.
 	pos := Segdwarf.Vaddr
 	var prevSect *sym.Section
-	for _, si := range dwarfp {
+	for _, si := range dwarfp2 {
 		for _, s := range si.syms {
-			s.Value = int64(pos)
-			if s.Sect != prevSect {
-				s.Sect.Vaddr = uint64(s.Value)
-				prevSect = s.Sect
+			ldr.SetSymValue(s, int64(pos))
+			sect := ldr.SymSect(s)
+			if sect != prevSect {
+				sect.Vaddr = uint64(pos)
+				prevSect = sect
 			}
-			if s.Sub != nil {
-				log.Fatalf("%s: unexpected sub-symbols", s)
+			if ldr.SubSym(s) != 0 {
+				log.Fatalf("%s: unexpected sub-symbols", ldr.SymName(s))
 			}
-			pos += uint64(s.Size)
-			if ctxt.HeadType == objabi.Hwindows {
+			pos += uint64(ldr.SymSize(s))
+			if ctxt.IsWindows() {
 				pos = uint64(Rnd(int64(pos), PEFILEALIGN))
 			}
 		}

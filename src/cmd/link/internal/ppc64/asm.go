@@ -267,120 +267,134 @@ func gencallstub2(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.S
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
 	if target.IsElf() {
-		return addelfdynrel(target, syms, s, r)
+		return addelfdynrel2(target, ldr, syms, s, r, rIdx)
 	} else if target.IsAIX() {
-		return ld.Xcoffadddynrel(target, ldr, s, r)
+		return ld.Xcoffadddynrel2(target, ldr, syms, s, r, rIdx)
 	}
 	return false
 }
 
-func addelfdynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
-	targ := r.Sym
-	r.InitExt()
+func addelfdynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+	targ := r.Sym()
+	var targType sym.SymKind
+	if targ != 0 {
+		targType = ldr.SymType(targ)
+	}
 
-	switch r.Type {
+	switch r.Type() {
 	default:
-		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+		if r.Type() >= objabi.ElfRelocOffset {
+			ldr.Errorf(s, "unexpected relocation type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
 			return false
 		}
 
 		// Handle relocations found in ELF object files.
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
-		r.Type = objabi.R_CALLPOWER
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_CALLPOWER)
 
 		// This is a local call, so the caller isn't setting
 		// up r12 and r2 is the same for the caller and
 		// callee. Hence, we need to go to the local entry
 		// point.  (If we don't do this, the callee will try
 		// to use r12 to compute r2.)
-		r.Add += int64(r.Sym.Localentry()) * 4
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymLocalentry(targ))*4)
 
-		if targ.Type == sym.SDYNIMPORT {
+		if targType == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
-			ld.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
+			ldr.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
 		}
 
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC_REL32):
-		r.Type = objabi.R_PCREL
-		r.Add += 4
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx, r.Add()+4)
 
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_PPC_REL32 for dyn import")
 		}
 
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_ADDR64):
-		r.Type = objabi.R_ADDR
-		if targ.Type == sym.SDYNIMPORT {
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if targType == sym.SDYNIMPORT {
 			// These happen in .toc sections
-			ld.Adddynsym(target, syms, targ)
+			ld.Adddynsym2(ldr, target, syms, targ)
 
-			rela := syms.Rela
-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
-			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
-			rela.AddUint64(target.Arch, uint64(r.Add))
-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+			rela := ldr.MakeSymbolUpdater(syms.Rela2)
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
+			rela.AddUint64(target.Arch, uint64(r.Add()))
+			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
 		}
-
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_LO | sym.RV_CHECK_OVERFLOW
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_LO|sym.RV_CHECK_OVERFLOW)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_LO
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_LO)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HA):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HA|sym.RV_CHECK_OVERFLOW)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_HI):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HI|sym.RV_CHECK_OVERFLOW)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_DS):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_DS | sym.RV_CHECK_OVERFLOW
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_DS|sym.RV_CHECK_OVERFLOW)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_TOC16_LO_DS):
-		r.Type = objabi.R_POWER_TOC
-		r.Variant = sym.RV_POWER_DS
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_POWER_TOC)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_DS)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_LO):
-		r.Type = objabi.R_PCREL
-		r.Variant = sym.RV_POWER_LO
-		r.Add += 2 // Compensate for relocation size of 2
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_LO)
+		su.SetRelocAdd(rIdx, r.Add()+2) // Compensate for relocation size of 2
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HI):
-		r.Type = objabi.R_PCREL
-		r.Variant = sym.RV_POWER_HI | sym.RV_CHECK_OVERFLOW
-		r.Add += 2
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HI|sym.RV_CHECK_OVERFLOW)
+		su.SetRelocAdd(rIdx, r.Add()+2)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL16_HA):
-		r.Type = objabi.R_PCREL
-		r.Variant = sym.RV_POWER_HA | sym.RV_CHECK_OVERFLOW
-		r.Add += 2
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		ldr.SetRelocVariant(s, rIdx, sym.RV_POWER_HA|sym.RV_CHECK_OVERFLOW)
+		su.SetRelocAdd(rIdx, r.Add()+2)
 		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targ.Type != sym.SDYNIMPORT {
+	if targType != sym.SDYNIMPORT {
 		return true
 	}
 
@@ -439,7 +453,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	}
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := r.Xsym.ElfsymForReloc()
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch r.Type {
 	default:
 		return false
@@ -972,7 +986,7 @@ func addpltsym2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 		return
 	}
 
-	ld.Adddynsym2(ldr, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym2(ldr, &ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
 		plt := ldr.MakeSymbolUpdater(ctxt.PLT2)
@@ -1068,7 +1082,7 @@ func ensureglinkresolver2(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuild
 	return glink
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
