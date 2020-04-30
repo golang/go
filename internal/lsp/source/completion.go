@@ -804,7 +804,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(ctx, pkg.GetTypes(), stdScore+.01*float64(relevance), imp)
+		c.packageMembers(ctx, pkg.GetTypes(), stdScore+.1*float64(relevance), imp)
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
@@ -824,7 +824,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		// Continue with untyped proposals.
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
-			score := stdScore + 0.01*float64(pkgExport.Fix.Relevance)
+			score := stdScore + 0.1*float64(pkgExport.Fix.Relevance)
 			c.found(ctx, candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
