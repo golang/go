@@ -233,7 +233,7 @@ type Arch struct {
 	Dragonflydynld string
 	Solarisdynld   string
 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
-	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
+	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
 	Archinit       func(*Link)
 	// Archreloc is an arch-specific hook that assists in relocation processing
 	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
