@@ -50,7 +50,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 
 	orig := s
 
-	// Translate bitSize for ParseFloat function
+	// Translate bitSize for ParseFloat/parseFloatPrefix function
 	if bitSize == 64 {
 		bitSize = 32 // complex64 uses float32 internally
 	} else {
@@ -90,7 +90,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	if len(s) >= 1 {
 		endCh := s[len(s)-1]
 		if endCh == '+' || endCh == '-' {
-			s = s[0:len(s)] + "1"
+			s = s + "1"
 		}
 	}
 
@@ -105,7 +105,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	floatsFound := []float64{}
 
 	for {
-		f, n, err := parseFloatPrefix(s, 64)
+		f, n, err := parseFloatPrefix(s, bitSize)
 		if err != nil {
 			return 0, convErr(err, orig)
 		}
@@ -120,8 +120,6 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 
 	// Check how many floats were found in s
 	switch len(floatsFound) {
-	case 0:
-		return 0, syntaxError(fnParseComplex, orig)
 	case 1:
 		// only imag component
 		imaj := floatsFound[0]
@@ -135,6 +133,6 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		return complex(floatsFound[0], floatsFound[1]), nil
 	}
 
-	// Too many components
+	// 0 floats found or too many components
 	return 0, syntaxError(fnParseComplex, orig)
 }
