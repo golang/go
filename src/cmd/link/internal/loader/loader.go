@@ -2161,6 +2161,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 // symbol. If the sym in question is not an alias, the sym itself is
 // returned.
 func (l *Loader) ResolveABIAlias(s Sym) Sym {
+	if s == 0 {
+		return 0
+	}
 	if l.SymType(s) != sym.SABIALIAS {
 		return s
 	}
