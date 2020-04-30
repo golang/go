@@ -68,7 +68,7 @@ func NewTestServer(ctx context.Context, options func(*source.Options)) *serverte
 	ctx = debug.WithInstance(ctx, "", "")
 	cache := cache.New(ctx, options)
 	ss := lsprpc.NewStreamServer(cache)
-	return servertest.NewTCPServer(ctx, ss)
+	return servertest.NewTCPServer(ctx, ss, nil)
 }
 
 func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {

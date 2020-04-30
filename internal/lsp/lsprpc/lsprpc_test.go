@@ -52,7 +52,7 @@ func TestClientLogging(t *testing.T) {
 	ctx = debug.WithInstance(ctx, "", "")
 	ss := NewStreamServer(cache.New(ctx, nil))
 	ss.serverForTest = server
-	ts := servertest.NewPipeServer(ctx, ss)
+	ts := servertest.NewPipeServer(ctx, ss, nil)
 	defer checkClose(t, ts.Close)
 	cc := ts.Connect(ctx)
 	cc.Go(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
@@ -116,12 +116,12 @@ func TestRequestCancellation(t *testing.T) {
 	serveCtx := debug.WithInstance(baseCtx, "", "")
 	ss := NewStreamServer(cache.New(serveCtx, nil))
 	ss.serverForTest = server
-	tsDirect := servertest.NewTCPServer(serveCtx, ss)
+	tsDirect := servertest.NewTCPServer(serveCtx, ss, nil)
 	defer checkClose(t, tsDirect.Close)
 
 	forwarderCtx := debug.WithInstance(baseCtx, "", "")
 	forwarder := NewForwarder("tcp", tsDirect.Addr)
-	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder)
+	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder, nil)
 	defer checkClose(t, tsForwarded.Close)
 
 	tests := []struct {
@@ -212,10 +212,10 @@ func TestDebugInfoLifecycle(t *testing.T) {
 
 	cache := cache.New(serverCtx, nil)
 	ss := NewStreamServer(cache)
-	tsBackend := servertest.NewTCPServer(serverCtx, ss)
+	tsBackend := servertest.NewTCPServer(serverCtx, ss, nil)
 
 	forwarder := NewForwarder("tcp", tsBackend.Addr)
-	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder)
+	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder, nil)
 
 	conn1 := tsForwarder.Connect(clientCtx)
 	ed1, err := fake.NewEditor(sb, fake.EditorConfig{}).Connect(clientCtx, conn1, fake.ClientHooks{})

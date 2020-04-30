@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -185,8 +186,8 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 				r.AddCloser(sandbox)
 			}
 			ss := tc.getServer(ctx, t)
-			ls := &loggingServer{delegate: ss}
-			ts := servertest.NewPipeServer(ctx, ls)
+			ls := &loggingFramer{}
+			ts := servertest.NewPipeServer(ctx, ss, ls.framer(jsonrpc2.NewRawStream))
 			defer func() {
 				ts.Close()
 			}()
@@ -207,23 +208,23 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 	}
 }
 
-type loggingServer struct {
-	delegate jsonrpc2.StreamServer
-
+type loggingFramer struct {
 	mu      sync.Mutex
 	buffers []*bytes.Buffer
 }
 
-func (s *loggingServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
-	s.mu.Lock()
-	var buf bytes.Buffer
-	s.buffers = append(s.buffers, &buf)
-	s.mu.Unlock()
-	logStream := protocol.LoggingStream(stream, &buf)
-	return s.delegate.ServeStream(ctx, logStream)
+func (s *loggingFramer) framer(f jsonrpc2.Framer) jsonrpc2.Framer {
+	return func(nc net.Conn) jsonrpc2.Stream {
+		s.mu.Lock()
+		var buf bytes.Buffer
+		s.buffers = append(s.buffers, &buf)
+		s.mu.Unlock()
+		stream := f(nc)
+		return protocol.LoggingStream(stream, &buf)
+	}
 }
 
-func (s *loggingServer) printBuffers(testname string, w io.Writer) {
+func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -252,7 +253,7 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "")
 		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
-		r.ts = servertest.NewTCPServer(context.Background(), ss)
+		r.ts = servertest.NewTCPServer(context.Background(), ss, nil)
 	}
 	return r.ts
 }

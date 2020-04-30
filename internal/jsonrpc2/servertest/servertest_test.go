@@ -24,9 +24,9 @@ func TestTestServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	server := jsonrpc2.HandlerServer(fakeHandler)
-	tcpTS := NewTCPServer(ctx, server)
+	tcpTS := NewTCPServer(ctx, server, nil)
 	defer tcpTS.Close()
-	pipeTS := NewPipeServer(ctx, server)
+	pipeTS := NewPipeServer(ctx, server, nil)
 	defer pipeTS.Close()
 
 	tests := []struct {

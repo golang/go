@@ -26,20 +26,24 @@ type Connector interface {
 type TCPServer struct {
 	Addr string
 
-	ln  net.Listener
-	cls *closerList
+	ln     net.Listener
+	framer jsonrpc2.Framer
+	cls    *closerList
 }
 
 // NewTCPServer returns a new test server listening on local tcp port and
 // serving incoming jsonrpc2 streams using the provided stream server. It
 // panics on any error.
-func NewTCPServer(ctx context.Context, server jsonrpc2.StreamServer) *TCPServer {
+func NewTCPServer(ctx context.Context, server jsonrpc2.StreamServer, framer jsonrpc2.Framer) *TCPServer {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(fmt.Sprintf("servertest: failed to listen: %v", err))
 	}
+	if framer == nil {
+		framer = jsonrpc2.NewHeaderStream
+	}
 	go jsonrpc2.Serve(ctx, ln, server, 0)
-	return &TCPServer{Addr: ln.Addr().String(), ln: ln, cls: &closerList{}}
+	return &TCPServer{Addr: ln.Addr().String(), ln: ln, framer: framer, cls: &closerList{}}
 }
 
 // Connect dials the test server and returns a jsonrpc2 Connection that is
@@ -52,7 +56,7 @@ func (s *TCPServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 	s.cls.add(func() {
 		netConn.Close()
 	})
-	return jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
+	return jsonrpc2.NewConn(s.framer(netConn))
 }
 
 // Close closes all connected pipes.
@@ -64,12 +68,16 @@ func (s *TCPServer) Close() error {
 // PipeServer is a test server that handles connections over io.Pipes.
 type PipeServer struct {
 	server jsonrpc2.StreamServer
+	framer jsonrpc2.Framer
 	cls    *closerList
 }
 
 // NewPipeServer returns a test server that can be connected to via io.Pipes.
-func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer) *PipeServer {
-	return &PipeServer{server: server, cls: &closerList{}}
+func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer, framer jsonrpc2.Framer) *PipeServer {
+	if framer == nil {
+		framer = jsonrpc2.NewRawStream
+	}
+	return &PipeServer{server: server, framer: framer, cls: &closerList{}}
 }
 
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
@@ -79,10 +87,10 @@ func (s *PipeServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 		sPipe.Close()
 		cPipe.Close()
 	})
-	serverStream := jsonrpc2.NewRawStream(sPipe)
+	serverStream := s.framer(sPipe)
 	go s.server.ServeStream(ctx, serverStream)
 
-	clientStream := jsonrpc2.NewRawStream(cPipe)
+	clientStream := s.framer(cPipe)
 	return jsonrpc2.NewConn(clientStream)
 }
 
