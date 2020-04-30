@@ -277,6 +277,10 @@ var blockString = [...]string{
 func (k BlockKind) String() string { return blockString[k] }
 func (k BlockKind) AuxIntType() string {
 	switch k {
+	case BlockARM64TBZ:
+		return "int64"
+	case BlockARM64TBNZ:
+		return "int64"
 	case BlockS390XCIJ:
 		return "int8"
 	case BlockS390XCGIJ:

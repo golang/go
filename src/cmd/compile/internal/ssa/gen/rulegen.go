@@ -1842,6 +1842,8 @@ func (b blockData) auxIntType() string {
 		return "int8"
 	case "S390XCCMaskUint8":
 		return "uint8"
+	case "Int64":
+		return "int64"
 	default:
 		return "invalid"
 	}
