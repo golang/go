@@ -55,7 +55,11 @@ func special(s string) (f float64, n int, ok bool) {
 		fallthrough
 	case 'i', 'I':
 		n := commonPrefixLenIgnoreCase(s, "infinity")
-		// both "inf" and "infinity" are ok
+		// Anything longer than "inf" is ok, but if we
+		// don't have "infinity", only consume "inf".
+		if 3 < n && n < 8 {
+			n = 3
+		}
 		if n == 3 || n == 8 {
 			return math.Inf(sign), nsign + n, true
 		}
