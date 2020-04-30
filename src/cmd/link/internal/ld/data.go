@@ -126,12 +126,24 @@ func trampoline(ctxt *Link, s loader.Sym) {
 func foldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
 	outer := ldr.OuterSym(s)
 	off := int64(0)
-	for outer != 0 {
+	if outer != 0 {
 		off += ldr.SymValue(s) - ldr.SymValue(outer)
 		s = outer
-		outer = ldr.OuterSym(s)
 	}
 	return s, off
+}
+
+// applyOuterToXAdd takes a relocation and updates the relocation's
+// XAdd field to take into account the target syms's outer symbol (if
+// applicable).
+func ApplyOuterToXAdd(r *sym.Reloc) *sym.Symbol {
+	rs := r.Sym
+	r.Xadd = r.Add
+	if rs.Outer != nil {
+		r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
+		rs = rs.Outer
+	}
+	return rs
 }
 
 // relocsym resolve relocations in "s", updating the symbol's content

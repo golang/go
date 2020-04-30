@@ -111,13 +111,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
 			r.Done = false
 
 			// set up addend for eventual relocation via outer symbol.
-			rs := r.Sym
-			r.Xadd = r.Add
-			for rs.Outer != nil {
-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
-				rs = rs.Outer
-			}
-
+			rs := ld.ApplyOuterToXAdd(r)
 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}

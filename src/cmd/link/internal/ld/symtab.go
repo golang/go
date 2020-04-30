@@ -102,7 +102,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 	}
 
 	xo := x
-	for xo.Outer != nil {
+	if xo.Outer != nil {
 		xo = xo.Outer
 	}
 
