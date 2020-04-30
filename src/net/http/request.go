@@ -83,12 +83,7 @@ var (
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
-type badStringError struct {
-	what string
-	str  string
-}
-
-func (e *badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
 
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
@@ -1025,14 +1020,14 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	var ok bool
 	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
 	if !ok {
-		return nil, &badStringError{"malformed HTTP request", s}
+		return nil, badStringError("malformed HTTP request", s)
 	}
 	if !validMethod(req.Method) {
-		return nil, &badStringError{"invalid method", req.Method}
+		return nil, badStringError("invalid method", req.Method)
 	}
 	rawurl := req.RequestURI
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", req.Proto}
+		return nil, badStringError("malformed HTTP version", req.Proto)
 	}
 
 	// CONNECT requests are used two different ways, and neither uses a full URL:

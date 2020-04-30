@@ -290,7 +290,7 @@ func TestFixTransferEncoding(t *testing.T) {
 		},
 		{
 			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
-			wantErr: &badStringError{"too many transfer encodings", "chunked,chunked"},
+			wantErr: badStringError("too many transfer encodings", "chunked,chunked"),
 		},
 		{
 			hdr:     Header{"Transfer-Encoding": {"chunked"}},

@@ -310,7 +310,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 			k = CanonicalHeaderKey(k)
 			switch k {
 			case "Transfer-Encoding", "Trailer", "Content-Length":
-				return &badStringError{"invalid Trailer key", k}
+				return badStringError("invalid Trailer key", k)
 			}
 			keys = append(keys, k)
 		}
@@ -637,7 +637,7 @@ func (t *transferReader) fixTransferEncoding() error {
 		te[len(te)-1] = encoding
 	}
 	if len(te) > 1 {
-		return &badStringError{"too many transfer encodings", strings.Join(te, ",")}
+		return badStringError("too many transfer encodings", strings.Join(te, ","))
 	}
 	if len(te) > 0 {
 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
@@ -791,7 +791,7 @@ func fixTrailer(header Header, te []string) (Header, error) {
 			switch key {
 			case "Transfer-Encoding", "Trailer", "Content-Length":
 				if err == nil {
-					err = &badStringError{"bad trailer key", key}
+					err = badStringError("bad trailer key", key)
 					return
 				}
 			}
@@ -1055,7 +1055,7 @@ func parseContentLength(cl string) (int64, error) {
 	}
 	n, err := strconv.ParseInt(cl, 10, 64)
 	if err != nil || n < 0 {
-		return 0, &badStringError{"bad Content-Length", cl}
+		return 0, badStringError("bad Content-Length", cl)
 	}
 	return n, nil
 
