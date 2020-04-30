@@ -239,18 +239,21 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			rr.Idx = ri
 		}
 
+		var rv sym.RelocVariant
+		if target.IsPPC64() || target.IsS390X() {
+			rv = ldr.RelocVariant(s, ri)
+		}
+
 		// TODO(mundaym): remove this special case - see issue 14218.
-		//if target.IsS390X() {
-		//	switch r.Type {
-		//	case objabi.R_PCRELDBL:
-		//		r.InitExt()
-		//		r.Type = objabi.R_PCREL
-		//		r.Variant = sym.RV_390_DBL
-		//	case objabi.R_CALL:
-		//		r.InitExt()
-		//		r.Variant = sym.RV_390_DBL
-		//	}
-		//}
+		if target.IsS390X() {
+			switch rt {
+			case objabi.R_PCRELDBL:
+				rt = objabi.R_PCREL
+				rv = sym.RV_390_DBL
+			case objabi.R_CALL:
+				rv = sym.RV_390_DBL
+			}
+		}
 
 		var o int64
 		switch rt {
@@ -556,12 +559,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT2)
 		}
 
-		//if target.IsPPC64() || target.IsS390X() {
-		//	r.InitExt()
-		//	if r.Variant != sym.RV_NONE {
-		//		o = thearch.Archrelocvariant(ldr, target, syms, &r, s, o)
-		//	}
-		//}
+		if target.IsPPC64() || target.IsS390X() {
+			if rv != sym.RV_NONE {
+				o = thearch.Archrelocvariant2(target, ldr, r, rv, s, o)
+			}
+		}
 
 		switch siz {
 		default:
