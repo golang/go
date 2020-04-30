@@ -60,15 +60,9 @@ func adderrorname(n *Node) {
 }
 
 func adderr(pos src.XPos, format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	// Only add the position if we have a file.
-	// See issue golang.org/issue/11361.
-	if !strings.HasSuffix(msg, ": no such file or directory") && !strings.HasSuffix(msg, ": permission denied") {
-		msg = fmt.Sprintf("%v: %s", linestr(pos), msg)
-	}
 	errors = append(errors, Error{
 		pos: pos,
-		msg: msg + "\n",
+		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
 	})
 }
 
