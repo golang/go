@@ -60,7 +60,7 @@ func (fd *FD) Close() error {
 // Read implements io.Reader.
 func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.rtimedout.isSet() {
-		return 0, ErrTimeout
+		return 0, ErrDeadlineExceeded
 	}
 	if err := fd.readLock(); err != nil {
 		return 0, err
@@ -76,7 +76,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 		err = io.EOF
 	}
 	if isInterrupted(err) {
-		err = ErrTimeout
+		err = ErrDeadlineExceeded
 	}
 	return n, err
 }
@@ -84,7 +84,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 // Write implements io.Writer.
 func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	if fd.wtimedout.isSet() {
-		return 0, ErrTimeout
+		return 0, ErrDeadlineExceeded
 	}
 	if err := fd.writeLock(); err != nil {
 		return 0, err
@@ -94,7 +94,7 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	n, err := fd.waio.Wait()
 	fd.waio = nil
 	if isInterrupted(err) {
-		err = ErrTimeout
+		err = ErrDeadlineExceeded
 	}
 	return n, err
 }

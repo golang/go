@@ -1645,6 +1645,41 @@ func serialiseAndParse(t *testing.T, template *Certificate) *Certificate {
 	return cert
 }
 
+func TestMaxPathLenNotCA(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Σ Acme Co",
+		},
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
+
+		BasicConstraintsValid: true,
+		IsCA:                  false,
+	}
+	cert := serialiseAndParse(t, template)
+	if m := cert.MaxPathLen; m != -1 {
+		t.Errorf("MaxPathLen should be -1 when IsCa is false, got %d", m)
+	}
+
+	template.MaxPathLen = 5
+	if _, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey); err == nil {
+		t.Error("specifying a MaxPathLen when IsCA is false should fail")
+	}
+
+	template.MaxPathLen = 0
+	template.MaxPathLenZero = true
+	if _, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey); err == nil {
+		t.Error("setting MaxPathLenZero when IsCA is false should fail")
+	}
+
+	template.BasicConstraintsValid = false
+	cert2 := serialiseAndParse(t, template)
+	if m := cert2.MaxPathLen; m != 0 {
+		t.Errorf("Bad MaxPathLen should be ignored if BasicConstraintsValid is false, got %d", m)
+	}
+}
+
 func TestMaxPathLen(t *testing.T) {
 	template := &Certificate{
 		SerialNumber: big.NewInt(1),

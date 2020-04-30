@@ -7,9 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
-	"strings"
 )
 
 // A ZeroRegion records parts of an object which are known to be zero.
@@ -565,8 +565,7 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 		// Nil pointers are read only. See issue 33438.
 		return true
 	}
-	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
-	if v.Op == OpAddr && strings.HasPrefix(v.Aux.(*obj.LSym).Name, `""..stmp_`) {
+	if v.Op == OpAddr && v.Aux.(*obj.LSym).Type == objabi.SRODATA {
 		return true
 	}
 	return false
@@ -614,15 +613,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
 		// read-only once initialized.
 		return true
 	case OpAddr:
-		sym := v.Aux.(*obj.LSym)
-		// TODO(mdempsky): Find a cleaner way to
-		// detect this. It would be nice if we could
-		// test sym.Type==objabi.SRODATA, but we don't
-		// initialize sym.Type until after function
-		// compilation.
-		if strings.HasPrefix(sym.Name, `""..stmp_`) {
-			return true
-		}
+		return v.Aux.(*obj.LSym).Type == objabi.SRODATA
 	}
 	return false
 }

@@ -296,12 +296,7 @@ func deadcode(f *Func) {
 				f.freeValue(v)
 			}
 		}
-		// aid GC
-		tail := b.Values[i:]
-		for j := range tail {
-			tail[j] = nil
-		}
-		b.Values = b.Values[:i]
+		b.truncateValues(i)
 	}
 
 	// Remove dead blocks from WBLoads list.

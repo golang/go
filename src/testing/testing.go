@@ -797,6 +797,11 @@ func (c *common) Cleanup(f func()) {
 	}
 }
 
+var tempDirReplacer struct {
+	sync.Once
+	r *strings.Replacer
+}
+
 // TempDir returns a temporary directory for the test to use.
 // It is lazily created on first access, and calls t.Fatal if the directory
 // creation fails.
@@ -806,7 +811,15 @@ func (c *common) Cleanup(f func()) {
 func (c *common) TempDir() string {
 	c.tempDirOnce.Do(func() {
 		c.Helper()
-		c.tempDir, c.tempDirErr = ioutil.TempDir("", c.Name())
+
+		// ioutil.TempDir doesn't like path separators in its pattern,
+		// so mangle the name to accommodate subtests.
+		tempDirReplacer.Do(func() {
+			tempDirReplacer.r = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
+		})
+		pattern := tempDirReplacer.r.Replace(c.Name())
+
+		c.tempDir, c.tempDirErr = ioutil.TempDir("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
 				if err := os.RemoveAll(c.tempDir); err != nil {

@@ -32,16 +32,23 @@ import (
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
-var osDefaultInheritEnv = map[string][]string{
-	"darwin":  {"DYLD_LIBRARY_PATH"},
-	"freebsd": {"LD_LIBRARY_PATH"},
-	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
-	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
-	"linux":   {"LD_LIBRARY_PATH"},
-	"openbsd": {"LD_LIBRARY_PATH"},
-	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
-	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
-}
+var osDefaultInheritEnv = func() []string {
+	switch runtime.GOOS {
+	case "darwin":
+		return []string{"DYLD_LIBRARY_PATH"}
+	case "linux", "freebsd", "openbsd":
+		return []string{"LD_LIBRARY_PATH"}
+	case "hpux":
+		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
+	case "irix":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
+	case "solaris":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
+	case "windows":
+		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
+	}
+	return nil
+}()
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
@@ -183,7 +190,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	for _, e := range osDefaultInheritEnv[runtime.GOOS] {
+	for _, e := range osDefaultInheritEnv {
 		if v := os.Getenv(e); v != "" {
 			env = append(env, e+"="+v)
 		}

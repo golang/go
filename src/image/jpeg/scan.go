@@ -310,6 +310,25 @@ func (d *decoder) processSOS(n int) error {
 				if err := d.readFull(d.tmp[:2]); err != nil {
 					return err
 				}
+
+				// Section F.1.2.3 says that "Byte alignment of markers is
+				// achieved by padding incomplete bytes with 1-bits. If padding
+				// with 1-bits creates a X’FF’ value, a zero byte is stuffed
+				// before adding the marker."
+				//
+				// Seeing "\xff\x00" here is not spec compliant, as we are not
+				// expecting an *incomplete* byte (that needed padding). Still,
+				// some real world encoders (see golang.org/issue/28717) insert
+				// it, so we accept it and re-try the 2 byte read.
+				//
+				// libjpeg issues a warning (but not an error) for this:
+				// https://github.com/LuaDist/libjpeg/blob/6c0fcb8ddee365e7abc4d332662b06900612e923/jdmarker.c#L1041-L1046
+				if d.tmp[0] == 0xff && d.tmp[1] == 0x00 {
+					if err := d.readFull(d.tmp[:2]); err != nil {
+						return err
+					}
+				}
+
 				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
 					return FormatError("bad RST marker")
 				}

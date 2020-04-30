@@ -7,10 +7,11 @@
 
 package unix
 
-// Linux getrandom system call number.
-// See GetRandom in getrandom_linux.go.
-//
 // This file is named "generic" because at a certain point Linux started
-// standardizing on system call numbers across architectures. So far this means
-// only arm64 and riscv64 use the standard numbers.
-const randomTrap uintptr = 278
+// standardizing on system call numbers across architectures. So far this
+// means only arm64 and riscv64 use the standard numbers.
+
+const (
+	getrandomTrap     uintptr = 278
+	copyFileRangeTrap uintptr = 285
+)

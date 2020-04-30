@@ -219,3 +219,11 @@ func ExampleTrunc() {
 	// 3.00
 	// -1.00
 }
+
+func ExampleCbrt() {
+	fmt.Printf("%.2f\n", math.Cbrt(8))
+	fmt.Printf("%.2f\n", math.Cbrt(27))
+	// Output:
+	// 2.00
+	// 3.00
+}

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
+	"sort"
 )
 
 // AlgKind describes the kind of algorithms used for comparing and
@@ -504,7 +505,7 @@ func geneq(t *types.Type) *obj.LSym {
 		namedfield("p", types.NewPtr(t)),
 		namedfield("q", types.NewPtr(t)),
 	)
-	tfn.Rlist.Set1(anonfield(types.Types[TBOOL]))
+	tfn.Rlist.Set1(namedfield("r", types.Types[TBOOL]))
 
 	fn := dclfunc(sym, tfn)
 	np := asNode(tfn.Type.Params().Field(0).Nname)
@@ -518,48 +519,137 @@ func geneq(t *types.Type) *obj.LSym {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		// An array of pure memory would be handled by the
-		// standard memequal, so the element type must not be
-		// pure memory. Even if we unrolled the range loop,
-		// each iteration would be a function call, so don't bother
-		// unrolling.
-		nrange := nod(ORANGE, nil, nod(ODEREF, np, nil))
+		nelem := t.NumElem()
 
-		ni := newname(lookup("i"))
-		ni.Type = types.Types[TINT]
-		nrange.List.Set1(ni)
-		nrange.SetColas(true)
-		colasdefn(nrange.List.Slice(), nrange)
-		ni = nrange.List.First()
+		// checkAll generates code to check the equality of all array elements.
+		// If unroll is greater than nelem, checkAll generates:
+		//
+		// if eq(p[0], q[0]) && eq(p[1], q[1]) && ... {
+		// } else {
+		//   return
+		// }
+		//
+		// And so on.
+		//
+		// Otherwise it generates:
+		//
+		// for i := 0; i < nelem; i++ {
+		//   if eq(p[i], q[i]) {
+		//   } else {
+		//     return
+		//   }
+		// }
+		//
+		// TODO(josharian): consider doing some loop unrolling
+		// for larger nelem as well, processing a few elements at a time in a loop.
+		checkAll := func(unroll int64, eq func(pi, qi *Node) *Node) {
+			// checkIdx generates a node to check for equality at index i.
+			checkIdx := func(i *Node) *Node {
+				// pi := p[i]
+				pi := nod(OINDEX, np, i)
+				pi.SetBounded(true)
+				pi.Type = t.Elem()
+				// qi := q[i]
+				qi := nod(OINDEX, nq, i)
+				qi.SetBounded(true)
+				qi.Type = t.Elem()
+				return eq(pi, qi)
+			}
 
-		// if p[i] != q[i] { return false }
-		nx := nod(OINDEX, np, ni)
+			if nelem <= unroll {
+				// Generate a series of checks.
+				var cond *Node
+				for i := int64(0); i < nelem; i++ {
+					c := nodintconst(i)
+					check := checkIdx(c)
+					if cond == nil {
+						cond = check
+						continue
+					}
+					cond = nod(OANDAND, cond, check)
+				}
+				nif := nod(OIF, cond, nil)
+				nif.Rlist.Append(nod(ORETURN, nil, nil))
+				fn.Nbody.Append(nif)
+				return
+			}
 
-		nx.SetBounded(true)
-		ny := nod(OINDEX, nq, ni)
-		ny.SetBounded(true)
+			// Generate a for loop.
+			// for i := 0; i < nelem; i++
+			i := temp(types.Types[TINT])
+			init := nod(OAS, i, nodintconst(0))
+			cond := nod(OLT, i, nodintconst(nelem))
+			post := nod(OAS, i, nod(OADD, i, nodintconst(1)))
+			loop := nod(OFOR, cond, post)
+			loop.Ninit.Append(init)
+			// if eq(pi, qi) {} else { return }
+			check := checkIdx(i)
+			nif := nod(OIF, check, nil)
+			nif.Rlist.Append(nod(ORETURN, nil, nil))
+			loop.Nbody.Append(nif)
+			fn.Nbody.Append(loop)
+		}
 
-		nif := nod(OIF, nil, nil)
-		nif.Left = nod(ONE, nx, ny)
-		r := nod(ORETURN, nil, nil)
-		r.List.Append(nodbool(false))
-		nif.Nbody.Append(r)
-		nrange.Nbody.Append(nif)
-		fn.Nbody.Append(nrange)
-
+		switch t.Elem().Etype {
+		case TINTER:
+			// Do two loops. First, check that all the types match (cheap).
+			// Second, check that all the data match (expensive).
+			// TODO: when the array size is small, unroll the tab match checks.
+			checkAll(3, func(pi, qi *Node) *Node {
+				// Compare types.
+				pi = typecheck(pi, ctxExpr)
+				qi = typecheck(qi, ctxExpr)
+				eqtab, _ := eqinterface(pi, qi)
+				return eqtab
+			})
+			checkAll(1, func(pi, qi *Node) *Node {
+				// Compare data.
+				pi = typecheck(pi, ctxExpr)
+				qi = typecheck(qi, ctxExpr)
+				_, eqdata := eqinterface(pi, qi)
+				return eqdata
+			})
+		case TSTRING:
+			// Do two loops. First, check that all the lengths match (cheap).
+			// Second, check that all the contents match (expensive).
+			// TODO: when the array size is small, unroll the length match checks.
+			checkAll(3, func(pi, qi *Node) *Node {
+				// Compare lengths.
+				eqlen, _ := eqstring(pi, qi)
+				return eqlen
+			})
+			checkAll(1, func(pi, qi *Node) *Node {
+				// Compare contents.
+				_, eqmem := eqstring(pi, qi)
+				return eqmem
+			})
+		case TFLOAT32, TFLOAT64:
+			checkAll(2, func(pi, qi *Node) *Node {
+				// p[i] == q[i]
+				return nod(OEQ, pi, qi)
+			})
+		// TODO: pick apart structs, do them piecemeal too
+		default:
+			checkAll(1, func(pi, qi *Node) *Node {
+				// p[i] == q[i]
+				return nod(OEQ, pi, qi)
+			})
+		}
 		// return true
 		ret := nod(ORETURN, nil, nil)
 		ret.List.Append(nodbool(true))
 		fn.Nbody.Append(ret)
 
 	case TSTRUCT:
-		var cond *Node
+		// Build a list of conditions to satisfy.
+		// Track their order so that we can preserve aspects of that order.
+		type nodeIdx struct {
+			n   *Node
+			idx int
+		}
+		var conds []nodeIdx
 		and := func(n *Node) {
-			if cond == nil {
-				cond = n
-				return
-			}
-			cond = nod(OANDAND, cond, n)
+			conds = append(conds, nodeIdx{n: n, idx: len(conds)})
 		}
 
 		// Walk the struct using memequal for runs of AMEM
@@ -575,7 +665,24 @@ func geneq(t *types.Type) *obj.LSym {
 
 			// Compare non-memory fields with field equality.
 			if !IsRegularMemory(f.Type) {
-				and(eqfield(np, nq, f.Sym))
+				p := nodSym(OXDOT, np, f.Sym)
+				q := nodSym(OXDOT, nq, f.Sym)
+				switch {
+				case f.Type.IsString():
+					eqlen, eqmem := eqstring(p, q)
+					and(eqlen)
+					and(eqmem)
+				case f.Type.IsInterface():
+					p.Type = f.Type
+					p = typecheck(p, ctxExpr)
+					q.Type = f.Type
+					q = typecheck(q, ctxExpr)
+					eqtab, eqdata := eqinterface(p, q)
+					and(eqtab)
+					and(eqdata)
+				default:
+					and(nod(OEQ, p, q))
+				}
 				i++
 				continue
 			}
@@ -597,8 +704,24 @@ func geneq(t *types.Type) *obj.LSym {
 			i = next
 		}
 
-		if cond == nil {
+		// Sort conditions to put runtime calls last.
+		// Preserve the rest of the ordering.
+		sort.SliceStable(conds, func(i, j int) bool {
+			x, y := conds[i], conds[j]
+			if (x.n.Op != OCALL) == (y.n.Op != OCALL) {
+				return x.idx < y.idx
+			}
+			return x.n.Op != OCALL
+		})
+
+		var cond *Node
+		if len(conds) == 0 {
 			cond = nodbool(true)
+		} else {
+			cond = conds[0].n
+			for _, c := range conds[1:] {
+				cond = nod(OANDAND, cond, c.n)
+			}
 		}
 
 		ret := nod(ORETURN, nil, nil)
@@ -643,6 +766,70 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
 	ny := nodSym(OXDOT, q, field)
 	ne := nod(OEQ, nx, ny)
 	return ne
+}
+
+// eqstring returns the nodes
+//   len(s) == len(t)
+// and
+//   memequal(s.ptr, t.ptr, len(s))
+// which can be used to construct string equality comparison.
+// eqlen must be evaluated before eqmem, and shortcircuiting is required.
+func eqstring(s, t *Node) (eqlen, eqmem *Node) {
+	s = conv(s, types.Types[TSTRING])
+	t = conv(t, types.Types[TSTRING])
+	sptr := nod(OSPTR, s, nil)
+	tptr := nod(OSPTR, t, nil)
+	slen := conv(nod(OLEN, s, nil), types.Types[TUINTPTR])
+	tlen := conv(nod(OLEN, t, nil), types.Types[TUINTPTR])
+
+	fn := syslook("memequal")
+	fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
+	call := nod(OCALL, fn, nil)
+	call.List.Append(sptr, tptr, slen.copy())
+	call = typecheck(call, ctxExpr|ctxMultiOK)
+
+	cmp := nod(OEQ, slen, tlen)
+	cmp = typecheck(cmp, ctxExpr)
+	cmp.Type = types.Types[TBOOL]
+	return cmp, call
+}
+
+// eqinterface returns the nodes
+//   s.tab == t.tab (or s.typ == t.typ, as appropriate)
+// and
+//   ifaceeq(s.tab, s.data, t.data) (or efaceeq(s.typ, s.data, t.data), as appropriate)
+// which can be used to construct interface equality comparison.
+// eqtab must be evaluated before eqdata, and shortcircuiting is required.
+func eqinterface(s, t *Node) (eqtab, eqdata *Node) {
+	if !types.Identical(s.Type, t.Type) {
+		Fatalf("eqinterface %v %v", s.Type, t.Type)
+	}
+	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+	var fn *Node
+	if s.Type.IsEmptyInterface() {
+		fn = syslook("efaceeq")
+	} else {
+		fn = syslook("ifaceeq")
+	}
+
+	stab := nod(OITAB, s, nil)
+	ttab := nod(OITAB, t, nil)
+	sdata := nod(OIDATA, s, nil)
+	tdata := nod(OIDATA, t, nil)
+	sdata.Type = types.Types[TUNSAFEPTR]
+	tdata.Type = types.Types[TUNSAFEPTR]
+	sdata.SetTypecheck(1)
+	tdata.SetTypecheck(1)
+
+	call := nod(OCALL, fn, nil)
+	call.List.Append(stab, sdata, tdata)
+	call = typecheck(call, ctxExpr|ctxMultiOK)
+
+	cmp := nod(OEQ, stab, ttab)
+	cmp = typecheck(cmp, ctxExpr)
+	cmp.Type = types.Types[TBOOL]
+	return cmp, call
 }
 
 // eqmem returns the node

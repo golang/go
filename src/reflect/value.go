@@ -177,6 +177,17 @@ func methodName() string {
 	return f.Name()
 }
 
+// methodNameSkip is like methodName, but skips another stack frame.
+// This is a separate function so that reflect.flag.mustBe will be inlined.
+func methodNameSkip() string {
+	pc, _, _, _ := runtime.Caller(3)
+	f := runtime.FuncForPC(pc)
+	if f == nil {
+		return "unknown method"
+	}
+	return f.Name()
+}
+
 // emptyInterface is the header for an interface{} value.
 type emptyInterface struct {
 	typ  *rtype
@@ -219,10 +230,10 @@ func (f flag) mustBeExported() {
 
 func (f flag) mustBeExportedSlow() {
 	if f == 0 {
-		panic(&ValueError{methodName(), Invalid})
+		panic(&ValueError{methodNameSkip(), Invalid})
 	}
 	if f&flagRO != 0 {
-		panic("reflect: " + methodName() + " using value obtained using unexported field")
+		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
 	}
 }
 
@@ -237,14 +248,14 @@ func (f flag) mustBeAssignable() {
 
 func (f flag) mustBeAssignableSlow() {
 	if f == 0 {
-		panic(&ValueError{methodName(), Invalid})
+		panic(&ValueError{methodNameSkip(), Invalid})
 	}
 	// Assignable if addressable and not read-only.
 	if f&flagRO != 0 {
-		panic("reflect: " + methodName() + " using value obtained using unexported field")
+		panic("reflect: " + methodNameSkip() + " using value obtained using unexported field")
 	}
 	if f&flagAddr == 0 {
-		panic("reflect: " + methodName() + " using unaddressable value")
+		panic("reflect: " + methodNameSkip() + " using unaddressable value")
 	}
 }
 
@@ -1304,7 +1315,7 @@ func (v Value) Method(i int) Value {
 	if v.typ.Kind() == Interface && v.IsNil() {
 		panic("reflect: Method on nil interface value")
 	}
-	fl := v.flag & (flagStickyRO | flagIndir) // Clear flagEmbedRO
+	fl := v.flag.ro() | (v.flag & flagIndir)
 	fl |= flag(Func)
 	fl |= flag(i)<<flagMethodShift | flagMethod
 	return Value{v.typ, v.ptr, fl}
@@ -2164,7 +2175,15 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	// NOTE: Do not trust that caller is not modifying cases data underfoot.
 	// The range is safe because the caller cannot modify our copy of the len
 	// and each iteration makes its own copy of the value c.
-	runcases := make([]runtimeSelect, len(cases))
+	var runcases []runtimeSelect
+	if len(cases) > 4 {
+		// Slice is heap allocated due to runtime dependent capacity.
+		runcases = make([]runtimeSelect, len(cases))
+	} else {
+		// Slice can be stack allocated due to constant capacity.
+		runcases = make([]runtimeSelect, len(cases), 4)
+	}
+
 	haveDefault := false
 	for i, c := range cases {
 		rc := &runcases[i]

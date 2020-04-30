@@ -220,6 +220,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
+	return sign(priv, &csprng, c, hash)
+}
+
+func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
 	N := c.Params().N
 	if N.Sign() == 0 {
 		return nil, nil, errZeroParam
@@ -227,7 +231,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	var k, kInv *big.Int
 	for {
 		for {
-			k, err = randFieldElement(c, csprng)
+			k, err = randFieldElement(c, *csprng)
 			if err != nil {
 				r = nil
 				return
@@ -281,9 +285,13 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
 		return false
 	}
-	e := hashToInt(hash, c)
+	return verify(pub, c, hash, r, s)
+}
 
+func verifyGeneric(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
+	e := hashToInt(hash, c)
 	var w *big.Int
+	N := c.Params().N
 	if in, ok := c.(invertible); ok {
 		w = in.Inverse(s)
 	} else {

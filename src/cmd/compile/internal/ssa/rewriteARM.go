@@ -13662,10 +13662,7 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
 		v4.AuxInt = 0
-		v5 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v5.AuxInt = 0x10000
-		v5.AddArg(x)
-		v4.AddArg(v5)
+		v4.AddArg(v3)
 		v2.AddArg2(v3, v4)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
@@ -13762,10 +13759,7 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
 		v4.AuxInt = 0
-		v5 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v5.AuxInt = 0x100
-		v5.AddArg(x)
-		v4.AddArg(v5)
+		v4.AddArg(v3)
 		v2.AddArg2(v3, v4)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
@@ -13850,29 +13844,21 @@ func rewriteValueARM_OpDiv32(v *Value) bool {
 		v5 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
 		v5.AddArg(x)
 		v4.AddArg2(x, v5)
-		v6 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v6.AddArg(x)
-		v3.AddArg2(v4, v6)
-		v7 := b.NewValue0(v.Pos, OpARMSUB, typ.UInt32)
-		v8 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
-		v9 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v9.AddArg(y)
-		v8.AddArg2(y, v9)
-		v10 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v10.AddArg(y)
-		v7.AddArg2(v8, v10)
-		v2.AddArg2(v3, v7)
+		v3.AddArg2(v4, v5)
+		v6 := b.NewValue0(v.Pos, OpARMSUB, typ.UInt32)
+		v7 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
+		v8.AddArg(y)
+		v7.AddArg2(y, v8)
+		v6.AddArg2(v7, v8)
+		v2.AddArg2(v3, v6)
 		v1.AddArg(v2)
-		v11 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v12 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
-		v12.AddArg2(x, y)
-		v11.AddArg(v12)
-		v0.AddArg2(v1, v11)
-		v13 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v14 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
-		v14.AddArg2(x, y)
-		v13.AddArg(v14)
-		v.AddArg2(v0, v13)
+		v9 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
+		v10 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
+		v10.AddArg2(x, y)
+		v9.AddArg(v10)
+		v0.AddArg2(v1, v9)
+		v.AddArg2(v0, v9)
 		return true
 	}
 }
@@ -14562,9 +14548,7 @@ func rewriteValueARM_OpLsh16x16(v *Value) bool {
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -14661,9 +14645,7 @@ func rewriteValueARM_OpLsh32x16(v *Value) bool {
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -14760,9 +14742,7 @@ func rewriteValueARM_OpLsh8x16(v *Value) bool {
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -14898,25 +14878,17 @@ func rewriteValueARM_OpMod32(v *Value) bool {
 		v5 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
 		v5.AddArg(x)
 		v4.AddArg2(x, v5)
-		v6 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v6.AddArg(x)
-		v3.AddArg2(v4, v6)
-		v7 := b.NewValue0(v.Pos, OpARMSUB, typ.UInt32)
-		v8 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
-		v9 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v9.AddArg(y)
-		v8.AddArg2(y, v9)
-		v10 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v10.AddArg(y)
-		v7.AddArg2(v8, v10)
-		v2.AddArg2(v3, v7)
+		v3.AddArg2(v4, v5)
+		v6 := b.NewValue0(v.Pos, OpARMSUB, typ.UInt32)
+		v7 := b.NewValue0(v.Pos, OpARMXOR, typ.UInt32)
+		v8 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
+		v8.AddArg(y)
+		v7.AddArg2(y, v8)
+		v6.AddArg2(v7, v8)
+		v2.AddArg2(v3, v6)
 		v1.AddArg(v2)
-		v11 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v11.AddArg(x)
-		v0.AddArg2(v1, v11)
-		v12 := b.NewValue0(v.Pos, OpSignmask, typ.Int32)
-		v12.AddArg(x)
-		v.AddArg2(v0, v12)
+		v0.AddArg2(v1, v5)
+		v.AddArg2(v0, v5)
 		return true
 	}
 }
@@ -15592,9 +15564,7 @@ func rewriteValueARM_OpRsh16Ux16(v *Value) bool {
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v3.AuxInt = 256
-		v4 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v4.AddArg(y)
-		v3.AddArg(v4)
+		v3.AddArg(v2)
 		v.AddArg2(v0, v3)
 		return true
 	}
@@ -15700,9 +15670,7 @@ func rewriteValueARM_OpRsh16x16(v *Value) bool {
 		v1.AddArg(y)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg3(v0, v1, v2)
 		return true
 	}
@@ -15811,9 +15779,7 @@ func rewriteValueARM_OpRsh32Ux16(v *Value) bool {
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -15907,9 +15873,7 @@ func rewriteValueARM_OpRsh32x16(v *Value) bool {
 		v0.AddArg(y)
 		v1 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v1.AuxInt = 256
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v2.AddArg(y)
-		v1.AddArg(v2)
+		v1.AddArg(v0)
 		v.AddArg3(x, v0, v1)
 		return true
 	}
@@ -16007,9 +15971,7 @@ func rewriteValueARM_OpRsh8Ux16(v *Value) bool {
 		v0.AddArg2(v1, v2)
 		v3 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v3.AuxInt = 256
-		v4 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v4.AddArg(y)
-		v3.AddArg(v4)
+		v3.AddArg(v2)
 		v.AddArg2(v0, v3)
 		return true
 	}
@@ -16115,9 +16077,7 @@ func rewriteValueARM_OpRsh8x16(v *Value) bool {
 		v1.AddArg(y)
 		v2 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
 		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v3.AddArg(y)
-		v2.AddArg(v3)
+		v2.AddArg(v1)
 		v.AddArg3(v0, v1, v2)
 		return true
 	}
@@ -16505,9 +16465,7 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		v0.AuxInt = 0
 		v1 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
 		v1.AuxInt = 0
-		v2 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v2.AuxInt = 0
-		v1.AddArg3(ptr, v2, mem)
+		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
 	}
@@ -16549,9 +16507,7 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		v0.AuxInt = 0
 		v1 := b.NewValue0(v.Pos, OpARMMOVHstore, types.TypeMem)
 		v1.AuxInt = 0
-		v2 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v2.AuxInt = 0
-		v1.AddArg3(ptr, v2, mem)
+		v1.AddArg3(ptr, v0, mem)
 		v.AddArg3(ptr, v0, v1)
 		return true
 	}
@@ -16569,19 +16525,13 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		v0.AuxInt = 0
 		v1 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
 		v1.AuxInt = 2
-		v2 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v2.AuxInt = 0
+		v2 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
+		v2.AuxInt = 1
 		v3 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
-		v3.AuxInt = 1
-		v4 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v4.AuxInt = 0
-		v5 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
-		v5.AuxInt = 0
-		v6 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v6.AuxInt = 0
-		v5.AddArg3(ptr, v6, mem)
-		v3.AddArg3(ptr, v4, v5)
-		v1.AddArg3(ptr, v2, v3)
+		v3.AuxInt = 0
+		v3.AddArg3(ptr, v0, mem)
+		v2.AddArg3(ptr, v0, v3)
+		v1.AddArg3(ptr, v0, v2)
 		v.AddArg3(ptr, v0, v1)
 		return true
 	}
@@ -16599,14 +16549,10 @@ func rewriteValueARM_OpZero(v *Value) bool {
 		v0.AuxInt = 0
 		v1 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
 		v1.AuxInt = 1
-		v2 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
 		v2.AuxInt = 0
-		v3 := b.NewValue0(v.Pos, OpARMMOVBstore, types.TypeMem)
-		v3.AuxInt = 0
-		v4 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
-		v4.AuxInt = 0
-		v3.AddArg3(ptr, v4, mem)
-		v1.AddArg3(ptr, v2, v3)
+		v2.AddArg3(ptr, v0, mem)
+		v1.AddArg3(ptr, v0, v2)
 		v.AddArg3(ptr, v0, v1)
 		return true
 	}

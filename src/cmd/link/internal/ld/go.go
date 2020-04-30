@@ -383,6 +383,7 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 			}
 		}
 	}
+	l.Reachparent = nil // we are done with it
 	if *flagFieldTrack == "" {
 		return
 	}

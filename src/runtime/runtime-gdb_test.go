@@ -635,6 +635,7 @@ func main() {
         time.Sleep(time.Second * 1)
 }
 `
+
 // TestGdbInfCallstack tests that gdb can unwind the callstack of cgo programs
 // on arm64 platforms without endless frames of function 'crossfunc1'.
 // https://golang.org/issue/37238
