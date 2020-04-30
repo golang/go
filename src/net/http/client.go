@@ -989,6 +989,16 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 //
 // Both domains must already be in canonical form.
 func isDomainOrSubdomain(sub, parent string) bool {
+	// domain.com:443 --> domain.com
+	if pos := strings.LastIndex(sub, ":"); pos != -1 {
+		sub = sub[:pos]
+	}
+
+	// domain.com:80 --> domain.com
+	if pos := strings.LastIndex(parent, ":"); pos != -1 {
+		parent = parent[:pos]
+	}
+
 	if sub == parent {
 		return true
 	}
