@@ -458,8 +458,10 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	spans := make([]span, 0, 32)
 
 	// Find the field start and end indices.
-	wasField := false
-	fromIndex := 0
+	// Doing this in a separate pass (rather than slicing the string s
+	// and collecting the result substrings right away) is significantly
+	// more efficient, possibly due to cache effects.
+	start := -1 // valid span start if >= 0
 	for i := 0; i < len(s); {
 		size := 1
 		r := rune(s[i])
@@ -467,22 +469,21 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 			r, size = utf8.DecodeRune(s[i:])
 		}
 		if f(r) {
-			if wasField {
-				spans = append(spans, span{start: fromIndex, end: i})
-				wasField = false
+			if start >= 0 {
+				spans = append(spans, span{start, i})
+				start = -1
 			}
 		} else {
-			if !wasField {
-				fromIndex = i
-				wasField = true
+			if start < 0 {
+				start = i
 			}
 		}
 		i += size
 	}
 
 	// Last field might end at EOF.
-	if wasField {
-		spans = append(spans, span{fromIndex, len(s)})
+	if start >= 0 {
+		spans = append(spans, span{start, len(s)})
 	}
 
 	// Create subslices from recorded field indices.
