@@ -1436,16 +1436,12 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 	// Move any RO data with relocations to a separate section.
 	state.makeRelroForSharedLib2(ctxt)
 
-	// Set explicit alignment here, so as to avoid having to update
-	// symbol alignment in doDataSect2, which would cause a concurrent
-	// map read/write violation.
-	// NOTE: this needs to be done after dynreloc2, where symbol size
-	// may change.
-	for _, list := range state.data2 {
-		for _, s := range list {
-			state.symalign2(s)
-		}
-	}
+	// Set alignment for the symbol with the largest known index,
+	// so as to trigger allocation of the loader's internal
+	// alignment array. This will avoid data races in the parallel
+	// section below.
+	lastSym := loader.Sym(ldr.NSym() - 1)
+	ldr.SetSymAlign(lastSym, ldr.SymAlign(lastSym))
 
 	// Sort symbols.
 	var wg sync.WaitGroup
@@ -2044,7 +2040,7 @@ func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loade
 		return si < sj
 	})
 
-	// Reap alignment, construct result
+	// Set alignment, construct result
 	syms = syms[:0]
 	for k := range sl {
 		s := sl[k].sym
