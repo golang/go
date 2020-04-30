@@ -2128,12 +2128,14 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 
 	// Resolve ABI aliases for external symbols. This is only
 	// needed for internal cgo linking.
-	for _, i := range l.extReader.syms {
-		if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
-			for ri := range s.R {
-				r := &s.R[ri]
-				if r.Sym != nil && r.Sym.Type == sym.SABIALIAS {
-					r.Sym = r.Sym.R[0].Sym
+	if needReloc {
+		for _, i := range l.extReader.syms {
+			if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
+				for ri := range s.R {
+					r := &s.R[ri]
+					if r.Sym != nil && r.Sym.Type == sym.SABIALIAS {
+						r.Sym = r.Sym.R[0].Sym
+					}
 				}
 			}
 		}
@@ -2170,6 +2172,16 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 	l.dynid = nil
 	l.relocVariant = nil
 	l.extRelocs = nil
+
+	// Drop fields that are no longer needed.
+	for _, i := range l.extReader.syms {
+		pp := l.getPayload(i)
+		pp.name = ""
+		pp.relocs = nil
+		pp.reltypes = nil
+		pp.auxs = nil
+		pp.data = nil
+	}
 }
 
 // ResolveABIAlias given a symbol returns the ABI alias target of that
