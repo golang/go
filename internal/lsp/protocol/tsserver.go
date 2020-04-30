@@ -98,7 +98,8 @@ func ServerHandler(server Server, handler jsonrpc2.Handler) jsonrpc2.Handler {
 			err := server.Initialized(ctx, &params)
 			return reply(ctx, nil, err)
 		case "exit": // notif
-			return server.Exit(ctx)
+			err := server.Exit(ctx)
+			return reply(ctx, nil, err)
 		case "workspace/didChangeConfiguration": // notif
 			var params DidChangeConfigurationParams
 			if err := json.Unmarshal(r.Params(), &params); err != nil {

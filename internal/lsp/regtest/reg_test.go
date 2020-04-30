@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/lsp/cmd"
-	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -33,8 +32,6 @@ func TestMain(m *testing.M) {
 		tool.Main(context.Background(), cmd.New("gopls", "", nil, nil), os.Args[1:])
 		os.Exit(0)
 	}
-	resetExitFuncs := lsprpc.OverrideExitFuncsForTest()
-	defer resetExitFuncs()
 
 	runner = &Runner{
 		DefaultModes:             NormalModes,

@@ -5,6 +5,10 @@
 package regtest
 
 import (
+	"errors"
+	"io"
+	"testing"
+
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -141,15 +145,18 @@ func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
 	}
 }
 
+func checkIsFatal(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatal(err)
+	}
+}
+
 // CloseEditor shuts down the editor, calling t.Fatal on any error.
 func (e *Env) CloseEditor() {
 	e.T.Helper()
-	if err := e.Editor.Shutdown(e.Ctx); err != nil {
-		e.T.Fatal(err)
-	}
-	if err := e.Editor.Exit(e.Ctx); err != nil {
-		e.T.Fatal(err)
-	}
+	checkIsFatal(e.T, e.Editor.Shutdown(e.Ctx))
+	checkIsFatal(e.T, e.Editor.Exit(e.Ctx))
 }
 
 // RunGenerate runs go:generate on the given dir, calling t.Fatal on any error.

@@ -236,7 +236,10 @@ func (c *Conn) Done() <-chan struct{} {
 // Err returns an error if there was one from within the processing goroutine.
 // If err returns non nil, the connection will be already closed or closing.
 func (c *Conn) Err() error {
-	return c.err.Load().(error)
+	if err := c.err.Load(); err != nil {
+		return err.(error)
+	}
+	return nil
 }
 
 // fail sets a failure condition on the stream and closes it.

@@ -608,7 +608,10 @@ func (v *view) invalidateContent(ctx context.Context, uris map[span.URI]source.F
 func (v *view) cancelBackground() {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-
+	if v.cancel == nil {
+		// this can happen during shutdown
+		return
+	}
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 }

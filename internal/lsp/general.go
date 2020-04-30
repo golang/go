@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 
@@ -304,16 +305,16 @@ func (s *Server) shutdown(ctx context.Context) error {
 	return nil
 }
 
-// ServerExitFunc is used to exit when requested by the client. It is mutable
-// for testing purposes.
-var ServerExitFunc = os.Exit
-
 func (s *Server) exit(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
+	//TODO: would be nice to have a better way to find the conn close method
+	s.client.(io.Closer).Close()
 	if s.state != serverShutDown {
-		ServerExitFunc(1)
+		//TODO: we shoud be able to do better than this
+		os.Exit(1)
 	}
-	ServerExitFunc(0)
+	// we don't terminate the process on a normal exit, we just allow it to
+	// close naturally if needed after the connection is closed.
 	return nil
 }

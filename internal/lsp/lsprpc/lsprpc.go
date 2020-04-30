@@ -298,12 +298,16 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	}
 	clientConn.Go(ctx,
 		protocol.Handlers(
-			forwarderHandler(
-				protocol.ServerHandler(server,
-					jsonrpc2.MethodNotFound))))
+			protocol.ServerHandler(server,
+				jsonrpc2.MethodNotFound)))
 
-	<-serverConn.Done()
-	<-clientConn.Done()
+	select {
+	case <-serverConn.Done():
+		clientConn.Close()
+	case <-clientConn.Done():
+		serverConn.Close()
+	}
+
 	err = serverConn.Err()
 	if err == nil {
 		err = clientConn.Err()
@@ -388,48 +392,6 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		}
 	}
 	return nil, fmt.Errorf("dialing remote: %w", err)
-}
-
-// ForwarderExitFunc is used to exit the forwarder process. It is mutable for
-// testing purposes.
-var ForwarderExitFunc = os.Exit
-
-// OverrideExitFuncsForTest can be used from test code to prevent the test
-// process from exiting on server shutdown. The returned func reverts the exit
-// funcs to their previous state.
-func OverrideExitFuncsForTest() func() {
-	// Override functions that would shut down the test process
-	cleanup := func(lspExit, forwarderExit func(code int)) func() {
-		return func() {
-			lsp.ServerExitFunc = lspExit
-			ForwarderExitFunc = forwarderExit
-		}
-	}(lsp.ServerExitFunc, ForwarderExitFunc)
-	// It is an error for a test to shutdown a server process.
-	lsp.ServerExitFunc = func(code int) {
-		panic(fmt.Sprintf("LSP server exited with code %d", code))
-	}
-	// We don't want our forwarders to exit, but it's OK if they would have.
-	ForwarderExitFunc = func(code int) {}
-	return cleanup
-}
-
-// forwarderHandler intercepts 'exit' messages to prevent the shared gopls
-// instance from exiting. In the future it may also intercept 'shutdown' to
-// provide more graceful shutdown of the client connection.
-func forwarderHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
-	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
-		// TODO(golang.org/issues/34111): we should more gracefully disconnect here,
-		// once that process exists.
-		if r.Method() == "exit" {
-			ForwarderExitFunc(0)
-			// reply nil here to consume the message: in
-			// tests, ForwarderExitFunc may be overridden to something that doesn't
-			// exit the process.
-			return reply(ctx, nil, nil)
-		}
-		return handler(ctx, reply, r)
-	}
 }
 
 // A handshakeRequest identifies a client to the LSP server.

@@ -187,10 +187,8 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			}
 			ss := tc.getServer(ctx, t)
 			ls := &loggingFramer{}
-			ts := servertest.NewPipeServer(ctx, ss, ls.framer(jsonrpc2.NewRawStream))
-			defer func() {
-				ts.Close()
-			}()
+			framer := ls.framer(jsonrpc2.NewRawStream)
+			ts := servertest.NewPipeServer(ctx, ss, framer)
 			env := NewEnv(ctx, t, sandbox, ts, config.editorConfig)
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
@@ -199,9 +197,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 				if t.Failed() || r.AlwaysPrintLogs {
 					ls.printBuffers(t.Name(), os.Stderr)
 				}
-				if err := env.Editor.Shutdown(ctx); err != nil {
-					t.Logf("Shutdown: %v", err)
-				}
+				env.CloseEditor()
 			}()
 			test(t, env)
 		})
