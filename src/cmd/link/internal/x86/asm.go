@@ -129,7 +129,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	o(0xc3)
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -281,7 +281,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 
 	// Reread the reloc to incorporate any changes in type above.
 	relocs := ldr.Relocs(s)
-	*r = relocs.At2(rIdx)
+	r = relocs.At2(rIdx)
 
 	switch r.Type() {
 	case objabi.R_CALL,

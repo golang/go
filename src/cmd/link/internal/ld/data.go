@@ -714,7 +714,7 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
 			// don't worry if Adddynrel returns false.
-			thearch.Adddynrel2(target, ldr, syms, s, &r, ri)
+			thearch.Adddynrel2(target, ldr, syms, s, r, ri)
 			continue
 		}
 
@@ -723,7 +723,7 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
 			if rSym != 0 && !ldr.AttrReachable(rSym) {
 				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
 			}
-			if !thearch.Adddynrel2(target, ldr, syms, s, &r, ri) {
+			if !thearch.Adddynrel2(target, ldr, syms, s, r, ri) {
 				ctxt.Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", ldr.SymName(rSym), r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymType(rSym), ldr.SymType(rSym))
 			}
 		}
