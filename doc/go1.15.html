@@ -31,6 +31,18 @@ TODO
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="darwin">Darwin</h3>
+
+<p> <!-- golang.org/issue/37610, golang.org/issue/37611 -->
+  As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
+  notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
+  iPadOS, watchOS, and tvOS (the <code>darwin/386</code>
+  and <code>darwin/arm</code> ports). Go continues to support the
+  64-bit <code>darwin/amd64</code> and <code>darwin/arm64</code> ports.
+</p>
+
+<h3 id="windows">Windows</h3>
+
 <p> <!-- CL 214397 and CL 230217 -->
   Go 1.15 now generates Windows ASLR executables when -buildmode=pie
   cmd/link flag is provided. Go command uses -buildmode=pie by default
@@ -213,6 +225,11 @@ TODO
       method on the error, but I/O operations can return errors for
       which <code>Timeout</code> returns <code>true</code> although a
       deadline has not been exceeded.
+    </p>
+
+    <p><!-- CL 228641 -->
+      The new <a href="/pkg/net/#Resolver.LookupIP"><code>Resolver.LookupIP</code></a>
+      method supports IP lookups that are both network-specific and accept a context.
     </p>
   </dd>
 </dl>
