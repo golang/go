@@ -14,14 +14,6 @@ func convErr(err error, s string) error {
 	return err
 }
 
-func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
-	f, err := ParseFloat(s, bitSize)
-	if err != nil {
-		return 0, convErr(err, orig)
-	}
-	return f, nil
-}
-
 // ParseComplex converts the string s to a complex number
 // with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
 // When bitSize=64, the result still has type complex128, but it will be
@@ -76,93 +68,73 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Is last character an i?
 	if endCh != 'i' {
 		// The last character is not an i so there is only a real component.
-		real, err := parseComplexComponent(s, orig, bitSize)
+		real, err := ParseFloat(s, bitSize)
 		if err != nil {
-			return 0, err
+			return 0, convErr(err, orig)
 		}
 		return complex(real, 0), nil
+	} else if s == "i" {
+		return complex(0, 1), nil
 	}
 
 	// Remove last char which is an i
 	s = s[0 : len(s)-1]
 
-	// Count how many ± exist.
-	signPos := []int{}
-	for i, ch := range s {
-		if ch == '+' || ch == '-' {
-			signPos = append(signPos, i)
+	// Some input does not get interpreted by parseFloatPrefix correctly.
+	// Namely: i, -i, +i, +NaNi
+	// The "i" (no sign) case is taken care of above.
+	// +NaNi is only acceptable if both a real and imag component exist.
+
+	var posNaNFound bool
+
+	if len(s) >= 1 {
+		endCh := s[len(s)-1]
+		if endCh == '+' || endCh == '-' {
+			s = s[0:len(s)] + "1"
 		}
 	}
 
-	if len(signPos) == 0 {
-		// There is only an imaginary component
-		if s == "" {
-			return complex(0, 1), nil
+	if len(s) >= 4 {
+		endChs := s[len(s)-4 : len(s)]
+		if endChs == "+NaN" {
+			posNaNFound = true
+			s = s[0:len(s)-4] + "NaN" // remove sign before NaN
+		}
+	}
+
+	floatsFound := []float64{}
+
+	for {
+		f, n, err := parseFloatPrefix(s, 64)
+		if err != nil {
+			return 0, convErr(err, orig)
 		}
 
-		imag, err := parseComplexComponent(s, orig, bitSize)
-		if err != nil {
-			return 0, err
+		floatsFound = append(floatsFound, f)
+		s = s[n:]
+
+		if len(s) == 0 {
+			break
 		}
-		return complex(0, imag), nil
-	} else if len(signPos) > 4 {
-		// Too many ± exists for a valid complex number
+	}
+
+	// Check how many floats were found in s
+	switch len(floatsFound) {
+	case 0:
 		return 0, syntaxError(fnParseComplex, orig)
+	case 1:
+		// only imag component
+		imaj := floatsFound[0]
+		if posNaNFound && imaj != imaj {
+			// Reject if +NaN found
+			return 0, syntaxError(fnParseComplex, orig)
+		}
+		return complex(0, floatsFound[0]), nil
+	case 2:
+		// real and imag component
+		return complex(floatsFound[0], floatsFound[1]), nil
 	}
 
-	// From here onwards, s is either of the forms:
-	// * Complex number with both a real and imaginary component: N+Ni
-	// * Purely an imaginary number in exponential form: Ni
-	//
-	// More precisely it should look like:
-	// * ⊞2±10i (len signPos = 1 or 2)
-	// * ⊞3e±10±3i (len signPos = 2 or 3) [real in exp form]
-	// * ⊞3e10±5i (len signPos = 1 or 2) [real in exp form]
-	// * ⊞3e±10±4e±10i (len signPos = 3 or 4) [real and imag in exp form]
-	// where ⊞ means ± or non-existent.
-
-	// Loop through signPos from middle of slice, outwards.
-	// The idea is if len(signPos) is 3 or 4, then it is more efficient
-	// to call ParseFloat from the middle, which increases the chance of
-	// correctly separating the real and imaginary components.
-	mid := (len(signPos) - 1) >> 1
-	for j := 0; j < len(signPos); j++ {
-		var idx int
-		if j%2 == 0 {
-			idx = mid - j/2
-		} else {
-			idx = mid + (j/2 + 1)
-		}
-
-		pos := signPos[idx]
-
-		realStr, imagStr := s[0:pos], s[pos:]
-		if realStr == "" {
-			realStr = "0"
-		}
-
-		// Check if realStr and imagStr are valid float64
-		real, err := parseComplexComponent(realStr, orig, bitSize)
-		if err != nil {
-			continue
-		}
-
-		if imagStr == "+" || imagStr == "-" {
-			imagStr = imagStr + "1"
-		} else if imagStr == "+NaN" {
-			imagStr = "NaN"
-		}
-		imag, err := parseComplexComponent(imagStr, orig, bitSize)
-		if err != nil {
-			continue
-		}
-		return complex(real, imag), nil
-	}
-
-	// Pure imaginary number in exponential form
-	imag, err := parseComplexComponent(s, orig, bitSize)
-	if err != nil {
-		return 0, err
-	}
-	return complex(0, imag), nil
+	// Too many components
+	return 0, syntaxError(fnParseComplex, orig)
 }
