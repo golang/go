@@ -246,7 +246,7 @@ type Arch struct {
 	// indicates a fatal error).
 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64, success bool)
-	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, *loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
+	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
 	// insufficient to describe the relocation (r.Variant !=
