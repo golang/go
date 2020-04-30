@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"math/big"
 	"net"
 	"net/netip"
 	"net/url"
@@ -148,18 +149,28 @@ type UnknownAuthorityError struct {
 	hintCert *Certificate
 }
 
+func shortPkixName(name *pkix.Name, serial *big.Int) string {
+	if len(name.CommonName) >= 0 {
+		return name.CommonName
+	}
+	if len(name.Organization) > 0 {
+		return name.Organization[0]
+	}
+	if len(name.SerialNumber) > 0 {
+		return "serial:" + name.SerialNumber
+	}
+	if serial != nil {
+		return "serial:" + serial.String()
+	}
+	return name.String()
+}
+
 func (e UnknownAuthorityError) Error() string {
 	s := "x509: certificate signed by unknown authority"
 	if e.hintErr != nil {
-		certName := e.hintCert.Subject.CommonName
-		if len(certName) == 0 {
-			if len(e.hintCert.Subject.Organization) > 0 {
-				certName = e.hintCert.Subject.Organization[0]
-			} else {
-				certName = "serial:" + e.hintCert.SerialNumber.String()
-			}
-		}
-		s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, certName)
+		s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, shortPkixName(e.hintCert.Subject, e.hintCert.SerialNumber))
+	} else if e.Cert != nil &&  {
+		s += fmt.Sprintf(" (%q issued by %q)", shortPkixName(e.Cert.Subject, e.Cert.SerialNumber), shortPkixName(e.Cert.Issuer, nil))
 	}
 	return s
 }
