@@ -66,9 +66,6 @@ func Connect(config *Config) *Exporter {
 		return nil
 	}
 	resolved := *config
-	if resolved.Start.IsZero() {
-		resolved.Start = time.Now()
-	}
 	if resolved.Host == "" {
 		hostname, _ := os.Hostname()
 		resolved.Host = hostname
@@ -93,6 +90,9 @@ func Connect(config *Config) *Exporter {
 	}
 	exporter := &Exporter{config: resolved}
 	exporters[resolved] = exporter
+	if exporter.config.Start.IsZero() {
+		exporter.config.Start = time.Now()
+	}
 	go func() {
 		for range time.Tick(exporter.config.Rate) {
 			exporter.Flush()
