@@ -46,7 +46,8 @@ var pkgDeps = map[string][]string{
 	"unsafe":                  {},
 	"internal/cpu":            {},
 	"internal/bytealg":        {"unsafe", "internal/cpu"},
-	"internal/reflectlite":    {"runtime", "unsafe"},
+	"internal/reflectlite":    {"runtime", "unsafe", "internal/unsafeheader"},
+	"internal/unsafeheader":   {"unsafe"},
 
 	"L0": {
 		"errors",
@@ -119,7 +120,7 @@ var pkgDeps = map[string][]string{
 	"image/color":            {"L2"},                // interfaces
 	"image/color/palette":    {"L2", "image/color"},
 	"internal/fmtsort":       {"reflect", "sort"},
-	"reflect":                {"L2"},
+	"reflect":                {"L2", "internal/unsafeheader"},
 	"sort":                   {"internal/reflectlite"},
 
 	"L3": {
@@ -147,7 +148,7 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "internal/oserror", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/oserror", "internal/race", "internal/syscall/windows/sysdll", "internal/unsafeheader", "syscall/js", "unicode/utf16"},
 	"syscall/js":                        {"L0"},
 	"internal/oserror":                  {"L0"},
 	"internal/syscall/unix":             {"L0", "syscall"},
