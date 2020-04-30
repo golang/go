@@ -201,7 +201,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankHchan:         {lockRankScavenge, lockRankSweep, lockRankHchan},
 	lockRankFin:           {lockRankSched, lockRankAllg, lockRankTimers, lockRankHchan},
 	lockRankNotifyList:    {},
-	lockRankTraceBuf:      {},
+	lockRankTraceBuf:      {lockRankScavenge},
 	lockRankTraceStrings:  {lockRankTraceBuf},
 	lockRankMspanSpecial:  {lockRankScavenge, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings},
 	lockRankProf:          {lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
