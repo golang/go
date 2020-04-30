@@ -223,6 +223,8 @@ type Loader struct {
 	sects    []*sym.Section // sections
 	symSects []uint16       // symbol's section, index to sects array
 
+	align []uint8 // symbol 2^N alignment, indexed by global index
+
 	outdata   [][]byte     // symbol's data in the output buffer
 	extRelocs [][]ExtReloc // symbol's external relocations
 
@@ -262,8 +264,6 @@ type Loader struct {
 	// non-external sym).
 	outer map[Sym]Sym
 	sub   map[Sym]Sym
-
-	align map[Sym]int32 // stores alignment for symbols
 
 	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
 	dynimpvers  map[Sym]string      // stores Dynimpvers symbol attribute
@@ -336,7 +336,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		objByPkg:             make(map[string]*oReader),
 		outer:                make(map[Sym]Sym),
 		sub:                  make(map[Sym]Sym),
-		align:                make(map[Sym]int32),
 		dynimplib:            make(map[Sym]string),
 		dynimpvers:           make(map[Sym]string),
 		localentry:           make(map[Sym]uint8),
@@ -1128,36 +1127,35 @@ func (l *Loader) InitExtRelocs() {
 
 // SymAlign returns the alignment for a symbol.
 func (l *Loader) SymAlign(i Sym) int32 {
-	// If an alignment has been recorded, return that.
-	if align, ok := l.align[i]; ok {
-		return align
+	if int(i) >= len(l.align) {
+		// align is extended lazily -- it the sym in question is
+		// outside the range of the existing slice, then we assume its
+		// alignment has not yet been set.
+		return 0
 	}
 	// TODO: would it make sense to return an arch-specific
 	// alignment depending on section type? E.g. STEXT => 32,
 	// SDATA => 1, etc?
-	return 0
+	abits := l.align[i]
+	if abits == 0 {
+		return 0
+	}
+	return int32(1 << (abits - 1))
 }
 
 // SetSymAlign sets the alignment for a symbol.
 func (l *Loader) SetSymAlign(i Sym, align int32) {
-	// reject bad synbols
-	if i >= Sym(len(l.objSyms)) || i == 0 {
-		panic("bad symbol index in SetSymAlign")
-	}
 	// Reject nonsense alignments.
-	// TODO: do we need this?
-	if align < 0 {
+	if align < 0 || align&(align-1) != 0 {
 		panic("bad alignment value")
 	}
-	if align == 0 {
-		delete(l.align, i)
-	} else {
-		// Alignment should be a power of 2.
-		if bits.OnesCount32(uint32(align)) != 1 {
-			panic("bad alignment value")
-		}
-		l.align[i] = align
+	if int(i) >= len(l.align) {
+		l.align = append(l.align, make([]uint8, l.NSym()-len(l.align))...)
 	}
+	if align == 0 {
+		l.align[i] = 0
+	}
+	l.align[i] = uint8(bits.Len32(uint32(align)))
 }
 
 // SymValue returns the section of the i-th symbol. i is global index.
