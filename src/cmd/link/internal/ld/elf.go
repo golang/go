@@ -628,9 +628,9 @@ func elfwriteshdrs(out *OutBuf) uint32 {
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
 }
 
-func elfsetstring(s *sym.Symbol, str string, off int) {
+func elfsetstring2(ctxt *Link, s loader.Sym, str string, off int) {
 	if nelfstr >= len(elfstr) {
-		Errorf(s, "too many elf strings")
+		ctxt.Errorf(s, "too many elf strings")
 		errorexit()
 	}
 
@@ -753,8 +753,8 @@ func elfWriteDynEnt(arch *sys.Arch, s *sym.Symbol, tag int, val uint64) {
 	}
 }
 
-func elfWriteDynEntSym(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
-	Elfwritedynentsymplus(arch, s, tag, t, 0)
+func elfWriteDynEntSym2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
 }
 
 func Elfwritedynentsymplus(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
@@ -1057,15 +1057,16 @@ havelib:
 	return aux
 }
 
-func elfdynhash(ctxt *Link) {
+func elfdynhash2(ctxt *Link) {
 	if !ctxt.IsELF {
 		return
 	}
 
 	nsym := Nelfsym
-	s := ctxt.Syms.Lookup(".hash", 0)
-	s.Type = sym.SELFROSECT
-	s.Attr |= sym.AttrReachable
+	ldr := ctxt.loader
+	s := ldr.CreateSymForUpdate(".hash", 0)
+	s.SetType(sym.SELFROSECT)
+	s.SetReachable(true)
 
 	i := nsym
 	nbucket := 1
@@ -1079,21 +1080,19 @@ func elfdynhash(ctxt *Link) {
 	chain := make([]uint32, nsym)
 	buckets := make([]uint32, nbucket)
 
-	for _, sy := range ctxt.Syms.Allsym {
-		if sy.Dynid <= 0 {
-			continue
+	for _, sy := range ldr.DynidSyms() {
+
+		dynid := ldr.SymDynid(sy)
+		if ldr.SymDynimpvers(sy) != "" {
+			need[dynid] = addelflib(&needlib, ldr.SymDynimplib(sy), ldr.SymDynimpvers(sy))
 		}
 
-		if sy.Dynimpvers() != "" {
-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
-		}
-
-		name := sy.Extname()
+		name := ldr.SymExtname(sy)
 		hc := elfhash(name)
 
 		b := hc % uint32(nbucket)
-		chain[sy.Dynid] = buckets[b]
-		buckets[b] = uint32(sy.Dynid)
+		chain[dynid] = buckets[b]
+		buckets[b] = uint32(dynid)
 	}
 
 	// s390x (ELF64) hash table entries are 8 bytes
@@ -1117,10 +1116,11 @@ func elfdynhash(ctxt *Link) {
 		}
 	}
 
-	// version symbols
-	dynstr := ctxt.Syms.Lookup(".dynstr", 0)
+	dynstr := ldr.CreateSymForUpdate(".dynstr", 0)
 
-	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
+	// version symbols
+	gnuVersionR := ldr.CreateSymForUpdate(".gnu.version_r", 0)
+	s = gnuVersionR
 	i = 2
 	nfile := 0
 	for l := needlib; l != nil; l = l.next {
@@ -1132,9 +1132,9 @@ func elfdynhash(ctxt *Link) {
 		for x := l.aux; x != nil; x = x.next {
 			j++
 		}
-		s.AddUint16(ctxt.Arch, uint16(j))                         // aux count
-		s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, l.file))) // file string offset
-		s.AddUint32(ctxt.Arch, 16)                                // offset from header to first aux
+		s.AddUint16(ctxt.Arch, uint16(j))                        // aux count
+		s.AddUint32(ctxt.Arch, uint32(dynstr.Addstring(l.file))) // file string offset
+		s.AddUint32(ctxt.Arch, 16)                               // offset from header to first aux
 		if l.next != nil {
 			s.AddUint32(ctxt.Arch, 16+uint32(j)*16) // offset from this header to next
 		} else {
@@ -1146,10 +1146,10 @@ func elfdynhash(ctxt *Link) {
 			i++
 
 			// aux struct
-			s.AddUint32(ctxt.Arch, elfhash(x.vers))                   // hash
-			s.AddUint16(ctxt.Arch, 0)                                 // flags
-			s.AddUint16(ctxt.Arch, uint16(x.num))                     // other - index we refer to this by
-			s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, x.vers))) // version string offset
+			s.AddUint32(ctxt.Arch, elfhash(x.vers))                  // hash
+			s.AddUint16(ctxt.Arch, 0)                                // flags
+			s.AddUint16(ctxt.Arch, uint16(x.num))                    // other - index we refer to this by
+			s.AddUint32(ctxt.Arch, uint32(dynstr.Addstring(x.vers))) // version string offset
 			if x.next != nil {
 				s.AddUint32(ctxt.Arch, 16) // offset from this aux to next
 			} else {
@@ -1159,7 +1159,8 @@ func elfdynhash(ctxt *Link) {
 	}
 
 	// version references
-	s = ctxt.Syms.Lookup(".gnu.version", 0)
+	gnuVersion := ldr.CreateSymForUpdate(".gnu.version", 0)
+	s = gnuVersion
 
 	for i := 0; i < nsym; i++ {
 		if i == 0 {
@@ -1171,26 +1172,26 @@ func elfdynhash(ctxt *Link) {
 		}
 	}
 
-	s = ctxt.Syms.Lookup(".dynamic", 0)
+	s = ldr.CreateSymForUpdate(".dynamic", 0)
 	elfverneed = nfile
 	if elfverneed != 0 {
-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
-		elfWriteDynEnt(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
+		elfWriteDynEntSym2(ctxt, s, DT_VERNEED, gnuVersionR.Sym())
+		Elfwritedynent2(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
+		elfWriteDynEntSym2(ctxt, s, DT_VERSYM, gnuVersion.Sym())
 	}
 
-	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
-	if sy.Size > 0 {
+	sy := ldr.CreateSymForUpdate(elfRelType+".plt", 0)
+	if sy.Size() > 0 {
 		if elfRelType == ".rela" {
-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_RELA)
+			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_RELA)
 		} else {
-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_REL)
+			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_REL)
 		}
-		elfWriteDynEntSymSize(ctxt.Arch, s, DT_PLTRELSZ, sy)
-		elfWriteDynEntSym(ctxt.Arch, s, DT_JMPREL, sy)
+		elfwritedynentsymsize2(ctxt, s, DT_PLTRELSZ, sy.Sym())
+		elfWriteDynEntSym2(ctxt, s, DT_JMPREL, sy.Sym())
 	}
 
-	elfWriteDynEnt(ctxt.Arch, s, DT_NULL, 0)
+	Elfwritedynent2(ctxt.Arch, s, DT_NULL, 0)
 }
 
 func elfphload(seg *sym.Segment) *ElfPhdr {
@@ -1410,7 +1411,8 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
 				continue
 			}
-			if r.Xsym.ElfsymForReloc() == 0 {
+			esr := ElfSymForReloc(ctxt, r.Xsym)
+			if esr == 0 {
 				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
 			}
 			if !r.Xsym.Attr.Reachable() {
@@ -2339,93 +2341,6 @@ elfobj:
 
 	if a > elfreserve {
 		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
-	}
-}
-
-func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
-	if elf64 {
-		s.Dynid = int32(Nelfsym)
-		Nelfsym++
-
-		d := syms.DynSym
-
-		name := s.Extname()
-		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
-
-		/* type */
-		t := STB_GLOBAL << 4
-
-		if s.Attr.CgoExport() && s.Type == sym.STEXT {
-			t |= STT_FUNC
-		} else {
-			t |= STT_OBJECT
-		}
-		d.AddUint8(uint8(t))
-
-		/* reserved */
-		d.AddUint8(0)
-
-		/* section where symbol is defined */
-		if s.Type == sym.SDYNIMPORT {
-			d.AddUint16(target.Arch, SHN_UNDEF)
-		} else {
-			d.AddUint16(target.Arch, 1)
-		}
-
-		/* value */
-		if s.Type == sym.SDYNIMPORT {
-			d.AddUint64(target.Arch, 0)
-		} else {
-			d.AddAddr(target.Arch, s)
-		}
-
-		/* size of object */
-		d.AddUint64(target.Arch, uint64(s.Size))
-
-		if target.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
-			elfWriteDynEnt(target.Arch, syms.Dynamic, DT_NEEDED, uint64(Addstring(syms.DynStr, s.Dynimplib())))
-		}
-	} else {
-		s.Dynid = int32(Nelfsym)
-		Nelfsym++
-
-		d := syms.DynSym
-
-		/* name */
-		name := s.Extname()
-
-		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
-
-		/* value */
-		if s.Type == sym.SDYNIMPORT {
-			d.AddUint32(target.Arch, 0)
-		} else {
-			d.AddAddr(target.Arch, s)
-		}
-
-		/* size of object */
-		d.AddUint32(target.Arch, uint32(s.Size))
-
-		/* type */
-		t := STB_GLOBAL << 4
-
-		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if target.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type == sym.STEXT {
-			t |= STT_FUNC
-		} else if target.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type == sym.STEXT {
-			t |= STT_FUNC
-		} else {
-			t |= STT_OBJECT
-		}
-		d.AddUint8(uint8(t))
-		d.AddUint8(0)
-
-		/* shndx */
-		if s.Type == sym.SDYNIMPORT {
-			d.AddUint16(target.Arch, SHN_UNDEF)
-		} else {
-			d.AddUint16(target.Arch, 1)
-		}
 	}
 }
 

@@ -25,7 +25,11 @@ func (r *objReader) readNew() {
 	}
 
 	// Imports
-	r.p.Imports = rr.Autolib()
+	autolib := rr.Autolib()
+	for _, p := range autolib {
+		r.p.Imports = append(r.p.Imports, p.Pkg)
+		// Ignore fingerprint (for tools like objdump which only reads one object).
+	}
 
 	pkglist := rr.Pkglist()
 

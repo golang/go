@@ -15,23 +15,19 @@ import (
 
 // Symbol is an entry in the symbol table.
 type Symbol struct {
-	Name        string
-	Type        SymKind
-	Version     int16
-	Attr        Attribute
-	Dynid       int32
-	Align       int32
-	Elfsym      int32
-	LocalElfsym int32
-	Value       int64
-	Size        int64
-	Sub         *Symbol
-	Outer       *Symbol
-	Gotype      *Symbol
-	File        string // actually package!
-	auxinfo     *AuxSymbol
-	Sect        *Section
-	Unit        *CompilationUnit
+	Name    string
+	Type    SymKind
+	Version int16
+	Attr    Attribute
+	Dynid   int32
+	Align   int32
+	Value   int64
+	Size    int64
+	Sub     *Symbol
+	Outer   *Symbol
+	SymIdx  LoaderSym
+	auxinfo *AuxSymbol
+	Sect    *Section
 	// P contains the raw symbol data.
 	P []byte
 	R []Reloc
@@ -86,16 +82,6 @@ func (s *Symbol) String() string {
 
 func (s *Symbol) IsFileLocal() bool {
 	return s.Version >= SymVerStatic
-}
-
-func (s *Symbol) ElfsymForReloc() int32 {
-	// If putelfsym created a local version of this symbol, use that in all
-	// relocations.
-	if s.LocalElfsym != 0 {
-		return s.LocalElfsym
-	} else {
-		return s.Elfsym
-	}
 }
 
 func (s *Symbol) Len() int64 {
@@ -442,80 +428,6 @@ func (s *Symbol) SetElfType(val elf.SymType) {
 		s.makeAuxInfo()
 	}
 	s.auxinfo.elftype = val
-}
-
-// SortSub sorts a linked-list (by Sub) of *Symbol by Value.
-// Used for sub-symbols when loading host objects (see e.g. ldelf.go).
-func SortSub(l *Symbol) *Symbol {
-	if l == nil || l.Sub == nil {
-		return l
-	}
-
-	l1 := l
-	l2 := l
-	for {
-		l2 = l2.Sub
-		if l2 == nil {
-			break
-		}
-		l2 = l2.Sub
-		if l2 == nil {
-			break
-		}
-		l1 = l1.Sub
-	}
-
-	l2 = l1.Sub
-	l1.Sub = nil
-	l1 = SortSub(l)
-	l2 = SortSub(l2)
-
-	/* set up lead element */
-	if l1.Value < l2.Value {
-		l = l1
-		l1 = l1.Sub
-	} else {
-		l = l2
-		l2 = l2.Sub
-	}
-
-	le := l
-
-	for {
-		if l1 == nil {
-			for l2 != nil {
-				le.Sub = l2
-				le = l2
-				l2 = l2.Sub
-			}
-
-			le.Sub = nil
-			break
-		}
-
-		if l2 == nil {
-			for l1 != nil {
-				le.Sub = l1
-				le = l1
-				l1 = l1.Sub
-			}
-
-			break
-		}
-
-		if l1.Value < l2.Value {
-			le.Sub = l1
-			le = l1
-			l1 = l1.Sub
-		} else {
-			le.Sub = l2
-			le = l2
-			l2 = l2.Sub
-		}
-	}
-
-	le.Sub = nil
-	return l
 }
 
 type Pcdata struct {

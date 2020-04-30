@@ -675,3 +675,61 @@ func TestTrampoline(t *testing.T) {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }
+
+func TestIndexMismatch(t *testing.T) {
+	// Test that index mismatch will cause a link-time error (not run-time error).
+	// This shouldn't happen with "go build". We invoke the compiler and the linker
+	// manually, and try to "trick" the linker with an inconsistent object file.
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
+	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
+	mSrc := filepath.Join("testdata", "testIndexMismatch", "main.go")
+	aObj := filepath.Join(tmpdir, "a.o")
+	mObj := filepath.Join(tmpdir, "main.o")
+	exe := filepath.Join(tmpdir, "main.exe")
+
+	// Build a program with main package importing package a.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	t.Log(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling main.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("linking failed: %v\n%s", err, out)
+	}
+
+	// Now, overwrite a.o with the object of b.go. This should
+	// result in an index mismatch.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("linking didn't fail")
+	}
+	if !bytes.Contains(out, []byte("fingerprint mismatch")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+}
