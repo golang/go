@@ -246,7 +246,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 		case 4:
 			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz {
 		default:
 			return false

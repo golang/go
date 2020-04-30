@@ -51,11 +51,7 @@ type Reloc struct {
 
 // ExtReloc contains the payload for an external relocation.
 type ExtReloc struct {
-	Off  int32            // offset to rewrite
-	Siz  uint8            // number of bytes to rewrite: 0, 1, 2, or 4
-	Type objabi.RelocType // the relocation type
-	Sym  Sym              // global index of symbol the reloc addresses
-	Add  int64            // addend
+	Idx  int // index of the original relocation
 	Xsym Sym
 	Xadd int64
 }
@@ -2763,25 +2759,30 @@ func (l *Loader) convertExtRelocs(dst *sym.Symbol, src Sym) {
 	if int(src) >= len(l.extRelocs) {
 		return
 	}
-	relocs := l.extRelocs[src]
-	if len(relocs) == 0 {
+	extRelocs := l.extRelocs[src]
+	if len(extRelocs) == 0 {
 		return
 	}
 	if len(dst.R) != 0 {
 		panic("bad")
 	}
-	dst.R = make([]sym.Reloc, len(relocs))
+	dst.R = make([]sym.Reloc, len(extRelocs))
+	relocs := l.Relocs(src)
 	for i := range dst.R {
-		sr := &relocs[i]
+		er := &extRelocs[i]
+		sr := relocs.At2(er.Idx)
 		r := &dst.R[i]
 		r.InitExt()
-		r.Off = sr.Off
-		r.Siz = sr.Siz
-		r.Type = sr.Type
-		r.Sym = l.Syms[sr.Sym]
-		r.Add = sr.Add
-		r.Xsym = l.Syms[sr.Xsym]
-		r.Xadd = sr.Xadd
+		r.Off = sr.Off()
+		r.Siz = sr.Siz()
+		r.Type = sr.Type()
+		r.Sym = l.Syms[l.ResolveABIAlias(sr.Sym())]
+		r.Add = sr.Add()
+		r.Xsym = l.Syms[er.Xsym]
+		r.Xadd = er.Xadd
+		if rv := l.RelocVariant(src, er.Idx); rv != 0 {
+			r.Variant = rv
+		}
 	}
 }
 

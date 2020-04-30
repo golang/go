@@ -224,11 +224,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		var rr loader.ExtReloc
 		needExtReloc := false // will set to true below in case it is needed
 		if target.IsExternal() {
-			rr.Sym = rs
-			rr.Type = rt
-			rr.Off = off
-			rr.Siz = uint8(siz)
-			rr.Add = r.Add()
+			rr.Idx = ri
 		}
 
 		// TODO(mundaym): remove this special case - see issue 14218.
@@ -282,14 +278,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case objabi.R_TLS_LE:
 			if target.IsExternal() && target.IsElf() {
 				needExtReloc = true
-				if rr.Sym == 0 {
-					rr.Sym = syms.Tlsg2
+				rr.Xsym = rs
+				if rr.Xsym == 0 {
+					rr.Xsym = syms.Tlsg2
 				}
-				rr.Xsym = rr.Sym
-				rr.Xadd = rr.Add
+				rr.Xadd = r.Add()
 				o = 0
 				if !target.IsAMD64() {
-					o = rr.Add
+					o = r.Add()
 				}
 				break
 			}
@@ -313,14 +309,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case objabi.R_TLS_IE:
 			if target.IsExternal() && target.IsElf() {
 				needExtReloc = true
-				if rr.Sym == 0 {
-					rr.Sym = syms.Tlsg2
+				rr.Xsym = rs
+				if rr.Xsym == 0 {
+					rr.Xsym = syms.Tlsg2
 				}
-				rr.Xsym = rr.Sym
-				rr.Xadd = rr.Add
+				rr.Xadd = r.Add()
 				o = 0
 				if !target.IsAMD64() {
-					o = rr.Add
+					o = r.Add()
 				}
 				break
 			}
@@ -342,7 +338,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// set up addend for eventual relocation via outer symbol.
 				rs := rs
 				rs, off := foldSubSymbolOffset(ldr, rs)
-				rr.Xadd = rr.Add + off
+				rr.Xadd = r.Add() + off
 				rst := ldr.SymType(rs)
 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
@@ -361,7 +357,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				} else if target.IsWindows() {
 					// nothing to do
 				} else if target.IsAIX() {
-					o = ldr.SymValue(rr.Sym) + rr.Add
+					o = ldr.SymValue(rs) + r.Add()
 				} else {
 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
 				}
@@ -413,17 +409,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 					needExtReloc = false
 				}
 
-				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
-				// for R_DWARFSECREF relocations, while R_ADDR is replaced with
-				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
-				// Do not replace R_DWARFSECREF with R_ADDR for windows -
-				// let PE code emit correct relocations.
-				if !target.IsWindows() {
-					rr.Type = objabi.R_ADDR
-				}
-
-				rr.Xsym = loader.Sym(ldr.SymSect(rr.Sym).Sym2)
-				rr.Xadd = rr.Add + ldr.SymValue(rr.Sym) - int64(ldr.SymSect(rr.Sym).Vaddr)
+				rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym2)
+				rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
 
 				o = rr.Xadd
 				if target.IsElf() && target.IsAMD64() {
@@ -455,12 +442,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case objabi.R_GOTPCREL:
 			if target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 && rst != sym.SCONST {
 				needExtReloc = true
-				rr.Xadd = rr.Add
-				rr.Xadd -= int64(rr.Siz) // relative to address after the relocated chunk
-				rr.Xsym = rr.Sym
+				rr.Xadd = r.Add()
+				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
+				rr.Xsym = rs
 
 				o = rr.Xadd
-				o += int64(rr.Siz)
+				o += int64(siz)
 				break
 			}
 			fallthrough
@@ -470,9 +457,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				needExtReloc = true
 				rr.Xadd = 0
 				if target.IsElf() {
-					rr.Xadd -= int64(rr.Siz)
+					rr.Xadd -= int64(siz)
 				}
-				rr.Xsym = rr.Sym
+				rr.Xsym = rs
 				o = 0
 				break
 			}
@@ -482,8 +469,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// set up addend for eventual relocation via outer symbol.
 				rs := rs
 				rs, off := foldSubSymbolOffset(ldr, rs)
-				rr.Xadd = rr.Add + off
-				rr.Xadd -= int64(rr.Siz) // relative to address after the relocated chunk
+				rr.Xadd = r.Add() + off
+				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
 				rst := ldr.SymType(rs)
 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
@@ -496,25 +483,25 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 						o = 0
 					}
 				} else if target.IsDarwin() {
-					if rr.Type == objabi.R_CALL {
+					if rt == objabi.R_CALL {
 						if target.IsExternal() && rst == sym.SDYNIMPORT {
 							if target.IsAMD64() {
 								// AMD64 dynamic relocations are relative to the end of the relocation.
-								o += int64(rr.Siz)
+								o += int64(siz)
 							}
 						} else {
 							if rst != sym.SHOSTOBJ {
 								o += int64(uint64(ldr.SymValue(rs)) - ldr.SymSect(rs).Vaddr)
 							}
-							o -= int64(rr.Off) // relative to section offset, not symbol
+							o -= int64(off) // relative to section offset, not symbol
 						}
 					} else {
-						o += int64(rr.Siz)
+						o += int64(siz)
 					}
 				} else if target.IsWindows() && target.IsAMD64() { // only amd64 needs PCREL
 					// PE/COFF's PC32 relocation uses the address after the relocated
 					// bytes as the base. Compensate by skewing the addend.
-					o += int64(rr.Siz)
+					o += int64(siz)
 				} else {
 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
 				}
@@ -539,8 +526,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				st.err.Errorf(s, "find XCOFF R_REF with internal linking")
 			}
 			needExtReloc = true
-			rr.Xsym = rr.Sym
-			rr.Xadd = rr.Add
+			rr.Xsym = rs
+			rr.Xadd = r.Add()
 
 			// This isn't a real relocation so it must not update
 			// its offset value.
