@@ -3231,10 +3231,27 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod32 x y)
+	// cond: objabi.GOPPC64 >= 9
+	// result: (MODSW x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64MODSW)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Mod32 x y)
+	// cond: objabi.GOPPC64 <= 8
 	// result: (SUB x (MULLW y (DIVW x y)))
 	for {
 		x := v_0
 		y := v_1
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64SUB)
 		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, typ.Int32)
 		v1 := b.NewValue0(v.Pos, OpPPC64DIVW, typ.Int32)
@@ -3243,6 +3260,7 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValuePPC64_OpMod32u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -3250,10 +3268,27 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod32u x y)
+	// cond: objabi.GOPPC64 >= 9
+	// result: (MODUW x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64MODUW)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Mod32u x y)
+	// cond: objabi.GOPPC64 <= 8
 	// result: (SUB x (MULLW y (DIVWU x y)))
 	for {
 		x := v_0
 		y := v_1
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64SUB)
 		v0 := b.NewValue0(v.Pos, OpPPC64MULLW, typ.Int32)
 		v1 := b.NewValue0(v.Pos, OpPPC64DIVWU, typ.Int32)
@@ -3262,6 +3297,7 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValuePPC64_OpMod64(v *Value) bool {
 	v_1 := v.Args[1]
@@ -3269,10 +3305,27 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod64 x y)
+	// cond: objabi.GOPPC64 >=9
+	// result: (MODSD x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64MODSD)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Mod64 x y)
+	// cond: objabi.GOPPC64 <=8
 	// result: (SUB x (MULLD y (DIVD x y)))
 	for {
 		x := v_0
 		y := v_1
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64SUB)
 		v0 := b.NewValue0(v.Pos, OpPPC64MULLD, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpPPC64DIVD, typ.Int64)
@@ -3281,6 +3334,7 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValuePPC64_OpMod64u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -3288,10 +3342,27 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Mod64u x y)
+	// cond: objabi.GOPPC64 >= 9
+	// result: (MODUD x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64MODUD)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Mod64u x y)
+	// cond: objabi.GOPPC64 <= 8
 	// result: (SUB x (MULLD y (DIVDU x y)))
 	for {
 		x := v_0
 		y := v_1
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64SUB)
 		v0 := b.NewValue0(v.Pos, OpPPC64MULLD, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpPPC64DIVDU, typ.Int64)
@@ -3300,6 +3371,7 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValuePPC64_OpMod8(v *Value) bool {
 	v_1 := v.Args[1]

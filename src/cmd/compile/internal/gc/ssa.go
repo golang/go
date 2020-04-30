@@ -6011,7 +6011,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// instruction. We won't use the actual liveness map on a
 		// control instruction. Just mark it something that is
 		// preemptible.
-		s.pp.nextLive = LivenessIndex{-1, -1}
+		s.pp.nextLive = LivenessIndex{-1, -1, false}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
@@ -6571,10 +6571,8 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 // since it emits PCDATA for the stack map at the call (calls are safe points).
 func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
-	if !idx.Valid() {
-		// typedmemclr and typedmemmove are write barriers and
-		// deeply non-preemptible. They are unsafe points and
-		// hence should not have liveness maps.
+	if !idx.StackMapValid() {
+		// See Liveness.hasStackMap.
 		if sym, _ := v.Aux.(*obj.LSym); !(sym == typedmemclr || sym == typedmemmove) {
 			Fatalf("missing stack map index for %v", v.LongString())
 		}

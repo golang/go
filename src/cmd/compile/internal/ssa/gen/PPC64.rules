@@ -15,10 +15,14 @@
 (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))
 (Mod8u x y) => (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
-(Mod64 x y) => (SUB x (MULLD y (DIVD x y)))
-(Mod64u x y) => (SUB x (MULLD y (DIVDU x y)))
-(Mod32 x y) => (SUB x (MULLW y (DIVW x y)))
-(Mod32u x y) => (SUB x (MULLW y (DIVWU x y)))
+(Mod64 x y) && objabi.GOPPC64 >=9 => (MODSD x y)
+(Mod64 x y) && objabi.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
+(Mod64u x y) && objabi.GOPPC64 >= 9 => (MODUD x y)
+(Mod64u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
+(Mod32 x y) && objabi.GOPPC64 >= 9 => (MODSW x y)
+(Mod32 x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
+(Mod32u x y) && objabi.GOPPC64 >= 9 => (MODUW x y)
+(Mod32u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
 
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)

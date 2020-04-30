@@ -277,6 +277,39 @@ func TestXForwardedFor(t *testing.T) {
 	}
 }
 
+// Issue 38079: don't append to X-Forwarded-For if it's present but nil
+func TestXForwardedFor_Omit(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if v := r.Header.Get("X-Forwarded-For"); v != "" {
+			t.Errorf("got X-Forwarded-For header: %q", v)
+		}
+		w.Write([]byte("hi"))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	oldDirector := proxyHandler.Director
+	proxyHandler.Director = func(r *http.Request) {
+		r.Header["X-Forwarded-For"] = nil
+		oldDirector(r)
+	}
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Close = true
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close()
+}
+
 var proxyQueryTests = []struct {
 	baseSuffix string // suffix to add to backend URL
 	reqSuffix  string // suffix to add to frontend's request URL

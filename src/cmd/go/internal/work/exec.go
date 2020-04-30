@@ -2169,6 +2169,39 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	desc := p.ImportPath
 	outfile = mkAbs(p.Dir, outfile)
 
+	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
+	// This is needed for source files (e.g., a .c file in a package directory).
+	// TODO(golang.org/issue/36072): cgo also generates files with #line
+	// directives pointing to the source directory. It should not generate those
+	// when -trimpath is enabled.
+	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+		if cfg.BuildTrimpath {
+			// Keep in sync with Action.trimpath.
+			// The trimmed paths are a little different, but we need to trim in the
+			// same situations.
+			var from, toPath string
+			if m := p.Module; m != nil {
+				from = m.Dir
+				toPath = m.Path + "@" + m.Version
+			} else {
+				from = p.Dir
+				toPath = p.ImportPath
+			}
+			// -fdebug-prefix-map requires an absolute "to" path (or it joins the path
+			// with the working directory). Pick something that makes sense for the
+			// target platform.
+			var to string
+			if cfg.BuildContext.GOOS == "windows" {
+				to = filepath.Join(`\\_\_`, toPath)
+			} else {
+				to = filepath.Join("/_", toPath)
+			}
+			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
+		} else if p.Goroot && cfg.GOROOT_FINAL != cfg.GOROOT {
+			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+cfg.GOROOT+"="+cfg.GOROOT_FINAL)
+		}
+	}
+
 	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it

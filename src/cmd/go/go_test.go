@@ -2082,19 +2082,38 @@ func TestBuildmodePIE(t *testing.T) {
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
 	t.Run("non-cgo", func(t *testing.T) {
-		testBuildmodePIE(t, false)
+		testBuildmodePIE(t, false, true)
 	})
 	if canCgo {
 		switch runtime.GOOS {
 		case "darwin", "freebsd", "linux", "windows":
 			t.Run("cgo", func(t *testing.T) {
-				testBuildmodePIE(t, true)
+				testBuildmodePIE(t, true, true)
 			})
 		}
 	}
 }
 
-func testBuildmodePIE(t *testing.T, useCgo bool) {
+func TestWindowsDefaultBuildmodIsPIE(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skipf("skipping in -short mode on non-builder")
+	}
+
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+
+	t.Run("non-cgo", func(t *testing.T) {
+		testBuildmodePIE(t, false, false)
+	})
+	if canCgo {
+		t.Run("cgo", func(t *testing.T) {
+			testBuildmodePIE(t, true, false)
+		})
+	}
+}
+
+func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2106,7 +2125,12 @@ func testBuildmodePIE(t *testing.T, useCgo bool) {
 	tg.tempFile("main.go", fmt.Sprintf(`package main;%s func main() { print("hello") }`, s))
 	src := tg.path("main.go")
 	obj := tg.path("main.exe")
-	tg.run("build", "-buildmode=pie", "-o", obj, src)
+	args := []string{"build"}
+	if setBuildmodeToPIE {
+		args = append(args, "-buildmode=pie")
+	}
+	args = append(args, "-o", obj, src)
+	tg.run(args...)
 
 	switch runtime.GOOS {
 	case "linux", "android", "freebsd":

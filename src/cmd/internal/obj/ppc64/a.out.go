@@ -569,13 +569,7 @@ const (
 	AORNCC
 	AORIS
 	AREM
-	AREMCC
-	AREMV
-	AREMVCC
 	AREMU
-	AREMUCC
-	AREMUV
-	AREMUVCC
 	ARFI
 	ARLWMI
 	ARLWMICC
@@ -741,13 +735,7 @@ const (
 	/* 64-bit pseudo operation */
 	ADWORD
 	AREMD
-	AREMDCC
-	AREMDV
-	AREMDVCC
 	AREMDU
-	AREMDUCC
-	AREMDUV
-	AREMDUVCC
 
 	/* more 64-bit operations */
 	AHRFID

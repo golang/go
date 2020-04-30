@@ -1777,6 +1777,10 @@ const (
 	OpPPC64DIVW
 	OpPPC64DIVDU
 	OpPPC64DIVWU
+	OpPPC64MODUD
+	OpPPC64MODSD
+	OpPPC64MODUW
+	OpPPC64MODSW
 	OpPPC64FCTIDZ
 	OpPPC64FCTIWZ
 	OpPPC64FCFID
@@ -5855,6 +5859,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // DX
@@ -5866,6 +5871,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // CX
@@ -5877,6 +5883,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1}, // AX
@@ -5888,6 +5895,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendA",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 64}, // SI
@@ -5900,6 +5908,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendB",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 64}, // SI
@@ -5912,6 +5921,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendC",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 64}, // SI
@@ -11692,6 +11702,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // DX
@@ -11703,6 +11714,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // CX
@@ -11714,6 +11726,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1}, // AX
@@ -15536,6 +15549,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // R2
@@ -15547,6 +15561,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
@@ -15558,6 +15573,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1}, // R0
@@ -15569,6 +15585,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendA",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16}, // R4
@@ -15581,6 +15598,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendB",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16}, // R4
@@ -15593,6 +15611,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendC",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16}, // R4
@@ -19514,6 +19533,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // R2
@@ -19525,6 +19545,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
@@ -19536,6 +19557,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1}, // R0
@@ -20968,6 +20990,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8},  // R3
@@ -20979,6 +21002,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // R2
@@ -20990,6 +21014,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
@@ -21001,6 +21026,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendA",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 32}, // R5
@@ -21013,6 +21039,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendB",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 32}, // R5
@@ -21025,6 +21052,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicExtendC",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 32}, // R5
@@ -22614,6 +22642,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8},  // R3
@@ -22625,6 +22654,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // R2
@@ -22636,6 +22666,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
@@ -23369,6 +23400,62 @@ var opcodeTable = [...]opInfo{
 		name:   "DIVWU",
 		argLen: 2,
 		asm:    ppc64.ADIVWU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "MODUD",
+		argLen: 2,
+		asm:    ppc64.AMODUD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "MODSD",
+		argLen: 2,
+		asm:    ppc64.AMODSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "MODUW",
+		argLen: 2,
+		asm:    ppc64.AMODUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "MODSW",
+		argLen: 2,
+		asm:    ppc64.AMODSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -25241,6 +25328,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 32}, // R5
@@ -25252,6 +25340,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16}, // R4
@@ -25263,6 +25352,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8},  // R3
@@ -26431,6 +26521,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 64},        // X7
@@ -26442,6 +26533,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 32}, // X6
@@ -26453,6 +26545,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 16}, // X5
@@ -29852,6 +29945,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4}, // R2
@@ -29863,6 +29957,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsB",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2}, // R1
@@ -29874,6 +29969,7 @@ var opcodeTable = [...]opInfo{
 		name:    "LoweredPanicBoundsC",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1}, // R0
@@ -33086,12 +33182,14 @@ var opcodeTable = [...]opInfo{
 		name:    "PanicBounds",
 		auxType: auxInt64,
 		argLen:  3,
+		call:    true,
 		generic: true,
 	},
 	{
 		name:    "PanicExtend",
 		auxType: auxInt64,
 		argLen:  4,
+		call:    true,
 		generic: true,
 	},
 	{
