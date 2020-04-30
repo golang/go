@@ -367,33 +367,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if target.IsExternal() {
-		return val, false
-	}
-
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
-	}
-
-	return val, false
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+	return val, false, false
 }
 
-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
-	switch r.Variant & sym.RV_TYPE_MASK {
+func archrelocvariant2(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
+	switch rv & sym.RV_TYPE_MASK {
 	default:
-		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
+		ldr.Errorf(s, "unexpected relocation variant %d", rv)
 		return t
 
 	case sym.RV_NONE:
 		return t
 
 	case sym.RV_390_DBL:
-		if (t & 1) != 0 {
-			ld.Errorf(s, "%s+%v is not 2-byte aligned", r.Sym.Name, r.Sym.Value)
+		if t&1 != 0 {
+			ldr.Errorf(s, "%s+%v is not 2-byte aligned", ldr.SymName(r.Sym()), ldr.SymValue(r.Sym()))
 		}
 		return t >> 1
 	}
