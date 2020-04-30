@@ -691,12 +691,12 @@ func init() {
 		{name: "ULE", controls: 1},
 		{name: "UGT", controls: 1},
 		{name: "UGE", controls: 1},
-		{name: "Z", controls: 1},    // Control == 0 (take a register instead of flags)
-		{name: "NZ", controls: 1},   // Control != 0
-		{name: "ZW", controls: 1},   // Control == 0, 32-bit
-		{name: "NZW", controls: 1},  // Control != 0, 32-bit
-		{name: "TBZ", controls: 1},  // Control & (1 << Aux.(int64)) == 0
-		{name: "TBNZ", controls: 1}, // Control & (1 << Aux.(int64)) != 0
+		{name: "Z", controls: 1},                  // Control == 0 (take a register instead of flags)
+		{name: "NZ", controls: 1},                 // Control != 0
+		{name: "ZW", controls: 1},                 // Control == 0, 32-bit
+		{name: "NZW", controls: 1},                // Control != 0, 32-bit
+		{name: "TBZ", controls: 1, aux: "Int64"},  // Control & (1 << AuxInt) == 0
+		{name: "TBNZ", controls: 1, aux: "Int64"}, // Control & (1 << AuxInt) != 0
 		{name: "FLT", controls: 1},
 		{name: "FLE", controls: 1},
 		{name: "FGT", controls: 1},
