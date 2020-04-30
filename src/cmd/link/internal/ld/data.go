@@ -161,9 +161,7 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
 		off := r.Off()
 		siz := int32(r.Siz())
 		rs := r.Sym()
-		if rs != 0 {
-			rs = ldr.ResolveABIAlias(rs)
-		}
+		rs = ldr.ResolveABIAlias(rs)
 		rt := r.Type()
 		if off < 0 || off+siz > int32(len(P)) {
 			rname := ""
