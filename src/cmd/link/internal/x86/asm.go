@@ -347,7 +347,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	switch r.Type {
 	default:
 		return false
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		if r.Siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
 		} else {
