@@ -236,6 +236,10 @@ func init() {
 		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", typ: "Int64"}, // arg0/arg1 (unsigned 64-bit)
 		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", typ: "Int32"}, // arg0/arg1 (unsigned 32-bit)
 
+		{name: "MODUD", argLength: 2, reg: gp21, asm: "MODUD", typ: "UInt64"}, // arg0 % arg1 (unsigned 64-bit)
+		{name: "MODSD", argLength: 2, reg: gp21, asm: "MODSD", typ: "Int64"},  // arg0 % arg1 (signed 64-bit)
+		{name: "MODUW", argLength: 2, reg: gp21, asm: "MODUW", typ: "UInt32"}, // arg0 % arg1 (unsigned 32-bit)
+		{name: "MODSW", argLength: 2, reg: gp21, asm: "MODSW", typ: "Int32"},  // arg0 % arg1 (signed 32-bit)
 		// MOD is implemented as rem := arg0 - (arg0/arg1) * arg1
 
 		// Conversions are all float-to-float register operations.  "Integer" refers to encoding in the FP register.
@@ -648,9 +652,9 @@ func init() {
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r6}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r5}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r5, r6}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r5}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r3, r4}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// So if we want (LessThan (CMP a b)) but we can't do that because a is a constant,

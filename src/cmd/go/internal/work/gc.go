@@ -223,6 +223,10 @@ CheckFlags:
 // trimpath returns the -trimpath argument to use
 // when compiling the action.
 func (a *Action) trimpath() string {
+	// Keep in sync with Builder.ccompile
+	// The trimmed paths are a little different, but we need to trim in the
+	// same situations.
+
 	// Strip the object directory entirely.
 	objdir := a.Objdir
 	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {

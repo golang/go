@@ -688,6 +688,10 @@ func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
 	return r
 }
 
+func cCopToAux(o Op) interface{} {
+	return o
+}
+
 // uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)

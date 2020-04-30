@@ -961,7 +961,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	}
 
 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
-	if state.conservative || isAsyncPreempt {
+	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
+	if state.conservative || isAsyncPreempt || isDebugCall {
 		if debugScanConservative {
 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
 		}
@@ -988,7 +989,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 			scanConservative(frame.argp, frame.arglen, nil, gcw, state)
 		}
 
-		if isAsyncPreempt {
+		if isAsyncPreempt || isDebugCall {
 			// This function's frame contained the
 			// registers for the asynchronously stopped
 			// parent frame. Scan the parent

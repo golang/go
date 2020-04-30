@@ -26,7 +26,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVW $-32767, R5                // 38a08001
 	MOVW $-32768, R6                // 38c08000
 	MOVW $1234567, R5               // 6405001260a5d687
-	// TODO: Add some with large offsets
 	MOVD 8(R3), R4			// e8830008
 	MOVD (R3)(R4), R5               // 7ca4182a
 	MOVW 4(R3), R4                  // e8830006
@@ -235,6 +234,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	DIVDECC R3, R4, R5              // 7ca41b53
 	DIVDEU R3, R4, R5               // 7ca41b12
 	DIVDEUCC R3, R4, R5             // 7ca41b13
+
+	REM R3, R4, R5                  // 7fe41bd67fff19d67cbf2050
+	REMU R3, R4, R5                 // 7fe41b967fff19d67bff00287cbf2050
+	REMD R3, R4, R5                 // 7fe41bd27fff19d27cbf2050
+	REMDU R3, R4, R5                // 7fe41b927fff19d27cbf2050
 
 	MODUD R3, R4, R5                // 7ca41a12
 	MODUW R3, R4, R5                // 7ca41a16
@@ -589,9 +593,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	LXVD2X (R3)(R4), VS1            // 7c241e98
 	LXV 16(R3), VS1                 // f4230011
+	LXVL R3, R4, VS1                // 7c23221a
+	LXVLL R3, R4, VS1               // 7c23225a
 	LXSDX (R3)(R4), VS1             // 7c241c98
 	STXVD2X VS1, (R3)(R4)           // 7c241f98
 	STXV VS1,16(R3)                 // f4230015
+	STXVL VS1, R3, R4               // 7c23231a
+	STXVLL VS1, R3, R4              // 7c23235a
 	STXSDX VS1, (R3)(R4)            // 7c241d98
 	LXSIWAX (R3)(R4), VS1           // 7c241898
 	STXSIWX VS1, (R3)(R4)           // 7c241918

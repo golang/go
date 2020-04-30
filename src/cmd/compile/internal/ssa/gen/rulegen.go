@@ -1784,6 +1784,8 @@ func (op opData) auxType() string {
 		return "s390x.CCMask"
 	case "S390XRotateParams":
 		return "s390x.RotateParams"
+	case "CCop":
+		return "CCop"
 	default:
 		return "invalid"
 	}

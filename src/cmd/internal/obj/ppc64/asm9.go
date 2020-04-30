@@ -378,8 +378,6 @@ var optab = []Optab{
 	{AREMU, C_REG, C_REG, C_NONE, C_REG, 50, 16, 0},
 	{AREMD, C_REG, C_NONE, C_NONE, C_REG, 51, 12, 0},
 	{AREMD, C_REG, C_REG, C_NONE, C_REG, 51, 12, 0},
-	{AREMDU, C_REG, C_NONE, C_NONE, C_REG, 51, 12, 0},
-	{AREMDU, C_REG, C_REG, C_NONE, C_REG, 51, 12, 0},
 	{AMTFSB0, C_SCON, C_NONE, C_NONE, C_NONE, 52, 4, 0},
 	{AMOVFL, C_FPSCR, C_NONE, C_NONE, C_FREG, 53, 4, 0},
 	{AMOVFL, C_FREG, C_NONE, C_NONE, C_FPSCR, 64, 4, 0},
@@ -1265,31 +1263,16 @@ func buildop(ctxt *obj.Link) {
 			opset(ASTWCCC, r0)
 			opset(ASTHCCC, r0)
 			opset(ASTBCCC, r0)
-
 			opset(ASTDCCC, r0)
 
 		case AREM: /* macro */
-			opset(AREMCC, r0)
-
-			opset(AREMV, r0)
-			opset(AREMVCC, r0)
+			opset(AREM, r0)
 
 		case AREMU:
 			opset(AREMU, r0)
-			opset(AREMUCC, r0)
-			opset(AREMUV, r0)
-			opset(AREMUVCC, r0)
 
 		case AREMD:
-			opset(AREMDCC, r0)
-			opset(AREMDV, r0)
-			opset(AREMDVCC, r0)
-
-		case AREMDU:
 			opset(AREMDU, r0)
-			opset(AREMDUCC, r0)
-			opset(AREMDUV, r0)
-			opset(AREMDUVCC, r0)
 
 		case ADIVW: /* op Rb[,Ra],Rd */
 			opset(AMULHW, r0)
@@ -3253,6 +3236,9 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
 		o2 = AOP_RRR(OP_MULLD, REGTMP, REGTMP, uint32(p.From.Reg))
 		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
+		/* cases 50,51: removed; can be reused. */
+
+		/* cases 50,51: removed; can be reused. */
 
 	case 52: /* mtfsbNx cr(n) */
 		v := c.regoff(&p.From) & 31
@@ -3922,35 +3908,34 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AMODSW:
 		return OPVCC(31, 779, 0, 0) /* modsw - v3.0 */
 
-	// TODO: Should REMs be here?
-	case AREM, ADIVW:
+	case ADIVW, AREM:
 		return OPVCC(31, 491, 0, 0)
 
-	case AREMCC, ADIVWCC:
+	case ADIVWCC:
 		return OPVCC(31, 491, 0, 1)
 
-	case AREMV, ADIVWV:
+	case ADIVWV:
 		return OPVCC(31, 491, 1, 0)
 
-	case AREMVCC, ADIVWVCC:
+	case ADIVWVCC:
 		return OPVCC(31, 491, 1, 1)
 
-	case AREMU, ADIVWU:
+	case ADIVWU, AREMU:
 		return OPVCC(31, 459, 0, 0)
 
-	case AREMUCC, ADIVWUCC:
+	case ADIVWUCC:
 		return OPVCC(31, 459, 0, 1)
 
-	case AREMUV, ADIVWUV:
+	case ADIVWUV:
 		return OPVCC(31, 459, 1, 0)
 
-	case AREMUVCC, ADIVWUVCC:
+	case ADIVWUVCC:
 		return OPVCC(31, 459, 1, 1)
 
-	case AREMD, ADIVD:
+	case ADIVD, AREMD:
 		return OPVCC(31, 489, 0, 0)
 
-	case AREMDCC, ADIVDCC:
+	case ADIVDCC:
 		return OPVCC(31, 489, 0, 1)
 
 	case ADIVDE:
@@ -3965,22 +3950,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case ADIVDEUCC:
 		return OPVCC(31, 393, 0, 1)
 
-	case AREMDV, ADIVDV:
+	case ADIVDV:
 		return OPVCC(31, 489, 1, 0)
 
-	case AREMDVCC, ADIVDVCC:
+	case ADIVDVCC:
 		return OPVCC(31, 489, 1, 1)
 
-	case AREMDU, ADIVDU:
+	case ADIVDU, AREMDU:
 		return OPVCC(31, 457, 0, 0)
 
-	case AREMDUCC, ADIVDUCC:
+	case ADIVDUCC:
 		return OPVCC(31, 457, 0, 1)
 
-	case AREMDUV, ADIVDUV:
+	case ADIVDUV:
 		return OPVCC(31, 457, 1, 0)
 
-	case AREMDUVCC, ADIVDUVCC:
+	case ADIVDUVCC:
 		return OPVCC(31, 457, 1, 1)
 
 	case AEIEIO:
