@@ -6,7 +6,7 @@ package ld
 
 import (
 	"cmd/internal/sys"
-	"cmd/link/internal/sym"
+	"cmd/link/internal/loader"
 	"encoding/binary"
 	"errors"
 	"log"
@@ -285,11 +285,11 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 // to point to the output buffer that we just wrote, so we can apply further
 // edit to the symbol content.
 // If the output file is not Mmap'd, just writes the content.
-func (out *OutBuf) WriteSym(s *sym.Symbol) {
-	n := int64(len(s.P))
+func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) {
+	P := ldr.Data(s)
+	n := int64(len(P))
 	pos, buf := out.writeLoc(n)
-	copy(buf[pos:], s.P)
+	copy(buf[pos:], P)
 	out.off += n
-	s.P = buf[pos : pos+n]
-	s.Attr.Set(sym.AttrReadOnly, false)
+	ldr.SetOutData(s, buf[pos:pos+n])
 }

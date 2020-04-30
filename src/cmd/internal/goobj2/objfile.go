@@ -19,17 +19,21 @@ import (
 // New object file format.
 //
 //    Header struct {
-//       Magic   [...]byte   // "\x00go115ld"
-//       Flags   uint32
-//       // TODO: Fingerprint
-//       Offsets [...]uint32 // byte offset of each block below
+//       Magic       [...]byte   // "\x00go115ld"
+//       Fingerprint [8]byte
+//       Flags       uint32
+//       Offsets     [...]uint32 // byte offset of each block below
 //    }
 //
 //    Strings [...]struct {
 //       Data [...]byte
 //    }
 //
-//    Autolib  [...]string // imported packages (for file loading) // TODO: add fingerprints
+//    Autolib  [...]struct { // imported packages (for file loading)
+//       Pkg         string
+//       Fingerprint [8]byte
+//    }
+//
 //    PkgIndex [...]string // referenced packages by index
 //
 //    DwarfFiles [...]string
@@ -119,6 +123,10 @@ import (
 
 const stringRefSize = 8 // two uint32s
 
+type FingerprintType [8]byte
+
+func (fp FingerprintType) IsZero() bool { return fp == FingerprintType{} }
+
 // Package Index.
 const (
 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
@@ -149,15 +157,17 @@ const (
 // File header.
 // TODO: probably no need to export this.
 type Header struct {
-	Magic   string
-	Flags   uint32
-	Offsets [NBlk]uint32
+	Magic       string
+	Fingerprint FingerprintType
+	Flags       uint32
+	Offsets     [NBlk]uint32
 }
 
 const Magic = "\x00go115ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
+	w.Bytes(h.Fingerprint[:])
 	w.Uint32(h.Flags)
 	for _, x := range h.Offsets {
 		w.Uint32(x)
@@ -171,6 +181,8 @@ func (h *Header) Read(r *Reader) error {
 		return errors.New("wrong magic, not a Go object file")
 	}
 	off := uint32(len(h.Magic))
+	copy(h.Fingerprint[:], r.BytesAt(off, len(h.Fingerprint)))
+	off += 8
 	h.Flags = r.uint32At(off)
 	off += 4
 	for i := range h.Offsets {
@@ -182,6 +194,19 @@ func (h *Header) Read(r *Reader) error {
 
 func (h *Header) Size() int {
 	return len(h.Magic) + 4 + 4*len(h.Offsets)
+}
+
+// Autolib
+type ImportedPkg struct {
+	Pkg         string
+	Fingerprint FingerprintType
+}
+
+const importedPkgSize = stringRefSize + 8
+
+func (p *ImportedPkg) Write(w *Writer) {
+	w.StringRef(p.Pkg)
+	w.Bytes(p.Fingerprint[:])
 }
 
 // Symbol definition.
@@ -495,12 +520,18 @@ func (r *Reader) StringRef(off uint32) string {
 	return r.StringAt(r.uint32At(off+4), l)
 }
 
-func (r *Reader) Autolib() []string {
-	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / stringRefSize
-	s := make([]string, n)
+func (r *Reader) Fingerprint() FingerprintType {
+	return r.h.Fingerprint
+}
+
+func (r *Reader) Autolib() []ImportedPkg {
+	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / importedPkgSize
+	s := make([]ImportedPkg, n)
+	off := r.h.Offsets[BlkAutolib]
 	for i := range s {
-		off := r.h.Offsets[BlkAutolib] + uint32(i)*stringRefSize
-		s[i] = r.StringRef(off)
+		s[i].Pkg = r.StringRef(off)
+		copy(s[i].Fingerprint[:], r.BytesAt(off+stringRefSize, len(s[i].Fingerprint)))
+		off += importedPkgSize
 	}
 	return s
 }
@@ -508,9 +539,10 @@ func (r *Reader) Autolib() []string {
 func (r *Reader) Pkglist() []string {
 	n := (r.h.Offsets[BlkPkgIdx+1] - r.h.Offsets[BlkPkgIdx]) / stringRefSize
 	s := make([]string, n)
+	off := r.h.Offsets[BlkPkgIdx]
 	for i := range s {
-		off := r.h.Offsets[BlkPkgIdx] + uint32(i)*stringRefSize
 		s[i] = r.StringRef(off)
+		off += stringRefSize
 	}
 	return s
 }

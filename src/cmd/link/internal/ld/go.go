@@ -331,7 +331,7 @@ func adddynlib(ctxt *Link, lib string) {
 	}
 }
 
-func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, syms *ArchSyms, s loader.Sym) {
+func Adddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
 	if ldr.SymDynid(s) >= 0 || target.LinkMode == LinkExternal {
 		return
 	}
@@ -339,27 +339,11 @@ func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, sym
 	if target.IsELF {
 		elfadddynsym2(ldr, target, syms, s)
 	} else if target.HeadType == objabi.Hdarwin {
-		reporter.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
+		ldr.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
 	} else if target.HeadType == objabi.Hwindows {
 		// already taken care of
 	} else {
-		reporter.Errorf(s, "adddynsym: unsupported binary format")
-	}
-}
-
-func Adddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
-	if s.Dynid >= 0 || target.LinkMode == LinkExternal {
-		return
-	}
-
-	if target.IsELF {
-		elfadddynsym(target, syms, s)
-	} else if target.HeadType == objabi.Hdarwin {
-		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname())
-	} else if target.HeadType == objabi.Hwindows {
-		// already taken care of
-	} else {
-		Errorf(s, "adddynsym: unsupported binary format")
+		ldr.Errorf(s, "adddynsym: unsupported binary format")
 	}
 }
 
@@ -425,7 +409,7 @@ func (ctxt *Link) addexport() {
 	}
 
 	for _, exp := range ctxt.dynexp2 {
-		Adddynsym2(ctxt.loader, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, exp)
+		Adddynsym2(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
 	}
 	for _, lib := range dynlib {
 		adddynlib(ctxt, lib)

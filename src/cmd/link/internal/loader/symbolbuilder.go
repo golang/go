@@ -143,6 +143,22 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	}
 }
 
+// SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
+func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
+	sb.relocs[i].SetType(0)
+	sb.reltypes[i] = t
+}
+
+// SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
+func (sb *SymbolBuilder) SetRelocSym(i int, tgt Sym) {
+	sb.relocs[i].SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(tgt)})
+}
+
+// SetRelocAdd sets the addend of the 'i'-th relocation on this sym to 'a'
+func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
+	sb.relocs[i].SetAdd(a)
+}
+
 // Add n relocations, return a handle to the relocations.
 func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)
@@ -429,5 +445,12 @@ func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch
 		}
 	} else {
 		return (*SymbolBuilder).AddAddrPlus
+	}
+}
+
+func (sb *SymbolBuilder) MakeWritable() {
+	if sb.ReadOnly() {
+		sb.data = append([]byte(nil), sb.data...)
+		sb.l.SetAttrReadOnly(sb.symIdx, false)
 	}
 }

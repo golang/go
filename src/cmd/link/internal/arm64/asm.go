@@ -78,86 +78,97 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc.AddReloc(rel2)
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
-	targ := r.Sym
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
 
-	switch r.Type {
+	targ := r.Sym()
+	var targType sym.SymKind
+	if targ != 0 {
+		targType = ldr.SymType(targ)
+	}
+
+	switch r.Type() {
 	default:
-		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
+		if r.Type() >= objabi.ElfRelocOffset {
+			ldr.Errorf(s, "unexpected relocation type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
 			return false
 		}
 
 	// Handle relocations found in ELF object files.
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_PREL32):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected R_AARCH64_PREL32 relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_AARCH64_PREL32 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
 		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
 		// sense and should be removed when someone has thought about it properly.
-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_PCREL
-		r.Add += 4
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx, r.Add()+4)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_PREL64):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected R_AARCH64_PREL64 relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_AARCH64_PREL64 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		if targ.Type == 0 || targ.Type == sym.SXREF {
-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
+		if targType == 0 || targType == sym.SXREF {
+			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_PCREL
-		r.Add += 8
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx, r.Add()+8)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26):
-		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(target, syms, targ)
-			r.Sym = syms.PLT
-			r.Add += int64(targ.Plt())
+		if targType == sym.SDYNIMPORT {
+			addpltsym2(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.PLT2)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
-			ld.Errorf(s, "unknown symbol %s in callarm64", targ.Name)
+		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+			ldr.Errorf(s, "unknown symbol %s in callarm64", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_CALLARM64
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_CALLARM64)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADR_GOT_PAGE),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LD64_GOT_LO12_NC):
-		if targ.Type != sym.SDYNIMPORT {
+		if targType != sym.SDYNIMPORT {
 			// have symbol
 			// TODO: turn LDR of GOT entry into ADR of symbol itself
 		}
 
 		// fall back to using GOT
 		// TODO: just needs relocation, no need to put in .dynsym
-		addgotsym(target, syms, targ)
-
-		r.Type = objabi.R_ARM64_GOT
-		r.Sym = syms.GOT
-		r.Add += int64(targ.Got())
+		addgotsym2(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_GOT)
+		su.SetRelocSym(rIdx, syms.GOT2)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADR_PREL_PG_HI21),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ADD_ABS_LO12_NC):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		if targ.Type == 0 || targ.Type == sym.SXREF {
-			ld.Errorf(s, "unknown symbol %s", targ.Name)
+		if targType == 0 || targType == sym.SXREF {
+			ldr.Errorf(s, "unknown symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ARM64_PCREL
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_PCREL)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_ABS64):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected R_AARCH64_ABS64 relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_AARCH64_ABS64 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ADDR
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
 		if target.IsPIE() && target.IsInternal() {
 			// For internal linking PIE, this R_ADDR relocation cannot
 			// be resolved statically. We need to generate a dynamic
@@ -167,39 +178,48 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST8_ABS_LO12_NC):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ARM64_LDST8
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_LDST8)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST32_ABS_LO12_NC):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ARM64_LDST32
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_LDST32)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST64_ABS_LO12_NC):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ARM64_LDST64
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_LDST64)
+
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_LDST128_ABS_LO12_NC):
-		if targ.Type == sym.SDYNIMPORT {
-			ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		r.Type = objabi.R_ARM64_LDST128
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ARM64_LDST128)
 		return true
 	}
 
-	switch r.Type {
+	// Reread the reloc to incorporate any changes in type above.
+	relocs := ldr.Relocs(s)
+	*r = relocs.At2(rIdx)
+
+	switch r.Type() {
 	case objabi.R_CALL,
 		objabi.R_PCREL,
 		objabi.R_CALLARM64:
-		if targ.Type != sym.SDYNIMPORT {
+		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
@@ -209,14 +229,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 		}
 
 	case objabi.R_ADDR:
-		if s.Type == sym.STEXT && target.IsElf() {
+		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
-			addgotsym(target, syms, targ)
-
-			r.Sym = syms.GOT
-			r.Add += int64(targ.Got())
+			addgotsym2(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.GOT2)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 			return true
 		}
 
@@ -253,7 +273,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 			// symbol offset as determined by reloc(), not the
 			// final dynamically linked address as a dynamic
 			// relocation would provide.
-			switch s.Name {
+			switch ldr.SymName(s) {
 			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
 				return false
 			}
@@ -264,7 +284,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if s.Type != sym.SDATA && s.Type != sym.SRODATA {
+			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
 				break
 			}
 		}
@@ -287,14 +307,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 			// AddAddrPlus is used for r_offset and r_addend to
 			// generate new R_ADDR relocations that will update
 			// these fields in the 'reloc' phase.
-			rela := syms.Rela
-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
-			if r.Siz == 8 {
+			rela := ldr.MakeSymbolUpdater(syms.Rela2)
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+			if r.Siz() == 8 {
 				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
 			} else {
-				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
+			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -308,7 +328,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := r.Xsym.ElfsymForReloc()
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch r.Type {
 	default:
 		return false
@@ -737,75 +757,80 @@ func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loade
 	}
 }
 
-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
-	if s.Plt() >= 0 {
+func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+	if ldr.SymPlt(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym(target, syms, s)
+	ld.Adddynsym2(ldr, target, syms, s)
 
 	if target.IsElf() {
-		plt := syms.PLT
-		gotplt := syms.GOTPLT
-		rela := syms.RelaPLT
-		if plt.Size == 0 {
+		plt := ldr.MakeSymbolUpdater(syms.PLT2)
+		gotplt := ldr.MakeSymbolUpdater(syms.GOTPLT2)
+		rela := ldr.MakeSymbolUpdater(syms.RelaPLT2)
+		if plt.Size() == 0 {
 			panic("plt is not set up")
 		}
 
 		// adrp    x16, &got.plt[0]
-		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(target.Arch, plt.Size-4, 0x90000010)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
+		plt.SetUint32(target.Arch, plt.Size()-4, 0x90000010)
+		relocs := plt.Relocs()
+		plt.SetRelocType(relocs.Count()-1, objabi.R_ARM64_GOT)
 
 		// <offset> is the offset value of &got.plt[n] to &got.plt[0]
 		// ldr     x17, [x16, <offset>]
-		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(target.Arch, plt.Size-4, 0xf9400211)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
+		plt.SetUint32(target.Arch, plt.Size()-4, 0xf9400211)
+		relocs = plt.Relocs()
+		plt.SetRelocType(relocs.Count()-1, objabi.R_ARM64_GOT)
 
 		// add     x16, x16, <offset>
-		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(target.Arch, plt.Size-4, 0x91000210)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_PCREL
+		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
+		plt.SetUint32(target.Arch, plt.Size()-4, 0x91000210)
+		relocs = plt.Relocs()
+		plt.SetRelocType(relocs.Count()-1, objabi.R_ARM64_PCREL)
 
 		// br      x17
 		plt.AddUint32(target.Arch, 0xd61f0220)
 
 		// add to got.plt: pointer to plt[0]
-		gotplt.AddAddrPlus(target.Arch, plt, 0)
+		gotplt.AddAddrPlus(target.Arch, plt.Sym(), 0)
 
 		// rela
-		rela.AddAddrPlus(target.Arch, gotplt, gotplt.Size-8)
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
+		rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
+		sDynid := ldr.SymDynid(s)
+
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
 		rela.AddUint64(target.Arch, 0)
 
-		s.SetPlt(int32(plt.Size - 16))
+		ldr.SetPlt(s, int32(plt.Size()-16))
 	} else {
-		ld.Errorf(s, "addpltsym: unsupported binary format")
+		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
-	if s.Got() >= 0 {
+func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+	if ldr.SymGot(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym(target, syms, s)
-	got := syms.GOT
-	s.SetGot(int32(got.Size))
+	ld.Adddynsym2(ldr, target, syms, s)
+	got := ldr.MakeSymbolUpdater(syms.GOT2)
+	ldr.SetGot(s, int32(got.Size()))
 	got.AddUint64(target.Arch, 0)
 
 	if target.IsElf() {
-		rela := syms.Rela
-		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_GLOB_DAT)))
+		rela := ldr.MakeSymbolUpdater(syms.Rela2)
+		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_AARCH64_GLOB_DAT)))
 		rela.AddUint64(target.Arch, 0)
 	} else {
-		ld.Errorf(s, "addgotsym: unsupported binary format")
+		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
