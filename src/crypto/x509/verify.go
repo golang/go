@@ -185,13 +185,24 @@ func (se SystemRootsError) Error() string {
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 
-// VerifyOptions contains parameters for Certificate.Verify. It's a structure
-// because other PKIX verification APIs have ended up needing many options.
+// VerifyOptions contains parameters for Certificate.Verify.
 type VerifyOptions struct {
-	DNSName       string
+	// DNSName, if set, is checked against the leaf certificate with
+	// Certificate.VerifyHostname.
+	DNSName string
+
+	// Intermediates is an optional pool of certificates that are not trust
+	// anchors, but can be used to form a chain from the leaf certificate to a
+	// root certificate.
 	Intermediates *CertPool
-	Roots         *CertPool // if nil, the system roots are used
-	CurrentTime   time.Time // if zero, the current time is used
+	// Roots is the set of trusted root certificates the leaf certificate needs
+	// to chain up to. If nil, the system roots or the platform verifier are used.
+	Roots *CertPool
+
+	// CurrentTime is used to check the validity of all certificates in the
+	// chain. If zero, the current time is used.
+	CurrentTime time.Time
+
 	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
 	// certificate is accepted if it contains any of the listed values. An empty
 	// list means ExtKeyUsageServerAuth. To accept any key usage, include
@@ -200,6 +211,7 @@ type VerifyOptions struct {
 	// Certificate chains are required to nest these extended key usage values.
 	// (This matches the Windows CryptoAPI behavior, but not the spec.)
 	KeyUsages []ExtKeyUsage
+
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
@@ -1003,6 +1015,16 @@ func toLowerCaseASCII(in string) string {
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
+//
+// IP addresses can be optionally enclosed in square brackets and are checked
+// against the IPAddresses field. Other names are checked case insensitively
+// against the DNSNames field, with support for only one wildcard as the whole
+// left-most label.
+//
+// If the Common Name field is a valid hostname, and the certificate doesn't
+// have any Subject Alternative Names, the name will also be checked against the
+// Common Name. This legacy behavior can be disabled by setting the GODEBUG
+// environment variable to "x509ignoreCN=1" and might be removed in the future.
 func (c *Certificate) VerifyHostname(h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
