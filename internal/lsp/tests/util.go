@@ -175,13 +175,13 @@ func DiffDiagnostics(uri span.URI, want, got []*source.Diagnostic) string {
 	for i, w := range want {
 		g := got[i]
 		if w.Message != g.Message {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Message:\n%s", Diff(w.Message, g.Message))
+			return summarizeDiagnostics(i, uri, want, got, "incorrect Message got %v want %v", g.Message, w.Message)
 		}
 		if w.Severity != g.Severity {
 			return summarizeDiagnostics(i, uri, want, got, "incorrect Severity got %v want %v", g.Severity, w.Severity)
 		}
 		if w.Source != g.Source {
-			return summarizeDiagnostics(i, uri, want, got, "incorrect Source:\n%s", Diff(w.Source, g.Source))
+			return summarizeDiagnostics(i, uri, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
 		}
 		// Don't check the range on the badimport test.
 		if strings.Contains(uri.Filename(), "badimport") {
@@ -207,15 +207,14 @@ func summarizeDiagnostics(i int, uri span.URI, want, got []*source.Diagnostic, r
 	}
 	fmt.Fprint(msg, " because of ")
 	fmt.Fprintf(msg, reason, args...)
-	w := &bytes.Buffer{}
+	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, d := range want {
-		fmt.Fprintf(w, "  %s:%v: %s %s %s\n", uri, d.Range, d.Source, d.Message, d.Severity)
+		fmt.Fprintf(msg, "  %s:%v: %s\n", uri, d.Range, d.Message)
 	}
-	g := &bytes.Buffer{}
+	fmt.Fprintf(msg, "got:\n")
 	for _, d := range got {
-		fmt.Fprintf(g, "  %s:%v: %s %s %s\n", uri, d.Range, d.Source, d.Message, d.Severity)
+		fmt.Fprintf(msg, "  %s:%v: %s\n", uri, d.Range, d.Message)
 	}
-	fmt.Fprintf(msg, "\nFull diff:\n%s", Diff(w.String(), g.String()))
 	return msg.String()
 }
 
