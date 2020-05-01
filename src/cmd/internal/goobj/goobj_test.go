@@ -151,12 +151,9 @@ func buildGoobj() error {
 	return nil
 }
 
-// Check that a symbol has a given name, accepting both
-// new and old objects.
-// TODO(go115newobj): remove.
+// Check that a symbol has a given name.
 func matchSymName(symname, want string) bool {
-	return symname == want ||
-		strings.HasPrefix(symname, want+"#") // new style, with index
+	return strings.HasPrefix(symname, want+"#") // new style, with index
 }
 
 func TestParseGoobj(t *testing.T) {

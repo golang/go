@@ -17,7 +17,7 @@ import (
 )
 
 // Entry point of writing new object file.
-func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 
 	debugAsmEmit(ctxt)
 

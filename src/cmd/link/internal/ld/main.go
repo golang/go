@@ -39,7 +39,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"os/exec"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -99,8 +98,6 @@ var (
 
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
-
-	flagGo115Newobj = flag.Bool("go115newobj", true, "use new object file format")
 )
 
 // Main is the main entry point for the linker code.
@@ -139,10 +136,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
-
-	if !*flagGo115Newobj {
-		oldlink()
-	}
 
 	switch *flagHeadType {
 	case "":
@@ -414,49 +407,4 @@ func startProfile() {
 			}
 		})
 	}
-}
-
-// Invoke the old linker and exit.
-func oldlink() {
-	linker := os.Args[0]
-	if strings.HasSuffix(linker, "link") {
-		linker = linker[:len(linker)-4] + "oldlink"
-	} else if strings.HasSuffix(linker, "link.exe") {
-		linker = linker[:len(linker)-8] + "oldlink.exe"
-	} else {
-		log.Fatal("cannot find oldlink. arg0=", linker)
-	}
-
-	// Copy args, filter out -go115newobj flag
-	args := make([]string, 0, len(os.Args)-1)
-	skipNext := false
-	for i, a := range os.Args {
-		if i == 0 {
-			continue // skip arg0
-		}
-		if skipNext {
-			skipNext = false
-			continue
-		}
-		if a == "-go115newobj" {
-			skipNext = true
-			continue
-		}
-		if strings.HasPrefix(a, "-go115newobj=") {
-			continue
-		}
-		args = append(args, a)
-	}
-
-	cmd := exec.Command(linker, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err == nil {
-		os.Exit(0)
-	}
-	if _, ok := err.(*exec.ExitError); ok {
-		os.Exit(2) // would be nice to use ExitError.ExitCode(), but that is too new
-	}
-	log.Fatal("invoke oldlink failed:", err)
 }
