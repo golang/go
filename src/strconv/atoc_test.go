@@ -29,243 +29,65 @@ func TestParseComplex(t *testing.T) {
 		want    complex128
 		wantErr error
 	}{
-		{
-			str:  "0",
-			want: complex(0, 0),
-		},
-		{
-			str:  "0i",
-			want: complex(0, 0),
-		},
-		{
-			str:  "0+0i",
-			want: complex(0, 0),
-		},
-		{
-			str:  "0.0",
-			want: complex(0, 0),
-		},
-		{
-			str:  "0.1",
-			want: complex(0.1, 0),
-		},
-		{
-			str:  "0.0i",
-			want: complex(0, 0),
-		},
-		{
-			str:  "0.1i",
-			want: complex(0, 0.1),
-		},
-		{
-			str:  "0.123",
-			want: complex(0.123, 0),
-		},
-		{
-			str:  "0.123i",
-			want: complex(0, 0.123),
-		},
-		{
-			str:  "0.123+0.123i",
-			want: complex(0.123, 0.123),
-		},
-		{
-			str:  "99",
-			want: complex(99, 0),
-		},
-		{
-			str:  "+99",
-			want: complex(99, 0),
-		},
-		{
-			str:  "-99",
-			want: complex(-99, 0),
-		},
-		{
-			str:  "+1i",
-			want: complex(0, 1),
-		},
-		{
-			str:  "-1i",
-			want: complex(0, -1),
-		},
-		{
-			str:  "+3-i",
-			want: complex(3, -1),
-		},
-		{
-			str:  "+3+i",
-			want: complex(3, 1),
-		},
-		{
-			str:  "3-i",
-			want: complex(3, -1),
-		},
-		{
-			str:  "3+i",
-			want: complex(3, 1),
-		},
-		{
-			str:  "i",
-			want: complex(0, 1),
-		},
-		{
-			str:  "+i",
-			want: complex(0, 1),
-		},
-		{
-			str:  "-i",
-			want: complex(0, -1),
-		},
-		{
-			str:  "3e3-i",
-			want: complex(3e3, -1),
-		},
-		{
-			str:  "-3e3-i",
-			want: complex(-3e3, -1),
-		},
-		{
-			str:  "+3e3-i",
-			want: complex(3e3, -1),
-		},
-		{
-			str:  "3e+3-i",
-			want: complex(3e+3, -1),
-		},
-		{
-			str:  "-3e+3-i",
-			want: complex(-3e+3, -1),
-		},
-		{
-			str:  "-3e+3-i",
-			want: complex(-3e+3, -1),
-		},
-		{
-			str:  "+3e+3-3e+3i",
-			want: complex(3e+3, -3e+3),
-		},
-		{
-			str:  "+3e+3+3e+3i",
-			want: complex(3e+3, 3e+3),
-		},
-		{
-			str:  "Infi",
-			want: complex(0, math.Inf(1)),
-		},
-		{
-			str:  "-Infi",
-			want: complex(0, math.Inf(-1)),
-		},
-		{
-			str:  "Inf",
-			want: complex(math.Inf(1), 0),
-		},
-		{
-			str:  "-Inf",
-			want: complex(math.Inf(-1), 0),
-		},
-		{
-			str:  "-Inf-Infi",
-			want: complex(math.Inf(-1), math.Inf(-1)),
-		},
-		{
-			str:  "-Inf+Infi",
-			want: complex(math.Inf(-1), math.Inf(1)),
-		},
-		{
-			str:  "NaN",
-			want: complex(math.NaN(), 0),
-		},
-		{
-			str:  "NaNi",
-			want: complex(0, math.NaN()),
-		},
-		{
-			str:  "NaN+NaNi",
-			want: complex(math.NaN(), math.NaN()),
-		},
-		{
-			str:  mustFormatComplex(0xBadFace, 0x677a2fcc40c6),
-			want: complex(0xBadFace, 0x677a2fcc40c6),
-		},
-		{
-			str:  "0x10.3p-8+0x3p3i",
-			want: complex(0x10.3p-8, 0x3p3),
-		},
-		{
-			str:  "+0x10.3p-8+0x3p3i",
-			want: complex(0x10.3p-8, 0x3p3),
-		},
-		{
-			str:  "0x10.3p+8-0x3p3i",
-			want: complex(0x10.3p+8, -0x3p3),
-		},
-		// Malformed cases
-		{
-			str:     "",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     " ",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "30+3i)",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "(30+4i",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "(",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     ")",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "foo",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "10e+10+30i+",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "10  + 5i",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "+NaN",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "-NaN",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "+NaNi",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "-NaNi",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "NaN-NaNi",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "3+3+5.5",
-			wantErr: ErrSyntax,
-		},
-		{
-			str:     "3+3+5.5i",
-			wantErr: ErrSyntax,
-		},
+		{"0", complex(0, 0), nil},
+		{"0i", complex(0, 0), nil},
+		{"0+0i", complex(0, 0), nil},
+		{"0.0", complex(0, 0), nil},
+		{"0.1", complex(0.1, 0), nil},
+		{"0.0i", complex(0, 0), nil},
+		{"0.1i", complex(0, 0.1), nil},
+		{"0.123", complex(0.123, 0), nil},
+		{"0.123i", complex(0, 0.123), nil},
+		{"0.123+0.123i", complex(0.123, 0.123), nil},
+		{"99", complex(99, 0), nil},
+		{"+99", complex(99, 0), nil},
+		{"-99", complex(-99, 0), nil},
+		{"+1i", complex(0, 1), nil},
+		{"-1i", complex(0, -1), nil},
+		{"+3-i", complex(3, -1), nil},
+		{"+3+i", complex(3, 1), nil},
+		{"3-i", complex(3, -1), nil},
+		{"3+i", complex(3, 1), nil},
+		{"i", complex(0, 1), nil},
+		{"+i", complex(0, 1), nil},
+		{"-i", complex(0, -1), nil},
+		{"3e3-i", complex(3e3, -1), nil},
+		{"-3e3-i", complex(-3e3, -1), nil},
+		{"+3e3-i", complex(3e3, -1), nil},
+		{"3e+3-i", complex(3e+3, -1), nil},
+		{"-3e+3-i", complex(-3e+3, -1), nil},
+		{"-3e+3-i", complex(-3e+3, -1), nil},
+		{"+3e+3-3e+3i", complex(3e+3, -3e+3), nil},
+		{"+3e+3+3e+3i", complex(3e+3, 3e+3), nil},
+		{"Infi", complex(0, math.Inf(1)), nil},
+		{"-Infi", complex(0, math.Inf(-1)), nil},
+		{"Inf", complex(math.Inf(1), 0), nil},
+		{"-Inf", complex(math.Inf(-1), 0), nil},
+		{"-Inf-Infi", complex(math.Inf(-1), math.Inf(-1)), nil},
+		{"-Inf+Infi", complex(math.Inf(-1), math.Inf(1)), nil},
+		{"NaN", complex(math.NaN(), 0), nil},
+		{"NaNi", complex(0, math.NaN()), nil},
+		{"NaN+NaNi", complex(math.NaN(), math.NaN()), nil},
+		{mustFormatComplex(0xBadFace, 0x677a2fcc40c6), complex(0xBadFace, 0x677a2fcc40c6), nil},
+		{"0x10.3p-8+0x3p3i",complex(0x10.3p-8, 0x3p3), nil},
+		{"+0x10.3p-8+0x3p3i",complex(0x10.3p-8, 0x3p3), nil},
+		{"0x10.3p+8-0x3p3i",complex(0x10.3p+8, -0x3p3), nil},
+		{"", 0, ErrSyntax},
+		{" ", 0, ErrSyntax},
+		{"30+3i)", 0, ErrSyntax},
+		{"(30+4i", 0, ErrSyntax},
+		{"(", 0, ErrSyntax},
+		{")", 0, ErrSyntax},
+		{"foo", 0, ErrSyntax},
+		{"10e+10+30i+", 0, ErrSyntax},
+		{"10  + 5i", 0, ErrSyntax},
+		{"+NaN", 0, ErrSyntax},
+		{"-NaN", 0, ErrSyntax},
+		{"+NaNi", 0, ErrSyntax},
+		{"-NaNi", 0, ErrSyntax},
+		{"NaN-NaNi", 0, ErrSyntax},
+		{"3+3+5.5", 0, ErrSyntax},
+		{"3+3+5.5i", 0, ErrSyntax},
 	}
 
 	for _, tt := range tests {
