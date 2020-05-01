@@ -29,7 +29,7 @@ type Slice struct {
 // It cannot be used safely or portably and its representation may
 // change in a later release.
 //
-// Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
+// Unlike reflect.StringHeader, its Data field is sufficient to guarantee the
 // data it references will not be garbage collected.
 type String struct {
 	Data unsafe.Pointer
