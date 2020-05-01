@@ -149,6 +149,17 @@ To add a constant, add the header that includes it to the appropriate variable.
 Then, edit the regex (if necessary) to match the desired constant. Avoid making
 the regex too broad to avoid matching unintended constants.
 
+### mkmerge.go
+
+This program is used to extract duplicate const, func, and type declarations
+from the generated architecture-specific files listed below, and merge these
+into a common file for each OS.
+
+The merge is performed in the following steps:
+1. Construct the set of common code that is idential in all architecture-specific files.
+2. Write this common code to the merged file.
+3. Remove the common code from all architecture-specific files.
+
 
 ## Generated files
 

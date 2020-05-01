@@ -88,7 +88,7 @@ func (m *RouteMessage) Marshal() ([]byte, error) {
 	return m.marshal()
 }
 
-// A RIBType reprensents a type of routing information base.
+// A RIBType represents a type of routing information base.
 type RIBType int
 
 const (
