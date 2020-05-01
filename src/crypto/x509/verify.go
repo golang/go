@@ -940,8 +940,8 @@ func validHostname(host string, isPattern bool) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' || c == ':' {
-				// Not valid characters in hostnames, but commonly
+			if c == '_' {
+				// Not a valid character in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}

@@ -376,7 +376,15 @@ var matchHostnamesTests = []matchHostnamesTest{
 	{"*.com", "example.com", true},
 	{"*.com", "example.com.", true},
 	{"foo:bar", "foo:bar", true},
-	{"*.foo:bar", "xxx.foo:bar", true},
+	{"*.foo:bar", "xxx.foo:bar", false},
+	{"*.2.3.4", "1.2.3.4", false},
+	{"*.2.3.4", "[1.2.3.4]", false},
+	{"*:4860:4860::8888", "2001:4860:4860::8888", false},
+	{"*:4860:4860::8888", "[2001:4860:4860::8888]", false},
+	{"2001:4860:4860::8888", "2001:4860:4860::8888", false},
+	{"2001:4860:4860::8888", "[2001:4860:4860::8888]", false},
+	{"[2001:4860:4860::8888]", "2001:4860:4860::8888", false},
+	{"[2001:4860:4860::8888]", "[2001:4860:4860::8888]", false},
 }
 
 func TestMatchHostnames(t *testing.T) {
