@@ -952,6 +952,18 @@ func testResumption(t *testing.T, version uint16) {
 	}
 	testResumeState("KeyChangeFinish", true)
 
+	// Age the session ticket a bit, but not yet expired.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	testResumeState("OldSessionTicket", true)
+	ticket = getTicket()
+	// Expire the session ticket, which would force a full handshake.
+	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	testResumeState("ExpiredSessionTicket", false)
+	if bytes.Equal(ticket, getTicket()) {
+		t.Fatal("new ticket wasn't provided after old ticket expired")
+	}
+	testResumeState("FreshSessionTicket", true)
+
 	// Reset serverConfig to ensure that calling SetSessionTicketKeys
 	// before the serverConfig is used works.
 	serverConfig = &Config{

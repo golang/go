@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+	"time"
 )
 
 // serverHandshakeState contains details of a server handshake in progress.
@@ -368,6 +369,11 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
+	createdAt := time.Unix(int64(hs.sessionState.createdAt), 0)
+	if c.config.time().Sub(createdAt) > maxSessionTicketLifetime {
+		return false
+	}
+
 	// Never resume a session for a different TLS version.
 	if c.vers != hs.sessionState.vers {
 		return false
@@ -689,6 +695,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	state := sessionState{
 		vers:         c.vers,
 		cipherSuite:  hs.suite.id,
+		createdAt:    uint64(c.config.time().Unix()),
 		masterSecret: hs.masterSecret,
 		certificates: certsFromClient,
 	}
