@@ -110,7 +110,7 @@ func (h HostnameError) Error() string {
 	c := h.Certificate
 
 	if !c.hasSANExtension() && !validHostname(c.Subject.CommonName) &&
-		matchHostnames(toLowerCaseASCII(c.Subject.CommonName), toLowerCaseASCII(h.Host)) {
+		matchHostnames(c.Subject.CommonName, h.Host) {
 		// This would have validated, if it weren't for the validHostname check on Common Name.
 		return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
 	}
@@ -954,9 +954,16 @@ func (c *Certificate) commonNameAsHostname() bool {
 	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
 }
 
+func matchExactly(hostA, hostB string) bool {
+	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
+		return false
+	}
+	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
+}
+
 func matchHostnames(pattern, host string) bool {
-	host = strings.TrimSuffix(host, ".")
-	pattern = strings.TrimSuffix(pattern, ".")
+	pattern = toLowerCaseASCII(strings.TrimSuffix(pattern, "."))
+	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
 	if len(pattern) == 0 || len(host) == 0 {
 		return false
@@ -1018,8 +1025,8 @@ func toLowerCaseASCII(in string) string {
 //
 // IP addresses can be optionally enclosed in square brackets and are checked
 // against the IPAddresses field. Other names are checked case insensitively
-// against the DNSNames field, with support for only one wildcard as the whole
-// left-most label.
+// against the DNSNames field. If the names are valid hostnames, the certificate
+// fields can have a wildcard as the left-most label.
 //
 // If the Common Name field is a valid hostname, and the certificate doesn't
 // have any Subject Alternative Names, the name will also be checked against the
@@ -1042,15 +1049,26 @@ func (c *Certificate) VerifyHostname(h string) error {
 		return HostnameError{c, candidateIP}
 	}
 
-	lowered := toLowerCaseASCII(h)
-
+	names := c.DNSNames
 	if c.commonNameAsHostname() {
-		if matchHostnames(toLowerCaseASCII(c.Subject.CommonName), lowered) {
-			return nil
-		}
-	} else {
-		for _, match := range c.DNSNames {
-			if matchHostnames(toLowerCaseASCII(match), lowered) {
+		names = []string{c.Subject.CommonName}
+	}
+
+	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+	validCandidateName := validHostname(candidateName)
+
+	for _, match := range names {
+		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+		// browsers (more or less) do, but in practice Go is used in a wider
+		// array of contexts and can't even assume DNS resolution. Instead,
+		// always allow perfect matches, and only apply wildcard and trailing
+		// dot processing to valid hostnames.
+		if validCandidateName && validHostname(match) {
+			if matchHostnames(match, candidateName) {
+				return nil
+			}
+		} else {
+			if matchExactly(match, candidateName) {
 				return nil
 			}
 		}
