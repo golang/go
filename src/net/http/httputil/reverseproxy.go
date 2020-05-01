@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"sync"
@@ -387,7 +388,7 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 func removeConnectionHeaders(h http.Header) {
 	for _, f := range h["Connection"] {
 		for _, sf := range strings.Split(f, ",") {
-			if sf = strings.TrimSpace(sf); sf != "" {
+			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
 		}

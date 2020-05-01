@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -276,8 +277,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		header, val := parts[0], parts[1]
-		header = strings.TrimSpace(header)
-		val = strings.TrimSpace(val)
+		header = textproto.TrimString(header)
+		val = textproto.TrimString(val)
 		switch {
 		case header == "Status":
 			if len(val) < 3 {
