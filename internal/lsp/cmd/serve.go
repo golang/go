@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -35,7 +34,6 @@ type Serve struct {
 	RemoteListenTimeout time.Duration `flag:"remote.listen.timeout" help:"when used with -remote=auto, the listen.timeout used when auto-starting the remote"`
 	RemoteDebug         string        `flag:"remote.debug" help:"when used with -remote=auto, the debug address used when auto-starting the remote"`
 	RemoteLogfile       string        `flag:"remote.logfile" help:"when used with -remote=auto, the filename for the remote daemon to log to"`
-	DisableExport       bool          `flag:"telemetry.disable" help:"TEMPORARY WORKAROUND: disable telemetry processing entirely. This flag will be removed in the future, once telemetry issues are resolved."`
 
 	app *Application
 }
@@ -60,12 +58,6 @@ gopls server flags are:
 func (s *Serve) Run(ctx context.Context, args ...string) error {
 	if len(args) > 0 {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
-	}
-
-	// Temporary workaround for golang.org/issues/38042: allow disabling
-	// telemetry export.
-	if s.DisableExport {
-		event.SetExporter(nil)
 	}
 
 	di := debug.GetInstance(ctx)

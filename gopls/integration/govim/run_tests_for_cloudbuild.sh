@@ -9,10 +9,6 @@
 # build step. We do this so that we can capture govim test artifacts regardless
 # of the test results.
 
-# See golang.org/issues/38042. Temporarily disable telemetry until event
-# exporters are threadsafe.
-export GOVIM_GOPLS_FLAGS="-telemetry.disable"
-
 # Substitute the locally built gopls binary for use in govim integration tests.
 go test -short ./cmd/govim -gopls /workspace/gopls/gopls
 
