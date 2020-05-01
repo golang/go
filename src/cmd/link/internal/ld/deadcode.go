@@ -38,7 +38,7 @@ type deadcodePass struct {
 	wq   workQueue
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
-	markableMethods []methodref2       // methods of reached types
+	markableMethods []methodref        // methods of reached types
 	reflectSeen     bool               // whether we have seen a reflect method call
 }
 
@@ -120,7 +120,7 @@ func (d *deadcodePass) flood() {
 		if isgotype {
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
-				for _, sig := range d.decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
+				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
 					if d.ctxt.Debugvlog > 1 {
 						d.ctxt.Logf("reached iface method: %s\n", sig)
 					}
@@ -129,7 +129,7 @@ func (d *deadcodePass) flood() {
 			}
 		}
 
-		var methods []methodref2
+		var methods []methodref
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
 			t := r.Type()
@@ -140,7 +140,7 @@ func (d *deadcodePass) flood() {
 				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
 				}
-				methods = append(methods, methodref2{src: symIdx, r: i})
+				methods = append(methods, methodref{src: symIdx, r: i})
 				i += 2
 				continue
 			}
@@ -174,7 +174,7 @@ func (d *deadcodePass) flood() {
 			// Decode runtime type information for type methods
 			// to help work out which methods can be called
 			// dynamically via interfaces.
-			methodsigs := d.decodetypeMethods2(d.ldr, d.ctxt.Arch, symIdx, &relocs)
+			methodsigs := d.decodetypeMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs)
 			if len(methods) != len(methodsigs) {
 				panic(fmt.Sprintf("%q has %d method relocations for %d methods", d.ldr.SymName(symIdx), len(methods), len(methodsigs)))
 			}
@@ -206,7 +206,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 	}
 }
 
-func (d *deadcodePass) markMethod(m methodref2) {
+func (d *deadcodePass) markMethod(m methodref) {
 	relocs := d.ldr.Relocs(m.src)
 	d.mark(relocs.At2(m.r).Sym(), m.src)
 	d.mark(relocs.At2(m.r+1).Sym(), m.src)
@@ -305,16 +305,16 @@ func deadcode(ctxt *Link) {
 	}
 }
 
-// methodref2 holds the relocations from a receiver type symbol to its
+// methodref holds the relocations from a receiver type symbol to its
 // method. There are three relocations, one for each of the fields in
 // the reflect.method struct: mtyp, ifn, and tfn.
-type methodref2 struct {
+type methodref struct {
 	m   methodsig
 	src loader.Sym // receiver type symbol
 	r   int        // the index of R_METHODOFF relocations
 }
 
-func (m methodref2) isExported() bool {
+func (m methodref) isExported() bool {
 	for _, r := range m.m {
 		return unicode.IsUpper(r)
 	}
@@ -327,12 +327,12 @@ func (m methodref2) isExported() bool {
 // the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
-func (d *deadcodePass) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, off, size, count int) []methodsig {
+func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, off, size, count int) []methodsig {
 	var buf bytes.Buffer
 	var methods []methodsig
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetypeName2(ldr, symIdx, relocs, off))
-		mtypSym := decodeRelocSym2(ldr, symIdx, relocs, int32(off+4))
+		buf.WriteString(decodetypeName(ldr, symIdx, relocs, off))
+		mtypSym := decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
 		// FIXME: add some sort of caching here, since we may see some of the
 		// same symbols over time for param types.
 		mrelocs := ldr.Relocs(mtypSym)
@@ -344,7 +344,7 @@ func (d *deadcodePass) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symI
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncInType2(ldr, arch, mtypSym, &mrelocs, i)
+			a := decodetypeFuncInType(ldr, arch, mtypSym, &mrelocs, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteString(") (")
@@ -353,7 +353,7 @@ func (d *deadcodePass) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symI
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncOutType2(ldr, arch, mtypSym, &mrelocs, i)
+			a := decodetypeFuncOutType(ldr, arch, mtypSym, &mrelocs, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteRune(')')
@@ -365,12 +365,12 @@ func (d *deadcodePass) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symI
 	return methods
 }
 
-func (d *deadcodePass) decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
+func (d *deadcodePass) decodeIfaceMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
 	p := ldr.Data(symIdx)
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
-	rel := decodeReloc2(ldr, symIdx, relocs, int32(commonsize(arch)+arch.PtrSize))
+	rel := decodeReloc(ldr, symIdx, relocs, int32(commonsize(arch)+arch.PtrSize))
 	s := rel.Sym()
 	if s == 0 {
 		return nil
@@ -381,10 +381,10 @@ func (d *deadcodePass) decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, s
 	off := int(rel.Add()) // array of reflect.imethod values
 	numMethods := int(decodetypeIfaceMethodCount(arch, p))
 	sizeofIMethod := 4 + 4
-	return d.decodeMethodSig2(ldr, arch, symIdx, relocs, off, sizeofIMethod, numMethods)
+	return d.decodeMethodSig(ldr, arch, symIdx, relocs, off, sizeofIMethod, numMethods)
 }
 
-func (d *deadcodePass) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
+func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
 	p := ldr.Data(symIdx)
 	if !decodetypeHasUncommon(arch, p) {
 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
@@ -415,5 +415,5 @@ func (d *deadcodePass) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, sy
 	moff := int(decodeInuxi(arch, p[off+4+2+2:], 4))
 	off += moff                // offset to array of reflect.method values
 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
-	return d.decodeMethodSig2(ldr, arch, symIdx, relocs, off, sizeofMethod, mcount)
+	return d.decodeMethodSig(ldr, arch, symIdx, relocs, off, sizeofMethod, mcount)
 }

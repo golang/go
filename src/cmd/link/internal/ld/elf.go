@@ -1374,6 +1374,11 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 }
 
 func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+	if !ctxt.IsAMD64() {
+		elfrelocsect2(ctxt, sect, syms)
+		return
+	}
+
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1394,6 +1399,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		}
 	}
 
+	ldr := ctxt.loader
 	eaddr := int32(sect.Vaddr + sect.Length)
 	for _, s := range syms {
 		if !s.Attr.Reachable() {
@@ -1402,24 +1408,23 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		if s.Value >= int64(eaddr) {
 			break
 		}
-		for ri := range s.R {
-			r := &s.R[ri]
-			if r.Done {
+		i := loader.Sym(s.SymIdx)
+		relocs := ldr.ExtRelocs(i)
+		for ri := 0; ri < relocs.Count(); ri++ {
+			r := relocs.At(ri)
+			if r.Xsym == 0 {
+				Errorf(s, "missing xsym in relocation %v", ldr.SymName(r.Sym()))
 				continue
 			}
-			if r.Xsym == nil {
-				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
-				continue
-			}
-			esr := ElfSymForReloc(ctxt, r.Xsym)
+			esr := ElfSymForReloc(ctxt, ldr.Syms[r.Xsym])
 			if esr == 0 {
-				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Sym()].Name, ldr.Syms[r.Xsym].Name, ldr.Syms[r.Sym()].Type, ldr.Syms[r.Sym()].Type)
 			}
-			if !r.Xsym.Attr.Reachable() {
-				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+			if !ldr.AttrReachable(r.Xsym) {
+				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Xsym].Name)
 			}
-			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
-				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+			if !thearch.Elfreloc2(ctxt, ldr, i, r, int64(uint64(s.Value+int64(r.Off()))-sect.Vaddr)) {
+				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.Syms[r.Sym()].Name)
 			}
 		}
 	}
@@ -2026,7 +2031,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		// sh.info is the index of first non-local symbol (number of local symbols)
 		s := ctxt.Syms.Lookup(".dynsym", 0)
 		i := uint32(0)
-		for sub := s; sub != nil; sub = sub.Sub {
+		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
 			i++
 			if !sub.Attr.Local() {
 				break

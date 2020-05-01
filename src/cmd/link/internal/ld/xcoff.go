@@ -1109,7 +1109,7 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
-func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	if target.IsExternal() {
 		return true
 	}

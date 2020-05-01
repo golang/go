@@ -129,7 +129,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	o(0xc3)
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -281,7 +281,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 
 	// Reread the reloc to incorporate any changes in type above.
 	relocs := ldr.Relocs(s)
-	*r = relocs.At2(rIdx)
+	r = relocs.At2(rIdx)
 
 	switch r.Type() {
 	case objabi.R_CALL,
@@ -347,7 +347,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	switch r.Type {
 	default:
 		return false
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		if r.Siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
 		} else {
@@ -435,18 +435,8 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, secto
 	return true
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if target.IsExternal() {
-		return val, false
-	}
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
-	}
-
-	return val, false
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, sym loader.Sym, val int64) (int64, bool, bool) {
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
