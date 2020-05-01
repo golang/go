@@ -44,6 +44,9 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
 // Size returns the modulus size in bytes. Raw signatures and ciphertexts
 // for or by this public key will have the same size.
 func (pub *PublicKey) Size() int {
@@ -107,6 +110,27 @@ type PrivateKey struct {
 // Public returns the public key corresponding to priv.
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
+}
+
+// Equal reports whether priv and x have equivalent values. It ignores
+// Precomputed values.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+		return false
+	}
+	if len(priv.Primes) != len(xx.Primes) {
+		return false
+	}
+	for i := range priv.Primes {
+		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
