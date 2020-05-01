@@ -335,10 +335,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 		// An exception is internal linking on Windows, see pe.go:addPEBaseRelocSym
 		// Wasm is another exception, where it applies text relocations in Asmb2.
 		needReloc := (ctxt.IsWindows() && ctxt.IsInternal()) || ctxt.IsWasm()
-		ctxt.loadlibfull(symGroupType, needReloc) // XXX do it here for now
+		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
+		// need conversion. Otherwise we do.
+		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
+		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
 	} else {
 		bench.Start("loadlibfull")
-		ctxt.loadlibfull(symGroupType, true) // XXX do it here for now
+		ctxt.loadlibfull(symGroupType, true, false) // XXX do it here for now
 		bench.Start("reloc")
 		ctxt.reloc2()
 	}
