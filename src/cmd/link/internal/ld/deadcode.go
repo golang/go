@@ -159,8 +159,10 @@ func (d *deadcodePass) flood() {
 			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
 				// A symbol being reachable doesn't imply we need its
 				// type descriptor. Don't mark it.
-				// XXX we need that for GCProg generation when linking
-				// shared library. why?
+				// TODO: when -linkshared, the GCProg generation code
+				// seems to need it. I'm not sure why. I think it could
+				// just reach to the type descriptor's data without
+				// requiring to mark it reachable.
 				continue
 			}
 			d.mark(a.Sym(), symIdx)
