@@ -576,18 +576,18 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name, 0)
 		typedefdie = d.dotypedef(&dwtypes, gotype, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem2(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 		fld := d.newdie(die, dwarf.DW_ABRV_ARRAYRANGE, "range", 0)
 
 		// use actual length not upper bound; correct for 0-length arrays.
-		newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, decodetypeArrayLen2(d.ldr, d.arch, gotype), 0)
+		newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, decodetypeArrayLen(d.ldr, d.arch, gotype), 0)
 
 		d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 
 	case objabi.KindChan:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_CHANTYPE, name, 0)
-		s := decodetypeChanElem2(d.ldr, d.arch, gotype)
+		s := decodetypeChanElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, d.defgotype(s))
 		// Save elem type for synthesizechantypes. We could synthesize here
 		// but that would change the order of DIEs we output.
@@ -602,7 +602,7 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		relocs := d.ldr.Relocs(gotype)
 		nfields := decodetypeFuncInCount(d.arch, data)
 		for i := 0; i < nfields; i++ {
-			s := decodetypeFuncInType2(d.ldr, d.arch, gotype, &relocs, i)
+			s := decodetypeFuncInType(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
 			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:], 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
@@ -613,7 +613,7 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		}
 		nfields = decodetypeFuncOutCount(d.arch, data)
 		for i := 0; i < nfields; i++ {
-			s := decodetypeFuncOutType2(d.ldr, d.arch, gotype, &relocs, i)
+			s := decodetypeFuncOutType(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
 			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:], 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
@@ -634,9 +634,9 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 	case objabi.KindMap:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_MAPTYPE, name, 0)
-		s := decodetypeMapKey2(d.ldr, d.arch, gotype)
+		s := decodetypeMapKey(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_key, d.defgotype(s))
-		s = decodetypeMapValue2(d.ldr, d.arch, gotype)
+		s = decodetypeMapValue(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, d.defgotype(s))
 		// Save gotype for use in synthesizemaptypes. We could synthesize here,
 		// but that would change the order of the DIEs.
@@ -645,14 +645,14 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 	case objabi.KindPtr:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_PTRTYPE, name, 0)
 		typedefdie = d.dotypedef(&dwtypes, gotype, name, die)
-		s := decodetypePtrElem2(d.ldr, d.arch, gotype)
+		s := decodetypePtrElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 
 	case objabi.KindSlice:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name, 0)
 		typedefdie = d.dotypedef(&dwtypes, gotype, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem2(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
 		elem := d.defgotype(s)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
 
@@ -664,17 +664,17 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name, 0)
 		typedefdie = d.dotypedef(&dwtypes, gotype, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		nfields := decodetypeStructFieldCount2(d.ldr, d.arch, gotype)
+		nfields := decodetypeStructFieldCount(d.ldr, d.arch, gotype)
 		for i := 0; i < nfields; i++ {
-			f := decodetypeStructFieldName2(d.ldr, d.arch, gotype, i)
-			s := decodetypeStructFieldType2(d.ldr, d.arch, gotype, i)
+			f := decodetypeStructFieldName(d.ldr, d.arch, gotype, i)
+			s := decodetypeStructFieldType(d.ldr, d.arch, gotype, i)
 			if f == "" {
 				sn := d.ldr.SymName(s)
 				f = sn[5:] // skip "type."
 			}
 			fld := d.newdie(die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
-			offsetAnon := decodetypeStructFieldOffsAnon2(d.ldr, d.arch, gotype, i)
+			offsetAnon := decodetypeStructFieldOffsAnon(d.ldr, d.arch, gotype, i)
 			newmemberoffsetattr(fld, int32(offsetAnon>>1))
 			if offsetAnon&1 != 0 { // is embedded field
 				newattr(fld, dwarf.DW_AT_go_embedded_field, dwarf.DW_CLS_FLAG, 1, 0)
@@ -874,8 +874,8 @@ func (d *dwctxt2) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 			continue
 		}
 		gotype := loader.Sym(getattr(die, dwarf.DW_AT_type).Data.(dwSym))
-		keytype := decodetypeMapKey2(d.ldr, d.arch, gotype)
-		valtype := decodetypeMapValue2(d.ldr, d.arch, gotype)
+		keytype := decodetypeMapKey(d.ldr, d.arch, gotype)
+		valtype := decodetypeMapValue(d.ldr, d.arch, gotype)
 		keydata := d.ldr.Data(keytype)
 		valdata := d.ldr.Data(valtype)
 		keysize, valsize := decodetypeSize(d.arch, keydata), decodetypeSize(d.arch, valdata)
