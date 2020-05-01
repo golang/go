@@ -75,7 +75,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc.AddUint32(ctxt.Arch, 0)
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -246,7 +246,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 		case 4:
 			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz {
 		default:
 			return false

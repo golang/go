@@ -233,19 +233,20 @@ type Arch struct {
 	Dragonflydynld string
 	Solarisdynld   string
 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
-	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
+	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
 	Archinit       func(*Link)
-	// Archreloc is an arch-specific hook that assists in
-	// relocation processing (invoked by 'relocsym'); it handles
-	// target-specific relocation tasks. Here "rel" is the current
-	// relocation being examined, "sym" is the symbol containing the
-	// chunk of data to which the relocation applies, and "off" is the
-	// contents of the to-be-relocated data item (from sym.P). Return
-	// value is the appropriately relocated value (to be written back
-	// to the same spot in sym.P) and a boolean indicating
-	// success/failure (a failing value indicates a fatal error).
+	// Archreloc is an arch-specific hook that assists in relocation processing
+	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
+	// Here "rel" is the current relocation being examined, "sym" is the symbol
+	// containing the chunk of data to which the relocation applies, and "off"
+	// is the contents of the to-be-relocated data item (from sym.P). Return
+	// value is the appropriately relocated value (to be written back to the
+	// same spot in sym.P), a boolean indicating if the external relocations'
+	// been used, and a boolean indicating success/failure (a failing value
+	// indicates a fatal error).
 	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64, success bool)
+	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
 	// insufficient to describe the relocation (r.Variant !=
@@ -269,6 +270,7 @@ type Arch struct {
 	Asmb2 func(*Link)
 
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+	Elfreloc2   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext     func(*Link)
 	Gentext2    func(*Link, *loader.Loader)
@@ -2824,9 +2826,9 @@ func addToTextp(ctxt *Link) {
 	ctxt.Textp = textp
 }
 
-func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc bool) {
+func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc, needExtReloc bool) {
 	// Load full symbol contents, resolve indexed references.
-	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc)
+	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc, needExtReloc)
 
 	// Convert ctxt.Moduledata2 to ctxt.Moduledata, etc
 	if ctxt.Moduledata2 != 0 {
@@ -2928,12 +2930,19 @@ func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
 	}
 }
 
+func symSub(ctxt *Link, s *sym.Symbol) *sym.Symbol {
+	if lsub := ctxt.loader.SubSym(loader.Sym(s.SymIdx)); lsub != 0 {
+		return ctxt.loader.Syms[lsub]
+	}
+	return nil
+}
+
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.loader.Syms {
 		if s == nil {
 			continue
 		}
-		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
+		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, symSub(ctxt, s))
 		for i := range s.R {
 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
 		}

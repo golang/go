@@ -78,7 +78,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc.AddReloc(rel2)
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
+func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 
 	targ := r.Sym()
 	var targType sym.SymKind
@@ -213,7 +213,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 
 	// Reread the reloc to incorporate any changes in type above.
 	relocs := ldr.Relocs(s)
-	*r = relocs.At2(rIdx)
+	r = relocs.At2(rIdx)
 
 	switch r.Type() {
 	case objabi.R_CALL,
@@ -332,7 +332,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	switch r.Type {
 	default:
 		return false
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz {
 		case 4:
 			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS32) | uint64(elfsym)<<32)
