@@ -27,7 +27,8 @@ const (
 // Conn is a JSON RPC 2 client server connection.
 // Conn is bidirectional; it does not have a designated server or client end.
 type Conn struct {
-	seq       int64 // must only be accessed using atomic operations
+	seq       int64      // must only be accessed using atomic operations
+	writeMu   sync.Mutex // protects writes to the stream
 	stream    Stream
 	pendingMu sync.Mutex // protects the pending map
 	pending   map[ID]chan *Response
@@ -65,7 +66,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	}()
 
 	event.Metric(ctx, tag.Started.Of(1))
-	n, err := c.stream.Write(ctx, notify)
+	n, err := c.write(ctx, notify)
 	event.Metric(ctx, tag.SentBytes.Of(n))
 	return err
 }
@@ -104,7 +105,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		c.pendingMu.Unlock()
 	}()
 	// now we are ready to send
-	n, err := c.stream.Write(ctx, call)
+	n, err := c.write(ctx, call)
 	event.Metric(ctx, tag.SentBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
@@ -144,7 +145,7 @@ func replier(conn *Conn, req Request, spanDone func()) Replier {
 		if err != nil {
 			return err
 		}
-		n, err := conn.stream.Write(ctx, response)
+		n, err := conn.write(ctx, response)
 		event.Metric(ctx, tag.SentBytes.Of(n))
 		if err != nil {
 			// TODO(iancottrell): if a stream write fails, we really need to shut down
@@ -153,6 +154,12 @@ func replier(conn *Conn, req Request, spanDone func()) Replier {
 		}
 		return nil
 	}
+}
+
+func (c *Conn) write(ctx context.Context, msg Message) (int64, error) {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.stream.Write(ctx, msg)
 }
 
 // Run blocks until the connection is terminated, and returns any error that

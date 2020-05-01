@@ -36,6 +36,10 @@ func (s *loggingStream) Write(ctx context.Context, msg jsonrpc2.Message) (int64,
 	return count, err
 }
 
+func (s *loggingStream) Close() error {
+	return s.stream.Close()
+}
+
 type req struct {
 	method string
 	start  time.Time

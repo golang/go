@@ -119,11 +119,7 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 	wg.Add(1)
 	go func() {
 		defer func() {
-			// this will happen when Run returns, which means at least one of the
-			// streams has already been closed
-			// we close both streams anyway, this may be redundant but is safe
-			r.Close()
-			w.Close()
+			stream.Close()
 			// and then signal that this connection is done
 			wg.Done()
 		}()

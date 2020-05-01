@@ -10,38 +10,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"strings"
-	"sync"
+
+	"golang.org/x/tools/internal/fakenet"
 )
 
 // Stream abstracts the transport mechanics from the JSON RPC protocol.
 // A Conn reads and writes messages using the stream it was provided on
 // construction, and assumes that each call to Read or Write fully transfers
 // a single message, or returns an error.
+// A stream is not safe for concurrent use, it is expected it will be used by
+// a single Conn in a safe manner.
 type Stream interface {
 	// Read gets the next message from the stream.
-	// It is never called concurrently.
 	Read(context.Context) (Message, int64, error)
 	// Write sends a message to the stream.
-	// It must be safe for concurrent use.
 	Write(context.Context, Message) (int64, error)
+	// Close closes the connection.
+	// Any blocked Read or Write operations will be unblocked and return errors.
+	Close() error
 }
 
 // NewRawStream returns a Stream built on top of an io.Reader and io.Writer.
 // The messages are sent with no wrapping, and rely on json decode consistency
 // to determine message boundaries.
-func NewRawStream(in io.Reader, out io.Writer) Stream {
+func NewRawStream(in io.ReadCloser, out io.WriteCloser) Stream {
+	conn := fakenet.NewConn("jsonrpc2.NewRawStream", in, out)
 	return &rawStream{
-		in:  json.NewDecoder(in),
-		out: out,
+		conn: conn,
+		in:   json.NewDecoder(conn),
 	}
 }
 
 type rawStream struct {
-	in    *json.Decoder
-	outMu sync.Mutex
-	out   io.Writer
+	conn net.Conn
+	in   *json.Decoder
 }
 
 func (s *rawStream) Read(ctx context.Context) (Message, int64, error) {
@@ -68,26 +73,28 @@ func (s *rawStream) Write(ctx context.Context, msg Message) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
-	s.outMu.Lock()
-	n, err := s.out.Write(data)
-	s.outMu.Unlock()
+	n, err := s.conn.Write(data)
 	return int64(n), err
+}
+
+func (s *rawStream) Close() error {
+	return s.conn.Close()
 }
 
 // NewHeaderStream returns a Stream built on top of an io.Reader and io.Writer.
 // The messages are sent with HTTP content length and MIME type headers.
 // This is the format used by LSP and others.
-func NewHeaderStream(in io.Reader, out io.Writer) Stream {
+func NewHeaderStream(in io.ReadCloser, out io.WriteCloser) Stream {
+	conn := fakenet.NewConn("jsonrpc2.NewHeaderStream", in, out)
 	return &headerStream{
-		in:  bufio.NewReader(in),
-		out: out,
+		conn: conn,
+		in:   bufio.NewReader(conn),
 	}
 }
 
 type headerStream struct {
-	in    *bufio.Reader
-	outMu sync.Mutex
-	out   io.Writer
+	conn net.Conn
+	in   *bufio.Reader
 }
 
 func (s *headerStream) Read(ctx context.Context) (Message, int64, error) {
@@ -148,13 +155,15 @@ func (s *headerStream) Write(ctx context.Context, msg Message) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
-	s.outMu.Lock()
-	defer s.outMu.Unlock()
-	n, err := fmt.Fprintf(s.out, "Content-Length: %v\r\n\r\n", len(data))
+	n, err := fmt.Fprintf(s.conn, "Content-Length: %v\r\n\r\n", len(data))
 	total := int64(n)
 	if err == nil {
-		n, err = s.out.Write(data)
+		n, err = s.conn.Write(data)
 		total += int64(n)
 	}
 	return total, err
+}
+
+func (s *headerStream) Close() error {
+	return s.conn.Close()
 }
