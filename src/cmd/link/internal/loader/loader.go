@@ -56,6 +56,14 @@ type ExtReloc struct {
 	Xadd int64
 }
 
+// ExtRelocView is a view of an external relocation.
+// It is intended to be constructed on the fly, such as ExtRelocs.At.
+// It is not the data structure used to store the payload internally.
+type ExtRelocView struct {
+	Reloc2
+	*ExtReloc
+}
+
 // Reloc2 holds a "handle" to access a relocation record from an
 // object file.
 type Reloc2 struct {
@@ -1116,7 +1124,7 @@ func (l *Loader) InitOutData() {
 	l.outdata = make([][]byte, l.extStart)
 }
 
-// SetExtRelocs sets the section of the i-th symbol. i is global index.
+// SetExtRelocs sets the external relocations of the i-th symbol. i is global index.
 func (l *Loader) SetExtRelocs(i Sym, relocs []ExtReloc) {
 	l.extRelocs[i] = relocs
 }
@@ -1699,6 +1707,24 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
 	}
 }
 
+// ExtRelocs returns the external relocations of the i-th symbol.
+func (l *Loader) ExtRelocs(i Sym) ExtRelocs {
+	return ExtRelocs{l.Relocs(i), l.extRelocs[i]}
+}
+
+// ExtRelocs represents the set of external relocations of a symbol.
+type ExtRelocs struct {
+	rs Relocs
+	es []ExtReloc
+}
+
+func (ers ExtRelocs) Count() int { return len(ers.es) }
+
+func (ers ExtRelocs) At(j int) ExtRelocView {
+	i := ers.es[j].Idx
+	return ExtRelocView{ers.rs.At2(i), &ers.es[j]}
+}
+
 // RelocByOff implements sort.Interface for sorting relocations by offset.
 
 type RelocByOff []Reloc
@@ -2033,7 +2059,7 @@ func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
 }
 
 // Load full contents.
-func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc, needExtReloc bool) {
 	// create all Symbols first.
 	l.growSyms(l.NSym())
 	l.growSects(l.NSym())
@@ -2047,7 +2073,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 
 	nr := 0 // total number of sym.Reloc's we'll need
 	for _, o := range l.objs[1:] {
-		nr += loadObjSyms(l, syms, o.r, needReloc)
+		nr += loadObjSyms(l, syms, o.r, needReloc, needExtReloc)
 	}
 
 	// Make a first pass through the external symbols, making
@@ -2063,7 +2089,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 		if needReloc {
 			nr += len(pp.relocs)
 		}
-		if int(i) < len(l.extRelocs) {
+		if needExtReloc && int(i) < len(l.extRelocs) {
 			nr += len(l.extRelocs[i])
 		}
 		// create and install the sym.Symbol here so that l.Syms will
@@ -2079,7 +2105,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 	// allocate a single large slab of relocations for all live symbols
 	if nr != 0 {
 		l.relocBatch = make([]sym.Reloc, nr)
-		if len(l.extRelocs) != 0 {
+		if needExtReloc {
 			l.relocExtBatch = make([]sym.RelocExt, nr)
 		}
 	}
@@ -2102,8 +2128,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 			relocs := l.Relocs(i)
 			l.convertRelocations(i, &relocs, s, false)
 		}
-
-		l.convertExtRelocs(s, i)
+		if needExtReloc {
+			l.convertExtRelocs(s, i)
+		}
 
 		// Copy data
 		s.P = pp.data
@@ -2114,7 +2141,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 
 	// load contents of defined symbols
 	for _, o := range l.objs[1:] {
-		loadObjFull(l, o.r, needReloc)
+		loadObjFull(l, o.r, needReloc, needExtReloc)
 	}
 
 	// Sanity check: we should have consumed all batched allocations.
@@ -2170,17 +2197,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
 	l.plt = nil
 	l.got = nil
 	l.dynid = nil
-	l.relocVariant = nil
-	l.extRelocs = nil
+	if needExtReloc { // converted to sym.Relocs, drop loader references
+		l.relocVariant = nil
+		l.extRelocs = nil
+	}
 
 	// Drop fields that are no longer needed.
 	for _, i := range l.extReader.syms {
 		pp := l.getPayload(i)
 		pp.name = ""
-		pp.relocs = nil
-		pp.reltypes = nil
 		pp.auxs = nil
 		pp.data = nil
+		if needExtReloc {
+			pp.relocs = nil
+			pp.reltypes = nil
+		}
 	}
 }
 
@@ -2450,7 +2481,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
 // loadObjSyms creates sym.Symbol objects for the live Syms in the
 // object corresponding to object reader "r". Return value is the
 // number of sym.Reloc entries required for all the new symbols.
-func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc bool) int {
+func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc, needExtReloc bool) int {
 	nr := 0
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		gi := r.syms[i]
@@ -2483,7 +2514,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc bool) int {
 		if needReloc {
 			nr += r.NReloc(i)
 		}
-		if int(gi) < len(l.extRelocs) {
+		if needExtReloc && int(gi) < len(l.extRelocs) {
 			nr += len(l.extRelocs[gi])
 		}
 	}
@@ -2690,7 +2721,7 @@ func (l *Loader) FreeSym(i Sym) {
 	}
 }
 
-func loadObjFull(l *Loader, r *oReader, needReloc bool) {
+func loadObjFull(l *Loader, r *oReader, needReloc, needExtReloc bool) {
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// A symbol may be a dup or overwritten. In this case, its
 		// content will actually be provided by a different object
@@ -2722,8 +2753,9 @@ func loadObjFull(l *Loader, r *oReader, needReloc bool) {
 			l.relocBatch = batch[relocs.Count():]
 			l.convertRelocations(gi, &relocs, s, false)
 		}
-
-		l.convertExtRelocs(s, gi)
+		if needExtReloc {
+			l.convertExtRelocs(s, gi)
+		}
 
 		// Aux symbol info
 		auxs := r.Auxs(i)
