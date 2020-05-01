@@ -2004,7 +2004,7 @@ func TestValidHostname(t *testing.T) {
 		{host: "foo.*.example.com"},
 		{host: "exa_mple.com", validInput: true, validPattern: true},
 		{host: "foo,bar"},
-		{host: "project-dev:us-central1:main", validInput: true, validPattern: true},
+		{host: "project-dev:us-central1:main"},
 	}
 	for _, tt := range tests {
 		if got := validHostnamePattern(tt.host); got != tt.validPattern {
