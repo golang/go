@@ -1,0 +1,29 @@
+# Verifies golang.org/issue/37574.
+
+# If we are already using an +incompatible version, we shouldn't look up
+# a lower compatible version when upgrading.
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+grep '^example.com/incompatiblewithsub v2\.0\.0\+incompatible' go.sum
+! grep '^example.com/incompatiblewithsub v1.0.0' go.sum
+
+go get -d example.com/incompatiblewithsub/sub
+cmp go.mod.orig go.mod
+! grep '^example.com/incompatiblewithsub v1.0.0' go.sum
+
+# TODO(golang.org/issue/31580): the 'go get' command above should not change
+# go.sum. However, as part of the query above, we download example.com@v1.0.0,
+# an unrelated module, since it's a possible prefix. The sum for that module
+# should not be written to go.sum.
+
+-- go.mod --
+module m
+
+go 1.15
+
+require example.com/incompatiblewithsub v2.0.0+incompatible
+-- use.go --
+package use
+
+import _ "example.com/incompatiblewithsub/sub"
