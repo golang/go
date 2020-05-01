@@ -862,7 +862,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(ctx, pkg.GetTypes(), stdScore+.1*float64(relevance), imp)
+		c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevance), imp)
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
@@ -882,7 +882,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		// Continue with untyped proposals.
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
-			score := stdScore + 0.1*float64(pkgExport.Fix.Relevance)
+			score := unimportedScore(pkgExport.Fix.Relevance)
 			c.found(ctx, candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
@@ -899,6 +899,12 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts)
 	})
+}
+
+// unimportedScore returns a score for an unimported package that is generally
+// lower than other candidates.
+func unimportedScore(relevance int) float64 {
+	return (stdScore + .1*float64(relevance)) / 2
 }
 
 func (c *completer) packageMembers(ctx context.Context, pkg *types.Package, score float64, imp *importInfo) {
@@ -1107,15 +1113,15 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	if c.surrounding != nil {
 		prefix = c.surrounding.Prefix()
 	}
-	initialItemCount := len(c.items)
+	count := 0
 
 	known, err := c.snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return err
 	}
 	var paths []string
-	for path := range known {
-		if !strings.HasPrefix(path, prefix) {
+	for path, pkg := range known {
+		if !strings.HasPrefix(pkg.GetTypes().Name(), prefix) {
 			continue
 		}
 		paths = append(paths, path)
@@ -1131,6 +1137,9 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	for path, relevance := range relevances {
 		pkg := known[path]
+		if _, ok := seen[pkg.GetTypes().Name()]; ok {
+			continue
+		}
 		imp := &importInfo{
 			importPath: path,
 			pkg:        pkg,
@@ -1138,15 +1147,15 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		score := 0.01 * float64(relevance)
-		c.found(ctx, candidate{
-			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
-			score: score,
-			imp:   imp,
-		})
-		if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
+		if count >= maxUnimportedPackageNames {
 			return nil
 		}
+		c.found(ctx, candidate{
+			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
+			score: unimportedScore(relevance),
+			imp:   imp,
+		})
+		count++
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -1159,13 +1168,14 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		if _, ok := seen[pkg.IdentName]; ok {
 			return
 		}
+		if _, ok := relevances[pkg.StmtInfo.ImportPath]; ok {
+			return
+		}
 
-		if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
+		if count >= maxUnimportedPackageNames {
 			cancel()
 			return
 		}
-		// Rank unimported packages significantly lower than other results.
-		score := 0.01 * float64(pkg.Relevance)
 
 		// Do not add the unimported packages to seen, since we can have
 		// multiple packages of the same name as completion suggestions, since
@@ -1173,12 +1183,13 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
 		c.found(ctx, candidate{
 			obj:   obj,
-			score: score,
+			score: unimportedScore(pkg.Relevance),
 			imp: &importInfo{
 				importPath: pkg.StmtInfo.ImportPath,
 				name:       pkg.StmtInfo.Name,
 			},
 		})
+		count++
 	}
 	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts)
