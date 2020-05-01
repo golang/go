@@ -110,11 +110,11 @@ func (h HostnameError) Error() string {
 	c := h.Certificate
 
 	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
-		if !ignoreCN && !validHostname(c.Subject.CommonName) {
+		if !ignoreCN && !validHostnamePattern(c.Subject.CommonName) {
 			// This would have validated, if it weren't for the validHostname check on Common Name.
 			return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
 		}
-		if ignoreCN && validHostname(c.Subject.CommonName) {
+		if ignoreCN && validHostnamePattern(c.Subject.CommonName) {
 			// This would have validated if x509ignoreCN=0 were set.
 			return "x509: certificate relies on legacy Common Name field, " +
 				"use SANs or temporarily enable Common Name matching with GODEBUG=x509ignoreCN=0"
@@ -902,12 +902,16 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 	return
 }
 
+func validHostnamePattern(host string) bool { return validHostname(host, true) }
+func validHostnameInput(host string) bool   { return validHostname(host, false) }
+
 // validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
-func validHostname(host string) bool {
-	host = strings.TrimSuffix(host, ".")
-
+func validHostname(host string, isPattern bool) bool {
+	if !isPattern {
+		host = strings.TrimSuffix(host, ".")
+	}
 	if len(host) == 0 {
 		return false
 	}
@@ -917,7 +921,7 @@ func validHostname(host string) bool {
 			// Empty label.
 			return false
 		}
-		if i == 0 && part == "*" {
+		if isPattern && i == 0 && part == "*" {
 			// Only allow full left-most wildcards, as those are the only ones
 			// we match, and matching literal '*' characters is probably never
 			// the expected behavior.
@@ -957,7 +961,7 @@ func validHostname(host string) bool {
 // constraints if there is no risk the CN would be matched as a hostname.
 // See NameConstraintsWithoutSANs and issue 24151.
 func (c *Certificate) commonNameAsHostname() bool {
-	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+	return !ignoreCN && !c.hasSANExtension() && validHostnamePattern(c.Subject.CommonName)
 }
 
 func matchExactly(hostA, hostB string) bool {
@@ -968,7 +972,7 @@ func matchExactly(hostA, hostB string) bool {
 }
 
 func matchHostnames(pattern, host string) bool {
-	pattern = toLowerCaseASCII(strings.TrimSuffix(pattern, "."))
+	pattern = toLowerCaseASCII(pattern)
 	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
 	if len(pattern) == 0 || len(host) == 0 {
@@ -1061,7 +1065,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
-	validCandidateName := validHostname(candidateName)
+	validCandidateName := validHostnameInput(candidateName)
 
 	for _, match := range names {
 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
@@ -1069,7 +1073,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 		// array of contexts and can't even assume DNS resolution. Instead,
 		// always allow perfect matches, and only apply wildcard and trailing
 		// dot processing to valid hostnames.
-		if validCandidateName && validHostname(match) {
+		if validCandidateName && validHostnamePattern(match) {
 			if matchHostnames(match, candidateName) {
 				return nil
 			}
