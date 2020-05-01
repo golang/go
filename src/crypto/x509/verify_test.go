@@ -374,7 +374,7 @@ var verifyTests = []verifyTest{
 		systemSkip:  true,
 		ignoreCN:    true,
 
-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+		errorCallback: expectHostnameError("not valid for any names"),
 	},
 	{
 		leaf:        validCNWithoutSAN,
@@ -384,7 +384,7 @@ var verifyTests = []verifyTest{
 		systemSkip:  true,
 		ignoreCN:    true,
 
-		errorCallback: expectHostnameError("not valid for any names"),
+		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
 	},
 	{
 		// A certificate with an AKID should still chain to a parent without SKID.
