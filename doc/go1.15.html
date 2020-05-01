@@ -351,6 +351,28 @@ TODO
     </p>
 </dl><!-- sync -->
 
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 231638 -->
+      On Unix systems, functions that use
+      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
+      will now reject attempts to set both the <code>Setctty</code>
+      and <code>Foreground</code> fields, as they both use
+      the <code>Ctty</code> field but do so in incompatible ways.
+      We expect that few existing programs set both fields.
+    </p>
+    <p>
+      Setting the <code>Setctty</code> field now requires that the
+      <code>Ctty</code> field be set to a file descriptor number in the
+      child process, as determined by the <code>ProcAttr.Files</code> field.
+      Using a child descriptor always worked, but there were certain
+      cases where using a parent file descriptor also happened to work.
+      Some programs that set <code>Setctty</code> will need to change
+      the value of <code>Ctty</code> to use a child descriptor number.
+    </p>
+  </dd>
+</dl>
+
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 226877, golang.org/issue/35998 -->
