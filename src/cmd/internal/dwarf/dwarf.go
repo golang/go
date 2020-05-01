@@ -398,9 +398,9 @@ func expandPseudoForm(form uint8) uint8 {
 
 // Abbrevs() returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
-func Abbrevs() [DW_NABRV]dwAbbrev {
+func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
-		return abbrevs
+		return abbrevs[:]
 	}
 	for i := 1; i < DW_NABRV; i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
@@ -408,7 +408,7 @@ func Abbrevs() [DW_NABRV]dwAbbrev {
 		}
 	}
 	abbrevsFinalized = true
-	return abbrevs
+	return abbrevs[:]
 }
 
 // abbrevs is a raw table of abbrev entries; it needs to be post-processed
