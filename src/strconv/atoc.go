@@ -44,95 +44,58 @@ func convErr(err error, s string) error {
 // respective special floating point values for each component. "NaN+NaNi" is also
 // recognized. It ignores case when matching.
 func ParseComplex(s string, bitSize int) (complex128, error) {
-	if len(s) == 0 {
-		return 0, syntaxError(fnParseComplex, s)
+	size := 128
+	if bitSize == 64 {
+		size = 32 // complex64 uses float32 parts
 	}
 
 	orig := s
 
-	// Translate bitSize for ParseFloat/parseFloatPrefix function
-	if bitSize == 64 {
-		bitSize = 32 // complex64 uses float32 internally
-	} else {
-		bitSize = 64
-	}
-
-	endCh := s[len(s)-1]
-
-	// Remove parentheses
-	if len(s) > 1 && s[0] == '(' && endCh == ')' {
+	// Remove parentheses, if any.
+	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
 		s = s[1 : len(s)-1]
-		endCh = s[len(s)-1]
 	}
 
-	// Is last character an i?
-	if endCh != 'i' {
-		// The last character is not an i so there is only a real component.
-		real, err := ParseFloat(s, bitSize)
-		if err != nil {
-			return 0, convErr(err, orig)
-		}
-		return complex(real, 0), nil
-	} else if s == "i" {
-		return complex(0, 1), nil
+	// Read real part (possibly imaginary part if followed by 'i').
+	re, n, err := parseFloatPrefix(s, size)
+	if err != nil {
+		return 0, convErr(err, orig)
+	}
+	s = s[n:]
+
+	// If we have nothing left, we're done.
+	if len(s) == 0 {
+		return complex(re, 0), nil
 	}
 
-	// Remove last char which is an i
-	s = s[0 : len(s)-1]
-
-	// Some input does not get interpreted by parseFloatPrefix correctly.
-	// Namely: i, -i, +i, +NaNi
-	// The "i" (no sign) case is taken care of above.
-	// +NaNi is only acceptable if both a real and imag component exist.
-
-	var posNaNFound bool
-
-	if len(s) >= 1 {
-		endCh := s[len(s)-1]
-		if endCh == '+' || endCh == '-' {
-			s = s + "1"
+	// Otherwise, look at the next character.
+	switch s[0] {
+	case '+':
+		// Consume the '+' to avoid an error if we have "+NaNi", but
+		// do this only if we don't have a "++" (don't hide that error).
+		if len(s) > 1 && s[1] != '+' {
+			s = s[1:]
 		}
+	case '-':
+		// ok
+	case 'i':
+		// If 'i' is the last character, we only have an imaginary part.
+		if len(s) == 1 {
+			return complex(0, re), nil
+		}
+		fallthrough
+	default:
+		return 0, syntaxError(fnParseComplex, orig)
 	}
 
-	if len(s) >= 4 {
-		endChs := s[len(s)-4 : len(s)]
-		if endChs == "+NaN" {
-			posNaNFound = true
-			s = s[0:len(s)-4] + "NaN" // remove sign before NaN
-		}
+	// Read imaginary part.
+	im, n, err := parseFloatPrefix(s, size)
+	if err != nil {
+		return 0, convErr(err, orig)
 	}
-
-	floatsFound := []float64{}
-
-	for {
-		f, n, err := parseFloatPrefix(s, bitSize)
-		if err != nil {
-			return 0, convErr(err, orig)
-		}
-
-		floatsFound = append(floatsFound, f)
-		s = s[n:]
-
-		if len(s) == 0 {
-			break
-		}
+	s = s[n:]
+	if s != "i" {
+		return 0, syntaxError(fnParseComplex, orig)
 	}
-
-	// Check how many floats were found in s
-	switch len(floatsFound) {
-	case 1:
-		// only imag component
-		imaj := floatsFound[0]
-		if posNaNFound && imaj != imaj {
-			// Reject if +NaN found
-			return 0, syntaxError(fnParseComplex, orig)
-		}
-		return complex(0, floatsFound[0]), nil
-	case 2:
-		// real and imag component
-		return complex(floatsFound[0], floatsFound[1]), nil
-	}
-
-	// 0 floats found or too many components
-	return 0, syntaxError(fnParseComplex, orig)
+	return complex(re, im), nil
 }
