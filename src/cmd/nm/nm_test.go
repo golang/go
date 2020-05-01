@@ -335,11 +335,11 @@ func TestGoLib(t *testing.T) {
 }
 
 // Check that a symbol has a given name, accepting both
-// new and old objects.
-// TODO(go115newobj): remove.
+// with (for packaged symbols) and without index (for
+// non-package symbols).
 func matchSymName(symname, want string) bool {
 	return symname == want ||
-		strings.HasPrefix(symname, want+"#") // new style, with index
+		strings.HasPrefix(symname, want+"#")
 }
 
 const testexec = `

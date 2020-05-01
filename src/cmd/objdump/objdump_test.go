@@ -286,9 +286,8 @@ func TestDisasmGoobj(t *testing.T) {
 		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
 	}
 
-	// TODO(go115newobj): drop old object file support.
 	need := []string{
-		`main(#\d+)?\(SB\)`, // either new or old object file
+		`main#\d+\(SB\)`,
 		`fmthello\.go:6`,
 	}
 

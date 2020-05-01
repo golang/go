@@ -696,16 +696,14 @@ func (r *importReader) linkname(s *types.Sym) {
 }
 
 func (r *importReader) symIdx(s *types.Sym) {
-	if Ctxt.Flag_go115newobj {
-		lsym := s.Linksym()
-		idx := int32(r.int64())
-		if idx != -1 {
-			if s.Linkname != "" {
-				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
-			}
-			lsym.SymIdx = idx
-			lsym.Set(obj.AttrIndexed, true)
+	lsym := s.Linksym()
+	idx := int32(r.int64())
+	if idx != -1 {
+		if s.Linkname != "" {
+			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
+		lsym.SymIdx = idx
+		lsym.Set(obj.AttrIndexed, true)
 	}
 }
 
