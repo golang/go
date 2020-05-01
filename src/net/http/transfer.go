@@ -660,9 +660,9 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		// Content-Length headers if they differ in value.
 		// If there are dups of the value, remove the dups.
 		// See Issue 16490.
-		first := strings.TrimSpace(contentLens[0])
+		first := textproto.TrimString(contentLens[0])
 		for _, ct := range contentLens[1:] {
-			if first != strings.TrimSpace(ct) {
+			if first != textproto.TrimString(ct) {
 				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
 			}
 		}
@@ -701,7 +701,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	// Logic based on Content-Length
 	var cl string
 	if len(contentLens) == 1 {
-		cl = strings.TrimSpace(contentLens[0])
+		cl = textproto.TrimString(contentLens[0])
 	}
 	if cl != "" {
 		n, err := parseContentLength(cl)
@@ -1032,7 +1032,7 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
 // parseContentLength trims whitespace from s and returns -1 if no value
 // is set, or the value if it's >= 0.
 func parseContentLength(cl string) (int64, error) {
-	cl = strings.TrimSpace(cl)
+	cl = textproto.TrimString(cl)
 	if cl == "" {
 		return -1, nil
 	}
