@@ -435,7 +435,7 @@ func (i *Instance) SetLogFile(logfile string) (func(), error) {
 		}
 		f, err := os.Create(logfile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create log file: %v", err)
+			return nil, fmt.Errorf("unable to create log file: %w", err)
 		}
 		closeLog = func() {
 			defer f.Close()

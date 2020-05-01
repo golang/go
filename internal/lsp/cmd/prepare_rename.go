@@ -68,7 +68,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 	}
 	result, err := conn.PrepareRename(ctx, &p)
 	if err != nil {
-		return fmt.Errorf("prepare_rename failed: %v", err)
+		return fmt.Errorf("prepare_rename failed: %w", err)
 	}
 	if result == nil {
 		return ErrInvalidRenamePosition

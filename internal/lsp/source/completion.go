@@ -432,7 +432,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting file for Completion: %v", err)
+		return nil, nil, fmt.Errorf("getting file for Completion: %w", err)
 	}
 	file, src, m, _, err := pgh.Cached()
 	if err != nil {

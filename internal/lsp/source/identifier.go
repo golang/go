@@ -54,7 +54,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
-		return nil, fmt.Errorf("getting file for Identifier: %v", err)
+		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
 	file, _, m, _, err := pgh.Cached()
 	if err != nil {

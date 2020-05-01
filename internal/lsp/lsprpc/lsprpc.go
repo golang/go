@@ -225,19 +225,19 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 	if network == AutoNetwork {
 		gp, err := os.Executable()
 		if err != nil {
-			return nil, fmt.Errorf("getting gopls path: %v", err)
+			return nil, fmt.Errorf("getting gopls path: %w", err)
 		}
 		network, address = autoNetworkAddress(gp, address)
 	}
 	netConn, err := net.DialTimeout(network, address, 5*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("dialing remote: %v", err)
+		return nil, fmt.Errorf("dialing remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
 	go serverConn.Run(ctx, jsonrpc2.MethodNotFound)
 	var state ServerState
 	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
-		return nil, fmt.Errorf("querying server state: %v", err)
+		return nil, fmt.Errorf("querying server state: %w", err)
 	}
 	return &state, nil
 }
@@ -250,7 +250,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 
 	netConn, err := f.connectToRemote(ctx)
 	if err != nil {
-		return fmt.Errorf("forwarder: connecting to remote: %v", err)
+		return fmt.Errorf("forwarder: connecting to remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
 	server := protocol.ServerDispatcher(serverConn)
@@ -353,7 +353,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 			// instances are simultaneously starting up.
 			if _, err := os.Stat(address); err == nil {
 				if err := os.Remove(address); err != nil {
-					return nil, fmt.Errorf("removing remote socket file: %v", err)
+					return nil, fmt.Errorf("removing remote socket file: %w", err)
 				}
 			}
 		}
@@ -366,7 +366,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 			args = append(args, "-debug", f.remoteDebug)
 		}
 		if err := startRemote(f.goplsPath, args...); err != nil {
-			return nil, fmt.Errorf("startRemote(%q, %v): %v", f.goplsPath, args, err)
+			return nil, fmt.Errorf("startRemote(%q, %v): %w", f.goplsPath, args, err)
 		}
 	}
 
@@ -385,7 +385,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 			time.Sleep(f.dialTimeout - time.Since(startDial))
 		}
 	}
-	return nil, fmt.Errorf("dialing remote: %v", err)
+	return nil, fmt.Errorf("dialing remote: %w", err)
 }
 
 // ForwarderExitFunc is used to exit the forwarder process. It is mutable for

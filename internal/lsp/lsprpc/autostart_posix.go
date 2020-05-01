@@ -31,7 +31,7 @@ func startRemotePosix(goplsPath string, args ...string) error {
 		Setsid: true,
 	}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting remote gopls: %v", err)
+		return fmt.Errorf("starting remote gopls: %w", err)
 	}
 	return nil
 }
@@ -78,7 +78,7 @@ func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
 		if os.IsNotExist(err) {
 			return true, nil
 		}
-		return false, fmt.Errorf("checking socket owner: %v", err)
+		return false, fmt.Errorf("checking socket owner: %w", err)
 	}
 	stat, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
@@ -86,11 +86,11 @@ func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
 	}
 	user, err := user.Current()
 	if err != nil {
-		return false, fmt.Errorf("checking current user: %v", err)
+		return false, fmt.Errorf("checking current user: %w", err)
 	}
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
 	if err != nil {
-		return false, fmt.Errorf("parsing current UID: %v", err)
+		return false, fmt.Errorf("parsing current UID: %w", err)
 	}
 	return stat.Uid == uint32(uid), nil
 }

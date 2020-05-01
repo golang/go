@@ -614,7 +614,7 @@ func (v *view) cancelBackground() {
 
 func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []string, modfileFlagEnabled bool) error {
 	if err := checkPathCase(folder.Filename()); err != nil {
-		return fmt.Errorf("invalid workspace configuration: %v", err)
+		return fmt.Errorf("invalid workspace configuration: %w", err)
 	}
 	// Make sure to get the `go env` before continuing with initialization.
 	gomod, err := v.getGoEnv(ctx, env)

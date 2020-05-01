@@ -24,7 +24,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
-		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %v", err)
+		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
 	file, _, m, _, err := pgh.Cached()
 	if err != nil {
