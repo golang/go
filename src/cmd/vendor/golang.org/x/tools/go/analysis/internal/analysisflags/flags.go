@@ -382,7 +382,7 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 func (tree JSONTree) Print() {
 	data, err := json.MarshalIndent(tree, "", "\t")
 	if err != nil {
-		log.Panicf("internal error: JSON marshalling failed: %v", err)
+		log.Panicf("internal error: JSON marshaling failed: %v", err)
 	}
 	fmt.Printf("%s\n", data)
 }

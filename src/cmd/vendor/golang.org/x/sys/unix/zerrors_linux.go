@@ -216,6 +216,7 @@ const (
 	BPF_F_RDONLY                                = 0x8
 	BPF_F_RDONLY_PROG                           = 0x80
 	BPF_F_RECOMPUTE_CSUM                        = 0x1
+	BPF_F_REPLACE                               = 0x4
 	BPF_F_REUSE_STACKID                         = 0x400
 	BPF_F_SEQ_NUMBER                            = 0x8
 	BPF_F_SKIP_FIELD_MASK                       = 0xff
@@ -389,6 +390,7 @@ const (
 	CLONE_NEWNET                                = 0x40000000
 	CLONE_NEWNS                                 = 0x20000
 	CLONE_NEWPID                                = 0x20000000
+	CLONE_NEWTIME                               = 0x80
 	CLONE_NEWUSER                               = 0x10000000
 	CLONE_NEWUTS                                = 0x4000000
 	CLONE_PARENT                                = 0x8000
@@ -671,6 +673,7 @@ const (
 	FS_IOC_ADD_ENCRYPTION_KEY                   = 0xc0506617
 	FS_IOC_GET_ENCRYPTION_KEY_STATUS            = 0xc080661a
 	FS_IOC_GET_ENCRYPTION_POLICY_EX             = 0xc0096616
+	FS_IOC_MEASURE_VERITY                       = 0xc0046686
 	FS_IOC_REMOVE_ENCRYPTION_KEY                = 0xc0406618
 	FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS      = 0xc0406619
 	FS_KEY_DESCRIPTOR_SIZE                      = 0x8
@@ -683,6 +686,9 @@ const (
 	FS_POLICY_FLAGS_PAD_8                       = 0x1
 	FS_POLICY_FLAGS_PAD_MASK                    = 0x3
 	FS_POLICY_FLAGS_VALID                       = 0xf
+	FS_VERITY_FL                                = 0x100000
+	FS_VERITY_HASH_ALG_SHA256                   = 0x1
+	FS_VERITY_HASH_ALG_SHA512                   = 0x2
 	FUTEXFS_SUPER_MAGIC                         = 0xbad1dea
 	F_ADD_SEALS                                 = 0x409
 	F_DUPFD                                     = 0x0
@@ -733,6 +739,7 @@ const (
 	GENL_NAMSIZ                                 = 0x10
 	GENL_START_ALLOC                            = 0x13
 	GENL_UNS_ADMIN_PERM                         = 0x10
+	GRND_INSECURE                               = 0x4
 	GRND_NONBLOCK                               = 0x1
 	GRND_RANDOM                                 = 0x2
 	HDIO_DRIVE_CMD                              = 0x31f
@@ -1483,6 +1490,7 @@ const (
 	PR_GET_FPEMU                                = 0x9
 	PR_GET_FPEXC                                = 0xb
 	PR_GET_FP_MODE                              = 0x2e
+	PR_GET_IO_FLUSHER                           = 0x3a
 	PR_GET_KEEPCAPS                             = 0x7
 	PR_GET_NAME                                 = 0x10
 	PR_GET_NO_NEW_PRIVS                         = 0x27
@@ -1518,6 +1526,7 @@ const (
 	PR_SET_FPEMU                                = 0xa
 	PR_SET_FPEXC                                = 0xc
 	PR_SET_FP_MODE                              = 0x2d
+	PR_SET_IO_FLUSHER                           = 0x39
 	PR_SET_KEEPCAPS                             = 0x8
 	PR_SET_MM                                   = 0x23
 	PR_SET_MM_ARG_END                           = 0x9
@@ -1746,12 +1755,15 @@ const (
 	RTM_DELRULE                                 = 0x21
 	RTM_DELTCLASS                               = 0x29
 	RTM_DELTFILTER                              = 0x2d
+	RTM_DELVLAN                                 = 0x71
 	RTM_F_CLONED                                = 0x200
 	RTM_F_EQUALIZE                              = 0x400
 	RTM_F_FIB_MATCH                             = 0x2000
 	RTM_F_LOOKUP_TABLE                          = 0x1000
 	RTM_F_NOTIFY                                = 0x100
+	RTM_F_OFFLOAD                               = 0x4000
 	RTM_F_PREFIX                                = 0x800
+	RTM_F_TRAP                                  = 0x8000
 	RTM_GETACTION                               = 0x32
 	RTM_GETADDR                                 = 0x16
 	RTM_GETADDRLABEL                            = 0x4a
@@ -1773,7 +1785,8 @@ const (
 	RTM_GETSTATS                                = 0x5e
 	RTM_GETTCLASS                               = 0x2a
 	RTM_GETTFILTER                              = 0x2e
-	RTM_MAX                                     = 0x6f
+	RTM_GETVLAN                                 = 0x72
+	RTM_MAX                                     = 0x73
 	RTM_NEWACTION                               = 0x30
 	RTM_NEWADDR                                 = 0x14
 	RTM_NEWADDRLABEL                            = 0x48
@@ -1788,6 +1801,7 @@ const (
 	RTM_NEWNETCONF                              = 0x50
 	RTM_NEWNEXTHOP                              = 0x68
 	RTM_NEWNSID                                 = 0x58
+	RTM_NEWNVLAN                                = 0x70
 	RTM_NEWPREFIX                               = 0x34
 	RTM_NEWQDISC                                = 0x24
 	RTM_NEWROUTE                                = 0x18
@@ -1795,8 +1809,8 @@ const (
 	RTM_NEWSTATS                                = 0x5c
 	RTM_NEWTCLASS                               = 0x28
 	RTM_NEWTFILTER                              = 0x2c
-	RTM_NR_FAMILIES                             = 0x18
-	RTM_NR_MSGTYPES                             = 0x60
+	RTM_NR_FAMILIES                             = 0x19
+	RTM_NR_MSGTYPES                             = 0x64
 	RTM_SETDCB                                  = 0x4f
 	RTM_SETLINK                                 = 0x13
 	RTM_SETNEIGHTBL                             = 0x43
@@ -2086,7 +2100,7 @@ const (
 	TASKSTATS_GENL_NAME                         = "TASKSTATS"
 	TASKSTATS_GENL_VERSION                      = 0x1
 	TASKSTATS_TYPE_MAX                          = 0x6
-	TASKSTATS_VERSION                           = 0x9
+	TASKSTATS_VERSION                           = 0xa
 	TCIFLUSH                                    = 0x0
 	TCIOFF                                      = 0x2
 	TCIOFLUSH                                   = 0x2
@@ -2151,6 +2165,8 @@ const (
 	TCP_USER_TIMEOUT                            = 0x12
 	TCP_WINDOW_CLAMP                            = 0xa
 	TCP_ZEROCOPY_RECEIVE                        = 0x23
+	TFD_TIMER_ABSTIME                           = 0x1
+	TFD_TIMER_CANCEL_ON_SET                     = 0x2
 	TIMER_ABSTIME                               = 0x1
 	TIOCM_DTR                                   = 0x2
 	TIOCM_LE                                    = 0x1
@@ -2267,7 +2283,7 @@ const (
 	VMADDR_CID_ANY                              = 0xffffffff
 	VMADDR_CID_HOST                             = 0x2
 	VMADDR_CID_HYPERVISOR                       = 0x0
-	VMADDR_CID_RESERVED                         = 0x1
+	VMADDR_CID_LOCAL                            = 0x1
 	VMADDR_PORT_ANY                             = 0xffffffff
 	VM_SOCKETS_INVALID_VERSION                  = 0xffffffff
 	VQUIT                                       = 0x1
@@ -2394,6 +2410,7 @@ const (
 	XENFS_SUPER_MAGIC                           = 0xabba1974
 	XFS_SUPER_MAGIC                             = 0x58465342
 	Z3FOLD_MAGIC                                = 0x33
+	ZONEFS_MAGIC                                = 0x5a4f4653
 	ZSMALLOC_MAGIC                              = 0x58295829
 )
 
