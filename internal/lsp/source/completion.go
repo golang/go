@@ -849,8 +849,11 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 			return nil
 		})
 	}
+	sort.Slice(paths, func(i, j int) bool {
+		return relevances[paths[i]] > relevances[paths[j]]
+	})
 
-	for path, relevance := range relevances {
+	for _, path := range paths {
 		pkg := known[path]
 		if pkg.GetTypes().Name() != id.Name {
 			continue
@@ -862,7 +865,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevance), imp)
+		c.packageMembers(ctx, pkg.GetTypes(), unimportedScore(relevances[path]), imp)
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
@@ -1134,8 +1137,11 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 			return nil
 		})
 	}
+	sort.Slice(paths, func(i, j int) bool {
+		return relevances[paths[i]] > relevances[paths[j]]
+	})
 
-	for path, relevance := range relevances {
+	for _, path := range paths {
 		pkg := known[path]
 		if _, ok := seen[pkg.GetTypes().Name()]; ok {
 			continue
@@ -1152,7 +1158,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		}
 		c.found(ctx, candidate{
 			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
-			score: unimportedScore(relevance),
+			score: unimportedScore(relevances[path]),
 			imp:   imp,
 		})
 		count++
