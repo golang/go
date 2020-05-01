@@ -1347,37 +1347,6 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 	}
 }
 
-func TestIdentityResponseHeaders(t *testing.T) {
-	// Not parallel; changes log output.
-	defer afterTest(t)
-	log.SetOutput(ioutil.Discard) // is noisy otherwise
-	defer log.SetOutput(os.Stderr)
-
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header().Set("Transfer-Encoding", "identity")
-		w.(Flusher).Flush()
-		fmt.Fprintf(w, "I am an identity response.")
-	}))
-	defer ts.Close()
-
-	c := ts.Client()
-	res, err := c.Get(ts.URL)
-	if err != nil {
-		t.Fatalf("Get error: %v", err)
-	}
-	defer res.Body.Close()
-
-	if g, e := res.TransferEncoding, []string(nil); !reflect.DeepEqual(g, e) {
-		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
-	}
-	if _, haveCL := res.Header["Content-Length"]; haveCL {
-		t.Errorf("Unexpected Content-Length")
-	}
-	if !res.Close {
-		t.Errorf("expected Connection: close; got %v", res.Close)
-	}
-}
-
 // TestHeadResponses verifies that all MIME type sniffing and Content-Length
 // counting of GET requests also happens on HEAD requests.
 func TestHeadResponses_h1(t *testing.T) { testHeadResponses(t, h1Mode) }
