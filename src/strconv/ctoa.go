@@ -18,10 +18,10 @@ func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
 	bitSize >>= 1 // complex64 uses float32 internally
 
 	// Check if imaginary part has a sign. If not, add one.
-	imag := FormatFloat(imag(c), fmt, prec, bitSize)
-	if imag[0] != '+' && imag[0] != '-' {
-		imag = "+" + imag
+	im := FormatFloat(imag(c), fmt, prec, bitSize)
+	if im[0] != '+' && im[0] != '-' {
+		im = "+" + im
 	}
 
-	return "(" + FormatFloat(real(c), fmt, prec, bitSize) + imag + "i)"
+	return "(" + FormatFloat(real(c), fmt, prec, bitSize) + im + "i)"
 }
