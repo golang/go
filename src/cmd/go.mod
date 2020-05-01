@@ -7,6 +7,6 @@ require (
 	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff
 	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
 	golang.org/x/mod v0.2.0
-	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
+	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
 	golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
 )

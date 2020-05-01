@@ -39,7 +39,7 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c
+# golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 ## explicit
 golang.org/x/sys/unix
 golang.org/x/sys/windows

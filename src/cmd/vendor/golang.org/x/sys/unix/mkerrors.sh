@@ -105,6 +105,7 @@ includes_FreeBSD='
 #include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/disk.h>
 #include <sys/event.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -280,6 +281,11 @@ struct ltchars {
 // for the tipc_subscr timeout __u32 field.
 #undef TIPC_WAIT_FOREVER
 #define TIPC_WAIT_FOREVER 0xffffffff
+
+// Copied from linux/l2tp.h
+// Including linux/l2tp.h here causes conflicts between linux/in.h
+// and netinet/in.h included via net/route.h above.
+#define IPPROTO_L2TP		115
 '
 
 includes_NetBSD='
@@ -488,6 +494,7 @@ ccflags="$@"
 		$2 !~ "RTF_BITS" &&
 		$2 ~ /^(IFF|IFT|NET_RT|RTM(GRP)?|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
+		$2 ~ /^DIOC/ ||
 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|LOCKS|MEMLOCK|MSGQUEUE|NICE|NOFILE|NPROC|RSS|RTPRIO|RTTIME|SIGPENDING|STACK)|RLIM_INFINITY/ ||
 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
