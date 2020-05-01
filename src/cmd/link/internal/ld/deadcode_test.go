@@ -14,28 +14,9 @@ import (
 	"testing"
 )
 
-// This example uses reflect.Value.Call, but not
-// reflect.{Value,Type}.Method. This should not
-// need to bring all methods live.
-const deadcodeTestSrc = `
-package main
-import "reflect"
-
-func f() { println("call") }
-
-type T int
-func (T) M() {}
-
-func main() {
-	v := reflect.ValueOf(f)
-	v.Call(nil)
-	i := interface{}(T(1))
-	println(i)
-}
-`
-
 func TestDeadcode(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestDeadcode")
 	if err != nil {
@@ -43,19 +24,26 @@ func TestDeadcode(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte(deadcodeTestSrc), 0666)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		src     string
+		pattern string
+	}{
+		{"reflectcall", "main.T.M"},
+		{"typedesc", "type.main.T"},
 	}
-	exe := filepath.Join(tmpdir, "main.exe")
-
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
-	}
-	if bytes.Contains(out, []byte("main.T.M")) {
-		t.Errorf("main.T.M should not be reachable. Output:\n%s", out)
+	for _, test := range tests {
+		t.Run(test.src, func(t *testing.T) {
+			t.Parallel()
+			src := filepath.Join("testdata", "deadcode", test.src+".go")
+			exe := filepath.Join(tmpdir, test.src+".exe")
+			cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+			}
+			if bytes.Contains(out, []byte(test.pattern)) {
+				t.Errorf("%s should not be reachable. Output:\n%s", test.pattern, out)
+			}
+		})
 	}
 }

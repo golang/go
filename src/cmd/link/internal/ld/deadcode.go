@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -154,7 +155,15 @@ func (d *deadcodePass) flood() {
 		}
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
-			d.mark(d.ldr.Aux2(symIdx, i).Sym(), symIdx)
+			a := d.ldr.Aux2(symIdx, i)
+			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
+				// A symbol being reachable doesn't imply we need its
+				// type descriptor. Don't mark it.
+				// XXX we need that for GCProg generation when linking
+				// shared library. why?
+				continue
+			}
+			d.mark(a.Sym(), symIdx)
 		}
 		// Some host object symbols have an outer object, which acts like a
 		// "carrier" symbol, or it holds all the symbols for a particular
