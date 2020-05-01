@@ -357,10 +357,14 @@ var matchHostnamesTests = []matchHostnamesTest{
 	{"*.example.com", "www.example.com", true},
 	{"*.example.com", "www.example.com.", true},
 	{"*.example.com", "xyz.www.example.com", false},
+	{"*.example.com", "https://www.example.com", false}, // Issue 27591
+	{"*.example..com", "www.example..com", false},
+	{"www.example..com", "www.example..com", true},
 	{"*.*.example.com", "xyz.www.example.com", false},
 	{"*.www.*.com", "xyz.www.example.com", false},
 	{"*bar.example.com", "foobar.example.com", false},
 	{"f*.example.com", "foobar.example.com", false},
+	{"www.example.com", "*.example.com", false},
 	{"", ".", false},
 	{".", "", false},
 	{".", ".", false},
@@ -371,11 +375,14 @@ var matchHostnamesTests = []matchHostnamesTest{
 	{"*.com.", "example.com", true},
 	{"*.com", "example.com", true},
 	{"*.com", "example.com.", true},
+	{"foo:bar", "foo:bar", true},
+	{"*.foo:bar", "xxx.foo:bar", true},
 }
 
 func TestMatchHostnames(t *testing.T) {
 	for i, test := range matchHostnamesTests {
-		r := matchHostnames(test.pattern, test.host)
+		c := &Certificate{DNSNames: []string{test.pattern}}
+		r := c.VerifyHostname(test.host) == nil
 		if r != test.ok {
 			t.Errorf("#%d mismatch got: %t want: %t when matching '%s' against '%s'", i, r, test.ok, test.host, test.pattern)
 		}
