@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -27,6 +28,22 @@ var (
 
 func TestParse(t *testing.T) {
 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+}
+
+func TestParseGo2(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
+
+	dir := filepath.Join(testdata, "go2")
+	list, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fi := range list {
+		name := fi.Name()
+		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
+			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, 0)
+		}
+	}
 }
 
 func TestStdLib(t *testing.T) {

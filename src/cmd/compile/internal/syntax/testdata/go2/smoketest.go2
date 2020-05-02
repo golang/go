@@ -1,0 +1,47 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains basic generic code snippets.
+
+package p
+
+// type parameter lists
+type _(type) struct{}
+type B(type P) struct{}
+type _(type P interface{}) struct{}
+type _(type P B) struct{}
+type _(type P B(P)) struct{}
+
+type _(type A, B, C) struct{}
+type _(type A, B, C B) struct{}
+type _(type A, B, C B(A, B, C)) struct{}
+type _(type A1, A2 B1, A3 B2, A4, A5, A6 B3) struct{}
+
+type _(type A interface{}) struct{}
+type _(type A, B interface{ m() }) struct{}
+
+type _(type A, B, C) struct{}
+
+// in functions
+func _(type)()
+func _(type P)()
+func _(type P interface{})()
+func _(type P B)()
+func _(type P B(P))()
+
+// in methods
+func (T) _(type)()
+func (T) _(type P)()
+func (T) _(type P interface{})()
+func (T) _(type P B)()
+func (T) _(type P B(P))()
+
+// type instantiations
+type _ T(int)
+
+// in expressions
+var _ = T(int){}
+
+// in embedded types
+type _ struct{ (T(int)) }

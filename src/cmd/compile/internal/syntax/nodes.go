@@ -74,11 +74,12 @@ type (
 
 	// Name Type
 	TypeDecl struct {
-		Group  *Group // nil means not part of a group
-		Pragma Pragma
-		Name   *Name
-		Alias  bool
-		Type   Expr
+		Group      *Group // nil means not part of a group
+		Pragma     Pragma
+		Name       *Name
+		TParamList []*Field // nil means no type parameters
+		Alias      bool
+		Type       Expr
 		decl
 	}
 
@@ -99,11 +100,12 @@ type (
 	// func Receiver Name Type { Body }
 	// func Receiver Name Type
 	FuncDecl struct {
-		Pragma Pragma
-		Recv   *Field // nil means regular function
-		Name   *Name
-		Type   *FuncType
-		Body   *BlockStmt // nil means no body (forward declaration)
+		Pragma     Pragma
+		Recv       *Field // nil means regular function
+		Name       *Name
+		TParamList []*Field // nil means no type parameters
+		Type       *FuncType
+		Body       *BlockStmt // nil means no body (forward declaration)
 		decl
 	}
 )
@@ -273,6 +275,7 @@ type (
 	// interface { MethodList[0]; MethodList[1]; ... }
 	InterfaceType struct {
 		MethodList []*Field
+		TypeList   []Expr
 		expr
 	}
 

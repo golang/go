@@ -458,20 +458,21 @@ func isEmptyFuncDecl(dcl Decl) bool {
 // Declarations
 
 // list parses a possibly empty, sep-separated list, optionally
-// followed by sep and enclosed by ( and ) or { and }. open is
-// one of _Lparen, or _Lbrace, sep is one of _Comma or _Semi,
-// and close is expected to be the (closing) opposite of open.
+// followed sep, and closed by close. sep must be one of _Comma
+// or _Semi, and close must be one of _Rparen or _Rbrace.
 // For each list element, f is called. After f returns true, no
 // more list elements are accepted. list returns the position
 // of the closing token.
 //
-// list = "(" { f sep } ")" |
-//        "{" { f sep } "}" . // sep is optional before ")" or "}"
+// list = { f sep } ")" |
+//        { f sep } "}" . // sep is optional before ")" or "}"
 //
-func (p *parser) list(open, sep, close token, f func() bool) Pos {
-	p.want(open)
+func (p *parser) list(sep, close token, f func() bool) Pos {
+	if debug && (sep != _Comma && sep != _Semi || close != _Rparen && close != _Rbrace) {
+		panic("invalid sep or close argument for list")
+	}
 
-	var done bool
+	done := false
 	for p.tok != _EOF && p.tok != close && !done {
 		done = f()
 		// sep is optional before close
@@ -492,10 +493,10 @@ func (p *parser) list(open, sep, close token, f func() bool) Pos {
 
 // appendGroup(f) = f | "(" { f ";" } ")" . // ";" is optional before ")"
 func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
-	if p.tok == _Lparen {
+	if p.got(_Lparen) {
 		g := new(Group)
 		p.clearPragma()
-		p.list(_Lparen, _Semi, _Rparen, func() bool {
+		p.list(_Semi, _Rparen, func() bool {
 			list = append(list, f(g))
 			return false
 		})
@@ -556,7 +557,7 @@ func (p *parser) constDecl(group *Group) Decl {
 
 	d.NameList = p.nameList(p.name())
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
-		d.Type = p.typeOrNil()
+		d.Type = p.typeOrNil(true)
 		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
@@ -565,7 +566,7 @@ func (p *parser) constDecl(group *Group) Decl {
 	return d
 }
 
-// TypeSpec = identifier [ "=" ] Type .
+// TypeSpec = identifier [ TypeParams ] [ "=" ] Type .
 func (p *parser) typeDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("typeDecl")()
@@ -577,8 +578,23 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Pragma = p.takePragma()
 
 	d.Name = p.name()
-	d.Alias = p.gotAssign()
-	d.Type = p.typeOrNil()
+	if p.got(_Lparen) {
+		if p.got(_Type) {
+			// parameterized type
+			d.TParamList = p.paramList(true)
+			d.Alias = p.gotAssign()
+			d.Type = p.typeOrNil(true)
+		} else {
+			// parenthesized type
+			d.Type = p.typeOrNil(true)
+			p.want(_Rparen)
+		}
+	} else {
+		// no type parameters
+		d.Alias = p.gotAssign()
+		d.Type = p.typeOrNil(true)
+	}
+
 	if d.Type == nil {
 		d.Type = p.badExpr()
 		p.syntaxError("in type declaration")
@@ -603,7 +619,7 @@ func (p *parser) varDecl(group *Group) Decl {
 	if p.gotAssign() {
 		d.Values = p.exprList()
 	} else {
-		d.Type = p.type_()
+		d.Type = p.type_(true)
 		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
@@ -612,7 +628,7 @@ func (p *parser) varDecl(group *Group) Decl {
 	return d
 }
 
-// FunctionDecl = "func" FunctionName ( Function | Signature ) .
+// FunctionDecl = "func" FunctionName [ TypeParams ] ( Function | Signature ) .
 // FunctionName = identifier .
 // Function     = Signature FunctionBody .
 // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
@@ -626,8 +642,8 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.pos = p.pos()
 	f.Pragma = p.takePragma()
 
-	if p.tok == _Lparen {
-		rcvr := p.paramList()
+	if p.got(_Lparen) {
+		rcvr := p.paramList(false)
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
@@ -646,7 +662,13 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	f.Name = p.name()
-	f.Type = p.funcType()
+	tpos := p.pos()
+	p.want(_Lparen)
+	if p.got(_Type) {
+		p.paramList(true)
+		p.want(_Lparen)
+	}
+	f.Type = p.funcType(tpos, true)
 	if p.tok == _Lbrace {
 		f.Body = p.funcBody()
 	}
@@ -849,13 +871,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		// Optimization: Record presence of ()'s only where needed
 		// for error reporting. Don't bother in other cases; it is
 		// just a waste of memory and time.
-
-		// Parentheses are not permitted on lhs of := .
-		// switch x.Op {
-		// case ONAME, ONONAME, OPACK, OTYPE, OLITERAL, OTYPESW:
-		// 	keep_parens = true
-		// }
-
+		//
 		// Parentheses are not permitted around T in a composite
 		// literal T{}. If the next token is a {, assume x is a
 		// composite literal type T (it may not be, { could be
@@ -876,24 +892,26 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return x
 
 	case _Func:
-		pos := p.pos()
+		fpos := p.pos()
 		p.next()
-		t := p.funcType()
+		tpos := p.pos()
+		p.want(_Lparen)
+		ftyp := p.funcType(tpos, false)
 		if p.tok == _Lbrace {
 			p.xnest++
 
 			f := new(FuncLit)
-			f.pos = pos
-			f.Type = t
+			f.pos = fpos
+			f.Type = ftyp
 			f.Body = p.funcBody()
 
 			p.xnest--
 			return f
 		}
-		return t
+		return ftyp
 
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
-		return p.type_() // othertype
+		return p.type_(false) // othertype
 
 	default:
 		x := p.badExpr()
@@ -958,7 +976,7 @@ loop:
 					t := new(AssertExpr)
 					t.pos = pos
 					t.X = x
-					t.Type = p.type_()
+					t.Type = p.type_(true)
 					x = t
 				}
 				p.want(_Rparen)
@@ -1029,7 +1047,7 @@ loop:
 			// determine if '{' belongs to a composite literal or a block statement
 			complit_ok := false
 			switch t.(type) {
-			case *Name, *SelectorExpr:
+			case *Name, *SelectorExpr, *CallExpr: // *CallExpr for instantiated types
 				if p.xnest >= 0 {
 					// x is considered a composite literal type
 					complit_ok = true
@@ -1045,7 +1063,9 @@ loop:
 				p.syntaxError("cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
-			n := p.complitexpr()
+			pos := p.pos()
+			p.next() // consume _Lbrace
+			n := p.complitexpr(pos)
 			n.Type = x
 			x = n
 
@@ -1063,25 +1083,27 @@ func (p *parser) bare_complitexpr() Expr {
 		defer p.trace("bare_complitexpr")()
 	}
 
-	if p.tok == _Lbrace {
+	pos := p.pos()
+	if p.got(_Lbrace) {
 		// '{' start_complit braced_keyval_list '}'
-		return p.complitexpr()
+		return p.complitexpr(pos)
 	}
 
 	return p.expr()
 }
 
 // LiteralValue = "{" [ ElementList [ "," ] ] "}" .
-func (p *parser) complitexpr() *CompositeLit {
+// "{" has already been consumed, and pos is its position.
+func (p *parser) complitexpr(pos Pos) *CompositeLit {
 	if trace {
 		defer p.trace("complitexpr")()
 	}
 
 	x := new(CompositeLit)
-	x.pos = p.pos()
+	x.pos = pos
 
 	p.xnest++
-	x.Rbrace = p.list(_Lbrace, _Comma, _Rbrace, func() bool {
+	x.Rbrace = p.list(_Comma, _Rbrace, func() bool {
 		// value
 		e := p.bare_complitexpr()
 		if p.tok == _Colon {
@@ -1105,12 +1127,12 @@ func (p *parser) complitexpr() *CompositeLit {
 // ----------------------------------------------------------------------------
 // Types
 
-func (p *parser) type_() Expr {
+func (p *parser) type_(inType bool) Expr {
 	if trace {
 		defer p.trace("type_")()
 	}
 
-	typ := p.typeOrNil()
+	typ := p.typeOrNil(inType)
 	if typ == nil {
 		typ = p.badExpr()
 		p.syntaxError("expecting type")
@@ -1135,7 +1157,7 @@ func newIndirect(pos Pos, typ Expr) Expr {
 // TypeName = identifier | QualifiedIdent .
 // TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 // 	      SliceType | MapType | Channel_Type .
-func (p *parser) typeOrNil() Expr {
+func (p *parser) typeOrNil(inType bool) Expr {
 	if trace {
 		defer p.trace("typeOrNil")()
 	}
@@ -1145,7 +1167,7 @@ func (p *parser) typeOrNil() Expr {
 	case _Star:
 		// ptrtype
 		p.next()
-		return newIndirect(pos, p.type_())
+		return newIndirect(pos, p.type_(inType))
 
 	case _Arrow:
 		// recvchantype
@@ -1154,13 +1176,15 @@ func (p *parser) typeOrNil() Expr {
 		t := new(ChanType)
 		t.pos = pos
 		t.Dir = RecvOnly
-		t.Elem = p.chanElem()
+		t.Elem = p.chanElem(inType)
 		return t
 
 	case _Func:
 		// fntype
 		p.next()
-		return p.funcType()
+		tpos := p.pos()
+		p.want(_Lparen)
+		return p.funcType(tpos, inType)
 
 	case _Lbrack:
 		// '[' oexpr ']' ntype
@@ -1172,7 +1196,7 @@ func (p *parser) typeOrNil() Expr {
 			p.xnest--
 			t := new(SliceType)
 			t.pos = pos
-			t.Elem = p.type_()
+			t.Elem = p.type_(inType)
 			return t
 		}
 
@@ -1184,7 +1208,7 @@ func (p *parser) typeOrNil() Expr {
 		}
 		p.want(_Rbrack)
 		p.xnest--
-		t.Elem = p.type_()
+		t.Elem = p.type_(inType)
 		return t
 
 	case _Chan:
@@ -1196,7 +1220,7 @@ func (p *parser) typeOrNil() Expr {
 		if p.got(_Arrow) {
 			t.Dir = SendOnly
 		}
-		t.Elem = p.chanElem()
+		t.Elem = p.chanElem(inType)
 		return t
 
 	case _Map:
@@ -1205,9 +1229,9 @@ func (p *parser) typeOrNil() Expr {
 		p.want(_Lbrack)
 		t := new(MapType)
 		t.pos = pos
-		t.Key = p.type_()
+		t.Key = p.type_(true)
 		p.want(_Rbrack)
-		t.Value = p.type_()
+		t.Value = p.type_(inType)
 		return t
 
 	case _Struct:
@@ -1217,11 +1241,15 @@ func (p *parser) typeOrNil() Expr {
 		return p.interfaceType()
 
 	case _Name:
-		return p.dotname(p.name())
+		t := p.dotname(p.name())
+		if inType && p.tok == _Lparen {
+			t = p.typeInstance(t)
+		}
+		return t
 
 	case _Lparen:
 		p.next()
-		t := p.type_()
+		t := p.type_(true)
 		p.want(_Rparen)
 		return t
 	}
@@ -1229,25 +1257,46 @@ func (p *parser) typeOrNil() Expr {
 	return nil
 }
 
-func (p *parser) funcType() *FuncType {
+func (p *parser) typeInstance(typ Expr) *CallExpr {
+	if trace {
+		defer p.trace("typeInstance")()
+	}
+
+	x := new(CallExpr)
+	x.pos = p.pos()
+	x.Fun = typ
+
+	p.xnest++
+	p.want(_Lparen)
+	p.list(_Comma, _Rparen, func() bool {
+		x.ArgList = append(x.ArgList, p.expr())
+		return false
+	})
+	p.xnest--
+
+	return x
+}
+
+// "(" has already been consumed, and pos is its position.
+func (p *parser) funcType(pos Pos, inType bool) *FuncType {
 	if trace {
 		defer p.trace("funcType")()
 	}
 
 	typ := new(FuncType)
-	typ.pos = p.pos()
-	typ.ParamList = p.paramList()
-	typ.ResultList = p.funcResult()
+	typ.pos = pos
+	typ.ParamList = p.paramList(false)
+	typ.ResultList = p.funcResult(inType)
 
 	return typ
 }
 
-func (p *parser) chanElem() Expr {
+func (p *parser) chanElem(inType bool) Expr {
 	if trace {
 		defer p.trace("chanElem")()
 	}
 
-	typ := p.typeOrNil()
+	typ := p.typeOrNil(inType)
 	if typ == nil {
 		typ = p.badExpr()
 		p.syntaxError("missing channel element type")
@@ -1283,7 +1332,8 @@ func (p *parser) structType() *StructType {
 	typ.pos = p.pos()
 
 	p.want(_Struct)
-	p.list(_Lbrace, _Semi, _Rbrace, func() bool {
+	p.want(_Lbrace)
+	p.list(_Semi, _Rbrace, func() bool {
 		p.fieldDecl(typ)
 		return false
 	})
@@ -1301,9 +1351,27 @@ func (p *parser) interfaceType() *InterfaceType {
 	typ.pos = p.pos()
 
 	p.want(_Interface)
-	p.list(_Lbrace, _Semi, _Rbrace, func() bool {
-		if m := p.methodDecl(); m != nil {
-			typ.MethodList = append(typ.MethodList, m)
+	p.want(_Lbrace)
+	p.list(_Semi, _Rbrace, func() bool {
+		switch p.tok {
+		case _Name, _Lparen:
+			if m := p.methodDecl(); m != nil {
+				typ.MethodList = append(typ.MethodList, m)
+			}
+		case _Type:
+			p.next()
+			var list []Expr
+			if p.tok != _Semi && p.tok != _Rbrace {
+				list = append(list, p.type_(true))
+				for p.got(_Comma) {
+					list = append(list, p.type_(true))
+				}
+			}
+			typ.TypeList = list
+
+		default:
+			p.syntaxError("expecting method or interface name")
+			p.advance(_Semi, _Rbrace)
 		}
 		return false
 	})
@@ -1312,17 +1380,17 @@ func (p *parser) interfaceType() *InterfaceType {
 }
 
 // Result = Parameters | Type .
-func (p *parser) funcResult() []*Field {
+func (p *parser) funcResult(inType bool) []*Field {
 	if trace {
 		defer p.trace("funcResult")()
 	}
 
-	if p.tok == _Lparen {
-		return p.paramList()
+	if p.got(_Lparen) {
+		return p.paramList(false)
 	}
 
 	pos := p.pos()
-	if typ := p.typeOrNil(); typ != nil {
+	if typ := p.typeOrNil(inType); typ != nil {
 		f := new(Field)
 		f.pos = pos
 		f.Type = typ
@@ -1364,59 +1432,33 @@ func (p *parser) fieldDecl(styp *StructType) {
 	case _Name:
 		name := p.name()
 		if p.tok == _Dot || p.tok == _Literal || p.tok == _Semi || p.tok == _Rbrace {
-			// embed oliteral
+			// embedded type
 			typ := p.qualifiedName(name)
+			if p.tok == _Lparen {
+				typ = p.typeInstance(typ)
+			}
 			tag := p.oliteral()
 			p.addField(styp, pos, nil, typ, tag)
 			return
 		}
 
-		// new_name_list ntype oliteral
+		// name1, name2, ... Type [ tag ]
 		names := p.nameList(name)
-		typ := p.type_()
+		typ := p.type_(true)
 		tag := p.oliteral()
 
 		for _, name := range names {
 			p.addField(styp, name.Pos(), name, typ, tag)
 		}
 
-	case _Lparen:
-		p.next()
-		if p.tok == _Star {
-			// '(' '*' embed ')' oliteral
-			pos := p.pos()
-			p.next()
-			typ := newIndirect(pos, p.qualifiedName(nil))
-			p.want(_Rparen)
-			tag := p.oliteral()
-			p.addField(styp, pos, nil, typ, tag)
-			p.syntaxError("cannot parenthesize embedded type")
-
-		} else {
-			// '(' embed ')' oliteral
-			typ := p.qualifiedName(nil)
-			p.want(_Rparen)
-			tag := p.oliteral()
-			p.addField(styp, pos, nil, typ, tag)
-			p.syntaxError("cannot parenthesize embedded type")
-		}
-
-	case _Star:
-		p.next()
-		if p.got(_Lparen) {
-			// '*' '(' embed ')' oliteral
-			typ := newIndirect(pos, p.qualifiedName(nil))
-			p.want(_Rparen)
-			tag := p.oliteral()
-			p.addField(styp, pos, nil, typ, tag)
-			p.syntaxError("cannot parenthesize embedded type")
-
-		} else {
-			// '*' embed oliteral
-			typ := newIndirect(pos, p.qualifiedName(nil))
-			tag := p.oliteral()
-			p.addField(styp, pos, nil, typ, tag)
-		}
+	case _Lparen, _Star:
+		// embedded, possibly parameterized type
+		// (using the enclosing parentheses to distinguish it from a named field declaration)
+		// TODO(gri) This may be too liberal. Maybe only permit ()'s if necessary.
+		//           See also fixedbugs/bug299.go.
+		typ := p.type_(true)
+		tag := p.oliteral()
+		p.addField(styp, pos, nil, typ, tag)
 
 	default:
 		p.syntaxError("expecting field name or embedded type")
@@ -1462,18 +1504,18 @@ func (p *parser) methodDecl() *Field {
 
 		f := new(Field)
 		f.pos = name.Pos()
-		if p.tok != _Lparen {
-			// packname
+		tpos := p.pos()
+		if p.got(_Lparen) {
+			// method
+			f.Name = name
+			f.Type = p.funcType(tpos, true)
+		} else {
+			// embedded interface
 			f.Type = p.qualifiedName(name)
-			return f
 		}
-
-		f.Name = name
-		f.Type = p.funcType()
 		return f
 
 	case _Lparen:
-		p.syntaxError("cannot parenthesize embedded type")
 		f := new(Field)
 		f.pos = p.pos()
 		p.next()
@@ -1482,9 +1524,7 @@ func (p *parser) methodDecl() *Field {
 		return f
 
 	default:
-		p.syntaxError("expecting method or interface name")
-		p.advance(_Semi, _Rbrace)
-		return nil
+		panic("unreachable")
 	}
 }
 
@@ -1503,7 +1543,7 @@ func (p *parser) paramDeclOrNil() *Field {
 		switch p.tok {
 		case _Name, _Star, _Arrow, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
 			// sym name_or_type
-			f.Type = p.type_()
+			f.Type = p.type_(true)
 
 		case _DotDotDot:
 			// sym dotdotdot
@@ -1518,7 +1558,7 @@ func (p *parser) paramDeclOrNil() *Field {
 
 	case _Arrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
 		// name_or_type
-		f.Type = p.type_()
+		f.Type = p.type_(true)
 
 	case _DotDotDot:
 		// dotdotdot
@@ -1543,7 +1583,7 @@ func (p *parser) dotsType() *DotsType {
 	t.pos = p.pos()
 
 	p.want(_DotDotDot)
-	t.Elem = p.typeOrNil()
+	t.Elem = p.typeOrNil(true)
 	if t.Elem == nil {
 		t.Elem = p.badExpr()
 		p.syntaxError("final argument in variadic function missing type")
@@ -1554,15 +1594,17 @@ func (p *parser) dotsType() *DotsType {
 
 // Parameters    = "(" [ ParameterList [ "," ] ] ")" .
 // ParameterList = ParameterDecl { "," ParameterDecl } .
-func (p *parser) paramList() (list []*Field) {
+// "(" has already been consumed.
+func (p *parser) paramList(tparams bool) (list []*Field) {
 	if trace {
 		defer p.trace("paramList")()
 	}
 
+	// TODO(gri) use the actual position where the error happens
 	pos := p.pos()
 
-	var named int // number of parameters that have an explicit name and type
-	p.list(_Lparen, _Comma, _Rparen, func() bool {
+	var named int // number of parameters that have an explicit name and type/bound
+	p.list(_Comma, _Rparen, func() bool {
 		if par := p.paramDeclOrNil(); par != nil {
 			if debug && par.Name == nil && par.Type == nil {
 				panic("parameter without name or type")
@@ -1577,7 +1619,7 @@ func (p *parser) paramList() (list []*Field) {
 
 	// distribute parameter types
 	if named == 0 {
-		// all unnamed => found names are named types
+		// all unnamed => found names are named types or unbounded type parameters
 		for _, par := range list {
 			if typ := par.Name; typ != nil {
 				par.Type = typ
@@ -1585,7 +1627,7 @@ func (p *parser) paramList() (list []*Field) {
 			}
 		}
 	} else if named != len(list) {
-		// some named => all must be named
+		// some named => all must be named or bounded
 		ok := true
 		var typ Expr
 		for i := len(list) - 1; i >= 0; i-- {
@@ -1608,7 +1650,11 @@ func (p *parser) paramList() (list []*Field) {
 			}
 		}
 		if !ok {
-			p.syntaxErrorAt(pos, "mixed named and unnamed function parameters")
+			if tparams {
+				p.syntaxErrorAt(pos, "mixed bounded and unbounded type parameters")
+			} else {
+				p.syntaxErrorAt(pos, "mixed named and unnamed function parameters")
+			}
 		}
 	}
 
@@ -2207,7 +2253,8 @@ func (p *parser) argList() (list []Expr, hasDots bool) {
 	}
 
 	p.xnest++
-	p.list(_Lparen, _Comma, _Rparen, func() bool {
+	p.want(_Lparen)
+	p.list(_Comma, _Rparen, func() bool {
 		list = append(list, p.expr())
 		hasDots = p.got(_DotDotDot)
 		return hasDots
