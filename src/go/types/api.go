@@ -35,7 +35,7 @@ import (
 )
 
 // If AcceptContracts is set, contracts are accepted.
-const AcceptContracts = true
+const AcceptContracts = false
 
 // An Error describes a type-checking error; it implements the error interface.
 // A "soft" error is an error that still permits a valid interpretation of a

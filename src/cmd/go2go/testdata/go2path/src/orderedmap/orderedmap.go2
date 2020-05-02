@@ -37,7 +37,7 @@ func New(type K, V)(compare func(K, K) int) *Map(K, V) {
 // NewOrdered returns a new map whose key is an ordered type.
 // This is like New, but does not require providing a compare function.
 // The map compare function uses the obvious key ordering.
-func NewOrdered(type K, V contracts.Ordered(K))() *Map(K, V) {
+func NewOrdered(type K contracts.Ordered, V interface{})() *Map(K, V) {
 	return New(K, V)(func(k1, k2 K) int {
 		switch {
 		case k1 < k2:

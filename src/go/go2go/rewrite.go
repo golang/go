@@ -52,6 +52,24 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 	return ts.TParams != nil
 }
 
+// isTypeBound reports whether s is an interface type that must be a
+// type bound.
+func isTypeBound(s ast.Spec) bool {
+	ts := s.(*ast.TypeSpec)
+	it, ok := ts.Type.(*ast.InterfaceType)
+	if !ok {
+		return false
+	}
+	for _, m := range it.Methods.List {
+		for _, n := range m.Names {
+			if n.Name == "type" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
 	fset               *token.FileSet
@@ -306,7 +324,7 @@ func (t *translator) translate(file *ast.File) {
 				case token.TYPE:
 					newSpecs := make([]ast.Spec, 0, len(decl.Specs))
 					for j := range decl.Specs {
-						if !isParameterizedTypeDecl(decl.Specs[j]) {
+						if !isParameterizedTypeDecl(decl.Specs[j]) && !isTypeBound(decl.Specs[j]) {
 							t.translateTypeSpec(&decl.Specs[j])
 							newSpecs = append(newSpecs, decl.Specs[j])
 						}

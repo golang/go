@@ -4,6 +4,6 @@
 
 package a
 
-contract C(T) {
-	T M()
+type C interface {
+	M()
 }

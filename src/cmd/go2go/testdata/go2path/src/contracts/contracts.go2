@@ -2,30 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package contracts defines some useful contracts.
+// Package contracts defines some useful type bounds.
 package contracts
 
-// The Ordered contract permits any ordered type: any type that supports
+// Ordered permits any ordered type: any type that supports
 // the operations <, <=, >=, >, as well as == and !=.
-contract Ordered(T) {
-	T int, int8, int16, int32, int64,
+type Ordered interface {
+	type int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64, uintptr,
 		float32, float64,
 		string
 }
 
-// The Integer contract permits any integer type.
-contract Integer(T) {
-	T int, int8, int16, int32, int64,
+// Integer permits any integer type.
+type Integer interface {
+	type int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64, uintptr
 }
 
-// The Signed contract permits any signed integer type.
-contract Signed(T) {
-	T int, int8, int16, int32, int64
+// Signed permits any signed integer type.
+type Signed interface {
+	type int, int8, int16, int32, int64
 }
 
-// The Unsigned contract permits any unsigned integer type.
-contract Unsigned(T) {
-	T uint, uint8, uint16, uint32, uint64, uintptr
+// Unsigned permits any unsigned integer type.
+type Unsigned interface {
+	type uint, uint8, uint16, uint32, uint64, uintptr
 }

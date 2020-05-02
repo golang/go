@@ -9,8 +9,8 @@ package p
 func F1(type T comparable)() {}
 func F2() { F1([]int)() } // ERROR "\[\]int does not satisfy comparable$"
 
-contract C(T) {
-	T M()
+type C interface {
+	M()
 }
 
 func F3(type T C)() {}
@@ -18,12 +18,12 @@ func F4() { F3(int)() } // ERROR "int does not satisfy C.*method M"
 
 func F5(type T)() { F3(T)() } // ERROR "T does not satisfy C.*method M"
 
-contract signed(T) {
-	 T int, int8, int16, int32, int64
+type signed interface {
+	type int, int8, int16, int32, int64
 }
 
-contract integer(T) {
-	T int, int8, int16, int32, int64,
+type integer interface {
+	type int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64, uintptr
 }
 
@@ -38,9 +38,9 @@ type MyUint uint
 func F10(a MyInt) bool { return F6(a) }
 func F11(a MyUint) bool { return F6(a) } // ERROR "MyUint does not satisfy signed.*uint not found in"
 
-contract C2(T) {
-	 C(T)
-	 signed(T)
+type C2 interface {
+	C
+	signed
 }
 
 func F20(type T C2)(a T) bool {
