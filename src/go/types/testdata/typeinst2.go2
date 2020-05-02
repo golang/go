@@ -22,7 +22,7 @@ type (
 func _() {
 	var x1 T1(int)
 	var x2 T2(int, float32)
-	
+
 	x1.f1.f2 = 0
 	x1.f1 = x2
 }
@@ -81,8 +81,8 @@ func (it Iterator(K)) Next() K {
 
 // A more complex test case testing type bounds (extracted from linalg.go2 and reduced to essence)
 
-contract NumericAbs(T) {
-	T Abs() T
+type NumericAbs(type T) interface {
+	Abs() T
 }
 
 func AbsDifference(type T NumericAbs)(x T)

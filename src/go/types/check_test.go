@@ -104,7 +104,7 @@ var tests = [][]string{
 	{"testdata/typeparams.go2"},
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},
-	{"testdata/contracts.go2"},
+	// {"testdata/contracts.go2"}, // disabled for now
 	{"testdata/issues.go2"},
 	{"testdata/todos.go2"},
 
@@ -116,7 +116,7 @@ var tests = [][]string{
 	{"testdata/linalg.go2"},
 
 	// Go 2 prototype examples
-	{"examples/contracts.go2"},
+	// {"examples/contracts.go2"}, disabled for now
 	{"examples/functions.go2"},
 	{"examples/methods.go2"},
 	{"examples/types.go2"},

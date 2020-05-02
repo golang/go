@@ -16,6 +16,7 @@ import "io"
 // the numbers for anInt and twoInt (which embedds anInt).
 // The fix simply uses the instantiated non-parameterized
 // underlying interface of atInt<K> rather than anInt<K>.
+/*
 contract anInt(T) {
 	T int
 }
@@ -29,8 +30,10 @@ func f(type K, V twoInt)()
 func _ () {
 	f(int, int)()
 }
+*/
 
 // This is the original (simplified) program causing the same issue.
+/*
 contract onecomparable(T) {
 	T int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64, uintptr,
@@ -49,6 +52,7 @@ func _() {
 	var m map[int]int
 	Equal(m, nil)
 }
+*/
 
 // Interfaces are always comparable (though the comparison may panic at runtime).
 func eql(type T comparable)(x, y T) bool {
@@ -69,21 +73,23 @@ func _() {
 // the pointer in the implementation of the method lookup because
 // the type bound of T is an interface an pointer to interface types
 // have no methods and then the lookup would fail.
-contract C(T) {
-    T m()
+type C(type T) interface {
+    m()
 }
 
-// using contract C
+// using type bound C
 func _(type T C)(x *T) {
 	x.m()
 }
 
 // using an interface as bound
+// TODO(gri) this is now the same as above (no contracts anymore)
 func _(type T interface{ m() })(x *T) {
 	x.m()
 }
 
 // This is the original (simplified) program causing the same issue.
+/*
 type GraphP(type Node, Edge GP) struct {
 	nodes []*Node
 }
@@ -95,6 +101,7 @@ contract GP(Node, Edge) {
 func (g *GraphP(Node, Edge)) Edges(n *Node) []*Edge {
 	return n.Edges()
 }
+*/
 
 // In a generic function body all method calls will be pointer method calls.
 // If necessary, the function body will insert temporary variables, not seen
@@ -114,6 +121,7 @@ func _() {
 }
 
 // This is the original (simplified) program causing the same issue.
+/*
 func NewP(type Node, Edge GP)(nodes []*Node) *GraphP(Node, Edge) {
 	return &GraphP(Node, Edge){nodes: nodes}
 }
@@ -124,6 +132,7 @@ type E struct{}
 func F() {
 	_ = NewP(N, E)(nil)
 }
+*/
 
 // When a type parameter is used as an argument to instantiate a parameterized
 // type with a type list constraint, all of the type argument's types in its
@@ -136,6 +145,7 @@ func _(type P)() {
 }
 
 // This is the original (simplified) program causing the same issue.
+/*
 contract Unsigned(T) {
 	T uint
 }
@@ -148,14 +158,15 @@ func (u T2(U)) Add1() U {
     return u.s + 1
 }
 
-func NewT2(type U)() T2(U /* ERROR U has no type constraints */ ) {
-    return T2(U /* ERROR U has no type constraints */ ){}
+func NewT2(type U)() T2(U /- ERROR U has no type constraints -/ ) {
+    return T2(U /- ERROR U has no type constraints -/ ){}
 }
 
 func _() {
     u := NewT2(string)()
     _ = u.Add1()
 }
+*/
 
 // When we encounter an instantiated type such as Elem(T) we must
 // not "expand" the instantiation when the type to be instantiated

@@ -9,9 +9,12 @@
 package p
 
 // Pointer designation for type parameters is not yet supported.
+// TODO(gri) Do we need to do something about this now that we have only interfaces?
+/*
 contract _C(T) {
-	* /* ERROR not yet supported */ T m()
+	*T m()
 }
+*/
 
 // Indexing on generic types containing type parameters in their type list
 // is not yet supported.

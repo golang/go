@@ -34,6 +34,9 @@ import (
 	"go/token"
 )
 
+// If AcceptContracts is set, contracts are accepted.
+const AcceptContracts = true
+
 // An Error describes a type-checking error; it implements the error interface.
 // A "soft" error is an error that still permits a valid interpretation of a
 // package (such as "unused variable"); "hard" errors may lead to unpredictable

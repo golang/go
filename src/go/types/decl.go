@@ -205,6 +205,11 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
 	case *Contract:
+		if !AcceptContracts {
+			check.errorf(obj.pos, "contracts are not accepted")
+			obj.typ = Typ[Invalid]
+			break
+		}
 		check.contractDecl(obj, d.cdecl)
 	default:
 		unreachable()

@@ -55,8 +55,8 @@ func _(type T interface{type int, float32, bool})(x, y T) bool { return x /* ERR
 func _(type T C1)(x, y T) bool { return x /* ERROR cannot compare */ < y }
 func _(type T C2)(x, y T) bool { return x < y }
 
-contract C1(T) {}
-contract C2(T) { T int, float32 }
+type C1(type T) interface{}
+type C2(type T) interface{ type int, float32 }
 
 func new(type T)() *T {
         var x T
@@ -365,10 +365,10 @@ func _(type T I3)(x I3, p T) {
 }
 
 // error messages related to type bounds mention those bounds
-contract C(P) {}
+type C(type P) interface{}
 
 func _(type P C) (x P) {
-	x.m /* ERROR contract C has no method m */ ()
+	x.m /* ERROR x.m undefined */ ()
 }
 
 type I interface {}
