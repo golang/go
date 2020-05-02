@@ -148,6 +148,10 @@ func (r *recordingConn) WriteTo(w io.Writer) (int64, error) {
 	// TLS always starts with a client to server flow.
 	clientToServer := true
 	var written int64
+
+	r.Lock()
+	defer r.Unlock()
+
 	for i, flow := range r.flows {
 		source, dest := "client", "server"
 		if !clientToServer {
