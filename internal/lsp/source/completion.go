@@ -682,8 +682,8 @@ func (c *completer) emptySwitchStmt() bool {
 	}
 }
 
-// populateCommentCompletions yields completions for an exported
-// variable immediately preceding comment.
+// populateCommentCompletions yields completions for exported
+// symbols immediately preceding comment.
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
 
 	// Using the comment position find the line after
@@ -694,33 +694,72 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 	}
 
 	line := file.Line(comment.Pos())
+	if file.LineCount() < line+1 {
+		return
+	}
+
 	nextLinePos := file.LineStart(line + 1)
 	if !nextLinePos.IsValid() {
 		return
 	}
 
-	// Using the next line pos, grab and parse the exported variable on that line
+	// Using the next line pos, grab and parse the exported symbol on that line
 	for _, n := range c.file.Decls {
 		if n.Pos() != nextLinePos {
 			continue
 		}
 		switch node := n.(type) {
+		// handle const, vars, and types
 		case *ast.GenDecl:
-			if node.Tok != token.VAR {
-				return
-			}
 			for _, spec := range node.Specs {
-				if value, ok := spec.(*ast.ValueSpec); ok {
-					for _, name := range value.Names {
-						if name.Name == "_" || !name.IsExported() {
+				switch spec.(type) {
+				case *ast.ValueSpec:
+					valueSpec, ok := spec.(*ast.ValueSpec)
+					if !ok {
+						continue
+					}
+					for _, name := range valueSpec.Names {
+						if name.String() == "_" || !name.IsExported() {
 							continue
 						}
 
-						exportedVar := c.pkg.GetTypesInfo().ObjectOf(name)
-						c.found(ctx, candidate{obj: exportedVar, score: stdScore})
+						obj := c.pkg.GetTypesInfo().ObjectOf(name)
+						c.found(ctx, candidate{obj: obj, score: stdScore})
 					}
+				case *ast.TypeSpec:
+					typeSpec, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+
+					if typeSpec.Name.String() == "_" || !typeSpec.Name.IsExported() {
+						continue
+					}
+
+					obj := c.pkg.GetTypesInfo().ObjectOf(typeSpec.Name)
+					c.found(ctx, candidate{obj: obj, score: stdScore})
 				}
 			}
+		// handle functions
+		case *ast.FuncDecl:
+			if node.Name.String() == "_" || !node.Name.IsExported() {
+				continue
+			}
+
+			obj := c.pkg.GetTypesInfo().ObjectOf(node.Name)
+
+			// We don't want expandFuncCall inside comments. We add this directly to the
+			// completions list because using c.found sets expandFuncCall to true by default
+			item, err := c.item(ctx, candidate{
+				obj:            obj,
+				name:           obj.Name(),
+				expandFuncCall: false,
+				score:          stdScore,
+			})
+			if err != nil {
+				continue
+			}
+			c.items = append(c.items, item)
 		}
 	}
 }

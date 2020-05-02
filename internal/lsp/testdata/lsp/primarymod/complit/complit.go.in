@@ -1,7 +1,23 @@
 package complit
 
+// exported comment completions
+
 // //@complete(" ", cVar)
 var C string //@item(cVar, "C", "string", "var")
+
+// //@complete(" ", exportedConst)
+const ExportedConst = "example" //@item(exportedConst, "ExportedConst", "string", "const")
+
+// //@complete(" ", exportedType)
+type ExportedType struct { //@item(exportedType, "ExportedType", "struct{...}", "struct")
+}
+
+// //@complete(" ", exportedFunc)
+func ExportedFunc() int { //@item(exportedFunc, "ExportedFunc", "func() int", "func")
+	return 0
+}
+
+// general completions
 
 type position struct { //@item(structPosition, "position", "struct{...}", "struct")
 	X, Y int //@item(fieldX, "X", "int", "field"),item(fieldY, "Y", "int", "field")
@@ -9,7 +25,7 @@ type position struct { //@item(structPosition, "position", "struct{...}", "struc
 
 func _() {
 	_ = position{
-		//@complete("", fieldX, fieldY, structPosition, cVar)
+		//@complete("", fieldX, fieldY, exportedFunc, structPosition, cVar, exportedConst, exportedType)
 	}
 	_ = position{
 		X: 1,
@@ -21,7 +37,7 @@ func _() {
 	}
 	_ = []*position{
         {
-            //@complete("", fieldX, fieldY, structPosition, cVar)
+            //@complete("", fieldX, fieldY, exportedFunc, structPosition, cVar, exportedConst, exportedType)
         },
 	}
 }
@@ -37,7 +53,7 @@ func _() {
 	}
 
 	_ = map[int]int{
-		//@complete("", abVar, aaVar, structPosition, cVar)
+		//@complete("", abVar, exportedFunc, aaVar, structPosition, cVar, exportedConst, exportedType)
 	}
 
 	_ = []string{a: ""} //@complete(":", abVar, aaVar)
@@ -45,10 +61,10 @@ func _() {
 
 	_ = position{X: a}   //@complete("}", abVar, aaVar)
 	_ = position{a}      //@complete("}", abVar, aaVar)
-	_ = position{a, }      //@complete("}", abVar, aaVar, structPosition, cVar)
+	_ = position{a, }      //@complete("}", abVar, exportedFunc, aaVar, structPosition, cVar, exportedConst, exportedType)
 
-	_ = []int{a}  //@complete("a", abVar, aaVar, structPosition, cVar)
-	_ = [1]int{a} //@complete("a", abVar, aaVar, structPosition, cVar)
+	_ = []int{a}  //@complete("}", abVar, aaVar)
+	_ = [1]int{a} //@complete("}", abVar, aaVar)
 
 	type myStruct struct {
 		AA int    //@item(fieldAA, "AA", "int", "field")
@@ -73,7 +89,7 @@ func _() {
 
 func _() {
 	_ := position{
-		X: 1, //@complete("X", fieldX),complete(" 1", structPosition, cVar)
-		Y: ,  //@complete(":", fieldY),complete(" ,", structPosition, cVar)
+		X: 1, //@complete("X", fieldX),complete(" 1", exportedFunc, structPosition, cVar, exportedConst, exportedType)
+		Y: ,  //@complete(":", fieldY),complete(" ,", exportedFunc, structPosition, cVar, exportedConst, exportedType)
 	}
 }
