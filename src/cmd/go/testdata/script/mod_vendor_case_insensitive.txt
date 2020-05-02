@@ -1,0 +1,33 @@
+# Tests issue #38571
+# Tests that go mod vendor fails on case-insensitive import collision.
+
+env GO111MODULE=on
+
+! go mod vendor
+stderr 'case-insensitive module path collision'
+
+-- go.mod --
+module m
+
+go 1.14
+
+require (
+	example.com/foo v0.1.0
+	example.com/Foo v0.1.0
+)
+
+replace (
+	example.com/foo => ./foo
+	example.com/Foo => ./!foo
+)
+-- foo/go.mod --
+module example.com/foo
+
+-- foo/foo.go --
+package foo
+
+-- !foo/go.mod --
+module example.com/Foo
+
+-- !foo/foo.go --
+package Foo

@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -63,6 +64,8 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 		AllowErrors:           vendorE,
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+
+	checkCaseInsensitivePathsDuplications(modload.LoadBuildList())
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
@@ -295,6 +298,22 @@ func copyDir(dst, src string, match func(dir string, info os.FileInfo) bool) {
 		r.Close()
 		if err := w.Close(); err != nil {
 			base.Fatalf("go mod vendor: %v", err)
+		}
+	}
+}
+
+// checkCaseInsensitivePathsDuplications verifies that given paths have
+// no case-insensitive duplications.
+//
+// (See https://golang.org/issue/38571).
+func checkCaseInsensitivePathsDuplications(mods []module.Version) {
+	paths := make(map[string]string, len(mods))
+	for _, mod := range mods {
+		fold := str.ToFold(mod.Path)
+		if other := paths[fold]; other == "" {
+			paths[fold] = mod.Path
+		} else if other != mod.Path {
+			base.Fatalf("go mod vendor: case-insensitive module path collision: %s and %s", other, mod.Path)
 		}
 	}
 }

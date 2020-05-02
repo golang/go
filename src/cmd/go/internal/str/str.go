@@ -30,7 +30,7 @@ func StringList(args ...interface{}) []string {
 }
 
 // ToFold returns a string with the property that
-//	strings.EqualFold(s, t) iff ToFold(s) == ToFold(t)
+// strings.EqualFold(s, t) if ToFold(s) == ToFold(t)
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower
