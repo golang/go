@@ -31,7 +31,7 @@ func ExampleMatch() {
 	fmt.Println(matched, err)
 	matched, err = regexp.Match(`bar.*`, []byte(`seafood`))
 	fmt.Println(matched, err)
-	matched, err = regexp.Match(`a(b`, []byte(`seafood`))
+	matched, err = regexp.Match(`a(b)`, []byte(`seafood`))
 	fmt.Println(matched, err)
 
 	// Output:
