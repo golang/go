@@ -299,8 +299,12 @@ search:
 				continue
 			}
 			// Only clear key if there are pointers in it.
-			if t.key.ptrdata != 0 {
-				memclrHasPointers(k, t.key.size)
+			// This can only happen if pointers are 32 bit
+			// wide as 64 bit pointers do not fit into a 32 bit key.
+			if sys.PtrSize == 4 && t.key.ptrdata != 0 {
+				// The key must be a pointer as we checked pointers are
+				// 32 bits wide and the key is 32 bits wide also.
+				*(*unsafe.Pointer)(k) = nil
 			}
 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.elemsize))
 			if t.elem.ptrdata != 0 {

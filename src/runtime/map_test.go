@@ -993,6 +993,27 @@ func benchmarkMapDeleteStr(b *testing.B, n int) {
 	}
 }
 
+func benchmarkMapDeletePointer(b *testing.B, n int) {
+	i2p := make([]*int, n)
+	for i := 0; i < n; i++ {
+		i2p[i] = new(int)
+	}
+	a := make(map[*int]int, n)
+	b.ResetTimer()
+	k := 0
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := 0; j < n; j++ {
+				a[i2p[j]] = j
+			}
+			k = i
+			b.StartTimer()
+		}
+		delete(a, i2p[i-k])
+	}
+}
+
 func runWith(f func(*testing.B, int), v ...int) func(*testing.B) {
 	return func(b *testing.B) {
 		for _, n := range v {
@@ -1023,6 +1044,7 @@ func BenchmarkMapDelete(b *testing.B) {
 	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
 	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
+	b.Run("Pointer", runWith(benchmarkMapDeletePointer, 100, 1000, 10000))
 }
 
 func TestDeferDeleteSlow(t *testing.T) {
