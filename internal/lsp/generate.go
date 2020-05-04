@@ -39,7 +39,7 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	stderr := io.MultiWriter(er, wc)
 	err := inv.RunPiped(ctx, er, stderr)
 	if err != nil {
-		event.Error(ctx, "generate: command error: %v", err, tag.Directory.Of(dir))
+		event.Error(ctx, "generate: command error", err, tag.Directory.Of(dir))
 		if !xerrors.Is(err, context.Canceled) {
 			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,

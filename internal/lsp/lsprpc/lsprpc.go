@@ -328,7 +328,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		// If the ownership check itself failed, we fail open but log an error to
 		// the user.
-		event.Error(ctx, "unable to check daemon socket owner, failing open: %v", err)
+		event.Error(ctx, "unable to check daemon socket owner, failing open", err)
 	} else if !ok {
 		// We succesfully checked that the socket is not owned by us, we fail
 		// closed.
