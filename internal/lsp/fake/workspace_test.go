@@ -124,6 +124,7 @@ func TestWorkspace_ListFiles(t *testing.T) {
 }
 
 func TestWorkspace_CheckForFileChanges(t *testing.T) {
+	t.Skip("broken on darwin-amd64-10_12")
 	ws, events, cleanup := newWorkspace(t)
 	defer cleanup()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
