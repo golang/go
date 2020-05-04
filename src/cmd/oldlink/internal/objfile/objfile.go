@@ -19,6 +19,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/oldlink/internal/sym"
 	"fmt"
+	"internal/unsafeheader"
 	"io"
 	"log"
 	"os"
@@ -595,17 +596,16 @@ func (r *objReader) readData() []byte {
 	return p
 }
 
-type stringHeader struct {
-	str unsafe.Pointer
-	len int
-}
-
 func mkROString(rodata []byte) string {
 	if len(rodata) == 0 {
 		return ""
 	}
-	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
-	s := *(*string)(unsafe.Pointer(&ss))
+
+	var s string
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(&rodata[0])
+	hdr.Len = len(rodata)
+
 	return s
 }
 

@@ -486,8 +486,9 @@ func TestParseFloatPrefix(t *testing.T) {
 			continue
 		}
 		// Adding characters that do not extend a number should not invalidate it.
-		// Test a few.
-		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")"} {
+		// Test a few. The "i" and "init" cases test that we accept "infi", "infinit"
+		// correctly as "inf" with suffix.
+		for _, suffix := range []string{" ", "q", "+", "-", "<", "=", ">", "(", ")", "i", "init"} {
 			in := test.in + suffix
 			_, n, err := ParseFloatPrefix(in, 64)
 			if err != nil {

@@ -97,6 +97,7 @@ var bootstrapDirs = []string{
 	"debug/pe",
 	"internal/goversion",
 	"internal/race",
+	"internal/unsafeheader",
 	"internal/xcoff",
 	"math/big",
 	"math/bits",
@@ -115,6 +116,8 @@ var ignorePrefixes = []string{
 var ignoreSuffixes = []string{
 	"_arm64.s",
 	"_arm64.go",
+	"_riscv64.s",
+	"_riscv64.go",
 	"_wasm.s",
 	"_wasm.go",
 }

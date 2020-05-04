@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/unsafeheader"
 	"io"
 	"unsafe"
 )
@@ -502,16 +503,15 @@ func (r *Reader) StringAt(off uint32, len uint32) string {
 }
 
 func toString(b []byte) string {
-	type stringHeader struct {
-		str unsafe.Pointer
-		len int
-	}
-
 	if len(b) == 0 {
 		return ""
 	}
-	ss := stringHeader{str: unsafe.Pointer(&b[0]), len: len(b)}
-	s := *(*string)(unsafe.Pointer(&ss))
+
+	var s string
+	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(&b[0])
+	hdr.Len = len(b)
+
 	return s
 }
 
