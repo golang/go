@@ -257,8 +257,8 @@ func (v Value) Addr() Value {
 	if v.flag&flagAddr == 0 {
 		panic("reflect.Value.Addr of unaddressable value")
 	}
-	// Inherits possible read only flags from this value,
-	// so that later Elem() will restore equivalent value back.
+	// Preserve flagRO instead of using v.flag.ro() so that
+	// v.Addr().Elem() is equivalent to v (#32772)
 	fl := v.flag & flagRO
 	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Ptr)}
 }
