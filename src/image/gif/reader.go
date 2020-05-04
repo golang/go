@@ -53,6 +53,7 @@ const (
 	sExtension       = 0x21
 	sImageDescriptor = 0x2C
 	sTrailer         = 0x3B
+	sEmpty           = 0x00
 )
 
 // Extensions.
@@ -255,6 +256,9 @@ func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
 				return fmt.Errorf("gif: missing image data")
 			}
 			return nil
+
+		case sEmpty:
+			// Empty bytes are ignored between blocks or before the trailer
 
 		default:
 			return fmt.Errorf("gif: unknown block type: 0x%.2x", c)

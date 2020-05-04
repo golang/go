@@ -423,6 +423,29 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 	}
 }
 
+func TestTrailingByte(t *testing.T) {
+
+	extra := []byte{
+		0x00, // extraneous empty byte
+		0x3b, // trailer
+	}
+
+	// Remove the trailer byte so we can append new data
+	testGIFLen := len(testGIF) - 1
+
+	// Make a copy of the GIF
+	gif := make([]byte, testGIFLen+len(extra))
+	copy(gif, testGIF)
+
+	// Add trailing extra bytes
+	for i:=0; i<len(extra); i++ {
+		gif[testGIFLen+i] = extra[i]
+	}
+
+	try(t, gif, "")
+}
+
+
 func BenchmarkDecode(b *testing.B) {
 	data, err := ioutil.ReadFile("../testdata/video-001.gif")
 	if err != nil {
