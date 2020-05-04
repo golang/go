@@ -263,15 +263,10 @@ func propagateCancel(parent Context, child canceler) {
 
 	if p, ok := parentCancelCtx(parent); ok {
 		p.mu.Lock()
-		if p.err != nil {
-			// parent has already been canceled
-			child.cancel(false, p.err)
-		} else {
-			if p.children == nil {
-				p.children = make(map[canceler]struct{})
-			}
-			p.children[child] = struct{}{}
+		if p.children == nil {
+			p.children = make(map[canceler]struct{})
 		}
+		p.children[child] = struct{}{}
 		p.mu.Unlock()
 	} else {
 		atomic.AddInt32(&goroutines, +1)
