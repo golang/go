@@ -54,6 +54,17 @@ func testHelper(t *T) {
 	// has no effect.
 	t.Helper()
 	t.Error("8")
+
+	// Check that right caller is reported for func passed to Cleanup when
+	// multiple cleanup functions have been registered.
+	t.Cleanup(func() {
+		t.Helper()
+		t.Error("10")
+	})
+	t.Cleanup(func() {
+		t.Helper()
+		t.Error("9")
+	})
 }
 
 func parallelTestHelper(t *T) {
