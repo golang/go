@@ -45,6 +45,46 @@ instructions and floating-point(scalar) instructions.
     AESD V22.B16, V19.B16             <=>      aesd v19.16b, v22.16b
     SCVTFWS R3, F16                   <=>      scvtf s17, w6
 
+6. Align directive
+
+Go asm supports the PCALIGN directive, which indicates that the next instruction should be aligned
+to a specified boundary by padding with NOOP instruction. The alignment value supported on arm64
+must be a power of 2 and in the range of [8, 2048].
+
+  Examples:
+    PCALIGN $16
+    MOVD $2, R0          // This instruction is aligned with 16 bytes.
+    PCALIGN $1024
+    MOVD $3, R1          // This instruction is aligned with 1024 bytes.
+
+PCALING also changes the function alignment. If a function has one or more PCALIGN directives,
+its address will be aligned to the same or coarser boundary, which is the maximum of all the
+alignment values.
+
+In the following example, the function Add is aligned with 128 bytes.
+  Examples:
+    TEXT ·Add(SB),$40-16
+    MOVD $2, R0
+    PCALIGN $32
+    MOVD $4, R1
+    PCALIGN $128
+    MOVD $8, R2
+    RET
+
+On arm64, functions in Go are aligned to 16 bytes by default, we can also use PCALGIN to set the
+function alignment. The functions that need to be aligned are preferably using NOFRAME and NOSPLIT
+to avoid the impact of the prologues inserted by the assembler, so that the function address will
+have the same alignment as the first hand-written instruction.
+
+In the following example, PCALIGN at the entry of the function Add will align its address to 2048 bytes.
+
+  Examples:
+    TEXT ·Add(SB),NOSPLIT|NOFRAME,$0
+      PCALIGN $2048
+      MOVD $1, R0
+      MOVD $1, R1
+      RET
+
 Special Cases.
 
 (1) umov is written as VMOV.

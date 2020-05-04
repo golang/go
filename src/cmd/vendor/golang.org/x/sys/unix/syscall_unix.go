@@ -76,7 +76,7 @@ func SignalName(s syscall.Signal) string {
 // The signal name should start with "SIG".
 func SignalNum(s string) syscall.Signal {
 	signalNameMapOnce.Do(func() {
-		signalNameMap = make(map[string]syscall.Signal)
+		signalNameMap = make(map[string]syscall.Signal, len(signalList))
 		for _, signal := range signalList {
 			signalNameMap[signal.name] = signal.num
 		}

@@ -629,6 +629,7 @@ func (srv *Server) newConn(rwc net.Conn) *conn {
 }
 
 type readResult struct {
+	_   incomparable
 	n   int
 	err error
 	b   byte // byte read, if n == 1

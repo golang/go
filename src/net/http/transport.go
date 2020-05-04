@@ -518,7 +518,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	}
 	if !isHTTP {
 		req.closeBody()
-		return nil, &badStringError{"unsupported protocol scheme", scheme}
+		return nil, badStringError("unsupported protocol scheme", scheme)
 	}
 	if req.Method != "" && !validMethod(req.Method) {
 		req.closeBody()
@@ -1696,6 +1696,7 @@ var _ io.ReaderFrom = (*persistConnWriter)(nil)
 //	https://proxy.com|http            https to proxy, http to anywhere after that
 //
 type connectMethod struct {
+	_            incomparable
 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
 	targetScheme string   // "http" or "https"
 	// If proxyURL specifies an http or https proxy, and targetScheme is http (not https),
@@ -2250,6 +2251,7 @@ func newReadWriteCloserBody(br *bufio.Reader, rwc io.ReadWriteCloser) io.ReadWri
 // the concrete type for a Response.Body on the 101 Switching
 // Protocols response, as used by WebSockets, h2c, etc.
 type readWriteCloserBody struct {
+	_  incomparable
 	br *bufio.Reader // used until empty
 	io.ReadWriteCloser
 }
@@ -2350,11 +2352,13 @@ func (pc *persistConn) wroteRequest() bool {
 // responseAndError is how the goroutine reading from an HTTP/1 server
 // communicates with the goroutine doing the RoundTrip.
 type responseAndError struct {
+	_   incomparable
 	res *Response // else use this response (see res method)
 	err error
 }
 
 type requestAndChan struct {
+	_   incomparable
 	req *Request
 	ch  chan responseAndError // unbuffered; always send in select on callerGone
 
@@ -2687,6 +2691,7 @@ func (es *bodyEOFSignal) condfn(err error) error {
 // gzipReader wraps a response body so it can lazily
 // call gzip.NewReader on the first call to Read
 type gzipReader struct {
+	_    incomparable
 	body *bodyEOFSignal // underlying HTTP/1 response body framing
 	zr   *gzip.Reader   // lazily-initialized gzip reader
 	zerr error          // any error from gzip.NewReader; sticky

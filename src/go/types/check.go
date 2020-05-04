@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -247,7 +248,13 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
+var errBadCgo = errors.New("cannot use FakeImportC and UsesCgo together")
+
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.conf.FakeImportC && check.conf.UsesCgo {
+		return errBadCgo
+	}
+
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)
@@ -348,7 +355,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

@@ -391,7 +391,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64LoweredNilCheck
 		return true
 	case OpNot:
-		return rewriteValueRISCV64_OpNot(v)
+		v.Op = OpRISCV64SEQZ
+		return true
 	case OpOffPtr:
 		return rewriteValueRISCV64_OpOffPtr(v)
 	case OpOr16:
@@ -913,12 +914,11 @@ func rewriteValueRISCV64_OpEqB(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (EqB x y)
-	// result: (XORI [1] (XOR <typ.Bool> x y))
+	// result: (SEQZ (XOR <typ.Bool> x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64ToAuxInt(1)
+		v.reset(OpRISCV64SEQZ)
 		v0 := b.NewValue0(v.Pos, OpRISCV64XOR, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -2129,18 +2129,6 @@ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpNot(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Not x)
-	// result: (XORI [1] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64ToAuxInt(1)
-		v.AddArg(x)
 		return true
 	}
 }
