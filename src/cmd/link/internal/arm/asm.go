@@ -522,72 +522,58 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	tramp.AddReloc(r)
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+	rs := r.Sym()
+	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
-		switch r.Type {
+		switch r.Type() {
 		case objabi.R_CALLARM:
-			r.Done = false
-
 			// set up addend for eventual relocation via outer symbol.
-			rs := r.Sym
-			r.Xadd = int64(signext24(r.Add & 0xffffff))
-			r.Xadd *= 4
-			if rs.Outer != nil {
-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
-				rs = rs.Outer
+			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+			rr.Xadd = int64(signext24(r.Add() & 0xffffff))
+			rr.Xadd *= 4
+			rr.Xadd += off
+			rst := ldr.SymType(rs)
+			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
-			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
-				ld.Errorf(s, "missing section for %s", rs.Name)
-			}
-			r.Xsym = rs
+			rr.Xsym = rs
 
-			// ld64 for arm seems to want the symbol table to contain offset
-			// into the section rather than pseudo virtual address that contains
-			// the section load address.
-			// we need to compensate that by removing the instruction's address
-			// from addend.
-			if target.IsDarwin() {
-				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
+			if rr.Xadd/4 > 0x7fffff || rr.Xadd/4 < -0x800000 {
+				ldr.Errorf(s, "direct call too far %d", rr.Xadd/4)
 			}
 
-			if r.Xadd/4 > 0x7fffff || r.Xadd/4 < -0x800000 {
-				ld.Errorf(s, "direct call too far %d", r.Xadd/4)
-			}
-
-			return int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4)))), true
+			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(rr.Xadd/4)))), true, true
 		}
 
-		return -1, false
+		return -1, false, false
 	}
 
-	switch r.Type {
-	case objabi.R_CONST:
-		return r.Add, true
-	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
-
+	const isOk = true
+	const noExtReloc = false
+	switch r.Type() {
 	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
 	case objabi.R_PLT0: // add ip, pc, #0xXX00000
-		if ld.Symaddr(syms.GOTPLT) < ld.Symaddr(syms.PLT) {
-			ld.Errorf(s, ".got.plt should be placed after .plt section.")
+		if ldr.SymValue(syms.GOTPLT2) < ldr.SymValue(syms.PLT2) {
+			ldr.Errorf(s, ".got.plt should be placed after .plt section.")
 		}
-		return 0xe28fc600 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(syms.PLT)+int64(r.Off))+r.Add)) >> 20)), true
+		return 0xe28fc600 + (0xff & (int64(uint32(ldr.SymValue(rs)-(ldr.SymValue(syms.PLT2)+int64(r.Off()))+r.Add())) >> 20)), noExtReloc, isOk
 	case objabi.R_PLT1: // add ip, ip, #0xYY000
-		return 0xe28cca00 + (0xff & (int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(syms.PLT)+int64(r.Off))+r.Add+4)) >> 12)), true
+		return 0xe28cca00 + (0xff & (int64(uint32(ldr.SymValue(rs)-(ldr.SymValue(syms.PLT2)+int64(r.Off()))+r.Add()+4)) >> 12)), noExtReloc, isOk
 	case objabi.R_PLT2: // ldr pc, [ip, #0xZZZ]!
-		return 0xe5bcf000 + (0xfff & int64(uint32(ld.Symaddr(r.Sym)-(ld.Symaddr(syms.PLT)+int64(r.Off))+r.Add+8))), true
+		return 0xe5bcf000 + (0xfff & int64(uint32(ldr.SymValue(rs)-(ldr.SymValue(syms.PLT2)+int64(r.Off()))+r.Add()+8))), noExtReloc, isOk
 	case objabi.R_CALLARM: // bl XXXXXX or b YYYYYY
 		// r.Add is the instruction
 		// low 24-bit encodes the target address
-		t := (ld.Symaddr(r.Sym) + int64(signext24(r.Add&0xffffff)*4) - (s.Value + int64(r.Off))) / 4
+		t := (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
 		if t > 0x7fffff || t < -0x800000 {
-			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
+			ldr.Errorf(s, "direct call too far: %s %x", ldr.SymName(rs), t)
 		}
-		return int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&t))), true
+		return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&t))), noExtReloc, isOk
 	}
 
-	return val, false
+	return val, false, false
 }
 
 func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
