@@ -266,11 +266,11 @@ func TestParseComplex(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 			got, err := ParseComplex(tt.in, 128)
 			if g, w := err, tt.err; !reflect.DeepEqual(g, w) {
-				t.Errorf("ParseComplex(%q, 128) = %v, %v want %v %v", tt.in, got, err, tt.out, tt.err)
+				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v %v", tt.in, got, err, tt.out, tt.err)
 			}
 
 			if !(cmplx.IsNaN(tt.out) && cmplx.IsNaN(got)) && got != tt.out {
-				t.Errorf("ParseComplex(%q, 128) = %v, %v want %v %v", tt.in, got, err, tt.out, tt.err)
+				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v %v", tt.in, got, err, tt.out, tt.err)
 			}
 		})
 	}
