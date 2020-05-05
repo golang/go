@@ -372,7 +372,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				} else if target.IsWindows() {
 					// nothing to do
 				} else if target.IsAIX() {
-					o = ldr.SymValue(rs) + r.Add()
+					o = ldr.SymValue(rs) + rr.Xadd
 				} else {
 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
 				}
@@ -391,8 +391,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// symbol which isn't in .data. However, as .text has the
 				// same address once loaded, this is possible.
 				if ldr.SymSect(s).Seg == &Segdata {
-					panic("not implemented")
-					//Xcoffadddynrel(target, ldr, err, s, &r) // XXX
+					Xcoffadddynrel2(target, ldr, syms, s, r, ri)
 				}
 			}
 
@@ -543,10 +542,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			needExtReloc = true
 			rr.Xsym = rs
 			rr.Xadd = r.Add()
-
-			// This isn't a real relocation so it must not update
-			// its offset value.
-			continue
+			goto addExtReloc
 
 		case objabi.R_DWARFFILEREF:
 			// We don't renumber files in dwarf.go:writelines anymore.
@@ -590,6 +586,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			target.Arch.ByteOrder.PutUint64(P[off:], uint64(o))
 		}
 
+	addExtReloc:
 		if needExtReloc {
 			extRelocs = append(extRelocs, rr)
 		}
