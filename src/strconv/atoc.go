@@ -4,6 +4,8 @@
 
 package strconv
 
+import "math"
+
 const fnParseComplex = "ParseComplex"
 
 func convErr(err error, s string) error {
@@ -50,6 +52,12 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Read real part (possibly imaginary part if followed by 'i').
 	re, n, err := parseFloatPrefix(s, size)
 	if err != nil {
+		if x, ok := err.(*NumError); ok && x.Err == ErrRange {
+			if re >= 0 {
+				return complex(math.Inf(1), 0), x
+			}
+			return complex(math.Inf(-1), 0), x
+		}
 		return 0, convErr(err, orig)
 	}
 	s = s[n:]
@@ -82,6 +90,12 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Read imaginary part.
 	im, n, err := parseFloatPrefix(s, size)
 	if err != nil {
+		if x, ok := err.(*NumError); ok && x.Err == ErrRange {
+			if im >= 0 {
+				return complex(0, math.Inf(1)), x
+			}
+			return complex(0, math.Inf(-1)), x
+		}
 		return 0, convErr(err, orig)
 	}
 	s = s[n:]
