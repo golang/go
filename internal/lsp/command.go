@@ -6,18 +6,43 @@ package lsp
 
 import (
 	"context"
+	"io"
+	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/xcontext"
+	"golang.org/x/xerrors"
 	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
 	switch params.Command {
+	case source.CommandTest:
+		if len(s.session.UnsavedFiles()) != 0 {
+			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: "could not run tests, there are unsaved files in the view",
+			})
+		}
+
+		funcName, uri, err := getRunTestArguments(params.Arguments)
+		if err != nil {
+			return nil, err
+		}
+
+		snapshot, fh, ok, err := s.beginFileRequest(protocol.DocumentURI(uri), source.Go)
+		if !ok {
+			return nil, err
+		}
+
+		dir := filepath.Dir(fh.Identity().URI.Filename())
+		go s.runTest(ctx, funcName, dir, snapshot)
 	case source.CommandGenerate:
 		dir, recursive, err := getGenerateRequest(params.Arguments)
 		if err != nil {
@@ -69,6 +94,57 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 	}
 	return nil, nil
+}
+
+func (s *Server) runTest(ctx context.Context, funcName string, dir string, snapshot source.Snapshot) {
+	args := []string{"-run", funcName, dir}
+	inv := gocommand.Invocation{
+		Verb:       "test",
+		Args:       args,
+		Env:        snapshot.Config(ctx).Env,
+		WorkingDir: dir,
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	er := &eventWriter{ctx: ctx, operation: "test"}
+	wc := s.newProgressWriter(ctx, "test", "running "+funcName, cancel)
+	defer wc.Close()
+
+	messageType := protocol.Info
+	message := "test passed"
+	stderr := io.MultiWriter(er, wc)
+	if err := inv.RunPiped(ctx, er, stderr); err != nil {
+		event.Error(ctx, "test: command error", err, tag.Directory.Of(dir))
+		if !xerrors.Is(err, context.Canceled) {
+			messageType = protocol.Error
+			message = "test failed"
+		}
+	}
+
+	s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+		Type:    messageType,
+		Message: message,
+	})
+}
+
+func getRunTestArguments(args []interface{}) (string, string, error) {
+	if len(args) != 2 {
+		return "", "", errors.Errorf("expected one test func name and one file path, got %v", args)
+	}
+
+	funcName, ok := args[0].(string)
+	if !ok {
+		return "", "", errors.Errorf("expected func name to be a string, got %T", args[0])
+	}
+
+	file, ok := args[1].(string)
+	if !ok {
+		return "", "", errors.Errorf("expected file to be a string, got %T", args[1])
+	}
+
+	return funcName, file, nil
 }
 
 func getGenerateRequest(args []interface{}) (string, bool, error) {

@@ -53,6 +53,8 @@ import (
 )
 
 const (
+	// CommandGenerate is a gopls command to run `go test` for a specific test function.
+	CommandTest = "test"
 	// CommandGenerate is a gopls command to run `go generate` for a directory.
 	CommandGenerate = "generate"
 	// CommandTidy is a gopls command to run `go mod tidy` for a module.
@@ -88,6 +90,7 @@ func DefaultOptions() Options {
 				Sum: {},
 			},
 			SupportedCommands: []string{
+				CommandTest,              // for "go test" commands
 				CommandTidy,              // for go.mod files
 				CommandUpgradeDependency, // for go.mod dependency upgrades
 				CommandGenerate,          // for "go generate" commands

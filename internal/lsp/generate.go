@@ -23,8 +23,8 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	er := &eventWriter{ctx: ctx}
-	wc := s.newProgressWriter(ctx, cancel)
+	er := &eventWriter{ctx: ctx, operation: "generate"}
+	wc := s.newProgressWriter(ctx, GenerateWorkDoneTitle, "running go generate", cancel)
 	defer wc.Close()
 	args := []string{"-x"}
 	if recursive {
@@ -53,20 +53,20 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 // event.Print with the operation=generate tag
 // to distinguish its logs from others.
 type eventWriter struct {
-	ctx context.Context
+	ctx       context.Context
+	operation string
 }
 
 func (ew *eventWriter) Write(p []byte) (n int, err error) {
-	event.Log(ew.ctx, string(p), tag.Operation.Of("generate"))
+	event.Log(ew.ctx, string(p), tag.Operation.Of(ew.operation))
 	return len(p), nil
 }
 
 // newProgressWriter returns an io.WriterCloser that can be used
-// to report progress on the "go generate" command based on the
-// client capabilities.
-func (s *Server) newProgressWriter(ctx context.Context, cancel func()) io.WriteCloser {
+// to report progress on a command based on the client capabilities.
+func (s *Server) newProgressWriter(ctx context.Context, title, message string, cancel func()) io.WriteCloser {
 	if s.supportsWorkDoneProgress {
-		wd := s.StartWork(ctx, GenerateWorkDoneTitle, "running go generate", cancel)
+		wd := s.StartWork(ctx, title, message, cancel)
 		return &workDoneWriter{ctx, wd}
 	}
 	mw := &messageWriter{ctx, cancel, s.client}
