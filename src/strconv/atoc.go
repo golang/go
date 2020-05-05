@@ -19,30 +19,21 @@ func convErr(err error, s string) error {
 // When bitSize=64, the result still has type complex128, but it will be
 // convertible to complex64 without changing its value.
 //
-// The number represented by s may or may not be parenthesized and have the format
-// (N+Ni) where N is a floating-point number. There must not be spaces between the real
-// and imaginary components.
-//
-// ParseComplex accepts decimal and hexadecimal floating-point number syntax.
-// If s is well-formed and near a valid floating-point number,
-// ParseComplex returns the nearest floating-point number rounded
-// using IEEE754 unbiased rounding.
-// (Parsing a hexadecimal floating-point value only rounds when
-// there are more bits in the hexadecimal representation than
-// will fit in the mantissa.)
+// The number represented by s must be of the form N, Ni, or N±Ni, where N stands
+// for a floating-point number as recognized by ParseFloat, and i is the imaginary
+// component. If the second N is unsigned, a + sign is required between the two components
+// as indicated by the ±. If the second N is NaN, only a + sign is accepted.
+// The form may be parenthesized and cannot contain any spaces.
+// The resulting complex number consists of the two components converted by ParseFloat.
 //
 // The errors that ParseComplex returns have concrete type *NumError
 // and include err.Num = s.
 //
 // If s is not syntactically well-formed, ParseComplex returns err.Err = ErrSyntax.
 //
-// If s is syntactically well-formed but is more than 1/2 ULP
-// away from the largest floating point number of the given size,
-// ParseComplex returns f = ±Inf, err.Err = ErrRange.
-//
-// ParseComplex recognizes the strings "NaN", "+Inf", and "-Inf" as their
-// respective special floating point values for each component. "NaN+NaNi" is also
-// recognized. It ignores case when matching.
+// If s is syntactically well-formed but either component is more than 1/2 ULP
+// away from the largest floating point number of the given component's size,
+// ParseComplex returns err.Err = ErrRange and c = ±Inf for the respective component.
 func ParseComplex(s string, bitSize int) (complex128, error) {
 	size := 128
 	if bitSize == 64 {

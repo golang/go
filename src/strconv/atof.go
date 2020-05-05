@@ -669,8 +669,9 @@ func atof64(s string) (f float64, err error) {
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
 //
-// ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
-// respective special floating point values. It ignores case when matching.
+// ParseFloat recognizes the strings "NaN", "Infinity", "+Infinity", "-Infinity",
+// "Inf", +Inf", and "-Inf" as their respective special floating point values.
+// It ignores case when matching.
 func ParseFloat(s string, bitSize int) (float64, error) {
 	if bitSize == 32 {
 		f, err := atof32(s)
