@@ -62,6 +62,9 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 
 	// If we have nothing left, we're done.
 	if len(s) == 0 {
+		if encounteredRealErrRange != nil {
+			return complex(re, 0), encounteredRealErrRange
+		}
 		return complex(re, 0), nil
 	}
 
@@ -78,6 +81,9 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	case 'i':
 		// If 'i' is the last character, we only have an imaginary part.
 		if len(s) == 1 {
+			if encounteredRealErrRange != nil {
+				return complex(0, re), encounteredRealErrRange
+			}
 			return complex(0, re), nil
 		}
 		fallthrough
