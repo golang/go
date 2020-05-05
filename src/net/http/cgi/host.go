@@ -29,6 +29,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
@@ -277,7 +279,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		header, val := parts[0], parts[1]
-		header = textproto.TrimString(header)
+		if !httpguts.ValidHeaderFieldName(header) {
+			h.printf("cgi: invalid header name: %q", header)
+			continue
+		}
 		val = textproto.TrimString(val)
 		switch {
 		case header == "Status":

@@ -448,7 +448,7 @@ var pkgDeps = map[string][]string{
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
-	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp", "golang.org/x/net/http/httpguts"},
 	"net/http/cookiejar": {"L4", "NET", "net/http"},
 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
 	"net/http/httptest": {
