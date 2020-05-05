@@ -1122,7 +1122,7 @@ func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loade
 		sym2: s,
 		roff: r.Off(),
 	}
-	targ := r.Sym()
+	targ := ldr.ResolveABIAlias(r.Sym())
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
