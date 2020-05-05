@@ -228,9 +228,15 @@ func TestParseComplex(t *testing.T) {
 
 		// a little too large
 		{"1e308+1e308i", 1e+308 + 1e+308i, nil},
-		{"2e308", complex(math.Inf(1), math.Inf(1)), ErrRange},
-		{"1e309", complex(math.Inf(1), math.Inf(1)), ErrRange},
-		{"0x1p1025", complex(math.Inf(1), math.Inf(1)), ErrRange},
+		{"2e308+2e308i", complex(math.Inf(1), math.Inf(1)), ErrRange},
+		{"1e309+1e309i", complex(math.Inf(1), math.Inf(1)), ErrRange},
+		{"0x1p1025+0x1p1025i", complex(math.Inf(1), math.Inf(1)), ErrRange},
+		{"2e308", complex(math.Inf(1), 0), ErrRange},
+		{"1e309", complex(math.Inf(1), 0), ErrRange},
+		{"0x1p1025", complex(math.Inf(1), 0), ErrRange},
+		{"2e308i", complex(0, math.Inf(1)), ErrRange},
+		{"1e309i", complex(0, math.Inf(1)), ErrRange},
+		{"0x1p1025i", complex(0, math.Inf(1)), ErrRange},
 
 		// way too large
 		{"1e310+1e310i", complex(math.Inf(1), math.Inf(1)), ErrRange},
