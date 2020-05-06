@@ -22,11 +22,11 @@ func testBLTZ(a int64) (r bool)
 func testBNEZ(a int64) (r bool)
 
 func TestBranchCondition(t *testing.T) {
-	tests := []struct{
-		ins string
-		a int64
-		b int64
-		fn func(a, b int64) bool
+	tests := []struct {
+		ins  string
+		a    int64
+		b    int64
+		fn   func(a, b int64) bool
 		want bool
 	}{
 		{"BGT", 0, 1, testBGT, true},
@@ -59,10 +59,10 @@ func TestBranchCondition(t *testing.T) {
 }
 
 func TestBranchZero(t *testing.T) {
-	tests := []struct{
-		ins string
-		a int64
-		fn func(a int64) bool
+	tests := []struct {
+		ins  string
+		a    int64
+		fn   func(a int64) bool
 		want bool
 	}{
 		{"BEQZ", -1, testBEQZ, false},

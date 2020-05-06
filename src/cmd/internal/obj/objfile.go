@@ -13,6 +13,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -82,7 +83,7 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 }
 
 func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
-	if ctxt.Flag_newobj {
+	if ctxt.Flag_go115newobj {
 		WriteObjFile2(ctxt, bout, pkgpath)
 		return
 	}
@@ -97,8 +98,9 @@ func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
 	w.wr.WriteByte(1)
 
 	// Autolib
-	for _, pkg := range ctxt.Imports {
-		w.writeString(pkg)
+	for _, p := range ctxt.Imports {
+		w.writeString(p.Pkg)
+		// This object format ignores p.Fingerprint.
 	}
 	w.writeString("")
 
@@ -229,7 +231,11 @@ func (w *objWriter) writeRefs(s *LSym) {
 }
 
 func (ctxt *Link) writeSymDebug(s *LSym) {
-	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
+	ctxt.writeSymDebugNamed(s, s.Name)
+}
+
+func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+	fmt.Fprintf(ctxt.Bso, "%s ", name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
 	}
@@ -258,13 +264,13 @@ func (ctxt *Link) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			var s string
+			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
 			if ctxt.Debugasm > 1 {
-				s = p.String()
+				io.WriteString(ctxt.Bso, p.String())
 			} else {
-				s = p.InnermostString()
+				p.InnermostString(ctxt.Bso)
 			}
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
+			fmt.Fprintln(ctxt.Bso)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
@@ -279,11 +285,11 @@ func (ctxt *Link) writeSymDebug(s *LSym) {
 		fmt.Fprintf(ctxt.Bso, "  ")
 		for j = i; j < i+16 && j < len(s.P); j++ {
 			c := int(s.P[j])
+			b := byte('.')
 			if ' ' <= c && c <= 0x7e {
-				fmt.Fprintf(ctxt.Bso, "%c", c)
-			} else {
-				fmt.Fprintf(ctxt.Bso, ".")
+				b = byte(c)
 			}
+			ctxt.Bso.WriteByte(b)
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
@@ -500,12 +506,21 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 	r := &ls.R[len(ls.R)-1]
 	r.Type = objabi.R_DWARFSECREF
 }
+
 func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
 	ls := s.(*LSym)
 	rsym := f.(*LSym)
-	ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
-	r := &ls.R[len(ls.R)-1]
-	r.Type = objabi.R_DWARFFILEREF
+	if c.Link.Flag_go115newobj {
+		fidx := c.Link.PosTable.FileIndex(rsym.Name)
+		// Note the +1 here -- the value we're writing is going to be an
+		// index into the DWARF line table file section, whose entries
+		// are numbered starting at 1, not 0.
+		ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
+	} else {
+		ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
+		r := &ls.R[len(ls.R)-1]
+		r.Type = objabi.R_DWARFFILEREF
+	}
 }
 
 func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
@@ -543,20 +558,37 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfInfoSym == nil {
-		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
-		if ctxt.Flag_locationlists {
-			s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+		if ctxt.Flag_go115newobj {
+			s.Func.dwarfInfoSym = &LSym{
+				Type: objabi.SDWARFINFO,
+			}
+			if ctxt.Flag_locationlists {
+				s.Func.dwarfLocSym = &LSym{
+					Type: objabi.SDWARFLOC,
+				}
+			}
+			s.Func.dwarfRangesSym = &LSym{
+				Type: objabi.SDWARFRANGE,
+			}
+			s.Func.dwarfDebugLinesSym = &LSym{
+				Type: objabi.SDWARFLINES,
+			}
+		} else {
+			s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+			if ctxt.Flag_locationlists {
+				s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+			}
+			s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
+			s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 		}
-		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
-		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 	}
 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }
 
-func (s *LSym) Len() int64 {
+func (s *LSym) Length(dwarfContext interface{}) int64 {
 	return s.Size
 }
 

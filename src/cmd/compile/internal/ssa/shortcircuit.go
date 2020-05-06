@@ -58,44 +58,52 @@ func shortcircuit(f *Func) {
 	//   if v goto t else u
 	// We can redirect p to go directly to t instead of b.
 	// (If v is not live after b).
-	for changed := true; changed; {
-		changed = false
-		for i := len(f.Blocks) - 1; i >= 0; i-- {
-			b := f.Blocks[i]
-			if fuseBlockPlain(b) {
-				changed = true
-				continue
-			}
-			changed = shortcircuitBlock(b) || changed
-		}
-		if changed {
-			f.invalidateCFG()
-		}
-	}
+	fuse(f, fuseTypePlain|fuseTypeShortCircuit)
 }
 
-// shortcircuitBlock checks for a CFG of the form
+// shortcircuitBlock checks for a CFG in which an If block
+// has as its control value a Phi that has a ConstBool arg.
+// In some such cases, we can rewrite the CFG into a flatter form.
+//
+// (1) Look for a CFG of the form
 //
 //   p   other pred(s)
 //    \ /
 //     b
 //    / \
-//   s   other succ
+//   t   other succ
 //
-// in which b is an If block containing a single phi value with a single use,
+// in which b is an If block containing a single phi value with a single use (b's Control),
 // which has a ConstBool arg.
-// The only use of the phi value must be the control value of b.
-// p is the predecessor determined by the argument slot in which the ConstBool is found.
+// p is the predecessor corresponding to the argument slot in which the ConstBool is found.
+// t is the successor corresponding to the value of the ConstBool arg.
 //
-// It rewrites this into
+// Rewrite this into
 //
 //   p   other pred(s)
 //   |  /
 //   | b
 //   |/ \
-//   s   other succ
+//   t   u
 //
-// and removes the appropriate phi arg(s).
+// and remove the appropriate phi arg(s).
+//
+// (2) Look for a CFG of the form
+//
+//   p   q
+//    \ /
+//     b
+//    / \
+//   t   u
+//
+// in which b is as described in (1).
+// However, b may also contain other phi values.
+// The CFG will be modified as described in (1).
+// However, in order to handle those other phi values,
+// for each other phi value w, we must be able to eliminate w from b.
+// We can do that though a combination of moving w to a different block
+// and rewriting uses of w to use a different value instead.
+// See shortcircuitPhiPlan for details.
 func shortcircuitBlock(b *Block) bool {
 	if b.Kind != BlockIf {
 		return false
@@ -113,7 +121,21 @@ func shortcircuitBlock(b *Block) bool {
 		ctl = ctl.Args[0]
 		nval++ // wrapper around control value
 	}
-	if len(b.Values) != nval || ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
+	if ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
+		return false
+	}
+	nOtherPhi := 0
+	for _, w := range b.Values {
+		if w.Op == OpPhi && w != ctl {
+			nOtherPhi++
+		}
+	}
+	if nOtherPhi > 0 && len(b.Preds) != 2 {
+		// We rely on b having exactly two preds in shortcircuitPhiPlan
+		// to reason about the values of phis.
+		return false
+	}
+	if len(b.Values) != nval+nOtherPhi {
 		return false
 	}
 
@@ -143,7 +165,16 @@ func shortcircuitBlock(b *Block) bool {
 		return false
 	}
 
+	var fixPhi func(*Value, int)
+	if nOtherPhi > 0 {
+		fixPhi = shortcircuitPhiPlan(b, ctl, cidx, ti)
+		if fixPhi == nil {
+			return false
+		}
+	}
+
 	// We're committed. Update CFG and Phis.
+	// If you modify this section, update shortcircuitPhiPlan corresponding.
 
 	// Remove b's incoming edge from p.
 	b.removePred(cidx)
@@ -165,6 +196,51 @@ func shortcircuitBlock(b *Block) bool {
 		v.AddArg(v.Args[te.i])
 	}
 
+	if nOtherPhi != 0 {
+		// Adjust all other phis as necessary.
+		// Use a plain for loop instead of range because fixPhi may move phis,
+		// thus modifying b.Values.
+		for i := 0; i < len(b.Values); i++ {
+			phi := b.Values[i]
+			if phi.Uses == 0 || phi == ctl || phi.Op != OpPhi {
+				continue
+			}
+			fixPhi(phi, i)
+			if phi.Block == b {
+				continue
+			}
+			// phi got moved to a different block with v.moveTo.
+			// Adjust phi values in this new block that refer
+			// to phi to refer to the corresponding phi arg instead.
+			// phi used to be evaluated prior to this block,
+			// and now it is evaluated in this block.
+			for _, v := range phi.Block.Values {
+				if v.Op != OpPhi || v == phi {
+					continue
+				}
+				for j, a := range v.Args {
+					if a == phi {
+						v.SetArg(j, phi.Args[j])
+					}
+				}
+			}
+			if phi.Uses != 0 {
+				phielimValue(phi)
+			} else {
+				phi.reset(OpInvalid)
+			}
+			i-- // v.moveTo put a new value at index i; reprocess
+		}
+
+		// We may have left behind some phi values with no uses
+		// but the wrong number of arguments. Eliminate those.
+		for _, v := range b.Values {
+			if v.Uses == 0 {
+				v.reset(OpInvalid)
+			}
+		}
+	}
+
 	if len(b.Preds) == 0 {
 		// Block is now dead.
 		b.Kind = BlockInvalid
@@ -172,4 +248,250 @@ func shortcircuitBlock(b *Block) bool {
 
 	phielimValue(ctl)
 	return true
+}
+
+// shortcircuitPhiPlan returns a function to handle non-ctl phi values in b,
+// where b is as described in shortcircuitBlock.
+// The returned function accepts a value v
+// and the index i of v in v.Block: v.Block.Values[i] == v.
+// If the returned function moves v to a different block, it will use v.moveTo.
+// cidx is the index in ctl of the ConstBool arg.
+// ti is the index in b.Succs of the always taken branch when arriving from p.
+// If shortcircuitPhiPlan returns nil, there is no plan available,
+// and the CFG modifications must not proceed.
+// The returned function assumes that shortcircuitBlock has completed its CFG modifications.
+func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, int) {
+	const go115shortcircuitPhis = true
+	if !go115shortcircuitPhis {
+		return nil
+	}
+
+	// t is the "taken" branch: the successor we always go to when coming in from p.
+	t := b.Succs[ti].b
+	// u is the "untaken" branch: the successor we never go to when coming in from p.
+	u := b.Succs[1^ti].b
+
+	// Look for some common CFG structures
+	// in which the outbound paths from b merge,
+	// with no other preds joining them.
+	// In these cases, we can reconstruct what the value
+	// of any phi in b must be in the successor blocks.
+
+	if len(t.Preds) == 1 && len(t.Succs) == 1 &&
+		len(u.Preds) == 1 && len(u.Succs) == 1 &&
+		t.Succs[0].b == u.Succs[0].b && len(t.Succs[0].b.Preds) == 2 {
+		// p   q
+		//  \ /
+		//   b
+		//  / \
+		// t   u
+		//  \ /
+		//   m
+		//
+		// After the CFG modifications, this will look like
+		//
+		// p   q
+		// |  /
+		// | b
+		// |/ \
+		// t   u
+		//  \ /
+		//   m
+		//
+		// NB: t.Preds is (b, p), not (p, b).
+		m := t.Succs[0].b
+		return func(v *Value, i int) {
+			// Replace any uses of v in t and u with the value v must have,
+			// given that we have arrived at that block.
+			// Then move v to m and adjust its value accordingly;
+			// this handles all other uses of v.
+			argP, argQ := v.Args[cidx], v.Args[1^cidx]
+			u.replaceUses(v, argQ)
+			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+			phi.AddArg2(argQ, argP)
+			t.replaceUses(v, phi)
+			if v.Uses == 0 {
+				return
+			}
+			v.moveTo(m, i)
+			// The phi in m belongs to whichever pred idx corresponds to t.
+			if m.Preds[0].b == t {
+				v.SetArgs2(phi, argQ)
+			} else {
+				v.SetArgs2(argQ, phi)
+			}
+		}
+	}
+
+	if len(t.Preds) == 2 && len(u.Preds) == 1 && len(u.Succs) == 1 && u.Succs[0].b == t {
+		// p   q
+		//  \ /
+		//   b
+		//   |\
+		//   | u
+		//   |/
+		//   t
+		//
+		// After the CFG modifications, this will look like
+		//
+		//     q
+		//    /
+		//   b
+		//   |\
+		// p | u
+		//  \|/
+		//   t
+		//
+		// NB: t.Preds is (b or u, b or u, p).
+		return func(v *Value, i int) {
+			// Replace any uses of v in u. Then move v to t.
+			argP, argQ := v.Args[cidx], v.Args[1^cidx]
+			u.replaceUses(v, argQ)
+			v.moveTo(t, i)
+			v.SetArgs3(argQ, argQ, argP)
+		}
+	}
+
+	if len(u.Preds) == 2 && len(t.Preds) == 1 && len(t.Succs) == 1 && t.Succs[0].b == u {
+		// p   q
+		//  \ /
+		//   b
+		//  /|
+		// t |
+		//  \|
+		//   u
+		//
+		// After the CFG modifications, this will look like
+		//
+		// p   q
+		// |  /
+		// | b
+		// |/|
+		// t |
+		//  \|
+		//   u
+		//
+		// NB: t.Preds is (b, p), not (p, b).
+		return func(v *Value, i int) {
+			// Replace any uses of v in t. Then move v to u.
+			argP, argQ := v.Args[cidx], v.Args[1^cidx]
+			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+			phi.AddArg2(argQ, argP)
+			t.replaceUses(v, phi)
+			if v.Uses == 0 {
+				return
+			}
+			v.moveTo(u, i)
+			v.SetArgs2(argQ, phi)
+		}
+	}
+
+	// Look for some common CFG structures
+	// in which one outbound path from b exits,
+	// with no other preds joining.
+	// In these cases, we can reconstruct what the value
+	// of any phi in b must be in the path leading to exit,
+	// and move the phi to the non-exit path.
+
+	if len(t.Preds) == 1 && len(u.Preds) == 1 && len(t.Succs) == 0 {
+		// p   q
+		//  \ /
+		//   b
+		//  / \
+		// t   u
+		//
+		// where t is an Exit/Ret block.
+		//
+		// After the CFG modifications, this will look like
+		//
+		// p   q
+		// |  /
+		// | b
+		// |/ \
+		// t   u
+		//
+		// NB: t.Preds is (b, p), not (p, b).
+		return func(v *Value, i int) {
+			// Replace any uses of v in t and x. Then move v to u.
+			argP, argQ := v.Args[cidx], v.Args[1^cidx]
+			// If there are no uses of v in t or x, this phi will be unused.
+			// That's OK; it's not worth the cost to prevent that.
+			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+			phi.AddArg2(argQ, argP)
+			t.replaceUses(v, phi)
+			if v.Uses == 0 {
+				return
+			}
+			v.moveTo(u, i)
+			v.SetArgs1(argQ)
+		}
+	}
+
+	if len(u.Preds) == 1 && len(t.Preds) == 1 && len(u.Succs) == 0 {
+		// p   q
+		//  \ /
+		//   b
+		//  / \
+		// t   u
+		//
+		// where u is an Exit/Ret block.
+		//
+		// After the CFG modifications, this will look like
+		//
+		// p   q
+		// |  /
+		// | b
+		// |/ \
+		// t   u
+		//
+		// NB: t.Preds is (b, p), not (p, b).
+		return func(v *Value, i int) {
+			// Replace any uses of v in u (and x). Then move v to t.
+			argP, argQ := v.Args[cidx], v.Args[1^cidx]
+			u.replaceUses(v, argQ)
+			v.moveTo(t, i)
+			v.SetArgs2(argQ, argP)
+		}
+	}
+
+	// TODO: handle more cases; shortcircuit optimizations turn out to be reasonably high impact
+	return nil
+}
+
+// replaceUses replaces all uses of old in b with new.
+func (b *Block) replaceUses(old, new *Value) {
+	for _, v := range b.Values {
+		for i, a := range v.Args {
+			if a == old {
+				v.SetArg(i, new)
+			}
+		}
+	}
+	for i, v := range b.ControlValues() {
+		if v == old {
+			b.ReplaceControl(i, new)
+		}
+	}
+}
+
+// moveTo moves v to dst, adjusting the appropriate Block.Values slices.
+// The caller is responsible for ensuring that this is safe.
+// i is the index of v in v.Block.Values.
+func (v *Value) moveTo(dst *Block, i int) {
+	if dst.Func.scheduled {
+		v.Fatalf("moveTo after scheduling")
+	}
+	src := v.Block
+	if src.Values[i] != v {
+		v.Fatalf("moveTo bad index %d", v, i)
+	}
+	if src == dst {
+		return
+	}
+	v.Block = dst
+	dst.Values = append(dst.Values, v)
+	last := len(src.Values) - 1
+	src.Values[i] = src.Values[last]
+	src.Values[last] = nil
+	src.Values = src.Values[:last]
 }

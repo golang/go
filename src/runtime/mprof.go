@@ -711,13 +711,16 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 	return
 }
 
-// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
-// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
-// If len(p) < n, GoroutineProfile does not change p and returns n, false.
-//
-// Most clients should use the runtime/pprof package instead
-// of calling GoroutineProfile directly.
-func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+//go:linkname runtime_goroutineProfileWithLabels runtime/pprof.runtime_goroutineProfileWithLabels
+func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineProfileWithLabels(p, labels)
+}
+
+// labels may be nil. If labels is non-nil, it must have the same length as p.
+func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if labels != nil && len(labels) != len(p) {
+		labels = nil
+	}
 	gp := getg()
 
 	isOK := func(gp1 *g) bool {
@@ -737,7 +740,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 
 	if n <= len(p) {
 		ok = true
-		r := p
+		r, lbl := p, labels
 
 		// Save current goroutine.
 		sp := getcallersp()
@@ -746,6 +749,12 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 			saveg(pc, sp, gp, &r[0])
 		})
 		r = r[1:]
+
+		// If we have a place to put our goroutine labelmap, insert it there.
+		if labels != nil {
+			lbl[0] = gp.labels
+			lbl = lbl[1:]
+		}
 
 		// Save other goroutines.
 		for _, gp1 := range allgs {
@@ -756,14 +765,28 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 					break
 				}
 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+				if labels != nil {
+					lbl[0] = gp1.labels
+					lbl = lbl[1:]
+				}
 				r = r[1:]
 			}
 		}
 	}
 
 	startTheWorld()
-
 	return n, ok
+}
+
+// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
+// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
+// If len(p) < n, GoroutineProfile does not change p and returns n, false.
+//
+// Most clients should use the runtime/pprof package instead
+// of calling GoroutineProfile directly.
+func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+
+	return goroutineProfileWithLabels(p, nil)
 }
 
 func saveg(pc, sp uintptr, gp *g, r *StackRecord) {

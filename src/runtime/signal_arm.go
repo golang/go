@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build dragonfly freebsd linux netbsd openbsd
 
 package runtime
 
@@ -62,10 +62,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(uint32(funcPC(sigpanic)))
 }
-
-// TODO(issue 35439): enabling async preemption causes failures on darwin/arm.
-// Disable for now.
-const pushCallSupported = GOOS != "darwin"
 
 func (c *sigctxt) pushCall(targetPC uintptr) {
 	// Push the LR to stack, as we'll clobber it in order to

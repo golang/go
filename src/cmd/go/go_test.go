@@ -61,7 +61,7 @@ func init() {
 		canRun = false
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			canRun = false
 		}
 	case "linux":
@@ -1475,52 +1475,6 @@ func TestInstallWithTags(t *testing.T) {
 	}
 }
 
-// Issue 4773
-func TestCaseCollisions(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src/example/a/pkg")
-	tg.tempDir("src/example/a/Pkg")
-	tg.tempDir("src/example/b")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.tempFile("src/example/a/a.go", `package p
-		import (
-			_ "example/a/pkg"
-			_ "example/a/Pkg"
-		)`)
-	tg.tempFile("src/example/a/pkg/pkg.go", `package pkg`)
-	tg.tempFile("src/example/a/Pkg/pkg.go", `package pkg`)
-	tg.run("list", "-json", "example/a")
-	tg.grepStdout("case-insensitive import collision", "go list -json example/a did not report import collision")
-	tg.runFail("build", "example/a")
-	tg.grepStderr("case-insensitive import collision", "go build example/a did not report import collision")
-	tg.tempFile("src/example/b/file.go", `package b`)
-	tg.tempFile("src/example/b/FILE.go", `package b`)
-	f, err := os.Open(tg.path("src/example/b"))
-	tg.must(err)
-	names, err := f.Readdirnames(0)
-	tg.must(err)
-	tg.check(f.Close())
-	args := []string{"list"}
-	if len(names) == 2 {
-		// case-sensitive file system, let directory read find both files
-		args = append(args, "example/b")
-	} else {
-		// case-insensitive file system, list files explicitly on command line
-		args = append(args, tg.path("src/example/b/file.go"), tg.path("src/example/b/FILE.go"))
-	}
-	tg.runFail(args...)
-	tg.grepStderr("case-insensitive file name collision", "go list example/b did not report file name collision")
-
-	tg.runFail("list", "example/a/pkg", "example/a/Pkg")
-	tg.grepStderr("case-insensitive import collision", "go list example/a/pkg example/a/Pkg did not report import collision")
-	tg.run("list", "-json", "-e", "example/a/pkg", "example/a/Pkg")
-	tg.grepStdout("case-insensitive import collision", "go list -json -e example/a/pkg example/a/Pkg did not report import collision")
-	tg.runFail("build", "example/a/pkg", "example/a/Pkg")
-	tg.grepStderr("case-insensitive import collision", "go build example/a/pkg example/a/Pkg did not report import collision")
-}
-
 // Issue 17451, 17662.
 func TestSymlinkWarning(t *testing.T) {
 	tg := testgo(t)
@@ -1954,9 +1908,9 @@ func TestGenerateUsesBuildContext(t *testing.T) {
 	tg.grepStdout("linux amd64", "unexpected GOOS/GOARCH combination")
 
 	tg.setenv("GOOS", "darwin")
-	tg.setenv("GOARCH", "386")
+	tg.setenv("GOARCH", "arm64")
 	tg.run("generate", "gen")
-	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
+	tg.grepStdout("darwin arm64", "unexpected GOOS/GOARCH combination")
 }
 
 func TestGoEnv(t *testing.T) {
@@ -2136,19 +2090,38 @@ func TestBuildmodePIE(t *testing.T) {
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
 	t.Run("non-cgo", func(t *testing.T) {
-		testBuildmodePIE(t, false)
+		testBuildmodePIE(t, false, true)
 	})
 	if canCgo {
 		switch runtime.GOOS {
 		case "darwin", "freebsd", "linux", "windows":
 			t.Run("cgo", func(t *testing.T) {
-				testBuildmodePIE(t, true)
+				testBuildmodePIE(t, true, true)
 			})
 		}
 	}
 }
 
-func testBuildmodePIE(t *testing.T, useCgo bool) {
+func TestWindowsDefaultBuildmodIsPIE(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skipf("skipping in -short mode on non-builder")
+	}
+
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+
+	t.Run("non-cgo", func(t *testing.T) {
+		testBuildmodePIE(t, false, false)
+	})
+	if canCgo {
+		t.Run("cgo", func(t *testing.T) {
+			testBuildmodePIE(t, true, false)
+		})
+	}
+}
+
+func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2160,7 +2133,12 @@ func testBuildmodePIE(t *testing.T, useCgo bool) {
 	tg.tempFile("main.go", fmt.Sprintf(`package main;%s func main() { print("hello") }`, s))
 	src := tg.path("main.go")
 	obj := tg.path("main.exe")
-	tg.run("build", "-buildmode=pie", "-o", obj, src)
+	args := []string{"build"}
+	if setBuildmodeToPIE {
+		args = append(args, "-buildmode=pie")
+	}
+	args = append(args, "-o", obj, src)
+	tg.run(args...)
 
 	switch runtime.GOOS {
 	case "linux", "android", "freebsd":

@@ -44,7 +44,7 @@ func testMain(m *testing.M) int {
 	}
 	defer os.RemoveAll(dir)
 
-	codehost.WorkRoot = dir
+	cfg.GOMODCACHE = dir
 	return m.Run()
 }
 

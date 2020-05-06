@@ -1,0 +1,23 @@
+# If a replacement module declares a module path different from both
+# the original module and its location, report an error with all three paths.
+# In particular, the "required as" path should be the original.
+# Verifies golang.org/issue/38220.
+! go list .
+cmp stderr want
+
+-- go.mod --
+module m
+
+require rsc.io/quote v1.5.2
+
+replace rsc.io/quote v1.5.2 => example.com/quote v1.5.2
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"
+
+-- want --
+go: example.com/quote@v1.5.2: parsing go.mod:
+	module declares its path as: rsc.io/Quote
+	        but was required as: rsc.io/quote

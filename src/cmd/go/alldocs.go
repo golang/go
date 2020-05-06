@@ -35,23 +35,24 @@
 //
 // Additional help topics:
 //
-// 	buildmode   build modes
-// 	c           calling between Go and C
-// 	cache       build and test caching
-// 	environment environment variables
-// 	filetype    file types
-// 	go.mod      the go.mod file
-// 	gopath      GOPATH environment variable
-// 	gopath-get  legacy GOPATH go get
-// 	goproxy     module proxy protocol
-// 	importpath  import path syntax
-// 	modules     modules, module versions, and more
-// 	module-get  module-aware go get
-// 	module-auth module authentication using go.sum
-// 	module-private module configuration for non-public modules
-// 	packages    package lists and patterns
-// 	testflag    testing flags
-// 	testfunc    testing functions
+// 	buildconstraint build constraints
+// 	buildmode       build modes
+// 	c               calling between Go and C
+// 	cache           build and test caching
+// 	environment     environment variables
+// 	filetype        file types
+// 	go.mod          the go.mod file
+// 	gopath          GOPATH environment variable
+// 	gopath-get      legacy GOPATH go get
+// 	goproxy         module proxy protocol
+// 	importpath      import path syntax
+// 	modules         modules, module versions, and more
+// 	module-get      module-aware go get
+// 	module-auth     module authentication using go.sum
+// 	module-private  module configuration for non-public modules
+// 	packages        package lists and patterns
+// 	testflag        testing flags
+// 	testfunc        testing functions
 //
 // Use "go help <topic>" for more information about that topic.
 //
@@ -547,6 +548,9 @@
 // tag "generate" so that files may be examined by go generate but ignored
 // during build.
 //
+// For packages with invalid code, generate processes only source files with a
+// valid package clause.
+//
 // If any generator returns an error exit status, "go generate" skips
 // all further processing for that package.
 //
@@ -657,7 +661,10 @@
 // this automatically as well.
 //
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
+// custom domains using insecure schemes such as HTTP. Use with caution. The
+// GOINSECURE environment variable is usually a better alternative, since it
+// provides control over which modules may be retrieved using an insecure scheme.
+// See 'go help environment' for details.
 //
 // The second step is to download (if needed), build, and install
 // the named packages.
@@ -1471,6 +1478,60 @@
 // See also: go fmt, go fix.
 //
 //
+// Build constraints
+//
+// Build constraints describe the conditions under which each source file
+// should be included in the corresponding package. Build constraints
+// for a given source file may be added by build constraint comments
+// within the file, or by specific patterns in the file's name.
+//
+// A build constraint comment appears before the file's package clause and
+// must be separated from the package clause by at least one blank line.
+// The comment begins with:
+//
+// 	// +build
+//
+// and follows with a space-separated list of options on the same line.
+// The constraint is evaluated as the OR of the options.
+// Each option evaluates as the AND of its comma-separated terms.
+// Each term consists of letters, digits, underscores, and dots.
+// Each term may be negated with a leading exclamation point.
+//
+// For example, the build constraint:
+//
+// 	// +build linux,386 darwin,!cgo arm
+//
+// corresponds to boolean formula:
+//
+// 	(linux AND 386) OR (darwin AND NOT cgo) OR arm
+//
+// During a particular build, the following terms are satisfied:
+// - the target operating system and architecture, as spelled by
+//   runtime.GOOS and runtime.GOARCH respectively
+// - the compiler being used, either "gc" or "gccgo"
+// - "cgo", if the cgo command is supported
+//   (see CGO_ENABLED in 'go help environment')
+// - a term for each Go major release, through the current version:
+//   "go1.1" from Go version 1.1 onward,
+//   "go1.2" from Go version 1.2 onward, and so on
+// - and any additional tags given by the '-tags' flag (see 'go help build').
+//
+// An additional build constraint may be derived from the source file name.
+// If a file's name, after stripping the extension and a possible _test suffix,
+// matches the patterns *_GOOS, *_GOARCH, or *_GOOS_GOARCH for any known
+// GOOS or GOARCH value, then the file is implicitly constrained to that
+// specific GOOS and/or GOARCH, in addition to any other build constraints
+// declared as comments within the file.
+//
+// For example, the file:
+//
+// 	source_windows_amd64.go
+//
+// is implicitly constrained to windows / amd64.
+//
+// See 'go doc go/build' for more details.
+//
+//
 // Build modes
 //
 // The 'go build' and 'go install' commands take a -buildmode argument which
@@ -1621,6 +1682,9 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
+// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+// 		to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1690,6 +1754,9 @@
 // 	GO386
 // 		For GOARCH=386, the floating point instruction set.
 // 		Valid values are 387, sse2.
+// 	GOAMD64
+// 		For GOARCH=amd64, jumps can be optionally be aligned such that they do not end on
+// 		or cross 32 byte boundaries.  Valid values are alignedjumps (default), normaljumps.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.

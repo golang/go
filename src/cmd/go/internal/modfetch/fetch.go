@@ -35,9 +35,10 @@ var downloadCache par.Cache
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
 func Download(mod module.Version) (dir string, err error) {
-	if PkgMod == "" {
-		// Do not download to current directory.
-		return "", fmt.Errorf("missing modfetch.PkgMod")
+	if cfg.GOMODCACHE == "" {
+		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
 	}
 
 	// The par.Cache here avoids duplicate work.
@@ -456,7 +457,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 
 // checkMod checks the given module's checksum.
 func checkMod(mod module.Version) {
-	if PkgMod == "" {
+	if cfg.GOMODCACHE == "" {
 		// Do not use current directory.
 		return
 	}
@@ -513,6 +514,7 @@ func checkModSum(mod module.Version, h string) error {
 	goSum.mu.Lock()
 	inited, err := initGoSum()
 	if err != nil {
+		goSum.mu.Unlock()
 		return err
 	}
 	done := inited && haveModSumLocked(mod, h)
@@ -593,7 +595,7 @@ func checkSumDB(mod module.Version, h string) error {
 // Sum returns the checksum for the downloaded copy of the given module,
 // if present in the download cache.
 func Sum(mod module.Version) string {
-	if PkgMod == "" {
+	if cfg.GOMODCACHE == "" {
 		// Do not use current directory.
 		return ""
 	}

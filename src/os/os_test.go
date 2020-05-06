@@ -54,7 +54,7 @@ var sysdir = func() *sysDir {
 		}
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			wd, err := syscall.Getwd()
 			if err != nil {
 				wd = err.Error()
@@ -146,7 +146,7 @@ func localTmp() string {
 		return TempDir()
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			return TempDir()
 		}
 	}
@@ -483,7 +483,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 		dir = "/system/bin"
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			wd, err := Getwd()
 			if err != nil {
 				t.Fatal(err)
@@ -1297,7 +1297,7 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/", "/usr"}
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			dirs = nil
 			for _, d := range []string{"d1", "d2"} {
 				dir, err := ioutil.TempDir("", d)
@@ -2526,4 +2526,16 @@ func TestReaddirSmallSeek(t *testing.T) {
 	if len(names2) != 3 {
 		t.Fatalf("first names: %v, second names: %v", names1, names2)
 	}
+}
+
+// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
+// We also check that the error has a Timeout method that returns true.
+func isDeadlineExceeded(err error) bool {
+	if !IsTimeout(err) {
+		return false
+	}
+	if !errors.Is(err, ErrDeadlineExceeded) {
+		return false
+	}
+	return true
 }

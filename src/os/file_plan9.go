@@ -112,10 +112,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	} else {
 		fd, e = syscall.Open(name, flag)
 		if IsNotExist(e) && create {
-			var e1 error
-			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
-			if e1 == nil {
-				e = nil
+			fd, e = syscall.Create(name, flag, syscallMode(perm))
+			if e != nil {
+				return nil, &PathError{"create", name, e}
 			}
 		}
 	}

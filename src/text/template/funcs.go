@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -29,31 +30,49 @@ import (
 // type can return interface{} or reflect.Value.
 type FuncMap map[string]interface{}
 
-var builtins = FuncMap{
-	"and":      and,
-	"call":     call,
-	"html":     HTMLEscaper,
-	"index":    index,
-	"slice":    slice,
-	"js":       JSEscaper,
-	"len":      length,
-	"not":      not,
-	"or":       or,
-	"print":    fmt.Sprint,
-	"printf":   fmt.Sprintf,
-	"println":  fmt.Sprintln,
-	"urlquery": URLQueryEscaper,
+// builtins returns the FuncMap.
+// It is not a global variable so the linker can dead code eliminate
+// more when this isn't called. See golang.org/issue/36021.
+// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
+func builtins() FuncMap {
+	return FuncMap{
+		"and":      and,
+		"call":     call,
+		"html":     HTMLEscaper,
+		"index":    index,
+		"slice":    slice,
+		"js":       JSEscaper,
+		"len":      length,
+		"not":      not,
+		"or":       or,
+		"print":    fmt.Sprint,
+		"printf":   fmt.Sprintf,
+		"println":  fmt.Sprintln,
+		"urlquery": URLQueryEscaper,
 
-	// Comparisons
-	"eq": eq, // ==
-	"ge": ge, // >=
-	"gt": gt, // >
-	"le": le, // <=
-	"lt": lt, // <
-	"ne": ne, // !=
+		// Comparisons
+		"eq": eq, // ==
+		"ge": ge, // >=
+		"gt": gt, // >
+		"le": le, // <=
+		"lt": lt, // <
+		"ne": ne, // !=
+	}
 }
 
-var builtinFuncs = createValueFuncs(builtins)
+var builtinFuncsOnce struct {
+	sync.Once
+	v map[string]reflect.Value
+}
+
+// builtinFuncsOnce lazily computes & caches the builtinFuncs map.
+// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
+func builtinFuncs() map[string]reflect.Value {
+	builtinFuncsOnce.Do(func() {
+		builtinFuncsOnce.v = createValueFuncs(builtins())
+	})
+	return builtinFuncsOnce.v
+}
 
 // createValueFuncs turns a FuncMap into a map[string]reflect.Value
 func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
@@ -125,7 +144,7 @@ func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
 			return fn, true
 		}
 	}
-	if fn := builtinFuncs[name]; fn.IsValid() {
+	if fn := builtinFuncs()[name]; fn.IsValid() {
 		return fn, true
 	}
 	return reflect.Value{}, false
@@ -634,10 +653,10 @@ var (
 	jsBackslash = []byte(`\\`)
 	jsApos      = []byte(`\'`)
 	jsQuot      = []byte(`\"`)
-	jsLt        = []byte(`\x3C`)
-	jsGt        = []byte(`\x3E`)
-	jsAmp       = []byte(`\x26`)
-	jsEq        = []byte(`\x3D`)
+	jsLt        = []byte(`\u003C`)
+	jsGt        = []byte(`\u003E`)
+	jsAmp       = []byte(`\u0026`)
+	jsEq        = []byte(`\u003D`)
 )
 
 // JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.

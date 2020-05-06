@@ -34,6 +34,7 @@ package obj
 import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
+	"crypto/md5"
 	"fmt"
 	"log"
 	"math"
@@ -164,7 +165,7 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms(asm bool) {
-	if !ctxt.Flag_newobj {
+	if !ctxt.Flag_go115newobj {
 		return
 	}
 
@@ -241,6 +242,15 @@ func (ctxt *Link) NumberSyms(asm bool) {
 		ctxt.pkgIdx[pkg] = ipkg
 		ipkg++
 	})
+
+	// Compute a fingerprint of the indices, for exporting.
+	if !asm {
+		h := md5.New()
+		for _, s := range ctxt.defs {
+			h.Write([]byte(s.Name))
+		}
+		copy(ctxt.Fingerprint[:], h.Sum(nil)[:])
+	}
 }
 
 // Returns whether s is a non-package symbol, which needs to be referenced
@@ -298,28 +308,72 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 					fn(s.Gotype)
 				}
 				if s.Type == objabi.STEXT {
-					pc := &s.Func.Pcln
-					for _, d := range pc.Funcdata {
-						if d != nil {
-							fn(d)
-						}
+					f := func(parent *LSym, aux *LSym) {
+						fn(aux)
 					}
-					for _, f := range pc.File {
-						if fsym := ctxt.Lookup(f); fsym != nil {
-							fn(fsym)
-						}
-					}
-					for _, call := range pc.InlTree.nodes {
-						if call.Func != nil {
-							fn(call.Func)
-						}
-						f, _ := linkgetlineFromPos(ctxt, call.Pos)
-						if fsym := ctxt.Lookup(f); fsym != nil {
-							fn(fsym)
-						}
-					}
+					ctxt.traverseFuncAux(flag, s, f)
 				}
 			}
+		}
+	}
+}
+
+func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+	pc := &fsym.Func.Pcln
+	if flag&traverseAux == 0 {
+		// NB: should it become necessary to walk aux sym reloc references
+		// without walking the aux syms themselves, this can be changed.
+		panic("should not be here")
+	}
+	for _, d := range pc.Funcdata {
+		if d != nil {
+			fn(fsym, d)
+		}
+	}
+	for _, f := range pc.File {
+		if filesym := ctxt.Lookup(f); filesym != nil {
+			fn(fsym, filesym)
+		}
+	}
+	for _, call := range pc.InlTree.nodes {
+		if call.Func != nil {
+			fn(fsym, call.Func)
+		}
+		f, _ := linkgetlineFromPos(ctxt, call.Pos)
+		if filesym := ctxt.Lookup(f); filesym != nil {
+			fn(fsym, filesym)
+		}
+	}
+	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym, fsym.Func.dwarfInfoSym}
+	for _, dws := range dwsyms {
+		if dws == nil || dws.Size == 0 {
+			continue
+		}
+		fn(fsym, dws)
+		if flag&traverseRefs != 0 {
+			for _, r := range dws.R {
+				if r.Sym != nil {
+					fn(dws, r.Sym)
+				}
+			}
+		}
+	}
+}
+
+// Traverse aux symbols, calling fn for each sym/aux pair.
+func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
+	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	for _, list := range lists {
+		for _, s := range list {
+			if s.Gotype != nil {
+				if flag&traverseDefs != 0 {
+					fn(s, s.Gotype)
+				}
+			}
+			if s.Type != objabi.STEXT {
+				continue
+			}
+			ctxt.traverseFuncAux(flag, s, fn)
 		}
 	}
 }

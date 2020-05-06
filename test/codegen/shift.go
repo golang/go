@@ -12,61 +12,85 @@ package codegen
 
 func lshMask64x64(v int64, s uint64) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v << (s & 63)
 }
 
 func rshMask64Ux64(v uint64, s uint64) uint64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v >> (s & 63)
 }
 
 func rshMask64x64(v int64, s uint64) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v >> (s & 63)
 }
 
 func lshMask32x64(v int32, s uint64) int32 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ISEL",-"ORN"
+	// ppc64:"ISEL",-"ORN"
 	return v << (s & 63)
 }
 
 func rshMask32Ux64(v uint32, s uint64) uint32 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ISEL",-"ORN"
+	// ppc64:"ISEL",-"ORN"
 	return v >> (s & 63)
 }
 
 func rshMask32x64(v int32, s uint64) int32 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ISEL",-"ORN"
+	// ppc64:"ISEL",-"ORN"
 	return v >> (s & 63)
 }
 
 func lshMask64x32(v int64, s uint32) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN"
+	// ppc64:"ANDCC",-"ORN"
 	return v << (s & 63)
 }
 
 func rshMask64Ux32(v uint64, s uint32) uint64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN"
+	// ppc64:"ANDCC",-"ORN"
 	return v >> (s & 63)
 }
 
 func rshMask64x32(v int64, s uint32) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v >> (s & 63)
 }
 
 func lshMask64x32Ext(v int64, s int32) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v << uint(s&63)
 }
 
 func rshMask64Ux32Ext(v uint64, s int32) uint64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v >> uint(s&63)
 }
 
 func rshMask64x32Ext(v int64, s int32) int64 {
 	// s390x:-".*AND",-".*MOVDGE"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// ppc64:"ANDCC",-"ORN",-"ISEL"
 	return v >> uint(s&63)
 }
 

@@ -25,6 +25,7 @@ var (
 	GOARCH   = envOr("GOARCH", defaultGOARCH)
 	GOOS     = envOr("GOOS", defaultGOOS)
 	GO386    = envOr("GO386", defaultGO386)
+	GOAMD64  = goamd64()
 	GOARM    = goarm()
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
@@ -38,6 +39,15 @@ const (
 	ElfRelocOffset   = 256
 	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
 )
+
+func goamd64() string {
+	switch v := envOr("GOAMD64", defaultGOAMD64); v {
+	case "normaljumps", "alignedjumps":
+		return v
+	}
+	log.Fatalf("Invalid GOAMD64 value. Must be normaljumps or alignedjumps.")
+	panic("unreachable")
+}
 
 func goarm() int {
 	switch v := envOr("GOARM", defaultGOARM); v {
@@ -152,9 +162,10 @@ func addexp(s string) {
 }
 
 var (
-	framepointer_enabled     int = 1
-	Fieldtrack_enabled       int
-	Preemptibleloops_enabled int
+	framepointer_enabled      int = 1
+	Fieldtrack_enabled        int
+	Preemptibleloops_enabled  int
+	Staticlockranking_enabled int
 )
 
 // Toolchain experiments.
@@ -168,6 +179,7 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
+	{"staticlockranking", &Staticlockranking_enabled},
 }
 
 var defaultExpstring = Expstring()

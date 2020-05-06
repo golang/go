@@ -116,6 +116,7 @@ func poll_runtime_pollServerInit() {
 
 func netpollGenericInit() {
 	if atomic.Load(&netpollInited) == 0 {
+		lockInit(&netpollInitLock, lockRankNetpollInit)
 		lock(&netpollInitLock)
 		if netpollInited == 0 {
 			netpollinit()
@@ -542,6 +543,7 @@ func (c *pollCache) alloc() *pollDesc {
 	}
 	pd := c.first
 	c.first = pd.link
+	lockInit(&pd.lock, lockRankPollDesc)
 	unlock(&c.lock)
 	return pd
 }

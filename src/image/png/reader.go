@@ -163,8 +163,9 @@ func (d *decoder) parseIHDR(length uint32) error {
 	if w <= 0 || h <= 0 {
 		return FormatError("non-positive dimension")
 	}
-	nPixels := int64(w) * int64(h)
-	if nPixels != int64(int(nPixels)) {
+	nPixels64 := int64(w) * int64(h)
+	nPixels := int(nPixels64)
+	if nPixels64 != int64(nPixels) {
 		return UnsupportedError("dimension overflow")
 	}
 	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
@@ -498,7 +499,10 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 	bytesPerPixel := (bitsPerPixel + 7) / 8
 
 	// The +1 is for the per-row filter type, which is at cr[0].
-	rowSize := 1 + (bitsPerPixel*width+7)/8
+	rowSize := 1 + (int64(bitsPerPixel)*int64(width)+7)/8
+	if rowSize != int64(int(rowSize)) {
+		return nil, UnsupportedError("dimension overflow")
+	}
 	// cr and pr are the bytes for the current and previous row.
 	cr := make([]uint8, rowSize)
 	pr := make([]uint8, rowSize)
