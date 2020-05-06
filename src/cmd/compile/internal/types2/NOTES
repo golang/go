@@ -1,0 +1,162 @@
+This file works as a sort of notebook/implementation log. It replaces my notebook-based approach.
+I only switched to this file in Nov 2019, thus it doesn't contain earlier documentation.
+
+----------------------------------------------------------------------------------------------------
+TODO
+
+- report a better error when a type is not in a type list (investigate)
+- fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
+- fix endless instantiation when printing: type T(type P) T(P)
+- review all direct accesses to Named.underlying and verify that they are still correct
+- better error message when we need parentheses around a parameterized function parameter type
+- revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
+- revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
+- review use of Contract.TParams field - it seems like it's only needed for length checks?
+- review handling of fields of instantiated generic types (do we need to make them non-parameterized,
+  similar to what we did for the embedded interfaces created by contract embedding?)
+- use []*TypeParam for tparams in subst? (unclear)
+- should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
+- TBD: in prose, should we use "generic" or "parameterized" (try to be consistent)
+
+----------------------------------------------------------------------------------------------------
+KNOWN ISSUES
+
+- iteration over generic variables doesn't report certain channel errors (see TODOs in code)
+- cannot handle mutually recursive parameterized interfaces using themselves as type bounds
+  example: type B(type P B(P)) interface{ m() } (need to delay all checking after seting up declarations)
+- contract instantiation requires the type arguments to be type parameters from the type of function
+  type parameter list or enclosing contract
+- A type parameter that is constrained by multiple contracts will not get the correct type bound.
+  We may disallow this for  now.
+- Type-checking for type parameters with pointer designation in contracts is not implemented.
+  Do we actually need it? (Should the draft be updated?)
+- If we do need type-checking for type parameters with pointer designation in contracts, figure
+  out how to model this with interfaces. Do we need two interfaces, one for a T and one for a *T?
+- invoking a method of a parameterized embedded type doesn't work (cannot properly determine receiver yet)
+
+----------------------------------------------------------------------------------------------------
+OBSERVATIONS
+
+- 2/20/2020: Because we permit parenthesized types anywhere for consistency, also in parameter lists (mea
+  culpa), we have parsing ambiguities when using instantiated types in parameter lists w/o argument names.
+  We could disallow the use of parentheses at the top level of type literals and then we might not have
+  this problem. This is not a backward-compatible change but perhaps worthwhile investigating. Specifically,
+  will this always work (look specifically at channel types where we need parentheses for disambiguation
+  and possibly function types). File a proposal?
+
+- 2/21/2020: We do need top-level parentheses around types in certain situations such as conversions
+  or composite literals. We could disallow parentheses around types in parameter lists only, but that
+  seems quite a bit less elegant.
+
+----------------------------------------------------------------------------------------------------
+OPEN QUESTIONS
+
+- Parsing _ = [](a(int)){} requires parentheses around `(a(int))` - should the parser be smarter in
+  these cases? Another example: []a(b, c){} This cannot be a conversion. Could fix such cases by re-
+  associating the AST when we see a {. Need to be careful, and need to take into account additional
+  complexity of spec.
+- What is the exact nature of a generic type? Does it act as a named type (it can have methods)?
+- For len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
+  result be a constant? (right now it is not). What are the implications for alternative, non-
+  monomorphizing implementation methods?
+- Confirm that it's ok to use inference in missingMethod to compare parameterized methods.
+- What does it mean to explicitly instantiate a contract with a non-type parameter argument?
+  (e.g., contract C(T) { T int }; func _(type T C(int))(...) ... seems invalid. What are the rules?)
+
+----------------------------------------------------------------------------------------------------
+DESIGN/IMPLEMENTATION
+
+- 11/19/2019: For type parameters with interface bounds to work, the scope of all type parameters in
+  a type parameter list starts at the "type" keyword. This makes all type parameters visible for all
+  type parameter bounds (interfaces that may be parameterized with the type parameters).
+
+- 12/4/2019: do not allow parenthesized generic uninstantiated types (unless instantiated implicitly)
+  In other words: generic types must always be instantiated before they can be used in any form
+  More generally: Only permit type instantiation T(x) in type context, when the type is a named type.
+  Do not permit it in general in type context: e.g., disallow []T(x) because we consider that a
+  conversion, in general. Same for ([]T)(x).
+
+- 12/12/2019: represent type bounds always as (possibly unnamed) interfaces
+  (contracts are user syntactic sugar)
+
+- 12/19/2019: Type parameters don't act like type aliases. For instance:
+
+        func f(type T1, T2)(x T1) T2 { return x }
+
+  is not valid, no matter how T1 and T2 are instantiated (but if T1 and T2 were type aliases with
+  both of them having type int, the return x would be valid). In fact, the type parameters act more
+  like named types with the methods described by their type bound. But type parameters are never
+  interfaces. To determine: Given a type parameter P, is P == underlying(P) (like for basic types),
+  or is the the underlying type of P something else (like for defined types). Is there an observable
+  difference?
+
+- 12/19/2019: Rewrote contract handling: they are now treated as Objects (rather than Types) throughout.
+
+- 12/20/2019: Decided to start moving type parameters to types (from TypeName to Named), need to do the
+  same for Func. This make more sense as in general any type (conceptually even literal types) could
+  have type parameters. It's a property of the type, not the type name. It also simplified the code.
+
+- 12/20/2019: Type parameters may be part of type lists in contracts/interfaces. It just falls out
+  naturally. Added test cases.
+
+- 12/23/2019: Decision: Type parameters and ordinary (value) parameters are in the same block, notably
+  the function block. The scope of type parameters starts at the 'type' keyword; the scope of ordinary
+  parameters starts with the (opening '{' of the) function body. Both scopes end with the closing '}'
+  of the function body (i.e., the end of the function block).
+
+- 1/2/2020: Implementation decision: contracts can only be declared at the package level.
+
+- 1/6/2020: Experimental: First steps towards permitting type parameters in methods as a generalization.
+  Type-checking problems ooccurring from this are likely to highlight general problematic areas.
+  First consequence: Scope of type parameters starts at "func" keyword which means that receiver type
+  name cannot be a type parameter name declared later (or by the receiver type specification). This
+  seems reasonable and should help avoid confusion which is possible otherwise.
+
+- 1/7/2020: We distinguish embedded instantiated (parameterized) interfaces from methods by enclosing
+  the embedded interfaces in parentheses (the design draft recommends this change). Since this opens
+  the possibility for any parenthesized type (that is an interface), we can also allow (parenthesized)
+  interface literals as it is simpler to permit those than forbid them.
+
+- 1/7/2020: The current implementation permits empty type parameter lists as in: "func f(type)(x int)"
+  but we cannot call such a function as "f()(1)"; the empty type argument list causes problems.
+  Document that we allow empty type parameter list declarations, but not empty actual type parameter
+  lists. (We could allow them for types, but that doesn't seem consistent and probably is confusing).
+
+- 2/19/2020: We accept parenthesized embedded struct fields so we can distinguish between a named
+  field with a parenthesized type foo (T) and an embedded parameterized type (foo(T)), similarly
+  to interace embedding.
+
+- 2/19/2020: Permit parentheses around embedded contracts for symmetry with embedding in structs
+  and interfaces.
+
+- 2/20/2020: Receiver type parameters must always be provided in the receiver parameter list of
+  a method, even if they are not used by the method. Since the receiver acts like an implicit
+  declaration of those type parameters, they may be blank, as with any other declaration.
+
+- 3/20/2020: Local type declarations with an underlying type that is a type parameter lose the
+  methods declared with the type parameter bound. But they don't lose the properties of the
+  underlying type, i.e., the properties of the type parameter bound's type list.
+  This is something to consider if we were contemplating moving to a methods-only approach
+  (no type lists), even though local type declarations are exceedingly rare if they exist at
+  all in the wild.
+
+- 3/24/2020: Implemented initial support for bidirection type unification which could make
+  type inference more powerful if we decided to go that route. Specifically, this would
+  permit type inference for the type parameters of a generic function argument. Given:
+  func h(f func(int)); func g(type T)(T); one could allow the call: h(g) and the type argument
+  T of g would be inferred to be int. While not hard to implement, this would be a special case
+  of the rule that all generic types/functions must be instantiated before they are used except
+  for function calls where the type arguments can be inferred from the actual arguments.
+  Decided that for now we leave things as is, since it's not clear the extra complexity is
+  worth the (probably small) convenience.
+
+- 3/25/2020: We can probably simplify the contract syntax again and only permit one of three
+  possible constraint entries: 1) an embedded contract, 2) a type parameter followed by a
+  method signature, and 3) a type parameter followed by a type list. This is what the type
+  checker currently supports and the printer can print. (The parser still accepts a list of
+  method signatures or types, freely mixed.)
+
+- 4/24/2020: Permit omission of explicit type bound instantiation if the type bound is an
+  interface that applies to exactly one type parameter and the type bound expects exactly
+  one type argument. This makes parameterized interface type bounds easier to use in a common
+  case.
