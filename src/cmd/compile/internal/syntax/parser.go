@@ -493,9 +493,10 @@ func (p *parser) list(sep, close token, f func() bool) Pos {
 
 // appendGroup(f) = f | "(" { f ";" } ")" . // ";" is optional before ")"
 func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
-	if p.got(_Lparen) {
+	if p.tok == _Lparen {
 		g := new(Group)
 		p.clearPragma()
+		p.next() // must consume "(" after calling clearPragma!
 		p.list(_Semi, _Rparen, func() bool {
 			list = append(list, f(g))
 			return false
