@@ -343,8 +343,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Munmap")
 	ctxt.Out.Close() // Close handles Munmapping if necessary.
 
-	bench.Start("undef")
-	ctxt.undef()
 	bench.Start("hostlink")
 	ctxt.hostlink()
 	if ctxt.Debugvlog != 0 {
