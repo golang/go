@@ -53,32 +53,44 @@ func (r *symbols) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 	for _, s := range symbols {
-		s, ok := s.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		bytes, err := json.Marshal(s)
-		if err != nil {
-			return err
-		}
-		if _, ok := s["selectionRange"]; ok {
-			if err := parseDocumentSymbol(bytes); err != nil {
+		if m, ok := s.(map[string]interface{}); ok {
+			s, err = mapToSymbol(m)
+			if err != nil {
 				return err
 			}
-			continue
 		}
-		if err := parseSymbolInformation(bytes); err != nil {
-			return err
+		switch t := s.(type) {
+		case protocol.DocumentSymbol:
+			printDocumentSymbol(t)
+		case protocol.SymbolInformation:
+			printSymbolInformation(t)
 		}
 	}
 	return nil
 }
 
-func parseDocumentSymbol(bytes []byte) error {
-	var s protocol.DocumentSymbol
-	if err := json.Unmarshal(bytes, &s); err != nil {
-		return err
+func mapToSymbol(m map[string]interface{}) (interface{}, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
 	}
+
+	if _, ok := m["selectionRange"]; ok {
+		var s protocol.DocumentSymbol
+		if err := json.Unmarshal(b, &s); err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+
+	var s protocol.SymbolInformation
+	if err := json.Unmarshal(b, &s); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func printDocumentSymbol(s protocol.DocumentSymbol) {
 	fmt.Printf("%s %s %s\n", s.Name, s.Kind, positionToString(s.SelectionRange))
 	// Sort children for consistency
 	sort.Slice(s.Children, func(i, j int) bool {
@@ -87,16 +99,10 @@ func parseDocumentSymbol(bytes []byte) error {
 	for _, c := range s.Children {
 		fmt.Printf("\t%s %s %s\n", c.Name, c.Kind, positionToString(c.SelectionRange))
 	}
-	return nil
 }
 
-func parseSymbolInformation(bytes []byte) error {
-	var s protocol.SymbolInformation
-	if err := json.Unmarshal(bytes, &s); err != nil {
-		return err
-	}
+func printSymbolInformation(s protocol.SymbolInformation) {
 	fmt.Printf("%s %s %s\n", s.Name, s.Kind, positionToString(s.Location.Range))
-	return nil
 }
 
 func positionToString(r protocol.Range) string {
