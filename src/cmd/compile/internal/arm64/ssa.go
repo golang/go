@@ -998,6 +998,20 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockARM64FGE:  {arm64.ABGE, arm64.ABLT},
 	ssa.BlockARM64FLE:  {arm64.ABLS, arm64.ABHI},
 	ssa.BlockARM64FGT:  {arm64.ABGT, arm64.ABLE},
+	ssa.BlockARM64LTnoov:{arm64.ABMI, arm64.ABPL},
+	ssa.BlockARM64GEnoov:{arm64.ABPL, arm64.ABMI},
+}
+
+// To model a 'LEnoov' ('<=' without overflow checking) branching
+var leJumps = [2][2]gc.IndexJump{
+	{{Jump: arm64.ABEQ, Index: 0}, {Jump: arm64.ABPL, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm64.ABMI, Index: 0}, {Jump: arm64.ABEQ, Index: 0}}, // next == b.Succs[1]
+}
+
+// To model a 'GTnoov' ('>' without overflow checking) branching
+var gtJumps = [2][2]gc.IndexJump{
+	{{Jump: arm64.ABMI, Index: 1}, {Jump: arm64.ABEQ, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm64.ABEQ, Index: 1}, {Jump: arm64.ABPL, Index: 0}}, // next == b.Succs[1]
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -1045,7 +1059,8 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockARM64Z, ssa.BlockARM64NZ,
 		ssa.BlockARM64ZW, ssa.BlockARM64NZW,
 		ssa.BlockARM64FLT, ssa.BlockARM64FGE,
-		ssa.BlockARM64FLE, ssa.BlockARM64FGT:
+		ssa.BlockARM64FLE, ssa.BlockARM64FGT,
+		ssa.BlockARM64LTnoov, ssa.BlockARM64GEnoov:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {
@@ -1087,6 +1102,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.Reg = b.Controls[0].Reg()
 
+	case ssa.BlockARM64LEnoov:
+		s.CombJump(b, next, &leJumps)
+	case ssa.BlockARM64GTnoov:
+		s.CombJump(b, next, &gtJumps)
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}

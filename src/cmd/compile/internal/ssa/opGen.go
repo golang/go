@@ -82,6 +82,10 @@ const (
 	BlockARM64FLE
 	BlockARM64FGT
 	BlockARM64FGE
+	BlockARM64LTnoov
+	BlockARM64LEnoov
+	BlockARM64GTnoov
+	BlockARM64GEnoov
 
 	BlockMIPSEQ
 	BlockMIPSNE
@@ -192,26 +196,30 @@ var blockString = [...]string{
 	BlockARMUGT: "UGT",
 	BlockARMUGE: "UGE",
 
-	BlockARM64EQ:   "EQ",
-	BlockARM64NE:   "NE",
-	BlockARM64LT:   "LT",
-	BlockARM64LE:   "LE",
-	BlockARM64GT:   "GT",
-	BlockARM64GE:   "GE",
-	BlockARM64ULT:  "ULT",
-	BlockARM64ULE:  "ULE",
-	BlockARM64UGT:  "UGT",
-	BlockARM64UGE:  "UGE",
-	BlockARM64Z:    "Z",
-	BlockARM64NZ:   "NZ",
-	BlockARM64ZW:   "ZW",
-	BlockARM64NZW:  "NZW",
-	BlockARM64TBZ:  "TBZ",
-	BlockARM64TBNZ: "TBNZ",
-	BlockARM64FLT:  "FLT",
-	BlockARM64FLE:  "FLE",
-	BlockARM64FGT:  "FGT",
-	BlockARM64FGE:  "FGE",
+	BlockARM64EQ:     "EQ",
+	BlockARM64NE:     "NE",
+	BlockARM64LT:     "LT",
+	BlockARM64LE:     "LE",
+	BlockARM64GT:     "GT",
+	BlockARM64GE:     "GE",
+	BlockARM64ULT:    "ULT",
+	BlockARM64ULE:    "ULE",
+	BlockARM64UGT:    "UGT",
+	BlockARM64UGE:    "UGE",
+	BlockARM64Z:      "Z",
+	BlockARM64NZ:     "NZ",
+	BlockARM64ZW:     "ZW",
+	BlockARM64NZW:    "NZW",
+	BlockARM64TBZ:    "TBZ",
+	BlockARM64TBNZ:   "TBNZ",
+	BlockARM64FLT:    "FLT",
+	BlockARM64FLE:    "FLE",
+	BlockARM64FGT:    "FGT",
+	BlockARM64FGE:    "FGE",
+	BlockARM64LTnoov: "LTnoov",
+	BlockARM64LEnoov: "LEnoov",
+	BlockARM64GTnoov: "GTnoov",
+	BlockARM64GEnoov: "GEnoov",
 
 	BlockMIPSEQ:  "EQ",
 	BlockMIPSNE:  "NE",
