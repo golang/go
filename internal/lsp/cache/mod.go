@@ -240,10 +240,11 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 	if len(data.origParsedFile.Require) == 0 {
 		return nil
 	}
-	// Run "go list -u -m all" to be able to see which deps can be upgraded.
+	// Run "go list -mod readonly -u -m all" to be able to see which deps can be
+	// upgraded without modifying mod file.
 	inv := gocommand.Invocation{
 		Verb:       "list",
-		Args:       []string{"-u", "-m", "all"},
+		Args:       []string{"-mod", "readonly", "-u", "-m", "all"},
 		BuildFlags: cfg.BuildFlags,
 		Env:        cfg.Env,
 		WorkingDir: folder,
