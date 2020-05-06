@@ -24,8 +24,9 @@ import (
 // It implements the net.Conn interface.
 type Conn struct {
 	// constant
-	conn     net.Conn
-	isClient bool
+	conn        net.Conn
+	isClient    bool
+	handshakeFn func() error // (*Conn).clientHandshake or serverHandshake
 
 	// handshakeStatus is 1 if the connection is currently transferring
 	// application data (i.e. is not currently processing a handshake).
@@ -162,9 +163,22 @@ type halfConn struct {
 	trafficSecret []byte // current TLS 1.3 traffic secret
 }
 
+type permamentError struct {
+	err net.Error
+}
+
+func (e *permamentError) Error() string   { return e.err.Error() }
+func (e *permamentError) Unwrap() error   { return e.err }
+func (e *permamentError) Timeout() bool   { return e.err.Timeout() }
+func (e *permamentError) Temporary() bool { return false }
+
 func (hc *halfConn) setErrorLocked(err error) error {
-	hc.err = err
-	return err
+	if e, ok := err.(net.Error); ok {
+		hc.err = &permamentError{err: e}
+	} else {
+		hc.err = err
+	}
+	return hc.err
 }
 
 // prepareCipherSpec sets the encryption and MAC states
@@ -1320,8 +1334,12 @@ func (c *Conn) closeNotify() error {
 
 // Handshake runs the client or server handshake
 // protocol if it has not yet been run.
-// Most uses of this package need not call Handshake
-// explicitly: the first Read or Write will call it automatically.
+//
+// Most uses of this package need not call Handshake explicitly: the
+// first Read or Write will call it automatically.
+//
+// For control over canceling or setting a timeout on a handshake, use
+// the Dialer's DialContext method.
 func (c *Conn) Handshake() error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
@@ -1336,11 +1354,7 @@ func (c *Conn) Handshake() error {
 	c.in.Lock()
 	defer c.in.Unlock()
 
-	if c.isClient {
-		c.handshakeErr = c.clientHandshake()
-	} else {
-		c.handshakeErr = c.serverHandshake()
-	}
+	c.handshakeErr = c.handshakeFn()
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {

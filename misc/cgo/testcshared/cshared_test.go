@@ -108,7 +108,7 @@ func testMain(m *testing.M) int {
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {
 	case "darwin":
-		if GOARCH == "arm" || GOARCH == "arm64" {
+		if GOARCH == "arm64" {
 			libgodir += "_shared"
 		}
 	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":

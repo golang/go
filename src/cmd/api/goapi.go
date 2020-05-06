@@ -60,8 +60,6 @@ var contexts = []*build.Context{
 	{GOOS: "linux", GOARCH: "amd64"},
 	{GOOS: "linux", GOARCH: "arm", CgoEnabled: true},
 	{GOOS: "linux", GOARCH: "arm"},
-	{GOOS: "darwin", GOARCH: "386", CgoEnabled: true},
-	{GOOS: "darwin", GOARCH: "386"},
 	{GOOS: "darwin", GOARCH: "amd64", CgoEnabled: true},
 	{GOOS: "darwin", GOARCH: "amd64"},
 	{GOOS: "windows", GOARCH: "amd64"},
@@ -252,6 +250,13 @@ func featureWithoutContext(f string) string {
 	return spaceParensRx.ReplaceAllString(f, "")
 }
 
+// portRemoved reports whether the given port-specific API feature is
+// okay to no longer exist because its port was removed.
+func portRemoved(feature string) bool {
+	return strings.Contains(feature, "(darwin-386)") ||
+		strings.Contains(feature, "(darwin-386-cgo)")
+}
+
 func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
 	ok = true
 
@@ -279,6 +284,8 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 				// acknowledged by being in the file
 				// "api/except.txt". No need to print them out
 				// here.
+			} else if portRemoved(feature) {
+				// okay.
 			} else if featureSet[featureWithoutContext(feature)] {
 				// okay.
 			} else {
@@ -437,6 +444,11 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
+// listSem is a semaphore restricting concurrent invocations of 'go list'.
+var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
+
+type semToken struct{}
+
 // loadImports populates w with information about the packages in the standard
 // library and the packages they themselves import in w's build context.
 //
@@ -461,6 +473,9 @@ func (w *Walker) loadImports() {
 
 	imports, ok := listCache.Load(name)
 	if !ok {
+		listSem <- semToken{}
+		defer func() { <-listSem }()
+
 		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
 		cmd.Env = listEnv(w.context)
 		out, err := cmd.CombinedOutput()

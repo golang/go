@@ -87,10 +87,10 @@ func stripTrailingWhitespace(s string) string {
 
 // Text returns the text of the comment.
 // Comment markers (//, /*, and */), the first space of a line comment, and
-// leading and trailing empty lines are removed. Multiple empty lines are
-// reduced to one, and trailing space on lines is trimmed. Unless the result
-// is empty, it is newline-terminated.
-//
+// leading and trailing empty lines are removed.
+// Comment directives like "//line" and "//go:noinline" are also removed.
+// Multiple empty lines are reduced to one, and trailing space on lines is trimmed.
+// Unless the result is empty, it is newline-terminated.
 func (g *CommentGroup) Text() string {
 	if g == nil {
 		return ""
@@ -108,9 +108,18 @@ func (g *CommentGroup) Text() string {
 		case '/':
 			//-style comment (no newline at the end)
 			c = c[2:]
-			// strip first space - required for Example tests
-			if len(c) > 0 && c[0] == ' ' {
+			if len(c) == 0 {
+				// empty line
+				break
+			}
+			if c[0] == ' ' {
+				// strip first space - required for Example tests
 				c = c[1:]
+				break
+			}
+			if isDirective(c) {
+				// Ignore //go:noinline, //line, and so on.
+				continue
 			}
 		case '*':
 			/*-style comment */
@@ -143,6 +152,32 @@ func (g *CommentGroup) Text() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// isDirective reports whether c is a comment directive.
+func isDirective(c string) bool {
+	// "//line " is a line directive.
+	// (The // has been removed.)
+	if strings.HasPrefix(c, "line ") {
+		return true
+	}
+
+	// "//[a-z0-9]+:[a-z0-9]"
+	// (The // has been removed.)
+	colon := strings.Index(c, ":")
+	if colon <= 0 || colon+1 >= len(c) {
+		return false
+	}
+	for i := 0; i <= colon+1; i++ {
+		if i == colon {
+			continue
+		}
+		b := c[i]
+		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // ----------------------------------------------------------------------------

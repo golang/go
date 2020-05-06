@@ -35,7 +35,8 @@ import (
 )
 
 // rule syntax:
-//  sexpr [&& extra conditions] -> [@block] sexpr
+//  sexpr [&& extra conditions] -> [@block] sexpr  (untyped)
+//  sexpr [&& extra conditions] => [@block] sexpr  (typed)
 //
 // sexpr are s-expressions (lisp-like parenthesized groupings)
 // sexpr ::= [variable:](opcode sexpr*)
@@ -61,12 +62,12 @@ var (
 )
 
 type Rule struct {
-	rule string
-	loc  string // file name & line number
+	Rule string
+	Loc  string // file name & line number
 }
 
 func (r Rule) String() string {
-	return fmt.Sprintf("rule %q at %s", r.rule, r.loc)
+	return fmt.Sprintf("rule %q at %s", r.Rule, r.Loc)
 }
 
 func normalizeSpaces(s string) string {
@@ -74,11 +75,14 @@ func normalizeSpaces(s string) string {
 }
 
 // parse returns the matching part of the rule, additional conditions, and the result.
-func (r Rule) parse() (match, cond, result string) {
-	s := strings.Split(r.rule, "->")
-	if len(s) != 2 {
-		log.Fatalf("no arrow in %s", r)
+// parse also reports whether the generated code should use strongly typed aux and auxint fields.
+func (r Rule) parse() (match, cond, result string, typed bool) {
+	arrow := "->"
+	if strings.Contains(r.Rule, "=>") {
+		arrow = "=>"
+		typed = true
 	}
+	s := strings.Split(r.Rule, arrow)
 	match = normalizeSpaces(s[0])
 	result = normalizeSpaces(s[1])
 	cond = ""
@@ -86,7 +90,7 @@ func (r Rule) parse() (match, cond, result string) {
 		cond = normalizeSpaces(match[i+2:])
 		match = normalizeSpaces(match[:i])
 	}
-	return match, cond, result
+	return match, cond, result, typed
 }
 
 func genRules(arch arch)          { genRulesSuffix(arch, "") }
@@ -112,7 +116,7 @@ func genRulesSuffix(arch arch, suff string) {
 	scanner := bufio.NewScanner(text)
 	rule := ""
 	var lineno int
-	var ruleLineno int // line number of "->"
+	var ruleLineno int // line number of "->" or "=>"
 	for scanner.Scan() {
 		lineno++
 		line := scanner.Text()
@@ -126,28 +130,30 @@ func genRulesSuffix(arch arch, suff string) {
 		if rule == "" {
 			continue
 		}
-		if !strings.Contains(rule, "->") {
+		if !strings.Contains(rule, "->") && !strings.Contains(rule, "=>") {
 			continue
 		}
 		if ruleLineno == 0 {
 			ruleLineno = lineno
 		}
-		if strings.HasSuffix(rule, "->") {
-			continue
+		if strings.HasSuffix(rule, "->") || strings.HasSuffix(rule, "=>") {
+			continue // continue on the next line
 		}
-		if unbalanced(rule) {
-			continue
+		if n := balance(rule); n > 0 {
+			continue // open parentheses remain, continue on the next line
+		} else if n < 0 {
+			break // continuing the line can't help, and it will only make errors worse
 		}
 
 		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
 		for _, rule2 := range expandOr(rule) {
-			r := Rule{rule: rule2, loc: loc}
+			r := Rule{Rule: rule2, Loc: loc}
 			if rawop := strings.Split(rule2, " ")[0][1:]; isBlock(rawop, arch) {
 				blockrules[rawop] = append(blockrules[rawop], r)
 				continue
 			}
 			// Do fancier value op matching.
-			match, _, _ := r.parse()
+			match, _, _, _ := r.parse()
 			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
 			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
 			oprules[opname] = append(oprules[opname], r)
@@ -158,7 +164,7 @@ func genRulesSuffix(arch arch, suff string) {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
-	if unbalanced(rule) {
+	if balance(rule) != 0 {
 		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
 	}
 
@@ -169,22 +175,25 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	sort.Strings(ops)
 
-	genFile := &File{arch: arch, suffix: suff}
+	genFile := &File{Arch: arch, Suffix: suff}
 	// Main rewrite routine is a switch on v.Op.
-	fn := &Func{kind: "Value", arglen: -1}
+	fn := &Func{Kind: "Value", ArgLen: -1}
 
-	sw := &Switch{expr: exprf("v.Op")}
+	sw := &Switch{Expr: exprf("v.Op")}
 	for _, op := range ops {
 		eop, ok := parseEllipsisRules(oprules[op], arch)
 		if ok {
-			swc := &Case{expr: exprf(op)}
+			if strings.Contains(oprules[op][0].Rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
+				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
+			}
+			swc := &Case{Expr: exprf("%s", op)}
 			swc.add(stmtf("v.Op = %s", eop))
 			swc.add(stmtf("return true"))
 			sw.add(swc)
 			continue
 		}
 
-		swc := &Case{expr: exprf(op)}
+		swc := &Case{Expr: exprf("%s", op)}
 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
@@ -205,34 +214,34 @@ func genRulesSuffix(arch arch, suff string) {
 		// that the previous rule wasn't unconditional.
 		var rr *RuleRewrite
 		fn := &Func{
-			kind:   "Value",
-			suffix: fmt.Sprintf("_%s", op),
-			arglen: opByName(arch, op).argLength,
+			Kind:   "Value",
+			Suffix: fmt.Sprintf("_%s", op),
+			ArgLen: opByName(arch, op).argLength,
 		}
 		fn.add(declf("b", "v.Block"))
 		fn.add(declf("config", "b.Func.Config"))
 		fn.add(declf("fe", "b.Func.fe"))
 		fn.add(declf("typ", "&b.Func.Config.Types"))
 		for _, rule := range rules {
-			if rr != nil && !rr.canFail {
-				log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
+			if rr != nil && !rr.CanFail {
+				log.Fatalf("unconditional rule %s is followed by other rules", rr.Match)
 			}
-			rr = &RuleRewrite{loc: rule.loc}
-			rr.match, rr.cond, rr.result = rule.parse()
-			pos, _ := genMatch(rr, arch, rr.match, fn.arglen >= 0)
+			rr = &RuleRewrite{Loc: rule.Loc}
+			rr.Match, rr.Cond, rr.Result, rr.Typed = rule.parse()
+			pos, _ := genMatch(rr, arch, rr.Match, fn.ArgLen >= 0)
 			if pos == "" {
 				pos = "v.Pos"
 			}
-			if rr.cond != "" {
-				rr.add(breakf("!(%s)", rr.cond))
+			if rr.Cond != "" {
+				rr.add(breakf("!(%s)", rr.Cond))
 			}
-			genResult(rr, arch, rr.result, pos)
+			genResult(rr, arch, rr.Result, pos)
 			if *genLog {
-				rr.add(stmtf("logRule(%q)", rule.loc))
+				rr.add(stmtf("logRule(%q)", rule.Loc))
 			}
 			fn.add(rr)
 		}
-		if rr.canFail {
+		if rr.CanFail {
 			fn.add(stmtf("return false"))
 		}
 		genFile.add(fn)
@@ -240,11 +249,11 @@ func genRulesSuffix(arch arch, suff string) {
 
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
-	fn = &Func{kind: "Block"}
+	fn = &Func{Kind: "Block"}
 	fn.add(declf("config", "b.Func.Config"))
 	fn.add(declf("typ", "&b.Func.Config.Types"))
 
-	sw = &Switch{expr: exprf("b.Kind")}
+	sw = &Switch{Expr: exprf("b.Kind")}
 	ops = ops[:0]
 	for op := range blockrules {
 		ops = append(ops, op)
@@ -252,7 +261,7 @@ func genRulesSuffix(arch arch, suff string) {
 	sort.Strings(ops)
 	for _, op := range ops {
 		name, data := getBlockInfo(op, arch)
-		swc := &Case{expr: exprf("%s", name)}
+		swc := &Case{Expr: exprf("%s", name)}
 		for _, rule := range blockrules[op] {
 			swc.add(genBlockRewrite(rule, arch, data))
 		}
@@ -430,6 +439,8 @@ func (u *unusedInspector) node(node ast.Node) {
 		for _, stmt := range node.List {
 			u.node(stmt)
 		}
+	case *ast.DeclStmt:
+		u.node(node.Decl)
 	case *ast.IfStmt:
 		if node.Init != nil {
 			u.node(node.Init)
@@ -473,11 +484,15 @@ func (u *unusedInspector) node(node ast.Node) {
 			u.exprs(node.Lhs)
 			break
 		}
-		if len(node.Lhs) != 1 {
+		lhs := node.Lhs
+		if len(lhs) == 2 && lhs[1].(*ast.Ident).Name == "_" {
+			lhs = lhs[:1]
+		}
+		if len(lhs) != 1 {
 			panic("no support for := with multiple names")
 		}
 
-		name := node.Lhs[0].(*ast.Ident)
+		name := lhs[0].(*ast.Ident)
 		obj := &object{
 			name: name.Name,
 			pos:  name.NamePos,
@@ -524,6 +539,8 @@ func (u *unusedInspector) node(node ast.Node) {
 			}
 		}
 	case *ast.BasicLit:
+	case *ast.ValueSpec:
+		u.exprs(node.Values)
 	default:
 		panic(fmt.Sprintf("unhandled node: %T", node))
 	}
@@ -560,7 +577,7 @@ func fprint(w io.Writer, n Node) {
 	case *File:
 		file := n
 		seenRewrite := make(map[[3]string]string)
-		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
+		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.Arch.name, n.Suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
 		for _, path := range append([]string{
@@ -569,69 +586,68 @@ func fprint(w io.Writer, n Node) {
 			"cmd/internal/obj",
 			"cmd/internal/objabi",
 			"cmd/compile/internal/types",
-		}, n.arch.imports...) {
+		}, n.Arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
 		}
-		for _, f := range n.list {
+		for _, f := range n.List {
 			f := f.(*Func)
-			fmt.Fprintf(w, "func rewrite%s%s%s%s(", f.kind, n.arch.name, n.suffix, f.suffix)
-			fmt.Fprintf(w, "%c *%s) bool {\n", strings.ToLower(f.kind)[0], f.kind)
-			if f.kind == "Value" && f.arglen > 0 {
-				for i := f.arglen - 1; i >= 0; i-- {
+			fmt.Fprintf(w, "func rewrite%s%s%s%s(", f.Kind, n.Arch.name, n.Suffix, f.Suffix)
+			fmt.Fprintf(w, "%c *%s) bool {\n", strings.ToLower(f.Kind)[0], f.Kind)
+			if f.Kind == "Value" && f.ArgLen > 0 {
+				for i := f.ArgLen - 1; i >= 0; i-- {
 					fmt.Fprintf(w, "v_%d := v.Args[%d]\n", i, i)
 				}
 			}
-			for _, n := range f.list {
+			for _, n := range f.List {
 				fprint(w, n)
 
 				if rr, ok := n.(*RuleRewrite); ok {
 					k := [3]string{
-						normalizeMatch(rr.match, file.arch),
-						normalizeWhitespace(rr.cond),
-						normalizeWhitespace(rr.result),
+						normalizeMatch(rr.Match, file.Arch),
+						normalizeWhitespace(rr.Cond),
+						normalizeWhitespace(rr.Result),
 					}
 					if prev, ok := seenRewrite[k]; ok {
-						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.loc, prev)
-					} else {
-						seenRewrite[k] = rr.loc
+						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.Loc, prev)
 					}
+					seenRewrite[k] = rr.Loc
 				}
 			}
 			fmt.Fprintf(w, "}\n")
 		}
 	case *Switch:
 		fmt.Fprintf(w, "switch ")
-		fprint(w, n.expr)
+		fprint(w, n.Expr)
 		fmt.Fprintf(w, " {\n")
-		for _, n := range n.list {
+		for _, n := range n.List {
 			fprint(w, n)
 		}
 		fmt.Fprintf(w, "}\n")
 	case *Case:
 		fmt.Fprintf(w, "case ")
-		fprint(w, n.expr)
+		fprint(w, n.Expr)
 		fmt.Fprintf(w, ":\n")
-		for _, n := range n.list {
+		for _, n := range n.List {
 			fprint(w, n)
 		}
 	case *RuleRewrite:
 		if *addLine {
-			fmt.Fprintf(w, "// %s\n", n.loc)
+			fmt.Fprintf(w, "// %s\n", n.Loc)
 		}
-		fmt.Fprintf(w, "// match: %s\n", n.match)
-		if n.cond != "" {
-			fmt.Fprintf(w, "// cond: %s\n", n.cond)
+		fmt.Fprintf(w, "// match: %s\n", n.Match)
+		if n.Cond != "" {
+			fmt.Fprintf(w, "// cond: %s\n", n.Cond)
 		}
-		fmt.Fprintf(w, "// result: %s\n", n.result)
-		fmt.Fprintf(w, "for %s {\n", n.check)
+		fmt.Fprintf(w, "// result: %s\n", n.Result)
+		fmt.Fprintf(w, "for %s {\n", n.Check)
 		nCommutative := 0
-		for _, n := range n.list {
+		for _, n := range n.List {
 			if b, ok := n.(*CondBreak); ok {
-				b.insideCommuteLoop = nCommutative > 0
+				b.InsideCommuteLoop = nCommutative > 0
 			}
 			fprint(w, n)
 			if loop, ok := n.(StartCommuteLoop); ok {
-				if nCommutative != loop.depth {
+				if nCommutative != loop.Depth {
 					panic("mismatch commute loop depth")
 				}
 				nCommutative++
@@ -641,19 +657,19 @@ func fprint(w io.Writer, n Node) {
 		for i := 0; i < nCommutative; i++ {
 			fmt.Fprintln(w, "}")
 		}
-		if n.commuteDepth > 0 && n.canFail {
+		if n.CommuteDepth > 0 && n.CanFail {
 			fmt.Fprint(w, "break\n")
 		}
 		fmt.Fprintf(w, "}\n")
 	case *Declare:
-		fmt.Fprintf(w, "%s := ", n.name)
-		fprint(w, n.value)
+		fmt.Fprintf(w, "%s := ", n.Name)
+		fprint(w, n.Value)
 		fmt.Fprintln(w)
 	case *CondBreak:
 		fmt.Fprintf(w, "if ")
-		fprint(w, n.expr)
+		fprint(w, n.Cond)
 		fmt.Fprintf(w, " {\n")
-		if n.insideCommuteLoop {
+		if n.InsideCommuteLoop {
 			fmt.Fprintf(w, "continue")
 		} else {
 			fmt.Fprintf(w, "break")
@@ -665,7 +681,7 @@ func fprint(w io.Writer, n Node) {
 			fmt.Fprintln(w)
 		}
 	case StartCommuteLoop:
-		fmt.Fprintf(w, "for _i%[1]d := 0; _i%[1]d <= 1; _i%[1]d, %[2]s_0, %[2]s_1 = _i%[1]d + 1, %[2]s_1, %[2]s_0 {\n", n.depth, n.v)
+		fmt.Fprintf(w, "for _i%[1]d := 0; _i%[1]d <= 1; _i%[1]d, %[2]s_0, %[2]s_1 = _i%[1]d + 1, %[2]s_1, %[2]s_0 {\n", n.Depth, n.V)
 	default:
 		log.Fatalf("cannot print %T", n)
 	}
@@ -684,44 +700,52 @@ type Node interface{}
 // ast.Stmt under some limited circumstances.
 type Statement interface{}
 
-// bodyBase is shared by all of our statement pseudo-node types which can
+// BodyBase is shared by all of our statement pseudo-node types which can
 // contain other statements.
-type bodyBase struct {
-	list    []Statement
-	canFail bool
+type BodyBase struct {
+	List    []Statement
+	CanFail bool
 }
 
-func (w *bodyBase) add(node Statement) {
+func (w *BodyBase) add(node Statement) {
 	var last Statement
-	if len(w.list) > 0 {
-		last = w.list[len(w.list)-1]
+	if len(w.List) > 0 {
+		last = w.List[len(w.List)-1]
 	}
 	if node, ok := node.(*CondBreak); ok {
-		w.canFail = true
+		w.CanFail = true
 		if last, ok := last.(*CondBreak); ok {
 			// Add to the previous "if <cond> { break }" via a
 			// logical OR, which will save verbosity.
-			last.expr = &ast.BinaryExpr{
+			last.Cond = &ast.BinaryExpr{
 				Op: token.LOR,
-				X:  last.expr,
-				Y:  node.expr,
+				X:  last.Cond,
+				Y:  node.Cond,
 			}
 			return
 		}
 	}
 
-	w.list = append(w.list, node)
+	w.List = append(w.List, node)
+}
+
+// predeclared contains globally known tokens that should not be redefined.
+var predeclared = map[string]bool{
+	"nil":   true,
+	"false": true,
+	"true":  true,
 }
 
 // declared reports if the body contains a Declare with the given name.
-func (w *bodyBase) declared(name string) bool {
-	if name == "nil" {
-		// Treat "nil" as having already been declared.
-		// This lets us use nil to match an aux field.
+func (w *BodyBase) declared(name string) bool {
+	if predeclared[name] {
+		// Treat predeclared names as having already been declared.
+		// This lets us use nil to match an aux field or
+		// true and false to match an auxint field.
 		return true
 	}
-	for _, s := range w.list {
-		if decl, ok := s.(*Declare); ok && decl.name == name {
+	for _, s := range w.List {
+		if decl, ok := s.(*Declare); ok && decl.Name == name {
 			return true
 		}
 	}
@@ -736,44 +760,45 @@ func (w *bodyBase) declared(name string) bool {
 // nodes.
 type (
 	File struct {
-		bodyBase // []*Func
-		arch     arch
-		suffix   string
+		BodyBase // []*Func
+		Arch     arch
+		Suffix   string
 	}
 	Func struct {
-		bodyBase
-		kind   string // "Value" or "Block"
-		suffix string
-		arglen int32 // if kind == "Value", number of args for this op
+		BodyBase
+		Kind   string // "Value" or "Block"
+		Suffix string
+		ArgLen int32 // if kind == "Value", number of args for this op
 	}
 	Switch struct {
-		bodyBase // []*Case
-		expr     ast.Expr
+		BodyBase // []*Case
+		Expr     ast.Expr
 	}
 	Case struct {
-		bodyBase
-		expr ast.Expr
+		BodyBase
+		Expr ast.Expr
 	}
 	RuleRewrite struct {
-		bodyBase
-		match, cond, result string // top comments
-		check               string // top-level boolean expression
+		BodyBase
+		Match, Cond, Result string // top comments
+		Check               string // top-level boolean expression
 
-		alloc        int    // for unique var names
-		loc          string // file name & line number of the original rule
-		commuteDepth int    // used to track depth of commute loops
+		Alloc        int    // for unique var names
+		Loc          string // file name & line number of the original rule
+		CommuteDepth int    // used to track depth of commute loops
+		Typed        bool   // aux and auxint fields should be strongly typed
 	}
 	Declare struct {
-		name  string
-		value ast.Expr
+		Name  string
+		Value ast.Expr
 	}
 	CondBreak struct {
-		expr              ast.Expr
-		insideCommuteLoop bool
+		Cond              ast.Expr
+		InsideCommuteLoop bool
 	}
 	StartCommuteLoop struct {
-		depth int
-		v     string
+		Depth int
+		V     string
 	}
 )
 
@@ -810,13 +835,13 @@ func declf(name, format string, a ...interface{}) *Declare {
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
 // condition.
 func breakf(format string, a ...interface{}) *CondBreak {
-	return &CondBreak{expr: exprf(format, a...)}
+	return &CondBreak{Cond: exprf(format, a...)}
 }
 
 func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
-	rr := &RuleRewrite{loc: rule.loc}
-	rr.match, rr.cond, rr.result = rule.parse()
-	_, _, auxint, aux, s := extract(rr.match) // remove parens, then split
+	rr := &RuleRewrite{Loc: rule.Loc}
+	rr.Match, rr.Cond, rr.Result, rr.Typed = rule.parse()
+	_, _, auxint, aux, s := extract(rr.Match) // remove parens, then split
 
 	// check match of control values
 	if len(s) < data.controls {
@@ -825,18 +850,20 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	controls := s[:data.controls]
 	pos := make([]string, data.controls)
 	for i, arg := range controls {
+		cname := fmt.Sprintf("b.Controls[%v]", i)
 		if strings.Contains(arg, "(") {
-			// TODO: allow custom names?
-			cname := fmt.Sprintf("b.Controls[%v]", i)
-			vname := fmt.Sprintf("v_%v", i)
+			vname, expr := splitNameExpr(arg)
+			if vname == "" {
+				vname = fmt.Sprintf("v_%v", i)
+			}
 			rr.add(declf(vname, cname))
-			p, op := genMatch0(rr, arch, arg, vname, nil, false) // TODO: pass non-nil cnt?
+			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
 			if op != "" {
 				check := fmt.Sprintf("%s.Op == %s", cname, op)
-				if rr.check == "" {
-					rr.check = check
+				if rr.Check == "" {
+					rr.Check = check
 				} else {
-					rr.check = rr.check + " && " + check
+					rr.Check += " && " + check
 				}
 			}
 			if p == "" {
@@ -844,33 +871,45 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			}
 			pos[i] = p
 		} else {
-			rr.add(declf(arg, "b.Controls[%v]", i))
+			rr.add(declf(arg, cname))
 			pos[i] = arg + ".Pos"
 		}
 	}
 	for _, e := range []struct {
-		name, field string
+		name, field, dclType string
 	}{
-		{auxint, "AuxInt"},
-		{aux, "Aux"},
+		{auxint, "AuxInt", data.auxIntType()},
+		{aux, "Aux", data.auxType()},
 	} {
 		if e.name == "" {
 			continue
 		}
+		if !rr.Typed {
+			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+				// code or variable
+				rr.add(breakf("b.%s != %s", e.field, e.name))
+			} else {
+				rr.add(declf(e.name, "b.%s", e.field))
+			}
+			continue
+		}
+
+		if e.dclType == "" {
+			log.Fatalf("op %s has no declared type for %s", data.name, e.field)
+		}
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
-			// code or variable
-			rr.add(breakf("b.%s != %s", e.field, e.name))
+			rr.add(breakf("%sTo%s(b.%s) != %s", unTitle(e.field), title(e.dclType), e.field, e.name))
 		} else {
-			rr.add(declf(e.name, "b.%s", e.field))
+			rr.add(declf(e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
 		}
 	}
-	if rr.cond != "" {
-		rr.add(breakf("!(%s)", rr.cond))
+	if rr.Cond != "" {
+		rr.add(breakf("!(%s)", rr.Cond))
 	}
 
 	// Rule matches. Generate result.
-	outop, _, auxint, aux, t := extract(rr.result) // remove parens, then split
-	_, outdata := getBlockInfo(outop, arch)
+	outop, _, auxint, aux, t := extract(rr.Result) // remove parens, then split
+	blockName, outdata := getBlockInfo(outop, arch)
 	if len(t) < outdata.controls {
 		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
 	}
@@ -895,7 +934,6 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		log.Fatalf("unmatched successors %v in %s", m, rule)
 	}
 
-	blockName, _ := getBlockInfo(outop, arch)
 	var genControls [2]string
 	for i, control := range t[:outdata.controls] {
 		// Select a source position for any new control values.
@@ -909,7 +947,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		}
 
 		// Generate a new control value (or copy an existing value).
-		genControls[i] = genResult0(rr, arch, control, false, false, newpos)
+		genControls[i] = genResult0(rr, arch, control, false, false, newpos, nil)
 	}
 	switch outdata.controls {
 	case 0:
@@ -923,10 +961,20 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	}
 
 	if auxint != "" {
-		rr.add(stmtf("b.AuxInt = %s", auxint))
+		if rr.Typed {
+			// Make sure auxint value has the right type.
+			rr.add(stmtf("b.AuxInt = %sToAuxInt(%s)", unTitle(outdata.auxIntType()), auxint))
+		} else {
+			rr.add(stmtf("b.AuxInt = %s", auxint))
+		}
 	}
 	if aux != "" {
-		rr.add(stmtf("b.Aux = %s", aux))
+		if rr.Typed {
+			// Make sure aux value has the right type.
+			rr.add(stmtf("b.Aux = %sToAux(%s)", unTitle(outdata.auxType()), aux))
+		} else {
+			rr.add(stmtf("b.Aux = %s", aux))
+		}
 	}
 
 	succChanged := false
@@ -946,7 +994,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	}
 
 	if *genLog {
-		rr.add(stmtf("logRule(%q)", rule.loc))
+		rr.add(stmtf("logRule(%q)", rule.Loc))
 	}
 	return rr
 }
@@ -960,9 +1008,9 @@ func genMatch(rr *RuleRewrite, arch arch, match string, pregenTop bool) (pos, ch
 
 func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, pregenTop bool) (pos, checkOp string) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
-		log.Fatalf("%s: non-compound expr in genMatch0: %q", rr.loc, match)
+		log.Fatalf("%s: non-compound expr in genMatch0: %q", rr.Loc, match)
 	}
-	op, oparch, typ, auxint, aux, args := parseValue(match, arch, rr.loc)
+	op, oparch, typ, auxint, aux, args := parseValue(match, arch, rr.Loc)
 
 	checkOp = fmt.Sprintf("Op%s%s", oparch, op.name)
 
@@ -972,20 +1020,46 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 	}
 
 	for _, e := range []struct {
-		name, field string
+		name, field, dclType string
 	}{
-		{typ, "Type"},
-		{auxint, "AuxInt"},
-		{aux, "Aux"},
+		{typ, "Type", "*types.Type"},
+		{auxint, "AuxInt", op.auxIntType()},
+		{aux, "Aux", op.auxType()},
 	} {
 		if e.name == "" {
 			continue
 		}
+		if !rr.Typed {
+			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+				// code or variable
+				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
+			} else {
+				rr.add(declf(e.name, "%s.%s", v, e.field))
+			}
+			continue
+		}
+
+		if e.dclType == "" {
+			log.Fatalf("op %s has no declared type for %s", op.name, e.field)
+		}
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
-			// code or variable
-			rr.add(breakf("%s.%s != %s", v, e.field, e.name))
+			switch e.field {
+			case "Aux":
+				rr.add(breakf("auxTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
+			case "AuxInt":
+				rr.add(breakf("auxIntTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
+			case "Type":
+				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
+			}
 		} else {
-			rr.add(declf(e.name, "%s.%s", v, e.field))
+			switch e.field {
+			case "Aux":
+				rr.add(declf(e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
+			case "AuxInt":
+				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
+			case "Type":
+				rr.add(declf(e.name, "%s.%s", v, e.field))
+			}
 		}
 	}
 
@@ -1029,11 +1103,9 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 			rr.add(declf(vname, "%s.Args[%d]", v, i))
 		}
 	}
-	var commuteDepth int
 	if commutative {
-		commuteDepth = rr.commuteDepth
-		rr.add(StartCommuteLoop{commuteDepth, v})
-		rr.commuteDepth++
+		rr.add(StartCommuteLoop{rr.CommuteDepth, v})
+		rr.CommuteDepth++
 	}
 	for i, arg := range args {
 		if arg == "_" {
@@ -1073,7 +1145,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 			rr.add(declf(argname, "%s", rhs))
 		}
 		bexpr := exprf("%s.Op != addLater", argname)
-		rr.add(&CondBreak{expr: bexpr})
+		rr.add(&CondBreak{Cond: bexpr})
 		argPos, argCheckOp := genMatch0(rr, arch, expr, argname, cnt, false)
 		bexpr.(*ast.BinaryExpr).Y.(*ast.Ident).Name = argCheckOp
 
@@ -1101,10 +1173,13 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 		rr.add(stmtf("b = %s", s[0]))
 		result = s[1]
 	}
-	genResult0(rr, arch, result, true, move, pos)
+	cse := make(map[string]string)
+	genResult0(rr, arch, result, true, move, pos, cse)
 }
 
-func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string) string {
+func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos string, cse map[string]string) string {
+	resname, expr := splitNameExpr(result)
+	result = expr
 	// TODO: when generating a constant result, use f.constVal to avoid
 	// introducing copies just to clean them up again.
 	if result[0] != '(' {
@@ -1118,7 +1193,12 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		return result
 	}
 
-	op, oparch, typ, auxint, aux, args := parseValue(result, arch, rr.loc)
+	w := normalizeWhitespace(result)
+	if prev := cse[w]; prev != "" {
+		return prev
+	}
+
+	op, oparch, typ, auxint, aux, args := parseValue(result, arch, rr.Loc)
 
 	// Find the type of the variable.
 	typeOverride := typ != ""
@@ -1134,10 +1214,14 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		}
 	} else {
 		if typ == "" {
-			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, rr.loc)
+			log.Fatalf("sub-expression %s (op=Op%s%s) at %s must have a type", result, oparch, op.name, rr.Loc)
 		}
-		v = fmt.Sprintf("v%d", rr.alloc)
-		rr.alloc++
+		if resname == "" {
+			v = fmt.Sprintf("v%d", rr.Alloc)
+		} else {
+			v = resname
+		}
+		rr.Alloc++
 		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
 			// Rewrite original into a copy
@@ -1146,14 +1230,24 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	}
 
 	if auxint != "" {
-		rr.add(stmtf("%s.AuxInt = %s", v, auxint))
+		if rr.Typed {
+			// Make sure auxint value has the right type.
+			rr.add(stmtf("%s.AuxInt = %sToAuxInt(%s)", v, unTitle(op.auxIntType()), auxint))
+		} else {
+			rr.add(stmtf("%s.AuxInt = %s", v, auxint))
+		}
 	}
 	if aux != "" {
-		rr.add(stmtf("%s.Aux = %s", v, aux))
+		if rr.Typed {
+			// Make sure aux value has the right type.
+			rr.add(stmtf("%s.Aux = %sToAux(%s)", v, unTitle(op.auxType()), aux))
+		} else {
+			rr.add(stmtf("%s.Aux = %s", v, aux))
+		}
 	}
 	all := new(strings.Builder)
 	for i, arg := range args {
-		x := genResult0(rr, arch, arg, false, move, pos)
+		x := genResult0(rr, arch, arg, false, move, pos, cse)
 		if i > 0 {
 			all.WriteString(", ")
 		}
@@ -1165,6 +1259,10 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(stmtf("%s.AddArg(%s)", v, all.String()))
 	default:
 		rr.add(stmtf("%s.AddArg%d(%s)", v, len(args), all.String()))
+	}
+
+	if cse != nil {
+		cse[w] = v
 	}
 	return v
 }
@@ -1333,7 +1431,8 @@ func opHasAuxInt(op opData) bool {
 
 func opHasAux(op opData) bool {
 	switch op.aux {
-	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
+	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop",
+		"S390XCCMask", "S390XRotateParams":
 		return true
 	}
 	return false
@@ -1391,17 +1490,23 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced reports whether there are a different number of ( and ) in the string.
-func unbalanced(s string) bool {
+// balance returns the number of unclosed '(' characters in s.
+// If a ')' appears without a corresponding '(', balance returns -1.
+func balance(s string) int {
 	balance := 0
 	for _, c := range s {
-		if c == '(' {
+		switch c {
+		case '(':
 			balance++
-		} else if c == ')' {
+		case ')':
 			balance--
+			if balance < 0 {
+				// don't allow ")(" to return 0
+				return -1
+			}
 		}
 	}
-	return balance != 0
+	return balance
 }
 
 // findAllOpcode is a function to find the opcode portion of s-expressions.
@@ -1418,7 +1523,7 @@ func excludeFromExpansion(s string, idx []int) bool {
 		return true
 	}
 	right := s[idx[1]:]
-	if strings.Contains(left, "&&") && strings.Contains(right, "->") {
+	if strings.Contains(left, "&&") && (strings.Contains(right, "->") || strings.Contains(right, "=>")) {
 		// Inside && conditions.
 		return true
 	}
@@ -1472,14 +1577,14 @@ func expandOr(r string) []string {
 }
 
 // varCount returns a map which counts the number of occurrences of
-// Value variables in the s-expression rr.match and the Go expression rr.cond.
+// Value variables in the s-expression rr.Match and the Go expression rr.Cond.
 func varCount(rr *RuleRewrite) map[string]int {
 	cnt := map[string]int{}
-	varCount1(rr.loc, rr.match, cnt)
-	if rr.cond != "" {
-		expr, err := parser.ParseExpr(rr.cond)
+	varCount1(rr.Loc, rr.Match, cnt)
+	if rr.Cond != "" {
+		expr, err := parser.ParseExpr(rr.Cond)
 		if err != nil {
-			log.Fatalf("%s: failed to parse cond %q: %v", rr.loc, rr.cond, err)
+			log.Fatalf("%s: failed to parse cond %q: %v", rr.Loc, rr.Cond, err)
 		}
 		ast.Inspect(expr, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok {
@@ -1521,6 +1626,7 @@ func normalizeWhitespace(x string) string {
 	x = strings.Replace(x, "[ ", "[", -1)
 	x = strings.Replace(x, " ]", "]", -1)
 	x = strings.Replace(x, ")->", ") ->", -1)
+	x = strings.Replace(x, ")=>", ") =>", -1)
 	return x
 }
 
@@ -1569,22 +1675,22 @@ func normalizeMatch(m string, arch arch) string {
 func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
 	if len(rules) != 1 {
 		for _, r := range rules {
-			if strings.Contains(r.rule, "...") {
-				log.Fatalf("%s: found ellipsis in rule, but there are other rules with the same op", r.loc)
+			if strings.Contains(r.Rule, "...") {
+				log.Fatalf("%s: found ellipsis in rule, but there are other rules with the same op", r.Loc)
 			}
 		}
 		return "", false
 	}
 	rule := rules[0]
-	match, cond, result := rule.parse()
+	match, cond, result, _ := rule.parse()
 	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
-		if strings.Contains(rule.rule, "...") {
-			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.loc)
+		if strings.Contains(rule.Rule, "...") {
+			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.Loc)
 		}
 		checkEllipsisRuleCandidate(rule, arch)
 		return "", false
 	}
-	op, oparch, _, _, _, _ := parseValue(result, arch, rule.loc)
+	op, oparch, _, _, _, _ := parseValue(result, arch, rule.Loc)
 	return fmt.Sprintf("Op%s%s", oparch, op.name), true
 }
 
@@ -1601,23 +1707,27 @@ func isEllipsisValue(s string) bool {
 }
 
 func checkEllipsisRuleCandidate(rule Rule, arch arch) {
-	match, cond, result := rule.parse()
+	match, cond, result, _ := rule.parse()
 	if cond != "" {
 		return
 	}
-	op, _, _, auxint, aux, args := parseValue(match, arch, rule.loc)
+	op, _, _, auxint, aux, args := parseValue(match, arch, rule.Loc)
 	var auxint2, aux2 string
 	var args2 []string
 	var usingCopy string
+	var eop opData
 	if result[0] != '(' {
 		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
 		args2 = []string{result}
 		usingCopy = " using Copy"
 	} else {
-		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
+		eop, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.Loc)
 	}
 	// Check that all restrictions in match are reproduced exactly in result.
 	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
+		return
+	}
+	if strings.Contains(rule.Rule, "=>") && op.aux != eop.aux {
 		return
 	}
 	for i := range args {
@@ -1627,11 +1737,11 @@ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
 	}
 	switch {
 	case opHasAux(op) && aux == "" && aux2 == "":
-		fmt.Printf("%s: rule silently zeros aux, either copy aux or explicitly zero\n", rule.loc)
+		fmt.Printf("%s: rule silently zeros aux, either copy aux or explicitly zero\n", rule.Loc)
 	case opHasAuxInt(op) && auxint == "" && auxint2 == "":
-		fmt.Printf("%s: rule silently zeros auxint, either copy auxint or explicitly zero\n", rule.loc)
+		fmt.Printf("%s: rule silently zeros auxint, either copy auxint or explicitly zero\n", rule.Loc)
 	default:
-		fmt.Printf("%s: possible ellipsis rule candidate%s: %q\n", rule.loc, usingCopy, rule.rule)
+		fmt.Printf("%s: possible ellipsis rule candidate%s: %q\n", rule.Loc, usingCopy, rule.Rule)
 	}
 }
 
@@ -1652,4 +1762,113 @@ func opByName(arch arch, name string) opData {
 	}
 	log.Fatalf("failed to find op named %s in arch %s", name, arch.name)
 	panic("unreachable")
+}
+
+// auxType returns the Go type that this operation should store in its aux field.
+func (op opData) auxType() string {
+	switch op.aux {
+	case "String":
+		return "string"
+	case "Sym":
+		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
+		return "Sym"
+	case "SymOff":
+		return "Sym"
+	case "SymValAndOff":
+		return "Sym"
+	case "Typ":
+		return "*types.Type"
+	case "TypSize":
+		return "*types.Type"
+	case "S390XCCMask":
+		return "s390x.CCMask"
+	case "S390XRotateParams":
+		return "s390x.RotateParams"
+	case "CCop":
+		return "CCop"
+	default:
+		return "invalid"
+	}
+}
+
+// auxIntType returns the Go type that this operation should store in its auxInt field.
+func (op opData) auxIntType() string {
+	switch op.aux {
+	case "Bool":
+		return "bool"
+	case "Int8":
+		return "int8"
+	case "Int16":
+		return "int16"
+	case "Int32":
+		return "int32"
+	case "Int64":
+		return "int64"
+	case "Int128":
+		return "int128"
+	case "Float32":
+		return "float32"
+	case "Float64":
+		return "float64"
+	case "SymOff":
+		return "int32"
+	case "SymValAndOff":
+		return "ValAndOff"
+	case "TypSize":
+		return "int64"
+	case "CCop":
+		return "Op"
+	default:
+		return "invalid"
+	}
+}
+
+// auxType returns the Go type that this block should store in its aux field.
+func (b blockData) auxType() string {
+	switch b.aux {
+	case "S390XCCMask", "S390XCCMaskInt8", "S390XCCMaskUint8":
+		return "s390x.CCMask"
+	case "S390XRotateParams":
+		return "s390x.RotateParams"
+	default:
+		return "invalid"
+	}
+}
+
+// auxIntType returns the Go type that this block should store in its auxInt field.
+func (b blockData) auxIntType() string {
+	switch b.aux {
+	case "S390XCCMaskInt8":
+		return "int8"
+	case "S390XCCMaskUint8":
+		return "uint8"
+	case "Int64":
+		return "int64"
+	default:
+		return "invalid"
+	}
+}
+
+func title(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		switch strings.ToLower(s[:i]) {
+		case "s390x": // keep arch prefix for clarity
+			s = s[:i] + s[i+1:]
+		default:
+			s = s[i+1:]
+		}
+	}
+	return strings.Title(s)
+}
+
+func unTitle(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		switch strings.ToLower(s[:i]) {
+		case "s390x": // keep arch prefix for clarity
+			s = s[:i] + s[i+1:]
+		default:
+			s = s[i+1:]
+		}
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }

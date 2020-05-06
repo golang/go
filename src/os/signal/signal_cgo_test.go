@@ -98,7 +98,7 @@ func TestTerminalSignal(t *testing.T) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,
-		Ctty:    int(slave.Fd()),
+		Ctty:    0,
 	}
 
 	if err := cmd.Start(); err != nil {

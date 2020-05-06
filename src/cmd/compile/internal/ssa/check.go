@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj/s390x"
 	"math"
 	"math/bits"
 )
@@ -119,6 +120,7 @@ func checkFunc(f *Func) {
 			// Check to make sure aux values make sense.
 			canHaveAux := false
 			canHaveAuxInt := false
+			// TODO: enforce types of Aux in this switch (like auxString does below)
 			switch opcodeTable[v.Op].auxType {
 			case auxNone:
 			case auxBool:
@@ -158,7 +160,12 @@ func checkFunc(f *Func) {
 				if math.IsNaN(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
-			case auxString, auxSym, auxTyp, auxArchSpecific:
+			case auxString:
+				if _, ok := v.Aux.(string); !ok {
+					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
+				}
+				canHaveAux = true
+			case auxSym, auxTyp:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:
 				canHaveAuxInt = true
@@ -166,6 +173,16 @@ func checkFunc(f *Func) {
 			case auxCCop:
 				if _, ok := v.Aux.(Op); !ok {
 					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+				}
+				canHaveAux = true
+			case auxS390XCCMask:
+				if _, ok := v.Aux.(s390x.CCMask); !ok {
+					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
+				}
+				canHaveAux = true
+			case auxS390XRotateParams:
+				if _, ok := v.Aux.(s390x.RotateParams); !ok {
+					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
 				}
 				canHaveAux = true
 			default:

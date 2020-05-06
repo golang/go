@@ -104,7 +104,7 @@ func cmovfloatint2(x, y float64) float64 {
 		// amd64:"CMOVQHI"
 		// arm64:"CSEL\tMI"
 		// wasm:"Select"
-		r = r - ldexp(y, (rexp-yexp))
+		r = r - ldexp(y, rexp-yexp)
 	}
 	return r
 }

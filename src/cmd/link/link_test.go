@@ -287,7 +287,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"-fembed-bitcode",
 		"-framework", "CoreFoundation",
 	}
-	lib := filepath.Join("testdata", "lib.go")
+	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
 	if err != nil {
 		t.Fatal(err)
@@ -308,7 +308,7 @@ func TestBuildForTvOS(t *testing.T) {
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
-	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
+	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
 	}
@@ -535,6 +535,30 @@ func TestStrictDup(t *testing.T) {
 	}
 }
 
+func TestOldLink(t *testing.T) {
+	// Test that old object file format still works.
+	// TODO(go115newobj): delete.
+
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestOldLink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte("package main; func main(){}\n"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+}
+
 const testFuncAlignSrc = `
 package main
 import (
@@ -602,5 +626,110 @@ func TestFuncAlign(t *testing.T) {
 	}
 	if string(out) != "PASS" {
 		t.Errorf("unexpected output: %s\n", out)
+	}
+}
+
+const helloSrc = `
+package main
+import "fmt"
+func main() { fmt.Println("hello") }
+`
+
+func TestTrampoline(t *testing.T) {
+	// Test that trampoline insertion works as expected.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err = ioutil.WriteFile(src, []byte(helloSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}
+
+func TestIndexMismatch(t *testing.T) {
+	// Test that index mismatch will cause a link-time error (not run-time error).
+	// This shouldn't happen with "go build". We invoke the compiler and the linker
+	// manually, and try to "trick" the linker with an inconsistent object file.
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
+	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
+	mSrc := filepath.Join("testdata", "testIndexMismatch", "main.go")
+	aObj := filepath.Join(tmpdir, "a.o")
+	mObj := filepath.Join(tmpdir, "main.o")
+	exe := filepath.Join(tmpdir, "main.exe")
+
+	// Build a program with main package importing package a.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
+	t.Log(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling main.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("linking failed: %v\n%s", err, out)
+	}
+
+	// Now, overwrite a.o with the object of b.go. This should
+	// result in an index mismatch.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
+	t.Log(cmd)
+	out, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("linking didn't fail")
+	}
+	if !bytes.Contains(out, []byte("fingerprint mismatch")) {
+		t.Errorf("did not see expected error message. out:\n%s", out)
 	}
 }

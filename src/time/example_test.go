@@ -379,7 +379,7 @@ func ExampleParse() {
 	// 2013-02-03 00:00:00 +0000 UTC
 	// 2006-01-02 15:04:05 +0000 UTC
 	// 2006-01-02 15:04:05 +0700 +0700
-	// error parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00
+	// error parsing time "2006-01-02T15:04:05Z07:00": extra text: "07:00"
 }
 
 func ExampleParseInLocation() {

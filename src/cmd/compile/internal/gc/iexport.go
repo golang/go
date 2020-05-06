@@ -35,6 +35,8 @@
 //         }
 //     }
 //
+//     Fingerprint [8]byte
+//
 // uvarint means a uint64 written out using uvarint encoding.
 //
 // []T means a uvarint followed by that many T objects. In other
@@ -296,6 +298,10 @@ func iexport(out *bufio.Writer) {
 	io.Copy(out, &hdr)
 	io.Copy(out, &p.strings)
 	io.Copy(out, &p.data0)
+
+	// Add fingerprint (used by linker object file).
+	// Attach this to the end, so tools (e.g. gcimporter) don't care.
+	out.Write(Ctxt.Fingerprint[:])
 }
 
 // writeIndex writes out an object index. mainIndex indicates whether
@@ -991,7 +997,7 @@ func (w *exportWriter) linkname(s *types.Sym) {
 }
 
 func (w *exportWriter) symIdx(s *types.Sym) {
-	if Ctxt.Flag_newobj {
+	if Ctxt.Flag_go115newobj {
 		lsym := s.Linksym()
 		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
 			// Don't export index for non-package symbols, linkname'd symbols,

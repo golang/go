@@ -71,8 +71,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			}
 			cmd.Args = append(cmd.Args, dir)
 			if env != nil {
-				env = append(env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 				cmd.Env = append(os.Environ(), env...)
+				cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 			}
 			out, err := cmd.CombinedOutput()
 			if err != nil {
@@ -193,9 +193,7 @@ func TestDWARFiOS(t *testing.T) {
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
 	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
-	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
 	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
 	// However, c-archive iOS objects have embedded DWARF.
-	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
 	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
 }

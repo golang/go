@@ -9,6 +9,7 @@
 package syscall
 
 import (
+	errorspkg "errors"
 	"internal/bytealg"
 	"runtime"
 	"sync"
@@ -185,6 +186,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		if err != nil {
 			return 0, err
 		}
+	}
+
+	// Both Setctty and Foreground use the Ctty field,
+	// but they give it slightly different meanings.
+	if sys.Setctty && sys.Foreground {
+		return 0, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
+	}
+	if sys.Setctty && sys.Ctty >= len(attr.Files) {
+		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
 	}
 
 	// Acquire the fork lock so that no other threads

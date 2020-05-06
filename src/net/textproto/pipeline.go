@@ -99,6 +99,7 @@ func (s *sequencer) Start(id uint) {
 func (s *sequencer) End(id uint) {
 	s.mu.Lock()
 	if s.id != id {
+		s.mu.Unlock()
 		panic("out of sync")
 	}
 	id++

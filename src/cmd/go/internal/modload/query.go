@@ -455,8 +455,9 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 
 	err := modfetch.TryProxies(func(proxy string) error {
 		queryModule := func(path string) (r QueryResult, err error) {
+			current := findCurrentVersion(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(proxy, path, query, "", allowed)
+			r.Rev, err = queryProxy(proxy, path, query, current, allowed)
 			if err != nil {
 				return r, err
 			}
@@ -506,6 +507,15 @@ func modulePrefixesExcludingTarget(path string) []string {
 	}
 
 	return prefixes
+}
+
+func findCurrentVersion(path string) string {
+	for _, m := range buildList {
+		if m.Path == path {
+			return m.Version
+		}
+	}
+	return ""
 }
 
 type prefixResult struct {

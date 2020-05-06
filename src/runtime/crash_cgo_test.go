@@ -555,3 +555,21 @@ func findTrace(text, top string) []string {
 	}
 	return nil
 }
+
+func TestSegv(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+
+	for _, test := range []string{"Segv", "SegvInCgo"} {
+		t.Run(test, func(t *testing.T) {
+			t.Parallel()
+			got := runTestProg(t, "testprogcgo", test)
+			t.Log(got)
+			if !strings.Contains(got, "SIGSEGV") {
+				t.Errorf("expected crash from signal")
+			}
+		})
+	}
+}

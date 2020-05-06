@@ -109,7 +109,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		if myimportpath != "" {
+			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		}
 	}
 }
 
@@ -136,21 +138,27 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
-	// Set up DWARF entries for s.
+	// Set up DWARF entries for s
 	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
-	info.Type = objabi.SDWARFINFO
-	info.Set(AttrDuplicateOK, s.DuplicateOK())
-	if loc != nil {
-		loc.Type = objabi.SDWARFLOC
-		loc.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, loc)
+
+	// When using new object files, the DWARF symbols are unnamed aux
+	// symbols and don't need to be added to ctxt.Data.
+	// But the old object file still needs them.
+	if !ctxt.Flag_go115newobj {
+		info.Type = objabi.SDWARFINFO
+		info.Set(AttrDuplicateOK, s.DuplicateOK())
+		if loc != nil {
+			loc.Type = objabi.SDWARFLOC
+			loc.Set(AttrDuplicateOK, s.DuplicateOK())
+			ctxt.Data = append(ctxt.Data, loc)
+		}
+		ranges.Type = objabi.SDWARFRANGE
+		ranges.Set(AttrDuplicateOK, s.DuplicateOK())
+		ctxt.Data = append(ctxt.Data, info, ranges)
+		lines.Type = objabi.SDWARFLINES
+		lines.Set(AttrDuplicateOK, s.DuplicateOK())
+		ctxt.Data = append(ctxt.Data, lines)
 	}
-	ranges.Type = objabi.SDWARFRANGE
-	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, info, ranges)
-	lines.Type = objabi.SDWARFLINES
-	lines.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, lines)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

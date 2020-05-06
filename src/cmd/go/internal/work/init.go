@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -84,7 +85,12 @@ func instrumentInit() {
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
-		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
+		} else {
+			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+		}
+
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -117,7 +123,7 @@ func buildModeInit() {
 			switch cfg.Goos {
 			case "darwin":
 				switch cfg.Goarch {
-				case "arm", "arm64":
+				case "arm64":
 					codegenArg = "-shared"
 				}
 
@@ -149,9 +155,11 @@ func buildModeInit() {
 		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
+		case "windows":
+			ldBuildmode = "pie"
 		case "darwin":
 			switch cfg.Goarch {
-			case "arm", "arm64":
+			case "arm64":
 				codegenArg = "-shared"
 			}
 			fallthrough

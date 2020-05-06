@@ -244,12 +244,12 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 		// ok
 	case "file":
 		if *base != (url.URL{Scheme: base.Scheme, Path: base.Path, RawPath: base.RawPath}) {
-			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", web.Redacted(base))
+			return nil, fmt.Errorf("invalid file:// proxy URL with non-path elements: %s", base.Redacted())
 		}
 	case "":
-		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", web.Redacted(base))
+		return nil, fmt.Errorf("invalid proxy URL missing scheme: %s", base.Redacted())
 	default:
-		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", web.Redacted(base))
+		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", base.Redacted())
 	}
 
 	enc, err := module.EscapePath(path)

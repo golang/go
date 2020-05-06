@@ -4,6 +4,8 @@
 
 package math
 
+import "internal/cpu"
+
 func log10TrampolineSetup(x float64) float64
 func log10Asm(x float64) float64
 
@@ -70,8 +72,6 @@ func expm1Asm(x float64) float64
 func powTrampolineSetup(x, y float64) float64
 func powAsm(x, y float64) float64
 
-// hasVectorFacility reports whether the machine has the z/Architecture
+// hasVX reports whether the machine has the z/Architecture
 // vector facility installed and enabled.
-func hasVectorFacility() bool
-
-var hasVX = hasVectorFacility()
+var hasVX = cpu.S390X.HasVX

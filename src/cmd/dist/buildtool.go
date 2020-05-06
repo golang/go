@@ -73,6 +73,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/amd64",
 	"cmd/link/internal/arm",
 	"cmd/link/internal/arm64",
+	"cmd/link/internal/benchmark",
 	"cmd/link/internal/ld",
 	"cmd/link/internal/loadelf",
 	"cmd/link/internal/loader",
@@ -81,7 +82,6 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/loadxcoff",
 	"cmd/link/internal/mips",
 	"cmd/link/internal/mips64",
-	"cmd/link/internal/objfile",
 	"cmd/link/internal/ppc64",
 	"cmd/link/internal/riscv64",
 	"cmd/link/internal/s390x",
@@ -97,6 +97,7 @@ var bootstrapDirs = []string{
 	"debug/pe",
 	"internal/goversion",
 	"internal/race",
+	"internal/unsafeheader",
 	"internal/xcoff",
 	"math/big",
 	"math/bits",
@@ -115,6 +116,8 @@ var ignorePrefixes = []string{
 var ignoreSuffixes = []string{
 	"_arm64.s",
 	"_arm64.go",
+	"_riscv64.s",
+	"_riscv64.go",
 	"_wasm.s",
 	"_wasm.go",
 }

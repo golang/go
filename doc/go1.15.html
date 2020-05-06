@@ -31,6 +31,24 @@ TODO
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="darwin">Darwin</h3>
+
+<p> <!-- golang.org/issue/37610, golang.org/issue/37611 -->
+  As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
+  notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
+  iPadOS, watchOS, and tvOS (the <code>darwin/386</code>
+  and <code>darwin/arm</code> ports). Go continues to support the
+  64-bit <code>darwin/amd64</code> and <code>darwin/arm64</code> ports.
+</p>
+
+<h3 id="windows">Windows</h3>
+
+<p> <!-- CL 214397 and CL 230217 -->
+  Go 1.15 now generates Windows ASLR executables when -buildmode=pie
+  cmd/link flag is provided. Go command uses -buildmode=pie by default
+  on Windows.
+</p>
+
 <p>
 TODO
 </p>
@@ -78,14 +96,60 @@ TODO
   directory of each individual test).
 </p>
 
+<h4 id="module-cache">Module cache</h4>
+
+<p><!-- https://golang.org/cl/219538 -->
+  The location of the module cache may now be set with
+  the <code>GOMODCACHE</code> environment variable. The default value of
+  <code>GOMODCACHE</code> is <code>GOPATH[0]/pkg/mod</code>, the location of the
+  module cache before this change.
+</p>
+
+<p><!-- https://golang.org/cl/221157 -->
+  A workaround is now available for Windows "Access is denied" errors in
+  <code>go</code> commands that access the module cache, caused by external
+  programs concurrently scanning the file system (see
+  <a href="https://golang.org/issue/36568">issue #36568</a>). The workaround is
+  not enabled by default because it is not safe to use when Go versions lower
+  than 1.14.2 and 1.13.10 are running concurrently with the same module cache.
+  It can be enabled by explictly setting the environment variable
+  <code>GODEBUG=modcacheunzipinplace=1</code>.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
 TODO
 </p>
 
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- https://golang.org/cl/229578 -->
+  Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a> allow converting an <code>unsafe.Pointer</code>
+  into <code>uintptr</code> when calling certain
+  functions. Previously, in some cases, the compiler allowed multiple
+  chained conversions (for example, <code>syscall.Syscall(…,
+  uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
+  one conversion. Code that used multiple conversions should be
+  updated to satisfy the safety rules.
+</p>
 
 <h2 id="library">Core library</h2>
+
+<h3 id="time/tzdata">New embedded tzdata package</h3>
+
+<p> <!-- CL 224588 -->
+  Go 1.15 includes a new package,
+  <a href="/pkg/time/tzdata/"><code>time/tzdata</code></a>,
+  that permits embedding the timezone database into a program.
+  Importing this package (as <code>import _ "time/tzdata"</code>)
+  permits the program to find timezone information even if the
+  timezone database is not available on the local system.
+  You can also embed the timezone database by building
+  with <code>-tags timetzdata</code>.
+  Either approach increases the size of the program by about 800 KB.
+</p>
 
 <p>
 TODO
@@ -119,6 +183,127 @@ TODO
 TODO
 </p>
 
+<dl id="crypto/tls"><dt><a href="/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 214977 -->
+      The new
+      <a href="/pkg/crypto/tls/#Dialer"><code>Dialer</code></a>
+      type and its
+      <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
+      method permits using a context to both connect and handshake with a TLS server.
+    </p>
+  </dd>
+</dl>
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 221427 -->
+      When the flag package sees <code>-h</code> or <code>-help</code>, and
+      those flags are not defined, the flag package prints a usage message.
+      If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
+      <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
+      <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
+      exit with a status of 2. In this release, the exit status for <code>-h</code>
+      or <code>-help</code> has been changed to 0. In particular, this applies to
+      the default handling of command line flags.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL 228645 -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
+      <code>Conn.SetReadDeadline</code>,
+      or <code>Conn.SetWriteDeadline</code> methods, it will now
+      return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+
+    <p><!-- CL 228641 -->
+      The new <a href="/pkg/net/#Resolver.LookupIP"><code>Resolver.LookupIP</code></a>
+      method supports IP lookups that are both network-specific and accept a context.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
+  <dd>
+    <p><!-- CL 230937 -->
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      now supports not modifying the <code>X-Forwarded-For</code>
+      header when the incoming <code>Request.Header</code> map entry
+      for that field is <code>nil</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+  <dd>
+    <p><!-- CL 147598, CL 229537 -->
+      All profile endpoints now support a "<code>seconds</code>" parameter. When present,
+      the endpoint profiles for the specified number of seconds and reports the difference.
+      The meaning of the "<code>seconds</code>" parameter in the <code>cpu</code> profile and
+      the trace endpoints is unchanged.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 227645 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
+      <code>RawFragment</code> and method <a href="/pkg/net/url/#URL.EscapedFragment"><code>EscapedFragment</code></a>
+      provide detail about and control over the exact encoding of a particular fragment.
+      These are analogous to
+      <code>RawPath</code> and <a href="/pkg/net/url/#URL.EscapedPath"><code>EscapedPath</code></a>.
+    </p>
+    <p><!-- CL 207082 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
+      method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
+      returns the URL in string form with any password replaced with <code>xxxxx</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/os/#File.SetDeadline"><code>File.SetDeadline</code></a>,
+      <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
+      or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
+      methods, it will now return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+  </dd>
+</dl>
+
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 228902 -->
+      Package reflect now disallows accessing methods of all
+      non-exported fields, whereas previously it allowed accessing
+      those of non-exported, embedded fields. Code that relies on the
+      previous behavior should be updated to instead access the
+      corresponding promoted method of the enclosing variable.
+    </p>
+  </dd>
+</dl>
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
@@ -128,28 +313,83 @@ TODO
       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
       then the value will be printed, instead of just its address.
     </p>
+
+    <p><!-- CL -->
+      On a Unix system, if the <code>kill</code> command
+      or <code>kill</code> system call is used to send
+      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+      or <code>SIGFPE</code> signal to a Go program, and if the signal
+      is not being handled via
+      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+      the Go program will now reliably crash with a stack trace.
+      In earlier releases the behavior was unpredictable.
+    </p>
+  </dd>
+</dl>
+
+<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 189318 -->
+      The goroutine profile includes the profile labels associated with each goroutine
+      at the time of profiling. This feature is not yet implemented for the profile
+      reported with <code>debug=2</code>.
+    </p>
   </dd>
 </dl>
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33762 -->
+    <p><!-- CL 205899, golang.org/issue/33762 -->
       The new method
-      <a href="/pkg/sync#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
+      <a href="/pkg/sync/#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
       atomically deletes a key and returns the previous value if present.
     </p>
     <p><!-- CL 205899 -->
       The method
-      <a href="/pkg/sync#Map.Delete"><code>Map.Delete</code></a>
+      <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
       is more efficient.
     </p>
 </dl><!-- sync -->
 
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 231638 -->
+      On Unix systems, functions that use
+      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
+      will now reject attempts to set both the <code>Setctty</code>
+      and <code>Foreground</code> fields, as they both use
+      the <code>Ctty</code> field but do so in incompatible ways.
+      We expect that few existing programs set both fields.
+    </p>
+    <p>
+      Setting the <code>Setctty</code> field now requires that the
+      <code>Ctty</code> field be set to a file descriptor number in the
+      child process, as determined by the <code>ProcAttr.Files</code> field.
+      Using a child descriptor always worked, but there were certain
+      cases where using a parent file descriptor also happened to work.
+      Some programs that set <code>Setctty</code> will need to change
+      the value of <code>Ctty</code> to use a child descriptor number.
+    </p>
+  </dd>
+</dl>
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 226877, golang.org/issue/35998 -->
+       The new methods
+       <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
+       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a> and
+       return temporary directories that are automatically cleaned up
+       at the end of the test.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33184 -->
+    <p><!-- CL 220424, CL 217362, golang.org/issue/33184 -->
        The new method
-       <a href="/pkg/time#Ticker.Reset"><code>Ticker.Reset</code></a>
+       <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
        supports changing the duration of a ticker.
     </p>
   </dd>
