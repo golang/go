@@ -1098,11 +1098,6 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
 		}
 	}
 
-	for _, sect := range ld.Segtext.Sections[1:] {
-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
-	}
-
 	if ld.Segrodata.Filelen > 0 {
 		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
 	}
