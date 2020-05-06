@@ -4,32 +4,28 @@
 
 // This file contains tests for sizes.
 
-package types_test
+package types2_test
 
 import (
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
-	"go/types"
+	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types2"
 	"testing"
 )
 
 // findStructType typechecks src and returns the first struct type encountered.
-func findStructType(t *testing.T, src string) *types.Struct {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "x.go", src, 0)
+func findStructType(t *testing.T, src string) *types2.Struct {
+	f, err := parseSrc("x.go", src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-	var conf types.Config
-	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
+	var conf types2.Config
+	_, err = conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, tv := range info.Types {
-		if ts, ok := tv.Type.(*types.Struct); ok {
+		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
 		}
 	}
@@ -50,11 +46,11 @@ type S struct {
 }
 `
 	ts := findStructType(t, src)
-	sizes := types.StdSizes{WordSize: 4, MaxAlign: 4}
+	sizes := types2.StdSizes{WordSize: 4, MaxAlign: 4}
 	if got := sizes.Sizeof(ts); got != 20 {
 		t.Errorf("Sizeof(%v) with WordSize 4 = %d want 20", ts, got)
 	}
-	sizes = types.StdSizes{WordSize: 8, MaxAlign: 8}
+	sizes = types2.StdSizes{WordSize: 8, MaxAlign: 8}
 	if got := sizes.Sizeof(ts); got != 40 {
 		t.Errorf("Sizeof(%v) with WordSize 8 = %d want 40", ts, got)
 	}
@@ -71,8 +67,8 @@ var s struct {
 }
 `
 	ts := findStructType(t, src)
-	sizes := &types.StdSizes{WordSize: 4, MaxAlign: 8}
-	var fields []*types.Var
+	sizes := &types2.StdSizes{WordSize: 4, MaxAlign: 8}
+	var fields []*types2.Var
 	// Make a copy manually :(
 	for i := 0; i < ts.NumFields(); i++ {
 		fields = append(fields, ts.Field(i))
@@ -84,6 +80,8 @@ var s struct {
 }
 
 func TestIssue16902(t *testing.T) {
+	t.Skip("requires imports")
+
 	const src = `
 package a
 
@@ -91,17 +89,16 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "x.go", src, 0)
+	f, err := parseSrc("x.go", src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-	conf := types.Config{
-		Importer: importer.Default(),
-		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
+	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
+	conf := types2.Config{
+		//Importer: importer.Default(),
+		Sizes: &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+	_, err = conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,7 @@
 // This file checks invariants of token.Token ordering that we rely on
 // since package go/token doesn't provide any guarantees at the moment.
 
-package types
+package types2
 
 import (
 	"go/token"

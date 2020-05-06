@@ -23,13 +23,11 @@
 // TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
 //           and test against strict mode.
 
-package types_test
+package types2_test
 
 import (
+	"cmd/compile/internal/syntax"
 	"flag"
-	"go/ast"
-	"go/importer"
-	"go/parser"
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
@@ -38,7 +36,7 @@ import (
 	"strings"
 	"testing"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 var (
@@ -140,11 +138,11 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, filenames []string) ([]*ast.File, []error) {
-	var files []*ast.File
+func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
+	var files []*syntax.File
 	var errlist []error
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
+		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -173,12 +171,12 @@ var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func errMap(t *testing.T, testname string, files []*ast.File) map[string][]string {
+func errMap(t *testing.T, testname string, files []*syntax.File) map[string][]string {
 	// map of position strings to lists of error message patterns
 	errmap := make(map[string][]string)
 
 	for _, file := range files {
-		filename := fset.Position(file.Package).Filename
+		filename := file.Pos().RelFilename() // TODO(gri) do we need Filename here?
 		src, err := ioutil.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("%s: could not read %s", testname, filename)
@@ -268,7 +266,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
-		pkgName = files[0].Name.Name
+		pkgName = files[0].PkgName.Value
 	}
 
 	if *listErrors && len(errlist) > 0 {
@@ -287,7 +285,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 	conf.Trace = testing.Verbose()
 	// We don't use importer.Default() below so we can eventually
 	// get testdata/map.go2 to import chans (still to be fixed).
-	conf.Importer = importer.ForCompiler(fset, "source", nil)
+	//conf.Importer = importer.ForCompiler(fset, "source", nil)
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
@@ -302,7 +300,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 			errlist = append(errlist, err)
 		}
 	}
-	conf.Check(pkgName, fset, files, nil)
+	conf.Check(pkgName, files, nil)
 
 	if *listErrors {
 		return
@@ -335,6 +333,8 @@ func TestCheck(t *testing.T) {
 		checkFiles(t, strings.Split(files, " "))
 		return
 	}
+
+	t.Skip("requires error position corrections")
 
 	// Otherwise, run all the tests.
 	for _, files := range tests {

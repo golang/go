@@ -4,14 +4,15 @@
 
 // This file implements the Check function, which drives type-checking.
 
-package types
+package types2
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/constant"
-	"go/token"
 )
+
+var nopos syntax.Pos
 
 // debugging/development support
 const debug = true // leave on during development
@@ -44,14 +45,14 @@ type exprInfo struct {
 
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl          *declInfo              // package-level declaration whose init expression/function body is checked
-	scope         *Scope                 // top-most scope for lookups
-	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
-	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
-	sig           *Signature             // function signature if inside a function; nil otherwise
-	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
-	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
-	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+	decl          *declInfo                 // package-level declaration whose init expression/function body is checked
+	scope         *Scope                    // top-most scope for lookups
+	pos           syntax.Pos                // if valid, identifiers are looked up as if at position pos (used by Eval)
+	iota          constant.Value            // value of iota in a constant declaration; nil otherwise
+	sig           *Signature                // function signature if inside a function; nil otherwise
+	isPanic       map[*syntax.CallExpr]bool // set of panic call expressions (used for termination check)
+	hasLabel      bool                      // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool                      // set if an expression contains a function call or channel receive operation
 }
 
 // lookup looks up name in the current context and returns the matching object, or nil.
@@ -76,28 +77,27 @@ type Checker struct {
 	// package information
 	// (initialized by NewChecker, valid for the life-time of checker)
 	conf *Config
-	fset *token.FileSet
 	pkg  *Package
 	*Info
-	nextId uint64                     // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
-	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
-	typMap map[string]*Named          // maps an instantiated named type hash to a *Named type
-	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
+	nextId uint64                      // unique Id for type parameters (first valid Id is 1)
+	objMap map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+	impMap map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+	posMap map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
+	typMap map[string]*Named           // maps an instantiated named type hash to a *Named type
+	pkgCnt map[string]int              // counts number of imported packages with a given name (for better error messages)
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files            []*ast.File                       // package files
-	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+	files            []*syntax.File                     // package files
+	unusedDotImports map[*Scope]map[*Package]syntax.Pos // positions of unused dot-imported packages for each file scope
 
-	firstErr error                 // first error encountered
-	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
-	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
-	finals   []func()              // list of final actions; processed at the end of type-checking the current set of files
-	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+	firstErr error                    // first error encountered
+	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
+	untyped  map[syntax.Expr]exprInfo // map of expressions without final type
+	delayed  []func()                 // stack of delayed action segments; segments are processed in FIFO order
+	finals   []func()                 // list of final actions; processed at the end of type-checking the current set of files
+	objPath  []Object                 // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -109,15 +109,15 @@ type Checker struct {
 
 // addUnusedImport adds the position of a dot-imported package
 // pkg to the map of dot imports for the given file scope.
-func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos token.Pos) {
+func (check *Checker) addUnusedDotImport(scope *Scope, pkg *Package, pos syntax.Pos) {
 	mm := check.unusedDotImports
 	if mm == nil {
-		mm = make(map[*Scope]map[*Package]token.Pos)
+		mm = make(map[*Scope]map[*Package]syntax.Pos)
 		check.unusedDotImports = mm
 	}
 	m := mm[scope]
 	if m == nil {
-		m = make(map[*Package]token.Pos)
+		m = make(map[*Package]syntax.Pos)
 		mm[scope] = m
 	}
 	m[pkg] = pos
@@ -135,10 +135,10 @@ func (check *Checker) addDeclDep(to Object) {
 	from.addDep(to)
 }
 
-func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
 	m := check.untyped
 	if m == nil {
-		m = make(map[ast.Expr]exprInfo)
+		m = make(map[syntax.Expr]exprInfo)
 		check.untyped = m
 	}
 	m[e] = exprInfo{lhs, mode, typ, val}
@@ -177,7 +177,7 @@ func (check *Checker) pop() Object {
 
 // NewChecker returns a new Checker instance for a given package.
 // Package files may be added incrementally via checker.Files.
-func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
+func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// make sure we have a configuration
 	if conf == nil {
 		conf = new(Config)
@@ -190,13 +190,12 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 
 	return &Checker{
 		conf:   conf,
-		fset:   fset,
 		pkg:    pkg,
 		Info:   info,
 		nextId: 1,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
-		posMap: make(map[*Interface][]token.Pos),
+		posMap: make(map[*Interface][]syntax.Pos),
 		typMap: make(map[string]*Named),
 		pkgCnt: make(map[string]int),
 	}
@@ -204,7 +203,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 
 // initFiles initializes the files-specific portion of checker.
 // The provided files must all belong to the same package.
-func (check *Checker) initFiles(files []*ast.File) {
+func (check *Checker) initFiles(files []*syntax.File) {
 	// start with a clean slate (check.Files may be called multiple times)
 	check.files = nil
 	check.unusedDotImports = nil
@@ -218,12 +217,12 @@ func (check *Checker) initFiles(files []*ast.File) {
 	// determine package name and collect valid files
 	pkg := check.pkg
 	for _, file := range files {
-		switch name := file.Name.Name; pkg.name {
+		switch name := file.PkgName.Value; pkg.name {
 		case "":
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.Name.Pos(), "invalid package name _")
+				check.errorf(file.PkgName.Pos(), "invalid package name _")
 			}
 			fallthrough
 
@@ -231,7 +230,7 @@ func (check *Checker) initFiles(files []*ast.File) {
 			check.files = append(check.files, file)
 
 		default:
-			check.errorf(file.Package, "package %s; expected %s", name, pkg.name)
+			check.errorf(file.Pos(), "package %s; expected %s", name, pkg.name)
 			// ignore this file
 		}
 	}
@@ -252,9 +251,9 @@ func (check *Checker) handleBailout(err *error) {
 }
 
 // Files checks the provided files as part of the checker's package.
-func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
+func (check *Checker) Files(files []*syntax.File) error { return check.checkFiles(files) }
 
-func (check *Checker) checkFiles(files []*ast.File) (err error) {
+func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	defer check.handleBailout(&err)
 
 	print := func(msg string) {
@@ -335,7 +334,7 @@ func (check *Checker) recordUntyped() {
 	}
 }
 
-func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type, val constant.Value) {
+func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Type, val constant.Value) {
 	assert(x != nil)
 	assert(typ != nil)
 	if mode == invalid {
@@ -350,7 +349,7 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	}
 }
 
-func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
+func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 	// f must be a (possibly parenthesized) identifier denoting a built-in
 	// (built-ins in package unsafe always produce a constant result and
 	// we don't record their signatures, so we don't see qualified idents
@@ -358,9 +357,9 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	for {
 		check.recordTypeAndValue(f, builtin, sig, nil)
 		switch p := f.(type) {
-		case *ast.Ident:
+		case *syntax.Name:
 			return // we're done
-		case *ast.ParenExpr:
+		case *syntax.ParenExpr:
 			f = p.X
 		default:
 			unreachable()
@@ -368,7 +367,7 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 	}
 }
 
-func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
 	assert(x != nil)
 	if a[0] == nil || a[1] == nil {
 		return
@@ -385,7 +384,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 			)
 			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X
-			p, _ := x.(*ast.ParenExpr)
+			p, _ := x.(*syntax.ParenExpr)
 			if p == nil {
 				break
 			}
@@ -394,7 +393,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	}
 }
 
-func (check *Checker) recordInferred(call *ast.CallExpr, targs []Type, sig *Signature) {
+func (check *Checker) recordInferred(call *syntax.CallExpr, targs []Type, sig *Signature) {
 	assert(call != nil)
 	assert(sig != nil)
 	if m := check.Inferred; m != nil {
@@ -402,14 +401,14 @@ func (check *Checker) recordInferred(call *ast.CallExpr, targs []Type, sig *Sign
 	}
 }
 
-func (check *Checker) recordDef(id *ast.Ident, obj Object) {
+func (check *Checker) recordDef(id *syntax.Name, obj Object) {
 	assert(id != nil)
 	if m := check.Defs; m != nil {
 		m[id] = obj
 	}
 }
 
-func (check *Checker) recordUse(id *ast.Ident, obj Object) {
+func (check *Checker) recordUse(id *syntax.Name, obj Object) {
 	assert(id != nil)
 	assert(obj != nil)
 	if m := check.Uses; m != nil {
@@ -417,7 +416,7 @@ func (check *Checker) recordUse(id *ast.Ident, obj Object) {
 	}
 }
 
-func (check *Checker) recordImplicit(node ast.Node, obj Object) {
+func (check *Checker) recordImplicit(node syntax.Node, obj Object) {
 	assert(node != nil)
 	assert(obj != nil)
 	if m := check.Implicits; m != nil {
@@ -425,7 +424,7 @@ func (check *Checker) recordImplicit(node ast.Node, obj Object) {
 	}
 }
 
-func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
+func (check *Checker) recordSelection(x *syntax.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
 	assert(obj != nil && (recv == nil || len(index) > 0))
 	check.recordUse(x.Sel, obj)
 	if m := check.Selections; m != nil {
@@ -433,7 +432,7 @@ func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, r
 	}
 }
 
-func (check *Checker) recordScope(node ast.Node, scope *Scope) {
+func (check *Checker) recordScope(node syntax.Node, scope *Scope) {
 	assert(node != nil)
 	assert(scope != nil)
 	if m := check.Scopes; m != nil {

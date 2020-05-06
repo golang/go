@@ -4,12 +4,9 @@
 
 // This file implements initialization and assignment checks.
 
-package types
+package types2
 
-import (
-	"go/ast"
-	"go/token"
-)
+import "cmd/compile/internal/syntax"
 
 // assignment reports whether x can be assigned to a variable of type T,
 // if necessary by attempting to convert untyped values to the appropriate
@@ -134,17 +131,17 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 	return x.typ
 }
 
-func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
 		check.useLHS(lhs)
 		return nil
 	}
 
 	// Determine if the lhs is a (possibly parenthesized) identifier.
-	ident, _ := unparen(lhs).(*ast.Ident)
+	ident, _ := unparen(lhs).(*syntax.Name)
 
 	// Don't evaluate lhs if it is the blank identifier.
-	if ident != nil && ident.Name == "_" {
+	if ident != nil && ident.Value == "_" {
 		check.recordDef(ident, nil)
 		check.assignment(x, nil, "assignment to _ identifier")
 		if x.mode == invalid {
@@ -159,7 +156,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	var v *Var
 	var v_used bool
 	if ident != nil {
-		if obj := check.lookup(ident.Name); obj != nil {
+		if obj := check.lookup(ident.Value); obj != nil {
 			// It's ok to mark non-local variables, but ignore variables
 			// from other packages to avoid potential race conditions with
 			// dot-imported variables.
@@ -188,7 +185,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	case variable, mapindex:
 		// ok
 	default:
-		if sel, ok := z.expr.(*ast.SelectorExpr); ok {
+		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
@@ -210,8 +207,8 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 
 // If returnPos is valid, initVars is called to type-check the assignment of
 // return expressions, and returnPos is the position of the return statement.
-func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnPos token.Pos) {
-	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && !returnPos.IsValid())
+func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syntax.Pos) {
+	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && !returnPos.IsKnown())
 
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
@@ -226,7 +223,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnPos token.
 				return
 			}
 		}
-		if returnPos.IsValid() {
+		if returnPos.IsKnown() {
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
 			return
 		}
@@ -235,7 +232,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnPos token.
 	}
 
 	context := "assignment"
-	if returnPos.IsValid() {
+	if returnPos.IsKnown() {
 		context = "return statement"
 	}
 
@@ -253,7 +250,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnPos token.
 	}
 }
 
-func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2)
 
 	if len(lhs) != len(rhs) {
@@ -282,7 +279,22 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 	}
 }
 
-func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+// unpack unpacks a *syntax.ListExpr into a list of syntax.Expr.
+// Helper introduced for the go/types -> types2 port.
+// TODO(gri) Should find a more efficient solution that doesn't
+//           require introduction of a new slice for simple
+//           expressions.
+func unpack(x syntax.Expr) []syntax.Expr {
+	if x, _ := x.(*syntax.ListExpr); x != nil {
+		return x.ElemList
+	}
+	if x != nil {
+		return []syntax.Expr{x}
+	}
+	return nil
+}
+
+func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	top := len(check.delayed)
 	scope := check.scope
 
@@ -291,12 +303,12 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 	var lhsVars = make([]*Var, len(lhs))
 	for i, lhs := range lhs {
 		var obj *Var
-		if ident, _ := lhs.(*ast.Ident); ident != nil {
+		if ident, _ := lhs.(*syntax.Name); ident != nil {
 			// Use the correct obj if the ident is redeclared. The
 			// variable's scope starts after the declaration; so we
 			// must use Scope.Lookup here and call Scope.Insert
 			// (via check.declare) later.
-			name := ident.Name
+			name := ident.Value
 			if alt := scope.Lookup(name); alt != nil {
 				// redeclared object must be a variable
 				if alt, _ := alt.(*Var); alt != nil {
@@ -323,7 +335,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 		lhsVars[i] = obj
 	}
 
-	check.initVars(lhsVars, rhs, token.NoPos)
+	check.initVars(lhsVars, rhs, nopos)
 
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)
@@ -334,7 +346,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
 		// for short variable declarations) and ends at the end of the innermost
 		// containing block."
-		scopePos := rhs[len(rhs)-1].End()
+		scopePos := endPos("rhs[len(rhs)-1].End()")
 		for _, obj := range newVars {
 			check.declare(scope, nil, obj, scopePos) // recordObject already called
 		}

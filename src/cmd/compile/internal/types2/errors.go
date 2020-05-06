@@ -4,15 +4,18 @@
 
 // This file implements various error reporters.
 
-package types
+package types2
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
-	"go/token"
 	"strconv"
 	"strings"
 )
+
+func unimplemented() {
+	panic("unimplemented")
+}
 
 func assert(p bool) {
 	if !p {
@@ -45,9 +48,9 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 			panic("internal error: should always pass *operand")
 		case *operand:
 			arg = operandString(a, check.qualifier)
-		case token.Pos:
-			arg = check.fset.Position(a).String()
-		case ast.Expr:
+		case syntax.Pos:
+			arg = a.String()
+		case syntax.Expr:
 			arg = ExprString(a)
 		case Object:
 			arg = ObjectString(a, check.qualifier)
@@ -59,9 +62,9 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args...)
 }
 
-func (check *Checker) trace(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
-		check.fset.Position(pos),
+		pos,
 		strings.Repeat(".  ", check.indent),
 		check.sprintf(format, args...),
 	)
@@ -72,7 +75,7 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.sprintf(format, args...))
 }
 
-func (check *Checker) err(pos token.Pos, msg string, soft bool) {
+func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
@@ -82,7 +85,7 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		return
 	}
 
-	err := Error{check.fset, pos, stripAnnotations(msg), msg, soft}
+	err := Error{pos, stripAnnotations(msg), msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -98,27 +101,27 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 	f(err)
 }
 
-func (check *Checker) error(pos token.Pos, msg string) {
+func (check *Checker) error(pos syntax.Pos, msg string) {
 	check.err(pos, msg, false)
 }
 
-func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) errorf(pos syntax.Pos, format string, args ...interface{}) {
 	check.err(pos, check.sprintf(format, args...), false)
 }
 
-func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) softErrorf(pos syntax.Pos, format string, args ...interface{}) {
 	check.err(pos, check.sprintf(format, args...), true)
 }
 
-func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) invalidAST(pos syntax.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid AST: "+format, args...)
 }
 
-func (check *Checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) invalidArg(pos syntax.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid argument: "+format, args...)
 }
 
-func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
+func (check *Checker) invalidOp(pos syntax.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid operation: "+format, args...)
 }
 

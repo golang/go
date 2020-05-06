@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
-	"go/importer"
-	"go/parser"
 	"testing"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 var builtinCalls = []struct {
@@ -120,6 +118,8 @@ var builtinCalls = []struct {
 }
 
 func TestBuiltinSignatures(t *testing.T) {
+	t.Skip("requires imports")
+
 	DefPredeclaredTestFuncs()
 
 	seen := map[string]bool{"trace": true} // no test for trace built-in; add it manually
@@ -143,16 +143,18 @@ func TestBuiltinSignatures(t *testing.T) {
 
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _() { %s }`, src0)
-	f, err := parser.ParseFile(fset, "", src, 0)
+	f, err := parseSrc("", src)
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
 		return
 	}
 
-	conf := Config{Importer: importer.Default()}
-	uses := make(map[*ast.Ident]Object)
-	types := make(map[ast.Expr]TypeAndValue)
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})
+	unimplemented()
+	var conf Config
+	// conf := Config{Importer: importer.Default()}
+	uses := make(map[*syntax.Name]Object)
+	types := make(map[syntax.Expr]TypeAndValue)
+	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Uses: uses, Types: types})
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
 		return
@@ -160,9 +162,9 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 
 	// find called function
 	n := 0
-	var fun ast.Expr
+	var fun syntax.Expr
 	for x := range types {
-		if call, _ := x.(*ast.CallExpr); call != nil {
+		if call, _ := x.(*syntax.CallExpr); call != nil {
 			fun = call.Fun
 			n++
 		}
@@ -188,15 +190,15 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 		// called function must be a (possibly parenthesized, qualified)
 		// identifier denoting the expected built-in
 		switch p := fun.(type) {
-		case *ast.Ident:
+		case *syntax.Name:
 			obj := uses[p]
 			if obj == nil {
-				t.Errorf("%s: no object found for %s", src0, p)
+				t.Errorf("%s: no object found for %s", src0, p.Value)
 				return
 			}
 			bin, _ := obj.(*Builtin)
 			if bin == nil {
-				t.Errorf("%s: %s does not denote a built-in", src0, p)
+				t.Errorf("%s: %s does not denote a built-in", src0, p.Value)
 				return
 			}
 			if bin.Name() != name {
@@ -205,10 +207,10 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 			}
 			return // we're done
 
-		case *ast.ParenExpr:
+		case *syntax.ParenExpr:
 			fun = p.X // unpack
 
-		case *ast.SelectorExpr:
+		case *syntax.SelectorExpr:
 			// built-in from package unsafe - ignore details
 			return // we're done
 

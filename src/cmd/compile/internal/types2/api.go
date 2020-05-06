@@ -10,56 +10,54 @@
 //
 // Type-checking consists of several interdependent phases:
 //
-// Name resolution maps each identifier (ast.Ident) in the program to the
+// Name resolution maps each identifier (syntax.Name) in the program to the
 // language object (Object) it denotes.
 // Use Info.{Defs,Uses,Implicits} for the results of name resolution.
 //
 // Constant folding computes the exact constant value (constant.Value)
-// for every expression (ast.Expr) that is a compile-time constant.
+// for every expression (syntax.Expr) that is a compile-time constant.
 // Use Info.Types[expr].Value for the results of constant folding.
 //
-// Type inference computes the type (Type) of every expression (ast.Expr)
+// Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
 //
 // For a tutorial, see https://golang.org/s/types-tutorial.
 //
-package types
+package types2
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/constant"
-	"go/token"
 )
 
 // If AcceptContracts is set, contracts are accepted.
-const AcceptContracts = true
+const AcceptContracts = false
 
 // An Error describes a type-checking error; it implements the error interface.
 // A "soft" error is an error that still permits a valid interpretation of a
 // package (such as "unused variable"); "hard" errors may lead to unpredictable
 // behavior if ignored.
 type Error struct {
-	Fset *token.FileSet // file set for interpretation of Pos
-	Pos  token.Pos      // error position
-	Msg  string         // default error message, user-friendly
-	Full string         // full error message, for debugging (may contain internal details)
-	Soft bool           // if set, error is "soft"
+	Pos  syntax.Pos // error position
+	Msg  string     // default error message, user-friendly
+	Full string     // full error message, for debugging (may contain internal details)
+	Soft bool       // if set, error is "soft"
 }
 
 // Error returns an error string formatted as follows:
 // filename:line:column: message
 func (err Error) Error() string {
-	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
+	return fmt.Sprintf("%s: %s", err.Pos, err.Msg)
 }
 
 // FullError returns an error string like Error, buy it may contain
 // type-checker internal details such as subscript indices for type
 // parameters and more. Useful for debugging.
 func (err Error) FullError() string {
-	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Full)
+	return fmt.Sprintf("%s: %s", err.Pos, err.Full)
 }
 
 // An Importer resolves import paths to Packages.
@@ -167,12 +165,12 @@ type Info struct {
 	// identifier z in a variable declaration 'var z int' is found
 	// only in the Defs map, and identifiers denoting packages in
 	// qualified identifiers are collected in the Uses map.
-	Types map[ast.Expr]TypeAndValue
+	Types map[syntax.Expr]TypeAndValue
 
 	// Inferred maps calls of parameterized functions that use
 	// type inferrence to the inferred type arguments and signature
 	// of the function called.
-	Inferred map[*ast.CallExpr]Inferred
+	Inferred map[*syntax.CallExpr]Inferred
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -183,31 +181,31 @@ type Info struct {
 	// For an embedded field, Defs returns the field *Var it defines.
 	//
 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
-	Defs map[*ast.Ident]Object
+	Defs map[*syntax.Name]Object
 
 	// Uses maps identifiers to the objects they denote.
 	//
 	// For an embedded field, Uses returns the *TypeName it denotes.
 	//
 	// Invariant: Uses[id].Pos() != id.Pos()
-	Uses map[*ast.Ident]Object
+	Uses map[*syntax.Name]Object
 
 	// Implicits maps nodes to their implicitly declared objects, if any.
 	// The following node and object types may appear:
 	//
 	//     node               declared object
 	//
-	//     *ast.ImportSpec    *PkgName for imports without renames
-	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
+	//     *syntax.ImportDecl    *PkgName for imports without renames
+	//     *syntax.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+	//     *syntax.Field         anonymous parameter *Var (incl. unnamed results)
 	//
-	Implicits map[ast.Node]Object
+	Implicits map[syntax.Node]Object
 
 	// Selections maps selector expressions (excluding qualified identifiers)
 	// to their corresponding selections.
-	Selections map[*ast.SelectorExpr]*Selection
+	Selections map[*syntax.SelectorExpr]*Selection
 
-	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
+	// Scopes maps syntax.Nodes to the scopes they define. Package scopes are not
 	// associated with a specific node but with all files belonging to a package.
 	// Thus, the package scope can be found in the type-checked Package object.
 	// Scopes nest, with the Universe scope being the outermost scope, enclosing
@@ -219,18 +217,16 @@ type Info struct {
 	//
 	// The following node types may appear in Scopes:
 	//
-	//     *ast.File
-	//     *ast.FuncType
-	//     *ast.BlockStmt
-	//     *ast.IfStmt
-	//     *ast.SwitchStmt
-	//     *ast.TypeSwitchStmt
-	//     *ast.CaseClause
-	//     *ast.CommClause
-	//     *ast.ForStmt
-	//     *ast.RangeStmt
+	//     *syntax.File
+	//     *syntax.FuncType
+	//     *syntax.BlockStmt
+	//     *syntax.IfStmt
+	//     *syntax.SwitchStmt
+	//     *syntax.CaseClause
+	//     *syntax.CommClause
+	//     *syntax.ForStmt
 	//
-	Scopes map[ast.Node]*Scope
+	Scopes map[syntax.Node]*Scope
 
 	// InitOrder is the list of package-level initializers in the order in which
 	// they must be executed. Initializers referring to variables related by an
@@ -243,11 +239,11 @@ type Info struct {
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
 //
-func (info *Info) TypeOf(e ast.Expr) Type {
+func (info *Info) TypeOf(e syntax.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
 	}
-	if id, _ := e.(*ast.Ident); id != nil {
+	if id, _ := e.(*syntax.Name); id != nil {
 		if obj := info.ObjectOf(id); obj != nil {
 			return obj.Type()
 		}
@@ -263,7 +259,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 //
 // Precondition: the Uses and Defs maps are populated.
 //
-func (info *Info) ObjectOf(id *ast.Ident) Object {
+func (info *Info) ObjectOf(id *syntax.Name) Object {
 	if obj := info.Defs[id]; obj != nil {
 		return obj
 	}
@@ -342,7 +338,7 @@ type Inferred struct {
 // expression.
 type Initializer struct {
 	Lhs []*Var // var Lhs = Rhs
-	Rhs ast.Expr
+	Rhs syntax.Expr
 }
 
 func (init *Initializer) String() string {
@@ -366,12 +362,12 @@ func (init *Initializer) String() string {
 // incomplete. See Config.Error for controlling behavior in the presence of
 // errors.
 //
-// The package is specified by a list of *ast.Files and corresponding
+// The package is specified by a list of *syntax.Files and corresponding
 // file set, and the package path the package is identified with.
 // The clean path must not be empty or dot (".").
-func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
+func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Package, error) {
 	pkg := NewPackage(path, "")
-	return pkg, NewChecker(conf, fset, pkg, info).Files(files)
+	return pkg, NewChecker(conf, pkg, info).Files(files)
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.

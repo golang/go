@@ -5,7 +5,7 @@
 // This is a copy of the file generated during the gccgo build process.
 // Last update 2019-01-22.
 
-package types
+package types2
 
 var gccgoArchSizes = map[string]*StdSizes{
 	"386":         {4, 4},

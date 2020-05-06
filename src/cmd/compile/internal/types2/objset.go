@@ -8,7 +8,7 @@
 // are identified by their unique id, instead of their
 // object name.
 
-package types
+package types2
 
 // An objset is a set of objects identified by their unique id.
 // The zero value for objset is a ready-to-use empty objset.

@@ -1,5 +1,9 @@
 package p
 
+type B(type P) interface{}
+
+func _f(type P B)() {}
+
 // These are only ok if AcceptContracts = false.
 // (The comparable contract cannot be embedded in Bound.)
 /*

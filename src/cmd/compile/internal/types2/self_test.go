@@ -2,33 +2,34 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
+	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/importer"
-	"go/parser"
 	"go/token"
 	"path/filepath"
 	"testing"
 	"time"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 var benchmark = flag.Bool("b", false, "run benchmarks")
 
 func TestSelf(t *testing.T) {
-	fset := token.NewFileSet()
+	t.Skip("requires imports")
+
 	files, err := pkgFiles(fset, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conf := Config{Importer: importer.Default()}
-	_, err = conf.Check("go/types", fset, files, nil)
+	unimplemented()
+	var conf Config
+	// conf := Config{Importer: importer.Default()}
+	_, err = conf.Check("go/types", files, nil)
 	if err != nil {
 		// Importing go/constant doesn't work in the
 		// build dashboard environment. Don't report an error
@@ -65,7 +66,7 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	b := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			conf := Config{IgnoreFuncBodies: ignoreFuncBodies}
-			conf.Check(path, fset, files, nil)
+			conf.Check(path, files, nil)
 		}
 	})
 
@@ -83,15 +84,15 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 	)
 }
 
-func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
+func pkgFiles(fset *token.FileSet, path string) ([]*syntax.File, error) {
 	filenames, err := pkgFilenames(path) // from stdlib_test.go
 	if err != nil {
 		return nil, err
 	}
 
-	var files []*ast.File
+	var files []*syntax.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err != nil {
 			return nil, err
 		}

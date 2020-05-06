@@ -2,30 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
 	"internal/testenv"
 	"testing"
 
-	. "go/types"
+	"cmd/compile/internal/syntax"
+	. "cmd/compile/internal/types2"
 )
 
 const filename = "<src>"
 
 func makePkg(src string) (*Package, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+	//file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+	file, err := parseSrc(filename, src)
 	if err != nil {
 		return nil, err
 	}
 	// use the package name as package path
-	conf := Config{Importer: importer.Default()}
-	return conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
+	var conf Config
+	//conf := Config{Importer: importer.Default()}
+	return conf.Check(file.PkgName.Value, []*syntax.File{file}, nil)
 }
 
 type testEntry struct {
@@ -129,10 +127,13 @@ func TestTypeString(t *testing.T) {
 
 	var tests []testEntry
 	tests = append(tests, independentTestTypes...)
-	tests = append(tests, dependentTestTypes...)
+
+	// TODO(gri) can't do these for now without an importer
+	// tests = append(tests, dependentTestTypes...)
 
 	for _, test := range tests {
-		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
+		// src := `package p; import "io"; type _ io.Writer; type T ` + test.src
+		src := `package p; type T ` + test.src
 		pkg, err := makePkg(src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
@@ -145,9 +146,11 @@ func TestTypeString(t *testing.T) {
 	}
 }
 
+var nopos syntax.Pos
+
 func TestIncompleteInterfaces(t *testing.T) {
 	sig := NewSignature(nil, nil, nil, false)
-	m := NewFunc(token.NoPos, nil, "m", sig)
+	m := NewFunc(nopos, nil, "m", sig)
 	for _, test := range []struct {
 		typ  *Interface
 		want string
@@ -193,7 +196,7 @@ func TestIncompleteInterfaces(t *testing.T) {
 // newDefined creates a new defined type named T with the given underlying type.
 // Helper function for use with TestIncompleteInterfaces only.
 func newDefined(underlying Type) *Named {
-	tname := NewTypeName(token.NoPos, nil, "T", nil)
+	tname := NewTypeName(nopos, nil, "T", nil)
 	return NewNamed(tname, underlying, nil)
 }
 

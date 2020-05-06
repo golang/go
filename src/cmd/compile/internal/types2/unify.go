@@ -4,10 +4,9 @@
 
 // This file implements type unification.
 
-package types
+package types2
 
 import (
-	"go/token"
 	"sort"
 )
 
@@ -252,8 +251,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 			// that case, interfaces are expected to be complete and lazy completion
 			// here is not needed.
 			if u.check != nil {
-				u.check.completeInterface(token.NoPos, x)
-				u.check.completeInterface(token.NoPos, y)
+				u.check.completeInterface(nopos, x)
+				u.check.completeInterface(nopos, y)
 			}
 			a := x.allMethods
 			b := y.allMethods

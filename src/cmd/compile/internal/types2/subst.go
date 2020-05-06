@@ -6,12 +6,12 @@
 // through substitution of type parameters by actual
 // types.
 
-package types
+package types2
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/token"
 )
 
 type substMap struct {
@@ -52,7 +52,7 @@ func (m *substMap) lookup(typ *TypeParam) Type {
 	return typ
 }
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
+func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslist []syntax.Pos) (res Type) {
 	if check.conf.Trace {
 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
@@ -194,7 +194,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 // subst returns the type typ with its type parameters tpars replaced by
 // the corresponding type arguments targs, recursively.
-func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
+func (check *Checker) subst(pos syntax.Pos, typ Type, smap *substMap) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -214,7 +214,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
 
 type subster struct {
 	check *Checker
-	pos   token.Pos
+	pos   syntax.Pos
 	cache map[Type]Type
 	smap  *substMap
 }
@@ -278,7 +278,7 @@ func (subst *subster) typ(typ Type) Type {
 		if mcopied || tcopied || ecopied {
 			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
-			subst.check.completeInterface(token.NoPos, iface)
+			subst.check.completeInterface(nopos, iface)
 			return iface
 		}
 
@@ -381,7 +381,7 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.typ(t.expand())
 
 	default:
-		panic("unimplemented")
+		unimplemented()
 	}
 
 	return typ

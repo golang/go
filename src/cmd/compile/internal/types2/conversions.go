@@ -4,7 +4,7 @@
 
 // This file implements typechecking of conversions.
 
-package types
+package types2
 
 import "go/constant"
 

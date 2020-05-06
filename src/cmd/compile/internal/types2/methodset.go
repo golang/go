@@ -4,7 +4,7 @@
 
 // This file implements method sets.
 
-package types
+package types2
 
 import (
 	"fmt"

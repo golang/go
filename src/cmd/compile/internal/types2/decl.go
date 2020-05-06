@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types2
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/constant"
-	"go/token"
 )
 
 func (check *Checker) reportAltDecl(obj Object) {
-	if pos := obj.Pos(); pos.IsValid() {
+	if pos := obj.Pos(); pos.IsKnown() {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
@@ -20,7 +19,7 @@ func (check *Checker) reportAltDecl(obj Object) {
 	}
 }
 
-func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token.Pos) {
+func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
 	// spec: "The blank identifier, represented by the underscore
 	// character _, may be used in a declaration like any other
 	// identifier but the declaration does not introduce a new
@@ -204,13 +203,13 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
-	case *Contract:
-		if !AcceptContracts {
-			check.errorf(obj.pos, "contracts are not accepted")
-			obj.typ = Typ[Invalid]
-			break
-		}
-		check.contractDecl(obj, d.cdecl)
+	// case *Contract:
+	// 	if !AcceptContracts {
+	// 		check.errorf(obj.pos, "contracts are not accepted")
+	// 		obj.typ = Typ[Invalid]
+	// 		break
+	// 	}
+	// 	check.contractDecl(obj, d.cdecl)
 	default:
 		unreachable()
 	}
@@ -252,7 +251,7 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 			// this information explicitly in the object.
 			var alias bool
 			if d := check.objMap[obj]; d != nil {
-				alias = d.tdecl.Assign.IsValid() // package-level object
+				alias = d.tdecl.Alias // package-level object
 			} else {
 				alias = obj.IsAlias() // function local object
 			}
@@ -389,19 +388,52 @@ func (check *Checker) cycleError(cycle []Object) {
 	check.errorf(obj.Pos(), "\t%s", obj.Name())
 }
 
+// TODO(gri) This functionality should probably be with the Pos implementation.
+func cmpPos(p, q syntax.Pos) int {
+	// TODO(gri) is RelFilename correct here?
+	pname := p.RelFilename()
+	qname := q.RelFilename()
+	switch {
+	case pname < qname:
+		return -1
+	case pname > qname:
+		return +1
+	}
+
+	pline := p.Line()
+	qline := q.Line()
+	switch {
+	case pline < qline:
+		return -1
+	case pline > qline:
+		return +1
+	}
+
+	pcol := p.Col()
+	qcol := q.Col()
+	switch {
+	case pcol < qcol:
+		return -1
+	case pcol > qcol:
+		return +1
+	}
+
+	return 0
+}
+
 // firstInSrc reports the index of the object with the "smallest"
 // source position in path. path must not be empty.
 func firstInSrc(path []Object) int {
 	fst, pos := 0, path[0].Pos()
 	for i, t := range path[1:] {
-		if t.Pos() < pos {
+		if cmpPos(t.Pos(), pos) < 0 {
 			fst, pos = i+1, t.Pos()
 		}
 	}
 	return fst
 }
 
-func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
 	assert(obj.typ == nil)
 
 	// use the correct value of iota
@@ -434,7 +466,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	check.initConst(obj, &x)
 }
 
-func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	assert(obj.typ == nil)
 
 	// determine type, if any
@@ -491,7 +523,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 		}
 	}
 
-	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
+	check.initVars(lhs, []syntax.Expr{init}, nopos)
 }
 
 // Under returns the expanded underlying type of n0; possibly by following
@@ -561,18 +593,19 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named) {
 	assert(obj.typ == nil)
 
 	check.later(func() {
 		check.validType(obj.typ, nil)
 	})
 
-	if tdecl.Assign.IsValid() {
+	if tdecl.Alias {
 		// type alias declaration
 
-		if tdecl.TParams != nil {
-			check.errorf(tdecl.TParams.Pos(), "type alias cannot be parameterized")
+		if tdecl.TParamList != nil {
+			// check.errorf(tdecl.TParamList.Pos(), "type alias cannot be parameterized")
+			check.errorf(tdecl.Pos(), "type alias cannot be parameterized")
 			// continue but ignore type parameters
 		}
 
@@ -586,10 +619,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
 
-		if tdecl.TParams != nil {
+		if tdecl.TParamList != nil {
 			check.openScope(tdecl, "type parameters")
 			defer check.closeScope()
-			named.tparams = check.collectTypeParams(tdecl.TParams)
+			named.tparams = check.collectTypeParams(tdecl.TParamList)
 		}
 
 		// determine underlying type of named
@@ -615,92 +648,56 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 }
 
-func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
+func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeName) {
 	// Declare type parameters up-front, with empty interface as type bound.
 	// If we use interfaces as type bounds, the scope of type parameters starts at
 	// the beginning of the type parameter list (so we can have mutually recursive
-	// parameterized interfaces). If we use contracts, it doesn't matter that the
-	// type parameters are all declared early (it's not observable since a contract
-	// always applies to the type parameter names immediately preceeding it).
-	for _, f := range list.List {
-		tparams = check.declareTypeParams(tparams, f.Names)
+	// parameterized interfaces).
+	for _, f := range list {
+		tparams = check.declareTypeParam(tparams, f.Name)
 	}
 
-	// If the type parameters are constraint via contracts, ensure that each type
-	// parameter is used at most once. Create a map to check this correspondence.
-	// Eventually, we may be able to relax this constraint and remove the need for
-	// this map.
-	unused := make(map[*TypeParam]bool, len(tparams))
-	for _, tname := range tparams {
-		unused[tname.typ.(*TypeParam)] = true
-	}
+	for i, j := 0, 0; i < len(list); i = j {
+		f := list[i]
+		ftype := f.Type
 
-	setBoundAt := func(at int, bound Type) {
-		assert(IsInterface(bound))
-		tparams[at].typ.(*TypeParam).bound = bound
-	}
-
-	index := 0
-	for _, f := range list.List {
-		if f.Type == nil {
-			goto next
+		// determine the range of type parameters list[i:j] with identical type bound
+		// (declared as in (type a, b, c B))
+		j = i + 1
+		for j < len(list) && list[j].Type == ftype {
+			j++
 		}
 
-		// If f.Type denotes a contract, handle everything here so we don't
-		// need to set up a special contract mode for operands just to carry
-		// its information through in form of some contract Type.
-		if obj, targs, valid := check.contractExpr(f.Type, unused); obj != nil {
-			// we have a (possibly invalid) contract expression
-			if !valid {
-				goto next
-			}
-			// TODO(gri) can we have this code below also be handled by contractExpr?
-			if targs == nil {
-				// obj denotes a valid uninstantiated contract =>
-				// use the declared type parameters as "arguments"
-				if len(f.Names) != len(obj.TParams) {
-					check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(obj.TParams))
-					goto next
-				}
-				// Use contract's matching type parameter bound and
-				// instantiate it with the actual type arguments targs.
-				targs := make([]Type, len(f.Names))
-				for i, tparam := range tparams[index : index+len(f.Names)] {
-					targs[i] = tparam.typ
-				}
-				for i, name := range f.Names {
-					bound := obj.Bounds[i]
-					setBoundAt(index+i, check.instantiate(name.Pos(), bound, targs, nil))
-				}
-			}
-			goto next
+		// this should never be the case, but be careful
+		if ftype == nil {
+			continue
 		}
 
-		// otherwise, bound must be an interface
 		// TODO(gri) We should try to delay the IsInterface check
 		//           as it may expand a possibly incomplete type.
-		if bound := check.anyType(f.Type); IsInterface(bound) {
+		if bound := check.anyType(ftype); IsInterface(bound) {
 			// If we have exactly one type parameter and the type bound expects exactly
 			// one type argument, permit leaving away the type argument for the type
 			// bound. This allows us to write (type T B(T)) as (type T B) instead.
 			if isGeneric(bound) {
+				// bound has not been instantiated yet
 				base := bound.(*Named) // only a *Named type can be generic
-				if len(f.Names) != 1 || len(base.tparams) != 1 {
+				if j-i != 1 || len(base.tparams) != 1 {
 					// TODO(gri) make this error message better
-					check.errorf(f.Type.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)
+					check.errorf(ftype.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)
 					bound = Typ[Invalid]
-					goto next
+					continue
 				}
 				// We have and expect exactly one type parameter.
 				// "Manually" instantiate the bound with the parameter.
 				// TODO(gri) this code (in more general form) is also in
-				// checker.typInternal for the *ast.CallExpr case. Factor?
+				// checker.typInternal for the *syntax.CallExpr case. Factor?
 				typ := new(instance)
 				typ.check = check
-				typ.pos = f.Type.Pos()
+				typ.pos = ftype.Pos()
 				typ.base = base
-				typ.targs = []Type{tparams[index].typ}
-				typ.poslist = []token.Pos{f.Names[0].Pos()}
+				typ.targs = []Type{tparams[i].typ}
+				typ.poslist = []syntax.Pos{f.Name.Pos()}
 				// make sure we check instantiation works at least once
 				// and that the resulting type is valid
 				check.atEnd(func() {
@@ -709,17 +706,16 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 				})
 				// update bound and recorded type
 				bound = typ
-				check.recordTypeAndValue(f.Type, typexpr, typ, nil)
+				check.recordTypeAndValue(ftype, typexpr, typ, nil)
 			}
-			for i, _ := range f.Names {
-				setBoundAt(index+i, bound)
+			// set the type bounds
+			for i < j {
+				tparams[i].typ.(*TypeParam).bound = bound
+				i++
 			}
 		} else if bound != Typ[Invalid] {
 			check.errorf(f.Type.Pos(), "%s is not an interface or contract", bound)
 		}
-
-	next:
-		index += len(f.Names)
 	}
 
 	return
@@ -739,45 +735,45 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 // If x is a valid instantiated contract expression, targs is the list
 // of (incomming) type parameters used as arguments for the contract,
 // with their type bounds set according to the contract.
-func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj *Contract, targs []Type, valid bool) {
+func (check *Checker) contractExpr(x syntax.Expr, unused map[*TypeParam]bool) (obj *Contract, targs []Type, valid bool) {
 	// permit any parenthesized expression
 	x = unparen(x)
 
 	// a call expression might be an instantiated contract => unpack
-	var call *ast.CallExpr
-	if call, _ = x.(*ast.CallExpr); call != nil {
+	var call *syntax.CallExpr
+	if call, _ = x.(*syntax.CallExpr); call != nil {
 		x = call.Fun
 	}
 
 	// determine contract obj
 	switch x := x.(type) {
-	case *ast.Ident:
+	case *syntax.Name:
 		// local contract
-		if obj, _ = check.lookup(x.Name).(*Contract); obj != nil {
+		if obj, _ = check.lookup(x.Value).(*Contract); obj != nil {
 			// set up contract if not yet done
 			if obj.typ == nil {
 				check.objDecl(obj, nil)
 			}
 		}
 
-	case *ast.SelectorExpr:
+	case *syntax.SelectorExpr:
 		// imported contract
 		// TODO(gri) use a shared function between this and check.selector
-		if ident, _ := x.X.(*ast.Ident); ident != nil {
-			identObj := check.lookup(ident.Name)
+		if ident, _ := x.X.(*syntax.Name); ident != nil {
+			identObj := check.lookup(ident.Value)
 			if pname, _ := identObj.(*PkgName); pname != nil {
 				assert(pname.pkg == check.pkg)
 				check.recordUse(ident, pname)
 				pname.used = true
 				pkg := pname.imported
-				exp := pkg.scope.Lookup(x.Sel.Name)
+				exp := pkg.scope.Lookup(x.Sel.Value)
 				if exp == nil {
 					if !pkg.fake {
-						check.errorf(x.Pos(), "%s not declared by package %s", x, pkg.name)
+						check.errorf(x.Pos(), "%s not declared by package %s", ident.Value, pkg.name)
 						return
 					}
 				} else if !exp.Exported() {
-					check.errorf(x.Pos(), "%s not exported by packge %s", x, pkg.name)
+					check.errorf(x.Pos(), "%s not exported by packge %s", ident.Value, pkg.name)
 					return
 				} else {
 					obj, _ = exp.(*Contract)
@@ -793,22 +789,22 @@ func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj 
 	assert(obj.typ != nil)
 	if obj.typ == Typ[Invalid] {
 		if call != nil {
-			check.use(call.Args...)
+			check.use(call.ArgList...)
 		}
 		return // we have a contract but it's broken
 	}
 
 	if call != nil {
 		// collect type arguments
-		if len(call.Args) != len(obj.TParams) {
-			check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.Args), len(obj.TParams))
-			check.use(call.Args...)
+		if len(call.ArgList) != len(obj.TParams) {
+			check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.ArgList), len(obj.TParams))
+			check.use(call.ArgList...)
 			return
 		}
 		// For now, a contract type argument must be one of the (incoming)
 		// type parameters, and each of these type parameters may be used
 		// at most once.
-		for _, arg := range call.Args {
+		for _, arg := range call.ArgList {
 			targ := check.typ(arg)
 			if tparam, _ := targ.(*TypeParam); tparam != nil {
 				if ok, found := unused[tparam]; ok {
@@ -823,14 +819,14 @@ func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj 
 				check.errorf(arg.Pos(), "%s is not a type parameter (not supported due to implementation restriction)", arg)
 			}
 		}
-		if len(targs) != len(call.Args) {
+		if len(targs) != len(call.ArgList) {
 			return // some arguments are invalid
 		}
 		// Use contract's matching type parameter bound, instantiate
 		// it with the actual type arguments targs, and set the bound
 		// for the type parameter.
 		for i, bound := range obj.Bounds {
-			targs[i].(*TypeParam).bound = check.instantiate(call.Args[i].Pos(), bound, targs, nil).(*Named)
+			targs[i].(*TypeParam).bound = check.instantiate(call.ArgList[i].Pos(), bound, targs, nil).(*Named)
 		}
 	}
 
@@ -838,16 +834,14 @@ func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj 
 	return
 }
 
-func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
-	for _, name := range names {
-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
-		tparams = append(tparams, tpar)
-	}
+func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
+	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+	tparams = append(tparams, tpar)
 
-	if check.conf.Trace && len(names) > 0 {
-		check.trace(names[0].Pos(), "type params = %v", tparams[len(tparams)-len(names):])
+	if check.conf.Trace {
+		check.trace(name.Pos(), "type param = %v", tparams[len(tparams)-1])
 	}
 
 	return tparams
@@ -863,7 +857,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		return
 	}
 	delete(check.methods, obj)
-	assert(!check.objMap[obj].tdecl.Assign.IsValid()) // don't use TypeName.IsAlias (requires fully set up object)
+	assert(!check.objMap[obj].tdecl.Alias) // don't use TypeName.IsAlias (requires fully set up object)
 
 	// use an objset to check for name conflicts
 	var mset objset
@@ -931,7 +925,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	saved := obj.color_
 	obj.color_ = black
 	fdecl := decl.fdecl
-	check.funcType(sig, fdecl.Recv, fdecl.Type)
+	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
 	obj.color_ = saved
 
 	// function body must be type-checked after global declarations
@@ -943,133 +937,134 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	}
 }
 
-func (check *Checker) declStmt(decl ast.Decl) {
+func (check *Checker) declStmt(list []syntax.Decl) {
 	pkg := check.pkg
 
-	switch d := decl.(type) {
-	case *ast.BadDecl:
-		// ignore
-
-	case *ast.GenDecl:
-		var last *ast.ValueSpec // last ValueSpec with type or init exprs seen
-		for iota, spec := range d.Specs {
-			switch s := spec.(type) {
-			case *ast.ValueSpec:
-				switch d.Tok {
-				case token.CONST:
-					top := len(check.delayed)
-
-					// determine which init exprs to use
-					switch {
-					case s.Type != nil || len(s.Values) > 0:
-						last = s
-					case last == nil:
-						last = new(ast.ValueSpec) // make sure last exists
-					}
-
-					// declare all constants
-					lhs := make([]*Const, len(s.Names))
-					for i, name := range s.Names {
-						obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
-						lhs[i] = obj
-
-						var init ast.Expr
-						if i < len(last.Values) {
-							init = last.Values[i]
-						}
-
-						check.constDecl(obj, last.Type, init)
-					}
-
-					check.arityMatch(s, last)
-
-					// process function literals in init expressions before scope changes
-					check.processDelayed(top)
-
-					// spec: "The scope of a constant or variable identifier declared
-					// inside a function begins at the end of the ConstSpec or VarSpec
-					// (ShortVarDecl for short variable declarations) and ends at the
-					// end of the innermost containing block."
-					scopePos := s.End()
-					for i, name := range s.Names {
-						check.declare(check.scope, name, lhs[i], scopePos)
-					}
-
-				case token.VAR:
-					top := len(check.delayed)
-
-					lhs0 := make([]*Var, len(s.Names))
-					for i, name := range s.Names {
-						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
-					}
-
-					// initialize all variables
-					for i, obj := range lhs0 {
-						var lhs []*Var
-						var init ast.Expr
-						switch len(s.Values) {
-						case len(s.Names):
-							// lhs and rhs match
-							init = s.Values[i]
-						case 1:
-							// rhs is expected to be a multi-valued expression
-							lhs = lhs0
-							init = s.Values[0]
-						default:
-							if i < len(s.Values) {
-								init = s.Values[i]
-							}
-						}
-						check.varDecl(obj, lhs, s.Type, init)
-						if len(s.Values) == 1 {
-							// If we have a single lhs variable we are done either way.
-							// If we have a single rhs expression, it must be a multi-
-							// valued expression, in which case handling the first lhs
-							// variable will cause all lhs variables to have a type
-							// assigned, and we are done as well.
-							if debug {
-								for _, obj := range lhs0 {
-									assert(obj.typ != nil)
-								}
-							}
-							break
-						}
-					}
-
-					check.arityMatch(s, nil)
-
-					// process function literals in init expressions before scope changes
-					check.processDelayed(top)
-
-					// declare all variables
-					// (only at this point are the variable scopes (parents) set)
-					scopePos := s.End() // see constant declarations
-					for i, name := range s.Names {
-						// see constant declarations
-						check.declare(check.scope, name, lhs0[i], scopePos)
-					}
-
-				default:
-					check.invalidAST(s.Pos(), "invalid token %s", d.Tok)
-				}
-
-			case *ast.TypeSpec:
-				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
-				// spec: "The scope of a type identifier declared inside a function
-				// begins at the identifier in the TypeSpec and ends at the end of
-				// the innermost containing block."
-				scopePos := s.Name.Pos()
-				check.declare(check.scope, s.Name, obj, scopePos)
-				// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
-				obj.setColor(grey + color(check.push(obj)))
-				check.typeDecl(obj, s, nil)
-				check.pop().setColor(black)
-			default:
-				check.invalidAST(s.Pos(), "const, type, or var declaration expected")
+	var iota int64             // valid if last != nil
+	var last *syntax.ConstDecl // last ConstDecl with type or init exprs seen
+	for _, decl := range list {
+		if last != nil {
+			if cdecl, _ := decl.(*syntax.ConstDecl); cdecl != nil && cdecl.Group == last.Group {
+				iota++
+			} else {
+				iota = 0
+				last = nil
 			}
 		}
 
-	default:
-		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+		switch s := decl.(type) {
+		case *syntax.ConstDecl:
+			top := len(check.delayed)
+
+			// determine which init exprs to use
+			values := unpack(s.Values)
+			switch {
+			case s.Type != nil || len(values) > 0:
+				last = s
+			case last == nil:
+				last = new(syntax.ConstDecl) // make sure last exists
+			}
+
+			// declare all constants
+			lhs := make([]*Const, len(s.NameList))
+			lastValues := unpack(last.Values)
+			for i, name := range s.NameList {
+				obj := NewConst(name.Pos(), pkg, name.Value, nil, constant.MakeInt64(int64(iota)))
+				lhs[i] = obj
+
+				var init syntax.Expr
+				if i < len(lastValues) {
+					init = lastValues[i]
+				}
+
+				check.constDecl(obj, last.Type, init)
+			}
+
+			//check.arityMatch(s, last)
+			check.arityMatch(s.Pos(), s.NameList, s.Type, unpack(s.Values), lastValues)
+
+			// process function literals in init expressions before scope changes
+			check.processDelayed(top)
+
+			// spec: "The scope of a constant or variable identifier declared
+			// inside a function begins at the end of the ConstSpec or VarSpec
+			// (ShortVarDecl for short variable declarations) and ends at the
+			// end of the innermost containing block."
+			scopePos := endPos("s.End()")
+			for i, name := range s.NameList {
+				check.declare(check.scope, name, lhs[i], scopePos)
+			}
+
+		case *syntax.VarDecl:
+			top := len(check.delayed)
+
+			lhs0 := make([]*Var, len(s.NameList))
+			for i, name := range s.NameList {
+				lhs0[i] = NewVar(name.Pos(), pkg, name.Value, nil)
+			}
+
+			// initialize all variables
+			values := unpack(s.Values)
+			for i, obj := range lhs0 {
+				var lhs []*Var
+				var init syntax.Expr
+				switch len(values) {
+				case len(s.NameList):
+					// lhs and rhs match
+					init = values[i]
+				case 1:
+					// rhs is expected to be a multi-valued expression
+					lhs = lhs0
+					init = values[0]
+				default:
+					if i < len(values) {
+						init = values[i]
+					}
+				}
+				check.varDecl(obj, lhs, s.Type, init)
+				if len(values) == 1 {
+					// If we have a single lhs variable we are done either way.
+					// If we have a single rhs expression, it must be a multi-
+					// valued expression, in which case handling the first lhs
+					// variable will cause all lhs variables to have a type
+					// assigned, and we are done as well.
+					if debug {
+						for _, obj := range lhs0 {
+							assert(obj.typ != nil)
+						}
+					}
+					break
+				}
+			}
+
+			//check.arityMatch(s, nil)
+			check.arityMatch(s.Pos(), s.NameList, s.Type, values, nil)
+
+			// process function literals in init expressions before scope changes
+			check.processDelayed(top)
+
+			// declare all variables
+			// (only at this point are the variable scopes (parents) set)
+			scopePos := endPos("s.End()") // see constant declarations
+			for i, name := range s.NameList {
+				// see constant declarations
+				check.declare(check.scope, name, lhs0[i], scopePos)
+			}
+
+		case *syntax.TypeDecl:
+			obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+			// spec: "The scope of a type identifier declared inside a function
+			// begins at the identifier in the TypeSpec and ends at the end of
+			// the innermost containing block."
+			scopePos := s.Name.Pos()
+			check.declare(check.scope, s.Name, obj, scopePos)
+			// mark and unmark type before calling typeDecl; its type is still nil (see Checker.objDecl)
+			obj.setColor(grey + color(check.push(obj)))
+			check.typeDecl(obj, s, nil)
+			check.pop().setColor(black)
+
+		default:
+			check.invalidAST(s.Pos(), "unknown syntax.Decl node %T", s)
+		}
 	}
 }

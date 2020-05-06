@@ -4,24 +4,22 @@
 
 // This file implements tests for various issues.
 
-package types_test
+package types2_test
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
-	"go/importer"
-	"go/parser"
 	"internal/testenv"
 	"sort"
 	"strings"
 	"testing"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
-func mustParse(t *testing.T, src string) *ast.File {
-	f, err := parser.ParseFile(fset, "", src, 0)
+func mustParse(t *testing.T, src string) *syntax.File {
+	f, err := parseSrc("", src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,8 +27,9 @@ func mustParse(t *testing.T, src string) *ast.File {
 }
 func TestIssue5770(t *testing.T) {
 	f := mustParse(t, `package p; type S struct{T}`)
-	conf := Config{Importer: importer.Default()}
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	var conf Config
+	// conf := Config{Importer: importer.Default()}
+	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
 	want := "undeclared name: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -52,8 +51,8 @@ var (
 	f := mustParse(t, src)
 
 	var conf Config
-	types := make(map[ast.Expr]TypeAndValue)
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+	types := make(map[syntax.Expr]TypeAndValue)
+	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +60,7 @@ var (
 	for x, tv := range types {
 		var want Type
 		switch x := x.(type) {
-		case *ast.BasicLit:
+		case *syntax.BasicLit:
 			switch x.Value {
 			case `8`:
 				want = Typ[Uint8]
@@ -74,8 +73,8 @@ var (
 			case `"foo"`:
 				want = Typ[String]
 			}
-		case *ast.Ident:
-			if x.Name == "nil" {
+		case *syntax.Name:
+			if x.Value == "nil" {
 				want = Typ[UntypedNil]
 			}
 		}
@@ -97,8 +96,8 @@ func f() int {
 	f := mustParse(t, src)
 
 	var conf Config
-	types := make(map[ast.Expr]TypeAndValue)
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+	types := make(map[syntax.Expr]TypeAndValue)
+	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,9 +105,9 @@ func f() int {
 	want := Typ[Int]
 	n := 0
 	for x, tv := range types {
-		if _, ok := x.(*ast.CallExpr); ok {
+		if _, ok := x.(*syntax.CallExpr); ok {
 			if tv.Type != want {
-				t.Errorf("%s: got %s; want %s", fset.Position(x.Pos()), tv.Type, want)
+				t.Errorf("%s: got %s; want %s", x.Pos(), tv.Type, want)
 			}
 			n++
 		}
@@ -128,15 +127,15 @@ type T struct{} // receiver type after method declaration
 	f := mustParse(t, src)
 
 	var conf Config
-	defs := make(map[*ast.Ident]Object)
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs})
+	defs := make(map[*syntax.Name]Object)
+	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Defs: defs})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m := f.Decls[0].(*ast.FuncDecl)
+	m := f.DeclList[0].(*syntax.FuncDecl)
 	res1 := defs[m.Name].(*Func).Type().(*Signature).Results().At(0)
-	res2 := defs[m.Type.Results.List[0].Names[0]].(*Var)
+	res2 := defs[m.Type.ResultList[0].Name].(*Var)
 
 	if res1 != res2 {
 		t.Errorf("got %s (%p) != %s (%p)", res1, res2, res1, res2)
@@ -171,9 +170,9 @@ L7 uses var z int`
 
 	// don't abort at the first error
 	conf := Config{Error: func(err error) { t.Log(err) }}
-	defs := make(map[*ast.Ident]Object)
-	uses := make(map[*ast.Ident]Object)
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs, Uses: uses})
+	defs := make(map[*syntax.Name]Object)
+	uses := make(map[*syntax.Name]Object)
+	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Defs: defs, Uses: uses})
 	if s := fmt.Sprint(err); !strings.HasSuffix(s, "cannot assign to w") {
 		t.Errorf("Check: unexpected error: %s", s)
 	}
@@ -181,12 +180,12 @@ L7 uses var z int`
 	var facts []string
 	for id, obj := range defs {
 		if obj != nil {
-			fact := fmt.Sprintf("L%d defs %s", fset.Position(id.Pos()).Line, obj)
+			fact := fmt.Sprintf("L%d defs %s", id.Pos().Line(), obj)
 			facts = append(facts, fact)
 		}
 	}
 	for id, obj := range uses {
-		fact := fmt.Sprintf("L%d uses %s", fset.Position(id.Pos()).Line, obj)
+		fact := fmt.Sprintf("L%d uses %s", id.Pos().Line(), obj)
 		facts = append(facts, fact)
 	}
 	sort.Strings(facts)
@@ -204,6 +203,8 @@ L7 uses var z int`
 // test; we leave this test here to verify correct behavior at the go/types
 // level.
 func TestIssue13898(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	const src0 = `
@@ -253,9 +254,11 @@ func main() {
 `
 	f := func(test, src string) {
 		f := mustParse(t, src)
-		cfg := Config{Importer: importer.Default()}
-		info := Info{Uses: make(map[*ast.Ident]Object)}
-		_, err := cfg.Check("main", fset, []*ast.File{f}, &info)
+		unimplemented()
+		var conf Config
+		// conf := Config{Importer: importer.Default()}
+		info := Info{Uses: make(map[*syntax.Name]Object)}
+		_, err := conf.Check("main", []*syntax.File{f}, &info)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -263,7 +266,7 @@ func main() {
 		var pkg *Package
 		count := 0
 		for id, obj := range info.Uses {
-			if id.Name == "Pkg" {
+			if id.Value == "Pkg" {
 				pkg = obj.Pkg()
 				count++
 			}
@@ -272,7 +275,7 @@ func main() {
 			t.Fatalf("%s: got %d entries named Pkg; want 1", test, count)
 		}
 		if pkg.Name() != "types" {
-			t.Fatalf("%s: got %v; want package types", test, pkg)
+			t.Fatalf("%s: got %v; want package types2", test, pkg)
 		}
 	}
 
@@ -286,13 +289,13 @@ func TestIssue22525(t *testing.T) {
 
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
-	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
 	want := `
-1:27: a declared but not used
-1:30: b declared but not used
-1:33: c declared but not used
-1:36: d declared but not used
-1:39: e declared but not used
+:1:27: a declared but not used
+:1:30: b declared but not used
+:1:33: c declared but not used
+:1:36: d declared but not used
+:1:39: e declared but not used
 `
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
@@ -300,6 +303,8 @@ func TestIssue22525(t *testing.T) {
 }
 
 func TestIssue25627(t *testing.T) {
+	t.Skip("requires imports")
+
 	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
 	// The src strings (without prefix) are constructed such that the number of semicolons
 	// plus one corresponds to the number of fields expected in the respective struct.
@@ -314,26 +319,31 @@ func TestIssue25627(t *testing.T) {
 	} {
 		f := mustParse(t, prefix+src)
 
-		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
-		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
-		_, err := cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
+		unimplemented()
+		var conf Config
+		// conf := Config{Importer: importer.Default(), Error: func(err error) {}}
+		info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
+		_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 		if err != nil {
 			if _, ok := err.(Error); !ok {
 				t.Fatal(err)
 			}
 		}
 
-		ast.Inspect(f, func(n ast.Node) bool {
-			if spec, _ := n.(*ast.TypeSpec); spec != nil {
-				if tv, ok := info.Types[spec.Type]; ok && spec.Name.Name == "T" {
-					want := strings.Count(src, ";") + 1
-					if got := tv.Type.(*Struct).NumFields(); got != want {
-						t.Errorf("%s: got %d fields; want %d", src, got, want)
+		unimplemented()
+		/*
+			ast.Inspect(f, func(n syntax.Node) bool {
+				if spec, _ := n.(*syntax.TypeDecl); spec != nil {
+					if tv, ok := info.Types[spec.Type]; ok && spec.Name.Value == "T" {
+						want := strings.Count(src, ";") + 1
+						if got := tv.Type.(*Struct).NumFields(); got != want {
+							t.Errorf("%s: got %d fields; want %d", src, got, want)
+						}
 					}
 				}
-			}
-			return true
-		})
+				return true
+			})
+		*/
 	}
 }
 
@@ -347,7 +357,7 @@ func TestIssue28005(t *testing.T) {
 	}
 
 	// compute original file ASTs
-	var orig [len(sources)]*ast.File
+	var orig [len(sources)]*syntax.File
 	for i, src := range sources {
 		orig[i] = mustParse(t, src)
 	}
@@ -362,15 +372,15 @@ func TestIssue28005(t *testing.T) {
 		{2, 1, 0},
 	} {
 		// create file order permutation
-		files := make([]*ast.File, len(sources))
+		files := make([]*syntax.File, len(sources))
 		for i := range perm {
 			files[i] = orig[perm[i]]
 		}
 
 		// type-check package with given file order permutation
 		var conf Config
-		info := &Info{Defs: make(map[*ast.Ident]Object)}
-		_, err := conf.Check("", fset, files, info)
+		info := &Info{Defs: make(map[*syntax.Name]Object)}
+		_, err := conf.Check("", files, info)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -378,7 +388,7 @@ func TestIssue28005(t *testing.T) {
 		// look for interface object X
 		var obj Object
 		for name, def := range info.Defs {
-			if name.Name == "X" {
+			if name.Value == "X" {
 				obj = def
 				break
 			}
@@ -446,20 +456,20 @@ func TestIssue29029(t *testing.T) {
 
 	// type-check together
 	var conf Config
-	info := &Info{Defs: make(map[*ast.Ident]Object)}
-	check := NewChecker(&conf, fset, NewPackage("", "p"), info)
-	if err := check.Files([]*ast.File{f1, f2}); err != nil {
+	info := &Info{Defs: make(map[*syntax.Name]Object)}
+	check := NewChecker(&conf, NewPackage("", "p"), info)
+	if err := check.Files([]*syntax.File{f1, f2}); err != nil {
 		t.Fatal(err)
 	}
 	want := printInfo(info)
 
 	// type-check incrementally
-	info = &Info{Defs: make(map[*ast.Ident]Object)}
-	check = NewChecker(&conf, fset, NewPackage("", "p"), info)
-	if err := check.Files([]*ast.File{f1}); err != nil {
+	info = &Info{Defs: make(map[*syntax.Name]Object)}
+	check = NewChecker(&conf, NewPackage("", "p"), info)
+	if err := check.Files([]*syntax.File{f1}); err != nil {
 		t.Fatal(err)
 	}
-	if err := check.Files([]*ast.File{f2}); err != nil {
+	if err := check.Files([]*syntax.File{f2}); err != nil {
 		t.Fatal(err)
 	}
 	got := printInfo(info)
@@ -480,7 +490,7 @@ func TestIssue34151(t *testing.T) {
 
 	bast := mustParse(t, bsrc)
 	conf := Config{Importer: importHelper{a}}
-	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+	b, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
 	if err != nil {
 		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
 	}
@@ -519,7 +529,7 @@ func TestIssue34921(t *testing.T) {
 	for _, src := range sources {
 		f := mustParse(t, src)
 		conf := Config{Importer: importHelper{pkg}}
-		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+		res, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 		if err != nil {
 			t.Errorf("%q failed to typecheck: %v", src, err)
 		}

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types2
 
 import (
-	"go/token"
+	"cmd/compile/internal/syntax"
 	"sort"
 )
 
@@ -695,12 +695,12 @@ func (t *TypeParam) Bound() *Interface {
 // during type-checking and are replaced by their fully instantiated
 // (expanded) types before the end of type-checking.
 type instance struct {
-	check   *Checker    // for lazy instantiation
-	pos     token.Pos   // position of type instantiation; for error reporting only
-	base    *Named      // parameterized type to be instantiated
-	targs   []Type      // type arguments
-	poslist []token.Pos // position of each targ; for error reporting only
-	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
+	check   *Checker     // for lazy instantiation
+	pos     syntax.Pos   // position of type instantiation; for error reporting only
+	base    *Named       // parameterized type to be instantiated
+	targs   []Type       // type arguments
+	poslist []syntax.Pos // position of each targ; for error reporting only
+	value   Type         // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
 	aType
 }
 

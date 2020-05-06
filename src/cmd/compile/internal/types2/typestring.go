@@ -4,7 +4,7 @@
 
 // This file implements printing of types.
 
-package types
+package types2
 
 import (
 	"bytes"

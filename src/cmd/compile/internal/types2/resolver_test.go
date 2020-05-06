@@ -2,19 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
 	"internal/testenv"
 	"sort"
 	"testing"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 type resolveTestImporter struct {
@@ -31,8 +28,9 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
 		panic("mode must be 0")
 	}
 	if imp.importer == nil {
-		imp.importer = importer.Default().(ImporterFrom)
-		imp.imported = make(map[string]bool)
+		unimplemented()
+		// imp.importer = importer.Default().(ImporterFrom)
+		// imp.imported = make(map[string]bool)
 	}
 	pkg, err := imp.importer.ImportFrom(path, srcDir, mode)
 	if err != nil {
@@ -43,6 +41,8 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
 }
 
 func TestResolveIdents(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	sources := []string{
@@ -118,10 +118,9 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// parse package files
-	fset := token.NewFileSet()
-	var files []*ast.File
+	var files []*syntax.File
 	for i, src := range sources {
-		f, err := parser.ParseFile(fset, fmt.Sprintf("sources[%d]", i), src, parser.DeclarationErrors)
+		f, err := parseSrc(fmt.Sprintf("sources[%d]", i), src /*, parser.DeclarationErrors */)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -130,10 +129,12 @@ func TestResolveIdents(t *testing.T) {
 
 	// resolve and type-check package AST
 	importer := new(resolveTestImporter)
-	conf := Config{Importer: importer}
-	uses := make(map[*ast.Ident]Object)
-	defs := make(map[*ast.Ident]Object)
-	_, err := conf.Check("testResolveIdents", fset, files, &Info{Defs: defs, Uses: uses})
+	unimplemented()
+	var conf Config
+	// conf := Config{Importer: importer}
+	uses := make(map[*syntax.Name]Object)
+	defs := make(map[*syntax.Name]Object)
+	_, err := conf.Check("testResolveIdents", files, &Info{Defs: defs, Uses: uses})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,55 +148,59 @@ func TestResolveIdents(t *testing.T) {
 
 	// check that qualified identifiers are resolved
 	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			if s, ok := n.(*ast.SelectorExpr); ok {
-				if x, ok := s.X.(*ast.Ident); ok {
-					obj := uses[x]
-					if obj == nil {
-						t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
-						return false
-					}
-					if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
-						t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
-						return false
-					}
-					return false
-				}
-				return false
-			}
-			return true
-		})
+		unimplemented()
+		_ = f
+		// ast.Inspect(f, func(n syntax.Node) bool {
+		// 	if s, ok := n.(*syntax.SelectorExpr); ok {
+		// 		if x, ok := s.X.(*syntax.Name); ok {
+		// 			obj := uses[x]
+		// 			if obj == nil {
+		// 				t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
+		// 				return false
+		// 			}
+		// 			if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
+		// 				t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
+		// 				return false
+		// 			}
+		// 			return false
+		// 		}
+		// 		return false
+		// 	}
+		// 	return true
+		// })
 	}
 
 	for id, obj := range uses {
 		if obj == nil {
-			t.Errorf("%s: Uses[%s] == nil", fset.Position(id.Pos()), id.Name)
+			t.Errorf("%s: Uses[%s] == nil", id.Pos(), id.Value)
 		}
 	}
 
 	// check that each identifier in the source is found in uses or defs or both
 	var both []string
 	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
-			if x, ok := n.(*ast.Ident); ok {
-				var objects int
-				if _, found := uses[x]; found {
-					objects |= 1
-					delete(uses, x)
-				}
-				if _, found := defs[x]; found {
-					objects |= 2
-					delete(defs, x)
-				}
-				if objects == 0 {
-					t.Errorf("%s: unresolved identifier %s", fset.Position(x.Pos()), x.Name)
-				} else if objects == 3 {
-					both = append(both, x.Name)
-				}
-				return false
-			}
-			return true
-		})
+		unimplemented()
+		_ = f
+		// ast.Inspect(f, func(n syntax.Node) bool {
+		// 	if x, ok := n.(*syntax.Name); ok {
+		// 		var objects int
+		// 		if _, found := uses[x]; found {
+		// 			objects |= 1
+		// 			delete(uses, x)
+		// 		}
+		// 		if _, found := defs[x]; found {
+		// 			objects |= 2
+		// 			delete(defs, x)
+		// 		}
+		// 		if objects == 0 {
+		// 			t.Errorf("%s: unresolved identifier %s", x.Pos(), x.Value)
+		// 		} else if objects == 3 {
+		// 			both = append(both, x.Value)
+		// 		}
+		// 		return false
+		// 	}
+		// 	return true
+		// })
 	}
 
 	// check the expected set of idents that are simultaneously uses and defs
@@ -206,10 +211,10 @@ func TestResolveIdents(t *testing.T) {
 
 	// any left-over identifiers didn't exist in the source
 	for x := range uses {
-		t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
+		t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
 	}
 	for x := range defs {
-		t.Errorf("%s: identifier %s not present in source", fset.Position(x.Pos()), x.Name)
+		t.Errorf("%s: identifier %s not present in source", x.Pos(), x.Value)
 	}
 
 	// TODO(gri) add tests to check ImplicitObj callbacks

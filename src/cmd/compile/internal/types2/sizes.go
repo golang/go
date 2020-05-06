@@ -4,7 +4,7 @@
 
 // This file implements Sizes.
 
-package types
+package types2
 
 // Sizes defines the sizing functions for package unsafe.
 type Sizes interface {

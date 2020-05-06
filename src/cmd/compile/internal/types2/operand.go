@@ -4,12 +4,12 @@
 
 // This file defines operands and associated operations.
 
-package types
+package types2
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/constant"
 	"go/token"
 )
@@ -49,19 +49,19 @@ var operandModeString = [...]string{
 //
 type operand struct {
 	mode operandMode
-	expr ast.Expr
+	expr syntax.Expr
 	typ  Type
 	val  constant.Value
 	id   builtinId
 }
 
 // pos returns the position of the expression corresponding to x.
-// If x is invalid the position is token.NoPos.
+// If x is invalid the position is nopos.
 //
-func (x *operand) pos() token.Pos {
+func (x *operand) pos() syntax.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
-		return token.NoPos
+		return nopos
 	}
 	return x.expr.Pos()
 }
@@ -172,18 +172,24 @@ func (x *operand) String() string {
 }
 
 // setConst sets x to the untyped constant for literal lit.
-func (x *operand) setConst(tok token.Token, lit string) {
+func (x *operand) setConst(k syntax.LitKind, lit string) {
+	var tok token.Token
 	var kind BasicKind
-	switch tok {
-	case token.INT:
+	switch k {
+	case syntax.IntLit:
+		tok = token.INT
 		kind = UntypedInt
-	case token.FLOAT:
+	case syntax.FloatLit:
+		tok = token.FLOAT
 		kind = UntypedFloat
-	case token.IMAG:
+	case syntax.ImagLit:
+		tok = token.IMAG
 		kind = UntypedComplex
-	case token.CHAR:
+	case syntax.RuneLit:
+		tok = token.CHAR
 		kind = UntypedRune
-	case token.STRING:
+	case syntax.StringLit:
+		tok = token.STRING
 		kind = UntypedString
 	default:
 		unreachable()
@@ -241,7 +247,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
 		case *Interface:
-			check.completeInterface(token.NoPos, t)
+			check.completeInterface(nopos, t)
 			return x.isNil() || t.Empty()
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()

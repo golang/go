@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types
+package types2
 
 func sanitizeInfo(info *Info) {
 	var s sanitizer = make(map[Type]Type)
@@ -51,7 +51,7 @@ func (s sanitizer) typ(typ Type) Type {
 	s[typ] = typ
 
 	switch t := typ.(type) {
-	case nil, *Basic, *contractType:
+	case nil, *Basic:
 		// nothing to do
 
 	case *Array:
@@ -102,7 +102,7 @@ func (s sanitizer) typ(typ Type) Type {
 		s[t] = typ
 
 	default:
-		panic("unimplemented")
+		unimplemented()
 	}
 
 	return typ

@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
 	"io/ioutil"
 	"testing"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 var (
@@ -24,6 +21,8 @@ var (
 )
 
 func TestHilbert(t *testing.T) {
+	t.Skip("requires imports")
+
 	// generate source
 	src := program(*H, *out)
 	if *out != "" {
@@ -32,16 +31,18 @@ func TestHilbert(t *testing.T) {
 	}
 
 	// parse source
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "hilbert.go", src, 0)
+	// TODO(gri) get rid of []bytes to string conversion below
+	f, err := parseSrc("hilbert.go", string(src))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// type-check file
 	DefPredeclaredTestFuncs() // define assert built-in
-	conf := Config{Importer: importer.Default()}
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+	unimplemented()
+	//conf := Config{Importer: importer.Default()}
+	var conf Config
+	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

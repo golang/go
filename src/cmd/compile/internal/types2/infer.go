@@ -5,14 +5,14 @@
 // This file implements type parameter inference given
 // a list of concrete arguments and a parameter list.
 
-package types
+package types2
 
-import "go/token"
+import "cmd/compile/internal/syntax"
 
 // infer returns the list of actual type arguments for the given list of type parameters tparams
 // by inferring them from the actual arguments args for the parameters params. If infer fails to
 // determine all type arguments, an error is reported and the result is nil.
-func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
+func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
 	assert(params.Len() == len(args))
 
 	u := check.unifier()
@@ -100,7 +100,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	for i, tpar := range tparams {
 		targ := u.x.at(i)
 		if targ == nil {
-			ppos := check.fset.Position(tpar.pos).String()
+			ppos := tpar.pos.String()
 			check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
 			return nil
 		}

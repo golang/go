@@ -4,13 +4,12 @@
 
 // This file implements type-checking of identifiers and type expressions.
 
-package types
+package types2
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/constant"
-	"go/token"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,18 +20,18 @@ import (
 // For the meaning of def, see Checker.definedType, below.
 // If wantType is set, the identifier e is expected to denote a type.
 //
-func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool) {
+func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType bool) {
 	x.mode = invalid
 	x.expr = e
 
 	// Note that we cannot use check.lookup here because the returned scope
 	// may be different from obj.Parent(). See also Scope.LookupParent doc.
-	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+	scope, obj := check.scope.LookupParent(e.Value, check.pos)
 	if obj == nil {
-		if e.Name == "_" {
+		if e.Value == "_" {
 			check.errorf(e.Pos(), "cannot use _ as value or type")
 		} else {
-			check.errorf(e.Pos(), "undeclared name: %s", e.Name)
+			check.errorf(e.Pos(), "undeclared name: %s", e.Value)
 		}
 		return
 	}
@@ -129,13 +128,13 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
 // The type must not be an (uninstantiated) generic type.
-func (check *Checker) typ(e ast.Expr) Type {
+func (check *Checker) typ(e syntax.Expr) Type {
 	return check.definedType(e, nil)
 }
 
 // anyType type-checks the type expression e and returns its type, or Typ[Invalid].
 // The type may be generic or instantiated.
-func (check *Checker) anyType(e ast.Expr) Type {
+func (check *Checker) anyType(e syntax.Expr) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	check.recordTypeAndValue(e, typexpr, typ, nil)
@@ -147,7 +146,7 @@ func (check *Checker) anyType(e ast.Expr) Type {
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked.
 //
-func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
 	if isGeneric(typ) {
@@ -159,7 +158,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 }
 
 // genericType is like typ but the type must be an (uninstantiated) generic type.
-func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
+func (check *Checker) genericType(e syntax.Expr, reportErr bool) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
@@ -175,37 +174,46 @@ func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 
 // isubst returns an x with identifiers substituted per the substitution map smap.
 // isubst only handles the case of (valid) method receiver type expressions correctly.
-func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
+func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
 	switch n := x.(type) {
-	case *ast.Ident:
+	case *syntax.Name:
 		if alt := smap[n]; alt != nil {
 			return alt
 		}
-	case *ast.StarExpr:
-		X := isubst(n.X, smap)
-		if X != n.X {
-			new := *n
-			n.X = X
-			return &new
+	// case *syntax.StarExpr:
+	// 	X := isubst(n.X, smap)
+	// 	if X != n.X {
+	// 		new := *n
+	// 		n.X = X
+	// 		return &new
+	// 	}
+	case *syntax.Operation:
+		if n.Op == syntax.Mul && n.Y == nil {
+			X := isubst(n.X, smap)
+			if X != n.X {
+				new := *n
+				n.X = X
+				return &new
+			}
 		}
-	case *ast.CallExpr:
-		var args []ast.Expr
-		for i, arg := range n.Args {
+	case *syntax.CallExpr:
+		var args []syntax.Expr
+		for i, arg := range n.ArgList {
 			Arg := isubst(arg, smap)
 			if Arg != arg {
 				if args == nil {
-					args = make([]ast.Expr, len(n.Args))
-					copy(args, n.Args)
+					args = make([]syntax.Expr, len(n.ArgList))
+					copy(args, n.ArgList)
 				}
 				args[i] = Arg
 			}
 		}
 		if args != nil {
 			new := *n
-			new.Args = args
+			new.ArgList = args
 			return &new
 		}
-	case *ast.ParenExpr:
+	case *syntax.ParenExpr:
 		X := isubst(n.X, smap)
 		if X != n.X {
 			return X // no need to recreate the parentheses
@@ -219,42 +227,46 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []*syntax.Field, ftyp *syntax.FuncType) {
 	check.openScope(ftyp, "function")
 	check.scope.isFunc = true
 	check.recordScope(ftyp, check.scope)
 	sig.scope = check.scope
 	defer check.closeScope()
 
-	var recvTyp ast.Expr // rewritten receiver type; valid if != nil
-	if recvPar != nil && len(recvPar.List) > 0 {
+	var recvTyp syntax.Expr // rewritten receiver type; valid if != nil
+	if recvPar != nil {
 		// collect parameterized receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
-		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
+		_, rname, rparams := check.unpackRecv(recvPar.Type, true)
 		if len(rparams) > 0 {
 			// Blank identifiers don't get declared and regular type-checking of the instantiated
 			// parameterized receiver type expression fails in Checker.collectParams of receiver.
 			// Identify blank type parameters and substitute each with a unique new identifier named
 			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
 			// name.
-			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "!n" identifiers
+			var smap map[*syntax.Name]*syntax.Name // substitution map from "_" to "!n" identifiers
 			for i, p := range rparams {
-				if p.Name == "_" {
+				if p.Value == "_" {
 					new := *p
-					new.Name = fmt.Sprintf("%d_", i)
+					new.Value = fmt.Sprintf("%d_", i)
 					rparams[i] = &new // use n_ identifier instead of _ so it can be looked up
 					if smap == nil {
-						smap = make(map[*ast.Ident]*ast.Ident)
+						smap = make(map[*syntax.Name]*syntax.Name)
 					}
 					smap[p] = &new
 				}
 			}
 			if smap != nil {
 				// blank identifiers were found => use rewritten receiver type
-				recvTyp = isubst(recvPar.List[0].Type, smap)
+				recvTyp = isubst(recvPar.Type, smap)
 			}
-			sig.rparams = check.declareTypeParams(nil, rparams)
+			// TODO(gri) rework declareTypeParams
+			sig.rparams = nil
+			for _, rparam := range rparams {
+				sig.rparams = check.declareTypeParam(sig.rparams, rparam)
+			}
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeName
@@ -290,17 +302,20 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	if ftyp.TParams != nil {
-		sig.tparams = check.collectTypeParams(ftyp.TParams)
+	if tparams != nil {
+		sig.tparams = check.collectTypeParams(tparams)
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
-	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
-	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
+	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
+	var recvList []*Var // TODO(gri) remove the need for making a list here
+	if recvPar != nil {
+		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, recvTyp, false) // use rewritten receiver type, if any
+	}
+	params, variadic := check.collectParams(scope, ftyp.ParamList, nil, true)
+	results, _ := check.collectParams(scope, ftyp.ResultList, nil, false)
 	scope.Squash(func(obj, alt Object) {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -314,7 +329,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
 			check.error(recvList[len(recvList)-1].Pos(), "method must have exactly one receiver")
@@ -374,7 +389,7 @@ func goTypeName(typ Type) string {
 // typInternal drives type checking of types.
 // Must only be called by definedType or genericType.
 //
-func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
+func (check *Checker) typInternal(e syntax.Expr, def *Named) (T Type) {
 	if check.conf.Trace {
 		check.trace(e.Pos(), "type %s", e)
 		check.indent++
@@ -385,10 +400,10 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 	}
 
 	switch e := e.(type) {
-	case *ast.BadExpr:
+	case *syntax.BadExpr:
 		// ignore - error reported before
 
-	case *ast.Ident:
+	case *syntax.Name:
 		var x operand
 		check.ident(&x, e, def, true)
 
@@ -405,7 +420,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 			check.errorf(x.pos(), "%s is not a type", &x)
 		}
 
-	case *ast.SelectorExpr:
+	case *syntax.SelectorExpr:
 		var x operand
 		check.selector(&x, e)
 
@@ -422,7 +437,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 			check.errorf(x.pos(), "%s is not a type", &x)
 		}
 
-	case *ast.CallExpr:
+	case *syntax.CallExpr:
 		b := check.genericType(e.Fun, true) // TODO(gri) what about cycles?
 		if b == Typ[Invalid] {
 			return b // error already reported
@@ -443,15 +458,15 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		typ.base = base
 
 		// evaluate arguments (always)
-		typ.targs = check.typeList(e.Args)
+		typ.targs = check.typeList(e.ArgList)
 		if typ.targs == nil {
 			def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 			return Typ[Invalid]
 		}
 
 		// determine argument positions (for error reporting)
-		typ.poslist = make([]token.Pos, len(e.Args))
-		for i, arg := range e.Args {
+		typ.poslist = make([]syntax.Pos, len(e.ArgList))
+		for i, arg := range e.ArgList {
 			typ.poslist[i] = arg.Pos()
 		}
 
@@ -464,45 +479,51 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 
 		return typ
 
-	case *ast.ParenExpr:
+	case *syntax.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
 		// Consequently, generic types cannot be parenthesized.
 		return check.definedType(e.X, def)
 
-	case *ast.ArrayType:
+	case *syntax.ArrayType:
+		typ := new(Array)
+		def.setUnderlying(typ)
 		if e.Len != nil {
-			typ := new(Array)
-			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typ(e.Elt)
-			return typ
-
 		} else {
-			typ := new(Slice)
-			def.setUnderlying(typ)
-			typ.elem = check.typ(e.Elt)
-			return typ
+			// [...]array
+			check.errorf(e.Pos(), "invalid use of [...] array (outside a composite literal)")
+			typ.len = -1
 		}
+		typ.elem = check.typ(e.Elem)
+		return typ
 
-	case *ast.StructType:
+	case *syntax.SliceType:
+		typ := new(Slice)
+		def.setUnderlying(typ)
+		typ.elem = check.typ(e.Elem)
+		return typ
+
+	case *syntax.StructType:
 		typ := new(Struct)
 		def.setUnderlying(typ)
 		check.structType(typ, e)
 		return typ
 
-	case *ast.StarExpr:
-		typ := new(Pointer)
-		def.setUnderlying(typ)
-		typ.base = check.typ(e.X)
-		return typ
+	case *syntax.Operation:
+		if e.Op == syntax.Mul && e.Y == nil {
+			typ := new(Pointer)
+			def.setUnderlying(typ)
+			typ.base = check.typ(e.X)
+			return typ
+		}
 
-	case *ast.FuncType:
+	case *syntax.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, e)
+		check.funcType(typ, nil, nil, e)
 		return typ
 
-	case *ast.InterfaceType:
+	case *syntax.InterfaceType:
 		typ := new(Interface)
 		def.setUnderlying(typ)
 		if def != nil {
@@ -511,7 +532,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		check.interfaceType(typ, e, def)
 		return typ
 
-	case *ast.MapType:
+	case *syntax.MapType:
 		typ := new(Map)
 		def.setUnderlying(typ)
 
@@ -532,17 +553,17 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 
 		return typ
 
-	case *ast.ChanType:
+	case *syntax.ChanType:
 		typ := new(Chan)
 		def.setUnderlying(typ)
 
 		dir := SendRecv
 		switch e.Dir {
-		case ast.SEND | ast.RECV:
+		case 0:
 			// nothing to do
-		case ast.SEND:
+		case syntax.SendOnly:
 			dir = SendOnly
-		case ast.RECV:
+		case syntax.RecvOnly:
 			dir = RecvOnly
 		default:
 			check.invalidAST(e.Pos(), "unknown channel direction %d", e.Dir)
@@ -550,7 +571,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Value)
+		typ.elem = check.typ(e.Elem)
 		return typ
 
 	default:
@@ -566,7 +587,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 // and returns the typ of e, or nil.
 // If e is neither a type nor nil, typOrNil returns Typ[Invalid].
 //
-func (check *Checker) typOrNil(e ast.Expr) Type {
+func (check *Checker) typOrNil(e syntax.Expr) Type {
 	var x operand
 	check.rawExpr(&x, e, nil)
 	switch x.mode {
@@ -590,7 +611,7 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
 // arrayLength type-checks the array length expression e
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
-func (check *Checker) arrayLength(e ast.Expr) int64 {
+func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	var x operand
 	check.expr(&x, e)
 	if x.mode != constant_ {
@@ -616,7 +637,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 
 // typeList provides the list of types corresponding to the incoming expression list.
 // If an error occured, the result is nil, but all list elements were type-checked.
-func (check *Checker) typeList(list []ast.Expr) []Type {
+func (check *Checker) typeList(list []syntax.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
 		t := check.typ(x)
@@ -631,21 +652,21 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the the first type in list.
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
+// variable list. If type0 != nil, it is used instead of the first type in list.
+func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 syntax.Expr, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
 
 	var named, anonymous bool
-	for i, field := range list.List {
+	for i, field := range list {
 		ftype := field.Type
 		if i == 0 && type0 != nil {
 			ftype = type0
 		}
-		if t, _ := ftype.(*ast.Ellipsis); t != nil {
-			ftype = t.Elt
-			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
+		if t, _ := ftype.(*syntax.DotsType); t != nil {
+			ftype = t.Elem
+			if variadicOk && i == len(list)-1 {
 				variadic = true
 			} else {
 				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
@@ -655,17 +676,16 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 		typ := check.typ(ftype)
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
-		if len(field.Names) > 0 {
+		if field.Name != nil {
 			// named parameter
-			for _, name := range field.Names {
-				if name.Name == "" {
-					check.invalidAST(name.Pos(), "anonymous parameter")
-					// ok to continue
-				}
-				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
-				check.declare(scope, name, par, scope.pos)
-				params = append(params, par)
+			name := field.Name.Value
+			if name == "" {
+				check.invalidAST(field.Name.Pos(), "anonymous parameter")
+				// ok to continue
 			}
+			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
+			check.declare(scope, field.Name, par, scope.pos)
+			params = append(params, par)
 			named = true
 		} else {
 			// anonymous parameter
@@ -677,7 +697,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	}
 
 	if named && anonymous {
-		check.invalidAST(list.Pos(), "list contains both named and anonymous parameters")
+		check.invalidAST(list[0].Pos(), "list contains both named and anonymous parameters")
 		// ok to continue
 	}
 
@@ -687,13 +707,13 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	if variadic {
 		last := params[len(params)-1]
 		last.typ = &Slice{elem: last.typ}
-		check.recordTypeAndValue(list.List[len(list.List)-1].Type, typexpr, last.typ, nil)
+		check.recordTypeAndValue(list[len(list)-1].Type, typexpr, last.typ, nil)
 	}
 
 	return
 }
 
-func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
+func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
 		check.errorf(pos, "%s redeclared", obj.Name())
 		check.reportAltDecl(alt)
@@ -702,21 +722,19 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 	return true
 }
 
-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
-	var types []ast.Expr
-	for _, f := range iface.Methods.List {
-		if len(f.Names) > 0 {
-			// We have a method with name f.Names[0], or a type
-			// of a type list (name.Name == "type").
-			// (The parser ensures that there's only one method
-			// and we don't care if a constructed AST has more.)
-			name := f.Names[0]
-			if name.Name == "_" {
-				check.errorf(name.Pos(), "invalid method name _")
+func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
+	var types []syntax.Expr
+	for _, f := range iface.MethodList {
+		if f.Name != nil {
+			// We have a method with name f.Name, or a type
+			// of a type list (f.Name.Value == "type").
+			name := f.Name.Value
+			if name == "_" {
+				check.errorf(f.Name.Pos(), "invalid method name _")
 				continue // ignore
 			}
 
-			if name.Name == "type" {
+			if name == "type" {
 				types = append(types, f.Type)
 				continue
 			}
@@ -735,10 +753,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			if def != nil {
 				recvTyp = def
 			}
-			sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
+			sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
 
-			m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
-			check.recordDef(name, m)
+			m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
+			check.recordDef(f.Name, m)
 			ityp.methods = append(ityp.methods, m)
 		} else {
 			// We have an embedded type. completeInterface will
@@ -764,7 +782,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
 
-func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	if ityp.allMethods != nil {
 		return
 	}
@@ -781,7 +799,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		// Types don't generally have position information.
 		// If we don't have a valid pos provided, try to use
 		// one close enough.
-		if !pos.IsValid() && len(ityp.methods) > 0 {
+		if !pos.IsKnown() && len(ityp.methods) > 0 {
 			pos = ityp.methods[0].pos
 		}
 
@@ -815,8 +833,8 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 
 	var seen objset
 	var methods []*Func
-	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
-	addMethod := func(pos token.Pos, m *Func, explicit bool) {
+	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
+	addMethod := func(pos syntax.Pos, m *Func, explicit bool) {
 		switch other := seen.insert(m); {
 		case other == nil:
 			methods = append(methods, m)
@@ -890,9 +908,9 @@ func (a byUniqueMethodName) Len() int           { return len(a) }
 func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func (check *Checker) tag(t *ast.BasicLit) string {
+func (check *Checker) tag(t *syntax.BasicLit) string {
 	if t != nil {
-		if t.Kind == token.STRING {
+		if t.Kind == syntax.StringLit {
 			if val, err := strconv.Unquote(t.Value); err == nil {
 				return val
 			}
@@ -902,9 +920,8 @@ func (check *Checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *Checker) structType(styp *Struct, e *ast.StructType) {
-	list := e.Fields
-	if list == nil {
+func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+	if e.FieldList == nil {
 		return
 	}
 
@@ -918,7 +935,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	// current field typ and tag
 	var typ Type
 	var tag string
-	add := func(ident *ast.Ident, embedded bool, pos token.Pos) {
+	add := func(ident *syntax.Name, embedded bool, pos syntax.Pos) {
 		if tag != "" && tags == nil {
 			tags = make([]string, len(fields))
 		}
@@ -926,7 +943,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			tags = append(tags, tag)
 		}
 
-		name := ident.Name
+		name := ident.Value
 		fld := NewField(pos, check.pkg, name, typ, embedded)
 		// spec: "Within a struct, non-blank field names must be unique."
 		if name == "_" || check.declareInSet(&fset, pos, fld) {
@@ -939,20 +956,20 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	// fields with errors; this keeps the number of struct fields in sync
 	// with the source as long as the fields are _ or have different names
 	// (issue #25627).
-	addInvalid := func(ident *ast.Ident, pos token.Pos) {
+	addInvalid := func(ident *syntax.Name, pos syntax.Pos) {
 		typ = Typ[Invalid]
 		tag = ""
 		add(ident, true, pos)
 	}
 
-	for _, f := range list.List {
+	for i, f := range e.FieldList {
 		typ = check.typ(f.Type)
-		tag = check.tag(f.Tag)
-		if len(f.Names) > 0 {
-			// named fields
-			for _, name := range f.Names {
-				add(name, false, name.Pos())
-			}
+		if i < len(e.TagList) {
+			tag = check.tag(e.TagList[i])
+		}
+		if f.Name != nil {
+			// named field
+			add(f.Name, false, f.Name.Pos())
 		} else {
 			// embedded field
 			// spec: "An embedded type must be specified as a (possibly parenthesized) type name T or
@@ -961,8 +978,9 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, "invalid embedded field type %s", f.Type)
-				name = ast.NewIdent("_")
-				name.NamePos = pos
+				unimplemented()
+				//name = ast.NewIdent("_")
+				// name.pos = pos
 				addInvalid(name, pos)
 				continue
 			}
@@ -1000,21 +1018,30 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	styp.tags = tags
 }
 
-func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
 	switch e := e.(type) {
-	case *ast.Ident:
+	case *syntax.Name:
 		return e
-	case *ast.StarExpr:
-		// *T is valid, but **T is not
-		if _, ok := e.X.(*ast.StarExpr); !ok {
-			return embeddedFieldIdent(e.X)
+	case *syntax.Operation:
+		if base := ptrBase(e); base != nil {
+			// *T is valid, but **T is not
+			if op, _ := base.(*syntax.Operation); op == nil || ptrBase(op) == nil {
+				return embeddedFieldIdent(e.X)
+			}
 		}
-	case *ast.SelectorExpr:
+	case *syntax.SelectorExpr:
 		return e.Sel
-	case *ast.CallExpr:
+	case *syntax.CallExpr:
 		return embeddedFieldIdent(e.Fun)
-	case *ast.ParenExpr:
+	case *syntax.ParenExpr:
 		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field
+}
+
+func ptrBase(x *syntax.Operation) syntax.Expr {
+	if x.Op == syntax.Mul && x.Y == nil {
+		return x.X
+	}
+	return nil
 }

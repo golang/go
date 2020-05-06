@@ -4,10 +4,9 @@
 
 // This file implements commonly used type predicates.
 
-package types
+package types2
 
 import (
-	"go/token"
 	"sort"
 )
 
@@ -237,8 +236,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			// that case, interfaces are expected to be complete and lazy completion
 			// here is not needed.
 			if check != nil {
-				check.completeInterface(token.NoPos, x)
-				check.completeInterface(token.NoPos, y)
+				check.completeInterface(nopos, x)
+				check.completeInterface(nopos, y)
 			}
 			a := x.allMethods
 			b := y.allMethods

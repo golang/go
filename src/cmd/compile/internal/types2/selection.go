@@ -4,7 +4,7 @@
 
 // This file implements Selections.
 
-package types
+package types2
 
 import (
 	"bytes"

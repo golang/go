@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types_test
+package types2_test
 
 import (
-	"go/parser"
 	"testing"
 
-	. "go/types"
+	"cmd/compile/internal/syntax"
+	. "cmd/compile/internal/types2"
 )
 
 var testExprs = []testEntry{
@@ -82,11 +82,13 @@ var testExprs = []testEntry{
 
 func TestExprString(t *testing.T) {
 	for _, test := range testExprs {
-		x, err := parser.ParseExpr(test.src)
+		src := "package p; var _ = " + test.src
+		f, err := parseSrc("expr", src)
 		if err != nil {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
+		x := f.DeclList[0].(*syntax.VarDecl).Values
 		if got := ExprString(x); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}

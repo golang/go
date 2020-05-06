@@ -4,9 +4,7 @@
 
 // This file implements various field and method lookup functions.
 
-package types
-
-import "go/token"
+package types2
 
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
@@ -190,7 +188,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			case *Interface:
 				// look for a matching method
 				// TODO(gri) t.allMethods is sorted - use binary search
-				check.completeInterface(token.NoPos, t)
+				check.completeInterface(nopos, t)
 				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -289,7 +287,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // methods have been type-checked.
 // If addressable is set, V is the type of an addressable variable.
 func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, static bool) (method, wrongType *Func) {
-	check.completeInterface(token.NoPos, T)
+	check.completeInterface(nopos, T)
 
 	// fast path for common case
 	if T.Empty() {
@@ -297,7 +295,7 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 	}
 
 	if ityp := V.Interface(); ityp != nil {
-		check.completeInterface(token.NoPos, ityp)
+		check.completeInterface(nopos, ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
 			_, f := lookupMethod(ityp.allMethods, m.pkg, m.name)
@@ -369,7 +367,7 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
 		if Vn != nil && len(Vn.targs) > 0 {
-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
+			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they

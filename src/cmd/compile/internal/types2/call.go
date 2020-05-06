@@ -4,19 +4,18 @@
 
 // This file implements typechecking of call and selector expressions.
 
-package types
+package types2
 
 import (
-	"go/ast"
-	"go/token"
+	"cmd/compile/internal/syntax"
 )
 
-func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 	check.exprOrType(x, e.Fun)
 
 	switch x.mode {
 	case invalid:
-		check.use(e.Args...)
+		check.use(e.ArgList...)
 		x.expr = e
 		return statement
 
@@ -34,17 +33,17 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		}
 
 		// conversion
-		switch n := len(e.Args); n {
+		switch n := len(e.ArgList); n {
 		case 0:
-			check.errorf(e.Rparen, "missing argument in conversion to %s", T)
+			check.errorf(e.Pos(), "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(x, e.Args[0])
+			check.expr(x, e.ArgList[0])
 			if x.mode != invalid {
 				check.conversion(x, T)
 			}
 		default:
-			check.use(e.Args...)
-			check.errorf(e.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
+			check.use(e.ArgList...)
+			check.errorf(e.ArgList[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
 		x.expr = e
 		return conversion
@@ -72,7 +71,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		}
 
 		// evaluate arguments
-		args, _ := check.exprOrTypeList(e.Args)
+		args, _ := check.exprOrTypeList(e.ArgList)
 
 		// instantiate function if needed
 		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
@@ -89,7 +88,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 			// collect types
 			targs := make([]Type, n)
-			poslist := make([]token.Pos, n)
+			poslist := make([]syntax.Pos, n)
 			for i, a := range args {
 				if a.mode != typexpr {
 					// error was reported earlier
@@ -138,7 +137,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 // exprOrTypeList returns a list of operands and reports an error if the
 // list contains a mix of values and types (ignoring invalid operands).
-func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok bool) {
+func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok bool) {
 	ok = true
 
 	switch len(elist) {
@@ -186,7 +185,7 @@ func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok boo
 	return
 }
 
-func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
+func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
 	switch len(elist) {
 	case 0:
 		// nothing to do
@@ -226,7 +225,7 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
 	return
 }
 
-func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*operand) (rsig *Signature) {
+func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*operand) (rsig *Signature) {
 	rsig = sig
 
 	// TODO(gri) try to eliminate this extra verification loop
@@ -251,7 +250,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 
 	nargs := len(args)
 	npars := sig.params.Len()
-	ddd := call.Ellipsis.IsValid()
+	ddd := call.HasDots
 
 	// set up parameters
 	sig_params := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
@@ -259,9 +258,10 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	if sig.variadic {
 		if ddd {
 			// variadic_func(a, b, c...)
-			if len(call.Args) == 1 && nargs > 1 {
+			if len(call.ArgList) == 1 && nargs > 1 {
 				// f()... is not permitted if f() is multi-valued
-				check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", nargs, call.Args[0])
+				//check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
+				check.errorf(call.Pos(), "cannot use ... with %d-valued %s", nargs, call.ArgList[0])
 				return
 			}
 		} else {
@@ -288,7 +288,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	} else {
 		if ddd {
 			// standard_func(a, b, c...)
-			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			//check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+			check.errorf(call.Pos(), "cannot use ... in call to non-variadic %s", call.Fun)
 			return
 		}
 		// standard_func(a, b, c)
@@ -297,7 +298,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	// check argument count
 	switch {
 	case nargs < npars:
-		check.errorf(call.Rparen, "not enough arguments in call to %s", call.Fun)
+		check.errorf(call.Pos(), "not enough arguments in call to %s", call.Fun)
 		return
 	case nargs > npars:
 		check.errorf(args[npars].pos(), "too many arguments in call to %s", call.Fun) // report at first extra argument
@@ -308,7 +309,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call.Rparen, sig.tparams, sig_params, args)
+		targs := check.infer(call.Pos(), sig.tparams, sig_params, args)
 		if targs == nil {
 			return
 		}
@@ -338,7 +339,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	return
 }
 
-func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -346,13 +347,13 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		indirect bool
 	)
 
-	sel := e.Sel.Name
+	sel := e.Sel.Value
 	// If the identifier refers to a package, handle everything here
 	// so we don't need a "package" mode for operands: package names
 	// can only appear in qualified identifiers which are mapped to
 	// selector expressions.
-	if ident, ok := e.X.(*ast.Ident); ok {
-		obj := check.lookup(ident.Name)
+	if ident, ok := e.X.(*syntax.Name); ok {
+		obj := check.lookup(ident.Value)
 		if pname, _ := obj.(*PkgName); pname != nil {
 			assert(pname.pkg == check.pkg)
 			check.recordUse(ident, pname)
@@ -371,7 +372,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			}
 			check.recordUse(e.Sel, exp)
 
-			// Simplified version of the code for *ast.Idents:
+			// Simplified version of the code for *syntax.Names:
 			// - imported objects are always fully initialized
 			switch exp := exp.(type) {
 			case *Const:
@@ -502,7 +503,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,
-			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "_", x.typ)}, params...)...),
+			params:   NewTuple(append([]*Var{NewVar(nopos, check.pkg, "_", x.typ)}, params...)...),
 			results:  sig.results,
 			variadic: sig.variadic,
 		}
@@ -598,13 +599,18 @@ Error:
 // Useful to make sure expressions are evaluated
 // (and variables are "used") in the presence of other errors.
 // The arguments may be nil.
-func (check *Checker) use(arg ...ast.Expr) {
+// TODO(gri) make this accept a []syntax.Expr and use an unpack function when we have a ListExpr?
+func (check *Checker) use(arg ...syntax.Expr) {
 	var x operand
 	for _, e := range arg {
-		// The nil check below is necessary since certain AST fields
-		// may legally be nil (e.g., the ast.SliceExpr.High field).
-		if e != nil {
-			check.rawExpr(&x, e, nil)
+		if e, _ := e.(*syntax.ListExpr); e != nil {
+			check.use(e.ElemList...)
+		} else {
+			// The nil check below is necessary since certain AST fields
+			// may legally be nil (e.g., the ast.SliceExpr.High field).
+			if e != nil {
+				check.rawExpr(&x, e, nil)
+			}
 		}
 	}
 }
@@ -613,7 +619,7 @@ func (check *Checker) use(arg ...ast.Expr) {
 // It should be called instead of use if the arguments are
 // expressions on the lhs of an assignment.
 // The arguments must not be nil.
-func (check *Checker) useLHS(arg ...ast.Expr) {
+func (check *Checker) useLHS(arg ...syntax.Expr) {
 	var x operand
 	for _, e := range arg {
 		// If the lhs is an identifier denoting a variable v, this assignment
@@ -621,12 +627,12 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 		// after evaluating the lhs via check.rawExpr.
 		var v *Var
 		var v_used bool
-		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
+		if ident, _ := unparen(e).(*syntax.Name); ident != nil {
 			// never type-check the blank name on the lhs
-			if ident.Name == "_" {
+			if ident.Value == "_" {
 				continue
 			}
-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+			if _, obj := check.scope.LookupParent(ident.Value, nopos); obj != nil {
 				// It's ok to mark non-local variables, but ignore variables
 				// from other packages to avoid potential race conditions with
 				// dot-imported variables.

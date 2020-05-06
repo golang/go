@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(gri) enable once imports work
+// +build ignore
+
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
 // +build !arm,!arm64
 
-package types_test
+package types2_test
 
 // This file shows examples of basic usage of the go/types API.
 //
@@ -17,13 +20,11 @@ package types_test
 
 import (
 	"bytes"
+	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types2"
 	"fmt"
-	"go/ast"
 	"go/format"
-	"go/importer"
-	"go/parser"
 	"go/token"
-	"go/types"
 	"log"
 	"regexp"
 	"sort"
@@ -34,8 +35,7 @@ import (
 // set of parsed files.
 func ExampleScope() {
 	// Parse the source files for a package.
-	fset := token.NewFileSet()
-	var files []*ast.File
+	var files []*syntax.File
 	for _, file := range []struct{ name, input string }{
 		{"main.go", `
 package main
@@ -54,7 +54,7 @@ const Boiling Celsius = 100
 func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get printed
 `},
 	} {
-		f, err := parser.ParseFile(fset, file.name, file.input, 0)
+		f, err := parseSrc(file.name, file.input)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -64,8 +64,9 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// Type-check a package consisting of these files.
 	// Type information for the imported "fmt" package
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	conf := types.Config{Importer: importer.Default()}
-	pkg, err := conf.Check("temperature", fset, files, nil)
+	var conf types2.Config
+	// conf := types2.Config{Importer: importer.Default()}
+	pkg, err := conf.Check("temperature", files, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -124,8 +125,7 @@ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
 type S struct { I; m int }
 type I interface { m() byte }
 `
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "celsius.go", input, 0)
+	f, err := parseSrc("celsius.go", input)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -133,17 +133,19 @@ type I interface { m() byte }
 	// Type-check a package consisting of this file.
 	// Type information for the imported packages
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	conf := types.Config{Importer: importer.Default()}
-	pkg, err := conf.Check("temperature", fset, []*ast.File{f}, nil)
+	unimplemented()
+	var conf types2.Config
+	// conf := types2.Config{Importer: importer.Default()}
+	pkg, err := conf.Check("temperature", []*syntax.File{f}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Print the method sets of Celsius and *Celsius.
 	celsius := pkg.Scope().Lookup("Celsius").Type()
-	for _, t := range []types.Type{celsius, types.NewPointer(celsius)} {
+	for _, t := range []types2.Type{celsius, types2.NewPointer(celsius)} {
 		fmt.Printf("Method set of %s:\n", t)
-		mset := types.NewMethodSet(t)
+		mset := types2.NewMethodSet(t)
 		for i := 0; i < mset.Len(); i++ {
 			fmt.Println(mset.At(i))
 		}
@@ -153,7 +155,7 @@ type I interface { m() byte }
 	// Print the method set of S.
 	styp := pkg.Scope().Lookup("S").Type()
 	fmt.Printf("Method set of %s:\n", styp)
-	fmt.Println(types.NewMethodSet(styp))
+	fmt.Println(types2.NewMethodSet(styp))
 
 	// Output:
 	// Method set of temperature.Celsius:
@@ -168,7 +170,7 @@ type I interface { m() byte }
 }
 
 // ExampleInfo prints various facts recorded by the type checker in a
-// types.Info struct: definitions of and references to each named object,
+// types2.Info struct: definitions of and references to each named object,
 // and the type, value, and mode of every expression in the package.
 func ExampleInfo() {
 	// Parse a single source file.
@@ -185,8 +187,7 @@ func fib(x int) int {
 	}
 	return fib(x-1) - fib(x-2)
 }`
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "fib.go", input, 0)
+	f, err := parseSrc("fib.go", input)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -194,13 +195,13 @@ func fib(x int) int {
 	// Type-check the package.
 	// We create an empty map for each kind of input
 	// we're interested in, and Check populates them.
-	info := types.Info{
-		Types: make(map[ast.Expr]types.TypeAndValue),
-		Defs:  make(map[*ast.Ident]types.Object),
-		Uses:  make(map[*ast.Ident]types.Object),
+	info := types2.Info{
+		Types: make(map[syntax.Expr]types2.TypeAndValue),
+		Defs:  make(map[*syntax.Name]types2.Object),
+		Uses:  make(map[*syntax.Name]types2.Object),
 	}
-	var conf types.Config
-	pkg, err := conf.Check("fib", fset, []*ast.File{f}, &info)
+	var conf types2.Config
+	pkg, err := conf.Check("fib", []*syntax.File{f}, &info)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -211,18 +212,18 @@ func fib(x int) int {
 	// For each named object, print the line and
 	// column of its definition and each of its uses.
 	fmt.Println("Defs and Uses of each named object:")
-	usesByObj := make(map[types.Object][]string)
+	usesByObj := make(map[types2.Object][]string)
 	for id, obj := range info.Uses {
-		posn := fset.Position(id.Pos())
-		lineCol := fmt.Sprintf("%d:%d", posn.Line, posn.Column)
+		posn := id.Pos()
+		lineCol := fmt.Sprintf("%d:%d", posn.Line(), posn.Col())
 		usesByObj[obj] = append(usesByObj[obj], lineCol)
 	}
 	var items []string
 	for obj, uses := range usesByObj {
 		sort.Strings(uses)
 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
-			types.ObjectString(obj, types.RelativeTo(pkg)),
-			fset.Position(obj.Pos()),
+			types2.ObjectString(obj, types2.RelativeTo(pkg)),
+			obj.Pos(),
 			strings.Join(uses, ", "))
 		items = append(items, item)
 	}
@@ -234,14 +235,14 @@ func fib(x int) int {
 	items = nil
 	for expr, tv := range info.Types {
 		var buf bytes.Buffer
-		posn := fset.Position(expr.Pos())
+		posn := expr.Pos()
 		tvstr := tv.Type.String()
 		if tv.Value != nil {
 			tvstr += " = " + tv.Value.String()
 		}
 		// line:col | expr | mode : type = value
 		fmt.Fprintf(&buf, "%2d:%2d | %-19s | %-7s : %s",
-			posn.Line, posn.Column, exprString(fset, expr),
+			posn.Line(), posn.Col(), exprString(fset, expr),
 			mode(tv), tvstr)
 		items = append(items, buf.String())
 	}
@@ -305,7 +306,7 @@ func fib(x int) int {
 	// 12:26 | 2                   | value   : int = 2
 }
 
-func mode(tv types.TypeAndValue) string {
+func mode(tv types2.TypeAndValue) string {
 	switch {
 	case tv.IsVoid():
 		return "void"
@@ -327,7 +328,7 @@ func mode(tv types.TypeAndValue) string {
 	}
 }
 
-func exprString(fset *token.FileSet, expr ast.Expr) string {
+func exprString(fset *token.FileSet, expr syntax.Expr) string {
 	var buf bytes.Buffer
 	format.Node(&buf, fset, expr)
 	return buf.String()

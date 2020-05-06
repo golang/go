@@ -5,14 +5,13 @@
 // This file tests types.Check by using it to
 // typecheck the standard library and tests.
 
-package types_test
+package types2_test
 
 import (
+	"cmd/compile/internal/syntax"
 	"fmt"
-	"go/ast"
 	"go/build"
 	"go/importer"
-	"go/parser"
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
@@ -24,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	. "go/types"
+	. "cmd/compile/internal/types2"
 )
 
 var (
@@ -37,6 +36,8 @@ var (
 )
 
 func TestStdlib(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	start = time.Now()
@@ -98,7 +99,6 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		excluded[filename] = true
 	}
 
-	fset := token.NewFileSet()
 	for _, f := range files {
 		// filter directory contents
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") || excluded[f.Name()] {
@@ -129,10 +129,12 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 
 		// parse and type-check file
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err == nil {
-			conf := Config{Importer: stdLibImporter}
-			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+			unimplemented()
+			var conf Config
+			// conf := Config{Importer: stdLibImporter}
+			_, err = conf.Check(filename, []*syntax.File{file}, nil)
 		}
 
 		if expectErrors {
@@ -148,6 +150,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	if testing.Short() && testenv.Builder() == "" {
@@ -161,6 +165,8 @@ func TestStdTest(t *testing.T) {
 }
 
 func TestStdFixed(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	if testing.Short() && testenv.Builder() == "" {
@@ -189,6 +195,8 @@ func TestStdFixed(t *testing.T) {
 }
 
 func TestStdKen(t *testing.T) {
+	t.Skip("requires imports")
+
 	testenv.MustHaveGoBuild(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
@@ -201,12 +209,10 @@ var excluded = map[string]bool{
 
 // typecheck typechecks the given package files.
 func typecheck(t *testing.T, path string, filenames []string) {
-	fset := token.NewFileSet()
-
 	// parse package files
-	var files []*ast.File
+	var files []*syntax.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
+		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err != nil {
 			// the parser error may be a list of individual errors; report them all
 			if list, ok := err.(scanner.ErrorList); ok {
@@ -221,7 +227,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 
 		if testing.Verbose() {
 			if len(files) == 0 {
-				fmt.Println("package", file.Name.Name)
+				fmt.Println("package", file.PkgName.Value)
 			}
 			fmt.Println("\t", filename)
 		}
@@ -230,12 +236,14 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	}
 
 	// typecheck package files
-	conf := Config{
-		Error:    func(err error) { t.Error(err) },
-		Importer: stdLibImporter,
-	}
-	info := Info{Uses: make(map[*ast.Ident]Object)}
-	conf.Check(path, fset, files, &info)
+	unimplemented()
+	var conf Config
+	// conf := Config{
+	// 	Error:    func(err error) { t.Error(err) },
+	// 	Importer: stdLibImporter,
+	// }
+	info := Info{Uses: make(map[*syntax.Name]Object)}
+	conf.Check(path, files, &info)
 	pkgCount++
 
 	// Perform checks of API invariants.
@@ -245,7 +253,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	for id, obj := range info.Uses {
 		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
 		if predeclared == (obj.Pkg() != nil) {
-			posn := fset.Position(id.Pos())
+			posn := id.Pos()
 			if predeclared {
 				t.Errorf("%s: predeclared object with package: %s", posn, obj)
 			} else {

@@ -4,11 +4,10 @@
 
 // This file sets up the universe scope and the unsafe package.
 
-package types
+package types2
 
 import (
 	"go/constant"
-	"go/token"
 	"strings"
 )
 
@@ -70,19 +69,19 @@ var aliases = [...]*Basic{
 
 func defPredeclaredTypes() {
 	for _, t := range Typ {
-		def(NewTypeName(token.NoPos, nil, t.name, t))
+		def(NewTypeName(nopos, nil, t.name, t))
 	}
 	for _, t := range aliases {
-		def(NewTypeName(token.NoPos, nil, t.name, t))
+		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
 	// Error has a nil package in its qualified name since it is in no package
-	res := NewVar(token.NoPos, nil, "", Typ[String])
+	res := NewVar(nopos, nil, "", Typ[String])
 	sig := &Signature{results: NewTuple(res)}
-	err := NewFunc(token.NoPos, nil, "Error", sig)
+	err := NewFunc(nopos, nil, "Error", sig)
 	typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
-	sig.recv = NewVar(token.NoPos, nil, "", typ)
-	def(NewTypeName(token.NoPos, nil, "error", typ))
+	sig.recv = NewVar(nopos, nil, "", typ)
+	def(NewTypeName(nopos, nil, "error", typ))
 }
 
 var predeclaredConsts = [...]struct {
@@ -97,7 +96,7 @@ var predeclaredConsts = [...]struct {
 
 func defPredeclaredConsts() {
 	for _, c := range predeclaredConsts {
-		def(NewConst(token.NoPos, nil, c.name, Typ[c.kind], c.val))
+		def(NewConst(nopos, nil, c.name, Typ[c.kind], c.val))
 	}
 }
 
@@ -187,51 +186,6 @@ func DefPredeclaredTestFuncs() {
 	def(newBuiltin(_Trace))
 }
 
-func defPredeclaredComparableContract() {
-	// The "comparable" contract can be envisioned as defined like
-	//
-	// contract comparable(T) {
-	//         == (T) untyped bool
-	//         != (T) untyped bool
-	// }
-	//
-	// == and != cannot be user-declared but we can declare
-	// a magic method == and check for its presence when needed.
-	// (A simpler approach that simply looks for a magic type
-	// bound interface is problematic: comparable might be embedded,
-	// which in turn leads to the embedding of the magic type bound
-	// interface and then we cannot easily look for that interface
-	// anymore.)
-
-	// Define interface { ==() }. We don't care about the signature
-	// for == so leave it empty except for the receiver, which is
-	// set up later to match the usual interface method assumptions.
-	sig := new(Signature)
-	eql := NewFunc(token.NoPos, nil, "==", sig)
-	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
-
-	// The interface is parameterized with a single
-	// type parameter to match the comparable contract.
-	pname := NewTypeName(token.NoPos, nil, "T", nil)
-	pname.typ = &TypeParam{0, pname, 0, &emptyInterface, aType{}}
-
-	// The type bound interface needs a name so we can attach the
-	// type parameter and to match the usual set up of contracts.
-	iname := NewTypeName(token.NoPos, nil, "comparable_bound", nil)
-	named := NewNamed(iname, iface, nil)
-	named.tparams = []*TypeName{pname}
-	sig.recv = NewVar(token.NoPos, nil, "", named) // complete == signature
-
-	// set up the contract
-	obj := NewContract(token.NoPos, nil, "comparable")
-	obj.typ = new(contractType) // mark contract as fully set up
-	obj.color_ = black
-	obj.TParams = named.tparams
-	obj.Bounds = []*Named{named}
-
-	def(obj)
-}
-
 func defPredeclaredComparableInterface() {
 	// The "comparable" interface can be envisioned as defined like
 	//
@@ -247,20 +201,20 @@ func defPredeclaredComparableInterface() {
 	// for == so leave it empty except for the receiver, which is
 	// set up later to match the usual interface method assumptions.
 	sig := new(Signature)
-	eql := NewFunc(token.NoPos, nil, "==", sig)
+	eql := NewFunc(nopos, nil, "==", sig)
 	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
 
 	// set up the defined type for the interface
-	obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+	obj := NewTypeName(nopos, nil, "comparable", nil)
 	named := NewNamed(obj, iface, nil)
 	obj.color_ = black
-	sig.recv = NewVar(token.NoPos, nil, "", named) // complete == signature
+	sig.recv = NewVar(nopos, nil, "", named) // complete == signature
 
 	def(obj)
 }
 
 func init() {
-	Universe = NewScope(nil, token.NoPos, token.NoPos, "universe")
+	Universe = NewScope(nil, nopos, nopos, "universe")
 	Unsafe = NewPackage("unsafe", "unsafe")
 	Unsafe.complete = true
 
@@ -269,7 +223,7 @@ func init() {
 	defPredeclaredNil()
 	defPredeclaredFuncs()
 	if AcceptContracts {
-		defPredeclaredComparableContract()
+		panic("contract support not implemented")
 	} else {
 		defPredeclaredComparableInterface()
 	}

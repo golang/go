@@ -4,10 +4,10 @@
 
 // This file implements typechecking of builtin function calls.
 
-package types
+package types2
 
 import (
-	"go/ast"
+	"cmd/compile/internal/syntax"
 	"go/constant"
 	"go/token"
 )
@@ -17,12 +17,13 @@ import (
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 //
-func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ bool) {
+func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (_ bool) {
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
-	if call.Ellipsis.IsValid() && id != _Append {
-		check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
-		check.use(call.Args...)
+	if call.HasDots && id != _Append {
+		//check.invalidOp(call.Ellipsis, "invalid use of ... with built-in %s", bin.name)
+		check.invalidOp(call.Pos(), "invalid use of ... with built-in %s", bin.name)
+		check.use(call.ArgList...)
 		return
 	}
 
@@ -40,11 +41,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	// determine actual arguments
 	var arg func(*operand, int) // TODO(gri) remove use of arg getter in favor of using xlist directly
-	nargs := len(call.Args)
+	nargs := len(call.ArgList)
 	switch id {
 	default:
 		// make argument getter
-		xlist, _ := check.exprList(call.Args, false)
+		xlist, _ := check.exprList(call.ArgList, false)
 		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
 		nargs = len(xlist)
 		// evaluate first argument, if present
@@ -67,7 +68,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			msg = "too many"
 		}
 		if msg != "" {
-			check.invalidOp(call.Rparen, "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
+			check.invalidOp(call.Pos(), "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
 			return
 		}
 	}
@@ -94,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check, NewSlice(universeByte), nil) {
+		if nargs == 2 && call.HasDots && x.assignableTo(check, NewSlice(universeByte), nil) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -442,7 +443,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// make(T, n)
 		// make(T, n, m)
 		// (no argument evaluated yet)
-		arg0 := call.Args[0]
+		arg0 := call.ArgList[0]
 		T := check.typ(arg0)
 		if T == Typ[Invalid] {
 			return
@@ -464,7 +465,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		types := []Type{T}
 		var sizes []int64 // constant integer arguments, if any
-		for _, arg := range call.Args[1:] {
+		for _, arg := range call.ArgList[1:] {
 			typ, size := check.index(arg, -1) // ok to continue with typ == Typ[Invalid]
 			types = append(types, typ)
 			if size >= 0 {
@@ -472,7 +473,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
-			check.invalidArg(call.Args[1].Pos(), "length and capacity swapped")
+			check.invalidArg(call.ArgList[1].Pos(), "length and capacity swapped")
 			// safe to continue
 		}
 		x.mode = value
@@ -484,7 +485,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _New:
 		// new(T)
 		// (no argument evaluated yet)
-		T := check.typ(call.Args[0])
+		T := check.typ(call.ArgList[0])
 		if T == Typ[Invalid] {
 			return
 		}
@@ -504,7 +505,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			p := check.isPanic
 			if p == nil {
 				// allocate lazily
-				p = make(map[*ast.CallExpr]bool)
+				p = make(map[*syntax.CallExpr]bool)
 				check.isPanic = p
 			}
 			p[call] = true
@@ -567,8 +568,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Offsetof:
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
 		// (no argument evaluated yet)
-		arg0 := call.Args[0]
-		selx, _ := unparen(arg0).(*ast.SelectorExpr)
+		arg0 := call.ArgList[0]
+		selx, _ := unparen(arg0).(*syntax.SelectorExpr)
 		if selx == nil {
 			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
 			check.use(arg0)
@@ -581,7 +582,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		base := derefStructPtr(x.typ)
-		sel := selx.Sel.Name
+		sel := selx.Sel.Value
 		obj, index, indirect := check.lookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
@@ -652,7 +653,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 		var t operand
 		x1 := x
-		for _, arg := range call.Args {
+		for _, arg := range call.ArgList {
 			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%v: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
@@ -694,7 +695,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		//           define type and initialize a variable?
 
 		// construct a suitable new type parameter
-		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+		tpar := NewTypeName(nopos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
 		ptyp.bound = &Interface{types: resTypes, allMethods: markComplete, allTypes: resTypes}
 
@@ -709,13 +710,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(token.NoPos, nil, "", Default(param))
+		list[i] = NewVar(nopos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
 		assert(!isUntyped(res))
-		result = NewTuple(NewVar(token.NoPos, nil, "", res))
+		result = NewTuple(NewVar(nopos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}
 }
@@ -733,9 +734,9 @@ func implicitArrayDeref(typ Type) Type {
 }
 
 // unparen returns e with any enclosing parentheses stripped.
-func unparen(e ast.Expr) ast.Expr {
+func unparen(e syntax.Expr) syntax.Expr {
 	for {
-		p, ok := e.(*ast.ParenExpr)
+		p, ok := e.(*syntax.ParenExpr)
 		if !ok {
 			return e
 		}
