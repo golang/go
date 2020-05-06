@@ -7,6 +7,7 @@
 package testenv
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,6 +77,17 @@ func hasTool(tool string) error {
 		})
 		if checkGoGoroot.err != nil {
 			return checkGoGoroot.err
+		}
+
+	case "diff":
+		// Check that diff is the GNU version, needed for the -u argument and
+		// to report missing newlines at the end of files.
+		out, err := exec.Command(tool, "-version").Output()
+		if err != nil {
+			return err
+		}
+		if !bytes.Contains(out, []byte("GNU diffutils")) {
+			return fmt.Errorf("diff is not the GNU version")
 		}
 	}
 

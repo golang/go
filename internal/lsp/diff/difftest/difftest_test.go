@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// As of writing illumos uses a version of diff for which `diff -u` reports
-// locations differently from GNU diff.
-// +build !illumos
-
 // Package difftest supplies a set of tests that will operate on any
 // implementation of a diff algorithm as exposed by
 // "golang.org/x/tools/internal/lsp/diff"
