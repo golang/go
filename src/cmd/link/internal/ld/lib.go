@@ -277,7 +277,7 @@ type Arch struct {
 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext     func(*Link)
 	Gentext2    func(*Link, *loader.Loader)
-	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	Machoreloc1 func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	Xcoffreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 
@@ -2690,6 +2690,22 @@ func Entryvalue(ctxt *Link) int64 {
 		Errorf(s, "entry not text")
 	}
 	return s.Value
+}
+
+func Entryvalue2(ctxt *Link) int64 {
+	a := *flagEntrySymbol
+	if a[0] >= '0' && a[0] <= '9' {
+		return atolwhex(a)
+	}
+	s := ctxt.loader.Lookup(a, 0)
+	typ := ctxt.loader.SymType(s)
+	if typ == 0 {
+		return *FlagTextAddr
+	}
+	if ctxt.HeadType != objabi.Haix && typ != sym.STEXT {
+		ctxt.Errorf(s, "entry not text")
+	}
+	return ctxt.loader.SymValue(s)
 }
 
 func (ctxt *Link) callgraph() {
