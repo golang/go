@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/txtar"
 )
 
@@ -121,21 +120,14 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 		Env:        sb.GoEnv(),
 	}
 	gocmdRunner := &gocommand.Runner{}
-	_, stderr, _, err := gocmdRunner.RunRaw(ctx, inv)
+	_, _, _, err := gocmdRunner.RunRaw(ctx, inv)
 	if err != nil {
 		return err
 	}
-	// Hardcoded "file watcher": If the command executed was "go mod init",
-	// send a file creation event for a go.mod in the working directory.
-	if strings.HasPrefix(stderr.String(), "go: creating new go.mod") {
-		modpath := filepath.Join(sb.Workdir.workdir, "go.mod")
-		sb.Workdir.sendEvents(ctx, []FileEvent{{
-			Path: modpath,
-			ProtocolEvent: protocol.FileEvent{
-				URI:  toURI(modpath),
-				Type: protocol.Created,
-			},
-		}})
+	// Since running a go command may result in changes to workspace files,
+	// check if we need to send any any "watched" file events.
+	if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
+		return fmt.Errorf("checking for file changes: %w", err)
 	}
 	return nil
 }
