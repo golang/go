@@ -6,18 +6,23 @@ package strconv
 
 const fnParseComplex = "ParseComplex"
 
-func convErr(err error, s string) error {
+// convErr splits an error returned by parseFloatPrefix
+// into a syntax or range error for ParseComplex.
+func convErr(err error, s string) (syntax, range_ error) {
 	if x, ok := err.(*NumError); ok {
 		x.Func = fnParseComplex
 		x.Num = s
+		if x.Err == ErrRange {
+			return nil, x
+		}
 	}
-	return err
+	return err, nil
 }
 
 // ParseComplex converts the string s to a complex number
 // with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
 // When bitSize=64, the result still has type complex128, but it will be
-// convertible to complex64 without changing its value.
+// convertible to complex64 without changing it's value.
 //
 // The number represented by s must be of the form N, Ni, or N±Ni, where N stands
 // for a floating-point number as recognized by ParseFloat, and i is the imaginary
@@ -47,25 +52,21 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		s = s[1 : len(s)-1]
 	}
 
-	var encounteredRealErrRange error
+	var pending error // pending range error, or nil
 
 	// Read real part (possibly imaginary part if followed by 'i').
 	re, n, err := parseFloatPrefix(s, size)
 	if err != nil {
-		if x, ok := err.(*NumError); ok && x.Err == ErrRange {
-			encounteredRealErrRange = convErr(err, orig)
-		} else {
-			return 0, convErr(err, orig)
+		err, pending = convErr(err, orig)
+		if err != nil {
+			return 0, err
 		}
 	}
 	s = s[n:]
 
 	// If we have nothing left, we're done.
 	if len(s) == 0 {
-		if encounteredRealErrRange != nil {
-			return complex(re, 0), encounteredRealErrRange
-		}
-		return complex(re, 0), nil
+		return complex(re, 0), pending
 	}
 
 	// Otherwise, look at the next character.
@@ -81,10 +82,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	case 'i':
 		// If 'i' is the last character, we only have an imaginary part.
 		if len(s) == 1 {
-			if encounteredRealErrRange != nil {
-				return complex(0, re), encounteredRealErrRange
-			}
-			return complex(0, re), nil
+			return complex(0, re), pending
 		}
 		fallthrough
 	default:
@@ -94,22 +92,14 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Read imaginary part.
 	im, n, err := parseFloatPrefix(s, size)
 	if err != nil {
-		if x, ok := err.(*NumError); ok && x.Err == ErrRange {
-			if encounteredRealErrRange != nil {
-				return complex(re, im), convErr(err, orig)
-			} else {
-				return complex(0, im), convErr(err, orig)
-			}
+		err, pending = convErr(err, orig)
+		if err != nil {
+			return 0, err
 		}
-		return 0, convErr(err, orig)
 	}
 	s = s[n:]
 	if s != "i" {
 		return 0, syntaxError(fnParseComplex, orig)
 	}
-
-	if encounteredRealErrRange != nil {
-		return complex(re, 0), encounteredRealErrRange
-	}
-	return complex(re, im), nil
+	return complex(re, im), pending
 }
