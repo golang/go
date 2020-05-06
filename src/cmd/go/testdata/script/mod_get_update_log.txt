@@ -1,0 +1,15 @@
+# Upgrades are reported.
+go get -d rsc.io/quote
+stderr '^go: rsc.io/quote upgrade => v1.5.2\n\z'
+
+# Downgrades are not reported.
+# TODO(golang.org/issue/33284): they should be.
+go get -d rsc.io/quote@v1.5.0
+stderr '^go: downloading.*\n\z'
+
+-- go.mod --
+module m
+
+go 1.15
+
+require rsc.io/quote v1.5.0
