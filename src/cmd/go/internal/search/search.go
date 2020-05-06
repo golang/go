@@ -128,8 +128,11 @@ func (m *Match) MatchPackages() {
 			root += "cmd" + string(filepath.Separator)
 		}
 		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
-			if err != nil || path == src {
-				return nil
+			if err != nil {
+				return err // Likely a permission error, which could interfere with matching.
+			}
+			if path == src {
+				return nil // GOROOT/src and GOPATH/src cannot contain packages.
 			}
 
 			want := true
@@ -261,7 +264,10 @@ func (m *Match) MatchDirs() {
 	}
 
 	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() {
+		if err != nil {
+			return err // Likely a permission error, which could interfere with matching.
+		}
+		if !fi.IsDir() {
 			return nil
 		}
 		top := false
