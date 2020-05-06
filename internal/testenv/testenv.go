@@ -178,8 +178,12 @@ func NeedsGoPackagesEnv(t Testing, env []string) {
 //
 // It should be called from within a TestMain function.
 func ExitIfSmallMachine() {
-	if os.Getenv("GO_BUILDER_NAME") == "linux-arm" {
+	switch os.Getenv("GO_BUILDER_NAME") {
+	case "linux-arm":
 		fmt.Fprintln(os.Stderr, "skipping test: linux-arm builder lacks sufficient memory (https://golang.org/issue/32834)")
+		os.Exit(0)
+	case "plan9-arm":
+		fmt.Fprintln(os.Stderr, "skipping test: plan9-arm builder lacks sufficient memory (https://golang.org/issue/38772)")
 		os.Exit(0)
 	}
 }
