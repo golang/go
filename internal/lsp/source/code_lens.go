@@ -13,7 +13,11 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
+// CodeLens computes code lens for Go source code.
 func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
+	if !snapshot.View().Options().EnabledCodeLens[CommandGenerate] {
+		return nil, nil
+	}
 	f, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull).Parse(ctx)
 	if err != nil {
 		return nil, err
@@ -35,7 +39,7 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate",
-						Command:   "generate",
+						Command:   CommandGenerate,
 						Arguments: []interface{}{dir, false},
 					},
 				},
@@ -43,7 +47,7 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate ./...",
-						Command:   "generate",
+						Command:   CommandGenerate,
 						Arguments: []interface{}{dir, true},
 					},
 				},

@@ -18,13 +18,13 @@ import (
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
 	switch params.Command {
-	case "generate":
+	case source.CommandGenerate:
 		dir, recursive, err := getGenerateRequest(params.Arguments)
 		if err != nil {
 			return nil, err
 		}
 		go s.runGenerate(xcontext.Detach(ctx), dir, recursive)
-	case "tidy":
+	case source.CommandTidy:
 		if len(params.Arguments) == 0 || len(params.Arguments) > 1 {
 			return nil, errors.Errorf("expected one file URI for call to `go mod tidy`, got %v", params.Arguments)
 		}
@@ -45,7 +45,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
 			return nil, err
 		}
-	case "upgrade.dependency":
+	case source.CommandUpgradeDependency:
 		if len(params.Arguments) < 2 {
 			return nil, errors.Errorf("expected one file URI and one dependency for call to `go get`, got %v", params.Arguments)
 		}

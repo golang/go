@@ -13,7 +13,11 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+// CodeLens computes code lens for a go.mod file.
 func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]protocol.CodeLens, error) {
+	if !snapshot.View().Options().EnabledCodeLens[source.CommandUpgradeDependency] {
+		return nil, nil
+	}
 	realURI, _ := snapshot.View().ModFiles()
 	if realURI == "" {
 		return nil, nil
@@ -50,7 +54,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Range: rng,
 			Command: protocol.Command{
 				Title:     fmt.Sprintf("Upgrade dependency to %s", latest),
-				Command:   "upgrade.dependency",
+				Command:   source.CommandUpgradeDependency,
 				Arguments: []interface{}{uri, dep},
 			},
 		})
@@ -67,7 +71,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "Upgrade all dependencies",
-				Command:   "upgrade.dependency",
+				Command:   source.CommandUpgradeDependency,
 				Arguments: []interface{}{uri, strings.Join(append([]string{"-u"}, allUpgrades...), " ")},
 			},
 		})

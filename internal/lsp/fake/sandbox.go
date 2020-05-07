@@ -22,7 +22,6 @@ type Sandbox struct {
 	name    string
 	gopath  string
 	basedir string
-	env     []string
 	Proxy   *Proxy
 	Workdir *Workdir
 }
@@ -31,10 +30,9 @@ type Sandbox struct {
 // working directory populated by the txtar-encoded content in srctxt, and a
 // file-based module proxy populated with the txtar-encoded content in
 // proxytxt.
-func NewSandbox(name, srctxt, proxytxt string, inGopath bool, env ...string) (_ *Sandbox, err error) {
+func NewSandbox(name, srctxt, proxytxt string, inGopath bool) (_ *Sandbox, err error) {
 	sb := &Sandbox{
 		name: name,
-		env:  env,
 	}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
@@ -103,12 +101,12 @@ func (sb *Sandbox) GOPATH() string {
 // GoEnv returns the default environment variables that can be used for
 // invoking Go commands in the sandbox.
 func (sb *Sandbox) GoEnv() []string {
-	return append([]string{
+	return []string{
 		"GOPATH=" + sb.GOPATH(),
 		"GOPROXY=" + sb.Proxy.GOPROXY(),
 		"GO111MODULE=",
 		"GOSUMDB=off",
-	}, sb.env...)
+	}
 }
 
 // RunGoCommand executes a go command in the sandbox.

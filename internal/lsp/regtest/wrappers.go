@@ -166,3 +166,14 @@ func (e *Env) CheckForFileChanges() {
 		e.T.Fatal(err)
 	}
 }
+
+// CodeLens calls textDocument/codeLens for the given path, calling t.Fatal on
+// any error.
+func (e *Env) CodeLens(path string) []protocol.CodeLens {
+	e.T.Helper()
+	lens, err := e.Editor.CodeLens(e.Ctx, path)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return lens
+}

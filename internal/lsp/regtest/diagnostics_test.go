@@ -382,7 +382,7 @@ func _() {
 		if err := env.Editor.OrganizeImports(env.Ctx, "main.go"); err == nil {
 			t.Fatalf("organize imports should fail with an empty GOPATH")
 		}
-	}, WithEnv("GOPATH="))
+	}, WithEditorConfig(fake.EditorConfig{Env: []string{"GOPATH="}}))
 }
 
 // Tests golang/go#38669.
@@ -404,7 +404,7 @@ var X = 0
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		env.Await(EmptyDiagnostics("main.go"))
-	}, WithEnv("GOFLAGS=-tags=foo"))
+	}, WithEditorConfig(fake.EditorConfig{Env: []string{"GOFLAGS=-tags=foo"}}))
 }
 
 // Tests golang/go#38467.

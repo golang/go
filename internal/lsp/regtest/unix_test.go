@@ -9,6 +9,8 @@ package regtest
 import (
 	"fmt"
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/fake"
 )
 
 func TestBadGOPATH(t *testing.T) {
@@ -28,5 +30,7 @@ func _() {
 		if err := env.Editor.OrganizeImports(env.Ctx, "main.go"); err != nil {
 			t.Fatal(err)
 		}
-	}, WithEnv(fmt.Sprintf("GOPATH=:/path/to/gopath")))
+	}, WithEditorConfig(fake.EditorConfig{
+		Env: []string{fmt.Sprintf("GOPATH=:/path/to/gopath")},
+	}))
 }

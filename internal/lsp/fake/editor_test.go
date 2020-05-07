@@ -54,7 +54,7 @@ func TestClientEditing(t *testing.T) {
 	}
 	defer ws.Close()
 	ctx := context.Background()
-	editor := NewEditor(ws)
+	editor := NewEditor(ws, EditorConfig{})
 	if err := editor.OpenFile(ctx, "main.go"); err != nil {
 		t.Fatal(err)
 	}

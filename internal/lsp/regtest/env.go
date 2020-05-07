@@ -102,10 +102,10 @@ type condition struct {
 
 // NewEnv creates a new test environment using the given scratch environment
 // and gopls server.
-func NewEnv(ctx context.Context, t *testing.T, scratch *fake.Sandbox, ts servertest.Connector) *Env {
+func NewEnv(ctx context.Context, t *testing.T, scratch *fake.Sandbox, ts servertest.Connector, editorConfig fake.EditorConfig) *Env {
 	t.Helper()
 	conn := ts.Connect(ctx)
-	editor, err := fake.NewEditor(scratch).Connect(ctx, conn)
+	editor, err := fake.NewEditor(scratch, editorConfig).Connect(ctx, conn)
 	if err != nil {
 		t.Fatal(err)
 	}

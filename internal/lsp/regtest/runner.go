@@ -66,12 +66,12 @@ type Runner struct {
 }
 
 type runConfig struct {
-	modes       Mode
-	proxyTxt    string
-	timeout     time.Duration
-	env         []string
-	skipCleanup bool
-	gopath      bool
+	editorConfig fake.EditorConfig
+	modes        Mode
+	proxyTxt     string
+	timeout      time.Duration
+	skipCleanup  bool
+	gopath       bool
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -113,11 +113,10 @@ func WithModes(modes Mode) RunOption {
 	})
 }
 
-// WithEnv overlays environment variables encoded by "<var>=<value" on top of
-// the default regtest environment.
-func WithEnv(env ...string) RunOption {
+// WithEditorConfig configures the editors LSP session.
+func WithEditorConfig(config fake.EditorConfig) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.env = env
+		opts.editorConfig = config
 	})
 }
 
@@ -168,7 +167,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.gopath, config.env...)
+			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.gopath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -191,7 +190,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer func() {
 				ts.Close()
 			}()
-			env := NewEnv(ctx, t, sandbox, ts)
+			env := NewEnv(ctx, t, sandbox, ts, config.editorConfig)
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
