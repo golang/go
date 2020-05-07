@@ -98,8 +98,6 @@ func TestParseComplex(t *testing.T) {
 		{"-i", 0, ErrSyntax},
 		{"+3+1i", 3 + 1i, nil},
 		{"30+3i", 30 + 3i, nil},
-		{"30+3i)", 0, ErrSyntax},
-		{"(30+4i", 0, ErrSyntax},
 		{"+3e+3-3e+3i", 3e+3 - 3e+3i, nil},
 		{"+3e+3+3e+3i", 3e+3 + 3e+3i, nil},
 		{"+3e+3+3e+3i+", 0, ErrSyntax},
