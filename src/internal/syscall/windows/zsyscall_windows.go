@@ -38,6 +38,7 @@ func errnoErr(e syscall.Errno) error {
 var (
 	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+	modbcrypt   = syscall.NewLazyDLL(sysdll.Add("bcrypt.dll"))
 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
@@ -48,6 +49,8 @@ var (
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
+	procBCryptOpenAlgorithmProvider  = modbcrypt.NewProc("BCryptOpenAlgorithmProvider")
+	procBCryptGenRandom              = modbcrypt.NewProc("BCryptGenRandom")
 	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
 	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
 	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
@@ -115,6 +118,18 @@ func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32,
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func BCryptOpenAlgorithmProvider(algHandle *syscall.Handle, algID *uint16, impl *uint16, flags uint32) (status int32) {
+	r0, _, _ := syscall.Syscall6(procBCryptOpenAlgorithmProvider.Addr(), 4, uintptr(unsafe.Pointer(algHandle)), uintptr(unsafe.Pointer(algID)), uintptr(unsafe.Pointer(impl)), uintptr(flags), 0, 0)
+	status = int32(r0)
+	return
+}
+
+func BCryptGenRandom(algHandle syscall.Handle, buf *byte, buflen uint32, flags uint32) (status int32) {
+	r0, _, _ := syscall.Syscall6(procBCryptGenRandom.Addr(), 4, uintptr(algHandle), uintptr(unsafe.Pointer(buf)), uintptr(buflen), uintptr(flags), 0, 0)
+	status = int32(r0)
 	return
 }
 

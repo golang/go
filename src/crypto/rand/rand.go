@@ -14,7 +14,7 @@ import "io"
 // On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
 // On OpenBSD, Reader uses getentropy(2).
 // On other Unix-like systems, Reader reads from /dev/urandom.
-// On Windows systems, Reader uses the CryptGenRandom API.
+// On Windows systems, Reader uses the BCryptGenRandom API with provider BCRYPT_RNG_ALGORITHM.
 // On Wasm, Reader uses the Web Crypto API.
 var Reader io.Reader
 

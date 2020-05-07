@@ -8,6 +8,7 @@
 package rand
 
 import (
+	"internal/syscall/windows"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -35,12 +36,18 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
 	}
 	r.mu.Lock()
 	if r.prov == 0 {
-		const provType = syscall.PROV_RSA_FULL
-		const flags = syscall.CRYPT_VERIFYCONTEXT | syscall.CRYPT_SILENT
-		err := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
+		// BCRYPT_RNG_ALGORITHM is defined here:
+		// https://docs.microsoft.com/en-us/windows/win32/seccng/cng-algorithm-identifiers
+		// Standard: FIPS 186-2, FIPS 140-2, NIST SP 800-90
+		algID, err := syscall.UTF16PtrFromString(windows.BCRYPT_RNG_ALGORITHM)
 		if err != nil {
 			r.mu.Unlock()
-			return 0, os.NewSyscallError("CryptAcquireContext", err)
+			return 0, err
+		}
+		status := windows.BCryptOpenAlgorithmProvider(&r.prov, algID, nil, 0)
+		if status != 0 {
+			r.mu.Unlock()
+			return 0, os.NewSyscallError("BCryptOpenAlgorithmProvider", syscall.Errno(status))
 		}
 	}
 	r.mu.Unlock()
@@ -48,9 +55,9 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	err = syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
-	if err != nil {
-		return 0, os.NewSyscallError("CryptGenRandom", err)
+	status := windows.BCryptGenRandom(r.prov, &b[0], uint32(len(b)), 0)
+	if status != 0 {
+		return 0, os.NewSyscallError("BCryptGenRandom", syscall.Errno(status))
 	}
-	return len(b), nil
+	return int(uint32(len(b))), nil
 }

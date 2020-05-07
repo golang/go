@@ -145,6 +145,13 @@ const (
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+//sys	BCryptOpenAlgorithmProvider(algHandle *syscall.Handle, algID *uint16, impl *uint16, flags uint32) (status int32) = bcrypt.BCryptOpenAlgorithmProvider
+//sys	BCryptGenRandom(algHandle syscall.Handle, buf *byte, buflen uint32, flags uint32) (status int32) = bcrypt.BCryptGenRandom
+
+const (
+	// bcrypt.h
+	BCRYPT_RNG_ALGORITHM = "RNG"
+)
 
 const (
 	WSA_FLAG_OVERLAPPED        = 0x01
