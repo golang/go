@@ -88,7 +88,8 @@ func (s *PipeServer) Connect(ctx context.Context) jsonrpc2.Conn {
 		cPipe.Close()
 	})
 	serverStream := s.framer(sPipe)
-	go s.server.ServeStream(ctx, serverStream)
+	serverConn := jsonrpc2.NewConn(serverStream)
+	go s.server.ServeStream(ctx, serverConn)
 
 	clientStream := s.framer(cPipe)
 	return jsonrpc2.NewConn(clientStream)

@@ -105,10 +105,9 @@ func (c debugClient) ServerID() string {
 
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
 // incoming streams using a new lsp server.
-func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
+func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) error {
 	index := atomic.AddInt64(&clientIndex, 1)
 
-	conn := jsonrpc2.NewConn(stream)
 	client := protocol.ClientDispatcher(conn)
 	session := s.cache.NewSession(ctx)
 	dc := &debugClient{
@@ -245,8 +244,7 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 
 // ServeStream dials the forwarder remote and binds the remote to serve the LSP
 // on the incoming stream.
-func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
-	clientConn := jsonrpc2.NewConn(stream)
+func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) error {
 	client := protocol.ClientDispatcher(clientConn)
 
 	netConn, err := f.connectToRemote(ctx)

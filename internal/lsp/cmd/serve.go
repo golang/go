@@ -97,7 +97,8 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	if s.Trace && di != nil {
 		stream = protocol.LoggingStream(stream, di.LogWriter)
 	}
-	return ss.ServeStream(ctx, stream)
+	conn := jsonrpc2.NewConn(stream)
+	return ss.ServeStream(ctx, conn)
 }
 
 // parseAddr parses the -listen flag in to a network, and address.

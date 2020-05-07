@@ -20,25 +20,24 @@ import (
 // semantics.
 
 // A StreamServer is used to serve incoming jsonrpc2 clients communicating over
-// a newly created stream.
+// a newly created connection.
 type StreamServer interface {
-	ServeStream(context.Context, Stream) error
+	ServeStream(context.Context, Conn) error
 }
 
 // The ServerFunc type is an adapter that implements the StreamServer interface
 // using an ordinary function.
-type ServerFunc func(context.Context, Stream) error
+type ServerFunc func(context.Context, Conn) error
 
 // ServeStream calls f(ctx, s).
-func (f ServerFunc) ServeStream(ctx context.Context, s Stream) error {
-	return f(ctx, s)
+func (f ServerFunc) ServeStream(ctx context.Context, c Conn) error {
+	return f(ctx, c)
 }
 
 // HandlerServer returns a StreamServer that handles incoming streams using the
 // provided handler.
 func HandlerServer(h Handler) StreamServer {
-	return ServerFunc(func(ctx context.Context, s Stream) error {
-		conn := NewConn(s)
+	return ServerFunc(func(ctx context.Context, conn Conn) error {
 		conn.Go(ctx, h)
 		<-conn.Done()
 		return conn.Err()
@@ -82,7 +81,7 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 			nc, err := ln.Accept()
 			if err != nil {
 				select {
-				case doneListening <- fmt.Errorf("Accept(): %v", err):
+				case doneListening <- fmt.Errorf("Accept(): %w", err):
 				case <-ctx.Done():
 				}
 				return
@@ -99,7 +98,8 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 			connTimer.Stop()
 			stream := NewHeaderStream(netConn)
 			go func() {
-				closedConns <- server.ServeStream(ctx, stream)
+				conn := NewConn(stream)
+				closedConns <- server.ServeStream(ctx, conn)
 				stream.Close()
 			}()
 		case err := <-doneListening:
