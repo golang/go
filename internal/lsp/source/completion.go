@@ -455,6 +455,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	pos := rng.Start
 
+	// Check if completion at this position is valid. If not, return early.
 	switch n := path[0].(type) {
 	case *ast.BasicLit:
 		// Skip completion inside any kind of literal.
@@ -464,6 +465,20 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			// Don't offer completions inside or directly after "...". For
 			// example, don't offer completions at "<>" in "foo(bar...<>").
 			return nil, nil, nil
+		}
+	case *ast.Ident:
+		// reject defining identifiers
+		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
+			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
+				// An anonymous field is also a reference to a type.
+			} else {
+				objStr := ""
+				if obj != nil {
+					qual := types.RelativeTo(pkg.GetTypes())
+					objStr = types.ObjectString(obj, qual)
+				}
+				return nil, nil, ErrIsDefinition{objStr: objStr}
+			}
 		}
 	}
 
@@ -556,19 +571,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 				return nil, nil, err
 			}
 			return c.items, c.getSurrounding(), nil
-		}
-		// reject defining identifiers
-		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
-			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
-				// An anonymous field is also a reference to a type.
-			} else {
-				objStr := ""
-				if obj != nil {
-					qual := types.RelativeTo(pkg.GetTypes())
-					objStr = types.ObjectString(obj, qual)
-				}
-				return nil, nil, ErrIsDefinition{objStr: objStr}
-			}
 		}
 		if err := c.lexical(ctx); err != nil {
 			return nil, nil, err
