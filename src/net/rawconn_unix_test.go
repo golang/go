@@ -24,10 +24,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	if operr != nil {
-		return n, operr
-	}
-	return n, nil
+	return n, operr
 }
 
 func writeRawConn(c syscall.RawConn, b []byte) error {
@@ -42,10 +39,7 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
 	if err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }
 
 func controlRawConn(c syscall.RawConn, addr Addr) error {
@@ -87,10 +81,7 @@ func controlRawConn(c syscall.RawConn, addr Addr) error {
 	if err := c.Control(fn); err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }
 
 func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
@@ -120,8 +111,5 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	if err := c.Control(fn); err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }
