@@ -291,17 +291,17 @@ func (s *snapshot) rebuildImportGraph() {
 	}
 }
 
-func (s *snapshot) addPackage(ph *packageHandle) {
+func (s *snapshot) addPackageHandle(ph *packageHandle) *packageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// TODO: We should make sure not to compute duplicate packageHandles,
-	// and instead panic here. This will be hard to do because we may encounter
-	// the same package multiple times in the dependency tree.
-	if _, ok := s.packages[ph.packageKey()]; ok {
-		return
+	// If the package handle has already been cached,
+	// return the cached handle instead of overriding it.
+	if ph, ok := s.packages[ph.packageKey()]; ok {
+		return ph
 	}
 	s.packages[ph.packageKey()] = ph
+	return ph
 }
 
 func (s *snapshot) workspacePackageIDs() (ids []packageID) {
@@ -427,7 +427,7 @@ func (s *snapshot) getActionHandle(id packageID, m source.ParseMode, a *analysis
 	return s.actions[key]
 }
 
-func (s *snapshot) addActionHandle(ah *actionHandle) {
+func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -438,10 +438,11 @@ func (s *snapshot) addActionHandle(ah *actionHandle) {
 			mode: ah.pkg.mode,
 		},
 	}
-	if _, ok := s.actions[key]; ok {
-		return
+	if ah, ok := s.actions[key]; ok {
+		return ah
 	}
 	s.actions[key] = ah
+	return ah
 }
 
 func (s *snapshot) getIDsForURI(uri span.URI) []packageID {

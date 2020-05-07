@@ -97,8 +97,11 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	})
 	ph.handle = h
 
-	// Cache the PackageHandle in the snapshot.
-	s.addPackage(ph)
+	// Cache the PackageHandle in the snapshot. If a package handle has already
+	// been cached, addPackage will return the cached value. This is fine,
+	// since the original package handle above will have no references and be
+	// garbage collected.
+	ph = s.addPackageHandle(ph)
 
 	return ph, nil
 }

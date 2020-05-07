@@ -147,7 +147,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 	})
 	act.handle = h
 
-	s.addActionHandle(act)
+	act = s.addActionHandle(act)
 	return act, nil
 }
 
