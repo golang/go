@@ -420,12 +420,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		}
 
 	case "linkTarget":
-		linkTarget, ok := value.(string)
-		if !ok {
-			result.errorf("invalid type %T for string option %q", value, name)
-			break
-		}
-		o.LinkTarget = linkTarget
+		result.setString(&o.LinkTarget)
 
 	case "analyses":
 		result.setBoolMap(&o.UserEnabledAnalyses)
@@ -446,12 +441,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		result.setBool(&o.StaticCheck)
 
 	case "local":
-		localPrefix, ok := value.(string)
-		if !ok {
-			result.errorf("invalid type %T for string option %q", value, name)
-			break
-		}
-		o.LocalPrefix = localPrefix
+		result.setString(&o.LocalPrefix)
 
 	case "verboseOutput":
 		result.setBool(&o.VerboseOutput)
@@ -523,6 +513,12 @@ func (r *OptionResult) asBool() (bool, bool) {
 	return b, true
 }
 
+func (r *OptionResult) setBool(b *bool) {
+	if v, ok := r.asBool(); ok {
+		*b = v
+	}
+}
+
 func (r *OptionResult) setBoolMap(bm *map[string]bool) {
 	all, ok := r.Value.(map[string]interface{})
 	if !ok {
@@ -550,9 +546,9 @@ func (r *OptionResult) asString() (string, bool) {
 	return b, true
 }
 
-func (r *OptionResult) setBool(b *bool) {
-	if v, ok := r.asBool(); ok {
-		*b = v
+func (r *OptionResult) setString(s *string) {
+	if v, ok := r.asString(); ok {
+		*s = v
 	}
 }
 
