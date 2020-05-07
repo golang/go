@@ -170,7 +170,7 @@ func hashConfig(config *packages.Config) string {
 
 	// Dir, Mode, Env, BuildFlags are the parts of the config that can change.
 	b.WriteString(config.Dir)
-	b.WriteString(string(config.Mode))
+	b.WriteString(string(rune(config.Mode)))
 
 	for _, e := range config.Env {
 		b.WriteString(e)

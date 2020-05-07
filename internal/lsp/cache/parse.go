@@ -111,7 +111,7 @@ func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, e
 func hashParseKey(ph source.ParseGoHandle) string {
 	b := bytes.NewBuffer(nil)
 	b.WriteString(ph.File().Identity().String())
-	b.WriteString(string(ph.Mode()))
+	b.WriteString(string(rune(ph.Mode())))
 	return hashContents(b.Bytes())
 }
 
