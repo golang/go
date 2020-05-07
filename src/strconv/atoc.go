@@ -22,7 +22,7 @@ func convErr(err error, s string) (syntax, range_ error) {
 // ParseComplex converts the string s to a complex number
 // with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
 // When bitSize=64, the result still has type complex128, but it will be
-// convertible to complex64 without changing it's value.
+// convertible to complex64 without changing its value.
 //
 // The number represented by s must be of the form N, Ni, or N±Ni, where N stands
 // for a floating-point number as recognized by ParseFloat, and i is the imaginary
