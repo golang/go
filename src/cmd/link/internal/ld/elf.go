@@ -1344,12 +1344,7 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 	return sh
 }
 
-func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
-	if !ctxt.IsAMD64() {
-		elfrelocsect2(ctxt, sect, syms)
-		return
-	}
-
+func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1359,43 +1354,43 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 		return
 	}
 
+	ldr := ctxt.loader
 	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
-		if !s.Attr.Reachable() {
-			continue
+		if !ldr.AttrReachable(s) {
+			panic("should never happen")
 		}
-		if uint64(s.Value) >= sect.Vaddr {
+		if uint64(ldr.SymValue(s)) >= sect.Vaddr {
 			syms = syms[i:]
 			break
 		}
 	}
 
-	ldr := ctxt.loader
 	eaddr := int32(sect.Vaddr + sect.Length)
 	for _, s := range syms {
-		if !s.Attr.Reachable() {
+		if !ldr.AttrReachable(s) {
 			continue
 		}
-		if s.Value >= int64(eaddr) {
+		if ldr.SymValue(s) >= int64(eaddr) {
 			break
 		}
-		i := loader.Sym(s.SymIdx)
-		relocs := ldr.ExtRelocs(i)
+
+		relocs := ldr.ExtRelocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
 			if r.Xsym == 0 {
-				Errorf(s, "missing xsym in relocation %v", ldr.SymName(r.Sym()))
+				ldr.Errorf(s, "missing xsym in relocation")
 				continue
 			}
-			esr := ElfSymForReloc(ctxt, ldr.Syms[r.Xsym])
+			esr := ElfSymForReloc2(ctxt, r.Xsym)
 			if esr == 0 {
-				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Sym()].Name, ldr.Syms[r.Xsym].Name, ldr.Syms[r.Sym()].Type, ldr.Syms[r.Sym()].Type)
+				ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
 			}
 			if !ldr.AttrReachable(r.Xsym) {
-				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Xsym].Name)
+				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
 			}
-			if !thearch.Elfreloc2(ctxt, ldr, i, r, int64(uint64(s.Value+int64(r.Off()))-sect.Vaddr)) {
-				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.Syms[r.Sym()].Name)
+			if !thearch.Elfreloc2(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
 	}
@@ -1404,32 +1399,37 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 }
 
 func Elfemitreloc(ctxt *Link) {
+	if !ctxt.IsAMD64() {
+		Elfemitreloc2(ctxt)
+		return
+	}
+
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
 	}
 
 	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
-			elfrelocsect(ctxt, sect, ctxt.Textp)
+			elfrelocsect(ctxt, sect, ctxt.Textp2)
 		} else {
-			elfrelocsect(ctxt, sect, ctxt.datap)
+			elfrelocsect(ctxt, sect, ctxt.datap2)
 		}
 	}
 
 	for _, sect := range Segrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		elfrelocsect(ctxt, sect, ctxt.datap2)
 	}
 	for _, sect := range Segrelrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		elfrelocsect(ctxt, sect, ctxt.datap2)
 	}
 	for _, sect := range Segdata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		elfrelocsect(ctxt, sect, ctxt.datap2)
 	}
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
-		si := dwarfp[i]
-		if si.secSym() != sect.Sym ||
-			si.secSym().Sect != sect {
+		si := dwarfp2[i]
+		if si.secSym() != loader.Sym(sect.Sym2) ||
+			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
 		elfrelocsect(ctxt, sect, si.syms)
@@ -1734,13 +1734,16 @@ func (ctxt *Link) doelf() {
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
-func shsym(sh *ElfShdr, s *sym.Symbol) {
-	addr := Symaddr(s)
+func shsym2(sh *ElfShdr, ldr *loader.Loader, s loader.Sym) {
+	if s == 0 {
+		panic("bad symbol in shsym2")
+	}
+	addr := ldr.SymValue(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
 	}
-	sh.off = uint64(datoff(s, addr))
-	sh.size = uint64(s.Size)
+	sh.off = uint64(datoff(ldr, s, addr))
+	sh.size = uint64(ldr.SymSize(s))
 }
 
 func phsh(ph *ElfPhdr, sh *ElfShdr) {
@@ -1782,6 +1785,12 @@ func Asmbelfsetup() {
 }
 
 func Asmbelf(ctxt *Link, symo int64) {
+	if !ctxt.IsAMD64() {
+		Asmbelf2(ctxt, symo)
+		return
+	}
+
+	ldr := ctxt.loader
 	eh := getElfEhdr()
 	switch ctxt.Arch.Family {
 	default:
@@ -2000,22 +2009,22 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.link = uint32(elfshname(".dynstr").shnum)
 
 		// sh.info is the index of first non-local symbol (number of local symbols)
-		s := ctxt.Syms.Lookup(".dynsym", 0)
+		s := ldr.Lookup(".dynsym", 0)
 		i := uint32(0)
-		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
+		for sub := s; sub != 0; sub = ldr.SubSym(sub) {
 			i++
-			if !sub.Attr.Local() {
+			if !ldr.AttrLocal(sub) {
 				break
 			}
 		}
 		sh.info = i
-		shsym(sh, s)
+		shsym2(sh, ldr, s)
 
 		sh = elfshname(".dynstr")
 		sh.type_ = SHT_STRTAB
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
-		shsym(sh, ctxt.Syms.Lookup(".dynstr", 0))
+		shsym2(sh, ldr, ldr.Lookup(".dynstr", 0))
 
 		if elfverneed != 0 {
 			sh := elfshname(".gnu.version")
@@ -2024,7 +2033,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = 2
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.entsize = 2
-			shsym(sh, ctxt.Syms.Lookup(".gnu.version", 0))
+			shsym2(sh, ldr, ldr.Lookup(".gnu.version", 0))
 
 			sh = elfshname(".gnu.version_r")
 			sh.type_ = SHT_GNU_VERNEED
@@ -2032,7 +2041,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(ctxt.Arch.RegSize)
 			sh.info = uint32(elfverneed)
 			sh.link = uint32(elfshname(".dynstr").shnum)
-			shsym(sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
+			shsym2(sh, ldr, ldr.Lookup(".gnu.version_r", 0))
 		}
 
 		if elfRelType == ".rela" {
@@ -2043,7 +2052,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(ctxt.Arch.RegSize)
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.info = uint32(elfshname(".plt").shnum)
-			shsym(sh, ctxt.Syms.Lookup(".rela.plt", 0))
+			shsym2(sh, ldr, ldr.Lookup(".rela.plt", 0))
 
 			sh = elfshname(".rela")
 			sh.type_ = SHT_RELA
@@ -2051,7 +2060,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF64RELASIZE
 			sh.addralign = 8
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(sh, ctxt.Syms.Lookup(".rela", 0))
+			shsym2(sh, ldr, ldr.Lookup(".rela", 0))
 		} else {
 			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
@@ -2059,7 +2068,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(sh, ctxt.Syms.Lookup(".rel.plt", 0))
+			shsym2(sh, ldr, ldr.Lookup(".rel.plt", 0))
 
 			sh = elfshname(".rel")
 			sh.type_ = SHT_REL
@@ -2067,7 +2076,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym(sh, ctxt.Syms.Lookup(".rel", 0))
+			shsym2(sh, ldr, ldr.Lookup(".rel", 0))
 		}
 
 		if eh.machine == EM_PPC64 {
@@ -2075,7 +2084,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
 			sh.addralign = 4
-			shsym(sh, ctxt.Syms.Lookup(".glink", 0))
+			shsym2(sh, ldr, ldr.Lookup(".glink", 0))
 		}
 
 		sh = elfshname(".plt")
@@ -2096,7 +2105,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = 4
 		}
 		sh.addralign = sh.entsize
-		shsym(sh, ctxt.Syms.Lookup(".plt", 0))
+		shsym2(sh, ldr, ldr.Lookup(".plt", 0))
 
 		// On ppc64, .got comes from the input files, so don't
 		// create it here, and .got.plt is not used.
@@ -2106,14 +2115,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(ctxt.Arch.RegSize)
 			sh.addralign = uint64(ctxt.Arch.RegSize)
-			shsym(sh, ctxt.Syms.Lookup(".got", 0))
+			shsym2(sh, ldr, ldr.Lookup(".got", 0))
 
 			sh = elfshname(".got.plt")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(ctxt.Arch.RegSize)
 			sh.addralign = uint64(ctxt.Arch.RegSize)
-			shsym(sh, ctxt.Syms.Lookup(".got.plt", 0))
+			shsym2(sh, ldr, ldr.Lookup(".got.plt", 0))
 		}
 
 		sh = elfshname(".hash")
@@ -2122,7 +2131,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 4
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".dynsym").shnum)
-		shsym(sh, ctxt.Syms.Lookup(".hash", 0))
+		shsym2(sh, ldr, ldr.Lookup(".hash", 0))
 
 		/* sh and PT_DYNAMIC for .dynamic section */
 		sh = elfshname(".dynamic")
@@ -2132,7 +2141,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 2 * uint64(ctxt.Arch.RegSize)
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".dynstr").shnum)
-		shsym(sh, ctxt.Syms.Lookup(".dynamic", 0))
+		shsym2(sh, ldr, ldr.Lookup(".dynamic", 0))
 		ph := newElfPhdr()
 		ph.type_ = PT_DYNAMIC
 		ph.flags = PF_R + PF_W
@@ -2176,7 +2185,7 @@ elfobj:
 	sh := elfshname(".shstrtab")
 	sh.type_ = SHT_STRTAB
 	sh.addralign = 1
-	shsym(sh, ctxt.Syms.Lookup(".shstrtab", 0))
+	shsym2(sh, ldr, ldr.Lookup(".shstrtab", 0))
 	eh.shstrndx = uint16(sh.shnum)
 
 	// put these sections early in the list
@@ -2214,9 +2223,9 @@ elfobj:
 		for _, sect := range Segdata.Sections {
 			elfshreloc(ctxt.Arch, sect)
 		}
-		for _, si := range dwarfp {
-			s := si.secSym()
-			elfshreloc(ctxt.Arch, s.Sect)
+		for _, si := range dwarfp2 {
+			sect := ldr.SymSect(si.secSym())
+			elfshreloc(ctxt.Arch, sect)
 		}
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		sh := elfshname(".note.GNU-stack")
@@ -2279,7 +2288,7 @@ elfobj:
 	}
 
 	if ctxt.LinkMode != LinkExternal {
-		eh.entry = uint64(Entryvalue(ctxt))
+		eh.entry = uint64(Entryvalue2(ctxt))
 	}
 
 	eh.version = EV_CURRENT

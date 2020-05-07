@@ -67,7 +67,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
 
 // Add section symbols for DWARF debug info.  This is called before
 // dwarfaddelfheaders.
-func dwarfaddelfsectionsyms(ctxt *Link) {
+func dwarfaddelfsectionsyms2(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
@@ -76,20 +76,20 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	}
 
 	s := ctxt.Syms.Lookup(".debug_info", 0)
-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_line", 0)
-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_frame", 0)
-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_loc", 0)
 	if s.Sect != nil {
-		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	}
 	s = ctxt.Syms.Lookup(".debug_ranges", 0)
 	if s.Sect != nil {
-		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	}
 }
 
