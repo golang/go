@@ -10314,12 +10314,16 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (MTVSRD (MOVDconst [c]))
+	// cond: !math.IsNaN(math.Float64frombits(uint64(c)))
 	// result: (FMOVDconst [math.Float64frombits(uint64(c))])
 	for {
 		if v_0.Op != OpPPC64MOVDconst {
 			break
 		}
 		c := auxIntToInt64(v_0.AuxInt)
+		if !(!math.IsNaN(math.Float64frombits(uint64(c)))) {
+			break
+		}
 		v.reset(OpPPC64FMOVDconst)
 		v.AuxInt = float64ToAuxInt(math.Float64frombits(uint64(c)))
 		return true
