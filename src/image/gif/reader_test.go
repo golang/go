@@ -423,28 +423,50 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 	}
 }
 
-func TestTrailingByte(t *testing.T) {
-
-	extra := []byte{
-		0x00, // extraneous empty byte
-		0x3b, // trailer
-	}
-
-	// Remove the trailer byte so we can append new data
-	testGIFLen := len(testGIF) - 1
-
-	// Make a copy of the GIF
-	gif := make([]byte, testGIFLen+len(extra))
-	copy(gif, testGIF)
-
-	// Add trailing extra bytes
-	for i:=0; i<len(extra); i++ {
-		gif[testGIFLen+i] = extra[i]
-	}
-
+func TestNonStandardTrailer(t *testing.T) {
+	gif := append([]byte{}, testGIF...)
+	// Replace trailer with NUL byte
+	gif[len(gif) - 1] = 0x00
 	try(t, gif, "")
 }
 
+func TestNulByteBetweenSections(t *testing.T) {
+	// Add header and frame 1
+	gif := append([]byte{}, testGIF[:len(testGIF)-1]...)
+	// Add frame 2 and the trailer
+	gif = append(gif, testGIF[19:]...)
+
+	// Make sure there are two frames
+	img, err := DecodeAll(bytes.NewReader(gif))
+	if err != nil {
+		t.Fatalf("got %v, want %v", err, "")
+	}
+
+	want := 2
+	got := len(img.Image)
+	if got != want {
+		t.Fatalf("got %v frames, want %v", got, want)
+	}
+
+	// Same as above but add extraneous NUL byte before frame 2, this should
+	// act like there was a terminator (0x3b) there
+	gif = append([]byte{}, testGIF[:len(testGIF)-1]...)
+	gif = append(gif, 0x00)
+	gif = append(gif, testGIF[19:]...)
+
+	// Make sure there is only one frame
+	img, err = DecodeAll(bytes.NewReader(gif))
+	if err != nil {
+		t.Fatalf("got %v, want %v", err, "")
+	}
+
+	want = 1
+	got = len(img.Image)
+	if got != want {
+		t.Fatalf("got %v frames, want %v", got, want)
+	}
+
+}
 
 func BenchmarkDecode(b *testing.B) {
 	data, err := ioutil.ReadFile("../testdata/video-001.gif")

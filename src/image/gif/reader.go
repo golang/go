@@ -53,7 +53,7 @@ const (
 	sExtension       = 0x21
 	sImageDescriptor = 0x2C
 	sTrailer         = 0x3B
-	sEmpty           = 0x00
+	sNul             = 0x00
 )
 
 // Extensions.
@@ -251,14 +251,16 @@ func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
 				return err
 			}
 
+		case sNul:
+			// This is off spec but we handle a NUL byte here as if it were
+			// a trailer byte like Chromium and Mozilla.
+			fallthrough
+
 		case sTrailer:
 			if len(d.image) == 0 {
 				return fmt.Errorf("gif: missing image data")
 			}
 			return nil
-
-		case sEmpty:
-			// Empty bytes are ignored between blocks or before the trailer
 
 		default:
 			return fmt.Errorf("gif: unknown block type: 0x%.2x", c)
