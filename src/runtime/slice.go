@@ -59,7 +59,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
 		to = mallocgc(tomem, et, true)
-		if writeBarrier.enabled {
+		if copymem > 0 && writeBarrier.enabled {
 			// Only shade the pointers in old.array since we know the destination slice to
 			// only contains nil pointers because it has been cleared during alloc.
 			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem)
