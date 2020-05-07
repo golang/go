@@ -785,7 +785,7 @@
 (FMOVDstore [off] {sym} ptr (MTVSRD x) mem) => (MOVDstore [off] {sym} ptr x mem)
 (MOVDstore [off] {sym} ptr (MFVSRD x) mem) => (FMOVDstore [off] {sym} ptr x mem)
 
-(MTVSRD (MOVDconst [c])) => (FMOVDconst [math.Float64frombits(uint64(c))])
+(MTVSRD (MOVDconst [c])) && !math.IsNaN(math.Float64frombits(uint64(c))) => (FMOVDconst [math.Float64frombits(uint64(c))])
 (MFVSRD (FMOVDconst [c])) => (MOVDconst [int64(math.Float64bits(c))])
 
 (MTVSRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (FMOVDload [off] {sym} ptr mem)
