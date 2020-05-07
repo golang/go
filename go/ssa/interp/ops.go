@@ -1195,7 +1195,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 		// TODO(adonovan): fix: test integer -> named alias of string.
 		if ut_src.Info()&types.IsInteger != 0 {
 			if ut_dst, ok := ut_dst.(*types.Basic); ok && ut_dst.Kind() == types.String {
-				return string(asInt(x))
+				return fmt.Sprintf("%c", x)
 			}
 		}
 
