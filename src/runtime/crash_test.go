@@ -55,6 +55,16 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 		t.Fatal(err)
 	}
 
+	return runBuiltTestProg(t, exe, name, env...)
+}
+
+func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
@@ -64,7 +74,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	cmd.Stdout = &b
 	cmd.Stderr = &b
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("starting %s %s: %v", binary, name, err)
+		t.Fatalf("starting %s %s: %v", exe, name, err)
 	}
 
 	// If the process doesn't complete within 1 minute,
@@ -92,7 +102,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	}()
 
 	if err := cmd.Wait(); err != nil {
-		t.Logf("%s %s exit status: %v", binary, name, err)
+		t.Logf("%s %s exit status: %v", exe, name, err)
 	}
 	close(done)
 
