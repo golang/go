@@ -10,9 +10,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/tools/internal/stack/stacktest"
 )
 
 func TestIdleTimeout(t *testing.T) {
+	stacktest.NoLeak(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

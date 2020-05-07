@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/tools/internal/event/export/eventtest"
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/stack/stacktest"
 )
 
 var logRPC = flag.Bool("logrpc", false, "Enable jsonrpc2 communication logging")
@@ -62,6 +63,7 @@ func (test *callTest) verifyResults(t *testing.T, results interface{}) {
 }
 
 func TestCall(t *testing.T) {
+	stacktest.NoLeak(t)
 	ctx := eventtest.NewContext(context.Background(), t)
 	for _, headers := range []bool{false, true} {
 		name := "Plain"
