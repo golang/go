@@ -2112,12 +2112,6 @@ func (d *dwctxt2) dwarfaddshstrings(ctxt *Link, shstrtab loader.Sym) {
 	panic("not yet implemented")
 }
 
-// Add section symbols for DWARF debug info.  This is called before
-// dwarfaddelfheaders.
-func (d *dwctxt2) dwarfaddelfsectionsyms(ctxt *Link) {
-	panic("not yet implemented")
-}
-
 // dwarfcompress compresses the DWARF sections. Relocations are applied
 // on the fly. After this, dwarfp will contain a different (new) set of
 // symbols, and sections may have been replaced.
@@ -2151,4 +2145,20 @@ func saveDwsectCUSize(sname string, pkgname string, size uint64) {
 
 func addDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSize[sname+"."+pkgname] += size
+}
+
+func dwarfaddelfsectionsyms(ctxt *Link) {
+	if *FlagW { // disable dwarf
+		return
+	}
+	if ctxt.LinkMode != LinkExternal {
+		return
+	}
+
+	ldr := ctxt.loader
+	for _, si := range dwarfp2 {
+		s := si.secSym()
+		sect := ldr.SymSect(si.secSym())
+		putelfsectionsym(ctxt, ctxt.Out, s, sect.Elfsect.(*ElfShdr).shnum)
+	}
 }
