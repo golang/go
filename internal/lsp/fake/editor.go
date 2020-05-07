@@ -32,11 +32,7 @@ type Editor struct {
 	// locking.
 	mu sync.Mutex
 	// Editor state.
-	buffers     map[string]buffer
-	lastMessage *protocol.ShowMessageParams
-	logs        []*protocol.LogMessageParams
-	diagnostics *protocol.PublishDiagnosticsParams
-	events      []interface{}
+	buffers map[string]buffer
 	// Capabilities / Options
 	serverCapabilities protocol.ServerCapabilities
 }
@@ -80,9 +76,9 @@ func NewEditor(ws *Sandbox, config EditorConfig) *Editor {
 //
 // It returns the editor, so that it may be called as follows:
 //   editor, err := NewEditor(s).Connect(ctx, conn)
-func (e *Editor) Connect(ctx context.Context, conn *jsonrpc2.Conn) (*Editor, error) {
+func (e *Editor) Connect(ctx context.Context, conn *jsonrpc2.Conn, hooks ClientHooks) (*Editor, error) {
 	e.server = protocol.ServerDispatcher(conn)
-	e.client = &Client{Editor: e}
+	e.client = &Client{editor: e, hooks: hooks}
 	go conn.Run(ctx,
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,

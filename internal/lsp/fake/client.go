@@ -10,59 +10,25 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
+// ClientHooks are called to handle the corresponding client LSP method.
+type ClientHooks struct {
+	OnLogMessage             func(context.Context, *protocol.LogMessageParams) error
+	OnDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
+	OnWorkDoneProgressCreate func(context.Context, *protocol.WorkDoneProgressCreateParams) error
+	OnProgress               func(context.Context, *protocol.ProgressParams) error
+	OnShowMessage            func(context.Context, *protocol.ShowMessageParams) error
+}
+
 // Client is an adapter that converts an *Editor into an LSP Client. It mosly
 // delegates functionality to hooks that can be configured by tests.
 type Client struct {
-	*Editor
-
-	// Hooks for testing. Add additional hooks here as needed for testing.
-	onLogMessage             func(context.Context, *protocol.LogMessageParams) error
-	onDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
-	onWorkDoneProgressCreate func(context.Context, *protocol.WorkDoneProgressCreateParams) error
-	onProgress               func(context.Context, *protocol.ProgressParams) error
-	onShowMessage            func(context.Context, *protocol.ShowMessageParams) error
-}
-
-// OnShowMessage sets the hook to run when the editor receives a showMessage notification
-func (c *Client) OnShowMessage(hook func(context.Context, *protocol.ShowMessageParams) error) {
-	c.mu.Lock()
-	c.onShowMessage = hook
-	c.mu.Unlock()
-}
-
-// OnLogMessage sets the hook to run when the editor receives a log message.
-func (c *Client) OnLogMessage(hook func(context.Context, *protocol.LogMessageParams) error) {
-	c.mu.Lock()
-	c.onLogMessage = hook
-	c.mu.Unlock()
-}
-
-// OnDiagnostics sets the hook to run when the editor receives diagnostics
-// published from the language server.
-func (c *Client) OnDiagnostics(hook func(context.Context, *protocol.PublishDiagnosticsParams) error) {
-	c.mu.Lock()
-	c.onDiagnostics = hook
-	c.mu.Unlock()
-}
-
-func (c *Client) OnWorkDoneProgressCreate(hook func(context.Context, *protocol.WorkDoneProgressCreateParams) error) {
-	c.mu.Lock()
-	c.onWorkDoneProgressCreate = hook
-	c.mu.Unlock()
-}
-
-func (c *Client) OnProgress(hook func(context.Context, *protocol.ProgressParams) error) {
-	c.mu.Lock()
-	c.onProgress = hook
-	c.mu.Unlock()
+	editor *Editor
+	hooks  ClientHooks
 }
 
 func (c *Client) ShowMessage(ctx context.Context, params *protocol.ShowMessageParams) error {
-	c.mu.Lock()
-	c.lastMessage = params
-	c.mu.Unlock()
-	if c.onShowMessage != nil {
-		return c.onShowMessage(ctx, params)
+	if c.hooks.OnShowMessage != nil {
+		return c.hooks.OnShowMessage(ctx, params)
 	}
 	return nil
 }
@@ -72,30 +38,19 @@ func (c *Client) ShowMessageRequest(ctx context.Context, params *protocol.ShowMe
 }
 
 func (c *Client) LogMessage(ctx context.Context, params *protocol.LogMessageParams) error {
-	c.mu.Lock()
-	c.logs = append(c.logs, params)
-	onLogMessage := c.onLogMessage
-	c.mu.Unlock()
-	if onLogMessage != nil {
-		return onLogMessage(ctx, params)
+	if c.hooks.OnLogMessage != nil {
+		return c.hooks.OnLogMessage(ctx, params)
 	}
 	return nil
 }
 
 func (c *Client) Event(ctx context.Context, event *interface{}) error {
-	c.mu.Lock()
-	c.events = append(c.events, event)
-	c.mu.Unlock()
 	return nil
 }
 
 func (c *Client) PublishDiagnostics(ctx context.Context, params *protocol.PublishDiagnosticsParams) error {
-	c.mu.Lock()
-	c.diagnostics = params
-	onPublishDiagnostics := c.onDiagnostics
-	c.mu.Unlock()
-	if onPublishDiagnostics != nil {
-		return onPublishDiagnostics(ctx, params)
+	if c.hooks.OnDiagnostics != nil {
+		return c.hooks.OnDiagnostics(ctx, params)
 	}
 	return nil
 }
@@ -110,7 +65,7 @@ func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration
 		if item.Section != "gopls" {
 			continue
 		}
-		results[i] = c.configuration()
+		results[i] = c.editor.configuration()
 	}
 	return results, nil
 }
@@ -124,21 +79,15 @@ func (c *Client) UnregisterCapability(context.Context, *protocol.UnregistrationP
 }
 
 func (c *Client) Progress(ctx context.Context, params *protocol.ProgressParams) error {
-	c.mu.Lock()
-	onProgress := c.onProgress
-	c.mu.Unlock()
-	if onProgress != nil {
-		return onProgress(ctx, params)
+	if c.hooks.OnProgress != nil {
+		return c.hooks.OnProgress(ctx, params)
 	}
 	return nil
 }
 
 func (c *Client) WorkDoneProgressCreate(ctx context.Context, params *protocol.WorkDoneProgressCreateParams) error {
-	c.mu.Lock()
-	onCreate := c.onWorkDoneProgressCreate
-	c.mu.Unlock()
-	if onCreate != nil {
-		return onCreate(ctx, params)
+	if c.hooks.OnWorkDoneProgressCreate != nil {
+		return c.hooks.OnWorkDoneProgressCreate(ctx, params)
 	}
 	return nil
 }
@@ -150,9 +99,9 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 		return &protocol.ApplyWorkspaceEditResponse{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
 	for _, change := range params.Edit.DocumentChanges {
-		path := c.sandbox.Workdir.URIToPath(change.TextDocument.URI)
+		path := c.editor.sandbox.Workdir.URIToPath(change.TextDocument.URI)
 		edits := convertEdits(change.Edits)
-		c.EditBuffer(ctx, path, edits)
+		c.editor.EditBuffer(ctx, path, edits)
 	}
 	return &protocol.ApplyWorkspaceEditResponse{Applied: true}, nil
 }
