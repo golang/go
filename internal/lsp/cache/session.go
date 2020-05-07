@@ -419,6 +419,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 	return overlays, nil
 }
 
+// GetFile implements the source.FileSystem interface.
 func (s *Session) GetFile(uri span.URI) source.FileHandle {
 	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay
@@ -435,4 +436,17 @@ func (s *Session) readOverlay(uri span.URI) *overlay {
 		return overlay
 	}
 	return nil
+}
+
+func (s *Session) UnsavedFiles() []span.URI {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	var unsaved []span.URI
+	for uri, overlay := range s.overlays {
+		if !overlay.saved {
+			unsaved = append(unsaved, uri)
+		}
+	}
+	return unsaved
 }

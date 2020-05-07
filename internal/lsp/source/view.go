@@ -185,6 +185,9 @@ type Session interface {
 	// It returns the resulting snapshots, a guaranteed one per view.
 	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, error)
 
+	// UnsavedFiles returns a slice of open but unsaved files in the session.
+	UnsavedFiles() []span.URI
+
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options
 
