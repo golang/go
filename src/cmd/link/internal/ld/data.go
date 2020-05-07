@@ -2177,7 +2177,7 @@ func (ctxt *Link) textaddress() {
 
 	// merge tramps into Textp, keeping Textp in address order
 	if ntramps != 0 {
-		newtextp := make([]loader.Sym, 0, len(ctxt.Textp)+ntramps)
+		newtextp := make([]loader.Sym, 0, len(ctxt.Textp2)+ntramps)
 		i := 0
 		for _, s := range ctxt.Textp2 {
 			for ; i < ntramps && ldr.SymValue(ctxt.tramps[i]) < ldr.SymValue(s); i++ {
