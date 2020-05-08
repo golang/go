@@ -219,9 +219,12 @@
 // directly. TestMain runs in the main goroutine and can do whatever setup
 // and teardown is necessary around a call to m.Run. m.Run will return an exit
 // code that may be passed to os.Exit. If TestMain returns, the test wrapper
-// will pass the result of m.Run to os.Exit itself. When TestMain is called,
-// flag.Parse has not been run. If TestMain depends on command-line flags,
-// including those of the testing package, it should call flag.Parse explicitly.
+// will pass the result of m.Run to os.Exit itself.
+//
+// When TestMain is called, flag.Parse has not been run. If TestMain depends on
+// command-line flags, including those of the testing package, it should call
+// flag.Parse explicitly. Command line flags are always parsed by the time test
+// or benchmark functions run.
 //
 // A simple implementation of TestMain is:
 //
