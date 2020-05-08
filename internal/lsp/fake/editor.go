@@ -288,7 +288,10 @@ func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 	if err := e.FormatBuffer(ctx, path); err != nil {
 		return fmt.Errorf("formatting before save: %w", err)
 	}
+	return e.SaveBufferWithoutActions(ctx, path)
+}
 
+func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) error {
 	e.mu.Lock()
 	buf, ok := e.buffers[path]
 	if !ok {

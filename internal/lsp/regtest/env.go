@@ -479,7 +479,9 @@ func EmptyDiagnostics(name string) Expectation {
 }
 
 // NoDiagnostics asserts that no diagnostics are sent for the
-// workspace-relative path name.
+// workspace-relative path name. It should be used primarily in conjunction
+// with a OnceMet, as it has to check that all outstanding diagnostics have
+// already been delivered.
 func NoDiagnostics(name string) Expectation {
 	check := func(s State) (Verdict, interface{}) {
 		if _, ok := s.diagnostics[name]; !ok {
@@ -489,7 +491,7 @@ func NoDiagnostics(name string) Expectation {
 	}
 	return SimpleExpectation{
 		check:       check,
-		description: "empty diagnostics",
+		description: "no diagnostics",
 	}
 }
 

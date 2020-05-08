@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 1.14
+//+build go1.14
 
 package regtest
 
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -121,4 +122,41 @@ func main() {
 			EmptyDiagnostics("main.go"),
 		)
 	}, WithProxy(ardanLabsProxy))
+}
+
+func TestNewFileBadImports_Issue36960(t *testing.T) {
+	const simplePackage = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- a/a1.go --
+package a
+
+import "fmt"
+
+func _() {
+	fmt.Println("hi")
+}
+`
+	runner.Run(t, simplePackage, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a1.go")
+		env.CreateBuffer("a/a2.go", ``)
+		if err := env.Editor.SaveBufferWithoutActions(env.Ctx, "a/a2.go"); err != nil {
+			t.Fatal(err)
+		}
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+				NoDiagnostics("a/a1.go"),
+			),
+		)
+		env.EditBuffer("a/a2.go", fake.NewEdit(0, 0, 0, 0, `package a`))
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoDiagnostics("a/a1.go"),
+			),
+		)
+	})
 }

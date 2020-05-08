@@ -293,8 +293,10 @@ func main() {}
 			// package renaming was fully processed. Therefore, in order for this
 			// test to actually exercise the bug, we must wait until that work has
 			// completed.
-			NoDiagnostics("a.go"),
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoDiagnostics("a.go"),
+			),
 		)
 	})
 }
@@ -473,7 +475,13 @@ func f() {
 `
 	runner.Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(NoDiagnostics("a.go"), EmptyShowMessage(""))
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				NoDiagnostics("a.go"),
+			),
+			EmptyShowMessage(""),
+		)
 		// introduce an error, expect no Show Message
 		env.RegexpReplace("a.go", "func", "fun")
 		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), EmptyShowMessage(""))
@@ -514,7 +522,10 @@ func main() {
 		}
 		badFile := fmt.Sprintf("%s/found packages main (main.go) and x (x.go) in %s/src/x", dir, env.Sandbox.GOPATH())
 		env.Await(
-			EmptyDiagnostics("x/main.go"),
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				EmptyDiagnostics("x/main.go"),
+			),
 			NoDiagnostics(badFile),
 		)
 	}, InGOPATH())
