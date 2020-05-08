@@ -80,12 +80,17 @@ type Optab struct {
 }
 
 func IsAtomicInstruction(as obj.As) bool {
-	_, ok := atomicInstructions[as]
-	return ok
+	if _, ok := atomicLDADD[as]; ok {
+		return true
+	}
+	if _, ok := atomicSWP[as]; ok {
+		return true
+	}
+	return false
 }
 
 // known field values of an instruction.
-var atomicInstructions = map[obj.As]uint32{
+var atomicLDADD = map[obj.As]uint32{
 	ALDADDAD:  3<<30 | 0x1c5<<21 | 0x00<<10,
 	ALDADDAW:  2<<30 | 0x1c5<<21 | 0x00<<10,
 	ALDADDAH:  1<<30 | 0x1c5<<21 | 0x00<<10,
@@ -150,22 +155,41 @@ var atomicInstructions = map[obj.As]uint32{
 	ALDORLW:   2<<30 | 0x1c3<<21 | 0x0c<<10,
 	ALDORLH:   1<<30 | 0x1c3<<21 | 0x0c<<10,
 	ALDORLB:   0<<30 | 0x1c3<<21 | 0x0c<<10,
-	ASWPAD:    3<<30 | 0x1c5<<21 | 0x20<<10,
-	ASWPAW:    2<<30 | 0x1c5<<21 | 0x20<<10,
-	ASWPAH:    1<<30 | 0x1c5<<21 | 0x20<<10,
-	ASWPAB:    0<<30 | 0x1c5<<21 | 0x20<<10,
-	ASWPALD:   3<<30 | 0x1c7<<21 | 0x20<<10,
-	ASWPALW:   2<<30 | 0x1c7<<21 | 0x20<<10,
-	ASWPALH:   1<<30 | 0x1c7<<21 | 0x20<<10,
-	ASWPALB:   0<<30 | 0x1c7<<21 | 0x20<<10,
-	ASWPD:     3<<30 | 0x1c1<<21 | 0x20<<10,
-	ASWPW:     2<<30 | 0x1c1<<21 | 0x20<<10,
-	ASWPH:     1<<30 | 0x1c1<<21 | 0x20<<10,
-	ASWPB:     0<<30 | 0x1c1<<21 | 0x20<<10,
-	ASWPLD:    3<<30 | 0x1c3<<21 | 0x20<<10,
-	ASWPLW:    2<<30 | 0x1c3<<21 | 0x20<<10,
-	ASWPLH:    1<<30 | 0x1c3<<21 | 0x20<<10,
-	ASWPLB:    0<<30 | 0x1c3<<21 | 0x20<<10,
+}
+
+var atomicSWP = map[obj.As]uint32{
+	ASWPAD:  3<<30 | 0x1c5<<21 | 0x20<<10,
+	ASWPAW:  2<<30 | 0x1c5<<21 | 0x20<<10,
+	ASWPAH:  1<<30 | 0x1c5<<21 | 0x20<<10,
+	ASWPAB:  0<<30 | 0x1c5<<21 | 0x20<<10,
+	ASWPALD: 3<<30 | 0x1c7<<21 | 0x20<<10,
+	ASWPALW: 2<<30 | 0x1c7<<21 | 0x20<<10,
+	ASWPALH: 1<<30 | 0x1c7<<21 | 0x20<<10,
+	ASWPALB: 0<<30 | 0x1c7<<21 | 0x20<<10,
+	ASWPD:   3<<30 | 0x1c1<<21 | 0x20<<10,
+	ASWPW:   2<<30 | 0x1c1<<21 | 0x20<<10,
+	ASWPH:   1<<30 | 0x1c1<<21 | 0x20<<10,
+	ASWPB:   0<<30 | 0x1c1<<21 | 0x20<<10,
+	ASWPLD:  3<<30 | 0x1c3<<21 | 0x20<<10,
+	ASWPLW:  2<<30 | 0x1c3<<21 | 0x20<<10,
+	ASWPLH:  1<<30 | 0x1c3<<21 | 0x20<<10,
+	ASWPLB:  0<<30 | 0x1c3<<21 | 0x20<<10,
+	ACASD:   3<<30 | 0x45<<21 | 0x1f<<10,
+	ACASW:   2<<30 | 0x45<<21 | 0x1f<<10,
+	ACASH:   1<<30 | 0x45<<21 | 0x1f<<10,
+	ACASB:   0<<30 | 0x45<<21 | 0x1f<<10,
+	ACASAD:  3<<30 | 0x47<<21 | 0x1f<<10,
+	ACASAW:  2<<30 | 0x47<<21 | 0x1f<<10,
+	ACASLD:  3<<30 | 0x45<<21 | 0x3f<<10,
+	ACASLW:  2<<30 | 0x45<<21 | 0x3f<<10,
+	ACASALD: 3<<30 | 0x47<<21 | 0x3f<<10,
+	ACASALW: 2<<30 | 0x47<<21 | 0x3f<<10,
+	ACASALH: 1<<30 | 0x47<<21 | 0x3f<<10,
+	ACASALB: 0<<30 | 0x47<<21 | 0x3f<<10,
+}
+var atomicCASP = map[obj.As]uint32{
+	ACASPD: 1<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -794,8 +818,10 @@ var optab = []Optab{
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
 
-	{ASWPD, C_REG, C_NONE, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},     // RegTo2=C_REG
-	{ASWPD, C_REG, C_NONE, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0}, // RegTo2=C_REG
+	{ASWPD, C_REG, C_NONE, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},        // RegTo2=C_REG
+	{ASWPD, C_REG, C_NONE, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0},    // RegTo2=C_REG
+	{ACASPD, C_PAIR, C_NONE, C_NONE, C_ZOREG, 106, 4, 0, 0, 0},     // RegTo2=C_REGREG
+	{ACASPD, C_PAIR, C_NONE, C_NONE, C_ZAUTO, 106, 4, REGSP, 0, 0}, // RegTo2=C_REGREG
 	{ALDAR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDXR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
 	{ALDAXR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
@@ -2011,7 +2037,7 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 
 	a1--
 	a3 := C_NONE + 1
-	if p.GetFrom3() != nil {
+	if p.GetFrom3() != nil && p.RestArgs[0].Pos == 0 {
 		a3 = int(p.GetFrom3().Class)
 		if a3 == 0 {
 			a3 = c.aclass(p.GetFrom3()) + 1
@@ -2496,10 +2522,18 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AMOVZW, t)
 
 		case ASWPD:
-			for i := range atomicInstructions {
+			for i := range atomicLDADD {
+				oprangeset(i, t)
+			}
+			for i := range atomicSWP {
+				if i == ASWPD {
+					continue
+				}
 				oprangeset(i, t)
 			}
 
+		case ACASPD:
+			oprangeset(ACASPW, t)
 		case ABEQ:
 			oprangeset(ABNE, t)
 			oprangeset(ABCS, t)
@@ -3994,17 +4028,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Reg&31) << 5
 		o1 |= uint32(p.To.Reg & 31)
 
-	case 47: /* SWPx/LDADDx/LDANDx/LDEORx/LDORx Rs, (Rb), Rt */
+	case 47: // SWPx/LDADDx/LDANDx/LDEORx/LDORx/CASx Rs, (Rb), Rt
 		rs := p.From.Reg
 		rt := p.RegTo2
 		rb := p.To.Reg
 
-		fields := atomicInstructions[p.As]
-		// rt can't be sp. rt can't be r31 when field A is 0, A bit is the 23rd bit.
-		if rt == REG_RSP || (rt == REGZERO && (fields&(1<<23) == 0)) {
+		// rt can't be sp.
+		if rt == REG_RSP {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
-		o1 |= fields | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+		if enc, ok := atomicLDADD[p.As]; ok {
+			// for LDADDx-like instructions, rt can't be r31 when field.enc A is 0, A bit is the 23rd bit.
+			if (rt == REGZERO) && (enc&(1<<23) == 0) {
+				c.ctxt.Diag("illegal destination register: %v\n", p)
+			}
+			o1 |= enc
+		} else if enc, ok := atomicSWP[p.As]; ok {
+			o1 |= enc
+		} else {
+			c.ctxt.Diag("invalid atomic instructions: %v\n", p)
+		}
+		o1 |= uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -5351,6 +5395,38 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int((p.To.Reg) & 31)
 		r := int((p.Reg) & 31)
 		o1 |= ((Q & 1) << 30) | ((size & 3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
+
+	case 106: // CASPx (Rs, Rs+1), (Rb), (Rt, Rt+1)
+		rs := p.From.Reg
+		rt := p.GetTo2().Reg
+		rb := p.To.Reg
+		rs1 := int16(p.From.Offset)
+		rt1 := int16(p.GetTo2().Offset)
+
+		enc, ok := atomicCASP[p.As]
+		if !ok {
+			c.ctxt.Diag("invalid CASP-like atomic instructions: %v\n", p)
+		}
+		// for CASPx-like instructions, Rs<0> != 1 && Rt<0> != 1
+		switch {
+		case rs&1 != 0:
+			c.ctxt.Diag("source register pair must start from even register: %v\n", p)
+			break
+		case rt&1 != 0:
+			c.ctxt.Diag("destination register pair must start from even register: %v\n", p)
+			break
+		case rs != rs1-1:
+			c.ctxt.Diag("source register pair must be contiguous: %v\n", p)
+			break
+		case rt != rt1-1:
+			c.ctxt.Diag("destination register pair must be contiguous: %v\n", p)
+			break
+		}
+		// rt can't be sp.
+		if rt == REG_RSP {
+			c.ctxt.Diag("illegal destination register: %v\n", p)
+		}
+		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 	}
 	out[0] = o1
 	out[1] = o2

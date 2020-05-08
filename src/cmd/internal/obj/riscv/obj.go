@@ -48,7 +48,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 
 	p.As = AAUIPC
 	p.Mark |= NEED_PCREL_ITYPE_RELOC
-	p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}}
+	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 	p.Reg = 0
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
@@ -234,7 +234,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
@@ -275,7 +275,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 				p.As = AAUIPC
 				p.Mark |= NEED_PCREL_STYPE_RELOC
-				p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}}
+				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 				p.Reg = 0
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
@@ -340,7 +340,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 
 			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = to

@@ -182,11 +182,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		i := v.Aux.(s390x.RotateParams)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
-		p.RestArgs = []obj.Addr{
+		p.SetRestArgs([]obj.Addr{
 			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
 			{Type: obj.TYPE_REG, Reg: r2},
-		}
+		})
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
 	case ssa.OpS390XADD, ssa.OpS390XADDW,
 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
@@ -913,7 +913,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
 		p.Reg = s390x.REG_R3
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: 0}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
 		if b.Succs[0].Block() != next {
 			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
@@ -956,17 +956,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()})
 	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))})
 	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))}}
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))})
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
