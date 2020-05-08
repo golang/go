@@ -388,6 +388,7 @@ func cloneExpr(expr ast.Expr, info *types.Info, clonedInfo map[token.Pos]*types.
 			}
 
 		}
+		return s
 	case *ast.StarExpr:
 		return &ast.StarExpr{
 			Star: expr.Star,
