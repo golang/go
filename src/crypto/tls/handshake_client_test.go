@@ -1984,3 +1984,48 @@ func TestCloseClientConnectionOnIdleServer(t *testing.T) {
 		t.Errorf("Error expected, but no error returned")
 	}
 }
+
+func testDowngradeCanary(t *testing.T, clientVersion, serverVersion uint16) error {
+	defer func() { testingOnlyForceDowngradeCanary = false }()
+	testingOnlyForceDowngradeCanary = true
+
+	clientConfig := testConfig.Clone()
+	clientConfig.MaxVersion = clientVersion
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = serverVersion
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	return err
+}
+
+func TestDowngradeCanary(t *testing.T) {
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS12); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.2 was not detected")
+	}
+	if testing.Short() {
+		t.Skip("skipping the rest of the checks in short mode")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS11); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.1 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS10); err == nil {
+		t.Errorf("downgrade from TLS 1.3 to TLS 1.0 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS11); err == nil {
+		t.Errorf("downgrade from TLS 1.2 to TLS 1.1 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS10); err == nil {
+		t.Errorf("downgrade from TLS 1.2 to TLS 1.0 was not detected")
+	}
+	if err := testDowngradeCanary(t, VersionTLS13, VersionTLS13); err != nil {
+		t.Errorf("server unexpectedly sent downgrade canary for TLS 1.3")
+	}
+	if err := testDowngradeCanary(t, VersionTLS12, VersionTLS12); err != nil {
+		t.Errorf("client didn't ignore expected TLS 1.2 canary")
+	}
+	if err := testDowngradeCanary(t, VersionTLS11, VersionTLS11); err != nil {
+		t.Errorf("client unexpectedly reacted to a canary in TLS 1.1")
+	}
+	if err := testDowngradeCanary(t, VersionTLS10, VersionTLS10); err != nil {
+		t.Errorf("client unexpectedly reacted to a canary in TLS 1.0")
+	}
+}

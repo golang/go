@@ -193,7 +193,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	serverRandom := hs.hello.random
 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
 	maxVers := c.config.maxSupportedVersion()
-	if maxVers >= VersionTLS12 && c.vers < maxVers {
+	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
 		if c.vers == VersionTLS12 {
 			copy(serverRandom[24:], downgradeCanaryTLS12)
 		} else {

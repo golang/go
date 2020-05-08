@@ -2005,7 +2005,7 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
 	}
 
-	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint)
+	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint, nil)
 }
 
 func isUnsafePoint(p *obj.Prog) bool {
