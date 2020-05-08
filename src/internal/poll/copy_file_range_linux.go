@@ -88,6 +88,12 @@ func copyFileRange(dst, src *FD, max int) (written int64, err error) {
 		return 0, err
 	}
 	defer src.readUnlock()
-	n, err := unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
+	var n int
+	for {
+		n, err = unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
+		if err != syscall.EINTR {
+			break
+		}
+	}
 	return int64(n), err
 }
