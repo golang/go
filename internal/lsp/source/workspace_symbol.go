@@ -21,6 +21,9 @@ const maxSymbols = 100
 func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := event.Start(ctx, "source.WorkspaceSymbols")
 	defer done()
+	if query == "" {
+		return nil, nil
+	}
 
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
