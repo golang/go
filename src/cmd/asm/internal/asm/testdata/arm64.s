@@ -777,6 +777,24 @@ again:
 	LDORLH	R5, (RSP), R7                        // e7336578
 	LDORLB	R5, (R6), R7                         // c7306538
 	LDORLB	R5, (RSP), R7                        // e7336538
+	CASD	R1, (R2), ZR                         // 5f7ca1c8
+	CASW	R1, (RSP), ZR                        // ff7fa188
+	CASB	ZR, (R5), R3                         // a37cbf08
+	CASH	R3, (RSP), ZR                        // ff7fa348
+	CASW	R5, (R7), R6                         // e67ca588
+	CASLD	ZR, (RSP), R8                        // e8ffbfc8
+	CASLW	R9, (R10), ZR                        // 5ffda988
+	CASAD	R7, (R11), R15                       // 6f7de7c8
+	CASAW	R10, (RSP), R19                      // f37fea88
+	CASALD	R5, (R6), R7                         // c7fce5c8
+	CASALD	R5, (RSP), R7                        // e7ffe5c8
+	CASALW	R5, (R6), R7                         // c7fce588
+	CASALW	R5, (RSP), R7                        // e7ffe588
+	CASALH	ZR, (R5), R8                         // a8fcff48
+	CASALB	R8, (R9), ZR                         // 3ffde808
+	CASPD	(R30, ZR), (RSP), (R8, R9)           // e87f3e48
+	CASPW	(R6, R7), (R8), (R4, R5)             // 047d2608
+	CASPD	(R2, R3), (R2), (R8, R9)             // 487c2248
 
 // RET
 	RET

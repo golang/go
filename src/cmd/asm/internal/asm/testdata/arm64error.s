@@ -357,4 +357,8 @@ TEXT errors(SB),$0
 	VUADDW2	V9.B8, V12.S4, V14.S4                            // ERROR "operand mismatch"
 	VSLI	$64, V7.D2, V8.D2                                // ERROR "shift out of range"
 	VUSRA   $0, V7.D2, V8.D2                                 // ERROR "shift out of range"
+	CASPD	(R3, R4), (R2), (R8, R9)                         // ERROR "source register pair must start from even register"
+	CASPD	(R2, R3), (R2), (R9, R10)                        // ERROR "destination register pair must start from even register"
+	CASPD	(R2, R4), (R2), (R8, R9)                         // ERROR "source register pair must be contiguous"
+	CASPD	(R2, R3), (R2), (R8, R10)                        // ERROR "destination register pair must be contiguous"
 	RET

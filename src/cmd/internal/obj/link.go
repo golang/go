@@ -283,28 +283,41 @@ func (a *Addr) SetTarget(t *Prog) {
 // The other fields not yet mentioned are for use by the back ends and should
 // be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt     *Link    // linker context
-	Link     *Prog    // next Prog in linked list
-	From     Addr     // first source operand
-	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
-	To       Addr     // destination operand (second is RegTo2 below)
-	Pool     *Prog    // constant pool entry, for arm,arm64 back ends
-	Forwd    *Prog    // for x86 back end
-	Rel      *Prog    // for x86, arm back ends
-	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
-	Pos      src.XPos // source position of this instruction
-	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
-	As       As       // assembler opcode
-	Reg      int16    // 2nd source operand
-	RegTo2   int16    // 2nd destination operand
-	Mark     uint16   // bitmask of arch-specific items
-	Optab    uint16   // arch-specific opcode index
-	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
-	Back     uint8    // for x86 back end: backwards branch state
-	Ft       uint8    // for x86 back end: type index of Prog.From
-	Tt       uint8    // for x86 back end: type index of Prog.To
-	Isize    uint8    // for x86 back end: size of the instruction in bytes
+	Ctxt     *Link     // linker context
+	Link     *Prog     // next Prog in linked list
+	From     Addr      // first source operand
+	RestArgs []AddrPos // can pack any operands that not fit into {Prog.From, Prog.To}
+	To       Addr      // destination operand (second is RegTo2 below)
+	Pool     *Prog     // constant pool entry, for arm,arm64 back ends
+	Forwd    *Prog     // for x86 back end
+	Rel      *Prog     // for x86, arm back ends
+	Pc       int64     // for back ends or assembler: virtual or actual program counter, depending on phase
+	Pos      src.XPos  // source position of this instruction
+	Spadj    int32     // effect of instruction on stack pointer (increment or decrement amount)
+	As       As        // assembler opcode
+	Reg      int16     // 2nd source operand
+	RegTo2   int16     // 2nd destination operand
+	Mark     uint16    // bitmask of arch-specific items
+	Optab    uint16    // arch-specific opcode index
+	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions)
+	Back     uint8     // for x86 back end: backwards branch state
+	Ft       uint8     // for x86 back end: type index of Prog.From
+	Tt       uint8     // for x86 back end: type index of Prog.To
+	Isize    uint8     // for x86 back end: size of the instruction in bytes
 }
+
+// Pos indicates whether the oprand is the source or the destination.
+type AddrPos struct {
+	Addr
+	Pos OperandPos
+}
+
+type OperandPos int8
+
+const (
+	Source OperandPos = iota
+	Destination
+)
 
 // From3Type returns p.GetFrom3().Type, or TYPE_NONE when
 // p.GetFrom3() returns nil.
@@ -330,15 +343,36 @@ func (p *Prog) GetFrom3() *Addr {
 	if p.RestArgs == nil {
 		return nil
 	}
-	return &p.RestArgs[0]
+	return &p.RestArgs[0].Addr
 }
 
-// SetFrom3 assigns []Addr{a} to p.RestArgs.
+// SetFrom3 assigns []Args{{a, 0}} to p.RestArgs.
 // In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
 //
 // Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) SetFrom3(a Addr) {
-	p.RestArgs = []Addr{a}
+	p.RestArgs = []AddrPos{{a, Source}}
+}
+
+// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// operand does not fit into prog.RegTo2.
+func (p *Prog) SetTo2(a Addr) {
+	p.RestArgs = []AddrPos{{a, Destination}}
+}
+
+// GetTo2 returns the second destination operand.
+func (p *Prog) GetTo2() *Addr {
+	if p.RestArgs == nil {
+		return nil
+	}
+	return &p.RestArgs[0].Addr
+}
+
+// SetRestArgs assigns more than one source operands to p.RestArgs.
+func (p *Prog) SetRestArgs(args []Addr) {
+	for i := range args {
+		p.RestArgs = append(p.RestArgs, AddrPos{args[i], Source})
+	}
 }
 
 // An As denotes an assembler opcode.
