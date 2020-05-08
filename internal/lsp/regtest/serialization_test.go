@@ -5,10 +5,9 @@
 package regtest
 
 import (
-	"encoding/json"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/fake"
 )
 
 const simpleProgram = `
@@ -28,16 +27,10 @@ func main() {
 func TestHoverSerialization(t *testing.T) {
 	runner.Run(t, simpleProgram, func(t *testing.T, env *Env) {
 		// Hover on an empty line.
-		params := protocol.HoverParams{}
-		params.TextDocument.URI = env.Sandbox.Workdir.URI("main.go")
-		params.Position.Line = 3
-		params.Position.Character = 0
-		var resp json.RawMessage
-		if err := protocol.Call(env.Ctx, env.Conn, "textDocument/hover", &params, &resp); err != nil {
-			t.Fatal(err)
-		}
-		if len(string(resp)) > 0 {
-			t.Errorf("got non-empty response for empty hover: %v", string(resp))
+		env.OpenFile("main.go")
+		content, pos := env.Hover("main.go", fake.Pos{Line: 3, Column: 0})
+		if content != nil {
+			t.Errorf("got non-empty response for empty hover: %v: %v", pos, *content)
 		}
 	})
 }

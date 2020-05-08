@@ -721,3 +721,22 @@ func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAc
 	}
 	return lens, nil
 }
+
+// Hover triggers a hover at the given position in an open buffer.
+func (e *Editor) Hover(ctx context.Context, path string, pos Pos) (*protocol.MarkupContent, Pos, error) {
+	if err := e.checkBufferPosition(path, pos); err != nil {
+		return nil, Pos{}, err
+	}
+	params := &protocol.HoverParams{}
+	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	params.Position = pos.toProtocolPosition()
+
+	resp, err := e.Server.Hover(ctx, params)
+	if err != nil {
+		return nil, Pos{}, fmt.Errorf("hover: %w", err)
+	}
+	if resp == nil {
+		return nil, Pos{}, nil
+	}
+	return &resp.Contents, fromProtocolPosition(resp.Range.Start), nil
+}
