@@ -862,8 +862,7 @@ func (d *decoder) parseIEND(length uint32) error {
 
 func (d *decoder) parseChunk() error {
 	// Read the length and chunk type.
-	n, err := io.ReadFull(d.r, d.tmp[:8])
-	if err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
 	}
 	length := binary.BigEndian.Uint32(d.tmp[:4])
@@ -920,7 +919,7 @@ func (d *decoder) parseChunk() error {
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
 	for length > 0 {
-		n, err = io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
+		n, err := io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
 		if err != nil {
 			return err
 		}
