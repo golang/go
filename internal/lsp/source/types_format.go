@@ -386,7 +386,6 @@ func cloneExpr(expr ast.Expr, info *types.Info, clonedInfo map[token.Pos]*types.
 			if obj, ok := info.ObjectOf(x).(*types.PkgName); ok {
 				clonedInfo[s.X.Pos()] = obj
 			}
-
 		}
 		return s
 	case *ast.StarExpr:
@@ -400,8 +399,9 @@ func cloneExpr(expr ast.Expr, info *types.Info, clonedInfo map[token.Pos]*types.
 			Fields:     cloneFieldList(expr.Fields, info, clonedInfo),
 			Incomplete: expr.Incomplete,
 		}
+	default:
+		return expr
 	}
-	return expr
 }
 
 func cloneFieldList(fl *ast.FieldList, info *types.Info, clonedInfo map[token.Pos]*types.PkgName) *ast.FieldList {
