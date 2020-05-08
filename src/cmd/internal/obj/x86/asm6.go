@@ -2226,7 +2226,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			// the first instruction.)
 			return p.From.Index == REG_TLS
 		}
-		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
+		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS, nil)
 	}
 }
 

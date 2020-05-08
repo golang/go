@@ -40,4 +40,15 @@ const (
 	// PCDATA_UnsafePoint values.
 	PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
 	PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
+
+	// PCDATA_Restart1(2) apply on a sequence of instructions, within
+	// which if an async preemption happens, we should back off the PC
+	// to the start of the sequence when resuming.
+	// We need two so we can distinguish the start/end of the sequence
+	// in case that two sequences are next to each other.
+	PCDATA_Restart1 = -3
+	PCDATA_Restart2 = -4
+
+	// Like PCDATA_Restart1, but back to function entry if async preempted.
+	PCDATA_RestartAtEntry = -5
 )

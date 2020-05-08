@@ -113,13 +113,19 @@ func TestEqual(t *testing.T) {
 	if !public.Equal(public) {
 		t.Errorf("public key is not equal to itself: %q", public)
 	}
-	if !public.Equal(crypto.Signer(private).Public().(PublicKey)) {
+	if !public.Equal(crypto.Signer(private).Public()) {
 		t.Errorf("private.Public() is not Equal to public: %q", public)
 	}
+	if !private.Equal(private) {
+		t.Errorf("private key is not equal to itself: %q", private)
+	}
 
-	other, _, _ := GenerateKey(rand.Reader)
-	if public.Equal(other) {
+	otherPub, otherPriv, _ := GenerateKey(rand.Reader)
+	if public.Equal(otherPub) {
 		t.Errorf("different public keys are Equal")
+	}
+	if private.Equal(otherPriv) {
+		t.Errorf("different private keys are Equal")
 	}
 }
 

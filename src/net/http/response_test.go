@@ -734,6 +734,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 }
 
 func diff(t *testing.T, prefix string, have, want interface{}) {
+	t.Helper()
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {

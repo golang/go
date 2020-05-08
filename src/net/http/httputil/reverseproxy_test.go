@@ -1224,13 +1224,22 @@ func TestReverseProxyWebSocketCancelation(t *testing.T) {
 
 		for i := 0; i < n; i++ {
 			if _, err := bufrw.WriteString(nthResponse(i)); err != nil {
-				t.Errorf("Writing response #%d failed: %v", i, err)
+				select {
+				case <-triggerCancelCh:
+				default:
+					t.Errorf("Writing response #%d failed: %v", i, err)
+				}
+				return
 			}
 			bufrw.Flush()
 			time.Sleep(time.Second)
 		}
 		if _, err := bufrw.WriteString(terminalMsg); err != nil {
-			t.Errorf("Failed to write terminal message: %v", err)
+			select {
+			case <-triggerCancelCh:
+			default:
+				t.Errorf("Failed to write terminal message: %v", err)
+			}
 		}
 		bufrw.Flush()
 	}))
