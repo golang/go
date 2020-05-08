@@ -692,6 +692,8 @@ func (l *Loader) SymVersion(i Sym) int {
 	return int(abiToVer(r.Sym(li).ABI(), r.version))
 }
 
+func (l *Loader) IsFileLocal(i Sym) bool { return l.SymVersion(i) >= sym.SymVerStatic }
+
 // Returns the type of the i-th symbol.
 func (l *Loader) SymType(i Sym) sym.SymKind {
 	if l.IsExternal(i) {
