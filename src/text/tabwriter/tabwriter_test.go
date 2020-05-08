@@ -693,7 +693,6 @@ func BenchmarkPyramid(b *testing.B) {
 	for _, x := range [...]int{10, 100, 1000} {
 		// Build a line with x cells.
 		line := bytes.Repeat([]byte("a\t"), x)
-		line = append(line, '\n')
 		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -701,6 +700,7 @@ func BenchmarkPyramid(b *testing.B) {
 				// Write increasing prefixes of that line.
 				for j := 0; j < x; j++ {
 					w.Write(line[:j*2])
+					w.Write([]byte{'\n'})
 				}
 				w.Flush()
 			}
@@ -711,9 +711,8 @@ func BenchmarkPyramid(b *testing.B) {
 func BenchmarkRagged(b *testing.B) {
 	var lines [8][]byte
 	for i, w := range [8]int{6, 2, 9, 5, 5, 7, 3, 8} {
-		// Build a line with x cells.
+		// Build a line with w cells.
 		lines[i] = bytes.Repeat([]byte("a\t"), w)
-		lines[i] = append(lines[i], '\n')
 	}
 	for _, h := range [...]int{10, 100, 1000} {
 		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {
@@ -723,9 +722,34 @@ func BenchmarkRagged(b *testing.B) {
 				// Write the lines in turn h times.
 				for j := 0; j < h; j++ {
 					w.Write(lines[j%len(lines)])
+					w.Write([]byte{'\n'})
 				}
 				w.Flush()
 			}
 		})
+	}
+}
+
+const codeSnippet = `
+some command
+
+foo	# aligned
+barbaz	# comments
+
+but
+mostly
+single
+cell
+lines
+`
+
+func BenchmarkCode(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(ioutil.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
+		// The code is small, so it's reasonable for the tabwriter user
+		// to write it all at once, or buffer the writes.
+		w.Write([]byte(codeSnippet))
+		w.Flush()
 	}
 }

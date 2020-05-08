@@ -6,6 +6,8 @@ package syntax
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -23,7 +25,7 @@ func TestPrint(t *testing.T) {
 	}
 
 	if ast != nil {
-		Fprint(os.Stdout, ast, true)
+		Fprint(testOut(), ast, true)
 		fmt.Println()
 	}
 }
@@ -43,4 +45,11 @@ func TestPrintString(t *testing.T) {
 			t.Errorf("%q: got %q", want, got)
 		}
 	}
+}
+
+func testOut() io.Writer {
+	if testing.Verbose() {
+		return os.Stdout
+	}
+	return ioutil.Discard
 }

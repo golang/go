@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 amd64 amd64p32
+// +build 386 amd64
 
 #include "textflag.h"
 
@@ -19,14 +19,8 @@ TEXT ·cpuid(SB), NOSPLIT, $0-24
 
 // func xgetbv() (eax, edx uint32)
 TEXT ·xgetbv(SB),NOSPLIT,$0-8
-#ifdef GOOS_nacl
-	// nacl does not support XGETBV.
-	MOVL $0, eax+0(FP)
-	MOVL $0, edx+4(FP)
-#else
 	MOVL $0, CX
 	XGETBV
 	MOVL AX, eax+0(FP)
 	MOVL DX, edx+4(FP)
-#endif
 	RET

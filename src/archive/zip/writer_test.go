@@ -6,6 +6,7 @@ package zip
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -296,6 +297,59 @@ func TestWriterFlush(t *testing.T) {
 	}
 	if buf.Len() == 0 {
 		t.Fatal("No bytes written after Flush")
+	}
+}
+
+func TestWriterDir(t *testing.T) {
+	w := NewWriter(ioutil.Discard)
+	dw, err := w.Create("dir/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dw.Write(nil); err != nil {
+		t.Errorf("Write(nil) to directory: got %v, want nil", err)
+	}
+	if _, err := dw.Write([]byte("hello")); err == nil {
+		t.Error(`Write("hello") to directory: got nil error, want non-nil`)
+	}
+}
+
+func TestWriterDirAttributes(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if _, err := w.CreateHeader(&FileHeader{
+		Name:               "dir/",
+		Method:             Deflate,
+		CompressedSize64:   1234,
+		UncompressedSize64: 5678,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	b := buf.Bytes()
+
+	var sig [4]byte
+	binary.LittleEndian.PutUint32(sig[:], uint32(fileHeaderSignature))
+
+	idx := bytes.Index(b, sig[:])
+	if idx == -1 {
+		t.Fatal("file header not found")
+	}
+	b = b[idx:]
+
+	if !bytes.Equal(b[6:10], []byte{0, 0, 0, 0}) { // FileHeader.Flags: 0, FileHeader.Method: 0
+		t.Errorf("unexpected method and flags: %v", b[6:10])
+	}
+
+	if !bytes.Equal(b[14:26], make([]byte, 12)) { // FileHeader.{CRC32,CompressSize,UncompressedSize} all zero.
+		t.Errorf("unexpected crc, compress and uncompressed size to be 0 was: %v", b[14:26])
+	}
+
+	binary.LittleEndian.PutUint32(sig[:], uint32(dataDescriptorSignature))
+	if bytes.Index(b, sig[:]) != -1 {
+		t.Error("there should be no data descriptor")
 	}
 }
 

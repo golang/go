@@ -4,7 +4,10 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"internal/unsafeheader"
+	"unsafe"
+)
 
 // Swapper returns a function that swaps the elements in the provided
 // slice.
@@ -29,7 +32,7 @@ func Swapper(slice interface{}) func(i, j int) {
 
 	typ := v.Type().Elem().(*rtype)
 	size := typ.Size()
-	hasPtr := typ.kind&kindNoPointers == 0
+	hasPtr := typ.ptrdata != 0
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {
@@ -58,7 +61,7 @@ func Swapper(slice interface{}) func(i, j int) {
 		}
 	}
 
-	s := (*sliceHeader)(v.ptr)
+	s := (*unsafeheader.Slice)(v.ptr)
 	tmp := unsafe_New(typ) // swap scratch space
 
 	return func(i, j int) {

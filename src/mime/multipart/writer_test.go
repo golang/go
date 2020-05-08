@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"io/ioutil"
+	"mime"
 	"net/textproto"
 	"strings"
 	"testing"
@@ -94,6 +95,7 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"my-separator", true},
 		{"with space", true},
 		{"badspace ", false},
+		{"(boundary)", true},
 	}
 	for i, tt := range tests {
 		var b bytes.Buffer
@@ -107,6 +109,17 @@ func TestWriterSetBoundary(t *testing.T) {
 			if got != tt.b {
 				t.Errorf("boundary = %q; want %q", got, tt.b)
 			}
+
+			ct := w.FormDataContentType()
+			mt, params, err := mime.ParseMediaType(ct)
+			if err != nil {
+				t.Errorf("could not parse Content-Type %q: %v", ct, err)
+			} else if mt != "multipart/form-data" {
+				t.Errorf("unexpected media type %q; want %q", mt, "multipart/form-data")
+			} else if b := params["boundary"]; b != tt.b {
+				t.Errorf("unexpected boundary parameter %q; want %q", b, tt.b)
+			}
+
 			w.Close()
 			wantSub := "\r\n--" + tt.b + "--\r\n"
 			if got := b.String(); !strings.Contains(got, wantSub) {

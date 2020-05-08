@@ -1,0 +1,19 @@
+{"Action":"output","Test":"TestPanic","Output":"--- FAIL: TestPanic (0.00s)\n"}
+{"Action":"output","Test":"TestPanic","Output":"panic: oops [recovered]\n"}
+{"Action":"output","Test":"TestPanic","Output":"\tpanic: oops\n"}
+{"Action":"output","Test":"TestPanic","Output":"\n"}
+{"Action":"output","Test":"TestPanic","Output":"goroutine 7 [running]:\n"}
+{"Action":"output","Test":"TestPanic","Output":"testing.tRunner.func1(0xc000092100)\n"}
+{"Action":"output","Test":"TestPanic","Output":"\t/go/src/testing/testing.go:874 +0x3a3\n"}
+{"Action":"output","Test":"TestPanic","Output":"panic(0x1110ea0, 0x116aea0)\n"}
+{"Action":"output","Test":"TestPanic","Output":"\t/go/src/runtime/panic.go:679 +0x1b2\n"}
+{"Action":"output","Test":"TestPanic","Output":"command-line-arguments.TestPanic(0xc000092100)\n"}
+{"Action":"output","Test":"TestPanic","Output":"\ta_test.go:6 +0x39\n"}
+{"Action":"output","Test":"TestPanic","Output":"testing.tRunner(0xc000092100, 0x114f500)\n"}
+{"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:909 +0xc9\n"}
+{"Action":"output","Test":"TestPanic","Output":"created by testing.(*T).Run\n"}
+{"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:960 +0x350\n"}
+{"Action":"fail","Test":"TestPanic"}
+{"Action":"output","Output":"FAIL\tcommand-line-arguments\t0.042s\n"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"fail"}

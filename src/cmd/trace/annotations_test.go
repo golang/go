@@ -1,3 +1,9 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build !js
+
 package main
 
 import (
@@ -47,9 +53,9 @@ func TestOverlappingDuration(t *testing.T) {
 
 // prog0 starts three goroutines.
 //
-//   goroutine 1: taskless span
-//   goroutine 2: starts task0, do work in task0.span0, starts task1 which ends immediately.
-//   goroutine 3: do work in task0.span1 and task0.span2, ends task0
+//   goroutine 1: taskless region
+//   goroutine 2: starts task0, do work in task0.region0, starts task1 which ends immediately.
+//   goroutine 3: do work in task0.region1 and task0.region2, ends task0
 func prog0() {
 	ctx := context.Background()
 
@@ -58,7 +64,7 @@ func prog0() {
 	wg.Add(1)
 	go func() { // goroutine 1
 		defer wg.Done()
-		trace.WithSpan(ctx, "taskless.span", func(ctx context.Context) {
+		trace.WithRegion(ctx, "taskless.region", func() {
 			trace.Log(ctx, "key0", "val0")
 		})
 	}()
@@ -66,29 +72,29 @@ func prog0() {
 	wg.Add(1)
 	go func() { // goroutine 2
 		defer wg.Done()
-		ctx, taskDone := trace.NewContext(ctx, "task0")
-		trace.WithSpan(ctx, "task0.span0", func(ctx context.Context) {
+		ctx, task := trace.NewTask(ctx, "task0")
+		trace.WithRegion(ctx, "task0.region0", func() {
 			wg.Add(1)
 			go func() { // goroutine 3
 				defer wg.Done()
-				defer taskDone()
-				trace.WithSpan(ctx, "task0.span1", func(ctx context.Context) {
-					trace.WithSpan(ctx, "task0.span2", func(ctx context.Context) {
+				defer task.End()
+				trace.WithRegion(ctx, "task0.region1", func() {
+					trace.WithRegion(ctx, "task0.region2", func() {
 						trace.Log(ctx, "key2", "val2")
 					})
 					trace.Log(ctx, "key1", "val1")
 				})
 			}()
 		})
-		ctx2, taskDone2 := trace.NewContext(ctx, "task1")
+		ctx2, task2 := trace.NewTask(ctx, "task1")
 		trace.Log(ctx2, "key3", "val3")
-		taskDone2()
+		task2.End()
 	}()
 	wg.Wait()
 }
 
 func TestAnalyzeAnnotations(t *testing.T) {
-	// TODO: classify taskless spans
+	// TODO: classify taskless regions
 
 	// Run prog0 and capture the execution trace.
 	if err := traceProgram(t, prog0, "TestAnalyzeAnnotations"); err != nil {
@@ -101,17 +107,17 @@ func TestAnalyzeAnnotations(t *testing.T) {
 	}
 
 	// For prog0, we expect
-	//   - task with name = "task0", with three spans.
-	//   - task with name = "task1", with no span.
+	//   - task with name = "task0", with three regions.
+	//   - task with name = "task1", with no region.
 	wantTasks := map[string]struct {
 		complete   bool
 		goroutines int
-		spans      []string
+		regions    []string
 	}{
 		"task0": {
 			complete:   true,
 			goroutines: 2,
-			spans:      []string{"task0.span0", "", "task0.span1", "task0.span2"},
+			regions:    []string{"task0.region0", "", "task0.region1", "task0.region2"},
 		},
 		"task1": {
 			complete:   true,
@@ -125,7 +131,7 @@ func TestAnalyzeAnnotations(t *testing.T) {
 			t.Errorf("unexpected task: %s", task)
 			continue
 		}
-		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(spanNames(task), want.spans) {
+		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(regionNames(task), want.regions) {
 			t.Errorf("got task %v; want %+v", task, want)
 		}
 
@@ -135,37 +141,37 @@ func TestAnalyzeAnnotations(t *testing.T) {
 		t.Errorf("no more tasks; want %+v", wantTasks)
 	}
 
-	wantSpans := []string{
-		"", // an auto-created span for the goroutine 3
-		"taskless.span",
-		"task0.span0",
-		"task0.span1",
-		"task0.span2",
+	wantRegions := []string{
+		"", // an auto-created region for the goroutine 3
+		"taskless.region",
+		"task0.region0",
+		"task0.region1",
+		"task0.region2",
 	}
-	var gotSpans []string
-	for spanID := range res.spans {
-		gotSpans = append(gotSpans, spanID.Type)
+	var gotRegions []string
+	for regionID := range res.regions {
+		gotRegions = append(gotRegions, regionID.Type)
 	}
 
-	sort.Strings(wantSpans)
-	sort.Strings(gotSpans)
-	if !reflect.DeepEqual(gotSpans, wantSpans) {
-		t.Errorf("got spans %q, want spans %q", gotSpans, wantSpans)
+	sort.Strings(wantRegions)
+	sort.Strings(gotRegions)
+	if !reflect.DeepEqual(gotRegions, wantRegions) {
+		t.Errorf("got regions %q, want regions %q", gotRegions, wantRegions)
 	}
 }
 
 // prog1 creates a task hierarchy consisting of three tasks.
 func prog1() {
 	ctx := context.Background()
-	ctx1, done1 := trace.NewContext(ctx, "task1")
-	defer done1()
-	trace.WithSpan(ctx1, "task1.span", func(ctx context.Context) {
-		ctx2, done2 := trace.NewContext(ctx, "task2")
-		defer done2()
-		trace.WithSpan(ctx2, "task2.span", func(ctx context.Context) {
-			ctx3, done3 := trace.NewContext(ctx, "task3")
-			defer done3()
-			trace.WithSpan(ctx3, "task3.span", func(ctx context.Context) {
+	ctx1, task1 := trace.NewTask(ctx, "task1")
+	defer task1.End()
+	trace.WithRegion(ctx1, "task1.region", func() {
+		ctx2, task2 := trace.NewTask(ctx1, "task2")
+		defer task2.End()
+		trace.WithRegion(ctx2, "task2.region", func() {
+			ctx3, task3 := trace.NewTask(ctx2, "task3")
+			defer task3.End()
+			trace.WithRegion(ctx3, "task3.region", func() {
 			})
 		})
 	})
@@ -184,27 +190,27 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 	tasks := res.tasks
 
 	// For prog0, we expect
-	//   - task with name = "", with taskless.span in spans.
-	//   - task with name = "task0", with three spans.
+	//   - task with name = "", with taskless.region in regions.
+	//   - task with name = "task0", with three regions.
 	wantTasks := map[string]struct {
 		parent   string
 		children []string
-		spans    []string
+		regions  []string
 	}{
 		"task1": {
 			parent:   "",
 			children: []string{"task2"},
-			spans:    []string{"task1.span"},
+			regions:  []string{"task1.region"},
 		},
 		"task2": {
 			parent:   "task1",
 			children: []string{"task3"},
-			spans:    []string{"task2.span"},
+			regions:  []string{"task2.region"},
 		},
 		"task3": {
 			parent:   "task2",
 			children: nil,
-			spans:    []string{"task3.span"},
+			regions:  []string{"task3.region"},
 		},
 	}
 
@@ -218,7 +224,7 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 
 		if parentName(task) != want.parent ||
 			!reflect.DeepEqual(childrenNames(task), want.children) ||
-			!reflect.DeepEqual(spanNames(task), want.spans) {
+			!reflect.DeepEqual(regionNames(task), want.regions) {
 			t.Errorf("got %v; want %+v", task, want)
 		}
 	}
@@ -234,10 +240,10 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
 // prog2 returns the upper-bound gc time that overlaps with the first task.
 func prog2() (gcTime time.Duration) {
 	ch := make(chan bool)
-	ctx1, done := trace.NewContext(context.Background(), "taskWithGC")
-	trace.WithSpan(ctx1, "taskWithGC.span1", func(ctx context.Context) {
+	ctx1, task := trace.NewTask(context.Background(), "taskWithGC")
+	trace.WithRegion(ctx1, "taskWithGC.region1", func() {
 		go func() {
-			defer trace.StartSpan(ctx, "taskWithGC.span2")()
+			defer trace.StartRegion(ctx1, "taskWithGC.region2").End()
 			<-ch
 		}()
 		s := time.Now()
@@ -245,13 +251,13 @@ func prog2() (gcTime time.Duration) {
 		gcTime = time.Since(s)
 		close(ch)
 	})
-	done()
+	task.End()
 
-	ctx2, done2 := trace.NewContext(context.Background(), "taskWithoutGC")
-	trace.WithSpan(ctx2, "taskWithoutGC.span1", func(ctx context.Context) {
+	ctx2, task2 := trace.NewTask(context.Background(), "taskWithoutGC")
+	trace.WithRegion(ctx2, "taskWithoutGC.region1", func() {
 		// do nothing.
 	})
-	done2()
+	task2.End()
 	return gcTime
 }
 
@@ -343,8 +349,8 @@ func traceProgram(t *testing.T, f func(), name string) error {
 	return nil
 }
 
-func spanNames(task *taskDesc) (ret []string) {
-	for _, s := range task.spans {
+func regionNames(task *taskDesc) (ret []string) {
+	for _, s := range task.regions {
 		ret = append(ret, s.Name)
 	}
 	return ret

@@ -7,7 +7,6 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -26,11 +25,24 @@ func checkGdbEnvironment(t *testing.T) {
 	case "darwin":
 		t.Skip("gdb does not work on darwin")
 	case "netbsd":
-		t.Skip("gdb does not work with threads on NetBSD; see golang.org/issue/22893 and gnats.netbsd.org/52548")
+		t.Skip("gdb does not work with threads on NetBSD; see https://golang.org/issue/22893 and https://gnats.netbsd.org/52548")
+	case "windows":
+		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
 	case "linux":
 		if runtime.GOARCH == "ppc64" {
-			t.Skip("skipping gdb tests on linux/ppc64; see golang.org/issue/17366")
+			t.Skip("skipping gdb tests on linux/ppc64; see https://golang.org/issue/17366")
 		}
+		if runtime.GOARCH == "mips" {
+			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
+		}
+	case "freebsd":
+		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
+	case "aix":
+		if testing.Short() {
+			t.Skip("skipping gdb tests on AIX; see https://golang.org/issue/35710")
+		}
+	case "plan9":
+		t.Skip("there is no gdb on Plan 9")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
@@ -60,8 +72,8 @@ func checkGdbVersion(t *testing.T) {
 }
 
 func checkGdbPython(t *testing.T) {
-	if runtime.GOOS == "solaris" && testenv.Builder() != "solaris-amd64-smartosbuildlet" {
-		t.Skip("skipping gdb python tests on solaris; see golang.org/issue/20821")
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
 	}
 
 	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
@@ -75,11 +87,28 @@ func checkGdbPython(t *testing.T) {
 	}
 }
 
+// checkCleanBacktrace checks that the given backtrace is well formed and does
+// not contain any error messages from GDB.
+func checkCleanBacktrace(t *testing.T, backtrace string) {
+	backtrace = strings.TrimSpace(backtrace)
+	lines := strings.Split(backtrace, "\n")
+	if len(lines) == 0 {
+		t.Fatalf("empty backtrace")
+	}
+	for i, l := range lines {
+		if !strings.HasPrefix(l, fmt.Sprintf("#%v  ", i)) {
+			t.Fatalf("malformed backtrace at line %v: %v", i, l)
+		}
+	}
+	// TODO(mundaym): check for unknown frames (e.g. "??").
+}
+
 const helloSource = `
 import "fmt"
 import "runtime"
 var gslice []string
 func main() {
+	go func() { select{} }() // ensure a second goroutine is running
 	mapvar := make(map[string]string, 13)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
@@ -89,7 +118,7 @@ func main() {
 	slicevar = append(slicevar, mapvar["abc"])
 	fmt.Println("hi")
 	runtime.KeepAlive(ptrvar)
-	_ = ptrvar
+	_ = ptrvar // set breakpoint here
 	gslice = slicevar
 	runtime.KeepAlive(mapvar)
 }  // END_OF_PROGRAM
@@ -117,8 +146,8 @@ func TestGdbPythonCgo(t *testing.T) {
 }
 
 func testGdbPython(t *testing.T, cgo bool) {
-	if cgo && !build.Default.CgoEnabled {
-		t.Skip("skipping because cgo is not enabled")
+	if cgo {
+		testenv.MustHaveCGO(t)
 	}
 
 	checkGdbEnvironment(t)
@@ -141,13 +170,23 @@ func testGdbPython(t *testing.T, cgo bool) {
 
 	src := buf.Bytes()
 
+	// Locate breakpoint line
+	var bp int
+	lines := bytes.Split(src, []byte("\n"))
+	for i, line := range lines {
+		if bytes.Contains(line, []byte("breakpoint")) {
+			bp = i
+			break
+		}
+	}
+
 	err = ioutil.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 	nLines := lastLine(src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -157,14 +196,29 @@ func testGdbPython(t *testing.T, cgo bool) {
 	args := []string{"-nx", "-q", "--batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
-		"-ex", "info auto-load python-scripts",
+		"-ex", "set print thread-events off",
+	}
+	if cgo {
+		// When we build the cgo version of the program, the system's
+		// linker is used. Some external linkers, like GNU gold,
+		// compress the .debug_gdb_scripts into .zdebug_gdb_scripts.
+		// Until gold and gdb can work together, temporarily load the
+		// python script directly.
+		args = append(args,
+			"-ex", "source "+filepath.Join(runtime.GOROOT(), "src", "runtime", "runtime-gdb.py"),
+		)
+	} else {
+		args = append(args,
+			"-ex", "info auto-load python-scripts",
+		)
+	}
+	args = append(args,
 		"-ex", "set python print-stack full",
-		"-ex", "br fmt.Println",
+		"-ex", fmt.Sprintf("br main.go:%d", bp),
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
-		"-ex", "up", // up from fmt.Println to main
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
@@ -174,21 +228,23 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN info locals\n",
 		"-ex", "info locals",
 		"-ex", "echo END\n",
-		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
 		"-ex", "echo BEGIN goroutine 1 bt\n",
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 2 bt\n",
 		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
-		"-ex", "clear fmt.Println", // clear the previous break point
+		"-ex", "echo BEGIN goroutine all bt\n",
+		"-ex", "goroutine all bt",
+		"-ex", "echo END\n",
+		"-ex", "clear main.go:15", // clear the previous break point
 		"-ex", fmt.Sprintf("br main.go:%d", nLines), // new break point at the end of main
 		"-ex", "c",
 		"-ex", "echo BEGIN goroutine 1 bt at the end\n",
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
-	}
+	)
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output: %s\n", got)
 
@@ -222,14 +278,14 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info goroutines failed: %s", bl)
 	}
 
-	printMapvarRe1 := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
-	printMapvarRe2 := regexp.MustCompile(`\Q = map[string]string = {["ghi"] = "jkl", ["abc"] = "def"}\E$`)
+	printMapvarRe1 := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def", \[(0x[0-9a-f]+\s+)?"ghi"\] = (0x[0-9a-f]+\s+)?"jkl"}$`)
+	printMapvarRe2 := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"ghi"\] = (0x[0-9a-f]+\s+)?"jkl", \[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def"}$`)
 	if bl := blocks["print mapvar"]; !printMapvarRe1.MatchString(bl) &&
 		!printMapvarRe2.MatchString(bl) {
 		t.Fatalf("print mapvar failed: %s", bl)
 	}
 
-	strVarRe := regexp.MustCompile(`\Q = "abc"\E$`)
+	strVarRe := regexp.MustCompile(`^\$[0-9]+ = (0x[0-9a-f]+\s+)?"abc"$`)
 	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print strvar failed: %s", bl)
 	}
@@ -242,13 +298,22 @@ func testGdbPython(t *testing.T, cgo bool) {
 	// However, the newer dwarf location list code reconstituted
 	// aggregates from their fields and reverted their printing
 	// back to its original form.
+	// Only test that all variables are listed in 'info locals' since
+	// different versions of gdb print variables in different
+	// order and with differing amount of information and formats.
 
-	infoLocalsRe := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
-	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
+	if bl := blocks["info locals"]; !strings.Contains(bl, "slicevar") ||
+		!strings.Contains(bl, "mapvar") ||
+		!strings.Contains(bl, "strvar") {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
-	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
+	// Check that the backtraces are well formed.
+	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
+	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
+
+	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
 	}
@@ -257,6 +322,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}
+
+	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
+		t.Fatalf("goroutine all bt failed: %s", bl)
+	}
+
 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
 	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
 		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)
@@ -311,7 +381,7 @@ func TestGdbBacktrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -370,6 +440,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
+	if runtime.GOOS == "aix" && testing.Short() {
+		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
@@ -382,7 +456,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -405,11 +479,11 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Check that the backtrace matches the source code.
 	types := []string{
-		"struct []main.astruct;",
-		"struct bucket<string,main.astruct>;",
-		"struct hash<string,main.astruct>;",
-		"struct main.astruct;",
-		"typedef struct hash<string,main.astruct> * map[string]main.astruct;",
+		"[]main.astruct;",
+		"bucket<string,main.astruct>;",
+		"hash<string,main.astruct>;",
+		"main.astruct;",
+		"hash<string,main.astruct> * map[string]main.astruct;",
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
@@ -448,7 +522,7 @@ func TestGdbConst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe", "main.go")
 	cmd.Dir = dir
 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -464,17 +538,164 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print main.aConstant",
 		"-ex", "print main.largeConstant",
 		"-ex", "print main.minusOne",
-		"-ex", "print 'runtime._MSpanInUse'",
+		"-ex", "print 'runtime.mSpanInUse'",
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 
-	sgot := strings.Replace(string(got), "\r\n", "\n", -1)
+	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
 
 	t.Logf("output %q", sgot)
 
 	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'\n$5 = 8192") {
 		t.Fatalf("output mismatch")
+	}
+}
+
+const panicSource = `
+package main
+
+import "runtime/debug"
+
+func main() {
+	debug.SetTraceback("crash")
+	crash()
+}
+
+func crash() {
+	panic("panic!")
+}
+`
+
+// TestGdbPanic tests that gdb can unwind the stack correctly
+// from SIGABRTs from Go panics.
+func TestGdbPanic(t *testing.T) {
+	checkGdbEnvironment(t)
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(panicSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "run",
+		"-ex", "backtrace",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches the source code.
+	bt := []string{
+		`crash`,
+		`main`,
+	}
+	for _, name := range bt {
+		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
+	}
+}
+
+const InfCallstackSource = `
+package main
+import "C"
+import "time"
+
+func loop() {
+        for i := 0; i < 1000; i++ {
+                time.Sleep(time.Millisecond*5)
+        }
+}
+
+func main() {
+        go loop()
+        time.Sleep(time.Second * 1)
+}
+`
+
+// TestGdbInfCallstack tests that gdb can unwind the callstack of cgo programs
+// on arm64 platforms without endless frames of function 'crossfunc1'.
+// https://golang.org/issue/37238
+func TestGdbInfCallstack(t *testing.T) {
+	checkGdbEnvironment(t)
+
+	testenv.MustHaveCGO(t)
+	if runtime.GOARCH != "arm64" {
+		t.Skip("skipping infinite callstack test on non-arm64 arches")
+	}
+
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(InfCallstackSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "break setg_gcc",
+		"-ex", "run",
+		"-ex", "backtrace 3",
+		"-ex", "disable 1",
+		"-ex", "continue",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches
+	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
+	bt := []string{
+		`setg_gcc`,
+		`crosscall1`,
+		`threadentry`,
+	}
+	for i, name := range bt {
+		s := fmt.Sprintf("#%v.*%v", i, name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
 	}
 }

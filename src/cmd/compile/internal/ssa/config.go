@@ -9,39 +9,41 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"os"
-	"strconv"
 )
 
 // A Config holds readonly compilation information.
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string // "amd64", etc.
-	PtrSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
-	RegSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
-	Types           Types
-	lowerBlock      blockRewriter // lowering function
-	lowerValue      valueRewriter // lowering function
-	registers       []Register    // machine registers
-	gpRegMask       regMask       // general purpose integer register mask
-	fpRegMask       regMask       // floating point register mask
-	specialRegMask  regMask       // special register mask
-	FPReg           int8          // register number of frame pointer, -1 if not used
-	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg         bool          // has hardware g register
-	ctxt            *obj.Link     // Generic arch information
-	optimize        bool          // Do optimization
-	noDuffDevice    bool          // Don't use Duff's device
-	useSSE          bool          // Use SSE for non-float operations
-	useAvg          bool          // Use optimizations that need Avg* operations
-	useHmul         bool          // Use optimizations that need Hmul* operations
-	nacl            bool          // GOOS=nacl
-	use387          bool          // GO386=387
-	SoftFloat       bool          //
-	NeedsFpScratch  bool          // No direct move between GP and FP register sets
-	BigEndian       bool          //
-	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score
+	arch           string // "amd64", etc.
+	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
+	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+	Types          Types
+	lowerBlock     blockRewriter // lowering function
+	lowerValue     valueRewriter // lowering function
+	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
+	registers      []Register    // machine registers
+	gpRegMask      regMask       // general purpose integer register mask
+	fpRegMask      regMask       // floating point register mask
+	fp32RegMask    regMask       // floating point register mask
+	fp64RegMask    regMask       // floating point register mask
+	specialRegMask regMask       // special register mask
+	GCRegMap       []*Register   // garbage collector register map, by GC register index
+	FPReg          int8          // register number of frame pointer, -1 if not used
+	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool          // has hardware g register
+	ctxt           *obj.Link     // Generic arch information
+	optimize       bool          // Do optimization
+	noDuffDevice   bool          // Don't use Duff's device
+	useSSE         bool          // Use SSE for non-float operations
+	useAvg         bool          // Use optimizations that need Avg* operations
+	useHmul        bool          // Use optimizations that need Hmul* operations
+	use387         bool          // GO386=387
+	SoftFloat      bool          //
+	Race           bool          // race detector enabled
+	NeedsFpScratch bool          // No direct move between GP and FP register sets
+	BigEndian      bool          //
+	UseFMA         bool          // Use hardware FMA operation
 }
 
 type (
@@ -93,9 +95,10 @@ func (t *Types) SetTypPtrs() {
 	t.UInt16 = types.Types[types.TUINT16]
 	t.UInt32 = types.Types[types.TUINT32]
 	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
 	t.Float32 = types.Types[types.TFLOAT32]
 	t.Float64 = types.Types[types.TFLOAT64]
-	t.Int = types.Types[types.TINT]
+	t.UInt = types.Types[types.TUINT]
 	t.Uintptr = types.Types[types.TUINTPTR]
 	t.String = types.Types[types.TSTRING]
 	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
@@ -112,7 +115,7 @@ type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
 
-	// Log returns true if logging is not a no-op
+	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
@@ -132,7 +135,7 @@ type Frontend interface {
 	Logger
 
 	// StringData returns a symbol pointing to the given string's contents.
-	StringData(string) interface{} // returns *gc.Sym
+	StringData(string) *obj.LSym
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
@@ -164,7 +167,7 @@ type Frontend interface {
 	// given name.
 	Syslook(string) *obj.LSym
 
-	// UseWriteBarrier returns whether write barrier is enabled
+	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
 
 	// SetWBPos indicates that a write barrier has been inserted
@@ -178,6 +181,7 @@ type GCNode interface {
 	Typ() *types.Type
 	String() string
 	IsSynthetic() bool
+	IsAutoTmp() bool
 	StorageClass() StorageClass
 }
 
@@ -200,29 +204,19 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
 		c.hasGReg = false
-	case "amd64p32":
-		c.PtrSize = 4
-		c.RegSize = 8
-		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64
-		c.registers = registersAMD64[:]
-		c.gpRegMask = gpRegMaskAMD64
-		c.fpRegMask = fpRegMaskAMD64
-		c.FPReg = framepointerRegAMD64
-		c.LinkReg = linkRegAMD64
-		c.hasGReg = false
-		c.noDuffDevice = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
 		c.lowerBlock = rewriteBlock386
 		c.lowerValue = rewriteValue386
+		c.splitLoad = rewriteValue386splitload
 		c.registers = registers386[:]
 		c.gpRegMask = gpRegMask386
 		c.fpRegMask = fpRegMask386
@@ -311,30 +305,50 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "riscv64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockRISCV64
+		c.lowerValue = rewriteValueRISCV64
+		c.registers = registersRISCV64[:]
+		c.gpRegMask = gpRegMaskRISCV64
+		c.fpRegMask = fpRegMaskRISCV64
+		c.FPReg = framepointerRegRISCV64
+		c.hasGReg = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.fp32RegMask = fp32RegMaskWasm
+		c.fp64RegMask = fp64RegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.nacl = objabi.GOOS == "nacl"
 	c.useSSE = true
+	c.UseFMA = true
 
-	// Don't use Duff's device nor SSE on Plan 9 AMD64, because
-	// floating point operations are not allowed in note handler.
-	if objabi.GOOS == "plan9" && arch == "amd64" {
-		c.noDuffDevice = true
-		c.useSSE = false
-	}
+	// On Plan 9, floating point operations are not allowed in note handler.
+	if objabi.GOOS == "plan9" {
+		// Don't use FMA on Plan 9
+		c.UseFMA = false
 
-	if c.nacl {
-		c.noDuffDevice = true // Don't use Duff's device on NaCl
-
-		// Returns clobber BP on nacl/386, so the write
-		// barrier does.
-		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
-
-		// ... and SI on nacl/amd64.
-		opcodeTable[OpAMD64LoweredWB].reg.clobbers |= 1 << 6 // SI
+		// Don't use Duff's device and SSE on Plan 9 AMD64.
+		if arch == "amd64" {
+			c.noDuffDevice = true
+			c.useSSE = false
+		}
 	}
 
 	if ctxt.Flag_shared {
@@ -344,20 +358,19 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
 	}
 
-	// cutoff is compared with product of numblocks and numvalues,
-	// if product is smaller than cutoff, use old non-sparse method.
-	// cutoff == 0 implies all sparse.
-	// cutoff == -1 implies none sparse.
-	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
-	// TODO: get this from a flag, not an environment variable
-	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
-	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
-	if ev != "" {
-		v, err := strconv.ParseInt(ev, 10, 64)
-		if err != nil {
-			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+	// Create the GC register map index.
+	// TODO: This is only used for debug printing. Maybe export config.registers?
+	gcRegMapSize := int16(0)
+	for _, r := range c.registers {
+		if r.gcNum+1 > gcRegMapSize {
+			gcRegMapSize = r.gcNum + 1
 		}
-		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+	c.GCRegMap = make([]*Register, gcRegMapSize)
+	for i, r := range c.registers {
+		if r.gcNum != -1 {
+			c.GCRegMap[r.gcNum] = &c.registers[i]
+		}
 	}
 
 	return c
@@ -368,5 +381,4 @@ func (c *Config) Set387(b bool) {
 	c.use387 = b
 }
 
-func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
-func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+func (c *Config) Ctxt() *obj.Link { return c.ctxt }

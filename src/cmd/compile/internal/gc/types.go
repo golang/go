@@ -32,9 +32,7 @@ const (
 
 	TBOOL = types.TBOOL
 
-	TPTR32 = types.TPTR32
-	TPTR64 = types.TPTR64
-
+	TPTR       = types.TPTR
 	TFUNC      = types.TFUNC
 	TSLICE     = types.TSLICE
 	TARRAY     = types.TARRAY
@@ -55,9 +53,6 @@ const (
 	// pseudo-types for frame layout
 	TFUNCARGS = types.TFUNCARGS
 	TCHANARGS = types.TCHANARGS
-
-	// pseudo-types for import/export
-	TDDDFIELD = types.TDDDFIELD // wrapper: contained type is a ... field
 
 	NTYPE = types.NTYPE
 )

@@ -171,7 +171,7 @@ func makeClasses() []class {
 // computeDivMagic computes some magic constants to implement
 // the division required to compute object number from span offset.
 // n / c.size is implemented as n >> c.shift * c.mul >> c.shift2
-// for all 0 <= n < c.npages * pageSize
+// for all 0 <= n <= c.npages * pageSize
 func computeDivMagic(c *class) {
 	// divisor
 	d := c.size
@@ -180,7 +180,7 @@ func computeDivMagic(c *class) {
 	}
 
 	// maximum input value for which the formula needs to work.
-	max := c.npages*pageSize - 1
+	max := c.npages * pageSize
 
 	if powerOfTwo(d) {
 		// If the size is a power of two, heapBitsForObject can divide even faster by masking.

@@ -32,6 +32,8 @@
 package ld
 
 import (
+	"cmd/internal/goobj2"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io/ioutil"
 	"log"
@@ -136,42 +138,43 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 			// try dot, -L "libdir", and then goroot.
 			for _, dir := range ctxt.Libdir {
 				if ctxt.linkShared {
-					pname = dir + "/" + pkg + ".shlibname"
+					pname = filepath.Join(dir, pkg+".shlibname")
 					if _, err := os.Stat(pname); err == nil {
 						isshlib = true
 						break
 					}
 				}
-				pname = dir + "/" + name
+				pname = filepath.Join(dir, name)
 				if _, err := os.Stat(pname); err == nil {
 					break
 				}
 			}
 		}
-		pname = path.Clean(pname)
+		pname = filepath.Clean(pname)
 	}
 
 	return pname, isshlib
 }
 
-func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType) *sym.Library {
 	pkg := pkgname(ctxt, lib)
 
 	// already loaded?
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+		checkFingerprint(l, l.Fingerprint, src, fingerprint)
 		return l
 	}
 
 	pname, isshlib := findlib(ctxt, lib)
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
+		ctxt.Logf("addlib: %s %s pulls in %s isshlib %v\n", obj, src, pname, isshlib)
 	}
 
 	if isshlib {
-		return addlibpath(ctxt, src, obj, "", pkg, pname)
+		return addlibpath(ctxt, src, obj, "", pkg, pname, fingerprint)
 	}
-	return addlibpath(ctxt, src, obj, pname, pkg, "")
+	return addlibpath(ctxt, src, obj, pname, pkg, "", fingerprint)
 }
 
 /*
@@ -181,14 +184,16 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  *	shlib: path to shared library, or .shlibname file holding path
+ *	fingerprint: if not 0, expected fingerprint for import from srcref
+ *	             fingerprint is 0 if the library is not imported (e.g. main)
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
+func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint goobj2.FingerprintType) *sym.Library {
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
 		return l
 	}
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", Cputime(), srcref, objref, file, pkg, shlib)
+		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s fingerprint: %x\n", srcref, objref, file, pkg, shlib, fingerprint)
 	}
 
 	l := &sym.Library{}
@@ -198,6 +203,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	l.Srcref = srcref
 	l.File = file
 	l.Pkg = pkg
+	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
 			data, err := ioutil.ReadFile(shlib)
@@ -214,4 +220,47 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 func atolwhex(s string) int64 {
 	n, _ := strconv.ParseInt(s, 0, 64)
 	return n
+}
+
+// PrepareAddmoduledata returns a symbol builder that target-specific
+// code can use to build up the linker-generated go.link.addmoduledata
+// function, along with the sym for runtime.addmoduledata itself. If
+// this function is not needed (for example in cases where we're
+// linking a module that contains the runtime) the returned builder
+// will be nil.
+func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
+	if !ctxt.DynlinkingGo() {
+		return nil, 0
+	}
+	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
+	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return nil, 0
+	}
+	ctxt.loader.SetAttrReachable(amd, true)
+
+	// Create a new init func text symbol. Caller will populate this
+	// sym with arch-specific content.
+	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
+	ctxt.loader.SetAttrReachable(ifs, true)
+	ctxt.loader.SetAttrLocal(ifs, true)
+	initfunc.SetType(sym.STEXT)
+
+	// Add the init func and/or addmoduledata to Textp2.
+	if ctxt.BuildMode == BuildModePlugin {
+		ctxt.Textp2 = append(ctxt.Textp2, amd)
+	}
+	ctxt.Textp2 = append(ctxt.Textp2, initfunc.Sym())
+
+	// Create an init array entry
+	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
+	ctxt.loader.SetAttrReachable(amdi, true)
+	ctxt.loader.SetAttrLocal(amdi, true)
+	initarray_entry.SetType(sym.SINITARR)
+	initarray_entry.AddAddr(ctxt.Arch, ifs)
+
+	return initfunc, amd
 }

@@ -22,6 +22,7 @@ import (
 	"os/signal/internal/pty"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -97,7 +98,7 @@ func TestTerminalSignal(t *testing.T) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,
-		Ctty:    int(slave.Fd()),
+		Ctty:    0,
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -113,7 +114,11 @@ func TestTerminalSignal(t *testing.T) {
 	const prompt = "prompt> "
 
 	// Read data from master in the background.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
 	go func() {
+		defer wg.Done()
 		input := bufio.NewReader(master)
 		var line, handled []byte
 		for {

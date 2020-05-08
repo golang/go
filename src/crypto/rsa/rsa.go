@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rsa implements RSA encryption as specified in PKCS#1.
+// Package rsa implements RSA encryption as specified in PKCS#1 and RFC 8017.
 //
 // RSA is a single, fundamental operation that is used in this package to
 // implement either public-key encryption or public-key signatures.
@@ -10,13 +10,13 @@
 // The original specification for encryption and signatures with RSA is PKCS#1
 // and the terms "RSA encryption" and "RSA signatures" by default refer to
 // PKCS#1 version 1.5. However, that specification has flaws and new designs
-// should use version two, usually called by just OAEP and PSS, where
+// should use version 2, usually called by just OAEP and PSS, where
 // possible.
 //
 // Two sets of interfaces are included in this package. When a more abstract
 // interface isn't necessary, there are functions for encrypting/decrypting
 // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
-// over the public-key primitive, the PrivateKey struct implements the
+// over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
 // The RSA operations in this package are not implemented using constant-time algorithms.
@@ -31,6 +31,8 @@ import (
 	"io"
 	"math"
 	"math/big"
+
+	"crypto/internal/randutil"
 )
 
 var bigZero = big.NewInt(0)
@@ -42,10 +44,22 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
 // Size returns the modulus size in bytes. Raw signatures and ciphertexts
 // for or by this public key will have the same size.
 func (pub *PublicKey) Size() int {
 	return (pub.N.BitLen() + 7) / 8
+}
+
+// Equal reports whether pub and x have the same value.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
 }
 
 // OAEPOptions is an interface for passing options to OAEP decryption using the
@@ -68,7 +82,7 @@ var (
 // We require pub.E to fit into a 32-bit integer so that we
 // do not have different behavior depending on whether
 // int is 32 or 64 bits. See also
-// http://www.imperialviolet.org/2012/03/16/rsae.html.
+// https://www.imperialviolet.org/2012/03/16/rsae.html.
 func checkPub(pub *PublicKey) error {
 	if pub.N == nil {
 		return errPublicModulus
@@ -98,9 +112,31 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
 }
 
+// Equal reports whether priv and x have equivalent values. It ignores
+// Precomputed values.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+		return false
+	}
+	if len(priv.Primes) != len(xx.Primes) {
+		return false
+	}
+	for i := range priv.Primes {
+		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Sign signs digest with priv, reading randomness from rand. If opts is a
 // *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
-// be used.
+// be used. digest must be the result of hashing the input message using
+// opts.HashFunc().
 //
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
@@ -218,6 +254,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // [1] US patent 4405829 (1972, expired)
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	randutil.MaybeReadByte(random)
+
 	priv := new(PrivateKey)
 	priv.E = 65537
 
@@ -292,18 +330,13 @@ NextSetOfPrimes:
 			continue NextSetOfPrimes
 		}
 
-		g := new(big.Int)
 		priv.D = new(big.Int)
 		e := big.NewInt(int64(priv.E))
-		g.GCD(priv.D, nil, e, totient)
+		ok := priv.D.ModInverse(e, totient)
 
-		if g.Cmp(bigOne) == 0 {
-			if priv.D.Sign() < 0 {
-				priv.D.Add(priv.D, totient)
-			}
+		if ok != nil {
 			priv.Primes = primes
 			priv.N = n
-
 			break
 		}
 	}
@@ -407,16 +440,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	m := new(big.Int)
 	m.SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out := c.Bytes()
 
-	if len(out) < k {
-		// If the output is too small, we need to left-pad with zeros.
-		t := make([]byte, k)
-		copy(t[k-len(out):], out)
-		out = t
-	}
-
-	return out, nil
+	out := make([]byte, k)
+	return c.FillBytes(out), nil
 }
 
 // ErrDecryption represents a failure to decrypt a message.
@@ -426,29 +452,6 @@ var ErrDecryption = errors.New("crypto/rsa: decryption error")
 // ErrVerification represents a failure to verify a signature.
 // It is deliberately vague to avoid adaptive attacks.
 var ErrVerification = errors.New("crypto/rsa: verification error")
-
-// modInverse returns ia, the inverse of a in the multiplicative group of prime
-// order n. It requires that a be a member of the group (i.e. less than n).
-func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
-	g := new(big.Int)
-	x := new(big.Int)
-	g.GCD(x, nil, a, n)
-	if g.Cmp(bigOne) != 0 {
-		// In this case, a and n aren't coprime and we cannot calculate
-		// the inverse. This happens because the values of n are nearly
-		// prime (being the product of two primes) rather than truly
-		// prime.
-		return
-	}
-
-	if x.Cmp(bigOne) < 0 {
-		// 0 is not the multiplicative inverse of any element so, if x
-		// < 1, then x is negative.
-		x.Add(x, n)
-	}
-
-	return x, true
-}
 
 // Precompute performs some calculations that speed up private key operations
 // in the future.
@@ -495,13 +498,15 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 
 	var ir *big.Int
 	if random != nil {
+		randutil.MaybeReadByte(random)
+
 		// Blinding enabled. Blinding involves multiplying c by r^e.
 		// Then the decryption operation performs (m^e * r^e)^d mod n
 		// which equals mr mod n. The factor of r can then be removed
 		// by multiplying by the multiplicative inverse of r.
 
 		var r *big.Int
-
+		ir = new(big.Int)
 		for {
 			r, err = rand.Int(random, priv.N)
 			if err != nil {
@@ -510,9 +515,8 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 			if r.Cmp(bigZero) == 0 {
 				r = bigOne
 			}
-			var ok bool
-			ir, ok = modInverse(r, priv.N)
-			if ok {
+			ok := ir.ModInverse(r, priv.N)
+			if ok != nil {
 				break
 			}
 		}
@@ -578,7 +582,7 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
-
+//
 // OAEP is parameterised by a hash function that is used as a random oracle.
 // Encryption and decryption of a given message must use the same hash function
 // and sha256.New() is a reasonable choice.
@@ -610,12 +614,9 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	lHash := hash.Sum(nil)
 	hash.Reset()
 
-	// Converting the plaintext number to bytes will strip any
-	// leading zeros so we may have to left pad. We do this unconditionally
-	// to avoid leaking timing information. (Although we still probably
-	// leak the number of leading zeros. It's not clear that we can do
-	// anything about this.)
-	em := leftPad(m.Bytes(), k)
+	// We probably leak the number of leading zeros.
+	// It's not clear that we can do anything about this.
+	em := m.FillBytes(make([]byte, k))
 
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 
@@ -655,16 +656,4 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	return rest[index+1:], nil
-}
-
-// leftPad returns a new slice of length size. The contents of input are right
-// aligned in the new slice.
-func leftPad(input []byte, size int) (out []byte) {
-	n := len(input)
-	if n > size {
-		n = size
-	}
-	out = make([]byte, size)
-	copy(out[len(out)-n:], input)
-	return
 }

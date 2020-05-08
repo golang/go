@@ -153,9 +153,7 @@ L6:
 	VLGVG   $0, V16, R2
 	WFMADB  V6, V3, V5, V6
 	RLL     $3, R2, R2
-	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R1
 	BEQ     L9
 	WFMSDB  V0, V1, V6, V0
 	MOVD    $sinhx4ff<>+0(SB), R3
@@ -165,9 +163,7 @@ L6:
 	ANDW    $0xFFFF, R2
 	WORD    $0xA53FEFB6     //llill %r3,61366
 	SUBW    R2, R3, R2
-	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R1
 	LDGR    R1, F2
 	FMUL    F2, F0
 	FMOVD   F0, ret+8(FP)
@@ -195,9 +191,7 @@ L20:
 	FMOVD   0(R2), F5
 	LGDR    F6, R2
 	RLL     $3, R2, R2
-	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R1
 	WFMADB  V2, V1, V0, V1
 	LDGR    R1, F0
 	MOVD    $sinhe5<>+0(SB), R1
@@ -211,9 +205,7 @@ L20:
 	FNEG    F4, F4
 	ANDW    $0xFFFF, R2
 	SUBW    R2, R4, R2
-	WORD    $0xEC32000F     //risbgn %r3,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R3
 	LDGR    R3, F6
 	WFADB   V0, V6, V16
 	MOVD    $sinhe4<>+0(SB), R1
@@ -242,9 +234,7 @@ L9:
 	FMOVD   0(R3), F2
 	FMUL    F2, F0
 	WORD    $0xA72AF000     //ahi   %r2,-4096
-	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R1
 	LDGR    R1, F2
 	FMUL    F2, F0
 	FMOVD   F0, ret+8(FP)

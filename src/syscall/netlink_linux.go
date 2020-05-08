@@ -50,7 +50,7 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
 // NetlinkRIB returns routing information base, as known as RIB, which
 // consists of network facility information, states and parameters.
 func NetlinkRIB(proto, family int) ([]byte, error) {
-	s, err := Socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
+	s, err := cloexecSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
 	if err != nil {
 		return nil, err
 	}

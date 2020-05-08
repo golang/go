@@ -93,29 +93,56 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	$3, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVL	$42, AX
+	SYSCALL
+	JCC	ok
+	MOVL	$0, r+0(FP)
+	MOVL	$0, w+4(FP)
+	MOVL	AX, errno+8(FP)
+	RET
+ok:
+	MOVL	AX, r+0(FP)
+	MOVL	DX, w+4(FP)
+	MOVL	$0, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	LEAQ	r+8(FP), DI
+	MOVL	flags+0(FP), SI
+	MOVL	$542, AX
+	SYSCALL
+	MOVL	AX, errno+16(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	// thr_self(&8(SP))
-	LEAQ	8(SP), DI	// arg 1 &8(SP)
+TEXT runtime·thr_self(SB),NOSPLIT,$0-8
+	// thr_self(&0(FP))
+	LEAQ	ret+0(FP), DI	// arg 1
 	MOVL	$432, AX
 	SYSCALL
-	// thr_kill(self, SIGPIPE)
-	MOVQ	8(SP), DI	// arg 1 id
-	MOVL	sig+0(FP), SI	// arg 2
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-16
+	// thr_kill(tid, sig)
+	MOVQ	tid+0(FP), DI	// arg 1 id
+	MOVQ	sig+8(FP), SI	// arg 2 sig
 	MOVL	$433, AX
 	SYSCALL
 	RET
@@ -139,9 +166,9 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	SYSCALL
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	MOVL	$232, AX // clock_gettime
+// func fallback_walltime() (sec int64, nsec int32)
+TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
+	MOVL	$232, AX	// clock_gettime
 	MOVQ	$0, DI		// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -153,10 +180,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), NOSPLIT, $32
+TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
 	MOVL	$232, AX
-	// We can use CLOCK_MONOTONIC_FAST here when we drop
-	// support for FreeBSD 8-STABLE.
 	MOVQ	$4, DI		// CLOCK_MONOTONIC
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -339,9 +364,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
-	
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI
@@ -444,6 +471,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ	$2, SI		// F_SETFD
 	MOVQ	$1, DX		// FD_CLOEXEC
 	MOVL	$92, AX		// fcntl
+	SYSCALL
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVL    fd+0(FP), DI  // fd
+	MOVQ    $3, SI  // F_GETFL
+	MOVQ    $0, DX
+	MOVL	$92, AX // fcntl
+	SYSCALL
+	MOVL	fd+0(FP), DI // fd
+	MOVQ	$4, SI // F_SETFL
+	MOVQ	$4, DX // O_NONBLOCK
+	ORL	AX, DX
+	MOVL	$92, AX // fcntl
 	SYSCALL
 	RET
 

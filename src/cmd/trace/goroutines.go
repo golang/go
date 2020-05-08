@@ -166,17 +166,17 @@ var templGoroutine = template.Must(template.New("").Funcs(template.FuncMap{
 		d := time.Duration(nsec) * time.Nanosecond
 		return template.HTML(niceDuration(d))
 	},
-	"percent": func(dividened, divisor int64) template.HTML {
+	"percent": func(dividend, divisor int64) template.HTML {
 		if divisor == 0 {
 			return ""
 		}
-		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividened)/float64(divisor)*100))
+		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividend)/float64(divisor)*100))
 	},
-	"barLen": func(dividened, divisor int64) template.HTML {
+	"barLen": func(dividend, divisor int64) template.HTML {
 		if divisor == 0 {
 			return "0"
 		}
-		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividened)/float64(divisor)*100))
+		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividend)/float64(divisor)*100))
 	},
 	"unknownTime": func(desc *trace.GDesc) int64 {
 		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime
@@ -192,6 +192,16 @@ var templGoroutine = template.Must(template.New("").Funcs(template.FuncMap{
 th {
   background-color: #050505;
   color: #fff;
+}
+th.total-time,
+th.exec-time,
+th.io-time,
+th.block-time,
+th.syscall-time,
+th.sched-time,
+th.sweep-time,
+th.pause-time {
+  cursor: pointer;
 }
 table {
   border-collapse: collapse;
@@ -250,15 +260,15 @@ function reloadTable(key, value) {
 <table class="details">
 <tr>
 <th> Goroutine</th>
-<th onclick="reloadTable('sortby', 'TotalTime')"> Total</th>
+<th onclick="reloadTable('sortby', 'TotalTime')" class="total-time"> Total</th>
 <th></th>
 <th onclick="reloadTable('sortby', 'ExecTime')" class="exec-time"> Execution</th>
 <th onclick="reloadTable('sortby', 'IOTime')" class="io-time"> Network wait</th>
 <th onclick="reloadTable('sortby', 'BlockTime')" class="block-time"> Sync block </th>
 <th onclick="reloadTable('sortby', 'SyscallTime')" class="syscall-time"> Blocking syscall</th>
 <th onclick="reloadTable('sortby', 'SchedWaitTime')" class="sched-time"> Scheduler wait</th>
-<th onclick="reloadTable('sortby', 'SweepTime')"> GC sweeping</th>
-<th onclick="reloadTable('sortby', 'GCTime')"> GC pause</th>
+<th onclick="reloadTable('sortby', 'SweepTime')" class="sweep-time"> GC sweeping</th>
+<th onclick="reloadTable('sortby', 'GCTime')" class="pause-time"> GC pause</th>
 </tr>
 {{range .GList}}
   <tr>

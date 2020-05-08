@@ -15,6 +15,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -28,22 +29,25 @@ type source struct {
 	ExecName  string
 	BuildID   string
 	Base      []string
+	DiffBase  bool
 	Normalize bool
 
-	Seconds      int
-	Timeout      int
-	Symbolize    string
-	HTTPHostport string
-	Comment      string
+	Seconds            int
+	Timeout            int
+	Symbolize          string
+	HTTPHostport       string
+	HTTPDisableBrowser bool
+	Comment            string
 }
 
-// Parse parses the command lines through the specified flags package
+// parseFlags parses the command lines through the specified flags package
 // and returns the source of the profile and optionally the command
 // for the kind of report to generate (nil for interactive use).
 func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flag := o.Flagset
 	// Comparisons.
-	flagBase := flag.StringList("base", "", "Source for base profile for comparison")
+	flagDiffBase := flag.StringList("diff_base", "", "Source of base profile for comparison")
+	flagBase := flag.StringList("base", "", "Source of base profile for profile subtraction")
 	// Source options.
 	flagSymbolize := flag.String("symbolize", "", "Options for profile symbolization")
 	flagBuildID := flag.String("buildid", "", "Override build id for first mapping")
@@ -62,7 +66,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	flagMeanDelay := flag.Bool("mean_delay", false, "Display mean delay at each region")
 	flagTools := flag.String("tools", os.Getenv("PPROF_TOOLS"), "Path for object tool pathnames")
 
-	flagHTTP := flag.String("http", "", "Present interactive web based UI at the specified http host:port")
+	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
+	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
 
 	// Flags used during command processing
 	installedFlags := installFlags(flag)
@@ -85,7 +90,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 			usageMsgVars)
 	})
 	if len(args) == 0 {
-		return nil, nil, fmt.Errorf("no profile source specified")
+		return nil, nil, errors.New("no profile source specified")
 	}
 
 	var execName string
@@ -112,7 +117,11 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		return nil, nil, err
 	}
 	if cmd != nil && *flagHTTP != "" {
-		return nil, nil, fmt.Errorf("-http is not compatible with an output format on the command line")
+		return nil, nil, errors.New("-http is not compatible with an output format on the command line")
+	}
+
+	if *flagNoBrowser && *flagHTTP == "" {
+		return nil, nil, errors.New("-no_browser only makes sense with -http")
 	}
 
 	si := pprofVariables["sample_index"].value
@@ -130,25 +139,24 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	}
 
 	source := &source{
-		Sources:      args,
-		ExecName:     execName,
-		BuildID:      *flagBuildID,
-		Seconds:      *flagSeconds,
-		Timeout:      *flagTimeout,
-		Symbolize:    *flagSymbolize,
-		HTTPHostport: *flagHTTP,
-		Comment:      *flagAddComment,
+		Sources:            args,
+		ExecName:           execName,
+		BuildID:            *flagBuildID,
+		Seconds:            *flagSeconds,
+		Timeout:            *flagTimeout,
+		Symbolize:          *flagSymbolize,
+		HTTPHostport:       *flagHTTP,
+		HTTPDisableBrowser: *flagNoBrowser,
+		Comment:            *flagAddComment,
 	}
 
-	for _, s := range *flagBase {
-		if *s != "" {
-			source.Base = append(source.Base, *s)
-		}
+	if err := source.addBaseProfiles(*flagBase, *flagDiffBase); err != nil {
+		return nil, nil, err
 	}
 
 	normalize := pprofVariables["normalize"].boolValue()
 	if normalize && len(source.Base) == 0 {
-		return nil, nil, fmt.Errorf("Must have base profile to normalize by")
+		return nil, nil, errors.New("must have base profile to normalize by")
 	}
 	source.Normalize = normalize
 
@@ -156,6 +164,34 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 		bu.SetTools(*flagTools)
 	}
 	return source, cmd, nil
+}
+
+// addBaseProfiles adds the list of base profiles or diff base profiles to
+// the source. This function will return an error if both base and diff base
+// profiles are specified.
+func (source *source) addBaseProfiles(flagBase, flagDiffBase []*string) error {
+	base, diffBase := dropEmpty(flagBase), dropEmpty(flagDiffBase)
+	if len(base) > 0 && len(diffBase) > 0 {
+		return errors.New("-base and -diff_base flags cannot both be specified")
+	}
+
+	source.Base = base
+	if len(diffBase) > 0 {
+		source.Base, source.DiffBase = diffBase, true
+	}
+	return nil
+}
+
+// dropEmpty list takes a slice of string pointers, and outputs a slice of
+// non-empty strings associated with the flag.
+func dropEmpty(list []*string) []string {
+	var l []string
+	for _, s := range list {
+		if *s != "" {
+			l = append(l, *s)
+		}
+	}
+	return l
 }
 
 // installFlags creates command line flags for pprof variables.
@@ -240,7 +276,7 @@ func outputFormat(bcmd map[string]*bool, acmd map[string]*string) (cmd []string,
 	for n, b := range bcmd {
 		if *b {
 			if cmd != nil {
-				return nil, fmt.Errorf("must set at most one output format")
+				return nil, errors.New("must set at most one output format")
 			}
 			cmd = []string{n}
 		}
@@ -248,7 +284,7 @@ func outputFormat(bcmd map[string]*bool, acmd map[string]*string) (cmd []string,
 	for n, s := range acmd {
 		if *s != "" {
 			if cmd != nil {
-				return nil, fmt.Errorf("must set at most one output format")
+				return nil, errors.New("must set at most one output format")
 			}
 			cmd = []string{n, *s}
 		}
@@ -283,7 +319,8 @@ var usageMsgSrc = "\n\n" +
 	"    -buildid              Override build id for main binary\n" +
 	"    -add_comment          Free-form annotation to add to the profile\n" +
 	"                          Displayed on some reports or with pprof -comments\n" +
-	"    -base source          Source of profile to use as baseline\n" +
+	"    -diff_base source     Source of base profile for comparison\n" +
+	"    -base source          Source of base profile for profile subtraction\n" +
 	"    profile.pb.gz         Profile in compressed protobuf format\n" +
 	"    legacy_profile        Profile in legacy pprof format\n" +
 	"    http://host/profile   URL for profile handler to retrieve\n" +
@@ -297,9 +334,10 @@ var usageMsgSrc = "\n\n" +
 
 var usageMsgVars = "\n\n" +
 	"  Misc options:\n" +
-	"   -http              Provide web based interface at host:port.\n" +
+	"   -http              Provide web interface at host:port.\n" +
 	"                      Host is optional and 'localhost' by default.\n" +
 	"                      Port is optional and a randomly available port by default.\n" +
+	"   -no_browser        Skip opening a browser for the interactive web UI.\n" +
 	"   -tools             Search path for object tools\n" +
 	"\n" +
 	"  Legacy convenience options:\n" +
@@ -316,5 +354,5 @@ var usageMsgVars = "\n\n" +
 	"   PPROF_TOOLS        Search path for object-level tools\n" +
 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
 	"                      default: $HOME/pprof/binaries\n" +
-	"                      finds binaries by $name and $buildid/$name\n" +
+	"                      searches $name, $path, $buildid/$name, $path/$buildid\n" +
 	"   * On Windows, %USERPROFILE% is used instead of $HOME"

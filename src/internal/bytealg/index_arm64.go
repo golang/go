@@ -4,17 +4,17 @@
 
 package bytealg
 
-// Empirical data shows that using IndexShortStr can get better
+// Empirical data shows that using Index can get better
 // performance when len(s) <= 16.
 const MaxBruteForce = 16
 
 func init() {
-	// 8 bytes can be completely loaded into 1 register.
-	MaxLen = 8
+	// Optimize cases where the length of the substring is less than 32 bytes
+	MaxLen = 32
 }
 
 // Cutover reports the number of failures of IndexByte we should tolerate
-// before switching over to IndexShortStr.
+// before switching over to Index.
 // n is the number of bytes processed so far.
 // See the bytes.Index implementation for details.
 func Cutover(n int) int {

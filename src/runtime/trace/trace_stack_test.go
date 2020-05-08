@@ -24,7 +24,7 @@ import (
 // In particular that we strip bottom uninteresting frames like goexit,
 // top uninteresting frames (runtime guts).
 func TestTraceSymbolize(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
+	skipTraceSymbolizeTestIfNecessary(t)
 
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
@@ -233,6 +233,7 @@ func TestTraceSymbolize(t *testing.T) {
 		}},
 		{trace.EvGomaxprocs, []frame{
 			{"runtime.startTheWorld", 0}, // this is when the current gomaxprocs is logged.
+			{"runtime.startTheWorldGC", 0},
 			{"runtime.GOMAXPROCS", 0},
 			{"runtime/trace_test.TestTraceSymbolize", 0},
 			{"testing.tRunner", 0},
@@ -282,6 +283,13 @@ func TestTraceSymbolize(t *testing.T) {
 		seen, n := dumpEventStacks(w.Type, events)
 		t.Errorf("Did not match event %v with stack\n%s\nSeen %d events of the type\n%s",
 			trace.EventDescriptions[w.Type].Name, dumpFrames(w.Stk), n, seen)
+	}
+}
+
+func skipTraceSymbolizeTestIfNecessary(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
 	}
 }
 

@@ -7,7 +7,7 @@ package runtime
 // Numbers fundamental to the encoding.
 const (
 	runeError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
-	runeSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
+	runeSelf  = 0x80         // characters below runeSelf are represented as themselves in a single byte.
 	maxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
 )
 
@@ -38,6 +38,15 @@ const (
 	locb = 0x80 // 1000 0000
 	hicb = 0xBF // 1011 1111
 )
+
+// countrunes returns the number of runes in s.
+func countrunes(s string) int {
+	n := 0
+	for range s {
+		n++
+	}
+	return n
+}
 
 // decoderune returns the non-ASCII rune at the start of
 // s[k:] and the index after the rune in s.

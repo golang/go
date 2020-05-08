@@ -294,20 +294,11 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 	}
 
 	// Check memoization tables.
-	bk, pk := src.key()
-	if src.BuildID != "" {
-		if m, ok := pm.mappings[bk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
-	}
-	if src.File != "" {
-		if m, ok := pm.mappings[pk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
+	mk := src.key()
+	if m, ok := pm.mappings[mk]; ok {
+		mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
+		pm.mappingsByID[src.ID] = mi
+		return mi
 	}
 	m := &Mapping{
 		ID:              uint64(len(pm.p.Mapping) + 1),
@@ -324,21 +315,15 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 	pm.p.Mapping = append(pm.p.Mapping, m)
 
 	// Update memoization tables.
-	if m.BuildID != "" {
-		pm.mappings[bk] = m
-	}
-	if m.File != "" {
-		pm.mappings[pk] = m
-	}
+	pm.mappings[mk] = m
 	mi := mapInfo{m, 0}
 	pm.mappingsByID[src.ID] = mi
 	return mi
 }
 
 // key generates encoded strings of Mapping to be used as a key for
-// maps. The first key represents only the build id, while the second
-// represents only the file path.
-func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
+// maps.
+func (m *Mapping) key() mappingKey {
 	// Normalize addresses to handle address space randomization.
 	// Round up to next 4K boundary to avoid minor discrepancies.
 	const mapsizeRounding = 0x1000
@@ -346,24 +331,27 @@ func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
 	size := m.Limit - m.Start
 	size = size + mapsizeRounding - 1
 	size = size - (size % mapsizeRounding)
-
-	buildIDKey = mappingKey{
-		size,
-		m.Offset,
-		m.BuildID,
+	key := mappingKey{
+		size:   size,
+		offset: m.Offset,
 	}
 
-	pathKey = mappingKey{
-		size,
-		m.Offset,
-		m.File,
+	switch {
+	case m.BuildID != "":
+		key.buildIDOrFile = m.BuildID
+	case m.File != "":
+		key.buildIDOrFile = m.File
+	default:
+		// A mapping containing neither build ID nor file name is a fake mapping. A
+		// key with empty buildIDOrFile is used for fake mappings so that they are
+		// treated as the same mapping during merging.
 	}
-	return
+	return key
 }
 
 type mappingKey struct {
-	size, offset    uint64
-	buildidIDOrFile string
+	size, offset  uint64
+	buildIDOrFile string
 }
 
 func (pm *profileMerger) mapLine(src Line) Line {

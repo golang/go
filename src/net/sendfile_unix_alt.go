@@ -58,10 +58,28 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		return 0, err, false
 	}
 
-	written, err = poll.SendFile(&c.pfd, int(f.Fd()), pos, remain)
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return 0, nil, false
+	}
+
+	var werr error
+	err = sc.Read(func(fd uintptr) bool {
+		written, werr = poll.SendFile(&c.pfd, int(fd), pos, remain)
+		return true
+	})
+	if err == nil {
+		err = werr
+	}
 
 	if lr != nil {
 		lr.N = remain - written
 	}
+
+	_, err1 := f.Seek(written, io.SeekCurrent)
+	if err1 != nil && err == nil {
+		return written, err1, written > 0
+	}
+
 	return written, wrapSyscallError("sendfile", err), written > 0
 }

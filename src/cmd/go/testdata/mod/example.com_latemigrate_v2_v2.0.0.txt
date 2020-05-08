@@ -1,0 +1,14 @@
+example.com/latemigrate/v2 v2.0.0
+written by hand
+
+This repository migrated to modules in v2.0.1 after v2.0.0 was already tagged.
+All versions require rsc.io/quote so we can test downgrades.
+
+v2.0.0 is technically part of example.com/latemigrate as v2.0.0+incompatible.
+Proxies may serve it as part of the version list for example.com/latemigrate/v2.
+'go get' must be able to ignore these versions.
+
+-- .mod --
+module example.com/latemigrate
+-- .info --
+{"Version":"v2.0.0"}

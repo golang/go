@@ -8,6 +8,7 @@
 // +build !mips64le
 // +build !mips
 // +build !mipsle
+// +build !wasm
 
 package runtime
 

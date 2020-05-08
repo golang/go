@@ -13,14 +13,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
 	LEAL	ret+24(FP), AX
 	JMP	cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$0-28
-	MOVL	a_base+0(FP), SI
-	MOVL	a_len+4(FP), BX
-	MOVL	b_base+12(FP), DI
-	MOVL	b_len+16(FP), DX
-	LEAL	ret+24(FP), AX
-	JMP	cmpbody<>(SB)
-
 TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
 	MOVL	a_base+0(FP), SI
 	MOVL	a_len+4(FP), BX
@@ -44,7 +36,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	JEQ	allsame
 	CMPL	BP, $4
 	JB	small
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	mediumloop
 largeloop:
 	CMPL	BP, $16

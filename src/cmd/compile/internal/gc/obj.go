@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 )
 
@@ -43,10 +44,6 @@ const (
 )
 
 func dumpobj() {
-	if !dolinkobj {
-		dumpobj1(outfile, modeCompilerObj)
-		return
-	}
 	if linkobj == "" {
 		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
 		return
@@ -85,11 +82,6 @@ func printObjHeader(bout *bio.Writer) {
 	if localpkg.Name == "main" {
 		fmt.Fprintf(bout, "main\n")
 	}
-	if safemode {
-		fmt.Fprintf(bout, "safe\n")
-	} else {
-		fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
-	}
 	fmt.Fprintf(bout, "\n") // header ends with blank line
 }
 
@@ -105,13 +97,13 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 	if size&1 != 0 {
 		bout.WriteByte(0)
 	}
-	bout.Seek(start-ArhdrSize, 0)
+	bout.MustSeek(start-ArhdrSize, 0)
 
 	var arhdr [ArhdrSize]byte
 	formathdr(arhdr[:], name, size)
 	bout.Write(arhdr[:])
 	bout.Flush()
-	bout.Seek(start+size+(size&1), 0)
+	bout.MustSeek(start+size+(size&1), 0)
 }
 
 func dumpCompilerObj(bout *bio.Writer) {
@@ -119,21 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
 	dumpexport(bout)
 }
 
-func dumpLinkerObj(bout *bio.Writer) {
-	printObjHeader(bout)
-
-	if len(pragcgobuf) != 0 {
-		// write empty export section; must be before cgo section
-		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
-			Fatalf("serializing pragcgobuf: %v", err)
-		}
-		fmt.Fprintf(bout, "\n$$\n\n")
-	}
-
-	fmt.Fprintf(bout, "\n!\n")
-
+func dumpdata() {
 	externs := len(externdcl)
 
 	dumpglobls()
@@ -171,8 +149,24 @@ func dumpLinkerObj(bout *bio.Writer) {
 	}
 
 	addGCLocals()
+}
 
-	obj.WriteObjFile(Ctxt, bout.Writer)
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+
+	if len(pragcgobuf) != 0 {
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+		fmt.Fprintf(bout, "\n$$  // cgo\n")
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
+		}
+		fmt.Fprintf(bout, "\n$$\n\n")
+	}
+
+	fmt.Fprintf(bout, "\n!\n")
+
+	obj.WriteObjFile(Ctxt, bout, myimportpath)
 }
 
 func addptabs() {
@@ -268,7 +262,7 @@ func dumpglobls() {
 		}
 	}
 
-	obj.SortSlice(funcsyms, func(i, j int) bool {
+	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
 	for _, s := range funcsyms {
@@ -281,23 +275,29 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
+// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
+		}
+		if x := s.Func.StackObjects; x != nil {
+			attr := int16(obj.RODATA)
+			if s.DuplicateOK() {
+				attr |= obj.DUPOK
+			}
+			ggloblsym(x, int32(len(x.P)), attr)
+		}
+		if x := s.Func.OpenCodedDeferInfo; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }
@@ -365,11 +365,12 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 
 var slicebytes_gen int
 
-func slicebytes(nam *Node, s string, len int) {
+func slicebytes(nam *Node, s string) {
 	slicebytes_gen++
 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
 	sym := localpkg.Lookup(symname)
-	sym.Def = asTypesNode(newname(sym))
+	symnode := newname(sym)
+	sym.Def = asTypesNode(symnode)
 
 	lsym := sym.Linksym()
 	off := dsname(lsym, 0, s, nam.Pos, "slice")
@@ -378,11 +379,7 @@ func slicebytes(nam *Node, s string, len int) {
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)
 	}
-	nsym := nam.Sym.Linksym()
-	off = int(nam.Xoffset)
-	off = dsymptr(nsym, off, lsym, 0)
-	off = duintptr(nsym, off, uint64(len))
-	duintptr(nsym, off, uint64(len))
+	slicesym(nam, symnode, int64(len(s)))
 }
 
 func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
@@ -417,69 +414,99 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
 	return off
 }
 
-func gdata(nam *Node, nr *Node, wid int) {
-	if nam.Op != ONAME {
-		Fatalf("gdata nam op %v", nam.Op)
+// slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
+// arr must be an ONAME. slicesym does not modify n.
+func slicesym(n, arr *Node, lencap int64) {
+	s := n.Sym.Linksym()
+	base := n.Xoffset
+	if arr.Op != ONAME {
+		Fatalf("slicesym non-name arr %v", arr)
 	}
-	if nam.Sym == nil {
-		Fatalf("gdata nil nam sym")
+	s.WriteAddr(Ctxt, base, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
+	s.WriteInt(Ctxt, base+sliceLenOffset, Widthptr, lencap)
+	s.WriteInt(Ctxt, base+sliceCapOffset, Widthptr, lencap)
+}
+
+// addrsym writes the static address of a to n. a must be an ONAME.
+// Neither n nor a is modified.
+func addrsym(n, a *Node) {
+	if n.Op != ONAME {
+		Fatalf("addrsym n op %v", n.Op)
 	}
-	s := nam.Sym.Linksym()
+	if n.Sym == nil {
+		Fatalf("addrsym nil n sym")
+	}
+	if a.Op != ONAME {
+		Fatalf("addrsym a op %v", a.Op)
+	}
+	s := n.Sym.Linksym()
+	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, a.Sym.Linksym(), a.Xoffset)
+}
 
-	switch nr.Op {
-	case OLITERAL:
-		switch u := nr.Val().U.(type) {
-		case bool:
-			i := int64(obj.Bool2int(u))
-			s.WriteInt(Ctxt, nam.Xoffset, wid, i)
+// pfuncsym writes the static address of f to n. f must be a global function.
+// Neither n nor f is modified.
+func pfuncsym(n, f *Node) {
+	if n.Op != ONAME {
+		Fatalf("pfuncsym n op %v", n.Op)
+	}
+	if n.Sym == nil {
+		Fatalf("pfuncsym nil n sym")
+	}
+	if f.Class() != PFUNC {
+		Fatalf("pfuncsym class not PFUNC %d", f.Class())
+	}
+	s := n.Sym.Linksym()
+	s.WriteAddr(Ctxt, n.Xoffset, Widthptr, funcsym(f.Sym).Linksym(), f.Xoffset)
+}
 
-		case *Mpint:
-			s.WriteInt(Ctxt, nam.Xoffset, wid, u.Int64())
+// litsym writes the static literal c to n.
+// Neither n nor c is modified.
+func litsym(n, c *Node, wid int) {
+	if n.Op != ONAME {
+		Fatalf("litsym n op %v", n.Op)
+	}
+	if c.Op != OLITERAL {
+		Fatalf("litsym c op %v", c.Op)
+	}
+	if n.Sym == nil {
+		Fatalf("litsym nil n sym")
+	}
+	s := n.Sym.Linksym()
+	switch u := c.Val().U.(type) {
+	case bool:
+		i := int64(obj.Bool2int(u))
+		s.WriteInt(Ctxt, n.Xoffset, wid, i)
 
-		case *Mpflt:
-			f := u.Float64()
-			switch nam.Type.Etype {
-			case TFLOAT32:
-				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
-			case TFLOAT64:
-				s.WriteFloat64(Ctxt, nam.Xoffset, f)
-			}
+	case *Mpint:
+		s.WriteInt(Ctxt, n.Xoffset, wid, u.Int64())
 
-		case *Mpcplx:
-			r := u.Real.Float64()
-			i := u.Imag.Float64()
-			switch nam.Type.Etype {
-			case TCOMPLEX64:
-				s.WriteFloat32(Ctxt, nam.Xoffset, float32(r))
-				s.WriteFloat32(Ctxt, nam.Xoffset+4, float32(i))
-			case TCOMPLEX128:
-				s.WriteFloat64(Ctxt, nam.Xoffset, r)
-				s.WriteFloat64(Ctxt, nam.Xoffset+8, i)
-			}
-
-		case string:
-			symdata := stringsym(nam.Pos, u)
-			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
-			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
-
-		default:
-			Fatalf("gdata unhandled OLITERAL %v", nr)
+	case *Mpflt:
+		f := u.Float64()
+		switch n.Type.Etype {
+		case TFLOAT32:
+			s.WriteFloat32(Ctxt, n.Xoffset, float32(f))
+		case TFLOAT64:
+			s.WriteFloat64(Ctxt, n.Xoffset, f)
 		}
 
-	case OADDR:
-		if nr.Left.Op != ONAME {
-			Fatalf("gdata ADDR left op %v", nr.Left.Op)
+	case *Mpcplx:
+		r := u.Real.Float64()
+		i := u.Imag.Float64()
+		switch n.Type.Etype {
+		case TCOMPLEX64:
+			s.WriteFloat32(Ctxt, n.Xoffset, float32(r))
+			s.WriteFloat32(Ctxt, n.Xoffset+4, float32(i))
+		case TCOMPLEX128:
+			s.WriteFloat64(Ctxt, n.Xoffset, r)
+			s.WriteFloat64(Ctxt, n.Xoffset+8, i)
 		}
-		to := nr.Left
-		s.WriteAddr(Ctxt, nam.Xoffset, wid, to.Sym.Linksym(), to.Xoffset)
 
-	case ONAME:
-		if nr.Class() != PFUNC {
-			Fatalf("gdata NAME not PFUNC %d", nr.Class())
-		}
-		s.WriteAddr(Ctxt, nam.Xoffset, wid, funcsym(nr.Sym).Linksym(), nr.Xoffset)
+	case string:
+		symdata := stringsym(n.Pos, u)
+		s.WriteAddr(Ctxt, n.Xoffset, Widthptr, symdata, 0)
+		s.WriteInt(Ctxt, n.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
 
 	default:
-		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
+		Fatalf("litsym unhandled OLITERAL %v", c)
 	}
 }

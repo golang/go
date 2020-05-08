@@ -150,7 +150,7 @@ const (
 )
 
 // LINUX for zSeries ELF Application Binary Interface Supplement
-// http://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x1472.html
+// https://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x1472.html
 var S390XDWARFRegisters = map[int16]int16{}
 
 func init() {
@@ -186,6 +186,7 @@ const (
 	// mark flags
 	LEAF = 1 << iota
 	BRANCH
+	USETMP // generated code of this Prog uses REGTMP
 )
 
 const ( // comments from func aclass in asmz.go
@@ -240,6 +241,7 @@ const (
 	AMULLD
 	AMULHD
 	AMULHDU
+	AMLGR
 	ASUB
 	ASUBC
 	ASUBV
@@ -267,9 +269,14 @@ const (
 	AMOVDLE
 	AMOVDLT
 	AMOVDNE
+	ALOCR
+	ALOCGR
 
 	// find leftmost one
 	AFLOGR
+
+	// population count
+	APOPCNT
 
 	// integer bitwise
 	AAND
@@ -286,6 +293,20 @@ const (
 	ASRAD
 	ARLL
 	ARLLG
+	ARNSBG
+	ARXSBG
+	AROSBG
+	ARNSBGT
+	ARXSBGT
+	AROSBGT
+	ARISBG
+	ARISBGN
+	ARISBGZ
+	ARISBGNZ
+	ARISBHG
+	ARISBLG
+	ARISBHGZ
+	ARISBLGZ
 
 	// floating point
 	AFABS
@@ -363,6 +384,12 @@ const (
 	ATMLH
 	ATMLL
 
+	// insert program mask
+	AIPM
+
+	// set program mask
+	ASPM
+
 	// compare and swap
 	ACS
 	ACSG
@@ -373,6 +400,7 @@ const (
 	// branch
 	ABC
 	ABCL
+	ABRC
 	ABEQ
 	ABGE
 	ABGT
@@ -385,7 +413,19 @@ const (
 	ABVS
 	ASYSCALL
 
+	// branch on count
+	ABRCT
+	ABRCTG
+
 	// compare and branch
+	ACRJ
+	ACGRJ
+	ACLRJ
+	ACLGRJ
+	ACIJ
+	ACGIJ
+	ACLIJ
+	ACLGIJ
 	ACMPBEQ
 	ACMPBGE
 	ACMPBGT
@@ -401,6 +441,7 @@ const (
 
 	// storage-and-storage
 	AMVC
+	AMVCIN
 	ACLC
 	AXC
 	AOC
@@ -941,6 +982,12 @@ const (
 	AVUPLB
 	AVUPLHW
 	AVUPLF
+	AVMSLG
+	AVMSLEG
+	AVMSLOG
+	AVMSLEOG
+
+	ANOPH // NOP
 
 	// binary
 	ABYTE

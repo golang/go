@@ -47,7 +47,7 @@ var encBufferPool = sync.Pool{
 	},
 }
 
-func (e *encBuffer) WriteByte(c byte) {
+func (e *encBuffer) writeByte(c byte) {
 	e.data = append(e.data, c)
 }
 
@@ -106,7 +106,7 @@ func (enc *Encoder) freeEncoderState(e *encoderState) {
 // encodeUint writes an encoded unsigned integer to state.b.
 func (state *encoderState) encodeUint(x uint64) {
 	if x <= 0x7F {
-		state.b.WriteByte(uint8(x))
+		state.b.writeByte(uint8(x))
 		return
 	}
 

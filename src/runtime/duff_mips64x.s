@@ -265,4 +265,645 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	ADDV	$8, R1
 	RET
 
-// TODO: Implement runtime·duffcopy.
+TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	MOVV	(R1), R23
+	ADDV	$8, R1
+	MOVV	R23, (R2)
+	ADDV	$8, R2
+
+	RET

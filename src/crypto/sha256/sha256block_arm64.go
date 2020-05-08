@@ -8,13 +8,11 @@ import "internal/cpu"
 
 var k = _K
 
-var hasSHA2 = cpu.ARM64.HasSHA2
-
 //go:noescape
 func sha256block(h []uint32, p []byte, k []uint32)
 
 func block(dig *digest, p []byte) {
-	if !hasSHA2 {
+	if !cpu.ARM64.HasSHA2 {
 		blockGeneric(dig, p)
 	} else {
 		h := dig.h[:]

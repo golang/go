@@ -339,6 +339,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// Store link register before decrement SP, so if a signal comes
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
+				// This sequence is not async preemptible, as if we open a frame
+				// at the current SP, it will clobber the saved LR.
+				q = c.ctxt.StartUnsafePoint(q, c.newprog)
+
 				q = obj.Appendp(q, newprog)
 				q.As = mov
 				q.Pos = p.Pos
@@ -356,6 +360,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = +autosize
+
+				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
 			}
 
 			if c.cursym.Func.Text.From.Sym.Wrapper() && c.cursym.Func.Text.Mark&LEAF == 0 {
@@ -536,6 +542,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOV LR, Rd */
+				p.As = mov
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOV (RSP), Rd */
+				p.As = mov
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
 		}
 	}
 
@@ -658,6 +677,12 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
 	var q *obj.Prog
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
@@ -726,7 +751,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = add
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackGuard
+		p.From.Offset = int64(objabi.StackGuard)
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -741,7 +766,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = mov
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + objabi.StackGuard - objabi.StackSmall
+		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R1
 
@@ -777,6 +802,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Mark |= LABEL
 	}
 
+	p = c.ctxt.EmitEntryStackMap(c.cursym, p, c.newprog)
+
 	// JAL	runtime.morestack(SB)
 	p = obj.Appendp(p, c.newprog)
 
@@ -790,6 +817,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 	p.Mark |= BRANCH
+
+	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
 	// JMP	start
 	p = obj.Appendp(p, c.newprog)
@@ -878,21 +907,20 @@ func (c *ctxt0) sched(p0, pe *obj.Prog) {
 			t = sch[j:]
 			if t[0].comp {
 				if s[0].p.Mark&BRANCH != 0 {
-					goto no2
+					continue
 				}
 			}
 			if t[0].p.Mark&DELAY != 0 {
 				if -cap(s) >= -cap(se) || conflict(&t[0], &s[1]) {
-					goto no2
+					continue
 				}
 			}
 			for u := t[1:]; -cap(u) <= -cap(s); u = u[1:] {
 				if c.depend(&u[0], &t[0]) {
-					goto no2
+					continue
 				}
 			}
 			goto out2
-		no2:
 		}
 
 		if s[0].p.Mark&BRANCH != 0 {

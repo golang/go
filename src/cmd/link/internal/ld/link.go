@@ -34,53 +34,75 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
 )
 
 type Shlib struct {
-	Path            string
-	Hash            []byte
-	Deps            []string
-	File            *elf.File
-	gcdataAddresses map[*sym.Symbol]uint64
+	Path string
+	Hash []byte
+	Deps []string
+	File *elf.File
 }
 
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
-	Out *OutBuf
+	Target
+	ErrorReporter
+	ArchSyms
+
+	outSem chan int // limits the number of output writers
+	Out    *OutBuf
 
 	Syms *sym.Symbols
 
-	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
-	IsELF    bool
-	HeadType objabi.HeadType
+	compressDWARF bool
 
-	linkShared bool // link against installed Go shared libraries
-	LinkMode   LinkMode
-	BuildMode  BuildMode
-
-	Tlsg         *sym.Symbol
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
-	Tlsoffset    int
 	Textp        []*sym.Symbol
-	Filesyms     []*sym.Symbol
+	Textp2       []loader.Sym
+	NumFilesyms  int
 	Moduledata   *sym.Symbol
+	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
+	tramps []loader.Sym // trampolines
+
+	compUnits []*sym.CompilationUnit // DWARF compilation units
+	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
+
+	loader  *loader.Loader
+	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
+
+	cgo_export_static  map[string]bool
+	cgo_export_dynamic map[string]bool
+
+	datap   []*sym.Symbol
+	datap2  []loader.Sym
+	dynexp2 []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+	elfbind   int
+}
+
+type cgodata struct {
+	file       string
+	pkg        string
+	directives [][]string
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -107,22 +129,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 
 func addImports(ctxt *Link, l *sym.Library, pn string) {
 	pkg := objabi.PathToPrefix(l.Pkg)
-	for _, importStr := range l.ImportStrings {
-		lib := addlib(ctxt, pkg, pn, importStr)
+	for _, imp := range l.Autolib {
+		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
 		if lib != nil {
 			l.Imports = append(l.Imports, lib)
 		}
 	}
-	l.ImportStrings = nil
-}
-
-type Pciter struct {
-	d       sym.Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
+	l.Autolib = nil
 }

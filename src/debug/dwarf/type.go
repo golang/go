@@ -261,6 +261,20 @@ func (t *TypedefType) String() string { return t.Name }
 
 func (t *TypedefType) Size() int64 { return t.Type.Size() }
 
+// An UnsupportedType is a placeholder returned in situations where we
+// encounter a type that isn't supported.
+type UnsupportedType struct {
+	CommonType
+	Tag Tag
+}
+
+func (t *UnsupportedType) String() string {
+	if t.Name != "" {
+		return t.Name
+	}
+	return t.Name + "(unsupported type " + t.Tag.String() + ")"
+}
+
 // typeReader is used to read from either the info section or the
 // types section.
 type typeReader interface {
@@ -679,6 +693,16 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		t := new(UnspecifiedType)
 		typ = t
 		typeCache[off] = t
+		t.Name, _ = e.Val(AttrName).(string)
+
+	default:
+		// This is some other type DIE that we're currently not
+		// equipped to handle. Return an abstract "unsupported type"
+		// object in such cases.
+		t := new(UnsupportedType)
+		typ = t
+		typeCache[off] = t
+		t.Tag = e.Tag
 		t.Name, _ = e.Val(AttrName).(string)
 	}
 

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Read system DNS config from /etc/resolv.conf
 
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"sync/atomic"
 	"time"
@@ -20,17 +21,19 @@ var (
 )
 
 type dnsConfig struct {
-	servers    []string      // server addresses (in host:port form) to use
-	search     []string      // rooted suffixes to append to local name
-	ndots      int           // number of dots in name to trigger absolute lookup
-	timeout    time.Duration // wait before giving up on a query, including retries
-	attempts   int           // lost packets before giving up on server
-	rotate     bool          // round robin among servers
-	unknownOpt bool          // anything unknown was encountered
-	lookup     []string      // OpenBSD top-level database "lookup" order
-	err        error         // any error that occurs during open of resolv.conf
-	mtime      time.Time     // time of resolv.conf modification
-	soffset    uint32        // used by serverOffset
+	servers       []string      // server addresses (in host:port form) to use
+	search        []string      // rooted suffixes to append to local name
+	ndots         int           // number of dots in name to trigger absolute lookup
+	timeout       time.Duration // wait before giving up on a query, including retries
+	attempts      int           // lost packets before giving up on server
+	rotate        bool          // round robin among servers
+	unknownOpt    bool          // anything unknown was encountered
+	lookup        []string      // OpenBSD top-level database "lookup" order
+	err           error         // any error that occurs during open of resolv.conf
+	mtime         time.Time     // time of resolv.conf modification
+	soffset       uint32        // used by serverOffset
+	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+	useTCP        bool          // force usage of TCP for DNS resolutions
 }
 
 // See resolv.conf(5) on a Linux machine.
@@ -73,7 +76,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
@@ -114,6 +117,21 @@ func dnsReadConfig(filename string) *dnsConfig {
 					conf.attempts = n
 				case s == "rotate":
 					conf.rotate = true
+				case s == "single-request" || s == "single-request-reopen":
+					// Linux option:
+					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+					// "By default, glibc performs IPv4 and IPv6 lookups in parallel [...]
+					//  This option disables the behavior and makes glibc
+					//  perform the IPv6 and IPv4 requests sequentially."
+					conf.singleRequest = true
+				case s == "use-vc" || s == "usevc" || s == "tcp":
+					// Linux (use-vc), FreeBSD (usevc) and OpenBSD (tcp) option:
+					// http://man7.org/linux/man-pages/man5/resolv.conf.5.html
+					// "Sets RES_USEVC in _res.options.
+					//  This option forces the use of TCP for DNS resolutions."
+					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
+					// https://man.openbsd.org/resolv.conf.5
+					conf.useTCP = true
 				default:
 					conf.unknownOpt = true
 				}
@@ -121,7 +139,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "lookup":
 			// OpenBSD option:
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "the legal space-separated values are: bind, file, yp"
 			conf.lookup = f[1:]
 
@@ -155,7 +173,7 @@ func dnsDefaultSearch() []string {
 		// best effort
 		return nil
 	}
-	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
+	if i := bytealg.IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
 		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil

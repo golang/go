@@ -1,0 +1,9 @@
+[!net] skip
+[!exec:git] skip
+
+# Tests Issues #9797 and #19769
+
+mkdir $WORK/tmp/src/rsc.io
+env GOPATH=$WORK/tmp
+cd $WORK/tmp/src/rsc.io
+go get ./pprof_mac_fix

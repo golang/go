@@ -18,13 +18,13 @@ Gccgo has native gdb support.
 </p>
 <p>
 Note that 
-<a href="https://github.com/derekparker/delve">Delve</a> is a better 
+<a href="https://github.com/go-delve/delve">Delve</a> is a better
 alternative to GDB when debugging Go programs built with the standard
 toolchain. It understands the Go runtime, data structures, and
 expressions better than GDB. Delve currently supports Linux, OSX,
 and Windows on <code>amd64</code>.
 For the most up-to-date list of supported platforms, please see
-<a href="https://github.com/derekparker/delve/tree/master/Documentation/installation">
+<a href="https://github.com/go-delve/delve/tree/master/Documentation/installation">
  the Delve documentation</a>.
 </p>
 </i>
@@ -47,7 +47,7 @@ In short, the instructions below should be taken only as a guide to how
 to use GDB when it works, not as a guarantee of success.
 
 Besides this overview you might want to consult the
-<a href="http://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
+<a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">GDB manual</a>.
 </p>
 
 <p>
@@ -57,7 +57,7 @@ Besides this overview you might want to consult the
 
 <p>
 When you compile and link your Go programs with the <code>gc</code> toolchain
-on Linux, Mac OS X, FreeBSD or NetBSD, the resulting binaries contain DWARFv4
+on Linux, macOS, FreeBSD or NetBSD, the resulting binaries contain DWARFv4
 debugging information that recent versions (&ge;7.5) of the GDB debugger can
 use to inspect a live process or a core dump.
 </p>
@@ -149,6 +149,9 @@ Inspecting goroutines:
 (gdb) <b>help goroutine</b></pre>
 For example:
 <pre>(gdb) <b>goroutine 12 bt</b></pre>
+You can inspect all goroutines by passing <code>all</code> instead of a specific goroutine's ID.
+For example:
+<pre>(gdb) <b>goroutine all bt</b></pre>
 </li>
 </ul>
 
@@ -179,7 +182,15 @@ from it.</li>
 <code>"fmt.Print"</code> as an unstructured literal with a <code>"."</code>
 that needs to be quoted.  It objects even more strongly to method names of
 the form <code>pkg.(*MyType).Meth</code>.
-<li>All global variables are lumped into package <code>"main"</code>.</li>
+<li>As of Go 1.11, debug information is compressed by default.
+Older versions of gdb, such as the one available by default on MacOS,
+do not understand the compression.
+You can generate uncompressed debug information by using <code>go
+build -ldflags=-compressdwarf=false</code>.
+(For convenience you can put the <code>-ldflags</code> option in
+the <a href="/cmd/go/#hdr-Environment_variables"><code>GOFLAGS</code>
+environment variable</a> so that you don't have to specify it each time.)
+</li>
 </ol>
 
 <h2 id="Tutorial">Tutorial</h2>
@@ -248,7 +259,7 @@ Use the <code>"l"</code> or <code>"list"</code> command to inspect source code.
 </pre>
 
 <p>
-List a specific part of the source parametrizing <code>"list"</code> with a
+List a specific part of the source parameterizing <code>"list"</code> with a
 function name (it must be qualified with its package name).
 </p>
 

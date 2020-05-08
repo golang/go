@@ -55,16 +55,15 @@ const (
 type Options struct {
 	OutputFormat int
 
-	CumSort             bool
-	CallTree            bool
-	DropNegative        bool
-	PositivePercentages bool
-	CompactLabels       bool
-	Ratio               float64
-	Title               string
-	ProfileLabels       []string
-	ActiveFilters       []string
-	NumLabelUnits       map[string]string
+	CumSort       bool
+	CallTree      bool
+	DropNegative  bool
+	CompactLabels bool
+	Ratio         float64
+	Title         string
+	ProfileLabels []string
+	ActiveFilters []string
+	NumLabelUnits map[string]string
 
 	NodeCount    int
 	NodeFraction float64
@@ -79,6 +78,7 @@ type Options struct {
 
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
+	TrimPath   string         // Paths to trim from source file paths.
 }
 
 // Generate generates a report as directed by the Report.
@@ -102,7 +102,7 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	case Tags:
 		return printTags(w, rpt)
 	case Proto:
-		return rpt.prof.Write(w)
+		return printProto(w, rpt)
 	case TopProto:
 		return printTopProto(w, rpt)
 	case Dis:
@@ -239,7 +239,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	// Clean up file paths using heuristics.
 	prof := rpt.prof
 	for _, f := range prof.Function {
-		f.Filename = trimPath(f.Filename)
+		f.Filename = trimPath(f.Filename, o.TrimPath, o.SourcePath)
 	}
 	// Removes all numeric tags except for the bytes tag prior
 	// to making graph.
@@ -264,6 +264,10 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 		s.NumUnit = numUnits
 	}
 
+	// Remove label marking samples from the base profiles, so it does not appear
+	// as a nodelet in the graph view.
+	prof.RemoveLabel("pprof::base")
+
 	formatTag := func(v int64, key string) string {
 		return measurement.ScaledLabel(v, key, o.OutputUnit)
 	}
@@ -287,6 +291,23 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
+// printProto writes the incoming proto via thw writer w.
+// If the divide_by option has been specified, samples are scaled appropriately.
+func printProto(w io.Writer, rpt *Report) error {
+	p, o := rpt.prof, rpt.options
+
+	// Apply the sample ratio to all samples before saving the profile.
+	if r := o.Ratio; r > 0 && r != 1 {
+		for _, sample := range p.Sample {
+			for i, v := range sample.Value {
+				sample.Value[i] = int64(float64(v) * r)
+			}
+		}
+	}
+	return p.Write(w)
+}
+
+// printTopProto writes a list of the hottest routines in a profile as a profile.proto.
 func printTopProto(w io.Writer, rpt *Report) error {
 	p := rpt.prof
 	o := rpt.options
@@ -305,7 +326,10 @@ func printTopProto(w io.Writer, rpt *Report) error {
 	}
 	functionMap := make(functionMap)
 	for i, n := range g.Nodes {
-		f := functionMap.FindOrAdd(n.Info)
+		f, added := functionMap.findOrAdd(n.Info)
+		if added {
+			out.Function = append(out.Function, f)
+		}
 		flat, cum := n.FlatValue(), n.CumValue()
 		l := &profile.Location{
 			ID:      uint64(i + 1),
@@ -324,7 +348,6 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Location: []*profile.Location{l},
 			Value:    []int64{int64(cv), int64(fv)},
 		}
-		out.Function = append(out.Function, f)
 		out.Location = append(out.Location, l)
 		out.Sample = append(out.Sample, s)
 	}
@@ -334,11 +357,15 @@ func printTopProto(w io.Writer, rpt *Report) error {
 
 type functionMap map[string]*profile.Function
 
-func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
+// findOrAdd takes a node representing a function, adds the function
+// represented by the node to the map if the function is not already present,
+// and returns the function the node represents. This also returns a boolean,
+// which is true if the function was added and false otherwise.
+func (fm functionMap) findOrAdd(ni graph.NodeInfo) (*profile.Function, bool) {
 	fName := fmt.Sprintf("%q%q%q%d", ni.Name, ni.OrigName, ni.File, ni.StartLine)
 
 	if f := fm[fName]; f != nil {
-		return f
+		return f, false
 	}
 
 	f := &profile.Function{
@@ -349,7 +376,7 @@ func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
 		StartLine:  int64(ni.StartLine),
 	}
 	fm[fName] = f
-	return f
+	return f, true
 }
 
 // printAssembly prints an annotated assembly listing.
@@ -357,7 +384,7 @@ func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	return PrintAssembly(w, rpt, obj, -1)
 }
 
-// PrintAssembly prints annotated disasssembly of rpt to w.
+// PrintAssembly prints annotated disassembly of rpt to w.
 func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) error {
 	o := rpt.options
 	prof := rpt.prof
@@ -807,10 +834,19 @@ func printTraces(w io.Writer, rpt *Report) error {
 
 	_, locations := graph.CreateNodes(prof, &graph.Options{})
 	for _, sample := range prof.Sample {
-		var stack graph.Nodes
+		type stk struct {
+			*graph.NodeInfo
+			inline bool
+		}
+		var stack []stk
 		for _, loc := range sample.Location {
-			id := loc.ID
-			stack = append(stack, locations[id]...)
+			nodes := locations[loc.ID]
+			for i, n := range nodes {
+				// The inline flag may be inaccurate if 'show' or 'hide' filter is
+				// used. See https://github.com/google/pprof/issues/511.
+				inline := i != len(nodes)-1
+				stack = append(stack, stk{&n.Info, inline})
+			}
 		}
 
 		if len(stack) == 0 {
@@ -848,10 +884,15 @@ func printTraces(w io.Writer, rpt *Report) error {
 		if d != 0 {
 			v = v / d
 		}
-		fmt.Fprintf(w, "%10s   %s\n",
-			rpt.formatValue(v), stack[0].Info.PrintableName())
-		for _, s := range stack[1:] {
-			fmt.Fprintf(w, "%10s   %s\n", "", s.Info.PrintableName())
+		for i, s := range stack {
+			var vs, inline string
+			if i == 0 {
+				vs = rpt.formatValue(v)
+			}
+			if s.inline {
+				inline = " (inline)"
+			}
+			fmt.Fprintf(w, "%10s   %s%s\n", vs, s.PrintableName(), inline)
 		}
 	}
 	fmt.Fprintln(w, separator)
@@ -1192,7 +1233,7 @@ func New(prof *profile.Profile, o *Options) *Report {
 		}
 		return measurement.ScaledLabel(v, o.SampleUnit, o.OutputUnit)
 	}
-	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor, !o.PositivePercentages),
+	return &Report{prof, computeTotal(prof, o.SampleValue, o.SampleMeanDivisor),
 		o, format}
 }
 
@@ -1212,31 +1253,35 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
 	return New(prof, o)
 }
 
-// computeTotal computes the sum of all sample values. This will be
-// used to compute percentages. If includeNegative is set, use use
-// absolute values to provide a meaningful percentage for both
-// negative and positive values. Otherwise only use positive values,
-// which is useful when comparing profiles from different jobs.
-func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64, includeNegative bool) int64 {
-	var div, ret int64
+// computeTotal computes the sum of the absolute value of all sample values.
+// If any samples have label indicating they belong to the diff base, then the
+// total will only include samples with that label.
+func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) int64 {
+	var div, total, diffDiv, diffTotal int64
 	for _, sample := range prof.Sample {
 		var d, v int64
 		v = value(sample.Value)
 		if meanDiv != nil {
 			d = meanDiv(sample.Value)
 		}
-		if v >= 0 {
-			ret += v
-			div += d
-		} else if includeNegative {
-			ret -= v
-			div += d
+		if v < 0 {
+			v = -v
+		}
+		total += v
+		div += d
+		if sample.DiffBaseSample() {
+			diffTotal += v
+			diffDiv += d
 		}
 	}
-	if div != 0 {
-		return ret / div
+	if diffTotal > 0 {
+		total = diffTotal
+		div = diffDiv
 	}
-	return ret
+	if div != 0 {
+		return total / div
+	}
+	return total
 }
 
 // Report contains the data and associated routines to extract a

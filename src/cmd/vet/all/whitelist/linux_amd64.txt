@@ -1,8 +1,0 @@
-// linux/amd64-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
-
-// Android-specific; stubs missing on other linux platforms.
-runtime/sys_linux_amd64.s: [amd64] access: function access missing Go declaration
-runtime/sys_linux_amd64.s: [amd64] connect: function connect missing Go declaration
-runtime/sys_linux_amd64.s: [amd64] socket: function socket missing Go declaration

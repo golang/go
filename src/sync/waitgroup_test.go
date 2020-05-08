@@ -68,6 +68,21 @@ func TestWaitGroupMisuse(t *testing.T) {
 	t.Fatal("Should panic")
 }
 
+// pollUntilEqual blocks until v, loaded atomically, is
+// equal to the target.
+func pollUntilEqual(v *uint32, target uint32) {
+	for {
+		for i := 0; i < 1e3; i++ {
+			if atomic.LoadUint32(v) == target {
+				return
+			}
+		}
+		// yield to avoid deadlock with the garbage collector
+		// see issue #20072
+		runtime.Gosched()
+	}
+}
+
 func TestWaitGroupMisuse2(t *testing.T) {
 	knownRacy(t)
 	if runtime.NumCPU() <= 4 {
@@ -94,9 +109,7 @@ func TestWaitGroupMisuse2(t *testing.T) {
 				done <- recover()
 			}()
 			atomic.AddUint32(&here, 1)
-			for atomic.LoadUint32(&here) != 3 {
-				// spin
-			}
+			pollUntilEqual(&here, 3)
 			wg.Wait()
 		}()
 		go func() {
@@ -104,16 +117,12 @@ func TestWaitGroupMisuse2(t *testing.T) {
 				done <- recover()
 			}()
 			atomic.AddUint32(&here, 1)
-			for atomic.LoadUint32(&here) != 3 {
-				// spin
-			}
+			pollUntilEqual(&here, 3)
 			wg.Add(1) // This is the bad guy.
 			wg.Done()
 		}()
 		atomic.AddUint32(&here, 1)
-		for atomic.LoadUint32(&here) != 3 {
-			// spin
-		}
+		pollUntilEqual(&here, 3)
 		wg.Done()
 		for j := 0; j < 2; j++ {
 			if err := <-done; err != nil {
@@ -138,7 +147,7 @@ func TestWaitGroupMisuse3(t *testing.T) {
 		}
 	}()
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	done := make(chan interface{}, 2)
+	done := make(chan interface{}, 3)
 	// The detection is opportunistically, so we want it to panic
 	// at least in one run out of a million.
 	for i := 0; i < 1e6; i++ {
@@ -162,8 +171,13 @@ func TestWaitGroupMisuse3(t *testing.T) {
 			}()
 			wg.Wait()
 		}()
-		wg.Wait()
-		for j := 0; j < 2; j++ {
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Wait()
+		}()
+		for j := 0; j < 3; j++ {
 			if err := <-done; err != nil {
 				panic(err)
 			}

@@ -233,7 +233,7 @@ success_avx2:
 	VZEROUPPER
 	JMP success
 sse42:
-	CMPB internal∕cpu·X86+const_x86_HasSSE42(SB), $1
+	CMPB internal∕cpu·X86+const_offsetX86HasSSE42(SB), $1
 	JNE no_sse42
 	CMPQ AX, $12
 	// PCMPESTRI is slower than normal compare,

@@ -1,0 +1,78 @@
+env GO111MODULE=on
+[short] skip
+
+cd m
+
+# 'go list all' should list all of the packages used (directly or indirectly) by
+# the packages in the main module, but no other packages from the standard
+# library or active modules.
+#
+# 'go list ...' should list packages in all active modules and the standard library.
+#
+# 'go list example.com/m/...' should list packages in all modules that begin with 'example.com/m/'.
+#
+# 'go list ./...' should list only packages in the current module, not other active modules.
+#
+# Warnings about unmatched patterns should only be printed once.
+#
+# And the go command should be able to keep track of all this!
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+stdout 'example.com/m/useunicode: \[all \.\.\. example.com/m/... ./...\]'
+stdout 'example.com/m/useunsafe: \[all \.\.\. example.com/m/... ./...\]'
+[cgo] stdout 'example.com/m/useC: \[all \.\.\. example.com/m/... ./...\]'
+[!cgo] ! stdout example.com/m/useC
+stdout 'example.com/unused/useerrors: \[\.\.\.\]' # but not "all"
+stdout 'example.com/m/nested/useencoding: \[\.\.\. example.com/m/...\]' # but NOT "all" or "./..."
+stdout '^unicode: \[all \.\.\.\]'
+stdout '^unsafe: \[all \.\.\.\]'
+stdout 'index/suffixarray: \[\.\.\.\]'
+stdout 'cmd/pprof: \[\.\.\.\]'
+
+stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
+
+# 'go list ./...' should not try to resolve the main module.
+cd ../empty
+go list -deps ./...
+! stdout .
+! stderr 'finding'
+stderr -count=1 '^go: warning: "./..." matched no packages'
+
+# disabling cgo should drop useC
+[short] skip
+env CGO_ENABLED=0
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+! stdout example.com/m/useC
+
+-- m/go.mod --
+module example.com/m
+
+require example.com/unused v0.0.0 // indirect
+replace example.com/unused => ../unused
+
+require example.com/m/nested v0.0.0 // indirect
+replace example.com/m/nested => ../nested
+
+-- m/useC/useC.go --
+package useC
+import _ "C" // "C" is a pseudo-package, not an actual one
+-- m/useunicode/useunicode.go --
+package useunicode
+import _ "unicode"
+-- m/useunsafe/useunsafe.go --
+package useunsafe
+import _ "unsafe"
+
+-- unused/go.mod --
+module example.com/unused
+-- unused/useerrors/useerrors.go --
+package useerrors
+import _ "errors"
+
+-- nested/go.mod --
+module example.com/m/nested
+-- nested/useencoding/useencoding.go --
+package useencoding
+import _ "encoding"
+
+-- empty/go.mod --
+module example.com/empty

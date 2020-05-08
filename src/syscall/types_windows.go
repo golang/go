@@ -176,8 +176,11 @@ const (
 	FILE_MAP_READ    = 0x04
 	FILE_MAP_EXECUTE = 0x20
 
-	CTRL_C_EVENT     = 0
-	CTRL_BREAK_EVENT = 1
+	CTRL_C_EVENT        = 0
+	CTRL_BREAK_EVENT    = 1
+	CTRL_CLOSE_EVENT    = 2
+	CTRL_LOGOFF_EVENT   = 5
+	CTRL_SHUTDOWN_EVENT = 6
 )
 
 const (
@@ -559,7 +562,7 @@ const (
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
 
-	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4
@@ -1009,7 +1012,7 @@ type AddrinfoW struct {
 	Protocol  int32
 	Addrlen   uintptr
 	Canonname *uint16
-	Addr      uintptr
+	Addr      Pointer
 	Next      *AddrinfoW
 }
 
@@ -1139,3 +1142,5 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 	_SYMLINK_FLAG_RELATIVE           = 1
 )
+
+const UNIX_PATH_MAX = 108 // defined in afunix.h

@@ -13,7 +13,7 @@
 // already part of the program are called. The main function is not run.
 // A plugin is only initialized once, and cannot be closed.
 //
-// Currently plugins are only supported on Linux and macOS.
+// Currently plugins are only supported on Linux, FreeBSD, and macOS.
 // Please report any issues.
 package plugin
 

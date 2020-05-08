@@ -59,7 +59,7 @@ const (
 
 const opPseudo Op = 128 // where pseudo-ops start
 
-// Equal returns true if x and y have identical structure.
+// Equal reports whether x and y have identical structure.
 func (x *Regexp) Equal(y *Regexp) bool {
 	if x == nil || y == nil {
 		return x == y
@@ -139,7 +139,7 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 		b.WriteRune('[')
 		if len(re.Rune) == 0 {
 			b.WriteString(`^\x00-\x{10FFFF}`)
-		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune {
+		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune && len(re.Rune) > 2 {
 			// Contains 0 and MaxRune. Probably a negated class.
 			// Print the gaps.
 			b.WriteRune('^')

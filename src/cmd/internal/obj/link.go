@@ -33,6 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/dwarf"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -138,13 +139,16 @@ import (
 //			offset = second register
 //
 //	[reg, reg, reg-reg]
-//		Register list for ARM and ARM64.
+//		Register list for ARM, ARM64, 386/AMD64.
 //		Encoding:
 //			type = TYPE_REGLIST
 //		On ARM:
 //			offset = bit mask of registers in list; R0 is low bit.
 //		On ARM64:
 //			offset = register count (Q:size) | arrangement (opcode) | first register
+//		On 386/AMD64:
+//			reg = range low register
+//			offset = 2 packed registers + kind tag (see x86.EncodeRegisterRange)
 //
 //	reg, reg
 //		Register pair for ARM.
@@ -208,9 +212,8 @@ const (
 	// A reference to name@GOT(SB) is a reference to the entry in the global offset
 	// table for 'name'.
 	NAME_GOTREF
-	// Indicates auto that was optimized away, but whose type
-	// we want to preserve in the DWARF debug info.
-	NAME_DELETED_AUTO
+	// Indicates that this is a reference to a TOC anchor.
+	NAME_TOCREF
 )
 
 //go:generate stringer -type AddrType
@@ -282,7 +285,7 @@ type Prog struct {
 	RegTo2   int16    // 2nd destination operand
 	Mark     uint16   // bitmask of arch-specific items
 	Optab    uint16   // arch-specific opcode index
-	Scond    uint8    // condition bits for conditional instruction (e.g., on ARM)
+	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
 	Back     uint8    // for x86 back end: backwards branch state
 	Ft       uint8    // for x86 back end: type index of Prog.From
 	Tt       uint8    // for x86 back end: type index of Prog.To
@@ -341,8 +344,10 @@ const (
 	AFUNCDATA
 	AJMP
 	ANOP
+	APCALIGN
 	APCDATA
 	ARET
+	AGETCALLERPC
 	ATEXT
 	AUNDEF
 	A_ARCHSPECIFIC
@@ -362,13 +367,16 @@ const (
 	ABasePPC64
 	ABaseARM64
 	ABaseMIPS
+	ABaseRISCV
 	ABaseS390X
+	ABaseWasm
 
 	AllowedOpCodes = 1 << 11            // The number of opcodes available for any given architecture.
 	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
 )
 
 // An LSym is the sort of symbol that is written to an object file.
+// It represents Go symbols in a flat pkg+"."+name namespace.
 type LSym struct {
 	Name string
 	Type objabi.SymKind
@@ -381,28 +389,87 @@ type LSym struct {
 	R      []Reloc
 
 	Func *FuncInfo
+
+	Pkg    string
+	PkgIdx int32
+	SymIdx int32 // TODO: replace RefIdx
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args   int32
-	Locals int32
-	Text   *Prog
-	Autom  []*Auto
-	Pcln   Pcln
+	Args     int32
+	Locals   int32
+	Align    int32
+	Text     *Prog
+	Autot    map[*LSym]struct{}
+	Pcln     Pcln
+	InlMarks []InlMark
 
-	dwarfInfoSym   *LSym
-	dwarfLocSym    *LSym
-	dwarfRangesSym *LSym
-	dwarfAbsFnSym  *LSym
-	dwarfIsStmtSym *LSym
+	dwarfInfoSym       *LSym
+	dwarfLocSym        *LSym
+	dwarfRangesSym     *LSym
+	dwarfAbsFnSym      *LSym
+	dwarfDebugLinesSym *LSym
 
-	GCArgs   LSym
-	GCLocals LSym
+	GCArgs             *LSym
+	GCLocals           *LSym
+	GCRegs             *LSym // Only if !go115ReduceLiveness
+	StackObjects       *LSym
+	OpenCodedDeferInfo *LSym
+
+	FuncInfoSym *LSym
 }
 
+type InlMark struct {
+	// When unwinding from an instruction in an inlined body, mark
+	// where we should unwind to.
+	// id records the global inlining id of the inlined body.
+	// p records the location of an instruction in the parent (inliner) frame.
+	p  *Prog
+	id int32
+}
+
+// Mark p as the instruction to set as the pc when
+// "unwinding" the inlining global frame id. Usually it should be
+// instruction with a file:line at the callsite, and occur
+// just before the body of the inlined function.
+func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
+	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
+}
+
+// Record the type symbol for an auto variable so that the linker
+// an emit DWARF type information for the type.
+func (fi *FuncInfo) RecordAutoType(gotype *LSym) {
+	if fi.Autot == nil {
+		fi.Autot = make(map[*LSym]struct{})
+	}
+	fi.Autot[gotype] = struct{}{}
+}
+
+//go:generate stringer -type ABI
+
+// ABI is the calling convention of a text symbol.
+type ABI uint8
+
+const (
+	// ABI0 is the stable stack-based ABI. It's important that the
+	// value of this is "0": we can't distinguish between
+	// references to data and ABI0 text symbols in assembly code,
+	// and hence this doesn't distinguish between symbols without
+	// an ABI and text symbols with ABI0.
+	ABI0 ABI = iota
+
+	// ABIInternal is the internal ABI that may change between Go
+	// versions. All Go functions use the internal ABI and the
+	// compiler generates wrappers for calls to and from other
+	// ABIs.
+	ABIInternal
+
+	ABICount
+)
+
 // Attribute is a set of symbol attributes.
-type Attribute int16
+type Attribute uint32
 
 const (
 	AttrDuplicateOK Attribute = 1 << iota
@@ -438,6 +505,21 @@ const (
 	// For function symbols; indicates that the specified function was the
 	// target of an inline during compilation
 	AttrWasInlined
+
+	// TopFrame means that this function is an entry point and unwinders should not
+	// keep unwinding beyond this frame.
+	AttrTopFrame
+
+	// Indexed indicates this symbol has been assigned with an index (when using the
+	// new object file format).
+	AttrIndexed
+
+	// attrABIBase is the value at which the ABI is encoded in
+	// Attribute. This must be last; all bits after this are
+	// assumed to be an ABI value.
+	//
+	// MUST BE LAST since all bits above this comprise the ABI.
+	attrABIBase
 )
 
 func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
@@ -454,6 +536,8 @@ func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
 func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
 func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
 func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
+func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
+func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -461,6 +545,12 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	} else {
 		*a &^= flag
 	}
+}
+
+func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
+func (a *Attribute) SetABI(abi ABI) {
+	const mask = 1 // Only one ABI bit for now.
+	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
 }
 
 var textAttrStrings = [...]struct {
@@ -481,6 +571,8 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
+	{bit: AttrTopFrame, s: "TOPFRAME"},
+	{bit: AttrIndexed, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -494,6 +586,12 @@ func (a Attribute) TextAttrString() string {
 			a &^= x.bit
 		}
 	}
+	switch a.ABI() {
+	case ABI0:
+	case ABIInternal:
+		s += "ABIInternal|"
+		a.SetABI(0) // Clear ABI so we don't print below.
+	}
 	if a != 0 {
 		s += fmt.Sprintf("UnknownAttribute(%d)|", a)
 	}
@@ -504,10 +602,12 @@ func (a Attribute) TextAttrString() string {
 	return s
 }
 
-// The compiler needs LSym to satisfy fmt.Stringer, because it stores
-// an LSym in ssa.ExternSymbol.
 func (s *LSym) String() string {
 	return s.Name
+}
+
+// The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
+func (s *LSym) CanBeAnSSASym() {
 }
 
 type Pcln struct {
@@ -548,34 +648,60 @@ type Pcdata struct {
 type Link struct {
 	Headtype           objabi.HeadType
 	Arch               *LinkArch
-	Debugasm           bool
+	Debugasm           int
 	Debugvlog          bool
 	Debugpcln          string
 	Flag_shared        bool
 	Flag_dynlink       bool
+	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
+	Flag_go115newobj   bool // use new object file format
+	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string
-	hashmu             sync.Mutex       // protects hash
+	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
+	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
 	statichash         map[string]*LSym // name -> sym mapping for static syms
 	PosTable           src.PosTable
 	InlTree            InlTree // global inlining tree used by gc/inl.go
 	DwFixups           *DwarfFixupTable
-	Imports            []string
+	Imports            []goobj2.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
-	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
 
 	InParallel           bool // parallel backend phase in effect
 	Framepointer_enabled bool
+	UseBASEntries        bool // use Base Address Selection Entries in location lists and PC ranges
+	IsAsm                bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
 
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym
+
+	// ABIAliases are text symbols that should be aliased to all
+	// ABIs. These symbols may only be referenced and not defined
+	// by this object, since the need for an alias may appear in a
+	// different object than the definition. Hence, this
+	// information can't be carried in the symbol definition.
+	//
+	// TODO(austin): Replace this with ABI wrappers once the ABIs
+	// actually diverge.
+	ABIAliases []*LSym
+
+	// pkgIdx maps package path to index. The index is used for
+	// symbol reference in the object file.
+	pkgIdx map[string]int32
+
+	defs       []*LSym // list of defined symbols in the current package
+	nonpkgdefs []*LSym // list of defined non-package symbols
+	nonpkgrefs []*LSym // list of referenced non-package symbols
+
+	Fingerprint goobj2.FingerprintType // fingerprint of symbol indices, to catch index mismatch
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {
@@ -594,7 +720,7 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386:
+	case sys.AMD64, sys.I386, sys.Wasm:
 		return 0
 	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to

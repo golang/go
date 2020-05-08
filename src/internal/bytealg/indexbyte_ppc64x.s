@@ -21,29 +21,15 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
 	MOVD	$ret+24(FP), R14  // R14 = &ret
 	BR	indexbytebody<>(SB)
 
-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
-	MOVD	b_len+8(FP), R4		// R4 = length
-	MOVBZ	c+24(FP), R5		// R5 = byte
-	MOVD	$ret+32(FP), R14	// R14 = &ret
-	BR	indexbytebody<>(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
-	MOVD	s_base+0(FP), R3  // R3 = string
-	MOVD	s_len+8(FP), R4	  // R4 = length
-	MOVBZ	c+16(FP), R5	  // R5 = byte
-	MOVD	$ret+24(FP), R14  // R14 = &ret
-	BR	indexbytebody<>(SB)
-
 TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
-	DCBT	(R3)		// Prepare cache line.
 	MOVD	R3,R17		// Save base address for calculating the index later.
 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
 	RLDIMI	$8,R5,$48,R5	// Replicating the byte across the register.
 	ADD	R4,R3,R7	// Last acceptable address in R7.
+	DCBT	(R8)		// Prepare cache line.
 
 	RLDIMI	$16,R5,$32,R5
-	CMPU	R4,$32		// Check if it's a small string (<32 bytes). Those will be processed differently.
+	CMPU	R4,$32		// Check if it's a small string (≤32 bytes). Those will be processed differently.
 	MOVD	$-1,R9
 	WORD	$0x54661EB8	// Calculate padding in R6 (rlwinm r6,r3,3,26,28).
 	RLDIMI	$32,R5,$0,R5
@@ -54,7 +40,7 @@ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
 #else
 	SRD	R6,R9,R9	// Same for Big Endian
 #endif
-	BLE	small_string	// Jump to the small string case if it's <32 bytes.
+	BLE	small_string	// Jump to the small string case if it's ≤32 bytes.
 
 	// If we are 64-byte aligned, branch to qw_align just to get the auxiliary values
 	// in V0, V1 and V10, then branch to the preloop.
@@ -95,7 +81,7 @@ qw_align:
 	LVSL	  (R0+R0),V11
 	VSLB	  V11,V10,V10
 	VSPLTB	  $7,V1,V1	// Replicate byte across V1
-	CMPU	  R4, $64	// If len <= 64, don't use the vectorized loop
+	CMPU	  R4, $64	// If len ≤ 64, don't use the vectorized loop
 	BLE	  tail
 
 	// We will load 4 quardwords per iteration in the loop, so check for
@@ -129,7 +115,7 @@ qw_align:
 	// 64-byte aligned. Prepare for the main loop.
 preloop:
 	CMPU	R4,$64
-	BLE	tail	      // If len <= 64, don't use the vectorized loop
+	BLE	tail	      // If len ≤ 64, don't use the vectorized loop
 
 	// We are now aligned to a 64-byte boundary. We will load 4 quadwords
 	// per loop iteration. The last doubleword is in R10, so our loop counter
@@ -138,30 +124,34 @@ preloop:
 	SRD	$6,R6,R9      // Loop counter in R9
 	MOVD	R9,CTR
 
+	ADD	$-64,R8,R8   // Adjust index for loop entry
 	MOVD	$16,R11      // Load offsets for the vector loads
 	MOVD	$32,R9
 	MOVD	$48,R7
 
 	// Main loop we will load 64 bytes per iteration
 loop:
+	ADD	    $64,R8,R8	      // Fuse addi+lvx for performance
 	LVX	    (R8+R0),V2	      // Load 4 16-byte vectors
-	LVX	    (R11+R8),V3
-	LVX	    (R9+R8),V4
-	LVX	    (R7+R8),V5
+	LVX	    (R8+R11),V3
 	VCMPEQUB    V1,V2,V6	      // Look for byte in each vector
 	VCMPEQUB    V1,V3,V7
+
+	LVX	    (R8+R9),V4
+	LVX	    (R8+R7),V5
 	VCMPEQUB    V1,V4,V8
 	VCMPEQUB    V1,V5,V9
+
 	VOR	    V6,V7,V11	      // Compress the result in a single vector
 	VOR	    V8,V9,V12
-	VOR	    V11,V12,V11
-	VCMPEQUBCC  V0,V11,V11	      // Check for byte
+	VOR	    V11,V12,V13
+	VCMPEQUBCC  V0,V13,V14	      // Check for byte
 	BGE	    CR6,found
-	ADD	    $64,R8,R8
 	BC	    16,0,loop	      // bdnz loop
 
-	// Handle the tailing bytes or R4 <= 64
+	// Handle the tailing bytes or R4 ≤ 64
 	RLDICL	$0,R6,$58,R4
+	ADD	$64,R8,R8
 tail:
 	CMPU	    R4,$0
 	BEQ	    notfound

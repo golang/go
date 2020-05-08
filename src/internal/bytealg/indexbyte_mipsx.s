@@ -50,9 +50,3 @@ notfound:
 	MOVW	$-1, R1
 	MOVW	R1, ret+12(FP)
 	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
-	JMP ·IndexByte(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
-	JMP ·IndexByteString(SB)

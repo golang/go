@@ -1,7 +1,0 @@
-internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
-internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
-runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
-runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
-runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
-runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
-runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration

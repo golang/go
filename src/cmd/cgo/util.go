@@ -59,6 +59,8 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	var bout, berr bytes.Buffer
 	p.Stdout = &bout
 	p.Stderr = &berr
+	// Disable escape codes in clang error messages.
+	p.Env = append(os.Environ(), "TERM=dumb")
 	err := p.Run()
 	if _, ok := err.(*exec.ExitError); err != nil && !ok {
 		fatalf("%s", err)
@@ -97,6 +99,8 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	nerrors++
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
+	} else {
+		fmt.Fprintf(os.Stderr, "cgo: ")
 	}
 	fmt.Fprintf(os.Stderr, msg, args...)
 	fmt.Fprintf(os.Stderr, "\n")

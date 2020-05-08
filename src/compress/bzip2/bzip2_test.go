@@ -214,7 +214,7 @@ func TestZeroRead(t *testing.T) {
 
 var (
 	digits = mustLoadFile("testdata/e.txt.bz2")
-	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+	newton = mustLoadFile("testdata/Isaac.Newton-Opticks.txt.bz2")
 	random = mustLoadFile("testdata/random.data.bz2")
 )
 
@@ -236,5 +236,5 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 }
 
 func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
-func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+func BenchmarkDecodeNewton(b *testing.B) { benchmarkDecode(b, newton) }
 func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package net
 
 import (
+	"internal/bytealg"
 	"runtime"
 	"syscall"
 )
@@ -94,7 +95,7 @@ func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
 		}
 	}
 done:
-	if bytesEqual(mreq.Multiaddr[:], IPv4zero.To4()) {
+	if bytealg.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
 		return errNoSuchMulticastInterface
 	}
 	return nil

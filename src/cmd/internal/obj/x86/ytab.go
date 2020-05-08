@@ -4,7 +4,11 @@
 
 package x86
 
-type argList [6]uint8
+// argListMax specifies upper arg count limit expected to be carried by obj.Prog.
+// Max len(obj.Prog.RestArgs) can be inferred from this to be 4.
+const argListMax int = 6
+
+type argList [argListMax]uint8
 
 type ytab struct {
 	zcase   uint8
@@ -18,7 +22,7 @@ type ytab struct {
 
 // Returns true if yt is compatible with args.
 //
-// Elements from args and yt.args are used to
+// Elements from args and yt.args are used
 // to index ycover table like `ycover[args[i]+yt.args[i]]`.
 // This means that args should contain values that already
 // multiplied by Ymax.

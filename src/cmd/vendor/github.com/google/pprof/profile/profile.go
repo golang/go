@@ -652,7 +652,7 @@ func labelsToString(labels map[string][]string) string {
 	return strings.Join(ls, " ")
 }
 
-// numLablesToString returns a string representation of a map
+// numLabelsToString returns a string representation of a map
 // representing numeric labels.
 func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]string) string {
 	ls := []string{}
@@ -672,6 +672,42 @@ func numLabelsToString(numLabels map[string][]int64, numUnits map[string][]strin
 	}
 	sort.Strings(ls)
 	return strings.Join(ls, " ")
+}
+
+// SetLabel sets the specified key to the specified value for all samples in the
+// profile.
+func (p *Profile) SetLabel(key string, value []string) {
+	for _, sample := range p.Sample {
+		if sample.Label == nil {
+			sample.Label = map[string][]string{key: value}
+		} else {
+			sample.Label[key] = value
+		}
+	}
+}
+
+// RemoveLabel removes all labels associated with the specified key for all
+// samples in the profile.
+func (p *Profile) RemoveLabel(key string) {
+	for _, sample := range p.Sample {
+		delete(sample.Label, key)
+	}
+}
+
+// HasLabel returns true if a sample has a label with indicated key and value.
+func (s *Sample) HasLabel(key, value string) bool {
+	for _, v := range s.Label[key] {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+// DiffBaseSample returns true if a sample belongs to the diff base and false
+// otherwise.
+func (s *Sample) DiffBaseSample() bool {
+	return s.HasLabel("pprof::base", "true")
 }
 
 // Scale multiplies all sample values in a profile by a constant.

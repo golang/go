@@ -43,15 +43,12 @@ var c = []int{1201, 1202, 1203}
 
 var aa = [3][3]int{[3]int{2001, 2002, 2003}, [3]int{2004, 2005, 2006}, [3]int{2007, 2008, 2009}}
 var as = [3]S{S{2101, 2102, 2103}, S{2104, 2105, 2106}, S{2107, 2108, 2109}}
-var ac = [3][]int{[]int{2201, 2202, 2203}, []int{2204, 2205, 2206}, []int{2207, 2208, 2209}}
 
 var sa = SA{[3]int{3001, 3002, 3003}, [3]int{3004, 3005, 3006}, [3]int{3007, 3008, 3009}}
 var ss = SS{S{3101, 3102, 3103}, S{3104, 3105, 3106}, S{3107, 3108, 3109}}
-var sc = SC{[]int{3201, 3202, 3203}, []int{3204, 3205, 3206}, []int{3207, 3208, 3209}}
 
 var ca = [][3]int{[3]int{4001, 4002, 4003}, [3]int{4004, 4005, 4006}, [3]int{4007, 4008, 4009}}
 var cs = []S{S{4101, 4102, 4103}, S{4104, 4105, 4106}, S{4107, 4108, 4109}}
-var cc = [][]int{[]int{4201, 4202, 4203}, []int{4204, 4205, 4206}, []int{4207, 4208, 4209}}
 
 var answers = [...]int{
 	// s
@@ -135,15 +132,12 @@ var copy_c = c
 
 var copy_aa = aa
 var copy_as = as
-var copy_ac = ac
 
 var copy_sa = sa
 var copy_ss = ss
-var copy_sc = sc
 
 var copy_ca = ca
 var copy_cs = cs
-var copy_cc = cc
 
 var copy_answers = answers
 

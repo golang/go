@@ -536,8 +536,13 @@ type MemExtend struct {
 	Base   RegSP
 	Index  Reg
 	Extend ExtShift
+	// Amount indicates the index shift amount (but also see ShiftMustBeZero field below).
 	Amount uint8
-	Absent bool
+	// ShiftMustBeZero is set to true when the shift amount must be 0, even if the
+	// Amount field is not 0. In GNU syntax, a #0 shift amount is printed if Amount
+	// is not 0 but ShiftMustBeZero is true; #0 is not printed if Amount is 0 and
+	// ShiftMustBeZero is true. Both cases represent shift by 0 bit.
+	ShiftMustBeZero bool
 }
 
 func (MemExtend) isArg() {}
@@ -545,7 +550,7 @@ func (MemExtend) isArg() {}
 func (m MemExtend) String() string {
 	Rbase := m.Base.String()
 	RIndex := m.Index.String()
-	if m.Absent {
+	if m.ShiftMustBeZero {
 		if m.Amount != 0 {
 			return fmt.Sprintf("[%s,%s,%s #0]", Rbase, RIndex, m.Extend.String())
 		} else {

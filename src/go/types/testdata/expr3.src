@@ -155,10 +155,10 @@ func (*T) m() {}
 func method_expressions() {
 	_ = T.a /* ERROR "no field or method" */
 	_ = T.x /* ERROR "has no method" */
-	_ = T.m /* ERROR "not in method set" */
+	_ = T.m /* ERROR "cannot call pointer method m on T" */
 	_ = (*T).m
 
-	var f func(*T) = T.m /* ERROR "not in method set" */
+	var f func(*T) = T.m /* ERROR "cannot call pointer method m on T" */
 	var g func(*T) = (*T).m
 	_, _ = f, g
 
@@ -497,7 +497,7 @@ func _calls() {
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
-	// f1(g2()) // TODO(gri) missing position in error message
+	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
 
 	f2() /* ERROR "too few arguments" */
 	f2(3.14) /* ERROR "too few arguments" */

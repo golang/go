@@ -96,5 +96,4 @@
 87:			if a == 0 { //gdb-opt=(a,n,t)
 88:				continue
 86:		for i, a := range hist {
-92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
-98:	}
+99:	}

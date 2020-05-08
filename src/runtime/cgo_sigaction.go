@@ -4,7 +4,7 @@
 
 // Support for memory sanitizer. See runtime/cgo/sigaction.go.
 
-// +build linux,amd64 freebsd,amd64
+// +build linux,amd64 freebsd,amd64 linux,arm64
 
 package runtime
 
@@ -39,7 +39,10 @@ func sigaction(sig uint32, new, old *sigactiont) {
 
 		var ret int32
 
-		g := getg()
+		var g *g
+		if mainStarted {
+			g = getg()
+		}
 		sp := uintptr(unsafe.Pointer(&sig))
 		switch {
 		case g == nil:

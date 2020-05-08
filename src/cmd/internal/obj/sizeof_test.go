@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
-
 package obj
 
 import (
@@ -23,7 +21,7 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Addr{}, 32, 48},
-		{LSym{}, 56, 104},
+		{LSym{}, 76, 128},
 		{Prog{}, 132, 200},
 	}
 

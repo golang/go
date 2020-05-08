@@ -6,10 +6,10 @@
 package hex
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const hextable = "0123456789abcdef"
@@ -23,11 +23,12 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	for i, v := range src {
-		dst[i*2] = hextable[v>>4]
-		dst[i*2+1] = hextable[v&0x0f]
+	j := 0
+	for _, v := range src {
+		dst[j] = hextable[v>>4]
+		dst[j+1] = hextable[v&0x0f]
+		j += 2
 	}
-
 	return len(src) * 2
 }
 
@@ -50,28 +51,29 @@ func DecodedLen(x int) int { return x / 2 }
 // Decode decodes src into DecodedLen(len(src)) bytes,
 // returning the actual number of bytes written to dst.
 //
-// Decode expects that src contain only hexadecimal
-// characters and that src should have an even length.
+// Decode expects that src contains only hexadecimal
+// characters and that src has even length.
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
-	var i int
-	for i = 0; i < len(src)/2; i++ {
-		a, ok := fromHexChar(src[i*2])
+	i, j := 0, 1
+	for ; j < len(src); j += 2 {
+		a, ok := fromHexChar(src[j-1])
 		if !ok {
-			return i, InvalidByteError(src[i*2])
+			return i, InvalidByteError(src[j-1])
 		}
-		b, ok := fromHexChar(src[i*2+1])
+		b, ok := fromHexChar(src[j])
 		if !ok {
-			return i, InvalidByteError(src[i*2+1])
+			return i, InvalidByteError(src[j])
 		}
 		dst[i] = (a << 4) | b
+		i++
 	}
 	if len(src)%2 == 1 {
 		// Check for invalid char before reporting bad length,
 		// since the invalid char (if present) is an earlier problem.
-		if _, ok := fromHexChar(src[i*2]); !ok {
-			return i, InvalidByteError(src[i*2])
+		if _, ok := fromHexChar(src[j-1]); !ok {
+			return i, InvalidByteError(src[j-1])
 		}
 		return i, ErrLength
 	}
@@ -101,10 +103,10 @@ func EncodeToString(src []byte) string {
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
 //
-// DecodeString expects that src contain only hexadecimal
-// characters and that src should have an even length.
-// If the input is malformed, DecodeString returns a string
-// containing the bytes decoded before the error.
+// DecodeString expects that src contains only hexadecimal
+// characters and that src has even length.
+// If the input is malformed, DecodeString returns
+// the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
 	// We can use the source slice itself as the destination
@@ -116,7 +118,16 @@ func DecodeString(s string) ([]byte, error) {
 // Dump returns a string that contains a hex dump of the given data. The format
 // of the hex dump matches the output of `hexdump -C` on the command line.
 func Dump(data []byte) string {
-	var buf bytes.Buffer
+	if len(data) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	// Dumper will write 79 bytes per complete 16 byte chunk, and at least
+	// 64 bytes for whatever remains. Round the allocation up, since only a
+	// maximum of 15 bytes will be wasted.
+	buf.Grow((1 + ((len(data) - 1) / 16)) * 79)
+
 	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()

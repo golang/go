@@ -7,9 +7,11 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	. "runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -76,6 +78,14 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
+	if GOARCH == "wasm" {
+		t.Skip("fails on wasm (too slow?)")
+	}
+
 	// Don't make this test parallel as this makes the 20 second
 	// timeout unreliable on slow builders. (See issue #19381.)
 
@@ -122,9 +132,18 @@ func TestStackGrowth(t *testing.T) {
 		}()
 		<-done
 		GC()
+
+		timeout := 20 * time.Second
+		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+			scale, err := strconv.Atoi(s)
+			if err == nil {
+				timeout *= time.Duration(scale)
+			}
+		}
+
 		select {
 		case <-done:
-		case <-time.After(20 * time.Second):
+		case <-time.After(timeout):
 			if atomic.LoadUint32(&started) == 0 {
 				t.Log("finalizer did not start")
 			} else {
@@ -304,6 +323,39 @@ func testDeferPtrsPanic(c chan int, i int) {
 	}()
 	defer setBig(&y, 42, bigBuf{})
 	useStackAndCall(i, func() { panic(1) })
+}
+
+//go:noinline
+func testDeferLeafSigpanic1() {
+	// Cause a sigpanic to be injected in this frame.
+	//
+	// This function has to be declared before
+	// TestDeferLeafSigpanic so the runtime will crash if we think
+	// this function's continuation PC is in
+	// TestDeferLeafSigpanic.
+	*(*int)(nil) = 0
+}
+
+// TestDeferLeafSigpanic tests defer matching around leaf functions
+// that sigpanic. This is tricky because on LR machines the outer
+// function and the inner function have the same SP, but it's critical
+// that we match up the defer correctly to get the right liveness map.
+// See issue #25499.
+func TestDeferLeafSigpanic(t *testing.T) {
+	// Push a defer that will walk the stack.
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("expected panic from nil pointer")
+		}
+		GC()
+	}()
+	// Call a leaf function. We must set up the exact call stack:
+	//
+	//  defering function -> leaf function -> sigpanic
+	//
+	// On LR machines, the leaf function will have the same SP as
+	// the SP pushed for the defer frame.
+	testDeferLeafSigpanic1()
 }
 
 // TestPanicUseStack checks that a chain of Panic structs on the stack are
@@ -736,3 +788,66 @@ func TestTracebackAncestors(t *testing.T) {
 		}
 	}
 }
+
+// Test that defer closure is correctly scanned when the stack is scanned.
+func TestDeferLiveness(t *testing.T) {
+	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
+	if output != "" {
+		t.Errorf("output:\n%s\n\nwant no output", output)
+	}
+}
+
+func TestDeferHeapAndStack(t *testing.T) {
+	P := 4     // processors
+	N := 10000 //iterations
+	D := 200   // stack depth
+
+	if testing.Short() {
+		P /= 2
+		N /= 10
+		D /= 10
+	}
+	c := make(chan bool)
+	for p := 0; p < P; p++ {
+		go func() {
+			for i := 0; i < N; i++ {
+				if deferHeapAndStack(D) != 2*D {
+					panic("bad result")
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < P; p++ {
+		<-c
+	}
+}
+
+// deferHeapAndStack(n) computes 2*n
+func deferHeapAndStack(n int) (r int) {
+	if n == 0 {
+		return 0
+	}
+	if n%2 == 0 {
+		// heap-allocated defers
+		for i := 0; i < 2; i++ {
+			defer func() {
+				r++
+			}()
+		}
+	} else {
+		// stack-allocated defers
+		defer func() {
+			r++
+		}()
+		defer func() {
+			r++
+		}()
+	}
+	r = deferHeapAndStack(n - 1)
+	escapeMe(new([1024]byte)) // force some GCs
+	return
+}
+
+// Pass a value to escapeMe to force it to escape.
+var escapeMe = func(x interface{}) {}

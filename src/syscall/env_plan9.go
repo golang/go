@@ -74,7 +74,21 @@ func Setenv(key, value string) error {
 }
 
 func Clearenv() {
-	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
+	// Creating a new environment group using rfork(RFCENVG) can race
+	// with access to files in /env (e.g. from Setenv or Getenv).
+	// Remove all environment variables in current environment group instead.
+	fd, err := open("/env", O_RDONLY)
+	if err != nil {
+		return
+	}
+	defer Close(fd)
+	files, err := readdirnames(fd)
+	if err != nil {
+		return
+	}
+	for _, key := range files {
+		Remove("/env/" + key)
+	}
 }
 
 func Unsetenv(key string) error {

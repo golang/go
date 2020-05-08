@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
-
 package gc
 
 import (
@@ -22,7 +20,7 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{Func{}, 116, 208},
+		{Func{}, 124, 224},
 		{Name{}, 32, 56},
 		{Param{}, 24, 48},
 		{Node{}, 76, 128},

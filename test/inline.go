@@ -11,6 +11,7 @@ package foo
 
 import (
 	"errors"
+	"runtime"
 	"unsafe"
 )
 
@@ -73,7 +74,7 @@ func m() int {
 // address taking prevents closure inlining
 func n() int {
 	foo := func() int { return 1 } // ERROR "can inline n.func1" "func literal does not escape"
-	bar := &foo                    // ERROR "&foo does not escape"
+	bar := &foo
 	x := (*bar)() + foo()
 	return x
 }
@@ -94,15 +95,15 @@ func p() int {
 }
 
 func q(x int) int {
-	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "q func literal does not escape"
+	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
 	return foo()                       // ERROR "inlining call to q.func1"
 }
 
 func r(z int) int {
-	foo := func(x int) int { // ERROR "can inline r.func1" "r func literal does not escape"
+	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
 		return x + z
 	}
-	bar := func(x int) int { // ERROR "r func literal does not escape"
+	bar := func(x int) int { // ERROR "func literal does not escape"
 		return x + func(y int) int { // ERROR "can inline r.func2.1"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
@@ -111,19 +112,19 @@ func r(z int) int {
 }
 
 func s0(x int) int {
-	foo := func() { // ERROR "can inline s0.func1" "s0 func literal does not escape"
+	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
 		x = x + 1
 	}
-	foo() // ERROR "inlining call to s0.func1" "&x does not escape"
+	foo() // ERROR "inlining call to s0.func1"
 	return x
 }
 
 func s1(x int) int {
-	foo := func() int { // ERROR "can inline s1.func1" "s1 func literal does not escape"
+	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
 		return x
 	}
 	x = x + 1
-	return foo() // ERROR "inlining call to s1.func1" "&x does not escape"
+	return foo() // ERROR "inlining call to s1.func1"
 }
 
 // can't currently inline functions with a break statement
@@ -144,7 +145,7 @@ func switchBreak(x, y int) int {
 }
 
 // can't currently inline functions with a type switch
-func switchType(x interface{}) int { // ERROR "switchType x does not escape"
+func switchType(x interface{}) int { // ERROR "x does not escape"
 	switch x.(type) {
 	case int:
 		return x.(int)
@@ -161,4 +162,39 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
 
 func _() { // ERROR "can inline _"
 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+}
+
+func small1() { // ERROR "can inline small1"
+	runtime.GC()
+}
+func small2() int { // ERROR "can inline small2"
+	return runtime.GOMAXPROCS(0)
+}
+func small3(t T) { // ERROR "can inline small3"
+	t.meth2(3, 5)
+}
+func small4(t T) { // not inlineable - has 2 calls.
+	t.meth2(runtime.GOMAXPROCS(0), 5)
+}
+func (T) meth2(int, int) { // not inlineable - has 2 calls.
+	runtime.GC()
+	runtime.GC()
+}
+
+// Issue #29737 - make sure we can do inlining for a chain of recursive functions
+func ee() { // ERROR "can inline ee"
+	ff(100) // ERROR "inlining call to ff" "inlining call to gg" "inlining call to hh"
+}
+
+func ff(x int) { // ERROR "can inline ff"
+	if x < 0 {
+		return
+	}
+	gg(x - 1)
+}
+func gg(x int) { // ERROR "can inline gg"
+	hh(x - 1)
+}
+func hh(x int) { // ERROR "can inline hh"
+	ff(x - 1) // ERROR "inlining call to ff"  // ERROR "inlining call to gg"
 }

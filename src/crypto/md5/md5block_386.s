@@ -122,7 +122,7 @@ loop:
 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
 	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
- 
+
 	MOVL	(5*4)(SI),	DI
 	MOVL	CX,		BP
 

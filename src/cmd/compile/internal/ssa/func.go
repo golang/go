@@ -32,16 +32,27 @@ type Func struct {
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
-	bid    idAlloc     // block ID allocator
-	vid    idAlloc     // value ID allocator
+
+	// If we are using open-coded defers, this is the first call to a deferred
+	// function in the final defer exit sequence that we generated. This call
+	// should be after all defer statements, and will have all args, etc. of
+	// all defer calls as live. The liveness info of this call will be used
+	// for the deferreturn/ret segment generated for functions with open-coded
+	// defers.
+	LastDeferExit *Value
+	bid           idAlloc // block ID allocator
+	vid           idAlloc // value ID allocator
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
-	logfiles   map[string]writeSyncer
-	HTMLWriter *HTMLWriter // html writer, for debugging
-	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	logfiles       map[string]writeSyncer
+	HTMLWriter     *HTMLWriter    // html writer, for debugging
+	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 
 	scheduled bool // Values in Blocks are in final order
+	laidout   bool // Blocks are ordered
 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
 
 	// when register allocation is done, maps value ids to locations
@@ -53,16 +64,22 @@ type Func struct {
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
 
+	// WBLoads is a list of Blocks that branch on the write
+	// barrier flag. Safe-points are disabled from the OpLoad that
+	// reads the write-barrier flag until the control flow rejoins
+	// below the two successors of this block.
+	WBLoads []*Block
+
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder []*Block   // cached postorder traversal
-	cachedIdom      []*Block   // cached immediate dominators
-	cachedSdom      SparseTree // cached dominator tree
-	cachedLoopnest  *loopnest  // cached loop nest information
+	cachedPostorder  []*Block   // cached postorder traversal
+	cachedIdom       []*Block   // cached immediate dominators
+	cachedSdom       SparseTree // cached dominator tree
+	cachedLoopnest   *loopnest  // cached loop nest information
+	cachedLineStarts *xposmap   // cached map/set of xpos to integers
 
-	auxmap auxmap // map from aux values to opaque ids used by CSE
-
+	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
@@ -130,6 +147,48 @@ func (f *Func) retSparseMap(ss *sparseMap) {
 	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
 }
 
+// newPoset returns a new poset from the internal cache
+func (f *Func) newPoset() *poset {
+	if len(f.Cache.scrPoset) > 0 {
+		po := f.Cache.scrPoset[len(f.Cache.scrPoset)-1]
+		f.Cache.scrPoset = f.Cache.scrPoset[:len(f.Cache.scrPoset)-1]
+		return po
+	}
+	return newPoset()
+}
+
+// retPoset returns a poset to the internal cache
+func (f *Func) retPoset(po *poset) {
+	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
+}
+
+// newDeadcodeLive returns a slice for the
+// deadcode pass to use to indicate which values are live.
+func (f *Func) newDeadcodeLive() []bool {
+	r := f.Cache.deadcode.live
+	f.Cache.deadcode.live = nil
+	return r
+}
+
+// retDeadcodeLive returns a deadcode live value slice for re-use.
+func (f *Func) retDeadcodeLive(live []bool) {
+	f.Cache.deadcode.live = live
+}
+
+// newDeadcodeLiveOrderStmts returns a slice for the
+// deadcode pass to use to indicate which values
+// need special treatment for statement boundaries.
+func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
+	r := f.Cache.deadcode.liveOrderStmts
+	f.Cache.deadcode.liveOrderStmts = nil
+	return r
+}
+
+// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
+func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
+	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+}
+
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
 func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
@@ -149,6 +208,9 @@ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = b
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	b.Values = append(b.Values, v)
 	return v
@@ -176,6 +238,9 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 	v.Op = op
 	v.Type = t
 	v.Block = nil // caller must fix this.
+	if notStmtBoundary(op) {
+		pos = pos.WithNotStmt()
+	}
 	v.Pos = pos
 	return v
 }
@@ -363,6 +428,19 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 	return v
 }
 
+// NewValue2A returns a new value in the block with two arguments and one aux values.
+func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
+	v.Args = v.argstorage[:2]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
+	return v
+}
+
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
 func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
@@ -435,6 +513,18 @@ func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, 
 func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
+// NewValue4I returns a new value in the block with four arguments and and auxint value.
+func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
 	arg0.Uses++
 	arg1.Uses++
@@ -557,7 +647,7 @@ func (f *Func) Idom() []*Block {
 
 // sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
-func (f *Func) sdom() SparseTree {
+func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
 		f.cachedSdom = newSparseTree(f, f.Idom())
 	}
@@ -580,7 +670,7 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch returns true if environment variable evname
+// DebugHashMatch reports whether environment variable evname
 // 1) is empty (this is a special more-quickly implemented case of 3)
 // 2) is "y" or "Y"
 // 3) is a suffix of the sha1 hash of name

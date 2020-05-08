@@ -52,7 +52,7 @@ type zone struct {
 	DSTime   string
 }
 
-const wzURL = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml"
+const wzURL = "https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml"
 
 type MapZone struct {
 	Other     string `xml:"other,attr"`

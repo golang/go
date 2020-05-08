@@ -46,10 +46,6 @@ func (TestDeps) StopCPUProfile() {
 	pprof.StopCPUProfile()
 }
 
-func (TestDeps) WriteHeapProfile(w io.Writer) error {
-	return pprof.WriteHeapProfile(w)
-}
-
 func (TestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
 	return pprof.Lookup(name).WriteTo(w, debug)
 }
@@ -102,7 +98,6 @@ func (l *testLog) add(op, name string) {
 }
 
 var log testLog
-var didSetLogger bool
 
 func (TestDeps) StartTestLog(w io.Writer) {
 	log.mu.Lock()

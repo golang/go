@@ -8,7 +8,7 @@ package gc
 func evalunsafe(n *Node) int64 {
 	switch n.Op {
 	case OALIGNOF, OSIZEOF:
-		n.Left = typecheck(n.Left, Erv)
+		n.Left = typecheck(n.Left, ctxExpr)
 		n.Left = defaultlit(n.Left, nil)
 		tr := n.Left.Type
 		if tr == nil {
@@ -30,10 +30,10 @@ func evalunsafe(n *Node) int64 {
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		n.Left.Left = typecheck(n.Left.Left, Erv)
+		n.Left.Left = typecheck(n.Left.Left, ctxExpr)
 		base := n.Left.Left
 
-		n.Left = typecheck(n.Left, Erv)
+		n.Left = typecheck(n.Left, ctxExpr)
 		if n.Left.Type == nil {
 			return 0
 		}

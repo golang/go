@@ -2,17 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo
-// +build linux
+// +build cgo,darwin cgo,linux
 
 #include <stdint.h>
-
-struct cgoTracebackArg {
-	uintptr_t  Context;
-	uintptr_t  SigContext;
-	uintptr_t* Buf;
-	uintptr_t  Max;
-};
+#include "libcgo.h"
 
 // Call the user's traceback function and then call sigtramp.
 // The runtime signal handler will jump to this code.

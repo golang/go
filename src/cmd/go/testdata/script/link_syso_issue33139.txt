@@ -1,0 +1,43 @@
+# Test that we can use the external linker with a host syso file that is
+# embedded in a package, that is referenced by a Go assembly function.
+# See issue 33139.
+[!gc] skip
+[!exec:cc] skip
+
+# External linking is not supported on linux/ppc64.
+# See: https://github.com/golang/go/issues/8912
+[linux] [ppc64] skip
+
+# External linking is not supported on linux/riscv64.
+# See: https://github.com/golang/go/issues/36739
+[linux] [riscv64] skip
+
+cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+go build -ldflags='-linkmode=external' ./cmd/main.go
+
+-- syso/objTest.s --
+#include "textflag.h"
+
+TEXT ·ObjTest(SB), NOSPLIT, $0
+	// We do not actually execute this function in the test above, thus
+	// there is no stack frame setup here.
+	// We only care about Go build and/or link errors when referencing
+	// the objTestImpl symbol in the syso file.
+	JMP objTestImpl(SB)
+
+-- syso/pkg.go --
+package syso
+
+func ObjTest()
+
+-- syso/src/objTestImpl.c --
+void objTestImpl() { /* Empty */ }
+
+-- cmd/main.go --
+package main
+
+import "syso"
+
+func main() {
+	syso.ObjTest()
+}

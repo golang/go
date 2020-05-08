@@ -390,7 +390,12 @@ func TestARM64Errors(t *testing.T) {
 }
 
 func TestAMD64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64")
+	defer func(old string) { objabi.GOAMD64 = old }(objabi.GOAMD64)
+	for _, goamd64 := range []string{"normaljumps", "alignedjumps"} {
+		t.Logf("GOAMD64=%s", goamd64)
+		objabi.GOAMD64 = goamd64
+		testEndToEnd(t, "amd64", "amd64")
+	}
 }
 
 func Test386Encoder(t *testing.T) {
@@ -398,8 +403,30 @@ func Test386Encoder(t *testing.T) {
 }
 
 func TestAMD64Encoder(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64enc")
-	testEndToEnd(t, "amd64", "amd64enc_extra")
+	filenames := [...]string{
+		"amd64enc",
+		"amd64enc_extra",
+		"avx512enc/aes_avx512f",
+		"avx512enc/gfni_avx512f",
+		"avx512enc/vpclmulqdq_avx512f",
+		"avx512enc/avx512bw",
+		"avx512enc/avx512cd",
+		"avx512enc/avx512dq",
+		"avx512enc/avx512er",
+		"avx512enc/avx512f",
+		"avx512enc/avx512pf",
+		"avx512enc/avx512_4fmaps",
+		"avx512enc/avx512_4vnniw",
+		"avx512enc/avx512_bitalg",
+		"avx512enc/avx512_ifma",
+		"avx512enc/avx512_vbmi",
+		"avx512enc/avx512_vbmi2",
+		"avx512enc/avx512_vnni",
+		"avx512enc/avx512_vpopcntdq",
+	}
+	for _, name := range filenames {
+		testEndToEnd(t, "amd64", name)
+	}
 }
 
 func TestAMD64Errors(t *testing.T) {
@@ -417,6 +444,10 @@ func TestPPC64EndToEnd(t *testing.T) {
 
 func TestPPC64Encoder(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64enc")
+}
+
+func TestRISCVEncoder(t *testing.T) {
+	testEndToEnd(t, "riscv64", "riscvenc")
 }
 
 func TestS390XEndToEnd(t *testing.T) {

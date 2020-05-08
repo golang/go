@@ -1,0 +1,117 @@
+env GO111MODULE=on
+env GOPROXY=$GOPROXY/quiet
+
+# download with version should print nothing
+go mod download rsc.io/quote@v1.5.0
+! stdout .
+! stderr .
+
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+# download of an invalid path should report the error
+[short] skip
+! go mod download this.domain.is.invalid/somemodule@v1.0.0
+stderr 'this.domain.is.invalid'
+! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
+stdout '"Error": ".*this.domain.is.invalid.*"'
+
+# download -json with version should print JSON
+go mod download -json 'rsc.io/quote@<=v1.5.0'
+stdout '^\t"Path": "rsc.io/quote"'
+stdout '^\t"Version": "v1.5.0"'
+stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.info"'
+stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.mod"'
+stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.zip"'
+stdout '^\t"Sum": "h1:6fJa6E\+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE="'  # hash of testdata/mod version, not real version!
+stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
+! stdout '"Error"'
+
+# download queries above should not have added to go.mod.
+go list -m all
+! stdout rsc.io
+
+# add to go.mod so we can test non-query downloads
+go mod edit -require rsc.io/quote@v1.5.2
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+
+# module loading will page in the info and mod files
+go list -m all
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+
+# download will fetch and unpack the zip file
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+
+# download repopulates deleted files and directories independently.
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+go mod download
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+go mod download
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+
+# download reports the locations of downloaded files
+go mod download -json
+stdout '^\t"Path": "rsc.io/quote"'
+stdout '^\t"Version": "v1.5.2"'
+stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.info"'
+stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.mod"'
+stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.zip"'
+stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.2"'
+
+# download will follow replacements
+go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.3-pre1
+go mod download
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+
+# download will not follow replacements for explicit module queries
+go mod download -json rsc.io/quote@v1.5.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+
+# download reports errors encountered when locating modules
+! go mod download bad/path
+stderr '^module bad/path: not a known dependency$'
+! go mod download bad/path@latest
+stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+! go mod download rsc.io/quote@v1.999.999
+stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+! go mod download -json bad/path
+stdout '^\t"Error": "module bad/path: not a known dependency"'
+
+# download main module returns an error
+go mod download m
+stderr '^go mod download: skipping argument m that resolves to the main module\n'
+go mod download m@latest
+stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
+
+# allow go mod download without go.mod
+env GO111MODULE=auto
+rm go.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+go mod download rsc.io/quote@v1.2.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+
+# download -x with version should print
+# the underlying commands such as contacting GOPROXY.
+go mod download -x rsc.io/quote@v1.0.0
+! stdout .
+stderr 'get '$GOPROXY
+
+-- go.mod --
+module m

@@ -5,6 +5,7 @@
 package pe
 
 import (
+	"bytes"
 	"debug/dwarf"
 	"internal/testenv"
 	"io/ioutil"
@@ -210,6 +211,44 @@ var fileTests = []fileTest{
 			{".debug_ranges", 0xa70, 0x44000, 0xc00, 0x38a00, 0x0, 0x0, 0x0, 0x0, 0x42100040},
 		},
 	},
+	{
+		// testdata/vmlinuz-4.15.0-47-generic is a trimmed down version of Linux Kernel image.
+		// The original Linux Kernel image is about 8M and it is not recommended to add such a big binary file to the repo.
+		// Moreover only a very small portion of the original Kernel image was being parsed by debug/pe package.
+		// In order to identify this portion, the original image was first parsed by modified debug/pe package.
+		// Modification essentially communicated reader's positions before and after parsing.
+		// Finally, bytes between those positions where written to a separate file,
+		// generating trimmed down version Linux Kernel image used in this test case.
+		file: "testdata/vmlinuz-4.15.0-47-generic",
+		hdr:  FileHeader{0x8664, 0x4, 0x0, 0x0, 0x1, 0xa0, 0x206},
+		opthdr: &OptionalHeader64{
+			0x20b, 0x2, 0x14, 0x7c0590, 0x0, 0x168f870, 0x4680, 0x200, 0x0, 0x20, 0x20, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1e50000, 0x200, 0x7c3ab0, 0xa, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x6,
+			[16]DataDirectory{
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x7c07a0, 0x778},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+				{0x0, 0x0},
+			}},
+		sections: []*SectionHeader{
+			{".setup", 0x41e0, 0x200, 0x41e0, 0x200, 0x0, 0x0, 0x0, 0x0, 0x60500020},
+			{".reloc", 0x20, 0x43e0, 0x20, 0x43e0, 0x0, 0x0, 0x0, 0x0, 0x42100040},
+			{".text", 0x7bc390, 0x4400, 0x7bc390, 0x4400, 0x0, 0x0, 0x0, 0x0, 0x60500020},
+			{".bss", 0x168f870, 0x7c0790, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc8000080},
+		},
+		hasNoDwarfInfo: true,
+	},
 }
 
 func isOptHdrEq(a, b interface{}) bool {
@@ -298,6 +337,17 @@ const (
 	linkCgoExternal
 )
 
+func getImageBase(f *File) uintptr {
+	switch oh := f.OptionalHeader.(type) {
+	case *OptionalHeader32:
+		return uintptr(oh.ImageBase)
+	case *OptionalHeader64:
+		return uintptr(oh.ImageBase)
+	default:
+		panic("unexpected optionalheader type")
+	}
+}
+
 func testDWARF(t *testing.T, linktype int) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows only test")
@@ -347,14 +397,15 @@ func testDWARF(t *testing.T, linktype int) {
 	if err != nil {
 		t.Fatalf("running test executable failed: %s %s", err, out)
 	}
+	t.Logf("Testprog output:\n%s", string(out))
 
-	matches := regexp.MustCompile("main=(.*)\n").FindStringSubmatch(string(out))
+	matches := regexp.MustCompile("offset=(.*)\n").FindStringSubmatch(string(out))
 	if len(matches) < 2 {
 		t.Fatalf("unexpected program output: %s", out)
 	}
-	wantaddr, err := strconv.ParseUint(matches[1], 0, 64)
+	wantoffset, err := strconv.ParseUint(matches[1], 0, 64)
 	if err != nil {
-		t.Fatalf("unexpected main address %q: %s", matches[1], err)
+		t.Fatalf("unexpected main offset %q: %s", matches[1], err)
 	}
 
 	f, err := Open(exe)
@@ -362,6 +413,8 @@ func testDWARF(t *testing.T, linktype int) {
 		t.Fatal(err)
 	}
 	defer f.Close()
+
+	imageBase := getImageBase(f)
 
 	var foundDebugGDBScriptsSection bool
 	for _, sect := range f.Sections {
@@ -389,10 +442,20 @@ func testDWARF(t *testing.T, linktype int) {
 			break
 		}
 		if e.Tag == dwarf.TagSubprogram {
-			if name, ok := e.Val(dwarf.AttrName).(string); ok && name == "main.main" {
-				if addr, ok := e.Val(dwarf.AttrLowpc).(uint64); ok && addr == wantaddr {
-					return
+			name, ok := e.Val(dwarf.AttrName).(string)
+			if ok && name == "main.main" {
+				t.Logf("Found main.main")
+				addr, ok := e.Val(dwarf.AttrLowpc).(uint64)
+				if !ok {
+					t.Fatal("Failed to get AttrLowpc")
 				}
+				offset := uintptr(addr) - imageBase
+				if offset != uintptr(wantoffset) {
+					t.Fatalf("Runtime offset (0x%x) did "+
+						"not match dwarf offset "+
+						"(0x%x)", wantoffset, offset)
+				}
+				return
 			}
 		}
 	}
@@ -479,11 +542,52 @@ const testprog = `
 package main
 
 import "fmt"
+import "syscall"
+import "unsafe"
 {{if .}}import "C"
 {{end}}
 
+// struct MODULEINFO from the Windows SDK
+type moduleinfo struct {
+	BaseOfDll uintptr
+	SizeOfImage uint32
+	EntryPoint uintptr
+}
+
+func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + x)
+}
+
+func funcPC(f interface{}) uintptr {
+	var a uintptr
+	return **(**uintptr)(add(unsafe.Pointer(&f), unsafe.Sizeof(a)))
+}
+
 func main() {
+	kernel32 := syscall.MustLoadDLL("kernel32.dll")
+	psapi := syscall.MustLoadDLL("psapi.dll")
+	getModuleHandle := kernel32.MustFindProc("GetModuleHandleW")
+	getCurrentProcess := kernel32.MustFindProc("GetCurrentProcess")
+	getModuleInformation := psapi.MustFindProc("GetModuleInformation")
+
+	procHandle, _, _ := getCurrentProcess.Call()
+	moduleHandle, _, err := getModuleHandle.Call(0)
+	if moduleHandle == 0 {
+		panic(fmt.Sprintf("GetModuleHandle() failed: %d", err))
+	}
+
+	var info moduleinfo
+	ret, _, err := getModuleInformation.Call(procHandle, moduleHandle,
+		uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info))
+
+	if ret == 0 {
+		panic(fmt.Sprintf("GetModuleInformation() failed: %d", err))
+	}
+
+	offset := funcPC(main) - info.BaseOfDll
+	fmt.Printf("base=0x%x\n", info.BaseOfDll)
 	fmt.Printf("main=%p\n", main)
+	fmt.Printf("offset=0x%x\n", offset)
 }
 `
 
@@ -517,18 +621,139 @@ func TestBuildingWindowsGUI(t *testing.T) {
 	}
 	defer f.Close()
 
-	const _IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
-
 	switch oh := f.OptionalHeader.(type) {
 	case *OptionalHeader32:
-		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
-			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		if oh.Subsystem != IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI)
 		}
 	case *OptionalHeader64:
-		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
-			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		if oh.Subsystem != IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI)
 		}
 	default:
 		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
+	}
+}
+
+func TestImportTableInUnknownSection(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping Windows-only test")
+	}
+
+	// ws2_32.dll import table is located in ".rdata" section,
+	// so it is good enough to test issue #16103.
+	const filename = "ws2_32.dll"
+	path, err := exec.LookPath(filename)
+	if err != nil {
+		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
+	}
+
+	f, err := Open(path)
+	if err != nil {
+		t.Error(err)
+	}
+	defer f.Close()
+
+	// now we can extract its imports
+	symbols, err := f.ImportedSymbols()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(symbols) == 0 {
+		t.Fatalf("unable to locate any imported symbols within file %q.", path)
+	}
+}
+
+func TestInvalidOptionalHeaderMagic(t *testing.T) {
+	// Files with invalid optional header magic should return error from NewFile()
+	// (see https://golang.org/issue/30250 and https://golang.org/issue/32126 for details).
+	// Input generated by gofuzz
+	data := []byte("\x00\x00\x00\x0000000\x00\x00\x00\x00\x00\x00\x000000" +
+		"00000000000000000000" +
+		"000000000\x00\x00\x0000000000" +
+		"00000000000000000000" +
+		"0000000000000000")
+
+	_, err := NewFile(bytes.NewReader(data))
+	if err == nil {
+		t.Fatal("NewFile succeeded unexpectedly")
+	}
+}
+
+func TestImportedSymbolsNoPanicMissingOptionalHeader(t *testing.T) {
+	// https://golang.org/issue/30250
+	// ImportedSymbols shouldn't panic if optional headers is missing
+	data, err := ioutil.ReadFile("testdata/gcc-amd64-mingw-obj")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := NewFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if f.OptionalHeader != nil {
+		t.Fatal("expected f.OptionalHeader to be nil, received non-nil optional header")
+	}
+
+	syms, err := f.ImportedSymbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(syms) != 0 {
+		t.Fatalf("expected len(syms) == 0, received len(syms) = %d", len(syms))
+	}
+
+}
+
+func TestImportedSymbolsNoPanicWithSliceOutOfBound(t *testing.T) {
+	// https://golang.org/issue/30253
+	// ImportedSymbols shouldn't panic with slice out of bounds
+	// Input generated by gofuzz
+	data := []byte("L\x01\b\x00regi\x00\x00\x00\x00\x00\x00\x00\x00\xe0\x00\x0f\x03" +
+		"\v\x01\x02\x18\x00\x0e\x00\x00\x00\x1e\x00\x00\x00\x02\x00\x00\x80\x12\x00\x00" +
+		"\x00\x10\x00\x00\x00 \x00\x00\x00\x00@\x00\x00\x10\x00\x00\x00\x02\x00\x00" +
+		"\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x90\x00\x00" +
+		"\x00\x04\x00\x00\x06S\x00\x00\x03\x00\x00\x00\x00\x00 \x00\x00\x10\x00\x00" +
+		"\x00\x00\x10\x00\x00\x10\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00`\x00\x00x\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x04\x80\x00\x00\x18\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb8`\x00\x00|\x00\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x00\x00\x00\x00.text\x00\x00\x00d\f\x00\x00\x00\x10\x00\x00" +
+		"\x00\x0e\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"`\x00P`.data\x00\x00\x00\x10\x00\x00\x00\x00 \x00\x00" +
+		"\x00\x02\x00\x00\x00\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"@\x000\xc0.rdata\x00\x004\x01\x00\x00\x000\x00\x00" +
+		"\x00\x02\x00\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"@\x000@.eh_fram\xa0\x03\x00\x00\x00@\x00\x00" +
+		"\x00\x04\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"@\x000@.bss\x00\x00\x00\x00`\x00\x00\x00\x00P\x00\x00" +
+		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+		"\x80\x000\xc0.idata\x00\x00x\x03\x00\x00\x00`\x00\x00" +
+		"\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
+		"0\xc0.CRT\x00\x00\x00\x00\x18\x00\x00\x00\x00p\x00\x00\x00\x02" +
+		"\x00\x00\x00\x1e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
+		"0\xc0.tls\x00\x00\x00\x00 \x00\x00\x00\x00\x80\x00\x00\x00\x02" +
+		"\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x001\xc9" +
+		"H\x895\x1d")
+
+	f, err := NewFile(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	syms, err := f.ImportedSymbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(syms) != 0 {
+		t.Fatalf("expected len(syms) == 0, received len(syms) = %d", len(syms))
 	}
 }

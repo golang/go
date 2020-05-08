@@ -106,7 +106,10 @@ type Writer struct {
 	widths  []int    // list of column widths in runes - re-used during formatting
 }
 
-func (b *Writer) addLine() {
+// addLine adds a new line.
+// flushed is a hint indicating whether the underlying writer was just flushed.
+// If so, the previous line is not likely to be a good indicator of the new line's cells.
+func (b *Writer) addLine(flushed bool) {
 	// Grow slice instead of appending,
 	// as that gives us an opportunity
 	// to re-use an existing []cell.
@@ -117,13 +120,15 @@ func (b *Writer) addLine() {
 		b.lines = append(b.lines, nil)
 	}
 
-	// The previous line is probably a good indicator
-	// of how many cells the current line will have.
-	// If the current line's capacity is smaller than that,
-	// abandon it and make a new one.
-	if n := len(b.lines); n >= 2 {
-		if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
-			b.lines[n-1] = make([]cell, 0, prev)
+	if !flushed {
+		// The previous line is probably a good indicator
+		// of how many cells the current line will have.
+		// If the current line's capacity is smaller than that,
+		// abandon it and make a new one.
+		if n := len(b.lines); n >= 2 {
+			if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
+				b.lines[n-1] = make([]cell, 0, prev)
+			}
 		}
 	}
 }
@@ -136,7 +141,7 @@ func (b *Writer) reset() {
 	b.endChar = 0
 	b.lines = b.lines[0:0]
 	b.widths = b.widths[0:0]
-	b.addLine()
+	b.addLine(true)
 }
 
 // Internal representation (current state):
@@ -468,8 +473,12 @@ func (b *Writer) terminateCell(htab bool) int {
 	return len(*line)
 }
 
-func handlePanic(err *error, op string) {
+func (b *Writer) handlePanic(err *error, op string) {
 	if e := recover(); e != nil {
+		if op == "Flush" {
+			// If Flush ran into a panic, we still need to reset.
+			b.reset()
+		}
 		if nerr, ok := e.(osError); ok {
 			*err = nerr.err
 			return
@@ -486,10 +495,18 @@ func (b *Writer) Flush() error {
 	return b.flush()
 }
 
+// flush is the internal version of Flush, with a named return value which we
+// don't want to expose.
 func (b *Writer) flush() (err error) {
-	defer b.reset() // even in the presence of errors
-	defer handlePanic(&err, "Flush")
+	defer b.handlePanic(&err, "Flush")
+	b.flushNoDefers()
+	return nil
+}
 
+// flushNoDefers is like flush, but without a deferred handlePanic call. This
+// can be called from other methods which already have their own deferred
+// handlePanic calls, such as Write, and avoid the extra defer work.
+func (b *Writer) flushNoDefers() {
 	// add current cell if not empty
 	if b.cell.size > 0 {
 		if b.endChar != 0 {
@@ -501,7 +518,7 @@ func (b *Writer) flush() (err error) {
 
 	// format contents of buffer
 	b.format(0, 0, len(b.lines))
-	return nil
+	b.reset()
 }
 
 var hbar = []byte("---\n")
@@ -511,7 +528,7 @@ var hbar = []byte("---\n")
 // while writing to the underlying output stream.
 //
 func (b *Writer) Write(buf []byte) (n int, err error) {
-	defer handlePanic(&err, "Write")
+	defer b.handlePanic(&err, "Write")
 
 	// split text into cells
 	n = 0
@@ -527,16 +544,14 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				ncells := b.terminateCell(ch == '\t')
 				if ch == '\n' || ch == '\f' {
 					// terminate line
-					b.addLine()
+					b.addLine(ch == '\f')
 					if ch == '\f' || ncells == 1 {
 						// A '\f' always forces a flush. Otherwise, if the previous
 						// line has only one cell which does not have an impact on
 						// the formatting of the following lines (the last cell per
 						// line is ignored by format()), thus we can flush the
 						// Writer contents.
-						if err = b.Flush(); err != nil {
-							return
-						}
+						b.flushNoDefers()
 						if ch == '\f' && b.flags&Debug != 0 {
 							// indicate section break
 							b.write0(hbar)

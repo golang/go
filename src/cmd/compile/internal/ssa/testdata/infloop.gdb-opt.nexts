@@ -1,0 +1,4 @@
+  src/cmd/compile/internal/ssa/testdata/infloop.go
+6:	func test() {
+8:		go func() {}()
+10:		for {

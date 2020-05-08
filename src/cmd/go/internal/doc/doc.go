@@ -12,7 +12,7 @@ import (
 
 var CmdDoc = &base.Command{
 	Run:         runDoc,
-	UsageLine:   "doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
+	UsageLine:   "go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]",
 	CustomFlags: true,
 	Short:       "show documentation for package or symbol",
 	Long: `
@@ -106,12 +106,23 @@ Examples:
 	cd go/src/encoding/json; go doc decode
 
 Flags:
+	-all
+		Show all the documentation for the package.
 	-c
 		Respect case when matching symbols.
 	-cmd
 		Treat a command (package main) like a regular package.
 		Otherwise package main's exported symbols are hidden
 		when showing the package's top-level documentation.
+	-short
+		One-line representation for each symbol.
+	-src
+		Show the full source code for the symbol. This will
+		display the full Go source of its declaration and
+		definition, such as a function definition (including
+		the body), type declaration or enclosing const
+		block. The output may therefore include unexported
+		details.
 	-u
 		Show documentation for unexported as well as exported
 		symbols, methods, and fields.

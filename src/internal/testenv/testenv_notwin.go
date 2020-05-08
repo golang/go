@@ -12,7 +12,7 @@ import (
 
 func hasSymlink() (ok bool, reason string) {
 	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
+	case "android", "plan9":
 		return false, ""
 	}
 

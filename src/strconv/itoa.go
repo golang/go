@@ -4,6 +4,8 @@
 
 package strconv
 
+import "math/bits"
+
 const fastSmalls = true // enable fast path for small integers
 
 // FormatUint returns the string representation of i in the given base,
@@ -28,7 +30,7 @@ func FormatInt(i int64, base int) string {
 	return s
 }
 
-// Itoa is shorthand for FormatInt(int64(i), 10).
+// Itoa is equivalent to FormatInt(int64(i), 10).
 func Itoa(i int) string {
 	return FormatInt(int64(i), 10)
 }
@@ -55,11 +57,10 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 
 // small returns the string for an i with 0 <= i < nSmalls.
 func small(i int) string {
-	off := 0
 	if i < 10 {
-		off = 1
+		return digits[i : i+1]
 	}
-	return smallsString[i*2+off : i*2+2]
+	return smallsString[i*2 : i*2+2]
 }
 
 const nSmalls = 100
@@ -78,14 +79,6 @@ const smallsString = "00010203040506070809" +
 const host32bit = ^uint(0)>>32 == 0
 
 const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-
-var shifts = [len(digits) + 1]uint{
-	1 << 1: 1,
-	1 << 2: 2,
-	1 << 3: 3,
-	1 << 4: 4,
-	1 << 5: 5,
-}
 
 // formatBits computes the string representation of u in the given base.
 // If neg is set, u is treated as negative int64 value. If append_ is
@@ -158,14 +151,21 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 			a[i] = smallsString[is]
 		}
 
-	} else if s := shifts[base]; s > 0 {
-		// base is power of 2: use shifts and masks instead of / and %
+	} else if isPowerOfTwo(base) {
+		// Use shifts and masks instead of / and %.
+		// Base is a power of 2 and 2 <= base <= len(digits) where len(digits) is 36.
+		// The largest power of 2 below or equal to 36 is 32, which is 1 << 5;
+		// i.e., the largest possible shift count is 5. By &-ind that value with
+		// the constant 7 we tell the compiler that the shift count is always
+		// less than 8 which is smaller than any register width. This allows
+		// the compiler to generate better code for the shift operation.
+		shift := uint(bits.TrailingZeros(uint(base))) & 7
 		b := uint64(base)
-		m := uint(base) - 1 // == 1<<s - 1
+		m := uint(base) - 1 // == 1<<shift - 1
 		for u >= b {
 			i--
 			a[i] = digits[uint(u)&m]
-			u >>= s
+			u >>= shift
 		}
 		// u < base
 		i--
@@ -199,4 +199,8 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 	}
 	s = string(a[i:])
 	return
+}
+
+func isPowerOfTwo(x int) bool {
+	return x&(x-1) == 0
 }

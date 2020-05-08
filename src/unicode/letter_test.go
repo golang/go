@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	. "unicode"
 )
@@ -549,5 +550,16 @@ func TestLatinOffset(t *testing.T) {
 				t.Errorf("%s: LatinOffset=%d, want %d", name, tab.LatinOffset, i)
 			}
 		}
+	}
+}
+
+func TestSpecialCaseNoMapping(t *testing.T) {
+	// Issue 25636
+	// no change for rune 'A', zero delta, under upper/lower/title case change.
+	var noChangeForCapitalA = CaseRange{'A', 'A', [MaxCase]rune{0, 0, 0}}
+	got := strings.ToLowerSpecial(SpecialCase([]CaseRange{noChangeForCapitalA}), "ABC")
+	want := "Abc"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
 	}
 }

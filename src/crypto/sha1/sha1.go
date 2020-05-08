@@ -10,6 +10,7 @@ package sha1
 
 import (
 	"crypto"
+	"encoding/binary"
 	"errors"
 	"hash"
 )
@@ -75,19 +76,19 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.h[4] = consumeUint32(b)
 	b = b[copy(d.x[:], b):]
 	b, d.len = consumeUint64(b)
-	d.nx = int(d.len) % chunk
+	d.nx = int(d.len % chunk)
 	return nil
 }
 
 func appendUint64(b []byte, x uint64) []byte {
 	var a [8]byte
-	putUint64(a[:], x)
+	binary.BigEndian.PutUint64(a[:], x)
 	return append(b, a[:]...)
 }
 
 func appendUint32(b []byte, x uint32) []byte {
 	var a [4]byte
-	putUint32(a[:], x)
+	binary.BigEndian.PutUint32(a[:], x)
 	return append(b, a[:]...)
 }
 
@@ -150,10 +151,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := *d0
-	hash := d.checkSum()
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := *d
+	hash := d0.checkSum()
 	return append(in, hash[:]...)
 }
 
@@ -170,7 +171,7 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	putUint64(tmp[:], len)
+	binary.BigEndian.PutUint64(tmp[:], len)
 	d.Write(tmp[0:8])
 
 	if d.nx != 0 {
@@ -179,19 +180,19 @@ func (d *digest) checkSum() [Size]byte {
 
 	var digest [Size]byte
 
-	putUint32(digest[0:], d.h[0])
-	putUint32(digest[4:], d.h[1])
-	putUint32(digest[8:], d.h[2])
-	putUint32(digest[12:], d.h[3])
-	putUint32(digest[16:], d.h[4])
+	binary.BigEndian.PutUint32(digest[0:], d.h[0])
+	binary.BigEndian.PutUint32(digest[4:], d.h[1])
+	binary.BigEndian.PutUint32(digest[8:], d.h[2])
+	binary.BigEndian.PutUint32(digest[12:], d.h[3])
+	binary.BigEndian.PutUint32(digest[16:], d.h[4])
 
 	return digest
 }
 
 // ConstantTimeSum computes the same result of Sum() but in constant time
-func (d0 *digest) ConstantTimeSum(in []byte) []byte {
-	d := *d0
-	hash := d.constSum()
+func (d *digest) ConstantTimeSum(in []byte) []byte {
+	d0 := *d
+	hash := d0.constSum()
 	return append(in, hash[:]...)
 }
 
@@ -262,24 +263,4 @@ func Sum(data []byte) [Size]byte {
 	d.Reset()
 	d.Write(data)
 	return d.checkSum()
-}
-
-func putUint64(x []byte, s uint64) {
-	_ = x[7]
-	x[0] = byte(s >> 56)
-	x[1] = byte(s >> 48)
-	x[2] = byte(s >> 40)
-	x[3] = byte(s >> 32)
-	x[4] = byte(s >> 24)
-	x[5] = byte(s >> 16)
-	x[6] = byte(s >> 8)
-	x[7] = byte(s)
-}
-
-func putUint32(x []byte, s uint32) {
-	_ = x[3]
-	x[0] = byte(s >> 24)
-	x[1] = byte(s >> 16)
-	x[2] = byte(s >> 8)
-	x[3] = byte(s)
 }

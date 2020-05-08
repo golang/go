@@ -22,7 +22,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	switch x.mode {
 	case invalid:
 		return // error reported before
-	case constant_, variable, mapindex, value, commaok:
+	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
 		unreachable()
@@ -57,7 +57,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check.conf, T, &reason) {
+	if reason := ""; !x.assignableTo(check, T, &reason) {
 		if reason != "" {
 			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
 		} else {
@@ -310,6 +310,7 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
 				check.recordDef(ident, obj)
 			}
 		} else {
+			check.useLHS(lhs)
 			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		}
 		if obj == nil {

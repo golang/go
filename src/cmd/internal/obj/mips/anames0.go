@@ -10,6 +10,7 @@ var cnames0 = []string{
 	"FREG",
 	"FCREG",
 	"MREG",
+	"WREG",
 	"HI",
 	"LO",
 	"ZCON",

@@ -1,0 +1,11 @@
+rsc.io/breaker v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/breaker
+-- .info --
+{"Version":"v1.0.0"}
+-- breaker.go --
+package breaker
+
+const X = 1

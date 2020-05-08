@@ -54,7 +54,7 @@ const (
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
 	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
 	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
-	traceEvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
 	traceEvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
@@ -66,7 +66,7 @@ const (
 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
 	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
-	traceEvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
 	traceEvCount             = 49
 	// Byte is used but only 6 bits are available for event type.
@@ -84,7 +84,7 @@ const (
 	// and ppc64le.
 	// Tracing won't work reliably for architectures where cputicks is emulated
 	// by nanotime, so the value doesn't matter for those architectures.
-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64|sys.GoarchAmd64p32)
+	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
@@ -129,7 +129,7 @@ var trace struct {
 	// Dictionary for traceEvString.
 	//
 	// TODO: central lock to access the map is not ideal.
-	//   option: pre-assign ids to all user annotation span names and tags
+	//   option: pre-assign ids to all user annotation region names and tags
 	//   option: per-P cache
 	//   option: sync.Map like data structure
 	stringsLock mutex
@@ -180,9 +180,12 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 // Most clients should use the runtime/trace package or the testing package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
-	// Stop the world, so that we can take a consistent snapshot
+	// Stop the world so that we can take a consistent snapshot
 	// of all goroutines at the beginning of the trace.
-	stopTheWorld("start tracing")
+	// Do not stop the world during GC so we ensure we always see
+	// a consistent view of GC-related events (e.g. a start is always
+	// paired with an end).
+	stopTheWorldGC("start tracing")
 
 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
 	// Exitsyscall could check trace.enabled long before and then suddenly wake up
@@ -193,7 +196,7 @@ func StartTrace() error {
 
 	if trace.enabled || trace.shutdown {
 		unlock(&trace.bufLock)
-		startTheWorld()
+		startTheWorldGC()
 		return errorString("tracing is already enabled")
 	}
 
@@ -264,7 +267,7 @@ func StartTrace() error {
 
 	unlock(&trace.bufLock)
 
-	startTheWorld()
+	startTheWorldGC()
 	return nil
 }
 
@@ -273,14 +276,14 @@ func StartTrace() error {
 func StopTrace() {
 	// Stop the world so that we can collect the trace buffers from all p's below,
 	// and also to avoid races with traceEvent.
-	stopTheWorld("stop tracing")
+	stopTheWorldGC("stop tracing")
 
 	// See the comment in StartTrace.
 	lock(&trace.bufLock)
 
 	if !trace.enabled {
 		unlock(&trace.bufLock)
-		startTheWorld()
+		startTheWorldGC()
 		return
 	}
 
@@ -317,7 +320,7 @@ func StopTrace() {
 	trace.shutdown = true
 	unlock(&trace.bufLock)
 
-	startTheWorld()
+	startTheWorldGC()
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.
@@ -392,7 +395,7 @@ func ReadTrace() []byte {
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
 		trace.reader.set(getg())
-		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
+		goparkunlock(&trace.lock, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
 	// Write a buffer.
@@ -413,13 +416,6 @@ func ReadTrace() []byte {
 		var data []byte
 		data = append(data, traceEvFrequency|0<<traceArgCountShift)
 		data = traceAppend(data, uint64(freq))
-		for i := range timers {
-			tb := &timers[i]
-			if tb.gp != nil {
-				data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
-				data = traceAppend(data, uint64(tb.gp.goid))
-			}
-		}
 		// This will emit a bunch of full buffers, we will pick them up
 		// on the next iteration.
 		trace.stackTab.dump()
@@ -532,12 +528,12 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 }
 
 func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, skip int, args ...uint64) {
-	buf := (*bufp).ptr()
+	buf := bufp.ptr()
 	// TODO: test on non-zero extraBytes param.
 	maxSize := 2 + 5*traceBytesPerNumber + extraBytes // event type, length, sequence, timestamp, stack id and two add params
 	if buf == nil || len(buf.arr)-buf.pos < maxSize {
 		buf = traceFlush(traceBufPtrOf(buf), pid).ptr()
-		(*bufp).set(buf)
+		bufp.set(buf)
 	}
 
 	ticks := uint64(cputicks()) / traceTickDiv
@@ -584,10 +580,10 @@ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
 	gp := mp.curg
 	var nstk int
 	if gp == _g_ {
-		nstk = callers(skip+1, buf[:])
+		nstk = callers(skip+1, buf)
 	} else if gp != nil {
 		gp = mp.curg
-		nstk = gcallers(gp, skip, buf[:])
+		nstk = gcallers(gp, skip, buf)
 	}
 	if nstk > 0 {
 		nstk-- // skip runtime.goexit
@@ -689,11 +685,11 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr) 
 	// so there must be no memory allocation or any activities
 	// that causes tracing after this point.
 
-	buf := (*bufp).ptr()
+	buf := bufp.ptr()
 	size := 1 + 2*traceBytesPerNumber + len(s)
 	if buf == nil || len(buf.arr)-buf.pos < size {
 		buf = traceFlush(traceBufPtrOf(buf), pid).ptr()
-		(*bufp).set(buf)
+		bufp.set(buf)
 	}
 	buf.byte(traceEvString)
 	buf.varint(id)
@@ -708,7 +704,7 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr) 
 	buf.varint(uint64(slen))
 	buf.pos += copy(buf.arr[buf.pos:], s[:slen])
 
-	(*bufp).set(buf)
+	bufp.set(buf)
 	return id, bufp
 }
 
@@ -873,6 +869,7 @@ func (tab *traceStackTable) dump() {
 
 	tab.mem.drop()
 	*tab = traceStackTable{}
+	lockInit(&((*tab).lock), lockRankTraceStackTab)
 }
 
 type traceFrame struct {
@@ -929,7 +926,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = round(n, sys.PtrSize)
+	n = alignUp(n, sys.PtrSize)
 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
 		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")
@@ -1171,8 +1168,8 @@ func trace_userTaskEnd(id uint64) {
 	traceEvent(traceEvUserTaskEnd, 2, id)
 }
 
-//go:linkname trace_userSpan runtime/trace.userSpan
-func trace_userSpan(id, mode uint64, name string) {
+//go:linkname trace_userRegion runtime/trace.userRegion
+func trace_userRegion(id, mode uint64, name string) {
 	if !trace.enabled {
 		return
 	}
@@ -1184,7 +1181,7 @@ func trace_userSpan(id, mode uint64, name string) {
 	}
 
 	nameStringID, bufp := traceString(bufp, pid, name)
-	traceEventLocked(0, mp, pid, bufp, traceEvUserSpan, 3, id, mode, nameStringID)
+	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 3, id, mode, nameStringID)
 	traceReleaseBuffer(pid)
 }
 
@@ -1206,7 +1203,7 @@ func trace_userLog(id uint64, category, message string) {
 	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 3, id, categoryID)
 	// traceEventLocked reserved extra space for val and len(val)
 	// in buf, so buf now has room for the following.
-	buf := (*bufp).ptr()
+	buf := bufp.ptr()
 
 	// double-check the message and its length can fit.
 	// Otherwise, truncate the message.

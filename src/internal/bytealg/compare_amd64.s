@@ -13,14 +13,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-56
 	LEAQ	ret+48(FP), R9
 	JMP	cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$0-56
-	MOVQ	a_base+0(FP), SI
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_base+24(FP), DI
-	MOVQ	b_len+32(FP), DX
-	LEAQ	ret+48(FP), R9
-	JMP	cmpbody<>(SB)
-
 TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 	MOVQ	a_base+0(FP), SI
 	MOVQ	a_len+8(FP), BX
@@ -46,7 +38,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 
 	CMPQ	R8, $63
 	JBE	loop
-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JEQ     big_loop_avx2
 	JMP	big_loop
 loop:
@@ -62,7 +54,7 @@ loop:
 	ADDQ	$16, DI
 	SUBQ	$16, R8
 	JMP	loop
-	
+
 diff64:
 	ADDQ	$48, SI
 	ADDQ	$48, DI

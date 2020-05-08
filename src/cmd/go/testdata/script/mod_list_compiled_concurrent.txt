@@ -1,0 +1,41 @@
+env GO111MODULE=on
+
+[short] skip
+
+# Regression test for golang.org/issue/29667:
+# spurious 'failed to cache compiled Go files' errors.
+# This test failed reliably when run with -count=10
+# on a Linux workstation.
+
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+
+wait
+
+-- go.mod --
+module sandbox/bar
+-- bar.go --
+package bar
+
+import "C"

@@ -1,4 +1,4 @@
-// +build !nacl
+// +build !nacl,!js
 // run
 
 // Copyright 2016 The Go Authors. All rights reserved.

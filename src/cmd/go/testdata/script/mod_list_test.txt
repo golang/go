@@ -1,0 +1,16 @@
+env GO111MODULE=on
+
+# go list -compiled -test must handle test-only packages
+# golang.org/issue/27097.
+go list -compiled -test
+stdout '^m$'
+stdout '^m\.test$'
+stdout '^m \[m\.test\]$'
+
+-- go.mod --
+module m
+
+-- x_test.go --
+package x
+import "testing"
+func Test(t *testing.T) {}

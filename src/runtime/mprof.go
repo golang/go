@@ -434,7 +434,7 @@ var mutexprofilerate uint64 // fraction sampled
 // reported. The previous rate is returned.
 //
 // To turn off profiling entirely, pass rate 0.
-// To just read the current rate, pass rate -1.
+// To just read the current rate, pass rate < 0.
 // (For n>1 the details of sampling may change.)
 func SetMutexProfileFraction(rate int) int {
 	if rate < 0 {
@@ -711,19 +711,22 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 	return
 }
 
-// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
-// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
-// If len(p) < n, GoroutineProfile does not change p and returns n, false.
-//
-// Most clients should use the runtime/pprof package instead
-// of calling GoroutineProfile directly.
-func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+//go:linkname runtime_goroutineProfileWithLabels runtime/pprof.runtime_goroutineProfileWithLabels
+func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineProfileWithLabels(p, labels)
+}
+
+// labels may be nil. If labels is non-nil, it must have the same length as p.
+func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if labels != nil && len(labels) != len(p) {
+		labels = nil
+	}
 	gp := getg()
 
 	isOK := func(gp1 *g) bool {
 		// Checking isSystemGoroutine here makes GoroutineProfile
 		// consistent with both NumGoroutine and Stack.
-		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
+		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
 	}
 
 	stopTheWorld("profile")
@@ -737,15 +740,21 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 
 	if n <= len(p) {
 		ok = true
-		r := p
+		r, lbl := p, labels
 
 		// Save current goroutine.
-		sp := getcallersp(unsafe.Pointer(&p))
+		sp := getcallersp()
 		pc := getcallerpc()
 		systemstack(func() {
 			saveg(pc, sp, gp, &r[0])
 		})
 		r = r[1:]
+
+		// If we have a place to put our goroutine labelmap, insert it there.
+		if labels != nil {
+			lbl[0] = gp.labels
+			lbl = lbl[1:]
+		}
 
 		// Save other goroutines.
 		for _, gp1 := range allgs {
@@ -756,14 +765,28 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 					break
 				}
 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+				if labels != nil {
+					lbl[0] = gp1.labels
+					lbl = lbl[1:]
+				}
 				r = r[1:]
 			}
 		}
 	}
 
 	startTheWorld()
-
 	return n, ok
+}
+
+// GoroutineProfile returns n, the number of records in the active goroutine stack profile.
+// If len(p) >= n, GoroutineProfile copies the profile into p and returns n, true.
+// If len(p) < n, GoroutineProfile does not change p and returns n, false.
+//
+// Most clients should use the runtime/pprof package instead
+// of calling GoroutineProfile directly.
+func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+
+	return goroutineProfileWithLabels(p, nil)
 }
 
 func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
@@ -785,7 +808,7 @@ func Stack(buf []byte, all bool) int {
 	n := 0
 	if len(buf) > 0 {
 		gp := getg()
-		sp := getcallersp(unsafe.Pointer(&buf))
+		sp := getcallersp()
 		pc := getcallerpc()
 		systemstack(func() {
 			g0 := getg()
@@ -827,7 +850,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)
 		pc := getcallerpc()
-		sp := getcallersp(unsafe.Pointer(&p))
+		sp := getcallersp()
 		systemstack(func() {
 			traceback(pc, sp, 0, gp)
 		})
@@ -847,7 +870,7 @@ func tracefree(p unsafe.Pointer, size uintptr) {
 	print("tracefree(", p, ", ", hex(size), ")\n")
 	goroutineheader(gp)
 	pc := getcallerpc()
-	sp := getcallersp(unsafe.Pointer(&p))
+	sp := getcallersp()
 	systemstack(func() {
 		traceback(pc, sp, 0, gp)
 	})

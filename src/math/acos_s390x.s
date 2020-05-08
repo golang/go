@@ -42,7 +42,7 @@ GLOBL ·acosrodataL13<> + 0(SB), RODATA, $200
 TEXT	·acosAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·acosrodataL13<>+0(SB), R9
-	WORD	$0xB3CD00C0	//lgdr %r12, %f0
+	LGDR	F0, R12
 	FMOVD	F0, F10
 	SRAD	$32, R12
 	WORD	$0xC0293FE6	//iilf	%r2,1072079005

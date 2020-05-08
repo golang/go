@@ -20,7 +20,7 @@ import (
 // a given import path, or an error if no matching package is found.
 type Lookup func(path string) (io.ReadCloser, error)
 
-// For returns an Importer for importing from installed packages
+// ForCompiler returns an Importer for importing from installed packages
 // for the compilers "gc" and "gccgo", or for importing directly
 // from the source if the compiler argument is "source". In this
 // latter case, importing may fail under circumstances where the
@@ -28,21 +28,20 @@ type Lookup func(path string) (io.ReadCloser, error)
 // (if the package API depends on cgo-defined entities, the type
 // checker won't have access to those).
 //
-// If lookup is nil, the default package lookup mechanism for the
-// given compiler is used, and the resulting importer attempts
-// to resolve relative and absolute import paths to canonical
-// import path IDs before finding the imported file.
+// The lookup function is called each time the resulting importer needs
+// to resolve an import path. In this mode the importer can only be
+// invoked with canonical import paths (not relative or absolute ones);
+// it is assumed that the translation to canonical import paths is being
+// done by the client of the importer.
 //
-// If lookup is non-nil, then the returned importer calls lookup
-// each time it needs to resolve an import path. In this mode
-// the importer can only be invoked with canonical import paths
-// (not relative or absolute ones); it is assumed that the translation
-// to canonical import paths is being done by the client of the
-// importer.
-func For(compiler string, lookup Lookup) types.Importer {
+// A lookup function must be provided for correct module-aware operation.
+// Deprecated: If lookup is nil, for backwards-compatibility, the importer
+// will attempt to resolve imports in the $GOPATH workspace.
+func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Importer {
 	switch compiler {
 	case "gc":
 		return &gcimports{
+			fset:     fset,
 			packages: make(map[string]*types.Package),
 			lookup:   lookup,
 		}
@@ -63,11 +62,19 @@ func For(compiler string, lookup Lookup) types.Importer {
 			panic("source importer for custom import path lookup not supported (issue #13847).")
 		}
 
-		return srcimporter.New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+		return srcimporter.New(&build.Default, fset, make(map[string]*types.Package))
 	}
 
 	// compiler not supported
 	return nil
+}
+
+// For calls ForCompiler with a new FileSet.
+//
+// Deprecated: Use ForCompiler, which populates a FileSet
+// with the positions of objects created by the importer.
+func For(compiler string, lookup Lookup) types.Importer {
+	return ForCompiler(token.NewFileSet(), compiler, lookup)
 }
 
 // Default returns an Importer for the compiler that built the running binary.
@@ -79,6 +86,7 @@ func Default() types.Importer {
 // gc importer
 
 type gcimports struct {
+	fset     *token.FileSet
 	packages map[string]*types.Package
 	lookup   Lookup
 }
@@ -91,7 +99,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*typ
 	if mode != 0 {
 		panic("mode must be 0")
 	}
-	return gcimporter.Import(m.packages, path, srcDir, m.lookup)
+	return gcimporter.Import(m.fset, m.packages, path, srcDir, m.lookup)
 }
 
 // gccgo importer

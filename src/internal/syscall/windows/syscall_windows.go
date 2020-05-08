@@ -5,13 +5,43 @@
 package windows
 
 import (
+	"internal/unsafeheader"
 	"sync"
 	"syscall"
+	"unicode/utf16"
 	"unsafe"
 )
 
+// UTF16PtrToString is like UTF16ToString, but takes *uint16
+// as a parameter instead of []uint16.
+func UTF16PtrToString(p *uint16) string {
+	if p == nil {
+		return ""
+	}
+	// Find NUL terminator.
+	end := unsafe.Pointer(p)
+	n := 0
+	for *(*uint16)(end) != 0 {
+		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
+		n++
+	}
+	// Turn *uint16 into []uint16.
+	var s []uint16
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(p)
+	hdr.Cap = n
+	hdr.Len = n
+	// Decode []uint16 into string.
+	return string(utf16.Decode(s))
+}
+
 const (
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
+	ERROR_LOCK_VIOLATION         syscall.Errno = 33
+	ERROR_NOT_SUPPORTED          syscall.Errno = 50
+	ERROR_CALL_NOT_IMPLEMENTED   syscall.Errno = 120
+	ERROR_INVALID_NAME           syscall.Errno = 123
+	ERROR_LOCK_FAILED            syscall.Errno = 167
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 
@@ -151,7 +181,7 @@ var sendRecvMsgFunc struct {
 }
 
 type WSAMsg struct {
-	Name        *syscall.RawSockaddrAny
+	Name        syscall.Pointer
 	Namelen     int32
 	Buffers     *syscall.WSABuf
 	BufferCount uint32
@@ -254,6 +284,14 @@ func Rename(oldpath, newpath string) error {
 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
 }
 
+//sys LockFileEx(file syscall.Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) = kernel32.LockFileEx
+//sys UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) = kernel32.UnlockFileEx
+
+const (
+	LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
+	LOCKFILE_EXCLUSIVE_LOCK   = 0x00000002
+)
+
 const MB_ERR_INVALID_CHARS = 8
 
 //sys	GetACP() (acp uint32) = kernel32.GetACP
@@ -292,3 +330,6 @@ const (
 func LoadGetFinalPathNameByHandle() error {
 	return procGetFinalPathNameByHandleW.Find()
 }
+
+//sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
+//sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock

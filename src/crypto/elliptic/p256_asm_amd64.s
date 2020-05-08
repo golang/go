@@ -6,7 +6,7 @@
 // P256. The optimizations performed here are described in detail in:
 // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
 //                          256-bit primes"
-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
 #include "textflag.h"
@@ -2300,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 	CMOVQEQ t3, acc7
 	ANDQ t0, mul0
 
-	SHRQ $1, acc4:acc5
-	SHRQ $1, acc5:acc6
-	SHRQ $1, acc6:acc7
-	SHRQ $1, acc7:mul0
+	SHRQ $1, acc5, acc4
+	SHRQ $1, acc6, acc5
+	SHRQ $1, acc7, acc6
+	SHRQ $1, mul0, acc7
 	ST (y)
 	/////////////////////////
 	LDacc (x)

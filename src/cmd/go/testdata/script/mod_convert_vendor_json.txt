@@ -1,0 +1,19 @@
+env GO111MODULE=on
+
+# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
+# However, we should suggest 'go mod init' if we can find an alternate config file.
+cd $WORK/test/x
+! go list .
+stderr 'found vendor/vendor.json in .*[/\\]test'
+stderr '\s*cd \.\. && go mod init'
+
+# The command we suggested should succeed.
+cd ..
+go mod init
+go list -m
+stdout '^m$'
+
+-- $WORK/test/vendor/vendor.json --
+{}
+-- $WORK/test/x/x.go --
+package x // import "m/x"

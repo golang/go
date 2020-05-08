@@ -480,11 +480,11 @@ func TestSelectFairness(t *testing.T) {
 	// If the select in the goroutine is fair,
 	// cnt1 and cnt2 should be about the same value.
 	// With 10,000 trials, the expected margin of error at
-	// a confidence level of five nines is 4.4172 / (2 * Sqrt(10000)).
+	// a confidence level of six nines is 4.891676 / (2 * Sqrt(10000)).
 	r := float64(cnt1) / trials
 	e := math.Abs(r - 0.5)
 	t.Log(cnt1, cnt2, r, e)
-	if e > 4.4172/(2*math.Sqrt(trials)) {
+	if e > 4.891676/(2*math.Sqrt(trials)) {
 		t.Errorf("unfair select: in %d trials, results were %d, %d", trials, cnt1, cnt2)
 	}
 	close(done)
@@ -719,6 +719,7 @@ func TestSelectStackAdjust(t *testing.T) {
 		if after.NumGC-before.NumGC >= 2 {
 			goto done
 		}
+		runtime.Gosched()
 	}
 	t.Fatal("failed to trigger concurrent GC")
 done:
@@ -1124,6 +1125,20 @@ func BenchmarkChanPopular(b *testing.B) {
 		}
 	}
 	wg.Wait()
+}
+
+func BenchmarkChanClosed(b *testing.B) {
+	c := make(chan struct{})
+	close(c)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			select {
+			case <-c:
+			default:
+				b.Error("Unreachable")
+			}
+		}
+	})
 }
 
 var (

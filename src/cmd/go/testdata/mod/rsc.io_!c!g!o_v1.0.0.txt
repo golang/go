@@ -1,0 +1,19 @@
+rsc.io/CGO v1.0.0
+
+-- .mod --
+module rsc.io/CGO
+-- .info --
+{"Version":"v1.0.0","Name":"","Short":"","Time":"2018-08-01T18:23:45Z"}
+-- go.mod --
+module rsc.io/CGO
+-- cgo.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package CGO
+
+// #cgo CFLAGS: -I${SRCDIR}
+import "C"
+
+var V = 0

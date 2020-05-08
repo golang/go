@@ -4,7 +4,10 @@
 
 package des
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"sync"
+)
 
 func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
 	b := binary.BigEndian.Uint64(src)
@@ -42,7 +45,8 @@ func decryptBlock(subkeys []uint64, dst, src []byte) {
 	cryptBlock(subkeys, dst, src, true)
 }
 
-// DES Feistel function
+// DES Feistel function. feistelBox must be initialized via
+// feistelBoxOnce.Do(initFeistelBox) first.
 func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
 	var t uint32
 
@@ -77,6 +81,8 @@ func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
 // for sBoxes[s][i][j] << 4*(7-s)
 var feistelBox [8][64]uint32
 
+var feistelBoxOnce sync.Once
+
 // general purpose function to perform DES block permutations
 func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	for position, n := range permutation {
@@ -86,7 +92,7 @@ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	return
 }
 
-func init() {
+func initFeistelBox() {
 	for s := range sBoxes {
 		for i := 0; i < 4; i++ {
 			for j := 0; j < 16; j++ {
@@ -219,6 +225,8 @@ func ksRotate(in uint32) (out []uint32) {
 
 // creates 16 56-bit subkeys from the original key
 func (c *desCipher) generateSubkeys(keyBytes []byte) {
+	feistelBoxOnce.Do(initFeistelBox)
+
 	// apply PC1 permutation to key
 	key := binary.BigEndian.Uint64(keyBytes)
 	permutedKey := permuteBlock(key, permutedChoice1[:])

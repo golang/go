@@ -24,7 +24,7 @@ func (s labelSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s labelSorter) Less(i, j int) bool { return s[i].key < s[j].key }
 
 func TestContextLabels(t *testing.T) {
-	// Background context starts with no lablels.
+	// Background context starts with no labels.
 	ctx := context.Background()
 	labels := labelsSorted(ctx)
 	if len(labels) != 0 {
@@ -78,5 +78,37 @@ func TestContextLabels(t *testing.T) {
 	wantLabels = []label{{"key", "value3"}, {"key2", "value2"}, {"key4", "value4b"}}
 	if !reflect.DeepEqual(gotLabels, wantLabels) {
 		t.Errorf("(sorted) labels on context: got %v, want %v", gotLabels, wantLabels)
+	}
+}
+
+func TestLabelMapStringer(t *testing.T) {
+	for _, tbl := range []struct {
+		m        labelMap
+		expected string
+	}{
+		{
+			m: labelMap{
+				// empty map
+			},
+			expected: "{}",
+		}, {
+			m: labelMap{
+				"foo": "bar",
+			},
+			expected: `{"foo":"bar"}`,
+		}, {
+			m: labelMap{
+				"foo":             "bar",
+				"key1":            "value1",
+				"key2":            "value2",
+				"key3":            "value3",
+				"key4WithNewline": "\nvalue4",
+			},
+			expected: `{"foo":"bar", "key1":"value1", "key2":"value2", "key3":"value3", "key4WithNewline":"\nvalue4"}`,
+		},
+	} {
+		if got := tbl.m.String(); tbl.expected != got {
+			t.Errorf("%#v.String() = %q; want %q", tbl.m, got, tbl.expected)
+		}
 	}
 }

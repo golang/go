@@ -577,18 +577,32 @@ func TestRaceChanItselfCap(t *testing.T) {
 	<-compl
 }
 
-func TestRaceChanCloseLen(t *testing.T) {
-	v := 0
-	_ = v
+func TestNoRaceChanCloseLen(t *testing.T) {
 	c := make(chan int, 10)
-	c <- 0
+	r := make(chan int, 10)
 	go func() {
-		v = 1
-		close(c)
+		r <- len(c)
 	}()
-	time.Sleep(1e7)
-	_ = len(c)
-	v = 2
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
+}
+
+func TestNoRaceChanCloseCap(t *testing.T) {
+	c := make(chan int, 10)
+	r := make(chan int, 10)
+	go func() {
+		r <- cap(c)
+	}()
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
 }
 
 func TestRaceChanCloseSend(t *testing.T) {
@@ -721,5 +735,31 @@ func TestNoRaceBlockedSelectSendSync(t *testing.T) {
 			t.Fatal()
 		}
 	case <-make(chan int):
+	}
+}
+
+// Test that close synchronizes with a read from the empty closed channel.
+// See https://golang.org/issue/36714.
+func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		var loc int
+		var write = make(chan struct{})
+		var read = make(chan struct{})
+
+		go func() {
+			select {
+			case <-write:
+				_ = loc
+			default:
+			}
+			close(read)
+		}()
+
+		go func() {
+			loc = 1
+			close(write)
+		}()
+
+		<-read
 	}
 }

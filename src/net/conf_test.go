@@ -171,7 +171,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
 		},
 		// glibc lacking an nsswitch.conf, per
-		// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
+		// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
 		{
 			name: "linux_no_nsswitch.conf",
 			c: &conf{

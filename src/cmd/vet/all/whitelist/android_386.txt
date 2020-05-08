@@ -1,8 +1,0 @@
-// android/386-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_linux_386.s: [386] setldt: function setldt missing Go declaration
-
-// These SP references occur after a stack-altering call. They're fine.
-runtime/sys_linux_386.s: [386] clone: 12(SP) should be mp+8(FP)
-runtime/sys_linux_386.s: [386] clone: 4(SP) should be flags+0(FP)
-runtime/sys_linux_386.s: [386] clone: 8(SP) should be stk+4(FP)

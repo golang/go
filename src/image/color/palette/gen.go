@@ -111,7 +111,7 @@ func printWebSafe(w io.Writer) {
 	fmt.Fprintln(w, "// WebSafe is a 216-color palette that was popularized by early versions")
 	fmt.Fprintln(w, "// of Netscape Navigator. It is also known as the Netscape Color Cube.")
 	fmt.Fprintln(w, "//")
-	fmt.Fprintln(w, "// See http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.")
+	fmt.Fprintln(w, "// See https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.")
 	fmt.Fprintln(w, "var WebSafe = []color.Color{")
 	for _, line := range lines {
 		fmt.Fprintln(w, line)

@@ -14,48 +14,6 @@ import (
 
 var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
-type funWW func(x, y, c Word) (z1, z0 Word)
-type argWW struct {
-	x, y, c, z1, z0 Word
-}
-
-var sumWW = []argWW{
-	{0, 0, 0, 0, 0},
-	{0, 1, 0, 0, 1},
-	{0, 0, 1, 0, 1},
-	{0, 1, 1, 0, 2},
-	{12345, 67890, 0, 0, 80235},
-	{12345, 67890, 1, 0, 80236},
-	{_M, 1, 0, 1, 0},
-	{_M, 0, 1, 1, 0},
-	{_M, 1, 1, 1, 1},
-	{_M, _M, 0, 1, _M - 1},
-	{_M, _M, 1, 1, _M},
-}
-
-func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
-	z1, z0 := f(a.x, a.y, a.c)
-	if z1 != a.z1 || z0 != a.z0 {
-		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0)
-	}
-}
-
-func TestFunWW(t *testing.T) {
-	for _, a := range sumWW {
-		arg := a
-		testFunWW(t, "addWW_g", addWW_g, arg)
-
-		arg = argWW{a.y, a.x, a.c, a.z1, a.z0}
-		testFunWW(t, "addWW_g symmetric", addWW_g, arg)
-
-		arg = argWW{a.z0, a.x, a.c, a.z1, a.y}
-		testFunWW(t, "subWW_g", subWW_g, arg)
-
-		arg = argWW{a.z0, a.y, a.c, a.z1, a.x}
-		testFunWW(t, "subWW_g symmetric", subWW_g, arg)
-	}
-}
-
 type funVV func(z, x, y []Word) (c Word)
 type argVV struct {
 	z, x, y nat
@@ -255,6 +213,75 @@ func TestFunVW(t *testing.T) {
 	}
 }
 
+type argVU struct {
+	d  []Word // d is a Word slice, the input parameters x and z come from this array.
+	l  uint   // l is the length of the input parameters x and z.
+	xp uint   // xp is the starting position of the input parameter x, x := d[xp:xp+l].
+	zp uint   // zp is the starting position of the input parameter z, z := d[zp:zp+l].
+	s  uint   // s is the shift number.
+	r  []Word // r is the expected output result z.
+	c  Word   // c is the expected return value.
+	m  string // message.
+}
+
+var argshlVU = []argVU{
+	// test cases for shlVU
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of shlVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of shlVU"},
+}
+
+var argshrVU = []argVU{
+	// test cases for shrVU
+	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of shrVU"},
+	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of shrVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of shrVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of shrVU"},
+}
+
+func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
+	// save a.d for error message, or it will be overwritten.
+	b := make([]Word, len(a.d))
+	copy(b, a.d)
+	z := a.d[a.zp : a.zp+a.l]
+	x := a.d[a.xp : a.xp+a.l]
+	c := f(z, x, a.s)
+	for i, zi := range z {
+		if zi != a.r[i] {
+			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+			break
+		}
+	}
+	if c != a.c {
+		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+	}
+}
+
+func TestShiftOverlap(t *testing.T) {
+	for _, a := range argshlVU {
+		arg := a
+		testShiftFunc(t, shlVU, arg)
+	}
+
+	for _, a := range argshrVU {
+		arg := a
+		testShiftFunc(t, shrVU, arg)
+	}
+}
+
+func TestIssue31084(t *testing.T) {
+	// compute 10^n via 5^n << n.
+	const n = 165
+	p := nat(nil).expNN(nat{5}, nat{n}, nil)
+	p = p.shl(p, uint(n))
+	got := string(p.utoa(10))
+	want := "1" + strings.Repeat("0", n)
+	if got != want {
+		t.Errorf("shl(%v, %v)\n\tgot %s; want %s\n", p, uint(n), got, want)
+	}
+}
+
 func BenchmarkAddVW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
@@ -410,6 +437,24 @@ func TestMulAddWWW(t *testing.T) {
 		if q != test.q || r != test.r {
 			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}
+	}
+}
+
+func BenchmarkMulAddVWW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		z := make([]Word, n+1)
+		x := rndV(n)
+		y := rndW()
+		r := rndW()
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				mulAddVWW(z, x, y, r)
+			}
+		})
 	}
 }
 

@@ -75,7 +75,10 @@
 //
 package time
 
-import "errors"
+import (
+	"errors"
+	_ "unsafe" // for go:linkname
+)
 
 // A Time represents an instant in time with nanosecond precision.
 //
@@ -101,6 +104,10 @@ import "errors"
 // Changing the location in this way changes only the presentation; it does not
 // change the instant in time being denoted and therefore does not affect the
 // computations described in earlier paragraphs.
+//
+// Representations of a Time value saved by the GobEncode, MarshalBinary,
+// MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
+// the location name. They therefore lose information about Daylight Saving Time.
 //
 // In addition to the required “wall clock” reading, a Time may contain an optional
 // reading of the current process's monotonic clock, to provide additional precision
@@ -245,12 +252,14 @@ func (t Time) Before(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext < u.ext
 	}
-	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
+	ts := t.sec()
+	us := u.sec()
+	return ts < us || ts == us && t.nsec() < u.nsec()
 }
 
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
-// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+// For example, 6:00 +0200 and 4:00 UTC are Equal.
 // See the documentation on the Time type for the pitfalls of using == with
 // Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
@@ -278,25 +287,10 @@ const (
 	December
 )
 
-var months = [...]string{
-	"January",
-	"February",
-	"March",
-	"April",
-	"May",
-	"June",
-	"July",
-	"August",
-	"September",
-	"October",
-	"November",
-	"December",
-}
-
 // String returns the English name of the month ("January", "February", ...).
 func (m Month) String() string {
 	if January <= m && m <= December {
-		return months[m-1]
+		return longMonthNames[m-1]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(m))
@@ -316,20 +310,10 @@ const (
 	Saturday
 )
 
-var days = [...]string{
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-}
-
 // String returns the English name of the day ("Sunday", "Monday", ...).
 func (d Weekday) String() string {
 	if Sunday <= d && d <= Saturday {
-		return days[d]
+		return longDayNames[d]
 	}
 	buf := make([]byte, 20)
 	n := fmtInt(buf, uint64(d))
@@ -528,58 +512,26 @@ func absWeekday(abs uint64) Weekday {
 // week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1
 // of year n+1.
 func (t Time) ISOWeek() (year, week int) {
-	year, month, day, yday := t.date(true)
-	wday := int(t.Weekday()+6) % 7 // weekday but Monday = 0.
-	const (
-		Mon int = iota
-		Tue
-		Wed
-		Thu
-		Fri
-		Sat
-		Sun
-	)
+	// According to the rule that the first calendar week of a calendar year is
+	// the week including the first Thursday of that year, and that the last one is
+	// the week immediately preceding the first calendar week of the next calendar year.
+	// See https://www.iso.org/obp/ui#iso:std:iso:8601:-1:ed-1:v1:en:term:3.1.1.23 for details.
 
-	// Calculate week as number of Mondays in year up to
-	// and including today, plus 1 because the first week is week 0.
-	// Putting the + 1 inside the numerator as a + 7 keeps the
-	// numerator from being negative, which would cause it to
-	// round incorrectly.
-	week = (yday - wday + 7) / 7
-
-	// The week number is now correct under the assumption
-	// that the first Monday of the year is in week 1.
-	// If Jan 1 is a Tuesday, Wednesday, or Thursday, the first Monday
-	// is actually in week 2.
-	jan1wday := (wday - yday + 7*53) % 7
-	if Tue <= jan1wday && jan1wday <= Thu {
-		week++
+	// weeks start with Monday
+	// Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+	// 1      2       3         4        5      6        7
+	// +3     +2      +1        0        -1     -2       -3
+	// the offset to Thursday
+	abs := t.abs()
+	d := Thursday - absWeekday(abs)
+	// handle Sunday
+	if d == 4 {
+		d = -3
 	}
-
-	// If the week number is still 0, we're in early January but in
-	// the last week of last year.
-	if week == 0 {
-		year--
-		week = 52
-		// A year has 53 weeks when Jan 1 or Dec 31 is a Thursday,
-		// meaning Jan 1 of the next year is a Friday
-		// or it was a leap year and Jan 1 of the next year is a Saturday.
-		if jan1wday == Fri || (jan1wday == Sat && isLeap(year)) {
-			week++
-		}
-	}
-
-	// December 29 to 31 are in week 1 of next year if
-	// they are after the last Thursday of the year and
-	// December 31 is a Monday, Tuesday, or Wednesday.
-	if month == December && day >= 29 && wday < Thu {
-		if dec31wday := (wday + 31 - day) % 7; Mon <= dec31wday && dec31wday <= Wed {
-			year++
-			week = 1
-		}
-	}
-
-	return
+	// find the Thursday of the calendar week
+	abs += uint64(d) * secondsPerDay
+	year, _, _, yday := absDate(abs, false)
+	return year, yday/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
@@ -776,6 +728,12 @@ func fmtInt(buf []byte, v uint64) int {
 // Nanoseconds returns the duration as an integer nanosecond count.
 func (d Duration) Nanoseconds() int64 { return int64(d) }
 
+// Microseconds returns the duration as an integer microsecond count.
+func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
+
+// Milliseconds returns the duration as an integer millisecond count.
+func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
+
 // These methods return float64 because the dominant
 // use case is for printing a floating point number like 1.5s, and
 // a truncation to integer would make them not useful in those cases.
@@ -908,13 +866,27 @@ func (t Time) Sub(u Time) Duration {
 // Since returns the time elapsed since t.
 // It is shorthand for time.Now().Sub(t).
 func Since(t Time) Duration {
-	return Now().Sub(t)
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return now.Sub(t)
 }
 
 // Until returns the duration until t.
 // It is shorthand for t.Sub(time.Now()).
 func Until(t Time) Duration {
-	return t.Sub(Now())
+	var now Time
+	if t.wall&hasMonotonic != 0 {
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
+		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
+	} else {
+		now = Now()
+	}
+	return t.Sub(now)
 }
 
 // AddDate returns the time corresponding to adding the
@@ -933,7 +905,7 @@ func (t Time) AddDate(years int, months int, days int) Time {
 
 const (
 	secondsPerMinute = 60
-	secondsPerHour   = 60 * 60
+	secondsPerHour   = 60 * secondsPerMinute
 	secondsPerDay    = 24 * secondsPerHour
 	secondsPerWeek   = 7 * secondsPerDay
 	daysPer400Years  = 365*400 + 97
@@ -1047,12 +1019,53 @@ func daysIn(m Month, year int) int {
 	return int(daysBefore[m] - daysBefore[m-1])
 }
 
+// daysSinceEpoch takes a year and returns the number of days from
+// the absolute epoch to the start of that year.
+// This is basically (year - zeroYear) * 365, but accounting for leap days.
+func daysSinceEpoch(year int) uint64 {
+	y := uint64(int64(year) - absoluteZeroYear)
+
+	// Add in days from 400-year cycles.
+	n := y / 400
+	y -= 400 * n
+	d := daysPer400Years * n
+
+	// Add in 100-year cycles.
+	n = y / 100
+	y -= 100 * n
+	d += daysPer100Years * n
+
+	// Add in 4-year cycles.
+	n = y / 4
+	y -= 4 * n
+	d += daysPer4Years * n
+
+	// Add in non-leap years.
+	n = y
+	d += 365 * n
+
+	return d
+}
+
 // Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
+
+// runtimeNano returns the current value of the runtime clock in nanoseconds.
+//go:linkname runtimeNano runtime.nanotime
+func runtimeNano() int64
+
+// Monotonic times are reported as offsets from startNano.
+// We initialize startNano to runtimeNano() - 1 so that on systems where
+// monotonic time resolution is fairly low (e.g. Windows 2008
+// which appears to have a default resolution of 15ms),
+// we avoid ever reporting a monotonic time of 0.
+// (Callers may want to use 0 as "time not set".)
+var startNano int64 = runtimeNano() - 1
 
 // Now returns the current local time.
 func Now() Time {
 	sec, nsec, mono := now()
+	mono -= startNano
 	sec += unixToInternal - minWall
 	if uint64(sec)>>33 != 0 {
 		return Time{uint64(nsec), sec + minWall, Local}
@@ -1076,7 +1089,9 @@ func (t Time) Local() Time {
 	return t
 }
 
-// In returns t with the location information set to loc.
+// In returns a copy of t representing the same time instant, but
+// with the copy's location information set to loc for display
+// purposes.
 //
 // In panics if loc is nil.
 func (t Time) In(loc *Location) Time {
@@ -1104,7 +1119,11 @@ func (t Time) Zone() (name string, offset int) {
 }
 
 // Unix returns t as a Unix time, the number of seconds elapsed
-// since January 1, 1970 UTC.
+// since January 1, 1970 UTC. The result does not depend on the
+// location associated with t.
+// Unix-like operating systems often record time as a 32-bit
+// count of seconds, but since the method here returns a 64-bit
+// value it is valid for billions of years into the past or future.
 func (t Time) Unix() int64 {
 	return t.unixSec()
 }
@@ -1113,7 +1132,8 @@ func (t Time) Unix() int64 {
 // since January 1, 1970 UTC. The result is undefined if the Unix time
 // in nanoseconds cannot be represented by an int64 (a date before the year
 // 1678 or after 2262). Note that this means the result of calling UnixNano
-// on the zero Time is undefined.
+// on the zero Time is undefined. The result does not depend on the
+// location associated with t.
 func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
@@ -1335,28 +1355,8 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	hour, min = norm(hour, min, 60)
 	day, hour = norm(day, hour, 24)
 
-	y := uint64(int64(year) - absoluteZeroYear)
-
 	// Compute days since the absolute epoch.
-
-	// Add in days from 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := daysPer400Years * n
-
-	// Add in 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += daysPer100Years * n
-
-	// Add in 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += daysPer4Years * n
-
-	// Add in non-leap years.
-	n = y
-	d += 365 * n
+	d := daysSinceEpoch(year)
 
 	// Add in days before this month.
 	d += uint64(daysBefore[month-1])

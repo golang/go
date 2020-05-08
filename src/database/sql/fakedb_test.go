@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,8 +18,6 @@ import (
 	"testing"
 	"time"
 )
-
-var _ = log.Printf
 
 // fakeDriver is a fake database that implements Go's driver.Driver
 // interface, just for testing.
@@ -296,10 +293,10 @@ func (db *fakeDB) createTable(name string, columnNames, columnTypes []string) er
 		db.tables = make(map[string]*table)
 	}
 	if _, exist := db.tables[name]; exist {
-		return fmt.Errorf("table %q already exists", name)
+		return fmt.Errorf("fakedb: table %q already exists", name)
 	}
 	if len(columnNames) != len(columnTypes) {
-		return fmt.Errorf("create table of %q len(names) != len(types): %d vs %d",
+		return fmt.Errorf("fakedb: create table of %q len(names) != len(types): %d vs %d",
 			name, len(columnNames), len(columnTypes))
 	}
 	db.tables[name] = &table{colname: columnNames, coltype: columnTypes}
@@ -365,7 +362,7 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 		return nil, driver.ErrBadConn
 	}
 	if c.currTx != nil {
-		return nil, errors.New("already in a transaction")
+		return nil, errors.New("fakedb: already in a transaction")
 	}
 	c.touchMem()
 	c.currTx = &fakeTx{c: c}
@@ -393,10 +390,17 @@ func setStrictFakeConnClose(t *testing.T) {
 
 func (c *fakeConn) ResetSession(ctx context.Context) error {
 	c.dirtySession = false
+	c.currTx = nil
 	if c.isBad() {
 		return driver.ErrBadConn
 	}
 	return nil
+}
+
+var _ driver.Validator = (*fakeConn)(nil)
+
+func (c *fakeConn) IsValid() bool {
+	return !c.isBad()
 }
 
 func (c *fakeConn) Close() (err error) {
@@ -419,13 +423,13 @@ func (c *fakeConn) Close() (err error) {
 	}()
 	c.touchMem()
 	if c.currTx != nil {
-		return errors.New("can't close fakeConn; in a Transaction")
+		return errors.New("fakedb: can't close fakeConn; in a Transaction")
 	}
 	if c.db == nil {
-		return errors.New("can't close fakeConn; already closed")
+		return errors.New("fakedb: can't close fakeConn; already closed")
 	}
 	if c.stmtsMade > c.stmtsClosed {
-		return errors.New("can't close; dangling statement(s)")
+		return errors.New("fakedb: can't close; dangling statement(s)")
 	}
 	c.db = nil
 	return nil
@@ -437,7 +441,7 @@ func checkSubsetTypes(allowAny bool, args []driver.NamedValue) error {
 		case int64, float64, bool, nil, []byte, string, time.Time:
 		default:
 			if !allowAny {
-				return fmt.Errorf("fakedb_test: invalid argument ordinal %[1]d: %[2]v, type %[2]T", arg.Ordinal, arg.Value)
+				return fmt.Errorf("fakedb: invalid argument ordinal %[1]d: %[2]v, type %[2]T", arg.Ordinal, arg.Value)
 			}
 		}
 	}
@@ -539,7 +543,7 @@ func (c *fakeConn) prepareCreate(stmt *fakeStmt, parts []string) (*fakeStmt, err
 }
 
 // parts are table|col=?,col2=val
-func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
+func (c *fakeConn) prepareInsert(ctx context.Context, stmt *fakeStmt, parts []string) (*fakeStmt, error) {
 	if len(parts) != 2 {
 		stmt.Close()
 		return nil, errf("invalid INSERT syntax with %d parts; want 2", len(parts))
@@ -574,6 +578,20 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (*fakeStmt, err
 					return nil, errf("invalid conversion to int32 from %q", value)
 				}
 				subsetVal = int64(i) // int64 is a subset type, but not int32
+			case "table": // For testing cursor reads.
+				c.skipDirtySession = true
+				vparts := strings.Split(value, "!")
+
+				substmt, err := c.PrepareContext(ctx, fmt.Sprintf("SELECT|%s|%s|", vparts[0], strings.Join(vparts[1:], ",")))
+				if err != nil {
+					return nil, err
+				}
+				cursor, err := (substmt.(driver.StmtQueryContext)).QueryContext(ctx, []driver.NamedValue{})
+				substmt.Close()
+				if err != nil {
+					return nil, err
+				}
+				subsetVal = cursor
 			default:
 				stmt.Close()
 				return nil, errf("unsupported conversion for pre-bound parameter %q to type %q", value, ctype)
@@ -658,11 +676,11 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 		case "CREATE":
 			stmt, err = c.prepareCreate(stmt, parts)
 		case "INSERT":
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		case "NOSERT":
 			// Do all the prep-work like for an INSERT but don't actually insert the row.
 			// Used for some of the concurrent tests.
-			stmt, err = c.prepareInsert(stmt, parts)
+			stmt, err = c.prepareInsert(ctx, stmt, parts)
 		default:
 			stmt.Close()
 			return nil, errf("unsupported command type %q", cmd)
@@ -717,6 +735,9 @@ var hookExecBadConn func() bool
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	panic("Using ExecContext")
 }
+
+var errFakeConnSessionDirty = errors.New("fakedb: session is dirty")
+
 func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	if s.panic == "Exec" {
 		panic(s.panic)
@@ -729,7 +750,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 		return nil, driver.ErrBadConn
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("session is dirty")
+		return nil, errFakeConnSessionDirty
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -765,8 +786,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 		// Used for some of the concurrent tests.
 		return s.execInsert(args, false)
 	}
-	fmt.Printf("EXEC statement, cmd=%q: %#v\n", s.cmd, s)
-	return nil, fmt.Errorf("unimplemented statement Exec command type of %q", s.cmd)
+	return nil, fmt.Errorf("fakedb: unimplemented statement Exec command type of %q", s.cmd)
 }
 
 // When doInsert is true, add the row to the table.
@@ -844,7 +864,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 		return nil, driver.ErrBadConn
 	}
 	if s.c.isDirtyAndMark() {
-		return nil, errors.New("session is dirty")
+		return nil, errFakeConnSessionDirty
 	}
 
 	err := checkSubsetTypes(s.c.db.allowAny, args)
@@ -877,6 +897,37 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				}
 			}
 		}
+		if s.table == "tx_status" && s.colName[0] == "tx_status" {
+			txStatus := "autocommit"
+			if s.c.currTx != nil {
+				txStatus = "transaction"
+			}
+			cursor := &rowsCursor{
+				parentMem: s.c,
+				posRow:    -1,
+				rows: [][]*row{
+					[]*row{
+						{
+							cols: []interface{}{
+								txStatus,
+							},
+						},
+					},
+				},
+				cols: [][]string{
+					[]string{
+						"tx_status",
+					},
+				},
+				colType: [][]string{
+					[]string{
+						"string",
+					},
+				},
+				errPos: -1,
+			}
+			return cursor, nil
+		}
 
 		t.mu.Lock()
 
@@ -900,7 +951,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				idx := t.columnIndex(wcol.Column)
 				if idx == -1 {
 					t.mu.Unlock()
-					return nil, fmt.Errorf("db: invalid where clause column %q", wcol)
+					return nil, fmt.Errorf("fakedb: invalid where clause column %q", wcol)
 				}
 				tcol := trow.cols[idx]
 				if bs, ok := tcol.([]byte); ok {
@@ -1128,6 +1179,8 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Null{Converter: driver.Bool}
 	case "int32":
 		return driver.Int32
+	case "nullint32":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "string":
 		return driver.NotNull{Converter: fakeDriverString{}}
 	case "nullstring":
@@ -1145,7 +1198,9 @@ func converterForType(typ string) driver.ValueConverter {
 		// TODO(coopernurse): add type-specific converter
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "datetime":
-		return driver.DefaultParameterConverter
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+	case "nulldatetime":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "any":
 		return anyTypeConverter{}
 	}
@@ -1160,6 +1215,8 @@ func colTypeToReflectType(typ string) reflect.Type {
 		return reflect.TypeOf(NullBool{})
 	case "int32":
 		return reflect.TypeOf(int32(0))
+	case "nullint32":
+		return reflect.TypeOf(NullInt32{})
 	case "string":
 		return reflect.TypeOf("")
 	case "nullstring":

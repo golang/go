@@ -116,14 +116,10 @@ L14:
 	MOVD    $coshe1<>+0(SB), R3
 	WFMADB  V1, V6, V5, V6
 	FMOVD   0(R3), F5
-	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R1, R2
 	WFMADB  V1, V7, V5, V1
 	BVS     L22
-	WORD    $0xEC4139BC     //risbg %r4,%r1,57,128+60,3
-	BYTE    $0x03
-	BYTE    $0x55
+	RISBGZ	$57, $60, $3, R1, R4
 	MOVD    $coshtab<>+0(SB), R3
 	WFMADB  V3, V6, V1, V6
 	WORD    $0x68043000     //ld    %f0,0(%r4,%r3)
@@ -131,9 +127,7 @@ L14:
 	WORD    $0xA71AF000     //ahi   %r1,-4096
 	WFMADB  V2, V6, V0, V6
 L17:
-	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R1, R2
 	LDGR    R2, F2
 	FMADD   F2, F6, F2
 	MOVD    $coshx4ff<>+0(SB), R1
@@ -176,27 +170,19 @@ L20:
 	LGDR    F3, R1
 	MOVD    $coshtab<>+0(SB), R5
 	WFMADB  V4, V6, V1, V3
-	WORD    $0xEC4139BC     //risbg %r4,%r1,57,128+60,3
-	BYTE    $0x03
-	BYTE    $0x55
+	RISBGZ	$57, $60, $3, R1, R4
 	WFMSDB  V4, V6, V1, V6
 	WORD    $0x68145000     //ld %f1,0(%r4,%r5)
 	WFMSDB  V4, V1, V0, V2
 	WORD    $0xA7487FBE     //lhi %r4,32702
 	FMADD   F3, F2, F1
 	SUBW    R1, R4
-	WORD    $0xECC439BC     //risbg %r12,%r4,57,128+60,3
-	BYTE    $0x03
-	BYTE    $0x55
+	RISBGZ	$57, $60, $3, R4, R12
 	WORD    $0x682C5000     //ld %f2,0(%r12,%r5)
 	FMSUB   F2, F4, F0
-	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R1, R2
 	WFMADB  V0, V6, V2, V6
-	WORD    $0xEC34000F     //risbgn %r3,%r4,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R4, R3
 	LDGR    R2, F2
 	LDGR    R3, F0
 	FMADD   F2, F1, F2
@@ -210,9 +196,7 @@ L22:
 	MOVD    $coshtab<>+0(SB), R4
 	SUBW    R1, R3
 	WFMSDB  V3, V6, V1, V6
-	WORD    $0xEC3339BC     //risbg %r3,%r3,57,128+60,3
-	BYTE    $0x03
-	BYTE    $0x55
+	RISBGZ	$57, $60, $3, R3, R3
 	WORD    $0x68034000     //ld %f0,0(%r3,%r4)
 	FMSUB   F0, F3, F2
 	WORD    $0xA7386FBE     //lhi %r3,28606

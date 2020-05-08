@@ -19,28 +19,6 @@ TEXT	·IndexByteString(SB), NOSPLIT, $0-32
 	LEAQ ret+24(FP), R8
 	JMP  indexbytebody<>(SB)
 
-	// Provide direct access to these functions from other packages.
-	// This is the equivlant of doing:
-	//     package bytes
-	//     func IndexByte(b []byte, c byte) int {
-	//         return bytealg.IndexByte(s, c)
-	//     }
-	// but involves no call overhead.
-	// TODO: remove this hack when midstack inlining is enabled?
-TEXT	bytes·IndexByte(SB), NOSPLIT, $0-40
-	MOVQ b_base+0(FP), SI
-	MOVQ b_len+8(FP), BX
-	MOVB c+24(FP), AL
-	LEAQ ret+32(FP), R8
-	JMP  indexbytebody<>(SB)
-
-TEXT	strings·IndexByte(SB), NOSPLIT, $0-32
-	MOVQ s_base+0(FP), SI
-	MOVQ s_len+8(FP), BX
-	MOVB c+16(FP), AL
-	LEAQ ret+24(FP), R8
-	JMP  indexbytebody<>(SB)
-
 // input:
 //   SI: data
 //   BX: data len
@@ -137,7 +115,7 @@ endofpage:
 	RET
 
 avx2:
-	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
+	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11

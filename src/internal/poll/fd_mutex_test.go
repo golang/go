@@ -8,6 +8,7 @@ import (
 	. "internal/poll"
 	"math/rand"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -58,7 +59,7 @@ func TestMutexClose(t *testing.T) {
 }
 
 func TestMutexCloseUnblock(t *testing.T) {
-	c := make(chan bool)
+	c := make(chan bool, 4)
 	var mu FDMutex
 	mu.RWLock(true)
 	for i := 0; i < 4; i++ {
@@ -121,6 +122,27 @@ func TestMutexPanic(t *testing.T) {
 	mu.RWUnlock(false)
 }
 
+func TestMutexOverflowPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("did not panic")
+		}
+		msg, ok := r.(string)
+		if !ok {
+			t.Fatalf("unexpected panic type %T", r)
+		}
+		if !strings.Contains(msg, "too many") || strings.Contains(msg, "inconsistent") {
+			t.Fatalf("wrong panic message %q", msg)
+		}
+	}()
+
+	var mu1 FDMutex
+	for i := 0; i < 1<<21; i++ {
+		mu1.Incref()
+	}
+}
+
 func TestMutexStress(t *testing.T) {
 	P := 8
 	N := int(1e6)
@@ -129,12 +151,15 @@ func TestMutexStress(t *testing.T) {
 		N = 1e4
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
-	done := make(chan bool)
+	done := make(chan bool, P)
 	var mu FDMutex
 	var readState [2]uint64
 	var writeState [2]uint64
 	for p := 0; p < P; p++ {
 		go func() {
+			defer func() {
+				done <- !t.Failed()
+			}()
 			r := rand.New(rand.NewSource(rand.Int63()))
 			for i := 0; i < N; i++ {
 				switch r.Intn(3) {
@@ -181,11 +206,12 @@ func TestMutexStress(t *testing.T) {
 					}
 				}
 			}
-			done <- true
 		}()
 	}
 	for p := 0; p < P; p++ {
-		<-done
+		if !<-done {
+			t.FailNow()
+		}
 	}
 	if !mu.IncrefAndClose() {
 		t.Fatal("broken")

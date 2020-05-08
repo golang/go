@@ -24,7 +24,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 	return 0, nil, false
 }
 
-func cgoLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error, completed bool) {
+func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
 	return nil, nil, false
 }
 

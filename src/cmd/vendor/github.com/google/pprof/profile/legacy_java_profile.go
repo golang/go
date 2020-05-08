@@ -134,7 +134,7 @@ func parseJavaHeader(pType string, b []byte, p *Profile) ([]byte, error) {
 				}
 			case "contention/resolution":
 				p.SampleType = []*ValueType{
-					{Type: "contentions", Unit: value},
+					{Type: "contentions", Unit: "count"},
 					{Type: "delay", Unit: value},
 				}
 			case "contention/sampling period":

@@ -1,0 +1,30 @@
+env GO111MODULE=off
+
+# GOPATH with p1 in d1, p2 in d2
+env GOPATH=$WORK/d1${:}$WORK/d2
+
+# build & install p1
+go install -i p1
+! stale p1 p2
+
+# modify p2 - p1 should appear stale
+cp $WORK/p2x.go $WORK/d2/src/p2/p2.go
+stale p1 p2
+
+# build & install p1 again
+go install -i p1
+! stale p1 p2
+
+-- $WORK/d1/src/p1/p1.go --
+package p1
+import "p2"
+func F() { p2.F() }
+
+-- $WORK/d2/src/p2/p2.go --
+package p2
+func F() {}
+
+-- $WORK/p2x.go --
+package p2
+func F() {}
+func G() {}

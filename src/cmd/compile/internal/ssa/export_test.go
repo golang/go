@@ -28,6 +28,7 @@ var testCtxts = map[string]*obj.Link{
 
 func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
 func testConfigS390X(tb testing.TB) *Conf { return testConfigArch(tb, "s390x") }
+func testConfigARM64(tb testing.TB) *Conf { return testConfigArch(tb, "arm64") }
 
 func testConfigArch(tb testing.TB, arch string) *Conf {
 	ctxt, ok := testCtxts[arch]
@@ -85,7 +86,11 @@ func (d *DummyAuto) IsSynthetic() bool {
 	return false
 }
 
-func (DummyFrontend) StringData(s string) interface{} {
+func (d *DummyAuto) IsAutoTmp() bool {
+	return true
+}
+
+func (DummyFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
@@ -98,7 +103,7 @@ func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
 	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
 }
 func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType().PtrTo(), Off: s.Off},
+	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
 		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
 }
@@ -118,7 +123,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
 }
 func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
-	return LocalSlot{N: s.N, Type: s.Type.ElemType(), Off: s.Off}
+	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
 }
 func (DummyFrontend) Line(_ src.XPos) string {
 	return "unknown.go:0"
@@ -148,7 +153,7 @@ func init() {
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
 
-	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
+	types.Tconv = func(t *types.Type, flag, mode int) string {
 		return t.Etype.String()
 	}
 	types.Sconv = func(s *types.Sym, flag, mode int) string {
@@ -162,7 +167,6 @@ func init() {
 	}
 	types.Dowidth = func(t *types.Type) {}
 
-	types.Tptr = types.TPTR64
 	for _, typ := range [...]struct {
 		width int64
 		et    types.EType

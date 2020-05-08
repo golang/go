@@ -8,7 +8,7 @@
 // func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
 // Saves C callee-saved registers and calls fn with three arguments.
 TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
-	/* 
+	/*
 	 * We still need to save all callee save register as before, and then
 	 *  push 3 args for fn (R1, R2, R3).
 	 * Also note that at procedure entry in gc world, 4(R13) will be the

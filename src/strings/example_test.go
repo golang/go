@@ -47,11 +47,15 @@ func ExampleContains() {
 
 func ExampleContainsAny() {
 	fmt.Println(strings.ContainsAny("team", "i"))
-	fmt.Println(strings.ContainsAny("failure", "u & i"))
+	fmt.Println(strings.ContainsAny("fail", "ui"))
+	fmt.Println(strings.ContainsAny("ure", "ui"))
+	fmt.Println(strings.ContainsAny("failure", "ui"))
 	fmt.Println(strings.ContainsAny("foo", ""))
 	fmt.Println(strings.ContainsAny("", ""))
 	// Output:
 	// false
+	// true
+	// true
 	// true
 	// false
 	// false
@@ -205,6 +209,12 @@ func ExampleReplace() {
 	// moo moo moo
 }
 
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
+	// moo moo moo
+}
+
 func ExampleSplit() {
 	fmt.Printf("%q\n", strings.Split("a,b,c", ","))
 	fmt.Printf("%q\n", strings.Split("a man a plan a canal panama", "a "))
@@ -237,14 +247,23 @@ func ExampleSplitAfterN() {
 }
 
 func ExampleTitle() {
+	// Compare this example to the ToTitle example.
 	fmt.Println(strings.Title("her royal highness"))
-	// Output: Her Royal Highness
+	fmt.Println(strings.Title("loud noises"))
+	fmt.Println(strings.Title("хлеб"))
+	// Output:
+	// Her Royal Highness
+	// Loud Noises
+	// Хлеб
 }
 
 func ExampleToTitle() {
+	// Compare this example to the Title example.
+	fmt.Println(strings.ToTitle("her royal highness"))
 	fmt.Println(strings.ToTitle("loud noises"))
 	fmt.Println(strings.ToTitle("хлеб"))
 	// Output:
+	// HER ROYAL HIGHNESS
 	// LOUD NOISES
 	// ХЛЕБ
 }

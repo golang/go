@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// BUG(mikio): On Windows, the File method of TCPListener is not
-// implemented.
+// BUG(mikio): On JS and Windows, the File method of TCPConn and
+// TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
@@ -154,7 +154,7 @@ func (c *TCPConn) SetLinger(sec int) error {
 }
 
 // SetKeepAlive sets whether the operating system should send
-// keepalive messages on the connection.
+// keep-alive messages on the connection.
 func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -165,7 +165,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets period between keep alives.
+// SetKeepAlivePeriod sets period between keep-alives.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -212,7 +212,8 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialTCP(context.Background(), network, laddr, raddr)
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialTCP(context.Background(), laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -223,6 +224,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
+	lc ListenConfig
 }
 
 // SyscallConn returns a raw network connection.
@@ -292,8 +294,8 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File, set to blocking
-// mode. It is the caller's responsibility to close f when finished.
+// File returns a copy of the underlying os.File.
+// It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the
@@ -328,9 +330,15 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	ln, err := listenTCP(context.Background(), network, laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	ln, err := sl.listenTCP(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
 	return ln, nil
+}
+
+// roundDurationUp rounds d to the next multiple of to.
+func roundDurationUp(d time.Duration, to time.Duration) time.Duration {
+	return (d + to - 1) / to
 }

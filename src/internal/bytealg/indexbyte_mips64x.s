@@ -52,9 +52,3 @@ notfound:
 	MOVV	$-1, R1
 	MOVV	R1, ret+24(FP)
 	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
-	JMP ·IndexByte(SB)
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
-	JMP ·IndexByteString(SB)

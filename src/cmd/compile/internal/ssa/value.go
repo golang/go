@@ -25,7 +25,7 @@ type Value struct {
 	Op Op
 
 	// The type of this value. Normally this will be a Go type, but there
-	// are a few other pseudo-types, see type.go.
+	// are a few other pseudo-types, see ../types/type.go.
 	Type *types.Type
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
@@ -47,8 +47,12 @@ type Value struct {
 	// Source position
 	Pos src.XPos
 
-	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	// Use count. Each appearance in Value.Args and Block.Controls counts once.
 	Uses int32
+
+	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
+	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
+	OnWasmStack bool
 
 	// Storage for the first three args
 	argstorage [3]*Value
@@ -130,16 +134,21 @@ func (v *Value) LongString() string {
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	r := v.Block.Func.RegAlloc
+	var r []Location
+	if v.Block != nil {
+		r = v.Block.Func.RegAlloc
+	}
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
 	var names []string
-	for name, values := range v.Block.Func.NamedValues {
-		for _, value := range values {
-			if value == v {
-				names = append(names, name.String())
-				break // drop duplicates.
+	if v.Block != nil {
+		for name, values := range v.Block.Func.NamedValues {
+			for _, value := range values {
+				if value == v {
+					names = append(names, name.String())
+					break // drop duplicates.
+				}
 			}
 		}
 	}
@@ -166,6 +175,10 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxARM64BitField:
+		lsb := getARM64BFlsb(v.AuxInt)
+		width := getARM64BFwidth(v.AuxInt)
+		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
@@ -174,7 +187,7 @@ func (v *Value) auxString() string {
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
-	case auxSymOff, auxSymInt32, auxTypSize:
+	case auxSymOff, auxTypSize:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
@@ -191,10 +204,15 @@ func (v *Value) auxString() string {
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	case auxCCop:
 		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+	case auxS390XCCMask, auxS390XRotateParams:
+		return fmt.Sprintf(" {%v}", v.Aux)
 	}
 	return ""
 }
 
+// If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
+// Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -202,6 +220,58 @@ func (v *Value) AddArg(w *Value) {
 	v.Args = append(v.Args, w)
 	w.Uses++
 }
+
+//go:noinline
+func (v *Value) AddArg2(w1, w2 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2)
+	w1.Uses++
+	w2.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg3(w1, w2, w3 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2, w3)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg4(w1, w2, w3, w4 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg5(w1, w2, w3, w4, w5 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg6(w1, w2, w3, w4, w5, w6 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5, w6)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+	w6.Uses++
+}
+
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -226,10 +296,16 @@ func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 }
-func (v *Value) SetArgs2(a *Value, b *Value) {
+func (v *Value) SetArgs2(a, b *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
+}
+func (v *Value) SetArgs3(a, b, c *Value) {
+	v.resetArgs()
+	v.AddArg(a)
+	v.AddArg(b)
+	v.AddArg(c)
 }
 
 func (v *Value) resetArgs() {
@@ -242,6 +318,10 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// reset is called from most rewrite rules.
+// Allowing it to be inlined increases the size
+// of cmd/compile by almost 10%, and slows it down.
+//go:noinline
 func (v *Value) reset(op Op) {
 	v.Op = op
 	v.resetArgs()
@@ -249,9 +329,22 @@ func (v *Value) reset(op Op) {
 	v.Aux = nil
 }
 
+// copyOf is called from rewrite rules.
+// It modifies v to be (Copy a).
+//go:noinline
+func (v *Value) copyOf(a *Value) {
+	v.Op = OpCopy
+	v.resetArgs()
+	v.AddArg(a)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.Type = a.Type
+}
+
 // copyInto makes a new value identical to v and adds it to the end of b.
+// unlike copyIntoWithXPos this does not check for v.Pos being a statement.
 func (v *Value) copyInto(b *Block) *Value {
-	c := b.NewValue0(v.Pos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
@@ -263,16 +356,16 @@ func (v *Value) copyInto(b *Block) *Value {
 	return c
 }
 
-// copyIntoNoXPos makes a new value identical to v and adds it to the end of b.
-// The copied value receives no source code position to avoid confusing changes
-// in debugger information (the intended user is the register allocator).
-func (v *Value) copyIntoNoXPos(b *Block) *Value {
-	return v.copyIntoWithXPos(b, src.NoXPos)
-}
-
 // copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
 // The supplied position is used as the position of the new value.
+// Because this is used for rematerialization, check for case that (rematerialized)
+// input to value with position 'pos' carried a statement mark, and that the supplied
+// position (of the instruction using the rematerialized value) is not marked, and
+// preserve that mark if its line matches the supplied position.
 func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+	if v.Pos.IsStmt() == src.PosIsStmt && pos.IsStmt() != src.PosIsStmt && v.Pos.SameFileAndLine(pos) {
+		pos = pos.WithIsStmt()
+	}
 	c := b.NewValue0(pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
@@ -291,7 +384,7 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 
-// isGenericIntConst returns whether v is a generic integer constant.
+// isGenericIntConst reports whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }

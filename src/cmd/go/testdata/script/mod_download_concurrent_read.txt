@@ -1,0 +1,120 @@
+# This test simulates a process watching for changes and reading files in
+# module cache as a module is extracted.
+#
+# By default, we unzip a downloaded module into a temporary directory with a
+# random name, then rename the directory into place. On Windows, this fails
+# with ERROR_ACCESS_DENIED if another process (e.g., antivirus) opens files
+# in the directory.
+#
+# Setting GODEBUG=modcacheunzipinplace=1 opts into new behavior: a downloaded
+# module is unzipped in place. A .partial file is created elsewhere to indicate
+# that the extraction is incomplete.
+#
+# Verifies golang.org/issue/36568.
+
+[!windows] skip
+[short] skip
+
+# Control case: check that the default behavior fails.
+# This is commented out to avoid flakiness. We can't reproduce the failure
+# 100% of the time.
+# ! go run downloader.go
+
+# Experiment: check that the new behavior does not fail.
+env GODEBUG=modcacheunzipinplace=1
+go run downloader.go
+
+-- go.mod --
+module example.com/m
+
+go 1.14
+
+-- downloader.go --
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// run repeatedly downloads a module while opening files in the module cache
+// in a background goroutine.
+//
+// run uses a different temporary module cache in each iteration so that we
+// don't need to clean the cache or synchronize closing files after each
+// iteration.
+func run() (err error) {
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if rmErr := os.RemoveAll(tmpDir); err == nil && rmErr != nil {
+			err = rmErr
+		}
+	}()
+	for i := 0; i < 10; i++ {
+    gopath := filepath.Join(tmpDir, fmt.Sprintf("gopath%d", i))
+		var err error
+		done := make(chan struct{})
+		go func() {
+			err = download(gopath)
+			close(done)
+		}()
+		readCache(gopath, done)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// download downloads a module into the given cache using 'go mod download'.
+func download(gopath string) error {
+	cmd := exec.Command("go", "mod", "download", "-modcacherw", "rsc.io/quote@v1.5.2")
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+	return cmd.Run()
+}
+
+// readCache repeatedly globs for go.mod files in the given cache, then opens
+// those files for reading. When the done chan is closed, readCache closes
+// files and returns.
+func readCache(gopath string, done <-chan struct{}) {
+	files := make(map[string]*os.File)
+	defer func() {
+		for _, f := range files {
+			f.Close()
+		}
+	}()
+
+	pattern := filepath.Join(gopath, "pkg/mod/rsc.io/quote@v1.5.2*/go.mod")
+	for {
+		select {
+		case <-done:
+			return
+		default:
+		}
+
+		names, _ := filepath.Glob(pattern)
+		for _, name := range names {
+			if files[name] != nil {
+				continue
+			}
+			f, _ := os.Open(name)
+			if f != nil {
+				files[name] = f
+			}
+		}
+	}
+}

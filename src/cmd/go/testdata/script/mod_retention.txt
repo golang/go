@@ -1,0 +1,145 @@
+# Regression test for golang.org/issue/34822: the 'go' command should prefer not
+# to update the go.mod file if the changes only affect formatting, and should only
+# remove redundant requirements in 'go mod tidy'.
+
+env GO111MODULE=on
+[short] skip
+
+# Control case: verify that go.mod.tidy is actually tidy.
+cp go.mod.tidy go.mod
+go list all
+cmp go.mod go.mod.tidy
+
+
+# If the only difference in the go.mod file is the line endings,
+# it should not be overwritten automatically.
+cp go.mod.crlf go.mod
+go list all
+cmp go.mod go.mod.crlf
+
+# However, 'go mod tidy' should fix whitespace even if there are no other changes.
+go mod tidy
+cmp go.mod go.mod.tidy
+
+
+# Out-of-order requirements should not be overwritten automatically...
+cp go.mod.unsorted go.mod
+go list all
+cmp go.mod go.mod.unsorted
+
+# ...but 'go mod edit -fmt' should sort them.
+go mod edit -fmt
+cmp go.mod go.mod.tidy
+
+
+# "// indirect" comments should be removed if direct dependencies are seen.
+# changes.
+cp go.mod.indirect go.mod
+go list all
+cmp go.mod go.mod.tidy
+
+# "// indirect" comments should be added if appropriate.
+cp go.mod.toodirect go.mod
+go list all
+cmp go.mod go.mod.toodirect
+go mod vendor # loads everything, so adds "// indirect" comments.
+cmp go.mod go.mod.tidy
+rm -r vendor
+
+
+# Redundant requirements should be preserved...
+cp go.mod.redundant go.mod
+go list all
+cmp go.mod go.mod.redundant
+go mod vendor
+cmp go.mod go.mod.redundant
+rm -r vendor
+
+# ...except by 'go mod tidy'.
+go mod tidy
+cmp go.mod go.mod.tidy
+
+
+# A missing "go" version directive should be added.
+# However, that should not remove other redundant requirements.
+cp go.mod.nogo go.mod
+go list all
+cmpenv go.mod go.mod.currentgo
+
+
+-- go.mod.tidy --
+module m
+
+go 1.14
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- x.go --
+package x
+import _ "rsc.io/quote"
+-- go.mod.crlf --
+module m
+
+go 1.14
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.unsorted --
+module m
+
+go 1.14
+
+require (
+	rsc.io/testonly v1.0.0 // indirect
+	rsc.io/quote v1.5.2
+)
+-- go.mod.indirect --
+module m
+
+go 1.14
+
+require (
+	rsc.io/quote v1.5.2 // indirect
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.toodirect --
+module m
+
+go 1.14
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/testonly v1.0.0
+)
+-- go.mod.redundant --
+module m
+
+go 1.14
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.3.0 // indirect
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.nogo --
+module m
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.3.0 // indirect
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- go.mod.currentgo --
+module m
+
+go $goversion
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.3.0 // indirect
+	rsc.io/testonly v1.0.0 // indirect
+)

@@ -1,0 +1,70 @@
+[gccgo] skip # gccgo does not have standard packages
+[short] skip
+
+env GOCACHE=$WORK/tmp
+
+# Run go test -json on errors empty/pkg and skipper
+# It would be nice to test that the output is interlaced
+# but it seems to be impossible to do that in a short test
+# that isn't also flaky. Just check that we get JSON output.
+go test -json -short -v errors empty/pkg skipper
+
+# Check errors for run action
+stdout '"Package":"errors"'
+stdout '"Action":"run","Package":"errors"'
+
+# Check empty/pkg for output and skip actions
+stdout '"Action":"output","Package":"empty/pkg","Output":".*no test files'
+stdout '"Action":"skip","Package":"empty/pkg"'
+
+# Check skipper for output and skip actions
+stdout '"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:'
+stdout '"Action":"skip","Package":"skipper","Test":"Test"'
+
+# Run go test -json on errors and check it's cached
+go test -json -short -v errors
+stdout '"Action":"output","Package":"errors","Output":".*\(cached\)'
+
+go test -json -bench=NONE -short -v errors
+stdout '"Package":"errors"'
+stdout '"Action":"run"'
+
+# Test running test2json
+go test -o $WORK/tmp/errors.test$GOEXE -c errors
+go tool test2json -p errors $WORK/tmp/errors.test$GOEXE -test.v -test.short
+stdout '"Package":"errors"'
+stdout '"Action":"run"'
+stdout '\{"Action":"pass","Package":"errors"\}'
+
+-- skipper/skip_test.go --
+package skipper
+
+import "testing"
+
+func Test(t *testing.T) {
+	t.Skip("skipping")
+}
+-- empty/pkg/pkg.go --
+package p
+-- empty/pkgtest/pkg.go --
+package p
+-- empty/pkgtest/test_test.go --
+package p
+-- empty/pkgtestxtest/pkg.go --
+package p
+-- empty/pkgtestxtest/test_test.go --
+package p
+-- empty/pkgtestxtest/xtest_test.go --
+package p_test
+-- empty/pkgxtest/pkg.go --
+package p
+-- empty/pkgxtest/xtest_test.go --
+package p_test
+-- empty/test/test_test.go --
+package p
+-- empty/testxtest/test_test.go --
+package p
+-- empty/testxtest/xtest_test.go --
+package p_test
+-- empty/xtest/xtest_test.go --
+package p_test

@@ -12,7 +12,7 @@ func layout(f *Func) {
 }
 
 // Register allocation may use a different order which has constraints
-// imposed by the linear-scan algorithm. Note that that f.pass here is
+// imposed by the linear-scan algorithm. Note that f.pass here is
 // regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
 func layoutRegallocOrder(f *Func) []*Block {
 
@@ -46,13 +46,44 @@ func layoutOrder(f *Func) []*Block {
 	exit := f.newSparseSet(f.NumBlocks()) // exit blocks
 	defer f.retSparseSet(exit)
 
-	// Initialize indegree of each block
+	// Populate idToBlock and find exit blocks.
 	for _, b := range f.Blocks {
 		idToBlock[b.ID] = b
 		if b.Kind == BlockExit {
-			// exit blocks are always scheduled last
-			// TODO: also add blocks post-dominated by exit blocks
 			exit.add(b.ID)
+		}
+	}
+
+	// Expand exit to include blocks post-dominated by exit blocks.
+	for {
+		changed := false
+		for _, id := range exit.contents() {
+			b := idToBlock[id]
+		NextPred:
+			for _, pe := range b.Preds {
+				p := pe.b
+				if exit.contains(p.ID) {
+					continue
+				}
+				for _, s := range p.Succs {
+					if !exit.contains(s.b.ID) {
+						continue NextPred
+					}
+				}
+				// All Succs are in exit; add p.
+				exit.add(p.ID)
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+
+	// Initialize indegree of each block
+	for _, b := range f.Blocks {
+		if exit.contains(b.ID) {
+			// exit blocks are always scheduled last
 			continue
 		}
 		indegree[b.ID] = len(b.Preds)
@@ -143,5 +174,7 @@ blockloop:
 			}
 		}
 	}
+	f.laidout = true
 	return order
+	//f.Blocks = order
 }

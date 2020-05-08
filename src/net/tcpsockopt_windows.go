@@ -15,8 +15,7 @@ import (
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
 	// The kernel expects milliseconds so round to next highest
 	// millisecond.
-	d += (time.Millisecond - time.Nanosecond)
-	msecs := uint32(d / time.Millisecond)
+	msecs := uint32(roundDurationUp(d, time.Millisecond))
 	ka := syscall.TCPKeepalive{
 		OnOff:    1,
 		Time:     msecs,

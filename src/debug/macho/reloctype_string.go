@@ -2,7 +2,7 @@
 
 package macho
 
-import "fmt"
+import "strconv"
 
 const _RelocTypeGeneric_name = "GENERIC_RELOC_VANILLAGENERIC_RELOC_PAIRGENERIC_RELOC_SECTDIFFGENERIC_RELOC_PB_LA_PTRGENERIC_RELOC_LOCAL_SECTDIFFGENERIC_RELOC_TLV"
 
@@ -10,7 +10,7 @@ var _RelocTypeGeneric_index = [...]uint8{0, 21, 39, 61, 84, 112, 129}
 
 func (i RelocTypeGeneric) String() string {
 	if i < 0 || i >= RelocTypeGeneric(len(_RelocTypeGeneric_index)-1) {
-		return fmt.Sprintf("RelocTypeGeneric(%d)", i)
+		return "RelocTypeGeneric(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeGeneric_name[_RelocTypeGeneric_index[i]:_RelocTypeGeneric_index[i+1]]
 }
@@ -21,7 +21,7 @@ var _RelocTypeX86_64_index = [...]uint8{0, 21, 40, 59, 80, 96, 119, 140, 161, 18
 
 func (i RelocTypeX86_64) String() string {
 	if i < 0 || i >= RelocTypeX86_64(len(_RelocTypeX86_64_index)-1) {
-		return fmt.Sprintf("RelocTypeX86_64(%d)", i)
+		return "RelocTypeX86_64(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeX86_64_name[_RelocTypeX86_64_index[i]:_RelocTypeX86_64_index[i+1]]
 }
@@ -32,7 +32,7 @@ var _RelocTypeARM_index = [...]uint8{0, 17, 31, 49, 73, 92, 106, 126, 148, 162, 
 
 func (i RelocTypeARM) String() string {
 	if i < 0 || i >= RelocTypeARM(len(_RelocTypeARM_index)-1) {
-		return fmt.Sprintf("RelocTypeARM(%d)", i)
+		return "RelocTypeARM(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeARM_name[_RelocTypeARM_index[i]:_RelocTypeARM_index[i+1]]
 }
@@ -43,7 +43,7 @@ var _RelocTypeARM64_index = [...]uint16{0, 20, 42, 62, 80, 101, 128, 158, 184, 2
 
 func (i RelocTypeARM64) String() string {
 	if i < 0 || i >= RelocTypeARM64(len(_RelocTypeARM64_index)-1) {
-		return fmt.Sprintf("RelocTypeARM64(%d)", i)
+		return "RelocTypeARM64(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeARM64_name[_RelocTypeARM64_index[i]:_RelocTypeARM64_index[i+1]]
 }

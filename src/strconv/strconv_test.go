@@ -30,6 +30,9 @@ var (
 			AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)
 		}},
 		{0, `AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64)`, func() { AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64) }},
+		// In practice we see 7 for the next one, but allow some slop.
+		// Before pre-allocation in appendQuotedWith, we saw 39.
+		{10, `AppendQuoteToASCII(nil, oneMB)`, func() { AppendQuoteToASCII(nil, string(oneMB)) }},
 		{0, `ParseFloat("123.45", 64)`, func() { ParseFloat("123.45", 64) }},
 		{0, `ParseFloat("123.456789123456789", 64)`, func() { ParseFloat("123.456789123456789", 64) }},
 		{0, `ParseFloat("1.000000000000000111022302462515654042363166809082031251", 64)`, func() {
@@ -41,12 +44,19 @@ var (
 	}
 )
 
+var oneMB []byte // Will be allocated to 1MB of random data by TestCountMallocs.
+
 func TestCountMallocs(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping malloc count in short mode")
 	}
 	if runtime.GOMAXPROCS(0) > 1 {
 		t.Skip("skipping; GOMAXPROCS>1")
+	}
+	// Allocate a big messy buffer for AppendQuoteToASCII's test.
+	oneMB = make([]byte, 1e6)
+	for i := range oneMB {
+		oneMB[i] = byte(i)
 	}
 	for _, mt := range mallocTest {
 		allocs := testing.AllocsPerRun(100, mt.fn)

@@ -55,14 +55,6 @@ func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ScopeID, dwarfScopes []d
 	}
 }
 
-// A scopedPCs represents a non-empty half-open interval of PCs that
-// share a common source position.
-type scopedPCs struct {
-	start, end int64
-	pos        src.XPos
-	scope      ScopeID
-}
-
 // scopePCs assigns PC ranges to their scopes.
 func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 	// If there aren't any child scopes (in particular, when scope
@@ -70,36 +62,18 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 	if len(marks) == 0 {
 		return
 	}
-
-	// Break function text into scopedPCs.
-	var pcs []scopedPCs
 	p0 := fnsym.Func.Text
+	scope := findScope(marks, p0.Pos)
 	for p := fnsym.Func.Text; p != nil; p = p.Link {
 		if p.Pos == p0.Pos {
 			continue
 		}
-		if p0.Pc < p.Pc {
-			pcs = append(pcs, scopedPCs{start: p0.Pc, end: p.Pc, pos: p0.Pos})
-		}
+		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: p.Pc})
 		p0 = p
+		scope = findScope(marks, p0.Pos)
 	}
 	if p0.Pc < fnsym.Size {
-		pcs = append(pcs, scopedPCs{start: p0.Pc, end: fnsym.Size, pos: p0.Pos})
-	}
-
-	// Assign scopes to each chunk of instructions.
-	for i := range pcs {
-		pcs[i].scope = findScope(marks, pcs[i].pos)
-	}
-
-	// Create sorted PC ranges for each DWARF scope.
-	for _, pc := range pcs {
-		r := &dwarfScopes[pc.scope].Ranges
-		if i := len(*r); i > 0 && (*r)[i-1].End == pc.start {
-			(*r)[i-1].End = pc.end
-		} else {
-			*r = append(*r, dwarf.Range{Start: pc.start, End: pc.end})
-		}
+		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: fnsym.Size})
 	}
 }
 

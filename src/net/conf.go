@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"runtime"
 	"sync"
@@ -132,7 +133,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
 		return fallbackOrder
 	}
-	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
+	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 		// Don't deal with special form hostnames with backslashes
 		// or '%'.
 		return fallbackOrder
@@ -149,7 +150,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		}
 		lookup := c.resolv.lookup
 		if len(lookup) == 0 {
-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "If the lookup keyword is not used in the
 			// system's resolv.conf file then the assumed
 			// order is 'bind file'"
@@ -203,7 +204,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		}
 		if c.goos == "linux" {
 			// glibc says the default is "dns [!UNAVAIL=return] files"
-			// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
+			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
 			return hostLookupDNSFiles
 		}
 		return hostLookupFilesDNS
@@ -301,7 +302,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 			dnsMode = s
 		}
 	}
-	if i := byteIndex(goDebug, '+'); i != -1 {
+	if i := bytealg.IndexByteString(goDebug, '+'); i != -1 {
 		parsePart(goDebug[:i])
 		parsePart(goDebug[i+1:])
 		return

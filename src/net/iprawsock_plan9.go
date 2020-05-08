@@ -25,10 +25,10 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) 
 	return 0, 0, syscall.EPLAN9
 }
 
-func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
+func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, error) {
 	return nil, syscall.EPLAN9
 }

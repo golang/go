@@ -8,7 +8,6 @@ import (
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"sort"
 	"strings"
 )
 
@@ -96,7 +95,6 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	// the pre-inlining decls for the target function and assign child
 	// index accordingly.
 	for ii, sl := range vmap {
-		sort.Sort(byClassThenName(sl))
 		var m map[varPos]int
 		if ii == 0 {
 			if !fnsym.WasInlined() {
@@ -129,7 +127,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 				DeclLine: v.DeclLine,
 				DeclCol:  v.DeclCol,
 			}
-			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
+			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
 			if idx, found := m[vp]; found {
 				v.ChildIndex = int32(idx)
 				v.IsInAbstract = !synthesized
@@ -142,15 +140,15 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 				// return temps (~r%d) that were created during
 				// lowering, or unnamed params ("_").
 				v.ChildIndex = int32(synthCount)
-				synthCount += 1
+				synthCount++
 			}
 		}
 	}
 
 	// Make a second pass through the progs to compute PC ranges for
 	// the various inlined calls.
+	start := int64(-1)
 	curii := -1
-	var crange *dwarf.Range
 	var prevp *obj.Prog
 	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
 		if prevp != nil && p.Pos == prevp.Pos {
@@ -159,17 +157,17 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 		ii := posInlIndex(p.Pos)
 		if ii == curii {
 			continue
-		} else {
-			// Close out the current range
-			endRange(crange, p)
-
-			// Begin new range
-			crange = beginRange(inlcalls.Calls, p, ii, imap)
-			curii = ii
 		}
+		// Close out the current range
+		if start != -1 {
+			addRange(inlcalls.Calls, start, p.Pc, curii, imap)
+		}
+		// Begin new range
+		start = p.Pc
+		curii = ii
 	}
-	if crange != nil {
-		crange.End = fnsym.Size
+	if start != -1 {
+		addRange(inlcalls.Calls, start, fnsym.Size, curii, imap)
 	}
 
 	// Debugging
@@ -289,52 +287,27 @@ func posInlIndex(xpos src.XPos) int {
 	return -1
 }
 
-func endRange(crange *dwarf.Range, p *obj.Prog) {
-	if crange == nil {
+func addRange(calls []dwarf.InlCall, start, end int64, ii int, imap map[int]int) {
+	if start == -1 {
+		panic("bad range start")
+	}
+	if end == -1 {
+		panic("bad range end")
+	}
+	if ii == -1 {
 		return
 	}
-	crange.End = p.Pc
-}
-
-func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *dwarf.Range {
-	if ii == -1 {
-		return nil
+	if start == end {
+		return
 	}
+	// Append range to correct inlined call
 	callIdx, found := imap[ii]
 	if !found {
-		Fatalf("internal error: can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
+		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, start)
 	}
 	call := &calls[callIdx]
-
-	// Set up range and append to correct inlined call
-	call.Ranges = append(call.Ranges, dwarf.Range{Start: p.Pc, End: -1})
-	return &call.Ranges[len(call.Ranges)-1]
+	call.Ranges = append(call.Ranges, dwarf.Range{Start: start, End: end})
 }
-
-func cmpDwarfVar(a, b *dwarf.Var) bool {
-	// named before artificial
-	aart := 0
-	if strings.HasPrefix(a.Name, "~r") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Name, "~r") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	// otherwise sort by name
-	return a.Name < b.Name
-}
-
-// byClassThenName implements sort.Interface for []*dwarf.Var using cmpDwarfVar.
-type byClassThenName []*dwarf.Var
-
-func (s byClassThenName) Len() int           { return len(s) }
-func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
-func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
 	for i := 0; i < ilevel; i++ {

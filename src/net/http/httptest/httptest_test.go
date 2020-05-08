@@ -16,15 +16,17 @@ import (
 )
 
 func TestNewRequest(t *testing.T) {
-	tests := [...]struct {
+	for _, tt := range [...]struct {
+		name string
+
 		method, uri string
 		body        io.Reader
 
 		want     *http.Request
 		wantBody string
 	}{
-		// Empty method means GET:
-		0: {
+		{
+			name:   "Empty method means GET",
 			method: "",
 			uri:    "/",
 			body:   nil,
@@ -42,8 +44,8 @@ func TestNewRequest(t *testing.T) {
 			wantBody: "",
 		},
 
-		// GET with full URL:
-		1: {
+		{
+			name:   "GET with full URL",
 			method: "GET",
 			uri:    "http://foo.com/path/%2f/bar/",
 			body:   nil,
@@ -66,8 +68,8 @@ func TestNewRequest(t *testing.T) {
 			wantBody: "",
 		},
 
-		// GET with full https URL:
-		2: {
+		{
+			name:   "GET with full https URL",
 			method: "GET",
 			uri:    "https://foo.com/path/",
 			body:   nil,
@@ -94,8 +96,8 @@ func TestNewRequest(t *testing.T) {
 			wantBody: "",
 		},
 
-		// Post with known length
-		3: {
+		{
+			name:   "Post with known length",
 			method: "POST",
 			uri:    "/",
 			body:   strings.NewReader("foo"),
@@ -114,8 +116,8 @@ func TestNewRequest(t *testing.T) {
 			wantBody: "foo",
 		},
 
-		// Post with unknown length
-		4: {
+		{
+			name:   "Post with unknown length",
 			method: "POST",
 			uri:    "/",
 			body:   struct{ io.Reader }{strings.NewReader("foo")},
@@ -134,8 +136,8 @@ func TestNewRequest(t *testing.T) {
 			wantBody: "foo",
 		},
 
-		// OPTIONS *
-		5: {
+		{
+			name:   "OPTIONS *",
 			method: "OPTIONS",
 			uri:    "*",
 			want: &http.Request{
@@ -150,28 +152,29 @@ func TestNewRequest(t *testing.T) {
 				RequestURI: "*",
 			},
 		},
-	}
-	for i, tt := range tests {
-		got := NewRequest(tt.method, tt.uri, tt.body)
-		slurp, err := ioutil.ReadAll(got.Body)
-		if err != nil {
-			t.Errorf("%d. ReadAll: %v", i, err)
-		}
-		if string(slurp) != tt.wantBody {
-			t.Errorf("%d. Body = %q; want %q", i, slurp, tt.wantBody)
-		}
-		got.Body = nil // before DeepEqual
-		if !reflect.DeepEqual(got.URL, tt.want.URL) {
-			t.Errorf("%d. Request.URL mismatch:\n got: %#v\nwant: %#v", i, got.URL, tt.want.URL)
-		}
-		if !reflect.DeepEqual(got.Header, tt.want.Header) {
-			t.Errorf("%d. Request.Header mismatch:\n got: %#v\nwant: %#v", i, got.Header, tt.want.Header)
-		}
-		if !reflect.DeepEqual(got.TLS, tt.want.TLS) {
-			t.Errorf("%d. Request.TLS mismatch:\n got: %#v\nwant: %#v", i, got.TLS, tt.want.TLS)
-		}
-		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("%d. Request mismatch:\n got: %#v\nwant: %#v", i, got, tt.want)
-		}
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NewRequest(tt.method, tt.uri, tt.body)
+			slurp, err := ioutil.ReadAll(got.Body)
+			if err != nil {
+				t.Errorf("ReadAll: %v", err)
+			}
+			if string(slurp) != tt.wantBody {
+				t.Errorf("Body = %q; want %q", slurp, tt.wantBody)
+			}
+			got.Body = nil // before DeepEqual
+			if !reflect.DeepEqual(got.URL, tt.want.URL) {
+				t.Errorf("Request.URL mismatch:\n got: %#v\nwant: %#v", got.URL, tt.want.URL)
+			}
+			if !reflect.DeepEqual(got.Header, tt.want.Header) {
+				t.Errorf("Request.Header mismatch:\n got: %#v\nwant: %#v", got.Header, tt.want.Header)
+			}
+			if !reflect.DeepEqual(got.TLS, tt.want.TLS) {
+				t.Errorf("Request.TLS mismatch:\n got: %#v\nwant: %#v", got.TLS, tt.want.TLS)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Request mismatch:\n got: %#v\nwant: %#v", got, tt.want)
+			}
+		})
 	}
 }

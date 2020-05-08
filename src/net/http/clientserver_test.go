@@ -9,8 +9,11 @@ package http_test
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"log"
@@ -73,7 +76,16 @@ var optQuietLog = func(ts *httptest.Server) {
 	ts.Config.ErrorLog = quietLog
 }
 
+func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
+	return func(ts *httptest.Server) {
+		ts.Config.ErrorLog = lg
+	}
+}
+
 func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
+	if h2 {
+		CondSkipHTTP2(t)
+	}
 	cst := &clientServerTest{
 		t:  t,
 		h2: h2,
@@ -249,7 +261,7 @@ type slurpResult struct {
 func (sr slurpResult) String() string { return fmt.Sprintf("body %q; err %v", sr.body, sr.err) }
 
 func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string) {
-	if res.Proto == wantProto {
+	if res.Proto == wantProto || res.Proto == "HTTP/IGNORE" {
 		res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
 	} else {
 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
@@ -557,7 +569,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 	if all != "Hello" {
 		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
 	}
-	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
+	if err != ExportErrRequestCanceled {
 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
 	}
 }
@@ -1232,7 +1244,6 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
 			h := w.Header()
 			h.Set("Content-Encoding", "gzip")
 			h.Set("Content-Length", "23")
-			h.Set("Connection", "keep-alive")
 			io.WriteString(w, "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00")
 		},
 		EarlyCheckResponse: func(proto string, res *Response) {
@@ -1472,11 +1483,97 @@ func testWriteHeaderAfterWrite(t *testing.T, h2, hijack bool) {
 		return
 	}
 	gotLog := strings.TrimSpace(errorLog.String())
-	wantLog := "http: multiple response.WriteHeader calls"
+	wantLog := "http: superfluous response.WriteHeader call from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
 	if hijack {
-		wantLog = "http: response.WriteHeader on hijacked connection"
+		wantLog = "http: response.WriteHeader on hijacked connection from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
 	}
-	if gotLog != wantLog {
+	if !strings.HasPrefix(gotLog, wantLog) {
 		t.Errorf("stderr output = %q; want %q", gotLog, wantLog)
 	}
+}
+
+func TestBidiStreamReverseProxy(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	backend := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if _, err := io.Copy(w, r.Body); err != nil {
+			log.Printf("bidi backend copy: %v", err)
+		}
+	}))
+	defer backend.close()
+
+	backURL, err := url.Parse(backend.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rp := httputil.NewSingleHostReverseProxy(backURL)
+	rp.Transport = backend.tr
+	proxy := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		rp.ServeHTTP(w, r)
+	}))
+	defer proxy.close()
+
+	bodyRes := make(chan interface{}, 1) // error or hash.Hash
+	pr, pw := io.Pipe()
+	req, _ := NewRequest("PUT", proxy.ts.URL, pr)
+	const size = 4 << 20
+	go func() {
+		h := sha1.New()
+		_, err := io.CopyN(io.MultiWriter(h, pw), rand.Reader, size)
+		go pw.Close()
+		if err != nil {
+			bodyRes <- err
+		} else {
+			bodyRes <- h
+		}
+	}()
+	res, err := backend.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	hgot := sha1.New()
+	n, err := io.Copy(hgot, res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != size {
+		t.Fatalf("got %d bytes; want %d", n, size)
+	}
+	select {
+	case v := <-bodyRes:
+		switch v := v.(type) {
+		default:
+			t.Fatalf("body copy: %v", err)
+		case hash.Hash:
+			if !bytes.Equal(v.Sum(nil), hgot.Sum(nil)) {
+				t.Errorf("written bytes didn't match received bytes")
+			}
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
+	}
+
+}
+
+// Always use HTTP/1.1 for WebSocket upgrades.
+func TestH12_WebSocketUpgrade(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			h := w.Header()
+			h.Set("Foo", "bar")
+		},
+		ReqFunc: func(c *Client, url string) (*Response, error) {
+			req, _ := NewRequest("GET", url, nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "WebSocket")
+			return c.Do(req)
+		},
+		EarlyCheckResponse: func(proto string, res *Response) {
+			if res.Proto != "HTTP/1.1" {
+				t.Errorf("%s: expected HTTP/1.1, got %q", proto, res.Proto)
+			}
+			res.Proto = "HTTP/IGNORE" // skip later checks that Proto must be 1.1 vs 2.0
+		},
+	}.run(t)
 }

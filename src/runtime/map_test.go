@@ -9,12 +9,24 @@ import (
 	"math"
 	"reflect"
 	"runtime"
+	"runtime/internal/sys"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 )
+
+func TestHmapSize(t *testing.T) {
+	// The structure of hmap is defined in runtime/map.go
+	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
+	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+	var hmapSize = uintptr(8 + 5*sys.PtrSize)
+	if runtime.RuntimeHmapSize != hmapSize {
+		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+	}
+
+}
 
 // negative zero is a good test because:
 //  1) 0 and -0 are equal, yet have distinct representations.
@@ -1031,5 +1043,177 @@ func TestDeferDeleteSlow(t *testing.T) {
 	}()
 	if len(m) != 0 {
 		t.Errorf("want 0 elements, got %d", len(m))
+	}
+}
+
+// TestIncrementAfterDeleteValueInt and other test Issue 25936.
+// Value types int, int32, int64 are affected. Value type string
+// works as expected.
+func TestIncrementAfterDeleteValueInt(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt32(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int32)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt64(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int64)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2] += 1
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyValueString(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]string)
+	m[key1] = "99"
+	delete(m, key1)
+	m[key2] += "1"
+	if n2 := m[key2]; n2 != "1" {
+		t.Errorf("appended '1' to empty (nil) string, got %s", n2)
+	}
+}
+
+// TestIncrementAfterBulkClearKeyStringValueInt tests that map bulk
+// deletion (mapclear) still works as expected. Note that it was not
+// affected by Issue 25936.
+func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	for k := range m {
+		delete(m, k)
+	}
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestMapTombstones(t *testing.T) {
+	m := map[int]int{}
+	const N = 10000
+	// Fill a map.
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete half of the entries.
+	for i := 0; i < N; i += 2 {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+	// Add new entries to fill in holes.
+	for i := N; i < 3*N/2; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete everything.
+	for i := 0; i < 3*N/2; i++ {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+}
+
+type canString int
+
+func (c canString) String() string {
+	return fmt.Sprintf("%d", int(c))
+}
+
+func TestMapInterfaceKey(t *testing.T) {
+	// Test all the special cases in runtime.typehash.
+	type GrabBag struct {
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		s    string
+		i0   interface{}
+		i1   interface {
+			String() string
+		}
+		a [4]string
+	}
+
+	m := map[interface{}]bool{}
+	// Put a bunch of data in m, so that a bad hash is likely to
+	// lead to a bad bucket, which will lead to a missed lookup.
+	for i := 0; i < 1000; i++ {
+		m[i] = true
+	}
+	m[GrabBag{f32: 1.0}] = true
+	if !m[GrabBag{f32: 1.0}] {
+		panic("f32 not found")
+	}
+	m[GrabBag{f64: 1.0}] = true
+	if !m[GrabBag{f64: 1.0}] {
+		panic("f64 not found")
+	}
+	m[GrabBag{c64: 1.0i}] = true
+	if !m[GrabBag{c64: 1.0i}] {
+		panic("c64 not found")
+	}
+	m[GrabBag{c128: 1.0i}] = true
+	if !m[GrabBag{c128: 1.0i}] {
+		panic("c128 not found")
+	}
+	m[GrabBag{s: "foo"}] = true
+	if !m[GrabBag{s: "foo"}] {
+		panic("string not found")
+	}
+	m[GrabBag{i0: "foo"}] = true
+	if !m[GrabBag{i0: "foo"}] {
+		panic("interface{} not found")
+	}
+	m[GrabBag{i1: canString(5)}] = true
+	if !m[GrabBag{i1: canString(5)}] {
+		panic("interface{String() string} not found")
+	}
+	m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] = true
+	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
+		panic("array not found")
 	}
 }

@@ -117,7 +117,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 		dirs[i] = filepath.Join(dir, dirs[i])
 	}
 	path := strings.Join(dirs, ";")
-	env = updateEnv(env, "PATH", path)
+	env = updateEnv(env, "PATH", os.Getenv("SystemRoot")+"/System32;"+path)
 	return env
 }
 

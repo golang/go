@@ -5,6 +5,7 @@
 package cipher_test
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -298,11 +299,8 @@ func ExampleStreamReader() {
 	// package like bcrypt or scrypt.
 	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 
-	inFile, err := os.Open("encrypted-file")
-	if err != nil {
-		panic(err)
-	}
-	defer inFile.Close()
+	encrypted, _ := hex.DecodeString("cf0495cc6f75dafc23948538e79904a9")
+	bReader := bytes.NewReader(encrypted)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -314,15 +312,9 @@ func ExampleStreamReader() {
 	var iv [aes.BlockSize]byte
 	stream := cipher.NewOFB(block, iv[:])
 
-	outFile, err := os.OpenFile("decrypted-file", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer outFile.Close()
-
-	reader := &cipher.StreamReader{S: stream, R: inFile}
-	// Copy the input file to the output file, decrypting as we go.
-	if _, err := io.Copy(outFile, reader); err != nil {
+	reader := &cipher.StreamReader{S: stream, R: bReader}
+	// Copy the input to the output stream, decrypting as we go.
+	if _, err := io.Copy(os.Stdout, reader); err != nil {
 		panic(err)
 	}
 
@@ -330,6 +322,8 @@ func ExampleStreamReader() {
 	// authentication of the encrypted data. If you were actually to use
 	// StreamReader in this manner, an attacker could flip arbitrary bits in
 	// the output.
+
+	// Output: some secret text
 }
 
 func ExampleStreamWriter() {
@@ -339,11 +333,7 @@ func ExampleStreamWriter() {
 	// package like bcrypt or scrypt.
 	key, _ := hex.DecodeString("6368616e676520746869732070617373")
 
-	inFile, err := os.Open("plaintext-file")
-	if err != nil {
-		panic(err)
-	}
-	defer inFile.Close()
+	bReader := bytes.NewReader([]byte("some secret text"))
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -355,15 +345,11 @@ func ExampleStreamWriter() {
 	var iv [aes.BlockSize]byte
 	stream := cipher.NewOFB(block, iv[:])
 
-	outFile, err := os.OpenFile("encrypted-file", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer outFile.Close()
+	var out bytes.Buffer
 
-	writer := &cipher.StreamWriter{S: stream, W: outFile}
-	// Copy the input file to the output file, encrypting as we go.
-	if _, err := io.Copy(writer, inFile); err != nil {
+	writer := &cipher.StreamWriter{S: stream, W: &out}
+	// Copy the input to the output buffer, encrypting as we go.
+	if _, err := io.Copy(writer, bReader); err != nil {
 		panic(err)
 	}
 
@@ -371,4 +357,7 @@ func ExampleStreamWriter() {
 	// authentication of the encrypted data. If you were actually to use
 	// StreamReader in this manner, an attacker could flip arbitrary bits in
 	// the decrypted result.
+
+	fmt.Printf("%x\n", out.Bytes())
+	// Output: cf0495cc6f75dafc23948538e79904a9
 }

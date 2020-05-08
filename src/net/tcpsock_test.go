@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -474,10 +476,6 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		// I/O on Plan 9 allocates memory.
 		// See net/fd_io_plan9.go.
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "nacl":
-		// NaCl needs to allocate pseudo file descriptor
-		// stuff. See syscall/fd_nacl.go.
-		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	ln, err := Listen("tcp", "127.0.0.1:0")
@@ -649,7 +647,7 @@ func TestTCPSelfConnect(t *testing.T) {
 		n = 1000
 	}
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
+	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
 		// Non-Linux systems take a long time to figure
 		// out that there is nothing listening on localhost.
 		n = 100
@@ -792,5 +790,36 @@ func TestCopyPipeIntoTCP(t *testing.T) {
 	_, err = w.Write(packet)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func BenchmarkSetReadDeadline(b *testing.B) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer ln.Close()
+	var serv Conn
+	done := make(chan error)
+	go func() {
+		var err error
+		serv, err = ln.Accept()
+		done <- err
+	}()
+	c, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer c.Close()
+	if err := <-done; err != nil {
+		b.Fatal(err)
+	}
+	defer serv.Close()
+	c.SetWriteDeadline(time.Now().Add(2 * time.Hour))
+	deadline := time.Now().Add(time.Hour)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.SetReadDeadline(deadline)
+		deadline = deadline.Add(1)
 	}
 }

@@ -19,7 +19,11 @@ import (
 	"unsafe"
 )
 
+var testMemStatsCount int
+
 func TestMemStats(t *testing.T) {
+	testMemStatsCount++
+
 	// Make sure there's at least one forced GC.
 	GC()
 
@@ -35,6 +39,13 @@ func TestMemStats(t *testing.T) {
 	}
 	le := func(thresh float64) func(interface{}) error {
 		return func(x interface{}) error {
+			// These sanity tests aren't necessarily valid
+			// with high -test.count values, so only run
+			// them once.
+			if testMemStatsCount > 1 {
+				return nil
+			}
+
 			if reflect.ValueOf(x).Convert(reflect.TypeOf(thresh)).Float() < thresh {
 				return nil
 			}
@@ -154,6 +165,35 @@ func TestTinyAlloc(t *testing.T) {
 
 	if len(chunks) == N {
 		t.Fatal("no bytes allocated within the same 8-byte chunk")
+	}
+}
+
+func TestPageCacheLeak(t *testing.T) {
+	defer GOMAXPROCS(GOMAXPROCS(1))
+	leaked := PageCachePagesLeaked()
+	if leaked != 0 {
+		t.Fatalf("found %d leaked pages in page caches", leaked)
+	}
+}
+
+func TestPhysicalMemoryUtilization(t *testing.T) {
+	got := runTestProg(t, "testprog", "GCPhys")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestScavengedBitsCleared(t *testing.T) {
+	var mismatches [128]BitsMismatch
+	if n, ok := CheckScavengedBitsCleared(mismatches[:]); !ok {
+		t.Errorf("uncleared scavenged bits")
+		for _, m := range mismatches[:n] {
+			t.Logf("\t@ address 0x%x", m.Base)
+			t.Logf("\t|  got: %064b", m.Got)
+			t.Logf("\t| want: %064b", m.Want)
+		}
+		t.FailNow()
 	}
 }
 
