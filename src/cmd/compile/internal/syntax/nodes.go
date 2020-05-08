@@ -274,8 +274,7 @@ type (
 
 	// interface { MethodList[0]; MethodList[1]; ... }
 	InterfaceType struct {
-		MethodList []*Field
-		TypeList   []Expr
+		MethodList []*Field // a field named "type" means a type constraint
 		expr
 	}
 

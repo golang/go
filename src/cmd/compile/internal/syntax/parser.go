@@ -1360,18 +1360,28 @@ func (p *parser) interfaceType() *InterfaceType {
 				typ.MethodList = append(typ.MethodList, m)
 			}
 		case _Type:
+			// TODO(gri) factor this better
+			type_ := new(Name)
+			type_.pos = p.pos()
+			type_.Value = "type" // cannot have a method named "type"
 			p.next()
-			var list []Expr
 			if p.tok != _Semi && p.tok != _Rbrace {
-				list = append(list, p.type_(true))
+				f := new(Field)
+				f.pos = p.pos()
+				f.Name = type_
+				f.Type = p.type_(true)
+				typ.MethodList = append(typ.MethodList, &Field{})
 				for p.got(_Comma) {
-					list = append(list, p.type_(true))
+					f := new(Field)
+					f.pos = p.pos()
+					f.Name = type_
+					f.Type = p.type_(true)
+					typ.MethodList = append(typ.MethodList, &Field{})
 				}
 			}
-			typ.TypeList = list
 
 		default:
-			p.syntaxError("expecting method or interface name")
+			p.syntaxError("expecting method, interface name, or type constraint")
 			p.advance(_Semi, _Rbrace)
 		}
 		return false
