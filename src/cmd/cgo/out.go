@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -802,6 +803,28 @@ func (p *Package) packedAttribute() string {
 	return s + "))"
 }
 
+// exportParamName returns the value of param as it should be
+// displayed in a c header file. If param contains any non-ASCII
+// characters, this function will return the character p followed by
+// the value of position; otherwise, this function will return the
+// value of param.
+func exportParamName(param string, position int) string {
+	if param == "" {
+		return fmt.Sprintf("p%d", position)
+	}
+
+	pname := param
+
+	for i := 0; i < len(param); i++ {
+		if param[i] > unicode.MaxASCII {
+			pname = fmt.Sprintf("p%d", position)
+			break
+		}
+	}
+
+	return pname
+}
+
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
@@ -915,42 +938,45 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				if i > 0 || fn.Recv != nil {
 					s += ", "
 				}
-				s += fmt.Sprintf("%s p%d", p.cgoType(atype).C, i)
+				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, exportParamName(aname, i))
 			})
 		s += ")"
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+			if !strings.HasSuffix(exp.Doc, "\n") {
+				fmt.Fprint(fgcch, "\n")
+			}
 		}
-		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+		fmt.Fprintf(fgcch, "extern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t__SIZE_TYPE__ _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
-		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
+		fmt.Fprintf(fgcc, "\t%s %v _cgo_a;\n", ctype, p.packedAttribute())
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
 		}
 		if fn.Recv != nil {
-			fmt.Fprintf(fgcc, "\ta.recv = recv;\n")
+			fmt.Fprintf(fgcc, "\t_cgo_a.recv = recv;\n")
 		}
 		forFieldList(fntype.Params,
 			func(i int, aname string, atype ast.Expr) {
-				fmt.Fprintf(fgcc, "\ta.p%d = p%d;\n", i, i)
+				fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, exportParamName(aname, i))
 			})
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
-		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
+		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &_cgo_a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
 		fmt.Fprintf(fgcc, "\t_cgo_release_context(_cgo_ctxt);\n")
 		if gccResult != "void" {
 			if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
-				fmt.Fprintf(fgcc, "\treturn a.r0;\n")
+				fmt.Fprintf(fgcc, "\treturn _cgo_a.r0;\n")
 			} else {
 				forFieldList(fntype.Results,
 					func(i int, aname string, atype ast.Expr) {
-						fmt.Fprintf(fgcc, "\tr.r%d = a.r%d;\n", i, i)
+						fmt.Fprintf(fgcc, "\tr.r%d = _cgo_a.r%d;\n", i, i)
 					})
 				fmt.Fprintf(fgcc, "\treturn r;\n")
 			}

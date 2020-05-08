@@ -6,7 +6,12 @@
 
 package main
 
-import "cmd/internal/obj/riscv"
+import (
+	"fmt"
+)
+
+// Notes:
+//  - Boolean types occupy the entire register. 0=false, 1=true.
 
 // Suffixes encode the bit width of various instructions:
 //
@@ -18,9 +23,33 @@ import "cmd/internal/obj/riscv"
 // D (double)      = 64 bit float
 // L               = 64 bit int, used when the opcode starts with F
 
+const (
+	riscv64REG_G    = 4
+	riscv64REG_CTXT = 20
+	riscv64REG_LR   = 1
+	riscv64REG_SP   = 2
+	riscv64REG_TMP  = 31
+	riscv64REG_ZERO = 0
+)
+
+func riscv64RegName(r int) string {
+	switch {
+	case r == riscv64REG_G:
+		return "g"
+	case r == riscv64REG_SP:
+		return "SP"
+	case 0 <= r && r <= 31:
+		return fmt.Sprintf("X%d", r)
+	case 32 <= r && r <= 63:
+		return fmt.Sprintf("F%d", r-32)
+	default:
+		panic(fmt.Sprintf("unknown register %d", r))
+	}
+}
+
 func init() {
 	var regNamesRISCV64 []string
-	var gpMask, fpMask, gpspMask, gpspsbMask regMask
+	var gpMask, fpMask, gpgMask, gpspMask, gpspsbMask, gpspsbgMask regMask
 	regNamed := make(map[string]regMask)
 
 	// Build the list of register names, creating an appropriately indexed
@@ -30,7 +59,7 @@ func init() {
 	addreg := func(r int, name string) regMask {
 		mask := regMask(1) << uint(len(regNamesRISCV64))
 		if name == "" {
-			name = riscv.RegName(r)
+			name = riscv64RegName(r)
 		}
 		regNamesRISCV64 = append(regNamesRISCV64, name)
 		regNamed[name] = mask
@@ -38,8 +67,8 @@ func init() {
 	}
 
 	// General purpose registers.
-	for r := riscv.REG_X0; r <= riscv.REG_X31; r++ {
-		if r == riscv.REG_LR {
+	for r := 0; r <= 31; r++ {
+		if r == riscv64REG_LR {
 			// LR is not used by regalloc, so we skip it to leave
 			// room for pseudo-register SB.
 			continue
@@ -49,20 +78,26 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, g, and TMP are not in any gp mask.
-		case riscv.REG_ZERO, riscv.REG_G, riscv.REG_TMP:
-		case riscv.REG_SP:
+		// ZERO, and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_TMP:
+		case riscv64REG_G:
+			gpgMask |= mask
+			gpspsbgMask |= mask
+		case riscv64REG_SP:
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		default:
 			gpMask |= mask
+			gpgMask |= mask
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		}
 	}
 
 	// Floating pointer registers.
-	for r := riscv.REG_F0; r <= riscv.REG_F31; r++ {
+	for r := 32; r <= 63; r++ {
 		mask := addreg(r, "")
 		fpMask |= mask
 	}
@@ -70,6 +105,7 @@ func init() {
 	// Pseudo-register: SB
 	mask := addreg(-1, "SB")
 	gpspsbMask |= mask
+	gpspsbgMask |= mask
 
 	if len(regNamesRISCV64) > 64 {
 		// regMask is only 64 bits.
@@ -80,12 +116,15 @@ func init() {
 	callerSave := gpMask | fpMask | regNamed["g"]
 
 	var (
-		gpstore = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
-		gp01    = regInfo{outputs: []regMask{gpMask}}
-		gp11    = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
-		gp21    = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
-		gpload  = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
-		gp11sb  = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
+		gpstore0 = regInfo{inputs: []regMask{gpspsbMask}}
+		gp01     = regInfo{outputs: []regMask{gpMask}}
+		gp11     = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
+		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
+		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
+		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
+		gpcas    = regInfo{inputs: []regMask{gpspsbgMask, gpgMask, gpgMask}, outputs: []regMask{gpMask}}
 
 		fp11    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{fpMask}}
 		fp21    = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{fpMask}}
@@ -103,7 +142,11 @@ func init() {
 	RISCV64ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
+		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
+		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW"},                  // -arg0 of 32 bits, sign extended to 64 bits
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
+		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
 
 		// M extension. H means high (i.e., it returns the top bits of
 		// the result). U means unsigned. W means word (i.e., 32-bit).
@@ -143,13 +186,19 @@ func init() {
 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
 		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOV", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
+		// Stores: store <size> of zero in arg0+auxint+aux; arg1=mem
+		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, //  8 bits
+		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 16 bits
+		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
+		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
+
 		// Shift ops
-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << aux1
-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> aux1, signed
-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> aux1, unsigned
-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint
-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed
-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> (aux1 & 63), unsigned
+		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
+		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-63
+		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-63
 
 		// Bitwise ops
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
@@ -158,6 +207,7 @@ func init() {
 		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},      // arg0 | auxint
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},    // arg0 & auxint
+		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                    // ^arg0
 
 		// Generate boolean values
 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1
@@ -227,6 +277,46 @@ func init() {
 			faultOnNilArg1: true,
 		},
 
+		// Atomic loads.
+		// load from arg0. arg1=mem.
+		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
+
+		// Atomic stores.
+		// store arg1 to arg0. arg2=mem. returns memory.
+		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic exchange.
+		// store arg1 to *arg0. arg2=mem. returns <old content of *arg0, memory>.
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic add.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// Atomic compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOV  $0, Rout
+		// LR	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 3(PC)
+		// SC	Rarg2, (Rarg0), Rtmp
+		// BNE	Rtmp, ZERO, -3(PC)
+		// MOV  $1, Rout
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
 		// Lowering pass-throughs
 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{regCtxt}}},                                                // scheduler ensures only at beginning of entry block
@@ -249,9 +339,9 @@ func init() {
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X7"], regNamed["X28"]}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X6"], regNamed["X7"]}}, typ: "Mem"},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}}, typ: "Mem"},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X7"], regNamed["X28"]}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X6"], regNamed["X7"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
 
 		// F extension.
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, typ: "Float32"},                                           // arg0 + arg1
@@ -295,7 +385,19 @@ func init() {
 	}
 
 	RISCV64blocks := []blockData{
-		{name: "BNE", controls: 1}, // Control != 0 (take a register)
+		{name: "BEQ", controls: 2},
+		{name: "BNE", controls: 2},
+		{name: "BLT", controls: 2},
+		{name: "BGE", controls: 2},
+		{name: "BLTU", controls: 2},
+		{name: "BGEU", controls: 2},
+
+		{name: "BEQZ", controls: 1},
+		{name: "BNEZ", controls: 1},
+		{name: "BLEZ", controls: 1},
+		{name: "BGEZ", controls: 1},
+		{name: "BLTZ", controls: 1},
+		{name: "BGTZ", controls: 1},
 	}
 
 	archs = append(archs, arch{

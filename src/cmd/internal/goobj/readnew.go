@@ -25,7 +25,11 @@ func (r *objReader) readNew() {
 	}
 
 	// Imports
-	r.p.Imports = rr.Autolib()
+	autolib := rr.Autolib()
+	for _, p := range autolib {
+		r.p.Imports = append(r.p.Imports, p.Pkg)
+		// Ignore fingerprint (for tools like objdump which only reads one object).
+	}
 
 	pkglist := rr.Pkglist()
 
@@ -54,12 +58,13 @@ func (r *objReader) readNew() {
 		case goobj2.PkgIdxSelf:
 			i = int(s.SymIdx)
 		default:
+			// Symbol from other package, referenced by index.
+			// We don't know the name. Use index.
 			pkg := pkglist[p]
-			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
+			return SymID{fmt.Sprintf("%s.#%d", pkg, s.SymIdx), 0}
 		}
-		sym := goobj2.Sym{}
-		sym.Read(rr, rr.SymOff(i))
-		return SymID{sym.Name, abiToVer(sym.ABI)}
+		sym := rr.Sym(i)
+		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
 	}
 
 	// Read things for the current goobj API for now.
@@ -67,18 +72,22 @@ func (r *objReader) readNew() {
 	// Symbols
 	pcdataBase := start + rr.PcdataBase()
 	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
+	npkgdef := rr.NSym()
 	ndef := rr.NSym() + rr.NNonpkgdef()
 	for i := 0; i < n; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(rr, rr.SymOff(i))
-		if osym.Name == "" {
+		osym := rr.Sym(i)
+		if osym.Name(rr) == "" {
 			continue // not a real symbol
 		}
 		// In a symbol name in an object file, "". denotes the
 		// prefix for the package in which the object file has been found.
 		// Expand it.
-		name := strings.ReplaceAll(osym.Name, `"".`, r.pkgprefix)
-		symID := SymID{Name: name, Version: abiToVer(osym.ABI)}
+		name := strings.ReplaceAll(osym.Name(rr), `"".`, r.pkgprefix)
+		if i < npkgdef {
+			// Indexed symbol. Attach index to the name.
+			name += fmt.Sprintf("#%d", i)
+		}
+		symID := SymID{Name: name, Version: abiToVer(osym.ABI())}
 		r.p.SymRefs = append(r.p.SymRefs, symID)
 
 		if i >= ndef {
@@ -91,45 +100,43 @@ func (r *objReader) readNew() {
 
 		sym := Sym{
 			SymID: symID,
-			Kind:  objabi.SymKind(osym.Type),
+			Kind:  objabi.SymKind(osym.Type()),
 			DupOK: osym.Dupok(),
-			Size:  int64(osym.Siz),
+			Size:  int64(osym.Siz()),
 			Data:  Data{int64(start + dataOff), siz},
 		}
 		r.p.Syms = append(r.p.Syms, &sym)
 
 		// Reloc
-		nreloc := rr.NReloc(i)
-		sym.Reloc = make([]Reloc, nreloc)
-		for j := 0; j < nreloc; j++ {
-			rel := goobj2.Reloc{}
-			rel.Read(rr, rr.RelocOff(i, j))
+		relocs := rr.Relocs(i)
+		sym.Reloc = make([]Reloc, len(relocs))
+		for j := range relocs {
+			rel := &relocs[j]
 			sym.Reloc[j] = Reloc{
-				Offset: int64(rel.Off),
-				Size:   int64(rel.Siz),
-				Type:   objabi.RelocType(rel.Type),
-				Add:    rel.Add,
-				Sym:    resolveSymRef(rel.Sym),
+				Offset: int64(rel.Off()),
+				Size:   int64(rel.Siz()),
+				Type:   objabi.RelocType(rel.Type()),
+				Add:    rel.Add(),
+				Sym:    resolveSymRef(rel.Sym()),
 			}
 		}
 
 		// Aux symbol info
 		isym := -1
 		funcdata := make([]goobj2.SymRef, 0, 4)
-		naux := rr.NAux(i)
-		for j := 0; j < naux; j++ {
-			a := goobj2.Aux{}
-			a.Read(rr, rr.AuxOff(i, j))
-			switch a.Type {
+		auxs := rr.Auxs(i)
+		for j := range auxs {
+			a := &auxs[j]
+			switch a.Type() {
 			case goobj2.AuxGotype:
-				sym.Type = resolveSymRef(a.Sym)
+				sym.Type = resolveSymRef(a.Sym())
 			case goobj2.AuxFuncInfo:
-				if a.Sym.PkgIdx != goobj2.PkgIdxSelf {
+				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
 					panic("funcinfo symbol not defined in current package")
 				}
-				isym = int(a.Sym.SymIdx)
+				isym = int(a.Sym().SymIdx)
 			case goobj2.AuxFuncdata:
-				funcdata = append(funcdata, a.Sym)
+				funcdata = append(funcdata, a.Sym())
 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
 				// nothing to do
 			default:
@@ -149,7 +156,7 @@ func (r *objReader) readNew() {
 		f := &Func{
 			Args:     int64(info.Args),
 			Frame:    int64(info.Locals),
-			NoSplit:  info.NoSplit != 0,
+			NoSplit:  osym.NoSplit(),
 			Leaf:     osym.Leaf(),
 			TopFrame: osym.TopFrame(),
 			PCSP:     Data{int64(pcdataBase + info.Pcsp), int64(info.Pcfile - info.Pcsp)},

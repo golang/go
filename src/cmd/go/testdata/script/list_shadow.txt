@@ -1,0 +1,25 @@
+env GO111MODULE=off
+env GOPATH=$WORK/gopath/src/shadow/root1${:}$WORK/gopath/src/shadow/root2
+
+# The math in root1 is not "math" because the standard math is.
+go list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./shadow/root1/src/math
+stdout '^\(.*(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)math\) \('$GOROOT'(\\|/)?src(\\|/)math\)$'
+
+# The foo in root1 is "foo".
+go list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./shadow/root1/src/foo
+stdout '^\(foo\) \(\)$'
+
+# The foo in root2 is not "foo" because the foo in root1 got there first.
+go list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./shadow/root2/src/foo
+stdout '^\(.*gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo\) \('$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo\)$'
+
+# The error for go install should mention the conflicting directory.
+! go install -n ./shadow/root2/src/foo
+stderr 'go install: no install location for '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo: hidden by '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo'
+
+-- shadow/root1/src/foo/foo.go --
+package foo
+-- shadow/root1/src/math/math.go --
+package math
+-- shadow/root2/src/foo/foo.go --
+package foo

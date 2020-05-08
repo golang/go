@@ -4,17 +4,29 @@
 
 package big
 
-import "math"
-
-var (
-	three = NewFloat(3.0)
+import (
+	"math"
+	"sync"
 )
+
+var threeOnce struct {
+	sync.Once
+	v *Float
+}
+
+func three() *Float {
+	threeOnce.Do(func() {
+		threeOnce.v = NewFloat(3.0)
+	})
+	return threeOnce.v
+}
 
 // Sqrt sets z to the rounded square root of x, and returns it.
 //
 // If z's precision is 0, it is changed to x's precision before the
 // operation. Rounding is performed according to z's precision and
-// rounding mode.
+// rounding mode, but z's accuracy is not computed. Specifically, the
+// result of z.Acc() is undefined.
 //
 // The function panics if z < 0. The value of z is undefined in that
 // case.
@@ -61,59 +73,12 @@ func (z *Float) Sqrt(x *Float) *Float {
 	}
 	// 0.25 <= z < 2.0
 
-	// Solving x² - z = 0 directly requires a Quo call, but it's
-	// faster for small precisions.
-	//
-	// Solving 1/x² - z = 0 avoids the Quo call and is much faster for
-	// high precisions.
-	//
-	// 128bit precision is an empirically chosen threshold.
-	if z.prec <= 128 {
-		z.sqrtDirect(z)
-	} else {
-		z.sqrtInverse(z)
-	}
+	// Solving 1/x² - z = 0 avoids Quo calls and is faster, especially
+	// for high precisions.
+	z.sqrtInverse(z)
 
 	// re-attach halved exponent
 	return z.SetMantExp(z, b/2)
-}
-
-// Compute √x (up to prec 128) by solving
-//   t² - x = 0
-// for t, starting with a 53 bits precision guess from math.Sqrt and
-// then using at most two iterations of Newton's method.
-func (z *Float) sqrtDirect(x *Float) {
-	// let
-	//   f(t) = t² - x
-	// then
-	//   g(t) = f(t)/f'(t) = ½(t² - x)/t
-	// and the next guess is given by
-	//   t2 = t - g(t) = ½(t² + x)/t
-	u := new(Float)
-	ng := func(t *Float) *Float {
-		u.prec = t.prec
-		u.Mul(t, t)        // u = t²
-		u.Add(u, x)        //   = t² + x
-		u.exp--            //   = ½(t² + x)
-		return t.Quo(u, t) //   = ½(t² + x)/t
-	}
-
-	xf, _ := x.Float64()
-	sq := NewFloat(math.Sqrt(xf))
-
-	switch {
-	case z.prec > 128:
-		panic("sqrtDirect: only for z.prec <= 128")
-	case z.prec > 64:
-		sq.prec *= 2
-		sq = ng(sq)
-		fallthrough
-	default:
-		sq.prec *= 2
-		sq = ng(sq)
-	}
-
-	z.Set(sq)
 }
 
 // Compute √x (to z.prec precision) by solving
@@ -128,6 +93,7 @@ func (z *Float) sqrtInverse(x *Float) {
 	//   t2 = t - g(t) = ½t(3 - xt²)
 	u := newFloat(z.prec)
 	v := newFloat(z.prec)
+	three := three()
 	ng := func(t *Float) *Float {
 		u.prec = t.prec
 		v.prec = t.prec
@@ -137,7 +103,6 @@ func (z *Float) sqrtInverse(x *Float) {
 		u.Mul(t, v)     // u = t(3 - xt²)
 		u.exp--         //   = ½t(3 - xt²)
 		return t.Set(u)
-
 	}
 
 	xf, _ := x.Float64()

@@ -41,6 +41,8 @@ func checkGdbEnvironment(t *testing.T) {
 		if testing.Short() {
 			t.Skip("skipping gdb tests on AIX; see https://golang.org/issue/35710")
 		}
+	case "plan9":
+		t.Skip("there is no gdb on Plan 9")
 	}
 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
 		t.Skip("gdb test can fail with GOROOT_FINAL pending")
@@ -106,6 +108,7 @@ import "fmt"
 import "runtime"
 var gslice []string
 func main() {
+	go func() { select{} }() // ensure a second goroutine is running
 	mapvar := make(map[string]string, 13)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
@@ -115,7 +118,7 @@ func main() {
 	slicevar = append(slicevar, mapvar["abc"])
 	fmt.Println("hi")
 	runtime.KeepAlive(ptrvar)
-	_ = ptrvar
+	_ = ptrvar // set breakpoint here
 	gslice = slicevar
 	runtime.KeepAlive(mapvar)
 }  // END_OF_PROGRAM
@@ -167,6 +170,16 @@ func testGdbPython(t *testing.T, cgo bool) {
 
 	src := buf.Bytes()
 
+	// Locate breakpoint line
+	var bp int
+	lines := bytes.Split(src, []byte("\n"))
+	for i, line := range lines {
+		if bytes.Contains(line, []byte("breakpoint")) {
+			bp = i
+			break
+		}
+	}
+
 	err = ioutil.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
@@ -201,7 +214,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 	}
 	args = append(args,
 		"-ex", "set python print-stack full",
-		"-ex", "br main.go:15",
+		"-ex", fmt.Sprintf("br main.go:%d", bp),
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
@@ -598,6 +611,87 @@ func TestGdbPanic(t *testing.T) {
 	}
 	for _, name := range bt {
 		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
+	}
+}
+
+const InfCallstackSource = `
+package main
+import "C"
+import "time"
+
+func loop() {
+        for i := 0; i < 1000; i++ {
+                time.Sleep(time.Millisecond*5)
+        }
+}
+
+func main() {
+        go loop()
+        time.Sleep(time.Second * 1)
+}
+`
+
+// TestGdbInfCallstack tests that gdb can unwind the callstack of cgo programs
+// on arm64 platforms without endless frames of function 'crossfunc1'.
+// https://golang.org/issue/37238
+func TestGdbInfCallstack(t *testing.T) {
+	checkGdbEnvironment(t)
+
+	testenv.MustHaveCGO(t)
+	if runtime.GOARCH != "arm64" {
+		t.Skip("skipping infinite callstack test on non-arm64 arches")
+	}
+
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(InfCallstackSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "break setg_gcc",
+		"-ex", "run",
+		"-ex", "backtrace 3",
+		"-ex", "disable 1",
+		"-ex", "continue",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches
+	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
+	bt := []string{
+		`setg_gcc`,
+		`crosscall1`,
+		`threadentry`,
+	}
+	for i, name := range bt {
+		s := fmt.Sprintf("#%v.*%v", i, name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
 			t.Errorf("could not find '%v' in backtrace", s)

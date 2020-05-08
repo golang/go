@@ -236,10 +236,12 @@ var (
 	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
 	GOROOTsrc    = filepath.Join(GOROOT, "src")
 	GOROOT_FINAL = findGOROOT_FINAL()
+	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
 	GO386    = envOr("GO386", objabi.GO386)
+	GOAMD64  = envOr("GOAMD64", objabi.GOAMD64)
 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
@@ -253,6 +255,8 @@ var (
 	GOINSECURE = Getenv("GOINSECURE")
 )
 
+var SumdbDir = gopathDir("pkg/sumdb")
+
 // GetArchEnv returns the name and setting of the
 // GOARCH-specific architecture environment variable.
 // If the current architecture has no GOARCH-specific variable,
@@ -263,6 +267,8 @@ func GetArchEnv() (key, val string) {
 		return "GOARM", GOARM
 	case "386":
 		return "GO386", GO386
+	case "amd64":
+		return "GOAMD64", GOAMD64
 	case "mips", "mipsle":
 		return "GOMIPS", GOMIPS
 	case "mips64", "mips64le":
@@ -363,4 +369,12 @@ func isGOROOT(path string) bool {
 		return false
 	}
 	return stat.IsDir()
+}
+
+func gopathDir(rel string) string {
+	list := filepath.SplitList(BuildContext.GOPATH)
+	if len(list) == 0 || list[0] == "" {
+		return ""
+	}
+	return filepath.Join(list[0], rel)
 }

@@ -924,8 +924,8 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
-		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
 	}
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
@@ -944,6 +944,11 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 	if runtime.GOARCH == "ppc64" {
 		t.Skip("-linkmode=external not supported on ppc64")
 	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
+	}
+
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 
@@ -1239,6 +1244,7 @@ func TestPackageNameAttr(t *testing.T) {
 	}
 
 	rdr := d.Reader()
+	runtimeUnitSeen := false
 	for {
 		e, err := rdr.Next()
 		if err != nil {
@@ -1254,11 +1260,25 @@ func TestPackageNameAttr(t *testing.T) {
 			continue
 		}
 
-		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		pn, ok := e.Val(dwarfAttrGoPackageName).(string)
 		if !ok {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			t.Errorf("found compile unit without package name: %s", name)
+
 		}
+		if pn == "" {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit with empty package name: %s", name)
+		} else {
+			if pn == "runtime" {
+				runtimeUnitSeen = true
+			}
+		}
+	}
+
+	// Something is wrong if there's no runtime compilation unit.
+	if !runtimeUnitSeen {
+		t.Errorf("no package name for runtime unit")
 	}
 }
 

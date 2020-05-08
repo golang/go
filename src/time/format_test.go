@@ -536,12 +536,12 @@ var parseErrorTests = []ParseErrorTest{
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
 	// issue 4502. StampNano requires exactly 9 digits of precision.
 	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
-	{StampNano, "Dec  7 11:22:01.0000000000", "extra text: 0"},
+	{StampNano, "Dec  7 11:22:01.0000000000", `extra text: "0"`},
 	// issue 4493. Helpful errors.
-	{RFC3339, "2006-01-02T15:04:05Z07:00", `parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00`},
+	{RFC3339, "2006-01-02T15:04:05Z07:00", `parsing time "2006-01-02T15:04:05Z07:00": extra text: "07:00"`},
 	{RFC3339, "2006-01-02T15:04_abc", `parsing time "2006-01-02T15:04_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as ":"`},
 	{RFC3339, "2006-01-02T15:04:05_abc", `parsing time "2006-01-02T15:04:05_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as "Z07:00"`},
-	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
+	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: "_abc"`},
 	// invalid second followed by optional fractional seconds
 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
 	// issue 21113
@@ -753,6 +753,20 @@ func TestParseMonthOutOfRange(t *testing.T) {
 			t.Errorf("%q: unexpected error: %v", test.value, err)
 		case !test.ok && err == nil:
 			t.Errorf("%q: expected 'month' error, got none", test.value)
+		}
+	}
+}
+
+// Issue 37387.
+func TestParseYday(t *testing.T) {
+	t.Parallel()
+	for i := 1; i <= 365; i++ {
+		d := fmt.Sprintf("2020-%03d", i)
+		tm, err := Parse("2006-002", d)
+		if err != nil {
+			t.Errorf("unexpected error for %s: %v", d, err)
+		} else if tm.Year() != 2020 || tm.YearDay() != i {
+			t.Errorf("got year %d yearday %d, want %d %d", tm.Year(), tm.YearDay(), 2020, i)
 		}
 	}
 }

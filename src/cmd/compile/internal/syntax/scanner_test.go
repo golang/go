@@ -12,19 +12,59 @@ import (
 	"testing"
 )
 
+// errh is a default error handler for basic tests.
+func errh(line, col uint, msg string) {
+	panic(fmt.Sprintf("%d:%d: %s", line, col, msg))
+}
+
+// Don't bother with other tests if TestSmoke doesn't pass.
+func TestSmoke(t *testing.T) {
+	const src = "if (+foo\t+=..123/***/0.9_0e-0i'a'`raw`\"string\"..f;//$"
+	tokens := []token{_If, _Lparen, _Operator, _Name, _AssignOp, _Dot, _Literal, _Literal, _Literal, _Literal, _Literal, _Dot, _Dot, _Name, _Semi, _EOF}
+
+	var got scanner
+	got.init(strings.NewReader(src), errh, 0)
+	for _, want := range tokens {
+		got.next()
+		if got.tok != want {
+			t.Errorf("%d:%d: got %s; want %s", got.line, got.col, got.tok, want)
+			continue
+		}
+	}
+}
+
+// Once TestSmoke passes, run TestTokens next.
+func TestTokens(t *testing.T) {
+	var got scanner
+	for _, want := range sampleTokens {
+		got.init(strings.NewReader(want.src), func(line, col uint, msg string) {
+			t.Errorf("%s:%d:%d: %s", want.src, line, col, msg)
+		}, 0)
+		got.next()
+		if got.tok != want.tok {
+			t.Errorf("%s: got %s; want %s", want.src, got.tok, want.tok)
+			continue
+		}
+		if (got.tok == _Name || got.tok == _Literal) && got.lit != want.src {
+			t.Errorf("%s: got %q; want %q", want.src, got.lit, want.src)
+		}
+	}
+}
+
 func TestScanner(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
 
-	src, err := os.Open("parser.go")
+	filename := *src_ // can be changed via -src flag
+	src, err := os.Open(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer src.Close()
 
 	var s scanner
-	s.init(src, nil, 0)
+	s.init(src, errh, 0)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -34,64 +74,66 @@ func TestScanner(t *testing.T) {
 			continue
 		}
 		switch s.tok {
-		case _Name:
-			fmt.Println(s.line, s.tok, "=>", s.lit)
+		case _Name, _Literal:
+			fmt.Printf("%s:%d:%d: %s => %s\n", filename, s.line, s.col, s.tok, s.lit)
 		case _Operator:
-			fmt.Println(s.line, s.tok, "=>", s.op, s.prec)
+			fmt.Printf("%s:%d:%d: %s => %s (prec = %d)\n", filename, s.line, s.col, s.tok, s.op, s.prec)
 		default:
-			fmt.Println(s.line, s.tok)
+			fmt.Printf("%s:%d:%d: %s\n", filename, s.line, s.col, s.tok)
 		}
 	}
 }
 
-func TestTokens(t *testing.T) {
+func TestEmbeddedTokens(t *testing.T) {
 	// make source
 	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf.WriteString("\t\t\t\t"[:i&3])                          // leading indentation
-		buf.WriteString(s.src)                                     // token
-		buf.WriteString("        "[:i&7])                          // trailing spaces
-		fmt.Fprintf(&buf, "/*line foo:%d */ // bar\n", i+linebase) // comments (don't crash w/o directive handler)
+		buf.WriteString("\t\t\t\t"[:i&3])                            // leading indentation
+		buf.WriteString(s.src)                                       // token
+		buf.WriteString("        "[:i&7])                            // trailing spaces
+		buf.WriteString(fmt.Sprintf("/*line foo:%d */ // bar\n", i)) // comments + newline (don't crash w/o directive handler)
 	}
 
 	// scan source
 	var got scanner
+	var src string
 	got.init(&buf, func(line, col uint, msg string) {
-		t.Fatalf("%d:%d: %s", line, col, msg)
+		t.Fatalf("%s:%d:%d: %s", src, line, col, msg)
 	}, 0)
 	got.next()
 	for i, want := range sampleTokens {
+		src = want.src
 		nlsemi := false
 
-		if got.line != uint(i+linebase) {
-			t.Errorf("got line %d; want %d", got.line, i+linebase)
+		if got.line-linebase != uint(i) {
+			t.Errorf("%s: got line %d; want %d", src, got.line-linebase, i)
 		}
 
 		if got.tok != want.tok {
-			t.Errorf("got tok = %s; want %s", got.tok, want.tok)
+			t.Errorf("%s: got tok %s; want %s", src, got.tok, want.tok)
 			continue
 		}
 
 		switch want.tok {
 		case _Semi:
 			if got.lit != "semicolon" {
-				t.Errorf("got %s; want semicolon", got.lit)
+				t.Errorf("%s: got %s; want semicolon", src, got.lit)
 			}
 
 		case _Name, _Literal:
 			if got.lit != want.src {
-				t.Errorf("got lit = %q; want %q", got.lit, want.src)
+				t.Errorf("%s: got lit %q; want %q", src, got.lit, want.src)
 				continue
 			}
 			nlsemi = true
 
 		case _Operator, _AssignOp, _IncOp:
 			if got.op != want.op {
-				t.Errorf("got op = %s; want %s", got.op, want.op)
+				t.Errorf("%s: got op %s; want %s", src, got.op, want.op)
 				continue
 			}
 			if got.prec != want.prec {
-				t.Errorf("got prec = %d; want %d", got.prec, want.prec)
+				t.Errorf("%s: got prec %d; want %d", src, got.prec, want.prec)
 				continue
 			}
 			nlsemi = want.tok == _IncOp
@@ -103,11 +145,11 @@ func TestTokens(t *testing.T) {
 		if nlsemi {
 			got.next()
 			if got.tok != _Semi {
-				t.Errorf("got tok = %s; want ;", got.tok)
+				t.Errorf("%s: got tok %s; want ;", src, got.tok)
 				continue
 			}
 			if got.lit != "newline" {
-				t.Errorf("got %s; want newline", got.lit)
+				t.Errorf("%s: got %s; want newline", src, got.lit)
 			}
 		}
 
@@ -299,7 +341,7 @@ func TestComments(t *testing.T) {
 		{"//", comment{0, 0, "//"}},
 
 		/*-style comments */
-		{"/* regular comment */", comment{0, 0, "/* regular comment */"}},
+		{"123/* regular comment */", comment{0, 3, "/* regular comment */"}},
 		{"package p /* regular comment", comment{0, 0, ""}},
 		{"\n\n\n/*\n*//* want this one */", comment{4, 2, "/* want this one */"}},
 		{"\n\n/**/", comment{2, 0, "/**/"}},
@@ -307,17 +349,16 @@ func TestComments(t *testing.T) {
 	} {
 		var s scanner
 		var got comment
-		s.init(strings.NewReader(test.src),
-			func(line, col uint, msg string) {
-				if msg[0] != '/' {
-					// error
-					if msg != "comment not terminated" {
-						t.Errorf("%q: %s", test.src, msg)
-					}
-					return
+		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
+			if msg[0] != '/' {
+				// error
+				if msg != "comment not terminated" {
+					t.Errorf("%q: %s", test.src, msg)
 				}
-				got = comment{line - linebase, col - colbase, msg} // keep last one
-			}, comments)
+				return
+			}
+			got = comment{line - linebase, col - colbase, msg} // keep last one
+		}, comments)
 
 		for {
 			s.next()
@@ -542,7 +583,7 @@ func TestNumbers(t *testing.T) {
 
 func TestScanErrors(t *testing.T) {
 	for _, test := range []struct {
-		src, msg  string
+		src, err  string
 		line, col uint // 0-based
 	}{
 		// Note: Positions for lexical errors are the earliest position
@@ -555,10 +596,10 @@ func TestScanErrors(t *testing.T) {
 		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
 
 		// token-level errors
-		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 0, 0},
-		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 0, 13 /* byte offset */},
+		{"\u00BD" /* ½ */, "invalid character U+00BD '½' in identifier", 0, 0},
+		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid character U+00BD '½' in identifier", 0, 13 /* byte offset */},
 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
-		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
+		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid character U+00BD '½' in identifier", 0, 8 /* byte offset */},
 
 		{"x + ~y", "invalid character U+007E '~'", 0, 4},
 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
@@ -567,22 +608,22 @@ func TestScanErrors(t *testing.T) {
 		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
 		{"var a, b = 09, 07\n", "invalid digit '9' in octal literal", 0, 12},
 
-		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
-		{"'\n", "newline in character literal", 0, 1},
-		{`'\`, "invalid character literal (missing closing ')", 0, 0},
-		{`'\'`, "invalid character literal (missing closing ')", 0, 0},
-		{`'\x`, "invalid character literal (missing closing ')", 0, 0},
-		{`'\x'`, "non-hex character in escape sequence: '", 0, 3},
-		{`'\y'`, "unknown escape sequence", 0, 2},
-		{`'\x0'`, "non-hex character in escape sequence: '", 0, 4},
-		{`'\00'`, "non-octal character in escape sequence: '", 0, 4},
+		{`''`, "empty rune literal or unescaped '", 0, 1},
+		{"'\n", "newline in rune literal", 0, 1},
+		{`'\`, "rune literal not terminated", 0, 0},
+		{`'\'`, "rune literal not terminated", 0, 0},
+		{`'\x`, "rune literal not terminated", 0, 0},
+		{`'\x'`, "invalid character '\\'' in hexadecimal escape", 0, 3},
+		{`'\y'`, "unknown escape", 0, 2},
+		{`'\x0'`, "invalid character '\\'' in hexadecimal escape", 0, 4},
+		{`'\00'`, "invalid character '\\'' in octal escape", 0, 4},
 		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
-		{`'\378`, "non-octal character in escape sequence: 8", 0, 4},
-		{`'\400'`, "octal escape value > 255: 256", 0, 5},
-		{`'xx`, "invalid character literal (missing closing ')", 0, 0},
-		{`'xx'`, "invalid character literal (more than one character)", 0, 0},
+		{`'\378`, "invalid character '8' in octal escape", 0, 4},
+		{`'\400'`, "octal escape value 256 > 255", 0, 5},
+		{`'xx`, "rune literal not terminated", 0, 0},
+		{`'xx'`, "more than one character in rune literal", 0, 0},
 
-		{"\"\n", "newline in string", 0, 1},
+		{"\n   \"foo\n", "newline in string", 1, 7},
 		{`"`, "string not terminated", 0, 0},
 		{`"foo`, "string not terminated", 0, 0},
 		{"`", "string not terminated", 0, 0},
@@ -592,42 +633,34 @@ func TestScanErrors(t *testing.T) {
 		{`"\`, "string not terminated", 0, 0},
 		{`"\"`, "string not terminated", 0, 0},
 		{`"\x`, "string not terminated", 0, 0},
-		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
-		{`"\y"`, "unknown escape sequence", 0, 2},
-		{`"\x0"`, "non-hex character in escape sequence: \"", 0, 4},
-		{`"\00"`, "non-octal character in escape sequence: \"", 0, 4},
+		{`"\x"`, "invalid character '\"' in hexadecimal escape", 0, 3},
+		{`"\y"`, "unknown escape", 0, 2},
+		{`"\x0"`, "invalid character '\"' in hexadecimal escape", 0, 4},
+		{`"\00"`, "invalid character '\"' in octal escape", 0, 4},
 		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
-		{`"\378"`, "non-octal character in escape sequence: 8", 0, 4},
-		{`"\400"`, "octal escape value > 255: 256", 0, 5},
+		{`"\378"`, "invalid character '8' in octal escape", 0, 4},
+		{`"\400"`, "octal escape value 256 > 255", 0, 5},
 
-		{`s := "foo\z"`, "unknown escape sequence", 0, 10},
-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 0, 10},
+		{`s := "foo\z"`, "unknown escape", 0, 10},
+		{`s := "foo\z00\nbar"`, "unknown escape", 0, 10},
 		{`"\x`, "string not terminated", 0, 0},
-		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point U+FFFFFFFF", 0, 18},
+		{`"\x"`, "invalid character '\"' in hexadecimal escape", 0, 3},
+		{`var s string = "\x"`, "invalid character '\"' in hexadecimal escape", 0, 18},
+		{`return "\Uffffffff"`, "escape is invalid Unicode code point U+FFFFFFFF", 0, 18},
+
+		{"0b.0", "invalid radix point in binary literal", 0, 2},
+		{"0x.p0\n", "hexadecimal literal has no digits", 0, 3},
 
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
 	} {
 		var s scanner
-		nerrors := 0
-		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
-			nerrors++
-			// only check the first error
-			if nerrors == 1 {
-				if msg != test.msg {
-					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
-				}
-				if line != test.line+linebase {
-					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line+linebase)
-				}
-				if col != test.col+colbase {
-					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col+colbase)
-				}
-			} else if nerrors > 1 {
-				// TODO(gri) make this use position info
-				t.Errorf("%q: got unexpected %q at line = %d", test.src, msg, line)
+		var line, col uint
+		var err string
+		s.init(strings.NewReader(test.src), func(l, c uint, msg string) {
+			if err == "" {
+				line, col = l-linebase, c-colbase
+				err = msg
 			}
 		}, 0)
 
@@ -638,8 +671,60 @@ func TestScanErrors(t *testing.T) {
 			}
 		}
 
-		if nerrors == 0 {
-			t.Errorf("%q: got no error; want %q", test.src, test.msg)
+		if err != "" {
+			if err != test.err {
+				t.Errorf("%q: got err = %q; want %q", test.src, err, test.err)
+			}
+			if line != test.line {
+				t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
+			}
+			if col != test.col {
+				t.Errorf("%q: got col = %d; want %d", test.src, col, test.col)
+			}
+		} else {
+			t.Errorf("%q: got no error; want %q", test.src, test.err)
+		}
+	}
+}
+
+func TestDirectives(t *testing.T) {
+	for _, src := range []string{
+		"line",
+		"// line",
+		"//line",
+		"//line foo",
+		"//line foo%bar",
+
+		"go",
+		"// go:",
+		"//go:",
+		"//go :foo",
+		"//go:foo",
+		"//go:foo%bar",
+	} {
+		got := ""
+		var s scanner
+		s.init(strings.NewReader(src), func(_, col uint, msg string) {
+			if col != colbase {
+				t.Errorf("%s: got col = %d; want %d", src, col, colbase)
+			}
+			if msg == "" {
+				t.Errorf("%s: handler called with empty msg", src)
+			}
+			got = msg
+		}, directives)
+
+		s.next()
+		if strings.HasPrefix(src, "//line ") || strings.HasPrefix(src, "//go:") {
+			// handler should have been called
+			if got != src {
+				t.Errorf("got %s; want %s", got, src)
+			}
+		} else {
+			// handler should not have been called
+			if got != "" {
+				t.Errorf("got %s for %s", got, src)
+			}
 		}
 	}
 }
@@ -648,7 +733,7 @@ func TestIssue21938(t *testing.T) {
 	s := "/*" + strings.Repeat(" ", 4089) + "*/ .5"
 
 	var got scanner
-	got.init(strings.NewReader(s), nil, 0)
+	got.init(strings.NewReader(s), errh, 0)
 	got.next()
 
 	if got.tok != _Literal || got.lit != ".5" {

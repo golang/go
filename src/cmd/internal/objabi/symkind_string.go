@@ -4,9 +4,29 @@ package objabi
 
 import "strconv"
 
-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Sxxx-0]
+	_ = x[STEXT-1]
+	_ = x[SRODATA-2]
+	_ = x[SNOPTRDATA-3]
+	_ = x[SDATA-4]
+	_ = x[SBSS-5]
+	_ = x[SNOPTRBSS-6]
+	_ = x[STLSBSS-7]
+	_ = x[SDWARFINFO-8]
+	_ = x[SDWARFRANGE-9]
+	_ = x[SDWARFLOC-10]
+	_ = x[SDWARFLINES-11]
+	_ = x[SABIALIAS-12]
+	_ = x[SLIBFUZZER_EXTRA_COUNTER-13]
+}
 
-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81, 91, 100}
+const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOCSDWARFLINESSABIALIASSLIBFUZZER_EXTRA_COUNTER"
+
+var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81, 92, 101, 125}
 
 func (i SymKind) String() string {
 	if i >= SymKind(len(_SymKind_index)-1) {

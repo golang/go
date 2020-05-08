@@ -7,7 +7,6 @@ package get
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -194,12 +193,28 @@ func downloadPaths(patterns []string) []string {
 	for _, arg := range patterns {
 		if strings.Contains(arg, "@") {
 			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
+			continue
+		}
+
+		// Guard against 'go get x.go', a common mistake.
+		// Note that package and module paths may end with '.go', so only print an error
+		// if the argument has no slash or refers to an existing file.
+		if strings.HasSuffix(arg, ".go") {
+			if !strings.Contains(arg, "/") {
+				base.Errorf("go get %s: arguments must be package or module paths", arg)
+				continue
+			}
+			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
+			}
 		}
 	}
+	base.ExitIfErrors()
+
 	var pkgs []string
 	for _, m := range search.ImportPathsQuiet(patterns) {
-		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
-			pkgs = append(pkgs, m.Pattern)
+		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern(), "...") {
+			pkgs = append(pkgs, m.Pattern())
 		} else {
 			pkgs = append(pkgs, m.Pkgs...)
 		}
@@ -285,10 +300,16 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// We delay this until after reloadPackage so that the old entry
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
-			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg).Pkgs
+			match := search.NewMatch(arg)
+			if match.IsLocal() {
+				match.MatchDirs()
+				args = match.Dirs
 			} else {
-				args = search.MatchPackages(arg).Pkgs
+				match.MatchPackages()
+				args = match.Pkgs
+			}
+			for _, err := range match.Errs {
+				base.Errorf("%s", err)
 			}
 			isWildcard = true
 		}

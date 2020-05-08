@@ -42,7 +42,7 @@ func testUniformity(t *testing.T, size int, margin float64) {
 	rand.Seed(1)
 	data := make([]*SRV, size)
 	for i := 0; i < size; i++ {
-		data[i] = &SRV{Target: string('a' + i), Weight: 1}
+		data[i] = &SRV{Target: string('a' + rune(i)), Weight: 1}
 	}
 	checkDistribution(t, data, margin)
 }

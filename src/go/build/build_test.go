@@ -111,11 +111,8 @@ func TestMultiplePackageImport(t *testing.T) {
 }
 
 func TestLocalDirectory(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	cwd, err := os.Getwd()
@@ -244,11 +241,8 @@ func TestMatchFile(t *testing.T) {
 }
 
 func TestImportCmd(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
 	}
 
 	p, err := Import("cmd/internal/objfile", "", 0)
@@ -340,20 +334,38 @@ func TestImportDirNotExist(t *testing.T) {
 		{"Import(full, FindOnly)", "go/build/doesnotexist", "", FindOnly},
 		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
 	}
-	for _, test := range tests {
-		p, err := ctxt.Import(test.path, test.srcDir, test.mode)
-		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
-			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
-		}
-		// If an error occurs, build.Import is documented to return
-		// a non-nil *Package containing partial information.
-		if p == nil {
-			t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
-		}
-		// Verify partial information in p.
-		if p.ImportPath != "go/build/doesnotexist" {
-			t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
-		}
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+
+	for _, GO111MODULE := range []string{"off", "on"} {
+		t.Run("GO111MODULE="+GO111MODULE, func(t *testing.T) {
+			os.Setenv("GO111MODULE", GO111MODULE)
+
+			for _, test := range tests {
+				p, err := ctxt.Import(test.path, test.srcDir, test.mode)
+
+				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
+				wantErr := `"cannot find package" error`
+				if test.srcDir == "" {
+					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
+						errOk = true
+					}
+					wantErr = `"cannot find package" or "is not in GOROOT" error`
+				}
+				if !errOk {
+					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)
+				}
+				// If an error occurs, build.Import is documented to return
+				// a non-nil *Package containing partial information.
+				if p == nil {
+					t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
+				}
+				// Verify partial information in p.
+				if p.ImportPath != "go/build/doesnotexist" {
+					t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
+				}
+			}
+		})
 	}
 }
 

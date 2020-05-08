@@ -1,0 +1,57 @@
+[short] skip
+go test -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
+stdout 'pkg1	\[no test files\]'
+stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
+stdout 'pkg3	\S+	coverage: 100.0% of statements'
+stdout 'pkg4	\S+	coverage: \[no statements\]'
+
+-- pkg1/a.go --
+package pkg1
+
+import "fmt"
+
+func F() {
+	fmt.Println("pkg1")
+}
+-- pkg2/a.go --
+package pkg2
+
+import "fmt"
+
+func F() {
+	fmt.Println("pkg2")
+}
+-- pkg2/a_test.go --
+package pkg2
+-- pkg3/a.go --
+package pkg3
+
+import "fmt"
+
+func F() {
+	fmt.Println("pkg3")
+}
+-- pkg3/a_test.go --
+package pkg3
+
+import "testing"
+
+func TestF(t *testing.T) {
+	F()
+}
+-- pkg4/a.go --
+package pkg4
+
+type T struct {
+	X bool
+}
+-- pkg4/a_test.go --
+package pkg4
+
+import (
+	"testing"
+)
+
+func TestT(t *testing.T) {
+	_ = T{}
+}

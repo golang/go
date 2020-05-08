@@ -35,23 +35,24 @@
 //
 // Additional help topics:
 //
-// 	buildmode   build modes
-// 	c           calling between Go and C
-// 	cache       build and test caching
-// 	environment environment variables
-// 	filetype    file types
-// 	go.mod      the go.mod file
-// 	gopath      GOPATH environment variable
-// 	gopath-get  legacy GOPATH go get
-// 	goproxy     module proxy protocol
-// 	importpath  import path syntax
-// 	modules     modules, module versions, and more
-// 	module-get  module-aware go get
-// 	module-auth module authentication using go.sum
-// 	module-private module configuration for non-public modules
-// 	packages    package lists and patterns
-// 	testflag    testing flags
-// 	testfunc    testing functions
+// 	buildconstraint build constraints
+// 	buildmode       build modes
+// 	c               calling between Go and C
+// 	cache           build and test caching
+// 	environment     environment variables
+// 	filetype        file types
+// 	go.mod          the go.mod file
+// 	gopath          GOPATH environment variable
+// 	gopath-get      legacy GOPATH go get
+// 	goproxy         module proxy protocol
+// 	importpath      import path syntax
+// 	modules         modules, module versions, and more
+// 	module-get      module-aware go get
+// 	module-auth     module authentication using go.sum
+// 	module-private  module configuration for non-public modules
+// 	packages        package lists and patterns
+// 	testflag        testing flags
+// 	testfunc        testing functions
 //
 // Use "go help <topic>" for more information about that topic.
 //
@@ -547,6 +548,9 @@
 // tag "generate" so that files may be examined by go generate but ignored
 // during build.
 //
+// For packages with invalid code, generate processes only source files with a
+// valid package clause.
+//
 // If any generator returns an error exit status, "go generate" skips
 // all further processing for that package.
 //
@@ -657,7 +661,10 @@
 // this automatically as well.
 //
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
+// custom domains using insecure schemes such as HTTP. Use with caution. The
+// GOINSECURE environment variable is usually a better alternative, since it
+// provides control over which modules may be retrieved using an insecure scheme.
+// See 'go help environment' for details.
 //
 // The second step is to download (if needed), build, and install
 // the named packages.
@@ -1017,7 +1024,8 @@
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
-// With no arguments, download applies to all dependencies of the main module.
+// With no arguments, download applies to all dependencies of the main module
+// (equivalent to 'go mod download all').
 //
 // The go command will automatically download modules as needed during ordinary
 // execution. The "go mod download" command is useful mainly for pre-filling
@@ -1470,6 +1478,60 @@
 // See also: go fmt, go fix.
 //
 //
+// Build constraints
+//
+// Build constraints describe the conditions under which each source file
+// should be included in the corresponding package. Build constraints
+// for a given source file may be added by build constraint comments
+// within the file, or by specific patterns in the file's name.
+//
+// A build constraint comment appears before the file's package clause and
+// must be separated from the package clause by at least one blank line.
+// The comment begins with:
+//
+// 	// +build
+//
+// and follows with a space-separated list of options on the same line.
+// The constraint is evaluated as the OR of the options.
+// Each option evaluates as the AND of its comma-separated terms.
+// Each term consists of letters, digits, underscores, and dots.
+// Each term may be negated with a leading exclamation point.
+//
+// For example, the build constraint:
+//
+// 	// +build linux,386 darwin,!cgo arm
+//
+// corresponds to boolean formula:
+//
+// 	(linux AND 386) OR (darwin AND NOT cgo) OR arm
+//
+// During a particular build, the following terms are satisfied:
+// - the target operating system and architecture, as spelled by
+//   runtime.GOOS and runtime.GOARCH respectively
+// - the compiler being used, either "gc" or "gccgo"
+// - "cgo", if the cgo command is supported
+//   (see CGO_ENABLED in 'go help environment')
+// - a term for each Go major release, through the current version:
+//   "go1.1" from Go version 1.1 onward,
+//   "go1.2" from Go version 1.2 onward, and so on
+// - and any additional tags given by the '-tags' flag (see 'go help build').
+//
+// An additional build constraint may be derived from the source file name.
+// If a file's name, after stripping the extension and a possible _test suffix,
+// matches the patterns *_GOOS, *_GOARCH, or *_GOOS_GOARCH for any known
+// GOOS or GOARCH value, then the file is implicitly constrained to that
+// specific GOOS and/or GOARCH, in addition to any other build constraints
+// declared as comments within the file.
+//
+// For example, the file:
+//
+// 	source_windows_amd64.go
+//
+// is implicitly constrained to windows / amd64.
+//
+// See 'go doc go/build' for more details.
+//
+//
 // Build modes
 //
 // The 'go build' and 'go install' commands take a -buildmode argument which
@@ -1620,6 +1682,9 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
+// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+// 		to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1689,6 +1754,9 @@
 // 	GO386
 // 		For GOARCH=386, the floating point instruction set.
 // 		Valid values are 387, sse2.
+// 	GOAMD64
+// 		For GOARCH=amd64, jumps can be optionally be aligned such that they do not end on
+// 		or cross 32 byte boundaries.  Valid values are alignedjumps (default), normaljumps.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
@@ -2506,12 +2574,20 @@
 // The "go get" command remains permitted to update go.mod even with -mod=readonly,
 // and the "go mod" commands do not take the -mod flag (or any other build flags).
 //
-// If invoked with -mod=vendor, the go command assumes that the vendor
-// directory holds the correct copies of dependencies and ignores
-// the dependency descriptions in go.mod.
+// If invoked with -mod=vendor, the go command loads packages from the main
+// module's vendor directory instead of downloading modules to and loading packages
+// from the module cache. The go command assumes the vendor directory holds
+// correct copies of dependencies, and it does not compute the set of required
+// module versions from go.mod files. However, the go command does check that
+// vendor/modules.txt (generated by 'go mod vendor') contains metadata consistent
+// with go.mod.
 //
 // If invoked with -mod=mod, the go command loads modules from the module cache
 // even if there is a vendor directory present.
+//
+// If the go command is not invoked with a -mod flag and the vendor directory
+// is present and the "go" version in go.mod is 1.14 or higher, the go command
+// will act as if it were invoked with -mod=vendor.
 //
 // Pseudo-versions
 //
@@ -2685,15 +2761,15 @@
 // Go module mirror run by Google and fall back to a direct connection
 // if the proxy reports that it does not have the module (HTTP error 404 or 410).
 // See https://proxy.golang.org/privacy for the service's privacy policy.
-// If GOPROXY is set to the string "direct", downloads use a direct connection
-// to source control servers. Setting GOPROXY to "off" disallows downloading
-// modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
-// list of the URLs of module proxies, in which case the go command will fetch
-// modules from those proxies. For each request, the go command tries each proxy
-// in sequence, only moving to the next if the current proxy returns a 404 or 410
-// HTTP response. The string "direct" may appear in the proxy list,
-// to cause a direct connection to be attempted at that point in the search.
-// Any proxies listed after "direct" are never consulted.
+//
+// If GOPROXY is set to the string "direct", downloads use a direct connection to
+// source control servers. Setting GOPROXY to "off" disallows downloading modules
+// from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+// separated by either comma (,) or pipe (|) characters, which control error
+// fallback behavior. For each request, the go command tries each proxy in
+// sequence. If there is an error, the go command will try the next proxy in the
+// list if the error is a 404 or 410 HTTP response or if the current proxy is
+// followed by a pipe character, indicating it is safe to fall back on any error.
 //
 // The GOPRIVATE and GONOPROXY environment variables allow bypassing
 // the proxy for selected modules. See 'go help module-private' for details.
@@ -2710,22 +2786,28 @@
 //
 // Modules and vendoring
 //
-// When using modules, the go command completely ignores vendor directories.
+// When using modules, the go command typically satisfies dependencies by
+// downloading modules from their sources and using those downloaded copies
+// (after verification, as described in the previous section). Vendoring may
+// be used to allow interoperation with older versions of Go, or to ensure
+// that all files used for a build are stored together in a single file tree.
 //
-// By default, the go command satisfies dependencies by downloading modules
-// from their sources and using those downloaded copies (after verification,
-// as described in the previous section). To allow interoperation with older
-// versions of Go, or to ensure that all files used for a build are stored
-// together in a single file tree, 'go mod vendor' creates a directory named
-// vendor in the root directory of the main module and stores there all the
-// packages from dependency modules that are needed to support builds and
-// tests of packages in the main module.
+// The command 'go mod vendor' constructs a directory named vendor in the main
+// module's root directory that contains copies of all packages needed to support
+// builds and tests of packages in the main module. 'go mod vendor' also
+// creates the file vendor/modules.txt that contains metadata about vendored
+// packages and module versions. This file should be kept consistent with go.mod:
+// when vendoring is used, 'go mod vendor' should be run after go.mod is updated.
 //
-// To build using the main module's top-level vendor directory to satisfy
-// dependencies (disabling use of the usual network sources and local
-// caches), use 'go build -mod=vendor'. Note that only the main module's
-// top-level vendor directory is used; vendor directories in other locations
-// are still ignored.
+// If the vendor directory is present in the main module's root directory, it will
+// be used automatically if the "go" version in the main module's go.mod file is
+// 1.14 or higher. Build commands like 'go build' and 'go test' will load packages
+// from the vendor directory instead of accessing the network or the local module
+// cache. To explicitly enable vendoring, invoke the go command with the flag
+// -mod=vendor. To disable vendoring, use the flag -mod=mod.
+//
+// Unlike vendoring in GOPATH, the go command ignores vendor directories in
+// locations other than the main module's root directory.
 //
 //
 // Module authentication using go.sum

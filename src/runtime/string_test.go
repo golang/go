@@ -282,7 +282,7 @@ func TestStringOnStack(t *testing.T) {
 func TestIntString(t *testing.T) {
 	// Non-escaping result of intstring.
 	s := ""
-	for i := 0; i < 4; i++ {
+	for i := rune(0); i < 4; i++ {
 		s += string(i+'0') + string(i+'0'+1)
 	}
 	if want := "01122334"; s != want {
@@ -291,7 +291,7 @@ func TestIntString(t *testing.T) {
 
 	// Escaping result of intstring.
 	var a [4]string
-	for i := 0; i < 4; i++ {
+	for i := rune(0); i < 4; i++ {
 		a[i] = string(i + '0')
 	}
 	s = a[0] + a[1] + a[2] + a[3]

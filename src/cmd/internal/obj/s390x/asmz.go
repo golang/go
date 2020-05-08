@@ -442,6 +442,11 @@ var oprange [ALAST & obj.AMask][]Optab
 var xcmp [C_NCLASS][C_NCLASS]bool
 
 func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on s390x")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	p := cursym.Func.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
@@ -495,7 +500,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, nil)
 }
 
 // Return whether p is an unsafe point.
@@ -901,10 +906,10 @@ func buildop(ctxt *obj.Link) {
 		case AADD:
 			opset(AADDC, r)
 			opset(AADDW, r)
+			opset(AADDE, r)
 			opset(AMULLD, r)
 			opset(AMULLW, r)
 		case ADIVW:
-			opset(AADDE, r)
 			opset(ADIVD, r)
 			opset(ADIVDU, r)
 			opset(ADIVWU, r)
@@ -920,6 +925,7 @@ func buildop(ctxt *obj.Link) {
 		case ALA:
 			opset(ALAY, r)
 		case AMVC:
+			opset(AMVCIN, r)
 			opset(ACLC, r)
 			opset(AXC, r)
 			opset(AOC, r)
@@ -3034,6 +3040,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			opxy = op_AG
 		case AADDC:
 			opxy = op_ALG
+		case AADDE:
+			opxy = op_ALCG
 		case AADDW:
 			opx = op_A
 			opxy = op_AY
@@ -3802,6 +3810,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			c.ctxt.Diag("unexpected opcode %v", p.As)
 		case AMVC:
 			opcode = op_MVC
+		case AMVCIN:
+			opcode = op_MVCIN
 		case ACLC:
 			opcode = op_CLC
 			// swap operand order for CLC so that it matches CMP

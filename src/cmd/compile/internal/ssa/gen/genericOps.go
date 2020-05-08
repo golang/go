@@ -202,28 +202,6 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater8", argLength: 2, typ: "Bool"},  // arg0 > arg1, signed
-	{name: "Greater8U", argLength: 2, typ: "Bool"}, // arg0 > arg1, unsigned
-	{name: "Greater16", argLength: 2, typ: "Bool"},
-	{name: "Greater16U", argLength: 2, typ: "Bool"},
-	{name: "Greater32", argLength: 2, typ: "Bool"},
-	{name: "Greater32U", argLength: 2, typ: "Bool"},
-	{name: "Greater64", argLength: 2, typ: "Bool"},
-	{name: "Greater64U", argLength: 2, typ: "Bool"},
-	{name: "Greater32F", argLength: 2, typ: "Bool"},
-	{name: "Greater64F", argLength: 2, typ: "Bool"},
-
-	{name: "Geq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
-	{name: "Geq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
-	{name: "Geq16", argLength: 2, typ: "Bool"},
-	{name: "Geq16U", argLength: 2, typ: "Bool"},
-	{name: "Geq32", argLength: 2, typ: "Bool"},
-	{name: "Geq32U", argLength: 2, typ: "Bool"},
-	{name: "Geq64", argLength: 2, typ: "Bool"},
-	{name: "Geq64U", argLength: 2, typ: "Bool"},
-	{name: "Geq32F", argLength: 2, typ: "Bool"},
-	{name: "Geq64F", argLength: 2, typ: "Bool"},
-
 	// the type of a CondSelect is the same as the type of its first
 	// two arguments, which should be register-width scalars; the third
 	// argument should be a boolean
@@ -339,7 +317,12 @@ var genericOps = []opData{
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
-	{name: "Const64", aux: "Int64"},    // value is auxint
+	{name: "Const64", aux: "Int64"}, // value is auxint
+	// Note: for both Const32F and Const64F, we disallow encoding NaNs.
+	// Signaling NaNs are tricky because if you do anything with them, they become quiet.
+	// Particularly, converting a 32 bit sNaN to 64 bit and back converts it to a qNaN.
+	// See issue 36399 and 36400.
+	// Encodings of +inf, -inf, and -0 are fine.
 	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
 	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},           // nil interface
@@ -367,6 +350,13 @@ var genericOps = []opData{
 	// The source and destination of Move may overlap in some cases. See e.g.
 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
 	// returns true, we must do all loads before all stores, when lowering Move.
+	// The type of Move is used for the write barrier pass to insert write barriers
+	// and for alignment on some architectures.
+	// For pointerless types, it is possible for the type to be inaccurate.
+	// For type alignment and pointer information, use the type in Aux;
+	// for type size, use the size in AuxInt.
+	// The "inline runtime.memmove" rewrite rule generates Moves with inaccurate types,
+	// such as type byte instead of the more accurate type [8]byte.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 
@@ -382,17 +372,21 @@ var genericOps = []opData{
 	// arch-dependent), and is not a safe-point.
 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 
+	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
+
 	// PanicBounds and PanicExtend generate a runtime panic.
 	// Their arguments provide index values to use in panic messages.
 	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
 	// PanicBounds' index is int sized.
 	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
-	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory.
-	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
+	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory.
+	{name: "PanicExtend", argLength: 4, aux: "Int64", typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory.
 
 	// Function calls. Arguments to the call have already been written to the stack.
 	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
+	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
+	// to match StaticCall's 32 bit arg size limit.
 	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
 	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
 	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
@@ -427,6 +421,7 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64", argLength: 1},
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
+	{name: "CvtBoolToUint8", argLength: 1},
 
 	// Force rounding to precision of type.
 	{name: "Round32F", argLength: 1},
@@ -522,6 +517,9 @@ var genericOps = []opData{
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
 	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.
+
+	{name: "SpectreIndex", argLength: 2},      // arg0 if 0 <= arg0 < arg1, 0 otherwise. Type is native int size.
+	{name: "SpectreSliceIndex", argLength: 2}, // arg0 if 0 <= arg0 <= arg1, 0 otherwise. Type is native int size.
 
 	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
 	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch

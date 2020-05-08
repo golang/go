@@ -126,7 +126,7 @@ func TestZipSums(t *testing.T) {
 					test.m.Path = "" // mark for deletion
 					needUpdate = true
 				} else {
-					t.Errorf("%s: could not download mdoule: %s", test.m, err)
+					t.Errorf("%s: could not download module: %s", test.m, err)
 				}
 				return
 			}

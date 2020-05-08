@@ -147,7 +147,7 @@ func TestReader(t *testing.T) {
 	for i := 0; i < len(texts)-1; i++ {
 		texts[i] = str + "\n"
 		all += texts[i]
-		str += string(i%26 + 'a')
+		str += string(rune(i)%26 + 'a')
 	}
 	texts[len(texts)-1] = all
 
@@ -532,6 +532,23 @@ func TestReadWriteRune(t *testing.T) {
 		if nr != r1 || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r1, nr, nbytes, r1, size, err)
 		}
+	}
+}
+
+func TestReadStringAllocs(t *testing.T) {
+	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
+	buf := NewReader(r)
+	allocs := testing.AllocsPerRun(100, func() {
+		r.Seek(0, io.SeekStart)
+		buf.Reset(r)
+
+		_, err := buf.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 1 {
+		t.Errorf("Unexpected number of allocations, got %f, want 1", allocs)
 	}
 }
 
@@ -1640,6 +1657,21 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
 		}
 		if n != bufSize {
 			b.Fatalf("n = %d; want %d", n, bufSize)
+		}
+	}
+}
+
+func BenchmarkReaderReadString(b *testing.B) {
+	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
+	buf := NewReader(r)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		r.Seek(0, io.SeekStart)
+		buf.Reset(r)
+
+		_, err := buf.ReadString('\n')
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

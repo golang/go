@@ -202,17 +202,11 @@ func (b *pallocBits) summarize() pallocSum {
 // If find fails to find any free space, it returns an index of ^uint(0) and
 // the new searchIdx should be ignored.
 //
-// The returned searchIdx is always the index of the first free page found
-// in this bitmap during the search, except if npages == 1, in which
-// case it will be the index just after the first free page, because the
-// index returned as the first result is assumed to be allocated and so
-// represents a minor optimization for that case.
+// Note that if npages == 1, the two returned values will always be identical.
 func (b *pallocBits) find(npages uintptr, searchIdx uint) (uint, uint) {
 	if npages == 1 {
 		addr := b.find1(searchIdx)
-		// Return a searchIdx of addr + 1 since we assume addr will be
-		// allocated.
-		return addr, addr + 1
+		return addr, addr
 	} else if npages <= 64 {
 		return b.findSmallN(npages, searchIdx)
 	}

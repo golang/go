@@ -6,13 +6,10 @@
 package cmdflag
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
-
-	"cmd/go/internal/base"
 )
 
 // The flag handling part of go commands such as test is large and distracting.
@@ -20,141 +17,113 @@ import (
 // our command line are for us, and some are for the binary we're running,
 // and some are for both.
 
-// Defn defines a flag we know about.
-type Defn struct {
-	Name       string     // Name on command line.
-	BoolVar    *bool      // If it's a boolean flag, this points to it.
-	Value      flag.Value // The flag.Value represented.
-	PassToTest bool       // Pass to the test binary? Used only by go test.
-	Present    bool       // Flag has been seen.
+// ErrFlagTerminator indicates the distinguished token "--", which causes the
+// flag package to treat all subsequent arguments as non-flags.
+var ErrFlagTerminator = errors.New("flag terminator")
+
+// A FlagNotDefinedError indicates a flag-like argument that does not correspond
+// to any registered flag in a FlagSet.
+type FlagNotDefinedError struct {
+	RawArg   string // the original argument, like --foo or -foo=value
+	Name     string
+	HasValue bool   // is this the -foo=value or --foo=value form?
+	Value    string // only provided if HasValue is true
 }
 
-// IsBool reports whether v is a bool flag.
-func IsBool(v flag.Value) bool {
-	vv, ok := v.(interface {
-		IsBoolFlag() bool
-	})
-	if ok {
-		return vv.IsBoolFlag()
-	}
-	return false
+func (e FlagNotDefinedError) Error() string {
+	return fmt.Sprintf("flag provided but not defined: -%s", e.Name)
 }
 
-// SetBool sets the addressed boolean to the value.
-func SetBool(cmd string, flag *bool, value string) {
-	x, err := strconv.ParseBool(value)
-	if err != nil {
-		SyntaxError(cmd, "illegal bool flag value "+value)
-	}
-	*flag = x
+// A NonFlagError indicates an argument that is not a syntactically-valid flag.
+type NonFlagError struct {
+	RawArg string
 }
 
-// SetInt sets the addressed integer to the value.
-func SetInt(cmd string, flag *int, value string) {
-	x, err := strconv.Atoi(value)
-	if err != nil {
-		SyntaxError(cmd, "illegal int flag value "+value)
-	}
-	*flag = x
+func (e NonFlagError) Error() string {
+	return fmt.Sprintf("not a flag: %q", e.RawArg)
 }
 
-// SyntaxError reports an argument syntax error and exits the program.
-func SyntaxError(cmd, msg string) {
-	fmt.Fprintf(os.Stderr, "go %s: %s\n", cmd, msg)
-	if cmd == "test" {
-		fmt.Fprintf(os.Stderr, `run "go help %s" or "go help testflag" for more information`+"\n", cmd)
-	} else {
-		fmt.Fprintf(os.Stderr, `run "go help %s" for more information`+"\n", cmd)
-	}
-	base.SetExitStatus(2)
-	base.Exit()
-}
+// ParseOne sees if args[0] is present in the given flag set and if so,
+// sets its value and returns the flag along with the remaining (unused) arguments.
+//
+// ParseOne always returns either a non-nil Flag or a non-nil error,
+// and always consumes at least one argument (even on error).
+//
+// Unlike (*flag.FlagSet).Parse, ParseOne does not log its own errors.
+func ParseOne(fs *flag.FlagSet, args []string) (f *flag.Flag, remainingArgs []string, err error) {
+	// This function is loosely derived from (*flag.FlagSet).parseOne.
 
-// AddKnownFlags registers the flags in defns with base.AddKnownFlag.
-func AddKnownFlags(cmd string, defns []*Defn) {
-	for _, f := range defns {
-		base.AddKnownFlag(f.Name)
-		base.AddKnownFlag(cmd + "." + f.Name)
+	raw, args := args[0], args[1:]
+	arg := raw
+	if strings.HasPrefix(arg, "--") {
+		if arg == "--" {
+			return nil, args, ErrFlagTerminator
+		}
+		arg = arg[1:] // reduce two minuses to one
 	}
-}
 
-// Parse sees if argument i is present in the definitions and if so,
-// returns its definition, value, and whether it consumed an extra word.
-// If the flag begins (cmd.Name()+".") it is ignored for the purpose of this function.
-func Parse(cmd string, usage func(), defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
-	arg := args[i]
-	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
-		arg = arg[1:]
-	}
 	switch arg {
 	case "-?", "-h", "-help":
-		usage()
+		return nil, args, flag.ErrHelp
 	}
-	if arg == "" || arg[0] != '-' {
-		return
+	if len(arg) < 2 || arg[0] != '-' || arg[1] == '-' || arg[1] == '=' {
+		return nil, args, NonFlagError{RawArg: raw}
 	}
+
 	name := arg[1:]
-	// If there's already a prefix such as "test.", drop it for now.
-	name = strings.TrimPrefix(name, cmd+".")
-	equals := strings.Index(name, "=")
-	if equals >= 0 {
-		value = name[equals+1:]
-		name = name[:equals]
+	hasValue := false
+	value := ""
+	if i := strings.Index(name, "="); i >= 0 {
+		value = name[i+1:]
+		hasValue = true
+		name = name[0:i]
 	}
-	for _, f = range defns {
-		if name == f.Name {
-			// Booleans are special because they have modes -x, -x=true, -x=false.
-			if f.BoolVar != nil || IsBool(f.Value) {
-				if equals < 0 { // Otherwise, it's been set and will be verified in SetBool.
-					value = "true"
-				} else {
-					// verify it parses
-					SetBool(cmd, new(bool), value)
-				}
-			} else { // Non-booleans must have a value.
-				extra = equals < 0
-				if extra {
-					if i+1 >= len(args) {
-						SyntaxError(cmd, "missing argument for flag "+f.Name)
-					}
-					value = args[i+1]
-				}
-			}
-			if f.Present {
-				SyntaxError(cmd, f.Name+" flag may be set only once")
-			}
-			f.Present = true
-			return
+
+	f = fs.Lookup(name)
+	if f == nil {
+		return nil, args, FlagNotDefinedError{
+			RawArg:   raw,
+			Name:     name,
+			HasValue: hasValue,
+			Value:    value,
 		}
 	}
-	f = nil
-	return
+
+	// Use fs.Set instead of f.Value.Set below so that any subsequent call to
+	// fs.Visit will correctly visit the flags that have been set.
+
+	failf := func(format string, a ...interface{}) (*flag.Flag, []string, error) {
+		return f, args, fmt.Errorf(format, a...)
+	}
+
+	if fv, ok := f.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
+		if hasValue {
+			if err := fs.Set(name, value); err != nil {
+				return failf("invalid boolean value %q for -%s: %v", value, name, err)
+			}
+		} else {
+			if err := fs.Set(name, "true"); err != nil {
+				return failf("invalid boolean flag %s: %v", name, err)
+			}
+		}
+	} else {
+		// It must have a value, which might be the next argument.
+		if !hasValue && len(args) > 0 {
+			// value is the next arg
+			hasValue = true
+			value, args = args[0], args[1:]
+		}
+		if !hasValue {
+			return failf("flag needs an argument: -%s", name)
+		}
+		if err := fs.Set(name, value); err != nil {
+			return failf("invalid value %q for flag -%s: %v", value, name, err)
+		}
+	}
+
+	return f, args, nil
 }
 
-// FindGOFLAGS extracts and returns the flags matching defns from GOFLAGS.
-// Ideally the caller would mention that the flags were from GOFLAGS
-// when reporting errors, but that's too hard for now.
-func FindGOFLAGS(defns []*Defn) []string {
-	var flags []string
-	for _, flag := range base.GOFLAGS() {
-		// Flags returned by base.GOFLAGS are well-formed, one of:
-		//	-x
-		//	--x
-		//	-x=value
-		//	--x=value
-		if strings.HasPrefix(flag, "--") {
-			flag = flag[1:]
-		}
-		name := flag[1:]
-		if i := strings.Index(name, "="); i >= 0 {
-			name = name[:i]
-		}
-		for _, f := range defns {
-			if name == f.Name {
-				flags = append(flags, flag)
-				break
-			}
-		}
-	}
-	return flags
+type boolFlag interface {
+	IsBoolFlag() bool
 }

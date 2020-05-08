@@ -186,14 +186,14 @@ func runClean(cmd *base.Command, args []string) {
 	}
 
 	if cleanModcache {
-		if modfetch.PkgMod == "" {
+		if cfg.GOMODCACHE == "" {
 			base.Fatalf("go clean -modcache: no module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
 		}
 		if !cfg.BuildN {
-			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
+			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
 				base.Errorf("go clean -modcache: %v", err)
 			}
 		}
@@ -232,7 +232,7 @@ func clean(p *load.Package) {
 	cleaned[p] = true
 
 	if p.Dir == "" {
-		base.Errorf("can't load package: %v", p.Error)
+		base.Errorf("%v", p.Error)
 		return
 	}
 	dirs, err := ioutil.ReadDir(p.Dir)

@@ -419,8 +419,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 8(RSP)
 	MOVBU	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	2(PC)
+	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
 
 	MOVD	R1, 16(RSP)

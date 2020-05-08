@@ -175,11 +175,15 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxARM64BitField:
+		lsb := getARM64BFlsb(v.AuxInt)
+		width := getARM64BFwidth(v.AuxInt)
+		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp, auxArchSpecific:
+	case auxSym, auxTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
@@ -200,6 +204,8 @@ func (v *Value) auxString() string {
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	case auxCCop:
 		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+	case auxS390XCCMask, auxS390XRotateParams:
+		return fmt.Sprintf(" {%v}", v.Aux)
 	}
 	return ""
 }
@@ -214,6 +220,58 @@ func (v *Value) AddArg(w *Value) {
 	v.Args = append(v.Args, w)
 	w.Uses++
 }
+
+//go:noinline
+func (v *Value) AddArg2(w1, w2 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2)
+	w1.Uses++
+	w2.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg3(w1, w2, w3 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2, w3)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg4(w1, w2, w3, w4 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg5(w1, w2, w3, w4, w5 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg6(w1, w2, w3, w4, w5, w6 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5, w6)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+	w6.Uses++
+}
+
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -238,10 +296,16 @@ func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 }
-func (v *Value) SetArgs2(a *Value, b *Value) {
+func (v *Value) SetArgs2(a, b *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
+}
+func (v *Value) SetArgs3(a, b, c *Value) {
+	v.resetArgs()
+	v.AddArg(a)
+	v.AddArg(b)
+	v.AddArg(c)
 }
 
 func (v *Value) resetArgs() {
@@ -254,15 +318,27 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// reset is called from most rewrite rules.
+// Allowing it to be inlined increases the size
+// of cmd/compile by almost 10%, and slows it down.
+//go:noinline
 func (v *Value) reset(op Op) {
 	v.Op = op
-	if op != OpCopy && notStmtBoundary(op) {
-		// Special case for OpCopy because of how it is used in rewrite
-		v.Pos = v.Pos.WithNotStmt()
-	}
 	v.resetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
+}
+
+// copyOf is called from rewrite rules.
+// It modifies v to be (Copy a).
+//go:noinline
+func (v *Value) copyOf(a *Value) {
+	v.Op = OpCopy
+	v.resetArgs()
+	v.AddArg(a)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.Type = a.Type
 }
 
 // copyInto makes a new value identical to v and adds it to the end of b.

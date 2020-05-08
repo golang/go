@@ -14,8 +14,6 @@ import (
 //
 // TODO: make each pcdata a separate symbol?
 type FuncInfo struct {
-	NoSplit uint8
-
 	Args   uint32
 	Locals uint32
 
@@ -32,8 +30,6 @@ type FuncInfo struct {
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
-	w.WriteByte(a.NoSplit)
-
 	var b [4]byte
 	writeUint32 := func(x uint32) {
 		binary.LittleEndian.PutUint32(b[:], x)
@@ -68,9 +64,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 }
 
 func (a *FuncInfo) Read(b []byte) {
-	a.NoSplit = b[0]
-	b = b[1:]
-
 	readUint32 := func() uint32 {
 		x := binary.LittleEndian.Uint32(b)
 		b = b[4:]
@@ -105,6 +98,94 @@ func (a *FuncInfo) Read(b []byte) {
 	for i := range a.InlTree {
 		b = a.InlTree[i].Read(b)
 	}
+}
+
+// FuncInfoLengths is a cache containing a roadmap of offsets and
+// lengths for things within a serialized FuncInfo. Each length field
+// stores the number of items (e.g. files, inltree nodes, etc), and the
+// corresponding "off" field stores the byte offset of the start of
+// the items in question.
+type FuncInfoLengths struct {
+	NumPcdata      uint32
+	PcdataOff      uint32
+	NumFuncdataoff uint32
+	FuncdataoffOff uint32
+	NumFile        uint32
+	FileOff        uint32
+	NumInlTree     uint32
+	InlTreeOff     uint32
+	Initialized    bool
+}
+
+func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
+	var result FuncInfoLengths
+
+	const numpcdataOff = 24
+	result.NumPcdata = binary.LittleEndian.Uint32(b[numpcdataOff:])
+	result.PcdataOff = numpcdataOff + 4
+
+	numfuncdataoffOff := result.PcdataOff + 4*(result.NumPcdata+1)
+	result.NumFuncdataoff = binary.LittleEndian.Uint32(b[numfuncdataoffOff:])
+	result.FuncdataoffOff = numfuncdataoffOff + 4
+
+	numfileOff := result.FuncdataoffOff + 4*result.NumFuncdataoff
+	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
+	result.FileOff = numfileOff + 4
+
+	const symRefSize = 4 + 4
+	numinltreeOff := result.FileOff + symRefSize*result.NumFile
+	result.NumInlTree = binary.LittleEndian.Uint32(b[numinltreeOff:])
+	result.InlTreeOff = numinltreeOff + 4
+
+	result.Initialized = true
+
+	return result
+}
+
+func (*FuncInfo) ReadArgs(b []byte) uint32 { return binary.LittleEndian.Uint32(b) }
+
+func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcsp(b []byte) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[8:]), binary.LittleEndian.Uint32(b[12:])
+}
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcfile(b []byte) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])
+}
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcline(b []byte) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[16:]), binary.LittleEndian.Uint32(b[20:])
+}
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcinline(b []byte, pcdataoffset uint32) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[pcdataoffset:])
+}
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcdata(b []byte, pcdataoffset uint32, k uint32) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[pcdataoffset+4*k:]), binary.LittleEndian.Uint32(b[pcdataoffset+4+4*k:])
+}
+
+func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int64 {
+	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
+}
+
+func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) SymRef {
+	p := binary.LittleEndian.Uint32(b[filesoff+8*k:])
+	s := binary.LittleEndian.Uint32(b[filesoff+4+8*k:])
+	return SymRef{p, s}
+}
+
+func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode {
+	const inlTreeNodeSize = 4 * 7
+	var result InlTreeNode
+	result.Read(b[inltreeoff+k*inlTreeNodeSize:])
+	return result
 }
 
 // InlTreeNode is the serialized form of FileInfo.InlTree.

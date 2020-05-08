@@ -8,7 +8,6 @@
 Input to cgo.
 
 GOARCH=amd64 go tool cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
-GOARCH=386 go tool cgo -cdefs defs_darwin.go >defs_darwin_386.h
 */
 
 package runtime

@@ -7,6 +7,7 @@ package mime
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -49,7 +50,7 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
 			panic(err)
 		}
 		var exts []string
-		if ei, ok := extensions.Load(k); ok {
+		if ei, ok := extensions.Load(justType); ok {
 			exts = ei.([]string)
 		}
 		extensions.Store(justType, append(exts, k))
@@ -64,6 +65,7 @@ var builtinTypesLower = map[string]string{
 	".jpeg": "image/jpeg",
 	".jpg":  "image/jpeg",
 	".js":   "text/javascript; charset=utf-8",
+	".json": "application/json",
 	".mjs":  "text/javascript; charset=utf-8",
 	".pdf":  "application/pdf",
 	".png":  "image/png",
@@ -151,7 +153,9 @@ func ExtensionsByType(typ string) ([]string, error) {
 	if !ok {
 		return nil, nil
 	}
-	return append([]string{}, s.([]string)...), nil
+	ret := append([]string(nil), s.([]string)...)
+	sort.Strings(ret)
+	return ret, nil
 }
 
 // AddExtensionType sets the MIME type associated with

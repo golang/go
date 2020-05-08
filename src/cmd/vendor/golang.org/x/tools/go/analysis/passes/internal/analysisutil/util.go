@@ -104,3 +104,13 @@ func LineStart(f *token.File, line int) token.Pos {
 		}
 	}
 }
+
+// Imports returns true if path is imported by pkg.
+func Imports(pkg *types.Package, path string) bool {
+	for _, imp := range pkg.Imports() {
+		if imp.Path() == path {
+			return true
+		}
+	}
+	return false
+}

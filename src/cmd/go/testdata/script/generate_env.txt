@@ -1,0 +1,31 @@
+# Install an env command because Windows and plan9 don't have it.
+env GOBIN=$WORK/tmp/bin
+go install env.go
+env PATH=$GOBIN${:}$PATH
+
+# Test generators have access to the environment
+go generate ./printenv.go
+stdout '^GOARCH='$GOARCH
+stdout '^GOOS='$GOOS
+stdout '^GOFILE='
+stdout '^GOLINE='
+stdout '^GOPACKAGE='
+stdout '^DOLLAR='
+
+-- env.go --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	for _, v := range os.Environ() {
+		fmt.Println(v)
+	}
+}
+-- printenv.go --
+package main
+
+//go:generate env

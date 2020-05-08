@@ -1015,8 +1015,6 @@ var errNoModules = errors.New("not using modules")
 // Then we reinvoke it for every dependency. But this is still better than not working at all.
 // See golang.org/issue/26504.
 func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) error {
-	const debugImportGo = false
-
 	// To invoke the go command,
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
@@ -1135,15 +1133,15 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	}
 	dir := f[0]
 	errStr := strings.TrimSpace(f[4])
-	if errStr != "" && p.Dir == "" {
-		// If 'go list' could not locate the package, return the same error that
-		// 'go list' reported.
-		// If 'go list' did locate the package (p.Dir is not empty), ignore the
-		// error. It was probably related to loading source files, and we'll
-		// encounter it ourselves shortly.
+	if errStr != "" && dir == "" {
+		// If 'go list' could not locate the package (dir is empty),
+		// return the same error that 'go list' reported.
 		return errors.New(errStr)
 	}
 
+	// If 'go list' did locate the package, ignore the error.
+	// It was probably related to loading source files, and we'll
+	// encounter it ourselves shortly if the FindOnly flag isn't set.
 	p.Dir = dir
 	p.ImportPath = f[1]
 	p.Root = f[2]

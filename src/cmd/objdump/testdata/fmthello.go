@@ -5,6 +5,8 @@ import "fmt"
 func main() {
 	Println("hello, world")
 	if flag {
+//line fmthello.go:999999
+		Println("bad line")
 		for {
 		}
 	}

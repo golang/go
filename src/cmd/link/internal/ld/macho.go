@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/macho"
 	"encoding/binary"
@@ -216,7 +217,7 @@ const (
 
 var nkind [NumSymKind]int
 
-var sortsym []*sym.Symbol
+var sortsym []loader.Sym
 
 var nsortsym int
 
@@ -428,42 +429,49 @@ func (ctxt *Link) domacho() {
 	}
 
 	// empirically, string table must begin with " \x00".
-	s := ctxt.Syms.Lookup(".machosymstr", 0)
+	s := ctxt.loader.LookupOrCreateSym(".machosymstr", 0)
+	sb := ctxt.loader.MakeSymbolUpdater(s)
 
-	s.Type = sym.SMACHOSYMSTR
-	s.Attr |= sym.AttrReachable
-	s.AddUint8(' ')
-	s.AddUint8('\x00')
+	sb.SetType(sym.SMACHOSYMSTR)
+	sb.SetReachable(true)
+	sb.AddUint8(' ')
+	sb.AddUint8('\x00')
 
-	s = ctxt.Syms.Lookup(".machosymtab", 0)
-	s.Type = sym.SMACHOSYMTAB
-	s.Attr |= sym.AttrReachable
+	s = ctxt.loader.LookupOrCreateSym(".machosymtab", 0)
+	sb = ctxt.loader.MakeSymbolUpdater(s)
+	sb.SetType(sym.SMACHOSYMTAB)
+	sb.SetReachable(true)
 
-	if ctxt.LinkMode != LinkExternal {
-		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
-		s.Type = sym.SMACHOPLT
-		s.Attr |= sym.AttrReachable
+	if ctxt.IsInternal() {
+		s = ctxt.loader.LookupOrCreateSym(".plt", 0) // will be __symbol_stub
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
-		s.Type = sym.SMACHOGOT
-		s.Attr |= sym.AttrReachable
-		s.Align = 4
+		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOGOT)
+		sb.SetReachable(true)
+		sb.SetAlign(4)
 
-		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
-		s.Type = sym.SMACHOINDIRECTPLT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.plt", 0) // indirect table for .plt
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
-		s.Type = sym.SMACHOINDIRECTGOT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.got", 0) // indirect table for .got
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTGOT)
+		sb.SetReachable(true)
 	}
 
 	// Add a dummy symbol that will become the __asm marker section.
-	if ctxt.LinkMode == LinkExternal {
-		s := ctxt.Syms.Lookup(".llvmasm", 0)
-		s.Type = sym.SMACHO
-		s.Attr |= sym.AttrReachable
-		s.AddUint8(0)
+	if ctxt.IsExternal() {
+		s = ctxt.loader.LookupOrCreateSym(".llvmasm", 0)
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHO)
+		sb.SetReachable(true)
+		sb.AddUint8(0)
 	}
 }
 
@@ -736,106 +744,125 @@ func Asmbmacho(ctxt *Link) {
 	}
 }
 
-func symkind(s *sym.Symbol) int {
-	if s.Type == sym.SDYNIMPORT {
+func symkind(ldr *loader.Loader, s loader.Sym) int {
+	if ldr.SymType(s) == sym.SDYNIMPORT {
 		return SymKindUndef
 	}
-	if s.Attr.CgoExport() {
+	if ldr.AttrCgoExport(s) {
 		return SymKindExtdef
 	}
 	return SymKindLocal
 }
 
-func addsym(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64, gotype *sym.Symbol) {
-	if s == nil {
-		return
+func collectmachosyms(ctxt *Link) {
+	ldr := ctxt.loader
+
+	addsym := func(s loader.Sym) {
+		sortsym = append(sortsym, s)
+		nkind[symkind(ldr, s)]++
 	}
 
-	switch type_ {
-	default:
-		return
-
-	case DataSym, BSSSym, TextSym:
-		break
+	// Add special runtime.text and runtime.etext symbols.
+	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
+	// See data.go:/textaddress
+	if !ctxt.DynlinkingGo() {
+		s := ldr.Lookup("runtime.text", 0)
+		if ldr.SymType(s) == sym.STEXT {
+			addsym(s)
+		}
+		s = ldr.Lookup("runtime.etext", 0)
+		if ldr.SymType(s) == sym.STEXT {
+			addsym(s)
+		}
 	}
 
-	if sortsym != nil {
-		sortsym[nsortsym] = s
-		nkind[symkind(s)]++
+	// Add text symbols.
+	for _, s := range ctxt.Textp2 {
+		addsym(s)
 	}
 
-	nsortsym++
-}
-
-type machoscmp []*sym.Symbol
-
-func (x machoscmp) Len() int {
-	return len(x)
-}
-
-func (x machoscmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x machoscmp) Less(i, j int) bool {
-	s1 := x[i]
-	s2 := x[j]
-
-	k1 := symkind(s1)
-	k2 := symkind(s2)
-	if k1 != k2 {
-		return k1 < k2
+	shouldBeInSymbolTable := func(s loader.Sym) bool {
+		if ldr.AttrNotInSymbolTable(s) {
+			return false
+		}
+		name := ldr.RawSymName(s) // TODO: try not to read the name
+		if name == "" || name[0] == '.' {
+			return false
+		}
+		return true
 	}
 
-	return s1.Extname() < s2.Extname()
-}
+	// Add data symbols and external references.
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		t := ldr.SymType(s)
+		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+			if t == sym.STLSBSS {
+				// TLSBSS is not used on darwin. See data.go:allocateDataSections
+				continue
+			}
+			if !shouldBeInSymbolTable(s) {
+				continue
+			}
+			addsym(s)
+		}
 
-func machogenasmsym(ctxt *Link) {
-	genasmsym(ctxt, addsym)
-	for _, s := range ctxt.Syms.Allsym {
+		switch t {
+		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT, sym.SCONST:
+			addsym(s)
+		}
+
 		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
-		if s.Type == sym.SDYNIMPORT && s.Dynimplib() == "/usr/lib/libSystem.B.dylib" {
+		if t == sym.SDYNIMPORT && ldr.SymDynimplib(s) == "/usr/lib/libSystem.B.dylib" {
 			// But only on macOS.
 			if machoPlatform == PLATFORM_MACOS {
-				switch n := s.Extname(); n {
+				switch n := ldr.SymExtname(s); n {
 				case "fdopendir":
 					switch objabi.GOARCH {
 					case "amd64":
-						s.SetExtname(n + "$INODE64")
+						ldr.SetSymExtname(s, n+"$INODE64")
 					case "386":
-						s.SetExtname(n + "$INODE64$UNIX2003")
+						ldr.SetSymExtname(s, n+"$INODE64$UNIX2003")
 					}
 				case "readdir_r", "getfsstat":
 					switch objabi.GOARCH {
 					case "amd64", "386":
-						s.SetExtname(n + "$INODE64")
+						ldr.SetSymExtname(s, n+"$INODE64")
 					}
 				}
 			}
 		}
-
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
-			if s.Attr.Reachable() {
-				addsym(ctxt, s, "", DataSym, 0, nil)
-			}
-		}
 	}
+
+	nsortsym = len(sortsym)
 }
 
 func machosymorder(ctxt *Link) {
+	ldr := ctxt.loader
+
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
-	for i := range dynexp {
-		dynexp[i].Attr |= sym.AttrReachable
+	for _, s := range ctxt.dynexp2 {
+		if !ldr.AttrReachable(s) {
+			panic("dynexp symbol is not reachable")
+		}
 	}
-	machogenasmsym(ctxt)
-	sortsym = make([]*sym.Symbol, nsortsym)
-	nsortsym = 0
-	machogenasmsym(ctxt)
-	sort.Sort(machoscmp(sortsym[:nsortsym]))
-	for i := 0; i < nsortsym; i++ {
-		sortsym[i].Dynid = int32(i)
+	collectmachosyms(ctxt)
+	sort.Slice(sortsym[:nsortsym], func(i, j int) bool {
+		s1 := sortsym[i]
+		s2 := sortsym[j]
+		k1 := symkind(ldr, s1)
+		k2 := symkind(ldr, s2)
+		if k1 != k2 {
+			return k1 < k2
+		}
+		return ldr.SymExtname(s1) < ldr.SymExtname(s2) // Note: unnamed symbols are not added in collectmachosyms
+	})
+	for i, s := range sortsym {
+		ldr.SetSymDynid(s, int32(i))
 	}
 }
 
@@ -870,7 +897,7 @@ func machosymtab(ctxt *Link) {
 	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
 
 	for i := 0; i < nsortsym; i++ {
-		s := sortsym[i]
+		s := ctxt.loader.Syms[sortsym[i]]
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
 
 		export := machoShouldExport(ctxt, s)
@@ -883,7 +910,7 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s.Name))
 		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
@@ -1053,13 +1080,19 @@ func Machoemitreloc(ctxt *Link) {
 
 	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
-	for _, sect := range Segdwarf.Sections {
-		machorelocsect(ctxt, sect, dwarfp)
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != sect.Sym ||
+			si.secSym().Sect != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
+		machorelocsect(ctxt, sect, si.syms)
 	}
 }
 

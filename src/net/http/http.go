@@ -16,6 +16,11 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type incomparable [0]func()
+
 // maxInt64 is the effective "infinite" value for the Server and
 // Transport's byte-limiting readers.
 const maxInt64 = 1<<63 - 1

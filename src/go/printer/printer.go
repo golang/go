@@ -1276,6 +1276,7 @@ const (
 	TabIndent                  // use tabs for indentation independent of UseSpaces
 	UseSpaces                  // use spaces instead of tabs for alignment
 	SourcePos                  // emit //line directives to preserve original source positions
+	StdFormat                  // apply standard formatting changes (exact byte output may change between versions of Go)
 )
 
 // A Config node controls the output of Fprint.

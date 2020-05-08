@@ -15,9 +15,11 @@ package runtime
 import "unsafe"
 
 func newobject(typ *byte) *any
+func mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
 func panicdivide()
 func panicshift()
 func panicmakeslicelen()
+func panicmakeslicecap()
 func throwinit()
 func panicwrap()
 
@@ -68,13 +70,13 @@ func concatstrings(*[32]byte, []string) string
 
 func cmpstring(string, string) int
 func intstring(*[4]byte, int64) string
-func slicebytetostring(*[32]byte, []byte) string
-func slicebytetostringtmp([]byte) string
+func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
+func slicebytetostringtmp(ptr *byte, n int) string
 func slicerunetostring(*[32]byte, []rune) string
 func stringtoslicebyte(*[32]byte, string) []byte
 func stringtoslicerune(*[32]rune, string) []rune
-func slicecopy(to any, fr any, wid uintptr) int
-func slicestringcopy(to any, fr any) int
+func slicecopy(toPtr *any, toLen int, frPtr *any, frLen int, wid uintptr) int
+func slicestringcopy(toPtr *byte, toLen int, fr string) int
 
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
@@ -161,7 +163,7 @@ var writeBarrier struct {
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
 func typedmemclr(typ *byte, dst *any)
-func typedslicecopy(typ *byte, dst any, src any) int
+func typedslicecopy(typ *byte, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
 
 func selectnbsend(hchan chan<- any, elem *any) bool
 func selectnbrecv(elem *any, hchan <-chan any) bool
@@ -173,6 +175,7 @@ func block()
 
 func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)

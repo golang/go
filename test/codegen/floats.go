@@ -118,8 +118,30 @@ func FusedSub64_b(x, y, z float64) float64 {
 }
 
 func Cmp(f float64) bool {
-	// arm64:"FCMPD","BLE",-"CSET\tGT",-"CBZ"
+	// arm64:"FCMPD","(BGT|BLE|BMI|BPL)",-"CSET\tGT",-"CBZ"
 	return f > 4 || f < -4
+}
+
+func CmpZero64(f float64) bool {
+	// s390x:"LTDBR",-"FCMPU"
+	return f <= 0
+}
+
+func CmpZero32(f float32) bool {
+	// s390x:"LTEBR",-"CEBR"
+	return f <= 0
+}
+
+func CmpWithSub(a float64, b float64) bool {
+	f := a - b
+	// s390x:-"LTDBR"
+	return f <= 0
+}
+
+func CmpWithAdd(a float64, b float64) bool {
+	f := a + b
+	// s390x:-"LTDBR"
+	return f <= 0
 }
 
 // ---------------- //

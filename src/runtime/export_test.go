@@ -483,6 +483,8 @@ func GetNextArenaHint() uintptr {
 
 type G = g
 
+type Sudog = sudog
+
 func Getg() *G {
 	return getg()
 }
@@ -582,6 +584,7 @@ const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages
 	PageAlloc64Bit   = pageAlloc64Bit
+	PallocSumBytes   = pallocSumBytes
 )
 
 // Expose pallocSum for testing.
@@ -789,6 +792,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 
 	// We've got an entry, so initialize the pageAlloc.
 	p.init(new(mutex), nil)
+	lockInit(p.mheapLock, lockRankMheap)
 	p.test = true
 
 	for i, init := range chunks {
@@ -948,4 +952,37 @@ var Semrelease1 = semrelease1
 func SemNwait(addr *uint32) uint32 {
 	root := semroot(addr)
 	return atomic.Load(&root.nwait)
+}
+
+// MapHashCheck computes the hash of the key k for the map m, twice.
+// Method 1 uses the built-in hasher for the map.
+// Method 2 uses the typehash function (the one used by reflect).
+// Returns the two hash values, which should always be equal.
+func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+	// Unpack m.
+	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
+	mh := (*hmap)(efaceOf(&m).data)
+
+	// Unpack k.
+	kt := efaceOf(&k)._type
+	var p unsafe.Pointer
+	if isDirectIface(kt) {
+		q := efaceOf(&k).data
+		p = unsafe.Pointer(&q)
+	} else {
+		p = efaceOf(&k).data
+	}
+
+	// Compute the hash functions.
+	x := mt.hasher(noescape(p), uintptr(mh.hash0))
+	y := typehash(kt, noescape(p), uintptr(mh.hash0))
+	return x, y
+}
+
+func MSpanCountAlloc(bits []byte) int {
+	s := mspan{
+		nelems:     uintptr(len(bits) * 8),
+		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
+	}
+	return s.countAlloc()
 }

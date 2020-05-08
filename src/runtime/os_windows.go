@@ -28,7 +28,7 @@ const (
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
@@ -75,7 +75,7 @@ var (
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
-	_GetQueuedCompletionStatus,
+	_GetQueuedCompletionStatusEx,
 	_GetStdHandle,
 	_GetSystemDirectoryA,
 	_GetSystemInfo,
@@ -111,7 +111,6 @@ var (
 	// We will load syscalls, if available, before using them.
 	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx,
 	_LoadLibraryExA,
 	_LoadLibraryExW,
 	_ stdFunction
@@ -239,7 +238,6 @@ func loadOptionalSyscalls() {
 	}
 	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
@@ -294,9 +292,7 @@ func loadOptionalSyscalls() {
 
 func monitorSuspendResume() {
 	const (
-		_DEVICE_NOTIFY_CALLBACK   = 2
-		_ERROR_FILE_NOT_FOUND     = 2
-		_ERROR_INVALID_PARAMETERS = 87
+		_DEVICE_NOTIFY_CALLBACK = 2
 	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
@@ -323,25 +319,8 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
-	// This function doesn't use GetLastError(), so we use the return value directly.
-	switch ret {
-	case 0:
-		return // Successful, nothing more to do.
-	case _ERROR_FILE_NOT_FOUND:
-		// Systems without access to the suspend/resume notifier
-		// also have their clock on "program time", and therefore
-		// don't want or need this anyway.
-		return
-	case _ERROR_INVALID_PARAMETERS:
-		// This is seen when running in Windows Docker.
-		// See issue 36557.
-		return
-	default:
-		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
-		throw("runtime: PowerRegisterSuspendResumeNotification failure")
-	}
 }
 
 //go:nosplit
@@ -1031,7 +1010,11 @@ func ctrlhandler1(_type uint32) uint32 {
 	if sigsend(s) {
 		return 1
 	}
-	exit(2) // SIGINT, SIGTERM, etc
+	if !islibrary && !isarchive {
+		// Only exit the program if we don't have a DLL.
+		// See https://golang.org/issues/35965.
+		exit(2) // SIGINT, SIGTERM, etc
+	}
 	return 0
 }
 
@@ -1044,17 +1027,17 @@ func callbackasm1()
 var profiletimer uintptr
 
 func profilem(mp *m, thread uintptr) {
-	var r *context
-	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
+	// Align Context to 16 bytes.
+	var c *context
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 
-	// align Context to 16 bytes
-	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
-	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
+	c.contextflags = _CONTEXT_CONTROL
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
 	gp := gFromTLS(mp)
 
-	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
+	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
 }
 
 func gFromTLS(mp *m) *g {
@@ -1170,10 +1153,9 @@ func preemptM(mp *m) {
 	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
 	unlock(&mp.threadLock)
 
-	// Prepare thread context buffer.
+	// Prepare thread context buffer. This must be aligned to 16 bytes.
 	var c *context
-	cbuf := make([]byte, unsafe.Sizeof(*c)+15)
-	// Align Context to 16 bytes.
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
 	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 	c.contextflags = _CONTEXT_CONTROL
 
@@ -1210,23 +1192,24 @@ func preemptM(mp *m) {
 
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromTLS(mp)
-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()) {
-		// Inject call to asyncPreempt
-		targetPC := funcPC(asyncPreempt)
-		switch GOARCH {
-		default:
-			throw("unsupported architecture")
-		case "386", "amd64":
-			// Make it look like the thread called targetPC.
-			pc := c.ip()
-			sp := c.sp()
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = pc
-			c.set_sp(sp)
-			c.set_ip(targetPC)
-		}
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+			// Inject call to asyncPreempt
+			targetPC := funcPC(asyncPreempt)
+			switch GOARCH {
+			default:
+				throw("unsupported architecture")
+			case "386", "amd64":
+				// Make it look like the thread called targetPC.
+				sp := c.sp()
+				sp -= sys.PtrSize
+				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+				c.set_sp(sp)
+				c.set_ip(targetPC)
+			}
 
-		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+		}
 	}
 
 	atomic.Store(&mp.preemptExtLock, 0)

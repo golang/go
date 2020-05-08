@@ -540,10 +540,14 @@ func walkTypeSwitch(sw *Node) {
 			caseVar = ncase.Rlist.First()
 		}
 
-		// For single-type cases, we initialize the case
-		// variable as part of the type assertion; but in
-		// other cases, we initialize it in the body.
-		singleType := ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE
+		// For single-type cases with an interface type,
+		// we initialize the case variable as part of the type assertion.
+		// In other cases, we initialize it in the body.
+		var singleType *types.Type
+		if ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE {
+			singleType = ncase.List.First().Type
+		}
+		caseVarInitialized := false
 
 		label := autolabel(".s")
 		jmp := npos(ncase.Pos, nodSym(OGOTO, nil, label))
@@ -564,18 +568,27 @@ func walkTypeSwitch(sw *Node) {
 				continue
 			}
 
-			if singleType {
-				s.Add(n1.Type, caseVar, jmp)
+			if singleType != nil && singleType.IsInterface() {
+				s.Add(ncase.Pos, n1.Type, caseVar, jmp)
+				caseVarInitialized = true
 			} else {
-				s.Add(n1.Type, nil, jmp)
+				s.Add(ncase.Pos, n1.Type, nil, jmp)
 			}
 		}
 
 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
-		if caseVar != nil && !singleType {
+		if caseVar != nil && !caseVarInitialized {
+			val := s.facename
+			if singleType != nil {
+				// We have a single concrete type. Extract the data.
+				if singleType.IsInterface() {
+					Fatalf("singleType interface should have been handled in Add")
+				}
+				val = ifaceData(ncase.Pos, s.facename, singleType)
+			}
 			l := []*Node{
 				nodl(ncase.Pos, ODCL, caseVar, nil),
-				nodl(ncase.Pos, OAS, caseVar, s.facename),
+				nodl(ncase.Pos, OAS, caseVar, val),
 			}
 			typecheckslice(l, ctxStmt)
 			body.Append(l...)
@@ -616,12 +629,12 @@ type typeClause struct {
 	body Nodes
 }
 
-func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
+func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp *Node) {
 	var body Nodes
 	if caseVar != nil {
 		l := []*Node{
-			nod(ODCL, caseVar, nil),
-			nod(OAS, caseVar, nil),
+			nodl(pos, ODCL, caseVar, nil),
+			nodl(pos, OAS, caseVar, nil),
 		}
 		typecheckslice(l, ctxStmt)
 		body.Append(l...)
@@ -630,9 +643,9 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	}
 
 	// cv, ok = iface.(type)
-	as := nod(OAS2, nil, nil)
+	as := nodl(pos, OAS2, nil, nil)
 	as.List.Set2(caseVar, s.okname) // cv, ok =
-	dot := nod(ODOTTYPE, s.facename, nil)
+	dot := nodl(pos, ODOTTYPE, s.facename, nil)
 	dot.Type = typ // iface.(type)
 	as.Rlist.Set1(dot)
 	as = typecheck(as, ctxStmt)
@@ -640,7 +653,7 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	body.Append(as)
 
 	// if ok { goto label }
-	nif := nod(OIF, nil, nil)
+	nif := nodl(pos, OIF, nil, nil)
 	nif.Left = s.okname
 	nif.Nbody.Set1(jmp)
 	body.Append(nif)

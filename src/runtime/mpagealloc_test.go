@@ -225,12 +225,13 @@ func TestPageAllocAlloc(t *testing.T) {
 	type hit struct {
 		npages, base, scav uintptr
 	}
-	tests := map[string]struct {
+	type test struct {
 		scav   map[ChunkIdx][]BitRange
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
 		hits   []hit
-	}{
+	}
+	tests := map[string]test{
 		"AllFree1": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -371,7 +372,6 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx: {{0, 195}},
 			},
 		},
-		// TODO(mknyszek): Add tests close to the chunk size.
 		"ExhaustPallocChunkPages-3": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -570,6 +570,48 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx + 7: {{0, 6}},
 			},
 		},
+	}
+	if PageAlloc64Bit != 0 {
+		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+
+		// This test attempts to trigger a bug wherein we look at unmapped summary
+		// memory that isn't just in the case where we exhaust the heap.
+		//
+		// It achieves this by placing a chunk such that its summary will be
+		// at the very end of a physical page. It then also places another chunk
+		// much further up in the address space, such that any allocations into the
+		// first chunk do not exhaust the heap and the second chunk's summary is not in the
+		// page immediately adjacent to the first chunk's summary's page.
+		// Allocating into this first chunk to exhaustion and then into the second
+		// chunk may then trigger a check in the allocator which erroneously looks at
+		// unmapped summary memory and crashes.
+
+		// Figure out how many chunks are in a physical page, then align BaseChunkIdx
+		// to a physical page in the chunk summary array. Here we only assume that
+		// each summary array is aligned to some physical page.
+		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
+		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
+		tests["DiscontiguousMappedSumBoundary"] = test{
+			before: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			hits: []hit{
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+sumsPerPhysPage-1, 0), 0},
+				{1, PageBase(baseChunkIdx+sumsPerPhysPage-1, PallocChunkPages-1), 0},
+				{1, PageBase(baseChunkIdx+chunkIdxBigJump, 0), 0},
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+chunkIdxBigJump, 1), 0},
+				{1, 0, 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
+				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

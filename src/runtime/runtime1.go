@@ -459,11 +459,6 @@ func releasem(mp *m) {
 	}
 }
 
-//go:nosplit
-func gomcache() *mcache {
-	return getg().m.mcache
-}
-
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	modules := activeModules()

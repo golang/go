@@ -57,7 +57,6 @@ func testMain(m *testing.M) int {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	WorkRoot = dir
 
 	if testenv.HasExternalNetwork() && testenv.HasExec() {
 		// Clone gitrepo1 into a local directory.

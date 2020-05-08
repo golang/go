@@ -8,6 +8,7 @@
 package unix
 
 const (
+	DLT_HHDLC                         = 0x79
 	IFF_SMART                         = 0x20
 	IFT_1822                          = 0x2
 	IFT_A12MPPSWITCH                  = 0x82
@@ -210,13 +211,18 @@ const (
 	IFT_XETHER                        = 0x1a
 	IPPROTO_MAXID                     = 0x34
 	IPV6_FAITH                        = 0x1d
+	IPV6_MIN_MEMBERSHIPS              = 0x1f
 	IP_FAITH                          = 0x16
+	IP_MAX_SOURCE_FILTER              = 0x400
+	IP_MIN_MEMBERSHIPS                = 0x1f
 	MAP_NORESERVE                     = 0x40
 	MAP_RENAME                        = 0x20
 	NET_RT_MAXID                      = 0x6
 	RTF_PRCLONING                     = 0x10000
 	RTM_OLDADD                        = 0x9
 	RTM_OLDDEL                        = 0xa
+	RT_CACHING_CONTEXT                = 0x1
+	RT_NORTREF                        = 0x2
 	SIOCADDRT                         = 0x8040720a
 	SIOCALIFADDR                      = 0x8118691b
 	SIOCDELRT                         = 0x8040720b

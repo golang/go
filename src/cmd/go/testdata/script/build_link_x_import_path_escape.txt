@@ -1,0 +1,18 @@
+[gccgo] skip 'gccgo does not support -ldflags -X'
+
+go build -o linkx$GOEXE -ldflags -X=my.pkg.Text=linkXworked my.pkg/main
+exec ./linkx$GOEXE
+stderr '^linkXworked$'
+
+-- my.pkg/main/main.go --
+package main
+
+import "my.pkg"
+
+func main() {
+	println(pkg.Text)
+}
+-- my.pkg/pkg.go --
+package pkg
+
+var Text = "unset"

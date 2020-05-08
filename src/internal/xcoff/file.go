@@ -412,10 +412,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sect.Relocs[i].Type = rel.Rtype
 				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
 
-				if rel.Rsize&0x80 == 1 {
+				if rel.Rsize&0x80 != 0 {
 					sect.Relocs[i].Signed = true
 				}
-				if rel.Rsize&0x40 == 1 {
+				if rel.Rsize&0x40 != 0 {
 					sect.Relocs[i].InstructionFixed = true
 				}
 
@@ -428,10 +428,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
 				sect.Relocs[i].Type = rel.Rtype
 				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
-				if rel.Rsize&0x80 == 1 {
+				if rel.Rsize&0x80 != 0 {
 					sect.Relocs[i].Signed = true
 				}
-				if rel.Rsize&0x40 == 1 {
+				if rel.Rsize&0x40 != 0 {
 					sect.Relocs[i].InstructionFixed = true
 				}
 			}
