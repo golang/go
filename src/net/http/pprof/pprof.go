@@ -17,7 +17,7 @@
 // the following code to your main function:
 //
 // 	go func() {
-// 		log.Println(http.ListenAndServe("localhost:6060", nil))
+// 		log.Info(http.ListenAndServe("localhost:6060", nil))
 // 	}()
 //
 // Then use the pprof tool to look at the heap profile:
