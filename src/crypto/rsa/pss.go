@@ -207,20 +207,19 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 // Note that hashed must be the result of hashing the input message using the
 // given hash function. salt is a random sequence of bytes whose length will be
 // later used to verify the signature.
-func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) (s []byte, err error) {
+func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([]byte, error) {
 	emBits := priv.N.BitLen() - 1
 	em, err := emsaPSSEncode(hashed, emBits, salt, hash.New())
 	if err != nil {
-		return
+		return nil, err
 	}
 	m := new(big.Int).SetBytes(em)
 	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
-		return
+		return nil, err
 	}
-	s = make([]byte, priv.Size())
-	copyWithLeftPad(s, c.Bytes())
-	return
+	s := make([]byte, priv.Size())
+	return c.FillBytes(s), nil
 }
 
 const (
@@ -296,11 +295,9 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	m := encrypt(new(big.Int), pub, s)
 	emBits := pub.N.BitLen() - 1
 	emLen := (emBits + 7) / 8
-	emBytes := m.Bytes()
-	if emLen < len(emBytes) {
+	if m.BitLen() > emLen*8 {
 		return ErrVerification
 	}
-	em := make([]byte, emLen)
-	copyWithLeftPad(em, emBytes)
+	em := m.FillBytes(make([]byte, emLen))
 	return emsaPSSVerify(digest, em, emBits, opts.saltLength(), hash.New())
 }

@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!ppc64le gccgo purego
+// +build !amd64,!ppc64le,!s390x gccgo purego
 
 package poly1305
 
 type mac struct{ macGeneric }
-
-func newMAC(key *[32]byte) mac { return mac{newMACGeneric(key)} }

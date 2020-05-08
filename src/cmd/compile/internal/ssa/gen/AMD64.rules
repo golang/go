@@ -735,18 +735,33 @@
 (ANDQ x (MOVQconst [c])) && is32Bit(c) -> (ANDQconst [c] x)
 (ANDL x (MOVLconst [c])) -> (ANDLconst [c] x)
 
-(AND(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [c & d] x)
-(BTR(L|Q)const [c] (AND(L|Q)const [d] x)) -> (AND(L|Q)const [d &^ (1<<uint32(c))] x)
-(AND(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [c &^ (1<<uint32(d))] x)
-(BTR(L|Q)const [c] (BTR(L|Q)const [d] x)) -> (AND(L|Q)const [^(1<<uint32(c) | 1<<uint32(d))] x)
-(XOR(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [c ^ d] x)
-(BTC(L|Q)const [c] (XOR(L|Q)const [d] x)) -> (XOR(L|Q)const [d ^ 1<<uint32(c)] x)
-(XOR(L|Q)const [c] (BTC(L|Q)const [d] x)) -> (XOR(L|Q)const [c ^ 1<<uint32(d)] x)
-(BTC(L|Q)const [c] (BTC(L|Q)const [d] x)) -> (XOR(L|Q)const [1<<uint32(c) ^ 1<<uint32(d)] x)
-(OR(L|Q)const [c] (OR(L|Q)const [d] x)) -> (OR(L|Q)const [c | d] x)
-(OR(L|Q)const [c] (BTS(L|Q)const [d] x)) -> (OR(L|Q)const [c | 1<<uint32(d)] x)
-(BTS(L|Q)const [c] (OR(L|Q)const [d] x)) -> (OR(L|Q)const [d | 1<<uint32(c)] x)
-(BTS(L|Q)const [c] (BTS(L|Q)const [d] x)) -> (OR(L|Q)const [1<<uint32(d) | 1<<uint32(c)] x)
+(AND(L|Q)const [c] (AND(L|Q)const [d] x)) => (AND(L|Q)const [c & d] x)
+(XOR(L|Q)const [c] (XOR(L|Q)const [d] x)) => (XOR(L|Q)const [c ^ d] x)
+(OR(L|Q)const  [c] (OR(L|Q)const  [d] x)) => (OR(L|Q)const  [c | d] x)
+
+(BTRLconst [c] (ANDLconst [d] x)) => (ANDLconst [d &^ (1<<uint32(c))] x)
+(ANDLconst [c] (BTRLconst [d] x)) => (ANDLconst [c &^ (1<<uint32(d))] x)
+(BTRLconst [c] (BTRLconst [d] x)) => (ANDLconst [^(1<<uint32(c) | 1<<uint32(d))] x)
+
+(BTCLconst [c] (XORLconst [d] x)) => (XORLconst [d ^ 1<<uint32(c)] x)
+(XORLconst [c] (BTCLconst [d] x)) => (XORLconst [c ^ 1<<uint32(d)] x)
+(BTCLconst [c] (BTCLconst [d] x)) => (XORLconst [1<<uint32(c) | 1<<uint32(d)] x)
+
+(BTSLconst [c] (ORLconst  [d] x)) => (ORLconst [d | 1<<uint32(c)] x)
+(ORLconst  [c] (BTSLconst [d] x)) => (ORLconst [c | 1<<uint32(d)] x)
+(BTSLconst [c] (BTSLconst [d] x)) => (ORLconst [1<<uint32(c) | 1<<uint32(d)] x)
+
+(BTRQconst [c] (ANDQconst [d] x)) && is32Bit(int64(d) &^ (1<<uint32(c)))     => (ANDQconst [d &^ (1<<uint32(c))] x)
+(ANDQconst [c] (BTRQconst [d] x)) && is32Bit(int64(c) &^ (1<<uint32(d)))     => (ANDQconst [c &^ (1<<uint32(d))] x)
+(BTRQconst [c] (BTRQconst [d] x)) && is32Bit(^(1<<uint32(c) | 1<<uint32(d))) => (ANDQconst [^(1<<uint32(c) | 1<<uint32(d))] x)
+
+(BTCQconst [c] (XORQconst [d] x)) && is32Bit(int64(d) ^ 1<<uint32(c))     => (XORQconst [d ^ 1<<uint32(c)] x)
+(XORQconst [c] (BTCQconst [d] x)) && is32Bit(int64(c) ^ 1<<uint32(d))     => (XORQconst [c ^ 1<<uint32(d)] x)
+(BTCQconst [c] (BTCQconst [d] x)) && is32Bit(1<<uint32(c) ^ 1<<uint32(d)) => (XORQconst [1<<uint32(c) ^ 1<<uint32(d)] x)
+
+(BTSQconst [c] (ORQconst  [d] x)) && is32Bit(int64(d) | 1<<uint32(c))     => (ORQconst [d | 1<<uint32(c)] x)
+(ORQconst  [c] (BTSQconst [d] x)) && is32Bit(int64(c) | 1<<uint32(d))     => (ORQconst [c | 1<<uint32(d)] x)
+(BTSQconst [c] (BTSQconst [d] x)) && is32Bit(1<<uint32(c) | 1<<uint32(d)) => (ORQconst [1<<uint32(c) | 1<<uint32(d)] x)
 
 (MULLconst [c] (MULLconst [d] x)) -> (MULLconst [int64(int32(c * d))] x)
 (MULQconst [c] (MULQconst [d] x)) && is32Bit(c*d) -> (MULQconst [c * d] x)

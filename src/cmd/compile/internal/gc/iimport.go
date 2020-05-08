@@ -15,6 +15,7 @@ import (
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 	"strings"
@@ -191,7 +192,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType
 	}
 
 	// Fingerprint
-	n, err := in.Read(fingerprint[:])
+	n, err := io.ReadFull(in, fingerprint[:])
 	if err != nil || n != len(fingerprint) {
 		yyerror("import %s: error reading fingerprint", pkg.Path)
 		errorexit()

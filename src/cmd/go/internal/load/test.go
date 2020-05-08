@@ -270,7 +270,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	// afterward that gathers t.Cover information.
 	t, err := loadTestFuncs(ptest)
 	if err != nil && pmain.Error == nil {
-		pmain.setLoadPackageDataError(err, p.ImportPath, &stk)
+		pmain.setLoadPackageDataError(err, p.ImportPath, &stk, nil)
 	}
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {

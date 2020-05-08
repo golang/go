@@ -32,6 +32,7 @@ func TestDeadcode(t *testing.T) {
 		{"typedesc", "type.main.T"},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.src, func(t *testing.T) {
 			t.Parallel()
 			src := filepath.Join("testdata", "deadcode", test.src+".go")

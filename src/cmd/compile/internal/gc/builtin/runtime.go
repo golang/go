@@ -15,6 +15,7 @@ package runtime
 import "unsafe"
 
 func newobject(typ *byte) *any
+func mallocgc(size uintptr, typ *byte, needszero bool) unsafe.Pointer
 func panicdivide()
 func panicshift()
 func panicmakeslicelen()
@@ -174,6 +175,7 @@ func block()
 
 func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(typ *byte, old []any, cap int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)

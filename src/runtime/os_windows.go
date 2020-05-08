@@ -1192,23 +1192,24 @@ func preemptM(mp *m) {
 
 	// Does it want a preemption and is it safe to preempt?
 	gp := gFromTLS(mp)
-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()) {
-		// Inject call to asyncPreempt
-		targetPC := funcPC(asyncPreempt)
-		switch GOARCH {
-		default:
-			throw("unsupported architecture")
-		case "386", "amd64":
-			// Make it look like the thread called targetPC.
-			pc := c.ip()
-			sp := c.sp()
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = pc
-			c.set_sp(sp)
-			c.set_ip(targetPC)
-		}
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+			// Inject call to asyncPreempt
+			targetPC := funcPC(asyncPreempt)
+			switch GOARCH {
+			default:
+				throw("unsupported architecture")
+			case "386", "amd64":
+				// Make it look like the thread called targetPC.
+				sp := c.sp()
+				sp -= sys.PtrSize
+				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+				c.set_sp(sp)
+				c.set_ip(targetPC)
+			}
 
-		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+		}
 	}
 
 	atomic.Store(&mp.preemptExtLock, 0)

@@ -269,7 +269,10 @@ func (v Value) Addr() Value {
 	if v.flag&flagAddr == 0 {
 		panic("reflect.Value.Addr of unaddressable value")
 	}
-	return Value{v.typ.ptrTo(), v.ptr, v.flag.ro() | flag(Ptr)}
+	// Preserve flagRO instead of using v.flag.ro() so that
+	// v.Addr().Elem() is equivalent to v (#32772)
+	fl := v.flag & flagRO
+	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Ptr)}
 }
 
 // Bool returns v's underlying value.

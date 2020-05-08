@@ -794,7 +794,16 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
 		if sg.c != lastc {
-			lock(&sg.c.lock)
+			// There is a ranking cycle here between gscan bit and
+			// hchan locks. Normally, we only allow acquiring hchan
+			// locks and then getting a gscan bit. In this case, we
+			// already have the gscan bit. We allow acquiring hchan
+			// locks here as a special case, since a deadlock can't
+			// happen because the G involved must already be
+			// suspended. So, we get a special hchan lock rank here
+			// that is lower than gscan, but doesn't allow acquiring
+			// any other locks other than hchan.
+			lockWithRank(&sg.c.lock, lockRankHchanLeaf)
 		}
 		lastc = sg.c
 	}
@@ -1033,6 +1042,17 @@ func newstack() {
 	// Allocate a bigger segment and move the stack.
 	oldsize := gp.stack.hi - gp.stack.lo
 	newsize := oldsize * 2
+
+	// Make sure we grow at least as much as needed to fit the new frame.
+	// (This is just an optimization - the caller of morestack will
+	// recheck the bounds on return.)
+	if f := findfunc(gp.sched.pc); f.valid() {
+		max := uintptr(funcMaxSPDelta(f))
+		for newsize-oldsize < max+_StackGuard {
+			newsize *= 2
+		}
+	}
+
 	if newsize > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
 		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
