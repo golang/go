@@ -266,7 +266,7 @@ type Arch struct {
 	// segments), for which we have computed the size and offset. Asmb2
 	// writes the rest.
 	Asmb  func(*Link, *loader.Loader)
-	Asmb2 func(*Link)
+	Asmb2 func(*Link, *loader.Loader)
 
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
 	Elfreloc2   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool

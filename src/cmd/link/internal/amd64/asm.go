@@ -722,7 +722,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	wg.Wait()
 }
 
-func asmb2(ctxt *ld.Link) {
+func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	machlink := int64(0)
 	if ctxt.HeadType == objabi.Hdarwin {
 		machlink = ld.Domacholink(ctxt)
