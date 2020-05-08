@@ -244,9 +244,7 @@ type Arch struct {
 	// same spot in sym.P), a boolean indicating if the external relocations'
 	// been used, and a boolean indicating success/failure (a failing value
 	// indicates a fatal error).
-	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
-		offset int64) (relocatedOffset int64, success bool)
-	Archreloc2 func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc,
+	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc,
 		loader.Sym, int64) (relocatedOffset int64, needExtReloc bool, ok bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
@@ -256,9 +254,7 @@ type Arch struct {
 	// relocation applies, and "off" is the contents of the
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
-	Archrelocvariant func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
-		offset int64) (relocatedOffset int64)
-	Archrelocvariant2 func(target *Target, ldr *loader.Loader, rel loader.Reloc2,
+	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc2,
 		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
 
 	// Generate a trampoline for a call from s to rs if necessary. ri is
