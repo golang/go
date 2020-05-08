@@ -528,6 +528,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 
 	for _, r := range n.List.Slice() {
 		a, value := splitnode(r)
+		if a == nblank && candiscard(value) {
+			continue
+		}
 
 		switch value.Op {
 		case OSLICELIT:

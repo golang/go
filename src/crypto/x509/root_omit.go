@@ -19,3 +19,10 @@ import "errors"
 func loadSystemRoots() (*CertPool, error) {
 	return nil, errors.New("x509: system root bundling disabled")
 }
+
+func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	return nil, nil
+}
+
+// loadSystemRootsWithCgo is not available on iOS.
+var loadSystemRootsWithCgo func() (*CertPool, error)

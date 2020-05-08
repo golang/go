@@ -305,6 +305,7 @@ type Taskstats struct {
 	Freepages_delay_total     uint64
 	Thrashing_count           uint64
 	Thrashing_delay_total     uint64
+	Ac_btime64                uint64
 }
 
 type cpuMask uint64

@@ -287,6 +287,18 @@ const (
 	// PCDATA_UnsafePoint values.
 	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
 	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
+
+	// _PCDATA_Restart1(2) apply on a sequence of instructions, within
+	// which if an async preemption happens, we should back off the PC
+	// to the start of the sequence when resume.
+	// We need two so we can distinguish the start/end of the sequence
+	// in case that two sequences are next to each other.
+	_PCDATA_Restart1 = -3
+	_PCDATA_Restart2 = -4
+
+	// Like _PCDATA_RestartAtEntry, but back to function entry if async
+	// preempted.
+	_PCDATA_RestartAtEntry = -5
 )
 
 // A FuncID identifies particular functions that need to be treated
@@ -708,9 +720,11 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
 }
 
-func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
+// Returns the PCData value, and the PC where this value starts.
+// TODO: the start PC is returned only when cache is nil.
+func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
 	if off == 0 {
-		return -1
+		return -1, 0
 	}
 
 	// Check the cache. This speeds up walks of deep stacks, which
@@ -729,7 +743,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 			// fail in the first clause.
 			ent := &cache.entries[x][i]
 			if ent.off == off && ent.targetpc == targetpc {
-				return ent.val
+				return ent.val, 0
 			}
 		}
 	}
@@ -739,11 +753,12 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 			print("runtime: no module data for ", hex(f.entry), "\n")
 			throw("no module data")
 		}
-		return -1
+		return -1, 0
 	}
 	datap := f.datap
 	p := datap.pclntable[off:]
 	pc := f.entry
+	prevpc := pc
 	val := int32(-1)
 	for {
 		var ok bool
@@ -770,14 +785,15 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 				}
 			}
 
-			return val
+			return val, prevpc
 		}
+		prevpc = pc
 	}
 
 	// If there was a table, it should have covered all program counters.
 	// If not, something is wrong.
 	if panicking != 0 || !strict {
-		return -1
+		return -1, 0
 	}
 
 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
@@ -795,7 +811,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 	}
 
 	throw("invalid runtime symbol table")
-	return -1
+	return -1, 0
 }
 
 func cfuncname(f funcInfo) *byte {
@@ -833,9 +849,9 @@ func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int
 	if !f.valid() {
 		return "?", 0
 	}
-	fileno := int(pcvalue(f, f.pcfile, targetpc, nil, strict))
-	line = pcvalue(f, f.pcln, targetpc, nil, strict)
-	if fileno == -1 || line == -1 || fileno >= len(datap.filetab) {
+	fileno, _ := pcvalue(f, f.pcfile, targetpc, nil, strict)
+	line, _ = pcvalue(f, f.pcln, targetpc, nil, strict)
+	if fileno == -1 || line == -1 || int(fileno) >= len(datap.filetab) {
 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
 		return "?", 0
 	}
@@ -848,7 +864,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
 }
 
 func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
-	x := pcvalue(f, f.pcsp, targetpc, cache, true)
+	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
 	if x&(sys.PtrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
@@ -882,14 +898,25 @@ func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache)
 	if table < 0 || table >= f.npcdata {
 		return -1
 	}
-	return pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
+	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
+	return r
 }
 
 func pcdatavalue1(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
 	if table < 0 || table >= f.npcdata {
 		return -1
 	}
-	return pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
+	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
+	return r
+}
+
+// Like pcdatavalue, but also return the start PC of this PCData value.
+// It doesn't take a cache.
+func pcdatavalue2(f funcInfo, table int32, targetpc uintptr) (int32, uintptr) {
+	if table < 0 || table >= f.npcdata {
+		return -1, 0
+	}
+	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)
 }
 
 func funcdata(f funcInfo, i uint8) unsafe.Pointer {

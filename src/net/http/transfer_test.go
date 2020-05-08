@@ -279,7 +279,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 	}
 }
 
-func TestFixTransferEncoding(t *testing.T) {
+func TestParseTransferEncoding(t *testing.T) {
 	tests := []struct {
 		hdr     Header
 		wantErr error
@@ -290,7 +290,23 @@ func TestFixTransferEncoding(t *testing.T) {
 		},
 		{
 			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
-			wantErr: badStringError("too many transfer encodings", "chunked,chunked"),
+			wantErr: &unsupportedTEError{`too many transfer encodings: ["chunked, chunked" "identity" "chunked"]`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {""}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: ""`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked, identity"}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: "chunked, identity"`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked", "identity"}},
+			wantErr: &unsupportedTEError{`too many transfer encodings: ["chunked" "identity"]`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"\x0bchunked"}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: "\vchunked"`},
 		},
 		{
 			hdr:     Header{"Transfer-Encoding": {"chunked"}},
@@ -304,7 +320,7 @@ func TestFixTransferEncoding(t *testing.T) {
 			ProtoMajor: 1,
 			ProtoMinor: 1,
 		}
-		gotErr := tr.fixTransferEncoding()
+		gotErr := tr.parseTransferEncoding()
 		if !reflect.DeepEqual(gotErr, tt.wantErr) {
 			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
 		}

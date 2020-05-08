@@ -412,11 +412,12 @@ var pkgDeps = map[string][]string{
 		"container/list", "context", "crypto/x509", "encoding/pem", "net", "syscall", "crypto/ed25519",
 	},
 	"crypto/x509": {
-		"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/ed25519",
+		"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/ed25519", "crypto/x509/internal/macOS",
 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
 		"golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/cryptobyte/asn1",
 	},
-	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
+	"crypto/x509/pkix":           {"L4", "CRYPTO-MATH", "encoding/hex"},
+	"crypto/x509/internal/macOS": {"L4"},
 
 	// Simple net+crypto-aware packages.
 	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},
@@ -448,7 +449,7 @@ var pkgDeps = map[string][]string{
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
-	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp", "golang.org/x/net/http/httpguts"},
 	"net/http/cookiejar": {"L4", "NET", "net/http"},
 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
 	"net/http/httptest": {

@@ -73,6 +73,8 @@ const (
 	FFDLY                            = 0x8000
 	FLUSHO                           = 0x1000
 	FP_XSTATE_MAGIC2                 = 0x46505845
+	FS_IOC_ENABLE_VERITY             = 0x40806685
+	FS_IOC_GETFLAGS                  = 0x80086601
 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
@@ -341,6 +343,8 @@ const (
 	TCSETXF                          = 0x5434
 	TCSETXW                          = 0x5435
 	TCXONC                           = 0x540a
+	TFD_CLOEXEC                      = 0x80000
+	TFD_NONBLOCK                     = 0x800
 	TIOCCBRK                         = 0x5428
 	TIOCCONS                         = 0x541d
 	TIOCEXCL                         = 0x540c

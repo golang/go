@@ -57,7 +57,7 @@ must be a power of 2 and in the range of [8, 2048].
     PCALIGN $1024
     MOVD $3, R1          // This instruction is aligned with 1024 bytes.
 
-PCALING also changes the function alignment. If a function has one or more PCALIGN directives,
+PCALIGN also changes the function alignment. If a function has one or more PCALIGN directives,
 its address will be aligned to the same or coarser boundary, which is the maximum of all the
 alignment values.
 

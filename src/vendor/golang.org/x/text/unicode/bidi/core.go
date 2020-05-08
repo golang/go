@@ -480,15 +480,15 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 
 	// Rule W1.
 	// Changes all NSMs.
-	preceedingCharacterType := s.sos
+	precedingCharacterType := s.sos
 	for i, t := range s.types {
 		if t == NSM {
-			s.types[i] = preceedingCharacterType
+			s.types[i] = precedingCharacterType
 		} else {
 			if t.in(LRI, RLI, FSI, PDI) {
-				preceedingCharacterType = ON
+				precedingCharacterType = ON
 			}
-			preceedingCharacterType = t
+			precedingCharacterType = t
 		}
 	}
 

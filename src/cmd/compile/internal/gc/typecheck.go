@@ -1149,6 +1149,49 @@ func typecheck1(n *Node, top int) (res *Node) {
 		n.List.SetFirst(l)
 		n.List.SetSecond(c)
 
+	case OMAKESLICECOPY:
+		// Errors here are Fatalf instead of yyerror because only the compiler
+		// can construct an OMAKESLICECOPY node.
+		// Components used in OMAKESCLICECOPY that are supplied by parsed source code
+		// have already been typechecked in OMAKE and OCOPY earlier.
+		ok |= ctxExpr
+
+		t := n.Type
+
+		if t == nil {
+			Fatalf("no type specified for OMAKESLICECOPY")
+		}
+
+		if !t.IsSlice() {
+			Fatalf("invalid type %v for OMAKESLICECOPY", n.Type)
+		}
+
+		if n.Left == nil {
+			Fatalf("missing len argument for OMAKESLICECOPY")
+		}
+
+		if n.Right == nil {
+			Fatalf("missing slice argument to copy for OMAKESLICECOPY")
+		}
+
+		n.Left = typecheck(n.Left, ctxExpr)
+		n.Right = typecheck(n.Right, ctxExpr)
+
+		n.Left = defaultlit(n.Left, types.Types[TINT])
+
+		if !n.Left.Type.IsInteger() && n.Type.Etype != TIDEAL {
+			yyerror("non-integer len argument in OMAKESLICECOPY")
+		}
+
+		if Isconst(n.Left, CTINT) {
+			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+				Fatalf("len for OMAKESLICECOPY too large")
+			}
+			if n.Left.Int64() < 0 {
+				Fatalf("len for OMAKESLICECOPY must be non-negative")
+			}
+		}
+
 	case OSLICE, OSLICE3:
 		ok |= ctxExpr
 		n.Left = typecheck(n.Left, ctxExpr)

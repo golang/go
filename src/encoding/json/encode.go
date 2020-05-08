@@ -635,11 +635,12 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		return
 	}
 	if opts.quoted {
-		b := make([]byte, 0, v.Len()+2)
-		b = append(b, '"')
-		b = append(b, []byte(v.String())...)
-		b = append(b, '"')
-		e.stringBytes(b, opts.escapeHTML)
+		e2 := newEncodeState()
+		// Since we encode the string twice, we only need to escape HTML
+		// the first time.
+		e2.string(v.String(), opts.escapeHTML)
+		e.stringBytes(e2.Bytes(), false)
+		encodeStatePool.Put(e2)
 	} else {
 		e.string(v.String(), opts.escapeHTML)
 	}

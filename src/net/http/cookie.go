@@ -7,6 +7,7 @@ package http
 import (
 	"log"
 	"net"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -60,11 +61,11 @@ func readSetCookies(h Header) []*Cookie {
 	}
 	cookies := make([]*Cookie, 0, cookieCount)
 	for _, line := range h["Set-Cookie"] {
-		parts := strings.Split(strings.TrimSpace(line), ";")
+		parts := strings.Split(textproto.TrimString(line), ";")
 		if len(parts) == 1 && parts[0] == "" {
 			continue
 		}
-		parts[0] = strings.TrimSpace(parts[0])
+		parts[0] = textproto.TrimString(parts[0])
 		j := strings.Index(parts[0], "=")
 		if j < 0 {
 			continue
@@ -83,7 +84,7 @@ func readSetCookies(h Header) []*Cookie {
 			Raw:   line,
 		}
 		for i := 1; i < len(parts); i++ {
-			parts[i] = strings.TrimSpace(parts[i])
+			parts[i] = textproto.TrimString(parts[i])
 			if len(parts[i]) == 0 {
 				continue
 			}
@@ -242,7 +243,7 @@ func readCookies(h Header, filter string) []*Cookie {
 
 	cookies := make([]*Cookie, 0, len(lines)+strings.Count(lines[0], ";"))
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
+		line = textproto.TrimString(line)
 
 		var part string
 		for len(line) > 0 { // continue since we have rest
@@ -251,7 +252,7 @@ func readCookies(h Header, filter string) []*Cookie {
 			} else {
 				part, line = line, ""
 			}
-			part = strings.TrimSpace(part)
+			part = textproto.TrimString(part)
 			if len(part) == 0 {
 				continue
 			}
