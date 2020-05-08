@@ -560,13 +560,13 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	return val, false
+func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc2, *loader.ExtReloc, loader.Sym, int64) (int64, bool, bool) {
+	return -1, false, false
 }
 
-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
-	return t
+	return -1
 }
 
 func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {

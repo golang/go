@@ -442,7 +442,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	return true
 }
 
-func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (int64, bool, bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (int64, bool, bool) {
 	const extRelocNeeded = true
 	const extRelocNotNeeded = false
 	const isOk = true
@@ -679,7 +679,7 @@ func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r load
 	return val, false, false
 }
 
-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }

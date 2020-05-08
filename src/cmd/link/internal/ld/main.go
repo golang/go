@@ -318,26 +318,18 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Asmb")
 	ctxt.loader.InitOutData()
 	thearch.Asmb(ctxt, ctxt.loader)
-	newreloc := ctxt.Is386() || ctxt.IsAMD64() || ctxt.IsARM() || ctxt.IsARM64() || ctxt.IsMIPS() || ctxt.IsMIPS64() || ctxt.IsRISCV64() || ctxt.IsS390X() || ctxt.IsWasm() || ctxt.IsPPC64()
+	bench.Start("reloc")
+	ctxt.reloc()
 	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows()
-	if newreloc {
-		bench.Start("reloc")
-		ctxt.reloc()
-		if !newasmb2 {
-			bench.Start("loadlibfull")
-			// We don't need relocations at this point.
-			// Wasm is an exception, where it applies text relocations in Asmb2.
-			needReloc := ctxt.IsWasm()
-			// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
-			// need conversion. Otherwise we do.
-			needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
-			ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
-		}
-	} else {
+	if !newasmb2 {
 		bench.Start("loadlibfull")
-		ctxt.loadlibfull(symGroupType, true, false) // XXX do it here for now
-		bench.Start("reloc")
-		ctxt.reloc2()
+		// We don't need relocations at this point.
+		// Wasm is an exception, where it applies text relocations in Asmb2.
+		needReloc := ctxt.IsWasm()
+		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
+		// need conversion. Otherwise we do.
+		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
+		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
 	}
 	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)

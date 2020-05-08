@@ -272,14 +272,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 			var rp *loader.ExtReloc
 			if target.IsExternal() {
-				// Don't pass &rr directly to Archreloc2, which will escape rr
+				// Don't pass &rr directly to Archreloc, which will escape rr
 				// even if this case is not taken. Instead, as Archreloc2 will
 				// likely return true, we speculatively add rr to extRelocs
-				// and use that space to pass to Archreloc2.
+				// and use that space to pass to Archreloc.
 				extRelocs = append(extRelocs, rr)
 				rp = &extRelocs[len(extRelocs)-1]
 			}
-			out, needExtReloc1, ok := thearch.Archreloc2(target, ldr, syms, r, rp, s, o)
+			out, needExtReloc1, ok := thearch.Archreloc(target, ldr, syms, r, rp, s, o)
 			if target.IsExternal() && !needExtReloc1 {
 				// Speculation failed. Undo the append.
 				extRelocs = extRelocs[:len(extRelocs)-1]
@@ -557,7 +557,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 		if target.IsPPC64() || target.IsS390X() {
 			if rv != sym.RV_NONE {
-				o = thearch.Archrelocvariant2(target, ldr, r, rv, s, o)
+				o = thearch.Archrelocvariant(target, ldr, r, rv, s, o)
 			}
 		}
 

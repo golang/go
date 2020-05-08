@@ -98,7 +98,7 @@ func applyrel(arch *sys.Arch, ldr *loader.Loader, rt objabi.RelocType, off int32
 	}
 }
 
-func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
@@ -155,7 +155,7 @@ func archreloc2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r load
 	return val, false, false
 }
 
-func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
 	return -1
 }
 
