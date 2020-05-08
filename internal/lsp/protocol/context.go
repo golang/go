@@ -1,11 +1,12 @@
 package protocol
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -28,7 +29,10 @@ func LogEvent(ctx context.Context, ev core.Event, tags label.Map) context.Contex
 	if !ok {
 		return ctx
 	}
-	msg := &LogMessageParams{Type: Info, Message: fmt.Sprint(ev)}
+	buf := &bytes.Buffer{}
+	p := export.Printer{}
+	p.WriteEvent(buf, ev, tags)
+	msg := &LogMessageParams{Type: Info, Message: buf.String()}
 	if event.IsError(ev) {
 		msg.Type = Error
 	}

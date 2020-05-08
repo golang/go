@@ -545,6 +545,8 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 }
 
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
+	p := export.Printer{}
+	var pMu sync.Mutex
 	return func(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 		i := GetInstance(ctx)
 
@@ -555,7 +557,9 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 			}
 			// Make sure any log messages without an instance go to stderr.
 			if i == nil {
-				fmt.Fprintf(stderr, "%v\n", ev)
+				pMu.Lock()
+				p.WriteEvent(stderr, ev, lm)
+				pMu.Unlock()
 			}
 		}
 		ctx = protocol.LogEvent(ctx, ev, lm)
