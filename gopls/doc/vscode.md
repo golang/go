@@ -52,6 +52,16 @@ See the section on [command line](command-line.md) arguments for more informatio
 
 You can disable features through the `"go.languageServerExperimentalFeatures"` section of the config. An example of a feature you may want to disable is `"documentLink"`, which opens [`pkg.go.dev`](https://pkg.go.dev) links when you click on import statements in your file.
 
+### Build tags
+
+build tags will not be picked from `go.buildTags` configuration section, instead they should be specified as part of the`GOFLAGS` environment variable:
+
+```json5
+"go.toolsEnvVars": {
+    "GOFLAGS": "-tags=<yourtag>"
+}
+```
+
 
 [VSCode-Go]: https://github.com/microsoft/vscode-go
 
