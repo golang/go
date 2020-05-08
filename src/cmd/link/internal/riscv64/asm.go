@@ -129,7 +129,7 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	wg.Wait()
 }
 
-func asmb2(ctxt *ld.Link) {
+func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	ld.Symsize = 0
 	ld.Lcsize = 0
 	symo := uint32(0)
