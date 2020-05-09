@@ -112,7 +112,7 @@ func ExampleWithValue() {
 	ctx := context.WithValue(context.Background(), k, "Go")
 
 	f(ctx, k)
-	f(ctx, favContextKey("color"))
+	f(ctx, "color")
 
 	// Output:
 	// found value: Go
