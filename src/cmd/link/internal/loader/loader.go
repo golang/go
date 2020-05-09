@@ -198,7 +198,9 @@ type Loader struct {
 	payloadBatch []extSymPayload
 	payloads     []*extSymPayload // contents of linker-materialized external syms
 	values       []int64          // symbol values, indexed by global sym index
-	sects        []*sym.Section   // symbol's section, indexed by global index
+
+	sects    []*sym.Section // sections
+	symSects []uint16       // symbol's section, index to sects array
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -326,6 +328,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
 		elfsetstring:         elfsetstring,
+		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
 }
 
@@ -947,10 +950,30 @@ func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
 // become regular linker symbols and symbols go on the Sub list of
 // their section) and for constructing the global offset table when
 // internally linking a dynamic executable.
+//
+// Note that in later stages of the linker, we set Outer(S) to some
+// container symbol C, but don't set Sub(C). Thus we have two
+// distinct scenarios:
+//
+// - Outer symbol covers the address ranges of its sub-symbols.
+//   Outer.Sub is set in this case.
+// - Outer symbol doesn't conver the address ranges. It is zero-sized
+//   and doesn't have sub-symbols. In the case, the inner symbol is
+//   not actually a "SubSymbol". (Tricky!)
+//
+// This method returns TRUE only for sub-symbols in the first scenario.
+//
+// FIXME: would be better to do away with this and have a better way
+// to represent container symbols.
+
 func (l *Loader) AttrSubSymbol(i Sym) bool {
 	// we don't explicitly store this attribute any more -- return
 	// a value based on the sub-symbol setting.
-	return l.OuterSym(i) != 0
+	o := l.OuterSym(i)
+	if o == 0 {
+		return false
+	}
+	return l.SubSym(o) != 0
 }
 
 // Note that we don't have a 'SetAttrSubSymbol' method in the loader;
@@ -990,7 +1013,6 @@ func (l *Loader) growValues(reqLen int) {
 	curLen := len(l.values)
 	if reqLen > curLen {
 		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
-		l.sects = append(l.sects, make([]*sym.Section, reqLen+1-curLen)...)
 	}
 }
 
@@ -1053,12 +1075,35 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 
 // SymValue returns the section of the i-th symbol. i is global index.
 func (l *Loader) SymSect(i Sym) *sym.Section {
-	return l.sects[i]
+	return l.sects[l.symSects[i]]
 }
 
 // SetSymValue sets the section of the i-th symbol. i is global index.
 func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
-	l.sects[i] = sect
+	if int(i) >= len(l.symSects) {
+		l.symSects = append(l.symSects, make([]uint16, l.NSym()-len(l.symSects))...)
+	}
+	l.symSects[i] = sect.Index
+}
+
+// growSects grows the slice used to store symbol sections.
+func (l *Loader) growSects(reqLen int) {
+	curLen := len(l.symSects)
+	if reqLen > curLen {
+		l.symSects = append(l.symSects, make([]uint16, reqLen+1-curLen)...)
+	}
+}
+
+// NewSection creates a new (output) section.
+func (l *Loader) NewSection() *sym.Section {
+	sect := new(sym.Section)
+	idx := len(l.sects)
+	if idx != int(uint16(idx)) {
+		panic("too many sections created")
+	}
+	sect.Index = uint16(idx)
+	l.sects = append(l.sects, sect)
+	return sect
 }
 
 // SymDynImplib returns the "dynimplib" attribute for the specified
@@ -1396,6 +1441,16 @@ func (l *Loader) SubSym(i Sym) Sym {
 	// NB: note -- no check for l.isExternal(), since I am pretty sure
 	// that later phases in the linker set subsym for "type." syms
 	return l.sub[i]
+}
+
+// SetOuterSym sets the outer symbol of i to o (without setting
+// sub symbols).
+func (l *Loader) SetOuterSym(i Sym, o Sym) {
+	if o != 0 {
+		l.outer[i] = o
+	} else {
+		delete(l.outer, i)
+	}
 }
 
 // Initialize Reachable bitmap and its siblings for running deadcode pass.
@@ -1769,26 +1824,27 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 
 // Add non-package symbols and references to external symbols (which are always
 // named).
-func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
+func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	for _, o := range l.objs[1:] {
 		l.preloadSyms(o.r, nonPkgDef)
 	}
 	for _, o := range l.objs[1:] {
-		loadObjRefs(l, o.r, syms)
+		loadObjRefs(l, o.r, arch)
 	}
 }
 
-func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
+func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
 		osym := r.Sym(ndef + i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+		gi := r.syms[ndef+i]
 		if osym.Local() {
-			gi := r.syms[ndef+i]
 			l.SetAttrLocal(gi, true)
 		}
+		l.preprocess(arch, gi, name)
 	}
 }
 
@@ -1806,24 +1862,29 @@ func abiToVer(abi uint16, localSymVersion int) int {
 	return v
 }
 
-func preprocess(arch *sys.Arch, s *sym.Symbol) {
-	if s.Name != "" && s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
-		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+// preprocess looks for integer/floating point constant symbols whose
+// content is encoded into the symbol name, and promotes them into
+// real symbols with RODATA type and a payload that matches the
+// encoded content.
+func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
+	if name != "" && name[0] == '$' && len(name) > 5 && l.SymType(s) == 0 && len(l.Data(s)) == 0 {
+		x, err := strconv.ParseUint(name[5:], 16, 64)
 		if err != nil {
-			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
+			log.Panicf("failed to parse $-symbol %s: %v", name, err)
 		}
-		s.Type = sym.SRODATA
-		s.Attr |= sym.AttrLocal
-		switch s.Name[:5] {
+		su := l.MakeSymbolUpdater(s)
+		su.SetType(sym.SRODATA)
+		su.SetLocal(true)
+		switch name[:5] {
 		case "$f32.":
 			if uint64(uint32(x)) != x {
-				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+				log.Panicf("$-symbol %s too large: %d", name, x)
 			}
-			s.AddUint32(arch, uint32(x))
+			su.AddUint32(arch, uint32(x))
 		case "$f64.", "$i64.":
-			s.AddUint64(arch, x)
+			su.AddUint64(arch, x)
 		default:
-			log.Panicf("unrecognized $-symbol: %s", s.Name)
+			log.Panicf("unrecognized $-symbol: %s", name)
 		}
 	}
 }
@@ -1832,6 +1893,7 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
 func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// create all Symbols first.
 	l.growSyms(l.NSym())
+	l.growSects(l.NSym())
 
 	nr := 0 // total number of sym.Reloc's we'll need
 	for _, o := range l.objs[1:] {
@@ -1893,9 +1955,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 		// Transfer over attributes.
 		l.migrateAttributes(i, s)
-
-		// Preprocess symbol. May set 'AttrLocal'.
-		preprocess(arch, s)
 	}
 
 	// load contents of defined symbols
@@ -1909,8 +1968,6 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 	// Resolve ABI aliases for external symbols. This is only
 	// needed for internal cgo linking.
-	// (The old code does this in deadcode, but deadcode2 doesn't
-	// do this.)
 	for _, i := range l.extReader.syms {
 		if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
 			for ri := range s.R {
@@ -2094,7 +2151,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 
 // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
 // ported to the new symbol type.
-func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbol) {
+func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
 	// created via loader.Create (marked with versions less than zero), since
 	// if we tried to add these we'd wind up with collisions. We do, however,
@@ -2112,13 +2169,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 		if s.Version < 0 {
 			s.Version = int16(anonVerReplacement)
 		}
-	}
-
-	for i, s := range l.Reachparent {
-		if i == 0 {
-			continue
-		}
-		rp[l.Syms[i]] = l.Syms[s]
 	}
 
 	// Provide lookup functions for sym.Symbols.
@@ -2204,13 +2254,15 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 		// NB: for the test below, we can skip most anonymous symbols
-		// since they will never be turned into sym.Symbols (ex:
-		// funcdata), however DWARF subprogram DIE symbols (which are
-		// nameless) will eventually need to be turned into
-		// sym.Symbols (with relocations), so the simplest thing to do
-		// is include them as part of this loop.
-		if name == "" && t != sym.SDWARFINFO {
-			continue
+		// since they will never be turned into sym.Symbols (eg:
+		// funcdata). DWARF symbols are an exception however -- we
+		// want to include all reachable but nameless DWARF symbols.
+		if name == "" {
+			switch t {
+			case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES:
+			default:
+				continue
+			}
 		}
 		ver := abiToVer(osym.ABI(), r.version)
 		if t == sym.SXREF {
@@ -2225,30 +2277,10 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 			continue
 		}
 
-		s := l.addNewSym(gi, name, ver, r.unit, t)
-		l.migrateAttributes(gi, s)
+		l.addNewSym(gi, name, ver, r.unit, t)
 		nr += r.NReloc(i)
 	}
 	return nr
-}
-
-// funcInfoSym records the sym.Symbol for a function, along with a copy
-// of the corresponding goobj2.Sym and the index of its FuncInfo aux sym.
-// We use this to delay populating FuncInfo until we can batch-allocate
-// slices for their sub-objects.
-type funcInfoSym struct {
-	s    *sym.Symbol // sym.Symbol for a live function
-	osym *goobj2.Sym // object file symbol data for that function
-	isym int         // global symbol index of FuncInfo aux sym for func
-}
-
-// funcAllocInfo records totals/counts for all functions in an objfile;
-// used to help with bulk allocation of sym.Symbol sub-objects.
-type funcAllocInfo struct {
-	symPtr  uint32 // number of *sym.Symbol's needed in file slices
-	inlCall uint32 // number of sym.InlinedCall's needed in inltree slices
-	pcData  uint32 // number of sym.Pcdata's needed in pdata slices
-	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
 }
 
 // cloneToExternal takes the existing object file symbol (symIdx)
@@ -2397,10 +2429,9 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 		dst.Sub = l.Syms[sub]
 	}
 
-	// Set sub-symbol attribute. FIXME: would be better to do away
-	// with this and just use l.OuterSymbol() != 0 elsewhere within
-	// the linker.
-	dst.Attr.Set(sym.AttrSubSymbol, dst.Outer != nil)
+	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
+	// method for more on this, there is some tricky stuff here.
+	dst.Attr.Set(sym.AttrSubSymbol, l.outer[src] != 0 && l.sub[l.outer[src]] != 0)
 
 	// Copy over dynimplib, dynimpvers, extname.
 	if name, ok := l.extname[src]; ok {
@@ -2467,10 +2498,11 @@ func loadObjFull(l *Loader, r *oReader) {
 			continue
 		}
 
+		l.migrateAttributes(gi, s)
+		// Be careful not to overwrite attributes set by the linker.
+		// Don't use the attributes from the object file.
+
 		osym := r.Sym(i)
-		dupok := osym.Dupok()
-		local := osym.Local()
-		makeTypelink := osym.Typelink()
 		size := osym.Siz()
 
 		// Symbol data
@@ -2504,14 +2536,9 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 
 		s.File = r.pkgprefix[:len(r.pkgprefix)-1]
-		if dupok {
-			s.Attr |= sym.AttrDuplicateOK
-		}
 		if s.Size < int64(size) {
 			s.Size = int64(size)
 		}
-		s.Attr.Set(sym.AttrLocal, local)
-		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
 	}
 }
 
@@ -2681,19 +2708,17 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 		}
 	}
 
-	// Now redo the assignment of text symbols to libs/units.
+	// Now assemble global textp, and assign text symbols to units.
 	for _, doInternal := range [2]bool{true, false} {
 		for idx, lib := range libs {
 			if intlibs[idx] != doInternal {
 				continue
 			}
-			libtextp2 := []sym.LoaderSym{}
 			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
-						libtextp2 = append(libtextp2, s)
 						textp2 = append(textp2, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {
@@ -2711,7 +2736,8 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 					}
 				}
 			}
-			lib.Textp2 = libtextp2
+			lib.Textp2 = nil
+			lib.DupTextSyms2 = nil
 		}
 	}
 

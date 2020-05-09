@@ -977,6 +977,26 @@ func TestGoroutineCounts(t *testing.T) {
 			runtime.Gosched()
 		}
 	}
+	ctx := context.Background()
+
+	// ... and again, with labels this time (just with fewer iterations to keep
+	// sorting deterministic).
+	Do(ctx, Labels("label", "value"), func(context.Context) {
+		for i := 0; i < 89; i++ {
+			switch {
+			case i%10 == 0:
+				go func1(c)
+			case i%2 == 0:
+				go func2(c)
+			default:
+				go func3(c)
+			}
+			// Let goroutines block on channel
+			for j := 0; j < 5; j++ {
+				runtime.Gosched()
+			}
+		}
+	})
 
 	var w bytes.Buffer
 	goroutineProf := Lookup("goroutine")
@@ -985,8 +1005,11 @@ func TestGoroutineCounts(t *testing.T) {
 	goroutineProf.WriteTo(&w, 1)
 	prof := w.String()
 
-	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
-		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+	labels := labelMap{"label": "value"}
+	labelStr := "\n# labels: " + labels.String()
+	if !containsInOrder(prof, "\n50 @ ", "\n44 @", labelStr,
+		"\n40 @", "\n36 @", labelStr, "\n10 @", "\n9 @", labelStr, "\n1 @") {
+		t.Errorf("expected sorted goroutine counts with Labels:\n%s", prof)
 	}
 
 	// Check proto profile
@@ -999,9 +1022,18 @@ func TestGoroutineCounts(t *testing.T) {
 	if err := p.CheckValid(); err != nil {
 		t.Errorf("protobuf profile is invalid: %v", err)
 	}
-	if !containsCounts(p, []int64{50, 40, 10, 1}) {
-		t.Errorf("expected count profile to contain goroutines with counts %v, got %v",
-			[]int64{50, 40, 10, 1}, p)
+	expectedLabels := map[int64]map[string]string{
+		50: map[string]string{},
+		44: map[string]string{"label": "value"},
+		40: map[string]string{},
+		36: map[string]string{"label": "value"},
+		10: map[string]string{},
+		9:  map[string]string{"label": "value"},
+		1:  map[string]string{},
+	}
+	if !containsCountsLabels(p, expectedLabels) {
+		t.Errorf("expected count profile to contain goroutines with counts and labels %v, got %v",
+			expectedLabels, p)
 	}
 
 	close(c)
@@ -1020,10 +1052,23 @@ func containsInOrder(s string, all ...string) bool {
 	return true
 }
 
-func containsCounts(prof *profile.Profile, counts []int64) bool {
+func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[string]string) bool {
 	m := make(map[int64]int)
-	for _, c := range counts {
+	type nkey struct {
+		count    int64
+		key, val string
+	}
+	n := make(map[nkey]int)
+	for c, kv := range countLabels {
 		m[c]++
+		for k, v := range kv {
+			n[nkey{
+				count: c,
+				key:   k,
+				val:   v,
+			}]++
+
+		}
 	}
 	for _, s := range prof.Sample {
 		// The count is the single value in the sample
@@ -1031,9 +1076,23 @@ func containsCounts(prof *profile.Profile, counts []int64) bool {
 			return false
 		}
 		m[s.Value[0]]--
+		for k, vs := range s.Label {
+			for _, v := range vs {
+				n[nkey{
+					count: s.Value[0],
+					key:   k,
+					val:   v,
+				}]--
+			}
+		}
 	}
 	for _, n := range m {
 		if n > 0 {
+			return false
+		}
+	}
+	for _, ncnt := range n {
+		if ncnt != 0 {
 			return false
 		}
 	}

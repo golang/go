@@ -2169,6 +2169,39 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	desc := p.ImportPath
 	outfile = mkAbs(p.Dir, outfile)
 
+	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
+	// This is needed for source files (e.g., a .c file in a package directory).
+	// TODO(golang.org/issue/36072): cgo also generates files with #line
+	// directives pointing to the source directory. It should not generate those
+	// when -trimpath is enabled.
+	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+		if cfg.BuildTrimpath {
+			// Keep in sync with Action.trimpath.
+			// The trimmed paths are a little different, but we need to trim in the
+			// same situations.
+			var from, toPath string
+			if m := p.Module; m != nil {
+				from = m.Dir
+				toPath = m.Path + "@" + m.Version
+			} else {
+				from = p.Dir
+				toPath = p.ImportPath
+			}
+			// -fdebug-prefix-map requires an absolute "to" path (or it joins the path
+			// with the working directory). Pick something that makes sense for the
+			// target platform.
+			var to string
+			if cfg.BuildContext.GOOS == "windows" {
+				to = filepath.Join(`\\_\_`, toPath)
+			} else {
+				to = filepath.Join("/_", toPath)
+			}
+			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
+		} else if p.Goroot && cfg.GOROOT_FINAL != cfg.GOROOT {
+			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+cfg.GOROOT+"="+cfg.GOROOT_FINAL)
+		}
+	}
+
 	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it
@@ -2972,13 +3005,13 @@ func mkAbsFiles(dir string, files []string) []string {
 	return abs
 }
 
-// passLongArgsInResponseFiles modifies cmd on Windows such that, for
+// passLongArgsInResponseFiles modifies cmd such that, for
 // certain programs, long arguments are passed in "response files", a
 // file on disk with the arguments, with one arg per line. An actual
 // argument starting with '@' means that the rest of the argument is
 // a filename of arguments to expand.
 //
-// See Issue 18468.
+// See issues 18468 (Windows) and 37768 (Darwin).
 func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	cleanup = func() {} // no cleanup by default
 
@@ -3016,11 +3049,6 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 }
 
 func useResponseFile(path string, argLen int) bool {
-	// Unless we're on Windows, don't use response files.
-	if runtime.GOOS != "windows" {
-		return false
-	}
-
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
 	// TODO: do we need more commands? asm? cgo? For now, no.
@@ -3033,6 +3061,8 @@ func useResponseFile(path string, argLen int) bool {
 
 	// Windows has a limit of 32 KB arguments. To be conservative and not
 	// worry about whether that includes spaces or not, just use 30 KB.
+	// Darwin's limit is less clear. The OS claims 256KB, but we've seen
+	// failures with arglen as small as 50KB.
 	if argLen > (30 << 10) {
 		return true
 	}

@@ -148,9 +148,14 @@ func (s *pageAlloc) allocToCache() pageCache {
 	// Update as an allocation, but note that it's not contiguous.
 	s.update(c.base, pageCachePages, false, true)
 
-	// We're always searching for the first free page, and we always know the
-	// up to pageCache size bits will be allocated, so we can always move the
-	// searchAddr past the cache.
-	s.searchAddr = c.base + pageSize*pageCachePages
+	// Set the search address to the last page represented by the cache.
+	// Since all of the pages in this block are going to the cache, and we
+	// searched for the first free page, we can confidently start at the
+	// next page.
+	//
+	// However, s.searchAddr is not allowed to point into unmapped heap memory
+	// unless it is maxSearchAddr, so make it the last page as opposed to
+	// the page after.
+	s.searchAddr = c.base + pageSize*(pageCachePages-1)
 	return c
 }

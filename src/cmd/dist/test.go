@@ -459,6 +459,17 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	if t.iOS() && !t.compileOnly {
+		t.tests = append(t.tests, distTest{
+			name:    "x509omitbundledroots",
+			heading: "crypto/x509 without bundled roots",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=x509omitbundledroots", "-run=OmitBundledRoots", "crypto/x509")
+				return nil
+			},
+		})
+	}
+
 	if t.race {
 		return
 	}

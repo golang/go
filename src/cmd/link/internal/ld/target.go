@@ -28,6 +28,10 @@ type Target struct {
 // Target type functions
 //
 
+func (t *Target) IsExe() bool {
+	return t.BuildMode == BuildModeExe
+}
+
 func (t *Target) IsShared() bool {
 	return t.BuildMode == BuildModeShared
 }

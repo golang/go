@@ -41,6 +41,7 @@ func main() {
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
 	ctxt.Flag_go115newobj = *flags.Go115Newobj
+	ctxt.IsAsm = true
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)

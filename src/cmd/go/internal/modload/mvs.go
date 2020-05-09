@@ -7,7 +7,6 @@ package modload
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +14,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
@@ -108,7 +108,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 				dir = filepath.Join(ModRoot(), dir)
 			}
 			gomod := filepath.Join(dir, "go.mod")
-			data, err := ioutil.ReadFile(gomod)
+			data, err := lockedfile.Read(gomod)
 			if err != nil {
 				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
 			}

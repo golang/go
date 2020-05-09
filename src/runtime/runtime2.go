@@ -980,6 +980,7 @@ const (
 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
 	waitReasonPreempted                               // "preempted"
+	waitReasonDebugCall                               // "debug call"
 )
 
 var waitReasonStrings = [...]string{
@@ -1009,6 +1010,7 @@ var waitReasonStrings = [...]string{
 	waitReasonWaitForGCCycle:        "wait for GC cycle",
 	waitReasonGCWorkerIdle:          "GC worker (idle)",
 	waitReasonPreempted:             "preempted",
+	waitReasonDebugCall:             "debug call",
 }
 
 func (w waitReason) String() string {

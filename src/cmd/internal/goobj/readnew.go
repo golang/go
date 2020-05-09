@@ -54,8 +54,10 @@ func (r *objReader) readNew() {
 		case goobj2.PkgIdxSelf:
 			i = int(s.SymIdx)
 		default:
+			// Symbol from other package, referenced by index.
+			// We don't know the name. Use index.
 			pkg := pkglist[p]
-			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
+			return SymID{fmt.Sprintf("%s.#%d", pkg, s.SymIdx), 0}
 		}
 		sym := rr.Sym(i)
 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
@@ -66,6 +68,7 @@ func (r *objReader) readNew() {
 	// Symbols
 	pcdataBase := start + rr.PcdataBase()
 	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
+	npkgdef := rr.NSym()
 	ndef := rr.NSym() + rr.NNonpkgdef()
 	for i := 0; i < n; i++ {
 		osym := rr.Sym(i)
@@ -76,6 +79,10 @@ func (r *objReader) readNew() {
 		// prefix for the package in which the object file has been found.
 		// Expand it.
 		name := strings.ReplaceAll(osym.Name(rr), `"".`, r.pkgprefix)
+		if i < npkgdef {
+			// Indexed symbol. Attach index to the name.
+			name += fmt.Sprintf("#%d", i)
+		}
 		symID := SymID{Name: name, Version: abiToVer(osym.ABI())}
 		r.p.SymRefs = append(r.p.SymRefs, symID)
 

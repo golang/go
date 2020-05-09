@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -325,11 +324,13 @@ func recurseFnPanicRec(level int, maxlevel int) {
 	recurseFn(level, maxlevel)
 }
 
+var saveInt uint32
+
 func recurseFn(level int, maxlevel int) {
 	a := [40]uint32{0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff}
 	if level+1 < maxlevel {
-		// Need this print statement to keep a around.  '_ = a[4]' doesn't do it.
-		fmt.Fprintln(os.Stderr, "recurseFn", level, a[4])
+		// Make sure a array is referenced, so it is not optimized away
+		saveInt = a[4]
 		recurseFn(level+1, maxlevel)
 	} else {
 		panic("recurseFn panic")
@@ -350,12 +351,12 @@ func TestIssue37688(t *testing.T) {
 type foo struct {
 }
 
+//go:noinline
 func (f *foo) method1() {
-	fmt.Fprintln(os.Stderr, "method1")
 }
 
+//go:noinline
 func (f *foo) method2() {
-	fmt.Fprintln(os.Stderr, "method2")
 }
 
 func g2() {
@@ -379,6 +380,10 @@ func g3() {
 	g2()
 }
 
+var globstruct struct {
+	a, b, c, d, e, f, g, h, i int
+}
+
 func ff1(ap *foo, a, b, c, d, e, f, g, h, i int) {
 	defer ap.method1()
 
@@ -387,9 +392,15 @@ func ff1(ap *foo, a, b, c, d, e, f, g, h, i int) {
 	// defer pool)
 	defer func(ap *foo, a, b, c, d, e, f, g, h, i int) {
 		if v := recover(); v != nil {
-			fmt.Fprintln(os.Stderr, "did recover")
 		}
-		fmt.Fprintln(os.Stderr, "debug", ap, a, b, c, d, e, f, g, h)
+		globstruct.a = a
+		globstruct.b = b
+		globstruct.c = c
+		globstruct.d = d
+		globstruct.e = e
+		globstruct.f = f
+		globstruct.g = g
+		globstruct.h = h
 	}(ap, a, b, c, d, e, f, g, h, i)
 	panic("ff1 panic")
 }
@@ -397,7 +408,5 @@ func ff1(ap *foo, a, b, c, d, e, f, g, h, i int) {
 func rec1(max int) {
 	if max > 0 {
 		rec1(max - 1)
-	} else {
-		fmt.Fprintln(os.Stderr, "finished recursion", max)
 	}
 }

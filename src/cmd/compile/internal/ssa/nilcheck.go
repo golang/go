@@ -171,10 +171,7 @@ func nilcheckelim(f *Func) {
 				b.Pos = b.Pos.WithIsStmt()
 				pendingLines.remove(b.Pos)
 			}
-			for j := i; j < len(b.Values); j++ {
-				b.Values[j] = nil
-			}
-			b.Values = b.Values[:i]
+			b.truncateValues(i)
 
 			// Add all dominated blocks to the work list.
 			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {
@@ -331,10 +328,7 @@ func nilcheckelim2(f *Func) {
 			b.Pos = b.Pos.WithIsStmt()
 		}
 
-		for j := i; j < len(b.Values); j++ {
-			b.Values[j] = nil
-		}
-		b.Values = b.Values[:i]
+		b.truncateValues(i)
 
 		// TODO: if b.Kind == BlockPlain, start the analysis in the subsequent block to find
 		// more unnecessary nil checks.  Would fix test/nilptr3.go:159.

@@ -451,7 +451,7 @@ func testDWARF(t *testing.T, linktype int) {
 				}
 				offset := uintptr(addr) - imageBase
 				if offset != uintptr(wantoffset) {
-					t.Fatal("Runtime offset (0x%x) did "+
+					t.Fatalf("Runtime offset (0x%x) did "+
 						"not match dwarf offset "+
 						"(0x%x)", wantoffset, offset)
 				}

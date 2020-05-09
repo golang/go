@@ -45,6 +45,14 @@ func isRuntimePkg(p *types.Pkg) bool {
 	return p.Path == "runtime"
 }
 
+// isReflectPkg reports whether p is package reflect.
+func isReflectPkg(p *types.Pkg) bool {
+	if p == localpkg {
+		return myimportpath == "reflect"
+	}
+	return p.Path == "reflect"
+}
+
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.

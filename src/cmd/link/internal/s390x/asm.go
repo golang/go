@@ -515,7 +515,6 @@ func asmb2(ctxt *ld.Link) {
 
 		ctxt.Out.SeekSet(int64(symo))
 		ld.Asmelfsym(ctxt)
-		ctxt.Out.Flush()
 		ctxt.Out.Write(ld.Elfstrdat)
 
 		if ctxt.LinkMode == ld.LinkExternal {
@@ -531,7 +530,6 @@ func asmb2(ctxt *ld.Link) {
 		ld.Asmbelf(ctxt, int64(symo))
 	}
 
-	ctxt.Out.Flush()
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)

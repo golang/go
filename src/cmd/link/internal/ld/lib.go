@@ -561,7 +561,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// Add non-package symbols and references of externally defined symbols.
-	ctxt.loader.LoadNonpkgSyms(ctxt.Syms)
+	ctxt.loader.LoadNonpkgSyms(ctxt.Arch)
 
 	// Load symbols from shared libraries, after all Go object symbols are loaded.
 	for _, lib := range ctxt.Library {
@@ -2218,8 +2218,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
 }
 
-func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
-	sect := new(sym.Section)
+func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+	sect := ldr.NewSection()
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
@@ -2627,6 +2627,16 @@ func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
 	s.Attr |= sym.AttrLocal
 }
 
+func (ctxt *Link) xdefine2(p string, t sym.SymKind, v int64) {
+	ldr := ctxt.loader
+	s := ldr.CreateSymForUpdate(p, 0)
+	s.SetType(t)
+	s.SetValue(v)
+	s.SetReachable(true)
+	s.SetSpecial(true)
+	s.SetLocal(true)
+}
+
 func datoff(s *sym.Symbol, addr int64) int64 {
 	if uint64(addr) >= Segdata.Vaddr {
 		return int64(uint64(addr) - Segdata.Vaddr + Segdata.Fileoff)
@@ -2772,6 +2782,24 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 	*order = append(*order, lib)
 }
 
+// addToTextp populates the context Textp slice.
+func addToTextp(ctxt *Link) {
+	// Set up ctxt.Textp, based on ctxt.Textp2.
+	textp := make([]*sym.Symbol, 0, len(ctxt.Textp2))
+	haveshlibs := len(ctxt.Shlibs) > 0
+	for _, tsym := range ctxt.Textp2 {
+		sp := ctxt.loader.Syms[tsym]
+		if sp == nil || !ctxt.loader.AttrReachable(tsym) {
+			panic("should never happen")
+		}
+		if haveshlibs && sp.Type == sym.SDYNIMPORT {
+			continue
+		}
+		textp = append(textp, sp)
+	}
+	ctxt.Textp = textp
+}
+
 func (ctxt *Link) loadlibfull() {
 
 	// Load full symbol contents, resolve indexed references.
@@ -2784,7 +2812,7 @@ func (ctxt *Link) loadlibfull() {
 	}
 
 	// Pull the symbols out.
-	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
+	ctxt.loader.ExtractSymbols(ctxt.Syms)
 	ctxt.lookup = ctxt.Syms.ROLookup
 
 	// Recreate dynexp using *sym.Symbol instead of loader.Sym
@@ -2798,14 +2826,41 @@ func (ctxt *Link) loadlibfull() {
 	// Set special global symbols.
 	ctxt.setArchSyms(AfterLoadlibFull)
 
-	// Convert special symbols created by pcln.
-	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
-	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
+	// Populate dwarfp from dwarfp2. If we see a symbol index
+	// whose loader.Syms entry is nil, something went wrong.
+	for _, si := range dwarfp2 {
+		syms := make([]*sym.Symbol, 0, len(si.syms))
+		for _, symIdx := range si.syms {
+			s := ctxt.loader.Syms[symIdx]
+			if s == nil {
+				panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
+			}
+			s.Attr |= sym.AttrLocal
+			syms = append(syms, s)
+		}
+		dwarfp = append(dwarfp, dwarfSecInfo2{syms: syms})
+	}
+
+	// For now, overwrite symbol type with its "group" type, as dodata
+	// expected. Once we converted dodata, this will probably not be
+	// needed.
+	for i, t := range symGroupType {
+		if t != sym.Sxxx {
+			ctxt.loader.Syms[i].Type = t
+		}
+	}
+	symGroupType = nil
+
+	if ctxt.Debugvlog > 1 {
+		// loadlibfull is likely a good place to dump.
+		// Only dump under -v=2 and above.
+		ctxt.dumpsyms()
+	}
 }
 
 func (ctxt *Link) dumpsyms() {
 	for _, s := range ctxt.Syms.Allsym {
-		fmt.Printf("%s %s %p %v %v\n", s, s.Type, s, s.Attr.Reachable(), s.Attr.OnList())
+		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
 		for i := range s.R {
 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
 		}
