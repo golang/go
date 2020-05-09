@@ -19,6 +19,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
 	_ "expvar" // to serve /debug/vars
 	"flag"
@@ -44,6 +45,7 @@ import (
 	"golang.org/x/tools/godoc/vfs/gatefs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/xerrors"
 )
 
@@ -210,28 +212,48 @@ func main() {
 			usage()
 		}
 
-		// Try to download dependencies that are not in the module cache in order to
-		// to show their documentation.
-		// This may fail if module downloading is disallowed (GOPROXY=off) or due to
-		// limited connectivity, in which case we print errors to stderr and show
-		// documentation only for packages that are available.
-		fillModuleCache(os.Stderr, goModFile)
-
-		// Determine modules in the build list.
-		mods, err := buildList(goModFile)
+		// Detect whether to use vendor mode or not.
+		mainMod, vendorEnabled, err := gocommand.VendorEnabled(context.Background(), gocommand.Invocation{}, &gocommand.Runner{})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to determine the build list of the main module: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to determine if vendoring is enabled: %v", err)
 			os.Exit(1)
 		}
+		if vendorEnabled {
+			// Bind the root directory of the main module.
+			fs.Bind(path.Join("/src", mainMod.Path), gatefs.New(vfs.OS(mainMod.Dir), fsGate), "/", vfs.BindAfter)
 
-		// Bind module trees into Go root.
-		for _, m := range mods {
-			if m.Dir == "" {
-				// Module is not available in the module cache, skip it.
-				continue
+			// Bind the vendor directory.
+			//
+			// Note that in module mode, vendor directories in locations
+			// other than the main module's root directory are ignored.
+			// See https://golang.org/ref/mod#vendoring.
+			vendorDir := filepath.Join(mainMod.Dir, "vendor")
+			fs.Bind("/src", gatefs.New(vfs.OS(vendorDir), fsGate), "/", vfs.BindAfter)
+
+		} else {
+			// Try to download dependencies that are not in the module cache in order to
+			// to show their documentation.
+			// This may fail if module downloading is disallowed (GOPROXY=off) or due to
+			// limited connectivity, in which case we print errors to stderr and show
+			// documentation only for packages that are available.
+			fillModuleCache(os.Stderr, goModFile)
+
+			// Determine modules in the build list.
+			mods, err := buildList(goModFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to determine the build list of the main module: %v", err)
+				os.Exit(1)
 			}
-			dst := path.Join("/src", m.Path)
-			fs.Bind(dst, gatefs.New(vfs.OS(m.Dir), fsGate), "/", vfs.BindAfter)
+
+			// Bind module trees into Go root.
+			for _, m := range mods {
+				if m.Dir == "" {
+					// Module is not available in the module cache, skip it.
+					continue
+				}
+				dst := path.Join("/src", m.Path)
+				fs.Bind(dst, gatefs.New(vfs.OS(m.Dir), fsGate), "/", vfs.BindAfter)
+			}
 		}
 	} else {
 		fmt.Println("using GOPATH mode")
@@ -395,7 +417,7 @@ func goMod() (string, error) {
 // with all dependencies of the main module in the current directory
 // by invoking the go command. Module download logs are streamed to w.
 // If there are any problems encountered, they are also written to w.
-// It should only be used when operating in module mode.
+// It should only be used in module mode, when vendor mode isn't on.
 //
 // See https://golang.org/cmd/go/#hdr-Download_modules_to_local_cache.
 func fillModuleCache(w io.Writer, goMod string) {
@@ -436,9 +458,14 @@ func fillModuleCache(w io.Writer, goMod string) {
 	}
 }
 
+type mod struct {
+	Path string // Module path.
+	Dir  string // Directory holding files for this module, if any.
+}
+
 // buildList determines the build list in the current directory
-// by invoking the go command. It should only be used when operating
-// in module mode.
+// by invoking the go command. It should only be used in module mode,
+// when vendor mode isn't on.
 //
 // See https://golang.org/cmd/go/#hdr-The_main_module_and_the_build_list.
 func buildList(goMod string) ([]mod, error) {
@@ -465,11 +492,6 @@ func buildList(goMod string) ([]mod, error) {
 		mods = append(mods, m)
 	}
 	return mods, nil
-}
-
-type mod struct {
-	Path string // Module path.
-	Dir  string // Directory holding files for this module, if any.
 }
 
 // moduleFS is a vfs.FileSystem wrapper used when godoc is running
