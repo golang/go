@@ -1,25 +1,28 @@
 package source
 
 import (
-	"go/parser"
-	"go/token"
 	"testing"
 )
 
-func TestTrimToImports(t *testing.T) {
-	const input = `package source
-
-import (
-	m
-	"fmt"
-)
-
-func foo() {
-	fmt.Println("hi")
+type data struct {
+	input, want string
 }
-`
 
-	fs := token.NewFileSet()
-	f, _ := parser.ParseFile(fs, "foo.go", input, parser.ImportsOnly)
-	trimToImports(fs, f, []byte(input))
+func TestImportPrefix(t *testing.T) {
+	var tdata = []data{
+		{"package foo\n", "package foo\n"},
+		{"package foo\n\nfunc f(){}\n", "package foo\n"},
+		{"package foo\n\nimport \"fmt\"\n", "package foo\n\nimport \"fmt\""},
+		{"package foo\nimport (\n\"fmt\"\n)\n", "package foo\nimport (\n\"fmt\"\n)"},
+		{"\n\n\npackage foo\n", "\n\n\npackage foo\n"},
+		{"// hi \n\npackage foo //xx\nfunc _(){}\n", "// hi \n\npackage foo //xx\n"},
+		{"package foo //hi\n", "package foo //hi\n"},
+		{"//hi\npackage foo\n//a\n\n//b\n", "//hi\npackage foo\n//a\n\n//b\n"},
+	}
+	for i, x := range tdata {
+		got := importPrefix("a.go", []byte(x.input))
+		if got != x.want {
+			t.Errorf("%d: got\n%q, wanted\n%q", i, got, x.want)
+		}
+	}
 }

@@ -1,9 +1,5 @@
 -- goimports --
-
-
-
-
-
+// package doc
 package imports //@import("package")
 
 

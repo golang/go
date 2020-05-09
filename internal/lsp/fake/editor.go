@@ -700,3 +700,24 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 	}
 	return lens, nil
 }
+
+// CodeAction executes a codeAction request on the server.
+func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAction, error) {
+	if e.server == nil {
+		return nil, nil
+	}
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.CodeActionParams{
+		TextDocument: e.textDocumentIdentifier(path),
+	}
+	lens, err := e.server.CodeAction(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return lens, nil
+}

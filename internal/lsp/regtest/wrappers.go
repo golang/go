@@ -187,3 +187,14 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 	}
 	return lens
 }
+
+// CodeAction calls testDocument/codeAction for the given path, and calls
+// t.Fatal if there are errors.
+func (e *Env) CodeAction(path string) []protocol.CodeAction {
+	e.T.Helper()
+	actions, err := e.Editor.CodeAction(e.Ctx, path)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return actions
+}
