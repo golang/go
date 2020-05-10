@@ -28,12 +28,6 @@ Use [lsp-mode]. gopls is built in as a client. You first must install `gopls` an
   (setq company-idle-delay 0)
   (setq company-minimum-prefix-length 1))
 
-;; company-lsp integrates company mode completion with lsp-mode.
-;; completion-at-point also works out of the box but doesn't support snippets.
-(use-package company-lsp
-  :ensure t
-  :commands company-lsp)
-
 ;; Optional - provides snippet support.
 (use-package yasnippet
   :ensure t
@@ -64,7 +58,7 @@ Note that after changing settings you must restart gopls using e.g. `M-x lsp-res
 Common errors:
 - When prompted by Emacs for your project folder, if you are using modules you must select the module's root folder (i.e. the directory with the "go.mod"). If you are using GOPATH, select your $GOPATH as your folder.
 - Emacs must have your environment set properly (PATH, GOPATH, etc). You can run `M-x getenv <RET> PATH <RET>` to see if your PATH is set in Emacs. If not, you can try starting Emacs from your terminal, using [this package][exec-path-from-shell], or moving your shell config from .bashrc into .bashenv (or .zshenv).
-- Make sure `lsp-mode`, `lsp-ui` and `company-lsp` are up-to-date, and make sure `lsp-go` is _not_ installed.
+- Make sure `lsp-mode` and `lsp-ui` are up-to-date, also make sure `lsp-go` and `company-lsp` are _not_ installed.
 - Look for errors in the `*lsp-log*` buffer.
 - Ask for help in the #emacs channel on the [Gophers slack].
 
