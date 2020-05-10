@@ -103,7 +103,6 @@ var isExistTests = []isExistTest{
 	{&os.LinkError{Err: os.ErrClosed}, false, false},
 	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
 	{&os.SyscallError{Err: os.ErrExist}, true, false},
-	{&os.SyscallError{Err: os.ErrExist}, true, false},
 	{nil, false, false},
 	// All the above examples with error wrapped.
 	{fmt.Errorf("wrapped: %w", &os.PathError{Err: os.ErrInvalid}), false, false},
@@ -117,7 +116,6 @@ var isExistTests = []isExistTest{
 	{fmt.Errorf("wrapped: %w", &os.LinkError{Err: os.ErrNotExist}), false, true},
 	{fmt.Errorf("wrapped: %w", &os.LinkError{Err: os.ErrClosed}), false, false},
 	{fmt.Errorf("wrapped: %w", &os.SyscallError{Err: os.ErrNotExist}), false, true},
-	{fmt.Errorf("wrapped: %w", &os.SyscallError{Err: os.ErrExist}), true, false},
 	{fmt.Errorf("wrapped: %w", &os.SyscallError{Err: os.ErrExist}), true, false},
 	// Multiple layers of wrapping.
 	{fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", &os.SyscallError{Err: os.ErrExist})), true, false},
