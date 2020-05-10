@@ -103,6 +103,10 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 				declAST = f
 			}
 		}
+		// If there's no package documentation, just use current file.
+		if declAST == nil {
+			declAST = file
+		}
 		declRng, err := posToMappedRange(view, pkg, declAST.Name.Pos(), declAST.Name.End())
 		if err != nil {
 			return nil, err
