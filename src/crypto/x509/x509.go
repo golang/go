@@ -1338,36 +1338,17 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 {
 			switch e.Id[3] {
 			case 15:
-				// RFC 5280, 4.2.1.3
-				var usageBits asn1.BitString
-				if rest, err := asn1.Unmarshal(e.Value, &usageBits); err != nil {
+				out.KeyUsage, err = parseKeyUsageExtension(e.Value)
+				if err != nil {
 					return nil, err
-				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 KeyUsage")
 				}
-
-				var usage int
-				for i := 0; i < 9; i++ {
-					if usageBits.At(i) != 0 {
-						usage |= 1 << uint(i)
-					}
-				}
-				out.KeyUsage = KeyUsage(usage)
-
 			case 19:
-				// RFC 5280, 4.2.1.9
-				var constraints basicConstraints
-				if rest, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
+				out.IsCA, out.MaxPathLen, err = parseBasicConstraintsExtension(e.Value)
+				if err != nil {
 					return nil, err
-				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 BasicConstraints")
 				}
-
 				out.BasicConstraintsValid = true
-				out.IsCA = constraints.IsCA
-				out.MaxPathLen = constraints.MaxPathLen
 				out.MaxPathLenZero = out.MaxPathLen == 0
-				// TODO: map out.MaxPathLen to 0 if it has the -1 default value? (Issue 19285)
 			case 17:
 				out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(e.Value)
 				if err != nil {
@@ -1430,52 +1411,20 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				out.AuthorityKeyId = a.Id
 
 			case 37:
-				// RFC 5280, 4.2.1.12.  Extended Key Usage
-
-				// id-ce-extKeyUsage OBJECT IDENTIFIER ::= { id-ce 37 }
-				//
-				// ExtKeyUsageSyntax ::= SEQUENCE SIZE (1..MAX) OF KeyPurposeId
-				//
-				// KeyPurposeId ::= OBJECT IDENTIFIER
-
-				var keyUsage []asn1.ObjectIdentifier
-				if rest, err := asn1.Unmarshal(e.Value, &keyUsage); err != nil {
+				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
+				if err != nil {
 					return nil, err
-				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 ExtendedKeyUsage")
 				}
-
-				for _, u := range keyUsage {
-					if extKeyUsage, ok := extKeyUsageFromOID(u); ok {
-						out.ExtKeyUsage = append(out.ExtKeyUsage, extKeyUsage)
-					} else {
-						out.UnknownExtKeyUsage = append(out.UnknownExtKeyUsage, u)
-					}
-				}
-
 			case 14:
-				// RFC 5280, 4.2.1.2
-				var keyid []byte
-				if rest, err := asn1.Unmarshal(e.Value, &keyid); err != nil {
+				out.SubjectKeyId, err = parseSubjectKeyIdExtension(e.Value)
+				if err != nil {
 					return nil, err
-				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 key-id")
 				}
-				out.SubjectKeyId = keyid
-
 			case 32:
-				// RFC 5280 4.2.1.4: Certificate Policies
-				var policies []policyInformation
-				if rest, err := asn1.Unmarshal(e.Value, &policies); err != nil {
+				out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(e.Value)
+				if err != nil {
 					return nil, err
-				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 certificate policies")
 				}
-				out.PolicyIdentifiers = make([]asn1.ObjectIdentifier, len(policies))
-				for i, policy := range policies {
-					out.PolicyIdentifiers[i] = policy.Policy
-				}
-
 			default:
 				// Unknown extensions are recorded if critical.
 				unhandled = true
@@ -1511,6 +1460,87 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 	}
 
 	return out, nil
+}
+
+// parseKeyUsageExtension parses id-ce-keyUsage (2.5.29.15) from RFC 5280
+// Section 4.2.1.3
+func parseKeyUsageExtension(ext []byte) (KeyUsage, error) {
+	var usageBits asn1.BitString
+	if rest, err := asn1.Unmarshal(ext, &usageBits); err != nil {
+		return 0, err
+	} else if len(rest) != 0 {
+		return 0, errors.New("x509: trailing data after X.509 KeyUsage")
+	}
+
+	var usage int
+	for i := 0; i < 9; i++ {
+		if usageBits.At(i) != 0 {
+			usage |= 1 << uint(i)
+		}
+	}
+	return KeyUsage(usage), nil
+}
+
+// parseBasicConstraintsExtension parses id-ce-basicConstraints (2.5.29.19)
+// from RFC 5280 Section 4.2.1.9
+func parseBasicConstraintsExtension(ext []byte) (isCA bool, maxPathLen int, err error) {
+	var constraints basicConstraints
+	if rest, err := asn1.Unmarshal(ext, &constraints); err != nil {
+		return false, 0, err
+	} else if len(rest) != 0 {
+		return false, 0, errors.New("x509: trailing data after X.509 BasicConstraints")
+	}
+
+	// TODO: map out.MaxPathLen to 0 if it has the -1 default value? (Issue 19285)
+	return constraints.IsCA, constraints.MaxPathLen, nil
+}
+
+// parseExtKeyUsageExtension parses id-ce-extKeyUsage (2.5.29.37) from
+// RFC 5280 Section 4.2.1.12
+func parseExtKeyUsageExtension(ext []byte) ([]ExtKeyUsage, []asn1.ObjectIdentifier, error) {
+	var keyUsage []asn1.ObjectIdentifier
+	if rest, err := asn1.Unmarshal(ext, &keyUsage); err != nil {
+		return nil, nil, err
+	} else if len(rest) != 0 {
+		return nil, nil, errors.New("x509: trailing data after X.509 ExtendedKeyUsage")
+	}
+
+	var extKeyUsages []ExtKeyUsage
+	var unknownUsages []asn1.ObjectIdentifier
+	for _, u := range keyUsage {
+		if extKeyUsage, ok := extKeyUsageFromOID(u); ok {
+			extKeyUsages = append(extKeyUsages, extKeyUsage)
+		} else {
+			unknownUsages = append(unknownUsages, u)
+		}
+	}
+	return extKeyUsages, unknownUsages, nil
+}
+
+// parseSubjectKeyIdExtension parses id-ce-subjectKeyIdentifier (2.5.29.14)
+// from RFC 5280 Section 4.2.1.2
+func parseSubjectKeyIdExtension(ext []byte) ([]byte, error) {
+	var keyid []byte
+	if rest, err := asn1.Unmarshal(ext, &keyid); err != nil {
+		return nil, err
+	} else if len(rest) != 0 {
+		return nil, errors.New("x509: trailing data after X.509 key-id")
+	}
+	return keyid, nil
+}
+
+func parseCertificatePoliciesExtension(ext []byte) ([]asn1.ObjectIdentifier, error) {
+	var policies []policyInformation
+	if rest, err := asn1.Unmarshal(ext, &policies); err != nil {
+		return nil, err
+	} else if len(rest) != 0 {
+		return nil, errors.New("x509: trailing data after X.509 certificate policies")
+	}
+	oids := make([]asn1.ObjectIdentifier, len(policies))
+	for i, policy := range policies {
+		oids[i] = policy.Policy
+	}
+	return oids, nil
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
@@ -1656,68 +1686,32 @@ func isIA5String(s string) error {
 	return nil
 }
 
-func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
+func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
 	n := 0
 
 	if template.KeyUsage != 0 &&
 		!oidInExtensions(oidExtensionKeyUsage, template.ExtraExtensions) {
-		ret[n].Id = oidExtensionKeyUsage
-		ret[n].Critical = true
-
-		var a [2]byte
-		a[0] = reverseBitsInAByte(byte(template.KeyUsage))
-		a[1] = reverseBitsInAByte(byte(template.KeyUsage >> 8))
-
-		l := 1
-		if a[1] != 0 {
-			l = 2
-		}
-
-		bitString := a[:l]
-		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
+		ret[n], err = marshalKeyUsage(template.KeyUsage)
 		if err != nil {
-			return
+			return nil, err
 		}
 		n++
 	}
 
 	if (len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0) &&
 		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
-		ret[n].Id = oidExtensionExtendedKeyUsage
-
-		var oids []asn1.ObjectIdentifier
-		for _, u := range template.ExtKeyUsage {
-			if oid, ok := oidFromExtKeyUsage(u); ok {
-				oids = append(oids, oid)
-			} else {
-				err = errors.New("x509: unknown extended key usage")
-				return
-			}
-		}
-
-		oids = append(oids, template.UnknownExtKeyUsage...)
-
-		ret[n].Value, err = asn1.Marshal(oids)
+		ret[n], err = marshalExtKeyUsage(template.ExtKeyUsage, template.UnknownExtKeyUsage)
 		if err != nil {
-			return
+			return nil, err
 		}
 		n++
 	}
 
 	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
-		// Leaving MaxPathLen as zero indicates that no maximum path
-		// length is desired, unless MaxPathLenZero is set. A value of
-		// -1 causes encoding/asn1 to omit the value as desired.
-		maxPathLen := template.MaxPathLen
-		if maxPathLen == 0 && !template.MaxPathLenZero {
-			maxPathLen = -1
-		}
-		ret[n].Id = oidExtensionBasicConstraints
-		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, maxPathLen})
-		ret[n].Critical = true
+		ret[n], err = marshalBasicConstraints(template.IsCA, template.MaxPathLen, template.MaxPathLenZero)
 		if err != nil {
-			return
+			return nil, err
 		}
 		n++
 	}
@@ -1779,14 +1773,9 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 
 	if len(template.PolicyIdentifiers) > 0 &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
-		ret[n].Id = oidExtensionCertificatePolicies
-		policies := make([]policyInformation, len(template.PolicyIdentifiers))
-		for i, policy := range template.PolicyIdentifiers {
-			policies[i].Policy = policy
-		}
-		ret[n].Value, err = asn1.Marshal(policies)
+		ret[n], err = marshalCertificatePolicies(template.PolicyIdentifiers)
 		if err != nil {
-			return
+			return nil, err
 		}
 		n++
 	}
@@ -1917,6 +1906,141 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 	// template fields used in CreateCertificate documentation.
 
 	return append(ret[:n], template.ExtraExtensions...), nil
+}
+
+func marshalKeyUsage(ku KeyUsage) (pkix.Extension, error) {
+	ext := pkix.Extension{Id: oidExtensionKeyUsage, Critical: true}
+
+	var a [2]byte
+	a[0] = reverseBitsInAByte(byte(ku))
+	a[1] = reverseBitsInAByte(byte(ku >> 8))
+
+	l := 1
+	if a[1] != 0 {
+		l = 2
+	}
+
+	bitString := a[:l]
+	var err error
+	ext.Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
+	if err != nil {
+		return ext, err
+	}
+	return ext, nil
+}
+
+func marshalExtKeyUsage(extUsages []ExtKeyUsage, unknownUsages []asn1.ObjectIdentifier) (pkix.Extension, error) {
+	ext := pkix.Extension{Id: oidExtensionExtendedKeyUsage}
+
+	oids := make([]asn1.ObjectIdentifier, len(extUsages)+len(unknownUsages))
+	for i, u := range extUsages {
+		if oid, ok := oidFromExtKeyUsage(u); ok {
+			oids[i] = oid
+		} else {
+			return ext, errors.New("x509: unknown extended key usage")
+		}
+	}
+
+	copy(oids[len(extUsages):], unknownUsages)
+
+	var err error
+	ext.Value, err = asn1.Marshal(oids)
+	if err != nil {
+		return ext, err
+	}
+	return ext, nil
+}
+
+func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pkix.Extension, error) {
+	ext := pkix.Extension{Id: oidExtensionBasicConstraints, Critical: true}
+	// Leaving MaxPathLen as zero indicates that no maximum path
+	// length is desired, unless MaxPathLenZero is set. A value of
+	// -1 causes encoding/asn1 to omit the value as desired.
+	if maxPathLen == 0 && !maxPathLenZero {
+		maxPathLen = -1
+	}
+	var err error
+	ext.Value, err = asn1.Marshal(basicConstraints{isCA, maxPathLen})
+	if err != nil {
+		return ext, nil
+	}
+	return ext, nil
+}
+
+func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
+	policies := make([]policyInformation, len(policyIdentifiers))
+	for i, policy := range policyIdentifiers {
+		policies[i].Policy = policy
+	}
+	var err error
+	ext.Value, err = asn1.Marshal(policies)
+	if err != nil {
+		return ext, err
+	}
+	return ext, nil
+}
+
+func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) {
+	var ret []pkix.Extension
+
+	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
+		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
+		sanBytes, err := marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, pkix.Extension{
+			Id:    oidExtensionSubjectAltName,
+			Value: sanBytes,
+		})
+	}
+
+	if template.KeyUsage != 0 &&
+		!oidInExtensions(oidExtensionKeyUsage, template.ExtraExtensions) {
+		ext, err := marshalKeyUsage(template.KeyUsage)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ext)
+	}
+
+	if (len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0) &&
+		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
+		ext, err := marshalExtKeyUsage(template.ExtKeyUsage, template.UnknownExtKeyUsage)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ext)
+	}
+
+	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
+		ext, err := marshalBasicConstraints(template.IsCA, template.MaxPathLen, template.MaxPathLenZero)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ext)
+	}
+
+	if len(template.SubjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
+		skidBytes, err := asn1.Marshal(template.SubjectKeyId)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, pkix.Extension{Id: oidExtensionSubjectKeyId, Value: skidBytes})
+	}
+
+	if len(template.PolicyIdentifiers) > 0 &&
+		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+		ext, err := marshalCertificatePolicies(template.PolicyIdentifiers)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, ext)
+	}
+
+	return append(ret, template.ExtraExtensions...), nil
 }
 
 func subjectBytes(cert *Certificate) ([]byte, error) {
@@ -2105,7 +2229,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		subjectKeyId = h[:]
 	}
 
-	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId, subjectKeyId)
+	extensions, err := buildCertExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId, subjectKeyId)
 	if err != nil {
 		return
 	}
@@ -2281,6 +2405,7 @@ type CertificateRequest struct {
 	Version            int
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
+	KeyUsage           KeyUsage
 
 	PublicKeyAlgorithm PublicKeyAlgorithm
 	PublicKey          interface{}
@@ -2313,6 +2438,37 @@ type CertificateRequest struct {
 	EmailAddresses []string
 	IPAddresses    []net.IP
 	URIs           []*url.URL
+
+	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
+	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
+
+	// BasicConstraintsValid indicates whether IsCA, MaxPathLen,
+	// and MaxPathLenZero are valid.
+	BasicConstraintsValid bool
+	IsCA                  bool
+
+	// MaxPathLen and MaxPathLenZero indicate the presence and
+	// value of the BasicConstraints' "pathLenConstraint".
+	//
+	// When parsing a certificate, a positive non-zero MaxPathLen
+	// means that the field was specified, -1 means it was unset,
+	// and MaxPathLenZero being true mean that the field was
+	// explicitly set to zero. The case of MaxPathLen==0 with MaxPathLenZero==false
+	// should be treated equivalent to -1 (unset).
+	//
+	// When generating a certificate, an unset pathLenConstraint
+	// can be requested with either MaxPathLen == -1 or using the
+	// zero value for both MaxPathLen and MaxPathLenZero.
+	MaxPathLen int
+	// MaxPathLenZero indicates that BasicConstraintsValid==true
+	// and MaxPathLen==0 should be interpreted as an actual
+	// maximum path length of zero. Otherwise, that combination is
+	// interpreted as MaxPathLen not being set.
+	MaxPathLenZero bool
+
+	SubjectKeyId []byte
+
+	PolicyIdentifiers []asn1.ObjectIdentifier
 }
 
 // These structures reflect the ASN.1 structure of X.509 certificate
@@ -2410,6 +2566,15 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 //  - EmailAddresses
 //  - IPAddresses
 //  - URIs
+//  - KeyUsage
+//  - ExtKeyUsage
+//  - UnknownExtKeyUsage
+//  - BasicConstraintsValid
+//  - IsCA
+//  - MaxPathLen
+//  - MaxPathLenZero
+//  - SubjectKeyId
+//  - PolicyIdentifiers
 //  - ExtraExtensions
 //  - Attributes (deprecated)
 //
@@ -2440,22 +2605,10 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		return nil, err
 	}
 
-	var extensions []pkix.Extension
-
-	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
-		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
-		sanBytes, err := marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
-		if err != nil {
-			return nil, err
-		}
-
-		extensions = append(extensions, pkix.Extension{
-			Id:    oidExtensionSubjectAltName,
-			Value: sanBytes,
-		})
+	extensions, err := buildCSRExtensions(template)
+	if err != nil {
+		return nil, err
 	}
-
-	extensions = append(extensions, template.ExtraExtensions...)
 
 	// Make a copy of template.Attributes because we may alter it below.
 	attributes := make([]pkix.AttributeTypeAndValueSET, 0, len(template.Attributes))
@@ -2640,8 +2793,33 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 	}
 
 	for _, extension := range out.Extensions {
-		if extension.Id.Equal(oidExtensionSubjectAltName) {
+		switch {
+		case extension.Id.Equal(oidExtensionSubjectAltName):
 			out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(extension.Value)
+			if err != nil {
+				return nil, err
+			}
+		case extension.Id.Equal(oidExtensionKeyUsage):
+			out.KeyUsage, err = parseKeyUsageExtension(extension.Value)
+		case extension.Id.Equal(oidExtensionExtendedKeyUsage):
+			out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(extension.Value)
+			if err != nil {
+				return nil, err
+			}
+		case extension.Id.Equal(oidExtensionBasicConstraints):
+			out.IsCA, out.MaxPathLen, err = parseBasicConstraintsExtension(extension.Value)
+			if err != nil {
+				return nil, err
+			}
+			out.BasicConstraintsValid = true
+			out.MaxPathLenZero = out.MaxPathLen == 0
+		case extension.Id.Equal(oidExtensionSubjectKeyId):
+			out.SubjectKeyId, err = parseSubjectKeyIdExtension(extension.Value)
+			if err != nil {
+				return nil, err
+			}
+		case extension.Id.Equal(oidExtensionCertificatePolicies):
+			out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(extension.Value)
 			if err != nil {
 				return nil, err
 			}

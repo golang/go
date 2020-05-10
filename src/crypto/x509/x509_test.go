@@ -2962,3 +2962,46 @@ func certPoolEqual(a, b *CertPool) bool {
 
 	return true
 }
+
+func TestCertificateRequestRoundtripFields(t *testing.T) {
+	in := &CertificateRequest{
+		KeyUsage:              KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageAny},
+		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{{1, 2, 3}},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+		SubjectKeyId:          []byte{1, 2, 3},
+		PolicyIdentifiers:     []asn1.ObjectIdentifier{{1, 2, 3}},
+	}
+	out := marshalAndParseCSR(t, in)
+
+	if in.KeyUsage != out.KeyUsage {
+		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+	}
+	if !reflect.DeepEqual(in.ExtKeyUsage, out.ExtKeyUsage) {
+		t.Fatalf("Unexpected ExtKeyUsage: got %v, want %v", out.ExtKeyUsage, in.ExtKeyUsage)
+	}
+	if !reflect.DeepEqual(in.UnknownExtKeyUsage, out.UnknownExtKeyUsage) {
+		t.Fatalf("Unexpected UnknownExtKeyUsage: got %v, want %v", out.UnknownExtKeyUsage, in.UnknownExtKeyUsage)
+	}
+	if in.BasicConstraintsValid != out.BasicConstraintsValid {
+		t.Fatalf("Unexpected BasicConstraintsValid: got %v, want %v", out.BasicConstraintsValid, in.BasicConstraintsValid)
+	}
+	if in.IsCA != out.IsCA {
+		t.Fatalf("Unexpected IsCA: got %v, want %v", out.IsCA, in.IsCA)
+	}
+	if in.MaxPathLen != out.MaxPathLen {
+		t.Fatalf("Unexpected MaxPathLen: got %v, want %v", out.MaxPathLen, in.MaxPathLen)
+	}
+	if in.MaxPathLenZero != out.MaxPathLenZero {
+		t.Fatalf("Unexpected MaxPathLenZero: got %v, want %v", out.MaxPathLenZero, in.MaxPathLenZero)
+	}
+	if !reflect.DeepEqual(in.SubjectKeyId, out.SubjectKeyId) {
+		t.Fatalf("Unexpected SubjectKeyId: got %v, want %v", out.SubjectKeyId, in.SubjectKeyId)
+	}
+	if !reflect.DeepEqual(in.PolicyIdentifiers, out.PolicyIdentifiers) {
+		t.Fatalf("Unexpected PolicyIdentifiers: got %v, want %v", out.PolicyIdentifiers, in.PolicyIdentifiers)
+	}
+}
