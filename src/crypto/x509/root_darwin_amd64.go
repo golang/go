@@ -140,20 +140,39 @@ func isRootCertificate(cert *Certificate) bool {
 //
 // https://developer.apple.com/documentation/security/1400261-sectrustsettingscopytrustsetting
 func sslTrustSettingsResult(cert macOS.CFRef) (macOS.SecTrustSettingsResult, error) {
+	// In Apple's implementation user trust settings override admin trust settings
+	// (which themselves override system trust settings). If SecTrustSettingsCopyTrustSettings
+	// fails, or returns a NULL trust settings, when looking for the user trust
+	// settings then fallback to checking the admin trust settings.
+	//
+	// See Security-59306.41.2/trust/headers/SecTrustSettings.h for a description of
+	// the trust settings overrides, and SecLegacyAnchorSourceCopyUsageConstraints in
+	// Security-59306.41.2/trust/trustd/SecCertificateSource.c for a concrete example
+	// of how Apple applies the override in the case of NULL trust settings, or non
+	// success errors.
 	trustSettings, err := macOS.SecTrustSettingsCopyTrustSettings(cert, macOS.SecTrustSettingsDomainUser)
-	// According to Apple's SecTrustServer.c, "user trust settings overrule
-	// admin trust settings", but the rules of the override are unclear. Let's
-	// assume admin trust settings are applicable if and only if there are no
-	// user trust settings.
-	if err == macOS.ErrNoTrustSettings {
-		trustSettings, err = macOS.SecTrustSettingsCopyTrustSettings(cert, macOS.SecTrustSettingsDomainAdmin)
-		// "no trust settings [...] means 'this certificate must be verified to a known trusted certificate'"
-		if err == macOS.ErrNoTrustSettings {
-			return macOS.SecTrustSettingsResultUnspecified, nil
+	if err != nil || trustSettings == 0 {
+		if debugDarwinRoots && err != macOS.ErrNoTrustSettings {
+			fmt.Fprintf(os.Stderr, "crypto/x509: SecTrustSettingsCopyTrustSettings for SecTrustSettingsDomainUser failed: %s\n", err)
 		}
+		trustSettings, err = macOS.SecTrustSettingsCopyTrustSettings(cert, macOS.SecTrustSettingsDomainAdmin)
 	}
-	if err != nil {
-		return 0, err
+	if err != nil || trustSettings == 0 {
+		// If there are neither user nor admin trust settings for a certificate returned
+		// from SecTrustSettingsCopyCertificates Apple returns kSecTrustSettingsResultInvalid,
+		// as this method is intended to return certificates _which have trust settings_.
+		// The most likely case for this being triggered is that the existing trust settings
+		// are invalid and cannot be properly parsed. In this case SecTrustSettingsCopyTrustSettings
+		// returns errSecInvalidTrustSettings. The existing cgo implementation returns
+		// kSecTrustSettingsResultUnspecified in this case, which mostly matches the Apple
+		// implementation because we don't do anything with certificates marked with this
+		// result.
+		//
+		// See SecPVCGetTrustSettingsResult in Security-59306.41.2/trust/trustd/SecPolicyServer.c
+		if debugDarwinRoots && err != macOS.ErrNoTrustSettings {
+			fmt.Fprintf(os.Stderr, "crypto/x509: SecTrustSettingsCopyTrustSettings for SecTrustSettingsDomainAdmin failed: %s\n", err)
+		}
+		return macOS.SecTrustSettingsResultUnspecified, nil
 	}
 	defer macOS.CFRelease(trustSettings)
 
