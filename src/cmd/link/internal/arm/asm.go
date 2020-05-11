@@ -734,12 +734,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
 
-			sym := ctxt.Syms.Lookup("pclntab", 0)
-			if sym != nil {
-				ld.Lcsize = int32(len(sym.P))
-				ctxt.Out.Write(sym.P)
-			}
-
 		case objabi.Hwindows:
 			// Do nothing
 		}
@@ -753,8 +747,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
 		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
 		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ctxt.Out.Write32b(uint32(ld.Symsize))          /* nsyms */
-		ctxt.Out.Write32b(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+		ctxt.Out.Write32b(uint32(ld.Symsize))           /* nsyms */
+		ctxt.Out.Write32b(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
 		ctxt.Out.Write32b(0)
 		ctxt.Out.Write32b(uint32(ld.Lcsize))
 

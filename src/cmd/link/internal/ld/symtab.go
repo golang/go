@@ -224,37 +224,77 @@ func Asmelfsym(ctxt *Link) {
 	genasmsym(ctxt, putelfsym)
 }
 
-func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64) {
-	t := int(typ)
-	switch typ {
-	case TextSym, DataSym, BSSSym:
-		if x.IsFileLocal() {
-			t += 'a' - 'A'
-		}
-		fallthrough
-
-	case AutoSym, ParamSym, FrameSym:
-		l := 4
-		if ctxt.HeadType == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
-			ctxt.Out.Write32b(uint32(addr >> 32))
-			l = 8
-		}
-
-		ctxt.Out.Write32b(uint32(addr))
-		ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
-
-		ctxt.Out.WriteString(s)
-		ctxt.Out.Write8(0)
-
-		Symsize += int32(l) + 1 + int32(len(s)) + 1
-
-	default:
-		return
+func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) {
+	t := int(char)
+	if ldr.IsFileLocal(s) {
+		t += 'a' - 'A'
 	}
+	l := 4
+	addr := ldr.SymValue(s)
+	if ctxt.IsAMD64() && !Flag8 {
+		ctxt.Out.Write32b(uint32(addr >> 32))
+		l = 8
+	}
+
+	ctxt.Out.Write32b(uint32(addr))
+	ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
+
+	name := ldr.SymName(s)
+	ctxt.Out.WriteString(name)
+	ctxt.Out.Write8(0)
+
+	Symsize += int32(l) + 1 + int32(len(name)) + 1
 }
 
 func Asmplan9sym(ctxt *Link) {
-	genasmsym(ctxt, putplan9sym)
+	ldr := ctxt.loader
+
+	// Add special runtime.text and runtime.etext symbols.
+	s := ldr.Lookup("runtime.text", 0)
+	if ldr.SymType(s) == sym.STEXT {
+		putplan9sym(ctxt, ldr, s, TextSym)
+	}
+	s = ldr.Lookup("runtime.etext", 0)
+	if ldr.SymType(s) == sym.STEXT {
+		putplan9sym(ctxt, ldr, s, TextSym)
+	}
+
+	// Add text symbols.
+	for _, s := range ctxt.Textp2 {
+		putplan9sym(ctxt, ldr, s, TextSym)
+	}
+
+	shouldBeInSymbolTable := func(s loader.Sym) bool {
+		if ldr.AttrNotInSymbolTable(s) {
+			return false
+		}
+		name := ldr.RawSymName(s) // TODO: try not to read the name
+		if name == "" || name[0] == '.' {
+			return false
+		}
+		return true
+	}
+
+	// Add data symbols and external references.
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		t := ldr.SymType(s)
+		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+			if t == sym.STLSBSS {
+				continue
+			}
+			if !shouldBeInSymbolTable(s) {
+				continue
+			}
+			char := DataSym
+			if t == sym.SBSS || t == sym.SNOPTRBSS {
+				char = BSSSym
+			}
+			putplan9sym(ctxt, ldr, s, char)
+		}
+	}
 }
 
 type byPkg []*sym.Library

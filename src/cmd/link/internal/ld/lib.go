@@ -2477,7 +2477,7 @@ func usage() {
 	Exit(2)
 }
 
-type SymbolType int8
+type SymbolType int8 // TODO: after genasmsym is gone, maybe rename to plan9typeChar or something
 
 const (
 	// see also https://9p.io/magic/man2html/1/nm
