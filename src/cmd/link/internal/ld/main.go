@@ -320,7 +320,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	thearch.Asmb(ctxt, ctxt.loader)
 	bench.Start("reloc")
 	ctxt.reloc()
-	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm()
+	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm() || ctxt.IsPlan9()
 	if !newasmb2 {
 		bench.Start("loadlibfull")
 		// We don't need relocations at this point.
