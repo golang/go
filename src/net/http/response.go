@@ -174,6 +174,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	statusCode := resp.Status
 	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
 		statusCode = resp.Status[:i]
+		resp.Status = resp.Status[i:]
 	}
 	if len(statusCode) != 3 {
 		return nil, badStringError("malformed HTTP status code", statusCode)
