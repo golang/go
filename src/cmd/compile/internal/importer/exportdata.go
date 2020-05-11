@@ -4,7 +4,7 @@
 
 // This file implements FindExportData.
 
-package gcimporter
+package importer
 
 import (
 	"bufio"

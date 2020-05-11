@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package gcimporter implements Import for gc-generated object files.
-package gcimporter // import "go/internal/gcimporter"
+// package importer implements Import for gc-generated object files.
+package importer
 
 import (
 	"bufio"
+	"cmd/compile/internal/types2"
 	"fmt"
 	"go/build"
-	"go/token"
-	"go/types"
 	"io"
 	"io/ioutil"
 	"os"
@@ -85,14 +84,14 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
 //
-func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types.Package, err error) {
+func Import(packages map[string]*types2.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types2.Package, err error) {
 	var rc io.ReadCloser
 	var id string
 	if lookup != nil {
 		// With custom lookup specified, assume that caller has
 		// converted path to a canonical import path for use in the map.
 		if path == "unsafe" {
-			return types.Unsafe, nil
+			return types2.Unsafe, nil
 		}
 		id = path
 
@@ -110,7 +109,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		filename, id = FindPkg(path, srcDir)
 		if filename == "" {
 			if path == "unsafe" {
-				return types.Unsafe, nil
+				return types2.Unsafe, nil
 			}
 			return nil, fmt.Errorf("can't find import: %q", id)
 		}
@@ -156,7 +155,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
 		if len(data) > 0 && data[0] == 'i' {
-			_, pkg, err = iImportData(fset, packages, data[1:], id)
+			_, pkg, err = iImportData(packages, data[1:], id)
 		} else {
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
@@ -168,7 +167,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 	return
 }
 
-type byPath []*types.Package
+type byPath []*types2.Package
 
 func (a byPath) Len() int           { return len(a) }
 func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

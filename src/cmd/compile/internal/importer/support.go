@@ -4,12 +4,12 @@
 
 // This file implements support functionality for iimport.go.
 
-package gcimporter
+package importer
 
 import (
+	"cmd/compile/internal/types2"
 	"fmt"
 	"go/token"
-	"go/types"
 	"sync"
 )
 
@@ -60,62 +60,62 @@ var (
 	fakeLinesOnce sync.Once
 )
 
-func chanDir(d int) types.ChanDir {
+func chanDir(d int) types2.ChanDir {
 	// tag values must match the constants in cmd/compile/internal/gc/go.go
 	switch d {
 	case 1 /* Crecv */ :
-		return types.RecvOnly
+		return types2.RecvOnly
 	case 2 /* Csend */ :
-		return types.SendOnly
+		return types2.SendOnly
 	case 3 /* Cboth */ :
-		return types.SendRecv
+		return types2.SendRecv
 	default:
 		errorf("unexpected channel dir %d", d)
 		return 0
 	}
 }
 
-var predeclared = []types.Type{
+var predeclared = []types2.Type{
 	// basic types
-	types.Typ[types.Bool],
-	types.Typ[types.Int],
-	types.Typ[types.Int8],
-	types.Typ[types.Int16],
-	types.Typ[types.Int32],
-	types.Typ[types.Int64],
-	types.Typ[types.Uint],
-	types.Typ[types.Uint8],
-	types.Typ[types.Uint16],
-	types.Typ[types.Uint32],
-	types.Typ[types.Uint64],
-	types.Typ[types.Uintptr],
-	types.Typ[types.Float32],
-	types.Typ[types.Float64],
-	types.Typ[types.Complex64],
-	types.Typ[types.Complex128],
-	types.Typ[types.String],
+	types2.Typ[types2.Bool],
+	types2.Typ[types2.Int],
+	types2.Typ[types2.Int8],
+	types2.Typ[types2.Int16],
+	types2.Typ[types2.Int32],
+	types2.Typ[types2.Int64],
+	types2.Typ[types2.Uint],
+	types2.Typ[types2.Uint8],
+	types2.Typ[types2.Uint16],
+	types2.Typ[types2.Uint32],
+	types2.Typ[types2.Uint64],
+	types2.Typ[types2.Uintptr],
+	types2.Typ[types2.Float32],
+	types2.Typ[types2.Float64],
+	types2.Typ[types2.Complex64],
+	types2.Typ[types2.Complex128],
+	types2.Typ[types2.String],
 
 	// basic type aliases
-	types.Universe.Lookup("byte").Type(),
-	types.Universe.Lookup("rune").Type(),
+	types2.Universe.Lookup("byte").Type(),
+	types2.Universe.Lookup("rune").Type(),
 
 	// error
-	types.Universe.Lookup("error").Type(),
+	types2.Universe.Lookup("error").Type(),
 
 	// untyped types
-	types.Typ[types.UntypedBool],
-	types.Typ[types.UntypedInt],
-	types.Typ[types.UntypedRune],
-	types.Typ[types.UntypedFloat],
-	types.Typ[types.UntypedComplex],
-	types.Typ[types.UntypedString],
-	types.Typ[types.UntypedNil],
+	types2.Typ[types2.UntypedBool],
+	types2.Typ[types2.UntypedInt],
+	types2.Typ[types2.UntypedRune],
+	types2.Typ[types2.UntypedFloat],
+	types2.Typ[types2.UntypedComplex],
+	types2.Typ[types2.UntypedString],
+	types2.Typ[types2.UntypedNil],
 
 	// package unsafe
-	types.Typ[types.UnsafePointer],
+	types2.Typ[types2.UnsafePointer],
 
 	// invalid type
-	types.Typ[types.Invalid], // only appears in packages with errors
+	types2.Typ[types2.Invalid], // only appears in packages with errors
 
 	// used internally by gc; never used by this package or in .a files
 	anyType{},
@@ -123,20 +123,20 @@ var predeclared = []types.Type{
 
 type anyType struct{}
 
-func (t anyType) Underlying() types.Type { return t }
-func (t anyType) Under() types.Type      { return t }
-func (t anyType) String() string         { return "any" }
+func (t anyType) Underlying() types2.Type { return t }
+func (t anyType) Under() types2.Type      { return t }
+func (t anyType) String() string          { return "any" }
 
-// types.aType is not exported for now so we need to implemented these here.
-func (anyType) Basic() *types.Basic         { return nil }
-func (anyType) Array() *types.Array         { return nil }
-func (anyType) Slice() *types.Slice         { return nil }
-func (anyType) Struct() *types.Struct       { return nil }
-func (anyType) Pointer() *types.Pointer     { return nil }
-func (anyType) Tuple() *types.Tuple         { return nil }
-func (anyType) Signature() *types.Signature { return nil }
-func (anyType) Interface() *types.Interface { return nil }
-func (anyType) Map() *types.Map             { return nil }
-func (anyType) Chan() *types.Chan           { return nil }
-func (anyType) Named() *types.Named         { return nil }
-func (anyType) TypeParam() *types.TypeParam { return nil }
+// types2.aType is not exported for now so we need to implemented these here.
+func (anyType) Basic() *types2.Basic         { return nil }
+func (anyType) Array() *types2.Array         { return nil }
+func (anyType) Slice() *types2.Slice         { return nil }
+func (anyType) Struct() *types2.Struct       { return nil }
+func (anyType) Pointer() *types2.Pointer     { return nil }
+func (anyType) Tuple() *types2.Tuple         { return nil }
+func (anyType) Signature() *types2.Signature { return nil }
+func (anyType) Interface() *types2.Interface { return nil }
+func (anyType) Map() *types2.Map             { return nil }
+func (anyType) Chan() *types2.Chan           { return nil }
+func (anyType) Named() *types2.Named         { return nil }
+func (anyType) TypeParam() *types2.TypeParam { return nil }
