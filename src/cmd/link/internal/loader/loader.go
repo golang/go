@@ -338,8 +338,8 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 	nbuiltin := goobj2.NBuiltin()
 	ldr := &Loader{
 		start:                make(map[*oReader]Sym),
-		objs:                 []objIdx{{}}, // reserve index 0 for nil symbol
-		objSyms:              []objSym{{}}, // reserve index 0 for nil symbol
+		objs:                 []objIdx{{}},              // reserve index 0 for nil symbol
+		objSyms:              make([]objSym, 1, 100000), // reserve index 0 for nil symbol
 		extReader:            &oReader{},
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 100000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]*oReader),
@@ -463,7 +463,8 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
 	if l.extStart == 0 {
 		l.extStart = i
 	}
-	l.growSyms(int(i))
+	l.growValues(int(i) + 1)
+	l.growAttrBitmaps(int(i) + 1)
 	pi := l.newPayload(name, ver)
 	l.objSyms = append(l.objSyms, objSym{l.extReader, int(pi)})
 	l.extReader.syms = append(l.extReader.syms, i)
@@ -1180,7 +1181,7 @@ func (l *Loader) SymSect(i Sym) *sym.Section {
 	return l.sects[l.symSects[i]]
 }
 
-// SetSymValue sets the section of the i-th symbol. i is global index.
+// SetSymSect sets the section of the i-th symbol. i is global index.
 func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
 	if int(i) >= len(l.symSects) {
 		l.symSects = append(l.symSects, make([]uint16, l.NSym()-len(l.symSects))...)
@@ -1960,7 +1961,6 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 	default:
 		panic("preloadSyms: bad kind")
 	}
-	l.growSyms(len(l.objSyms) + end - start)
 	l.growAttrBitmaps(len(l.objSyms) + end - start)
 	for i := start; i < end; i++ {
 		osym := r.Sym(i)
@@ -2007,6 +2007,7 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	for _, o := range l.objs[1:] {
 		loadObjRefs(l, o.r, arch)
 	}
+	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
 }
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
@@ -2535,12 +2536,10 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc, needExtRel
 // a symbol originally discovered as part of an object file, it's
 // easier to do this if we make the updates to an external symbol
 // payload.
-// XXX maybe rename? makeExtPayload?
 func (l *Loader) cloneToExternal(symIdx Sym) {
 	if l.IsExternal(symIdx) {
 		panic("sym is already external, no need for clone")
 	}
-	l.growSyms(int(symIdx))
 
 	// Read the particulars from object.
 	r, li := l.toLocal(symIdx)
