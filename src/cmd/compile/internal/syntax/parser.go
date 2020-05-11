@@ -666,7 +666,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	tpos := p.pos()
 	p.want(_Lparen)
 	if p.got(_Type) {
-		p.paramList(true)
+		f.TParamList = p.paramList(true)
 		p.want(_Lparen)
 	}
 	f.Type = p.funcType(tpos, true)
@@ -1665,6 +1665,21 @@ func (p *parser) paramList(tparams bool) (list []*Field) {
 				p.syntaxErrorAt(pos, "mixed bounded and unbounded type parameters")
 			} else {
 				p.syntaxErrorAt(pos, "mixed named and unnamed function parameters")
+			}
+		}
+	}
+
+	// TODO(gri) should do this when we distribute parameter types above
+	if tparams {
+		// determine which form we have (list of type parameters with optional
+		// contract, or type parameters, all with interfaces as type bounds)
+		for _, f := range list {
+			if f.Name == nil {
+				if debug && f.Type == nil {
+					panic("expected non-nil type")
+				}
+				f.Name = f.Type.(*Name)
+				f.Type = nil
 			}
 		}
 	}
