@@ -340,3 +340,15 @@ func bitSetTest(x int) bool {
 	// amd64:"CMPQ\tAX, [$]9"
 	return x&9 == 9
 }
+
+// mask contiguous one bits
+func cont1Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]16, [$]47, [$]0,"
+	return x&0x0000ffffffff0000
+}
+
+// mask contiguous zero bits
+func cont0Mask64U(x uint64) uint64 {
+	// s390x:"RISBGZ\t[$]48, [$]15, [$]0,"
+	return x&0xffff00000000ffff
+}

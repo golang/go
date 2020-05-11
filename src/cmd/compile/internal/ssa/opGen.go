@@ -2285,9 +2285,9 @@ const (
 	OpS390XSRAWconst
 	OpS390XRLLG
 	OpS390XRLL
-	OpS390XRLLGconst
 	OpS390XRLLconst
 	OpS390XRXSBG
+	OpS390XRISBGZ
 	OpS390XNEG
 	OpS390XNEGW
 	OpS390XNOT
@@ -30740,20 +30740,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "RLLGconst",
-		auxType: auxInt8,
-		argLen:  1,
-		asm:     s390x.ARLLG,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-			outputs: []outputInfo{
-				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
-			},
-		},
-	},
-	{
 		name:    "RLLconst",
 		auxType: auxInt8,
 		argLen:  1,
@@ -30778,6 +30764,21 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+			outputs: []outputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+			},
+		},
+	},
+	{
+		name:         "RISBGZ",
+		auxType:      auxS390XRotateParams,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ARISBGZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
 			},
 			outputs: []outputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
