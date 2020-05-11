@@ -29,9 +29,7 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(gri) for now we run w/o an importer - at least we will die if we need it
-	var conf Config
-	//conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter()}
 	return conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 }
 
@@ -52,10 +50,9 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 	if f == nil { // ignore errors unless f is nil
 		t.Fatalf("%s: unable to parse: %s", path, err)
 	}
-	// TODO(gri) for now we run w/o an importer - at least we will die if we need it
 	conf := Config{
-		Error: func(err error) {},
-		//Importer: importer.Default(),
+		Error:    func(err error) {},
+		Importer: defaultImporter(),
 	}
 	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 	return pkg.Name(), err
@@ -533,10 +530,9 @@ func TestImplicitsInfo(t *testing.T) {
 		src  string
 		want string
 	}{
-		// TODO(gri) enable once imports work
-		// {`package p2; import . "fmt"; var _ = Println`, ""},           // no Implicits entry
-		// {`package p0; import local "fmt"; var _ = local.Println`, ""}, // no Implicits entry
-		// {`package p1; import "fmt"; var _ = fmt.Println`, "importSpec: package fmt"},
+		{`package p2; import . "fmt"; var _ = Println`, ""},           // no Implicits entry
+		{`package p0; import local "fmt"; var _ = local.Println`, ""}, // no Implicits entry
+		{`package p1; import "fmt"; var _ = fmt.Println`, "importSpec: package fmt"},
 
 		{`package p3; func f(x interface{}) { switch x.(type) { case int: } }`, ""}, // no Implicits entry
 		{`package p4; func f(x interface{}) { switch t := x.(type) { case int: _ = t } }`, "caseClause: var t int"},
@@ -668,8 +664,8 @@ func TestPredicatesInfo(t *testing.T) {
 		// missing entries
 		// - package names are collected in the Uses map
 		// - identifiers being declared are collected in the Defs map
-		// {`package m0; import "os"; func _() { _ = os.Stdout }`, `os`, `<missing>`}, // TODO(gri) imports don't work yet
-		// {`package m1; import p "os"; func _() { _ = p.Stdout }`, `p`, `<missing>`}, // TODO(gri) imports don't work yet
+		{`package m0; import "os"; func _() { _ = os.Stdout }`, `os`, `<missing>`},
+		{`package m1; import p "os"; func _() { _ = p.Stdout }`, `p`, `<missing>`},
 		{`package m2; const c = 0`, `c`, `<missing>`},
 		{`package m3; type T int`, `T`, `<missing>`},
 		{`package m4; var v int`, `v`, `<missing>`},
@@ -709,10 +705,9 @@ func TestScopesInfo(t *testing.T) {
 		{`package p0`, []string{
 			"file:",
 		}},
-		// TODO(gri) enable once imports work
-		// {`package p1; import ( "fmt"; m "math"; _ "os" ); var ( _ = fmt.Println; _ = m.Pi )`, []string{
-		// 	"file:fmt m",
-		// }},
+		{`package p1; import ( "fmt"; m "math"; _ "os" ); var ( _ = fmt.Println; _ = m.Pi )`, []string{
+			"file:fmt m",
+		}},
 		{`package p2; func _() {}`, []string{
 			"file:", "func:",
 		}},
@@ -1059,7 +1054,7 @@ func (m testImporter) Import(path string) (*Package, error) {
 }
 
 func TestSelection(t *testing.T) {
-	t.Skip("requires imports")
+	t.Skip("requires fixes around source positions")
 
 	selections := make(map[*syntax.SelectorExpr]*Selection)
 
@@ -1228,8 +1223,6 @@ func main() {
 }
 
 func TestIssue8518(t *testing.T) {
-	t.Skip("requires imports")
-
 	imports := make(testImporter)
 	conf := Config{
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
@@ -1339,7 +1332,7 @@ func sameSlice(a, b []int) bool {
 // TestScopeLookupParent ensures that (*Scope).LookupParent returns
 // the correct result at various positions with the source.
 func TestScopeLookupParent(t *testing.T) {
-	t.Skip("requires imports")
+	t.Skip("requires comment handling")
 
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
@@ -1633,8 +1626,6 @@ func f(x int) { y := x; print(y) }
 // TestFailedImport tests that we don't get follow-on errors
 // elsewhere in a package due to failing to import a package.
 func TestFailedImport(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	const src = `

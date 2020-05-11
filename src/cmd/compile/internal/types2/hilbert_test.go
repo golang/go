@@ -21,8 +21,6 @@ var (
 )
 
 func TestHilbert(t *testing.T) {
-	t.Skip("requires imports")
-
 	// generate source
 	src := program(*H, *out)
 	if *out != "" {
@@ -39,9 +37,7 @@ func TestHilbert(t *testing.T) {
 
 	// type-check file
 	DefPredeclaredTestFuncs() // define assert built-in
-	unimplemented()
-	//conf := Config{Importer: importer.Default()}
-	var conf Config
+	conf := Config{Importer: defaultImporter()}
 	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 	if err != nil {
 		t.Fatal(err)

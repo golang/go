@@ -118,8 +118,6 @@ var builtinCalls = []struct {
 }
 
 func TestBuiltinSignatures(t *testing.T) {
-	t.Skip("requires imports")
-
 	DefPredeclaredTestFuncs()
 
 	seen := map[string]bool{"trace": true} // no test for trace built-in; add it manually
@@ -149,9 +147,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 		return
 	}
 
-	unimplemented()
-	var conf Config
-	// conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter()}
 	uses := make(map[*syntax.Name]Object)
 	types := make(map[syntax.Expr]TypeAndValue)
 	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Uses: uses, Types: types})

@@ -11,7 +11,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/build"
-	"go/importer"
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
@@ -32,12 +31,10 @@ var (
 
 	// Use the same importer for all std lib tests to
 	// avoid repeated importing of the same packages.
-	stdLibImporter = importer.Default()
+	stdLibImporter = defaultImporter()
 )
 
 func TestStdlib(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	start = time.Now()
@@ -131,9 +128,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err == nil {
-			unimplemented()
-			var conf Config
-			// conf := Config{Importer: stdLibImporter}
+			conf := Config{Importer: stdLibImporter}
 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
 		}
 
@@ -150,7 +145,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
-	t.Skip("requires imports")
+	t.Skip("test/const2.go doesn't report an error")
 
 	testenv.MustHaveGoBuild(t)
 
@@ -165,8 +160,6 @@ func TestStdTest(t *testing.T) {
 }
 
 func TestStdFixed(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	if testing.Short() && testenv.Builder() == "" {
@@ -195,8 +188,6 @@ func TestStdFixed(t *testing.T) {
 }
 
 func TestStdKen(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
@@ -236,12 +227,10 @@ func typecheck(t *testing.T, path string, filenames []string) {
 	}
 
 	// typecheck package files
-	unimplemented()
-	var conf Config
-	// conf := Config{
-	// 	Error:    func(err error) { t.Error(err) },
-	// 	Importer: stdLibImporter,
-	// }
+	conf := Config{
+		Error:    func(err error) { t.Error(err) },
+		Importer: stdLibImporter,
+	}
 	info := Info{Uses: make(map[*syntax.Name]Object)}
 	conf.Check(path, files, &info)
 	pkgCount++

@@ -203,8 +203,6 @@ L7 uses var z int`
 // test; we leave this test here to verify correct behavior at the go/types
 // level.
 func TestIssue13898(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	const src0 = `
@@ -254,9 +252,7 @@ func main() {
 `
 	f := func(test, src string) {
 		f := mustParse(t, src)
-		unimplemented()
-		var conf Config
-		// conf := Config{Importer: importer.Default()}
+		conf := Config{Importer: defaultImporter()}
 		info := Info{Uses: make(map[*syntax.Name]Object)}
 		_, err := conf.Check("main", []*syntax.File{f}, &info)
 		if err != nil {
@@ -303,7 +299,7 @@ func TestIssue22525(t *testing.T) {
 }
 
 func TestIssue25627(t *testing.T) {
-	t.Skip("requires imports")
+	t.Skip("requires syntax tree inspection")
 
 	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
 	// The src strings (without prefix) are constructed such that the number of semicolons
@@ -319,9 +315,7 @@ func TestIssue25627(t *testing.T) {
 	} {
 		f := mustParse(t, prefix+src)
 
-		unimplemented()
-		var conf Config
-		// conf := Config{Importer: importer.Default(), Error: func(err error) {}}
+		conf := Config{Importer: defaultImporter(), Error: func(err error) {}}
 		info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
 		_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 		if err != nil {

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(gri) enable once imports work
-// +build ignore
-
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
@@ -23,8 +20,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"fmt"
-	"go/format"
-	"go/token"
 	"log"
 	"regexp"
 	"sort"
@@ -64,8 +59,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// Type-check a package consisting of these files.
 	// Type information for the imported "fmt" package
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	var conf types2.Config
-	// conf := types2.Config{Importer: importer.Default()}
+	conf := types2.Config{Importer: defaultImporter()}
 	pkg, err := conf.Check("temperature", files, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -133,9 +127,7 @@ type I interface { m() byte }
 	// Type-check a package consisting of this file.
 	// Type information for the imported packages
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	unimplemented()
-	var conf types2.Config
-	// conf := types2.Config{Importer: importer.Default()}
+	conf := types2.Config{Importer: defaultImporter()}
 	pkg, err := conf.Check("temperature", []*syntax.File{f}, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -231,30 +223,31 @@ func fib(x int) int {
 	fmt.Println(strings.Join(items, "\n"))
 	fmt.Println()
 
-	fmt.Println("Types and Values of each expression:")
-	items = nil
-	for expr, tv := range info.Types {
-		var buf bytes.Buffer
-		posn := expr.Pos()
-		tvstr := tv.Type.String()
-		if tv.Value != nil {
-			tvstr += " = " + tv.Value.String()
-		}
-		// line:col | expr | mode : type = value
-		fmt.Fprintf(&buf, "%2d:%2d | %-19s | %-7s : %s",
-			posn.Line(), posn.Col(), exprString(fset, expr),
-			mode(tv), tvstr)
-		items = append(items, buf.String())
-	}
-	sort.Strings(items)
-	fmt.Println(strings.Join(items, "\n"))
+	// TODO(gri) Enable once positions are updated/verified
+	// fmt.Println("Types and Values of each expression:")
+	// items = nil
+	// for expr, tv := range info.Types {
+	// 	var buf bytes.Buffer
+	// 	posn := expr.Pos()
+	// 	tvstr := tv.Type.String()
+	// 	if tv.Value != nil {
+	// 		tvstr += " = " + tv.Value.String()
+	// 	}
+	// 	// line:col | expr | mode : type = value
+	// 	fmt.Fprintf(&buf, "%2d:%2d | %-19s | %-7s : %s",
+	// 		posn.Line(), posn.Col(), types2.ExprString(expr),
+	// 		mode(tv), tvstr)
+	// 	items = append(items, buf.String())
+	// }
+	// sort.Strings(items)
+	// fmt.Println(strings.Join(items, "\n"))
 
 	// Output:
 	// InitOrder: [c = "hello" b = S(c) a = len(b)]
 	//
 	// Defs and Uses of each named object:
 	// builtin len:
-	//   defined at -
+	//   defined at <unknown position>
 	//   used at 6:15
 	// func fib(x int) int:
 	//   defined at fib.go:8:6
@@ -263,10 +256,10 @@ func fib(x int) int {
 	//   defined at fib.go:4:6
 	//   used at 6:23
 	// type int:
-	//   defined at -
+	//   defined at <unknown position>
 	//   used at 8:12, 8:17
 	// type string:
-	//   defined at -
+	//   defined at <unknown position>
 	//   used at 4:8
 	// var b S:
 	//   defined at fib.go:6:8
@@ -277,7 +270,8 @@ func fib(x int) int {
 	// var x int:
 	//   defined at fib.go:8:10
 	//   used at 10:10, 12:13, 12:24, 9:5
-	//
+
+	// TODO(gri) Enable once positions are updated/verified
 	// Types and Values of each expression:
 	//  4: 8 | string              | type    : string
 	//  6:15 | len                 | builtin : func(string) int
@@ -295,7 +289,7 @@ func fib(x int) int {
 	// 10:10 | x                   | var     : int
 	// 12: 9 | fib                 | value   : func(x int) int
 	// 12: 9 | fib(x - 1)          | value   : int
-	// 12: 9 | fib(x-1) - fib(x-2) | value   : int
+	// 12: 9 | fib(x - 1) - fib(x - 2) | value   : int
 	// 12:13 | x                   | var     : int
 	// 12:13 | x - 1               | value   : int
 	// 12:15 | 1                   | value   : int = 1
@@ -326,10 +320,4 @@ func mode(tv types2.TypeAndValue) string {
 	default:
 		return "unknown"
 	}
-}
-
-func exprString(fset *token.FileSet, expr syntax.Expr) string {
-	var buf bytes.Buffer
-	format.Node(&buf, fset, expr)
-	return buf.String()
 }

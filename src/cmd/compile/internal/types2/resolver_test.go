@@ -28,9 +28,8 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
 		panic("mode must be 0")
 	}
 	if imp.importer == nil {
-		unimplemented()
-		// imp.importer = importer.Default().(ImporterFrom)
-		// imp.imported = make(map[string]bool)
+		imp.importer = defaultImporter().(ImporterFrom)
+		imp.imported = make(map[string]bool)
 	}
 	pkg, err := imp.importer.ImportFrom(path, srcDir, mode)
 	if err != nil {
@@ -41,8 +40,6 @@ func (imp *resolveTestImporter) ImportFrom(path, srcDir string, mode ImportMode)
 }
 
 func TestResolveIdents(t *testing.T) {
-	t.Skip("requires imports")
-
 	testenv.MustHaveGoBuild(t)
 
 	sources := []string{
@@ -129,9 +126,7 @@ func TestResolveIdents(t *testing.T) {
 
 	// resolve and type-check package AST
 	importer := new(resolveTestImporter)
-	unimplemented()
-	var conf Config
-	// conf := Config{Importer: importer}
+	conf := Config{Importer: importer}
 	uses := make(map[*syntax.Name]Object)
 	defs := make(map[*syntax.Name]Object)
 	_, err := conf.Check("testResolveIdents", files, &Info{Defs: defs, Uses: uses})
@@ -144,6 +139,11 @@ func TestResolveIdents(t *testing.T) {
 		if !importer.imported[name] {
 			t.Errorf("package %s not imported", name)
 		}
+	}
+
+	// TODO(gri) implement code below (syntax tree inspection)
+	if true {
+		return
 	}
 
 	// check that qualified identifiers are resolved

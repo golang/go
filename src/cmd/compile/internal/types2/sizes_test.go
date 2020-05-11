@@ -80,8 +80,6 @@ var s struct {
 }
 
 func TestIssue16902(t *testing.T) {
-	t.Skip("requires imports")
-
 	const src = `
 package a
 
@@ -95,8 +93,8 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 	}
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
 	conf := types2.Config{
-		//Importer: importer.Default(),
-		Sizes: &types2.StdSizes{WordSize: 8, MaxAlign: 8},
+		Importer: defaultImporter(),
+		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
 	_, err = conf.Check("x", []*syntax.File{f}, &info)
 	if err != nil {

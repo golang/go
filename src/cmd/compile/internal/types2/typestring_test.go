@@ -21,8 +21,7 @@ func makePkg(src string) (*Package, error) {
 		return nil, err
 	}
 	// use the package name as package path
-	var conf Config
-	//conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter()}
 	return conf.Check(file.PkgName.Value, []*syntax.File{file}, nil)
 }
 
@@ -127,13 +126,10 @@ func TestTypeString(t *testing.T) {
 
 	var tests []testEntry
 	tests = append(tests, independentTestTypes...)
-
-	// TODO(gri) can't do these for now without an importer
-	// tests = append(tests, dependentTestTypes...)
+	tests = append(tests, dependentTestTypes...)
 
 	for _, test := range tests {
-		// src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		src := `package p; type T ` + test.src
+		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
 		pkg, err := makePkg(src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)

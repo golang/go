@@ -19,16 +19,12 @@ import (
 var benchmark = flag.Bool("b", false, "run benchmarks")
 
 func TestSelf(t *testing.T) {
-	t.Skip("requires imports")
-
 	files, err := pkgFiles(fset, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	unimplemented()
-	var conf Config
-	// conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter()}
 	_, err = conf.Check("go/types", files, nil)
 	if err != nil {
 		// Importing go/constant doesn't work in the
