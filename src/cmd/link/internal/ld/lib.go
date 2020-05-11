@@ -273,7 +273,7 @@ type Arch struct {
 	Gentext2    func(*Link, *loader.Loader)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
-	Xcoffreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+	Xcoffreloc1 func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 
 	// TLSIEtoLE converts a TLS Initial Executable relocation to
 	// a TLS Local Executable relocation.
@@ -2868,13 +2868,6 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc, needExtRelo
 		// Only dump under -v=2 and above.
 		ctxt.dumpsyms()
 	}
-}
-
-func symPkg(ctxt *Link, s *sym.Symbol) string {
-	if s == nil {
-		return ""
-	}
-	return ctxt.loader.SymPkg(loader.Sym(s.SymIdx))
 }
 
 func ElfSymForReloc2(ctxt *Link, s loader.Sym) int32 {

@@ -403,22 +403,22 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 	return false
 }
 
-func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
+func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	rs := r.Xsym
 
 	emitReloc := func(v uint16, off uint64) {
 		out.Write64(uint64(sectoff) + off)
-		out.Write32(uint32(rs.Dynid))
+		out.Write32(uint32(ldr.SymDynid(rs)))
 		out.Write16(v)
 	}
 
 	var v uint16
-	switch r.Type {
+	switch r.Type() {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		v = ld.XCOFF_R_POS
-		if r.Siz == 4 {
+		if r.Siz() == 4 {
 			v |= 0x1F << 8
 		} else {
 			v |= 0x3F << 8
@@ -431,7 +431,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	case objabi.R_POWER_TLS_LE:
 		emitReloc(ld.XCOFF_R_TLS_LE|0x0F<<8, 2)
 	case objabi.R_CALLPOWER:
-		if r.Siz != 4 {
+		if r.Siz() != 4 {
 			return false
 		}
 		emitReloc(ld.XCOFF_R_RBR|0x19<<8, 0)
