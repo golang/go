@@ -2104,11 +2104,9 @@ func (ctxt *Link) buildinfo() {
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
 	s.SetReachable(true)
-	if !ctxt.IsAIX() {
-		// On AIX, .go.buildinfo must be in the symbol table as
-		// it has relocations.
-		s.SetNotInSymbolTable(true)
-	}
+	// On AIX, .go.buildinfo must be in the symbol table as
+	// it has relocations.
+	s.SetNotInSymbolTable(!ctxt.IsAIX())
 	s.SetType(sym.SBUILDINFO)
 	s.SetAlign(16)
 	// The \xff is invalid UTF-8, meant to make it less likely

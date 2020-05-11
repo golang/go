@@ -52,7 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
 		Asmb2:            asmb2,
-		Elfreloc1:        elfreloc1,
+		Elfreloc2:        elfreloc2,
 		Elfsetupplt:      elfsetupplt,
 		Gentext2:         gentext2,
 		Machoreloc1:      machoreloc1,

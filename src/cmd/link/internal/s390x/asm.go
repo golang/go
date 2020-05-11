@@ -221,15 +221,17 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	switch r.Type {
+	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	siz := r.Siz()
+	xst := ldr.SymType(r.Xsym)
+	switch r.Type() {
 	default:
 		return false
 	case objabi.R_TLS_LE:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
@@ -240,14 +242,14 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_TLS_IE:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
 			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		switch r.Siz {
+		switch siz {
 		default:
 			return false
 		case 4:
@@ -256,30 +258,31 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			ctxt.Out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_GOTPCREL:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
 		} else {
 			return false
 		}
 	case objabi.R_PCREL, objabi.R_PCRELDBL, objabi.R_CALL:
 		elfrel := elf.R_390_NONE
-		isdbl := r.Variant&sym.RV_TYPE_MASK == sym.RV_390_DBL
+		rVariant := ldr.RelocVariant(s, r.Idx)
+		isdbl := rVariant&sym.RV_TYPE_MASK == sym.RV_390_DBL
 		// TODO(mundaym): all DBL style relocations should be
 		// signalled using the variant - see issue 14218.
-		switch r.Type {
+		switch r.Type() {
 		case objabi.R_PCRELDBL, objabi.R_CALL:
 			isdbl = true
 		}
-		if r.Xsym.Type == sym.SDYNIMPORT && (r.Xsym.ElfType() == elf.STT_FUNC || r.Type == objabi.R_CALL) {
+		if xst == sym.SDYNIMPORT && (ldr.SymElfType(r.Xsym) == elf.STT_FUNC || r.Type() == objabi.R_CALL) {
 			if isdbl {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PLT16DBL
 				case 4:
 					elfrel = elf.R_390_PLT32DBL
 				}
 			} else {
-				switch r.Siz {
+				switch siz {
 				case 4:
 					elfrel = elf.R_390_PLT32
 				case 8:
@@ -288,14 +291,14 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			}
 		} else {
 			if isdbl {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PC16DBL
 				case 4:
 					elfrel = elf.R_390_PC32DBL
 				}
 			} else {
-				switch r.Siz {
+				switch siz {
 				case 2:
 					elfrel = elf.R_390_PC16
 				case 4:

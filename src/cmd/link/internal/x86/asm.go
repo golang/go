@@ -340,23 +340,24 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	ctxt.Out.Write32(uint32(sectoff))
 
-	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	switch r.Type {
+	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	siz := r.Siz()
+	switch r.Type() {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_GOTPCREL:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
-			if r.Xsym.Name != "_GLOBAL_OFFSET_TABLE_" {
+			if ldr.SymName(r.Xsym) != "_GLOBAL_OFFSET_TABLE_" {
 				ctxt.Out.Write32(uint32(sectoff))
 				ctxt.Out.Write32(uint32(elf.R_386_GOT32) | uint32(elfsym)<<8)
 			}
@@ -364,8 +365,8 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			return false
 		}
 	case objabi.R_CALL:
-		if r.Siz == 4 {
-			if r.Xsym.Type == sym.SDYNIMPORT {
+		if siz == 4 {
+			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
 				ctxt.Out.Write32(uint32(elf.R_386_PLT32) | uint32(elfsym)<<8)
 			} else {
 				ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
@@ -374,19 +375,19 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 			return false
 		}
 	case objabi.R_PCREL:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_TLS_LE:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_TLS_LE) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_TLS_IE:
-		if r.Siz == 4 {
+		if siz == 4 {
 			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
 			ctxt.Out.Write32(uint32(sectoff))
 			ctxt.Out.Write32(uint32(elf.R_386_TLS_GOTIE) | uint32(elfsym)<<8)
