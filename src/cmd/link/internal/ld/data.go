@@ -1105,9 +1105,8 @@ func addinitarrdata(ctxt *Link, ldr *loader.Loader, s loader.Sym) {
 }
 
 // symalign returns the required alignment for the given symbol s.
-func (state *dodataState) symalign2(s loader.Sym) int32 {
+func symalign2(ldr *loader.Loader, s loader.Sym) int32 {
 	min := int32(thearch.Minalign)
-	ldr := state.ctxt.loader
 	align := ldr.SymAlign(s)
 	if align >= min {
 		return align
@@ -1131,7 +1130,7 @@ func (state *dodataState) symalign2(s loader.Sym) int32 {
 }
 
 func aligndatsize2(state *dodataState, datsize int64, s loader.Sym) int64 {
-	return Rnd(datsize, int64(state.symalign2(s)))
+	return Rnd(datsize, int64(symalign2(state.ctxt.loader, s)))
 }
 
 const debugGCProg = false
@@ -1549,7 +1548,7 @@ func (state *dodataState) allocateDataSectionForSym2(seg *sym.Segment, s loader.
 	ldr := state.ctxt.loader
 	sname := ldr.SymName(s)
 	sect := addsection(ldr, state.ctxt.Arch, seg, sname, rwx)
-	sect.Align = state.symalign2(s)
+	sect.Align = symalign2(ldr, s)
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	sect.Vaddr = uint64(state.datsize)
 	return sect
@@ -2056,7 +2055,7 @@ func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loade
 	for k := range sl {
 		s := sl[k].sym
 		if s != head && s != tail {
-			align := state.symalign2(s)
+			align := symalign2(ldr, s)
 			if maxAlign < align {
 				maxAlign = align
 			}
