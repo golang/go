@@ -1399,10 +1399,6 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 }
 
 func Elfemitreloc(ctxt *Link) {
-	if !ctxt.IsAMD64() {
-		Elfemitreloc2(ctxt)
-		return
-	}
 
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
@@ -1785,10 +1781,6 @@ func Asmbelfsetup() {
 }
 
 func Asmbelf(ctxt *Link, symo int64) {
-	if !ctxt.IsAMD64() {
-		Asmbelf2(ctxt, symo)
-		return
-	}
 
 	ldr := ctxt.loader
 	eh := getElfEhdr()

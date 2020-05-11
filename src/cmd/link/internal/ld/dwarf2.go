@@ -65,34 +65,6 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
 	}
 }
 
-// Add section symbols for DWARF debug info.  This is called before
-// dwarfaddelfheaders.
-func dwarfaddelfsectionsyms2(ctxt *Link) {
-	if *FlagW { // disable dwarf
-		return
-	}
-	if ctxt.LinkMode != LinkExternal {
-		return
-	}
-
-	s := ctxt.Syms.Lookup(".debug_info", 0)
-	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
-	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	s = ctxt.Syms.Lookup(".debug_line", 0)
-	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	s = ctxt.Syms.Lookup(".debug_frame", 0)
-	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	s = ctxt.Syms.Lookup(".debug_loc", 0)
-	if s.Sect != nil {
-		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	}
-	s = ctxt.Syms.Lookup(".debug_ranges", 0)
-	if s.Sect != nil {
-		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
-	}
-}
-
 // dwarfcompress compresses the DWARF sections. Relocations are applied
 // on the fly. After this, dwarfp will contain a different (new) set of
 // symbols, and sections may have been replaced.

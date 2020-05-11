@@ -51,15 +51,15 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	ctxt.Out.Write32(uint32(sectoff))
 
-	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	switch r.Type {
+	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	switch r.Type() {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		if r.Siz != 4 {
+		if r.Siz() != 4 {
 			return false
 		}
 		ctxt.Out.Write32(uint32(elf.R_MIPS_32) | uint32(elfsym)<<8)

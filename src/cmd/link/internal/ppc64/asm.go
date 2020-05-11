@@ -442,9 +442,10 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
-	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS || r.Type == objabi.R_CALLPOWER {
+	rt := r.Type()
+	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
 	} else {
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
 			sectoff += 2
@@ -452,12 +453,12 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	}
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	switch r.Type {
+	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	switch rt {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		switch r.Siz {
+		switch r.Siz() {
 		case 4:
 			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
 		case 8:
@@ -506,7 +507,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 		ctxt.Out.Write64(uint64(sectoff + 4))
 		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_CALLPOWER:
-		if r.Siz != 4 {
+		if r.Siz() != 4 {
 			return false
 		}
 		ctxt.Out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)

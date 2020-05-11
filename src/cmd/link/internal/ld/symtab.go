@@ -230,10 +230,7 @@ func genelfsym(ctxt *Link, elfbind int) {
 }
 
 func Asmelfsym(ctxt *Link) {
-	if !ctxt.IsAMD64() {
-		Asmelfsym2(ctxt)
-		return
-	}
+
 	// the first symbol entry is reserved
 	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
 
