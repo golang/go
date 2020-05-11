@@ -131,6 +131,12 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	path := r.URL.Path[len("/mod/"):]
 
+	// /mod/invalid returns faulty responses.
+	if strings.HasPrefix(path, "invalid/") {
+		w.Write([]byte("invalid"))
+		return
+	}
+
 	// /mod/quiet/ does not print errors.
 	quiet := false
 	if strings.HasPrefix(path, "quiet/") {
