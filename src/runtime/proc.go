@@ -2575,15 +2575,20 @@ func injectglist(glist *gList) {
 		return
 	}
 
-	lock(&sched.lock)
-	npidle := int(sched.npidle)
+	npidle := int(atomic.Load(&sched.npidle))
+	var globq gQueue
 	var n int
 	for n = 0; n < npidle && !q.empty(); n++ {
-		globrunqput(q.pop())
+		g := q.pop()
+		globq.pushBack(g)
 	}
-	unlock(&sched.lock)
-	startIdle(n)
-	qsize -= n
+	if n > 0 {
+		lock(&sched.lock)
+		globrunqputbatch(&globq, int32(n))
+		unlock(&sched.lock)
+		startIdle(n)
+		qsize -= n
+	}
 
 	if !q.empty() {
 		runqputbatch(pp, &q, qsize)
