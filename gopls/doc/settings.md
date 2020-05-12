@@ -88,8 +88,9 @@ Example Usage:
 Overrides the enabled/disabled state of various code lenses. Currently, we
 support two code lenses:
 
-* `generate`: run `go generate` as specified by a `//go:generate` directive.
-* `upgrade.dependency`: upgrade a dependency listed in a `go.mod` file.
+* `generate`: [default: enabled] run `go generate` as specified by a `//go:generate` directive.
+* `upgrade.dependency`: [default: enabled] upgrade a dependency listed in a `go.mod` file.
+* `test`: [default: disabled] run `go test -run` for a test func.
 
 By default, both of these code lenses are enabled.
 
