@@ -312,7 +312,7 @@ const (
 	nonPkgRef
 )
 
-type elfsetstringFunc func(s *sym.Symbol, str string, off int)
+type elfsetstringFunc func(str string, off int)
 
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
