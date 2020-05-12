@@ -38,16 +38,10 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
-	"log"
 	"sync"
 )
 
 func gentext2(ctxt *ld.Link, ldr *loader.Loader) {}
-
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
-	log.Fatalf("adddynrel not implemented")
-	return false
-}
 
 func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 
