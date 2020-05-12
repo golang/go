@@ -267,16 +267,16 @@ func gencallstub2(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.S
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	if target.IsElf() {
-		return addelfdynrel2(target, ldr, syms, s, r, rIdx)
+		return addelfdynrel(target, ldr, syms, s, r, rIdx)
 	} else if target.IsAIX() {
-		return ld.Xcoffadddynrel2(target, ldr, syms, s, r, rIdx)
+		return ld.Xcoffadddynrel(target, ldr, syms, s, r, rIdx)
 	}
 	return false
 }
 
-func addelfdynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {

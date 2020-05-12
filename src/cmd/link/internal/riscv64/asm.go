@@ -19,15 +19,6 @@ import (
 func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
-func adddynrela(target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
-	log.Fatalf("adddynrela not implemented")
-}
-
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
-	log.Fatalf("adddynrel not implemented")
-	return false
-}
-
 func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	log.Fatalf("elfreloc2")
 	return false
