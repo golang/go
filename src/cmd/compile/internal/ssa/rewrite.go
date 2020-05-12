@@ -705,6 +705,10 @@ func cCopToAux(o Op) interface{} {
 	return o
 }
 
+func auxToCCop(cc interface{}) Op {
+	return cc.(Op)
+}
+
 // uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
@@ -1008,8 +1012,7 @@ func arm64Invert(op Op) Op {
 // evaluate an ARM64 op against a flags value
 // that is potentially constant; return 1 for true,
 // -1 for false, and 0 for not constant.
-func ccARM64Eval(cc interface{}, flags *Value) int {
-	op := cc.(Op)
+func ccARM64Eval(op Op, flags *Value) int {
 	fop := flags.Op
 	if fop == OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
