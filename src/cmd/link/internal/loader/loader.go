@@ -322,7 +322,6 @@ type extSymPayload struct {
 	ver      int
 	kind     sym.SymKind
 	objidx   uint32 // index of original object if sym made by cloneToExternal
-	gotype   Sym    // Gotype (0 if not present)
 	relocs   []goobj2.Reloc
 	reltypes []objabi.RelocType // relocation types
 	data     []byte
@@ -1411,12 +1410,17 @@ func (l *Loader) DynidSyms() []Sym {
 // results in to a map (might want to try this at some point and see
 // if it helps speed things up).
 func (l *Loader) SymGoType(i Sym) Sym {
+	var r *oReader
+	var auxs []goobj2.Aux
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
-		return pp.gotype
+		r = l.objs[pp.objidx].r
+		auxs = pp.auxs
+	} else {
+		var li int
+		r, li = l.toLocal(i)
+		auxs = r.Auxs(li)
 	}
-	r, li := l.toLocal(i)
-	auxs := r.Auxs(li)
 	for j := range auxs {
 		a := &auxs[j]
 		switch a.Type() {
@@ -2580,17 +2584,6 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// Gotype, so as to propagate it to the new symbol.
 	auxs := r.Auxs(li)
 	pp.auxs = auxs
-loop:
-	for j := range auxs {
-		a := &auxs[j]
-		switch a.Type() {
-		case goobj2.AuxGotype:
-			pp.gotype = l.resolve(r, a.Sym())
-			break loop
-		default:
-			// nothing to do
-		}
-	}
 
 	// Install new payload to global index space.
 	// (This needs to happen at the end, as the accessors above
