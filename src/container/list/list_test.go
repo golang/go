@@ -341,3 +341,20 @@ func TestMoveUnknownMark(t *testing.T) {
 	checkList(t, &l1, []interface{}{1})
 	checkList(t, &l2, []interface{}{2})
 }
+
+// Test that a list l is not modified when calling Remove after list was reset to zero value.
+func TestRemoveAfterReset(t *testing.T) {
+	var l List
+	el1 := l.PushBack(1)
+
+	l = List{}
+
+	l.Remove(el1)
+	checkListPointers(t, &l, []*Element{})
+
+	el2 := l.PushBack(2)
+	checkListPointers(t, &l, []*Element{el2})
+
+	l.Remove(el1)
+	checkListPointers(t, &l, []*Element{el2})
+}

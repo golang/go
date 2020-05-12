@@ -22,6 +22,8 @@ type Element struct {
 
 	// The list to which this element belongs.
 	list *List
+	// Generation of the list to which this element belongs.
+	gen *byte
 
 	// The value stored with this element.
 	Value interface{}
@@ -29,7 +31,7 @@ type Element struct {
 
 // Next returns the next list element or nil.
 func (e *Element) Next() *Element {
-	if p := e.next; e.list != nil && p != &e.list.root {
+	if p := e.next; e.list.has(e) && p != &e.list.root {
 		return p
 	}
 	return nil
@@ -37,7 +39,7 @@ func (e *Element) Next() *Element {
 
 // Prev returns the previous list element or nil.
 func (e *Element) Prev() *Element {
-	if p := e.prev; e.list != nil && p != &e.list.root {
+	if p := e.prev; e.list.has(e) && p != &e.list.root {
 		return p
 	}
 	return nil
@@ -48,12 +50,14 @@ func (e *Element) Prev() *Element {
 type List struct {
 	root Element // sentinel list element, only &root, root.prev, and root.next are used
 	len  int     // current list length excluding (this) sentinel element
+	gen  *byte   // list generation mark; needed to handle list resets
 }
 
 // Init initializes or clears list l.
 func (l *List) Init() *List {
 	l.root.next = &l.root
 	l.root.prev = &l.root
+	l.gen = new(byte)
 	l.len = 0
 	return l
 }
@@ -83,7 +87,7 @@ func (l *List) Back() *Element {
 
 // lazyInit lazily initializes a zero List value.
 func (l *List) lazyInit() {
-	if l.root.next == nil {
+	if l.gen == nil {
 		l.Init()
 	}
 }
@@ -95,6 +99,7 @@ func (l *List) insert(e, at *Element) *Element {
 	e.prev.next = e
 	e.next.prev = e
 	e.list = l
+	e.gen = l.gen
 	l.len++
 	return e
 }
@@ -111,6 +116,7 @@ func (l *List) remove(e *Element) *Element {
 	e.next = nil // avoid memory leaks
 	e.prev = nil // avoid memory leaks
 	e.list = nil
+	e.gen = nil
 	l.len--
 	return e
 }
@@ -131,11 +137,18 @@ func (l *List) move(e, at *Element) *Element {
 	return e
 }
 
+func (l *List) has(e *Element) bool {
+	if l == nil || e == nil {
+		return false
+	}
+	return l.gen != nil && l.gen == e.gen
+}
+
 // Remove removes e from l if e is an element of list l.
 // It returns the element value e.Value.
 // The element must not be nil.
 func (l *List) Remove(e *Element) interface{} {
-	if e.list == l {
+	if l.has(e) {
 		// if e.list == l, l must have been initialized when e was inserted
 		// in l or l == nil (e is a zero Element) and l.remove will crash
 		l.remove(e)
@@ -159,7 +172,7 @@ func (l *List) PushBack(v interface{}) *Element {
 // If mark is not an element of l, the list is not modified.
 // The mark must not be nil.
 func (l *List) InsertBefore(v interface{}, mark *Element) *Element {
-	if mark.list != l {
+	if !l.has(mark) {
 		return nil
 	}
 	// see comment in List.Remove about initialization of l
@@ -170,7 +183,7 @@ func (l *List) InsertBefore(v interface{}, mark *Element) *Element {
 // If mark is not an element of l, the list is not modified.
 // The mark must not be nil.
 func (l *List) InsertAfter(v interface{}, mark *Element) *Element {
-	if mark.list != l {
+	if !l.has(mark) {
 		return nil
 	}
 	// see comment in List.Remove about initialization of l
@@ -181,7 +194,7 @@ func (l *List) InsertAfter(v interface{}, mark *Element) *Element {
 // If e is not an element of l, the list is not modified.
 // The element must not be nil.
 func (l *List) MoveToFront(e *Element) {
-	if e.list != l || l.root.next == e {
+	if !l.has(e) || l.root.next == e {
 		return
 	}
 	// see comment in List.Remove about initialization of l
@@ -192,7 +205,7 @@ func (l *List) MoveToFront(e *Element) {
 // If e is not an element of l, the list is not modified.
 // The element must not be nil.
 func (l *List) MoveToBack(e *Element) {
-	if e.list != l || l.root.prev == e {
+	if !l.has(e) || l.root.prev == e {
 		return
 	}
 	// see comment in List.Remove about initialization of l
@@ -203,7 +216,7 @@ func (l *List) MoveToBack(e *Element) {
 // If e or mark is not an element of l, or e == mark, the list is not modified.
 // The element and mark must not be nil.
 func (l *List) MoveBefore(e, mark *Element) {
-	if e.list != l || e == mark || mark.list != l {
+	if !l.has(e) || e == mark || !l.has(mark) {
 		return
 	}
 	l.move(e, mark.prev)
@@ -213,7 +226,7 @@ func (l *List) MoveBefore(e, mark *Element) {
 // If e or mark is not an element of l, or e == mark, the list is not modified.
 // The element and mark must not be nil.
 func (l *List) MoveAfter(e, mark *Element) {
-	if e.list != l || e == mark || mark.list != l {
+	if !l.has(e) || e == mark || !l.has(mark) {
 		return
 	}
 	l.move(e, mark)
