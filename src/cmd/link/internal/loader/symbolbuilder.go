@@ -363,7 +363,7 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 	r := sb.size
 	if sb.name == ".shstrtab" {
 		// FIXME: find a better mechanism for this
-		sb.l.elfsetstring(nil, str, int(r))
+		sb.l.elfsetstring(str, int(r))
 	}
 	sb.data = append(sb.data, str...)
 	sb.data = append(sb.data, 0)

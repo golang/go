@@ -628,7 +628,7 @@ func elfwriteshdrs(out *OutBuf) uint32 {
 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
 }
 
-func elfsetstring2(ctxt *Link, s loader.Sym, str string, off int) {
+func elfsetstring(ctxt *Link, s loader.Sym, str string, off int) {
 	if nelfstr >= len(elfstr) {
 		ctxt.Errorf(s, "too many elf strings")
 		errorexit()

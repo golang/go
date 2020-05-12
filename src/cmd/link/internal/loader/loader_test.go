@@ -28,7 +28,7 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 }
 
 func mkLoader() *Loader {
-	edummy := func(s *sym.Symbol, str string, off int) {}
+	edummy := func(str string, off int) {}
 	er := ErrorReporter{}
 	ldr := NewLoader(0, edummy, &er)
 	er.ldr = ldr
