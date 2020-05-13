@@ -10,6 +10,7 @@ package main_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/build"
 	"internal/testenv"
@@ -77,13 +78,16 @@ type testScript struct {
 	stderr     string            // standard error from last 'go' command; for 'stderr' command
 	stopped    bool              // test wants to stop early
 	start      time.Time         // time phase started
-	background []backgroundCmd   // backgrounded 'exec' and 'go' commands
+	background []*backgroundCmd  // backgrounded 'exec' and 'go' commands
 }
 
 type backgroundCmd struct {
-	cmd  *exec.Cmd
-	wait <-chan struct{}
-	want simpleStatus
+	want           simpleStatus
+	args           []string
+	cancel         context.CancelFunc
+	done           <-chan struct{}
+	err            error
+	stdout, stderr strings.Builder
 }
 
 type simpleStatus string
@@ -193,10 +197,10 @@ func (ts *testScript) run() {
 		// before we print PASS. If we return early (e.g., due to a test failure),
 		// don't print anything about the processes that were still running.
 		for _, bg := range ts.background {
-			interruptProcess(bg.cmd.Process)
+			bg.cancel()
 		}
 		for _, bg := range ts.background {
-			<-bg.wait
+			<-bg.done
 		}
 		ts.background = nil
 
@@ -347,7 +351,7 @@ Script:
 	}
 
 	for _, bg := range ts.background {
-		interruptProcess(bg.cmd.Process)
+		bg.cancel()
 	}
 	ts.cmdWait(success, nil)
 
@@ -633,40 +637,35 @@ func (ts *testScript) cmdExec(want simpleStatus, args []string) {
 		ts.fatalf("usage: exec program [args...] [&]")
 	}
 
-	var err error
+	background := false
 	if len(args) > 0 && args[len(args)-1] == "&" {
-		var cmd *exec.Cmd
-		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
-		if err == nil {
-			wait := make(chan struct{})
-			go func() {
-				ctxWait(testCtx, cmd)
-				close(wait)
-			}()
-			ts.background = append(ts.background, backgroundCmd{cmd, wait, want})
-		}
-		ts.stdout, ts.stderr = "", ""
-	} else {
-		ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
-		if ts.stdout != "" {
-			fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
-		}
-		if ts.stderr != "" {
-			fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
-		}
-		if err == nil && want == failure {
-			ts.fatalf("unexpected command success")
-		}
+		background = true
+		args = args[:len(args)-1]
 	}
 
+	bg, err := ts.startBackground(want, args[0], args[1:]...)
 	if err != nil {
-		fmt.Fprintf(&ts.log, "[%v]\n", err)
-		if testCtx.Err() != nil {
-			ts.fatalf("test timed out while running command")
-		} else if want == success {
-			ts.fatalf("unexpected command failure")
-		}
+		ts.fatalf("unexpected error starting command: %v", err)
 	}
+	if background {
+		ts.stdout, ts.stderr = "", ""
+		ts.background = append(ts.background, bg)
+		return
+	}
+
+	<-bg.done
+	ts.stdout = bg.stdout.String()
+	ts.stderr = bg.stderr.String()
+	if ts.stdout != "" {
+		fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+	}
+	if ts.stderr != "" {
+		fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+	}
+	if bg.err != nil {
+		fmt.Fprintf(&ts.log, "[%v]\n", bg.err)
+	}
+	ts.checkCmd(bg)
 }
 
 // exists checks that the list of files exists.
@@ -759,7 +758,7 @@ func (ts *testScript) cmdSkip(want simpleStatus, args []string) {
 	// Before we mark the test as skipped, shut down any background processes and
 	// make sure they have returned the correct status.
 	for _, bg := range ts.background {
-		interruptProcess(bg.cmd.Process)
+		bg.cancel()
 	}
 	ts.cmdWait(success, nil)
 
@@ -932,34 +931,24 @@ func (ts *testScript) cmdWait(want simpleStatus, args []string) {
 
 	var stdouts, stderrs []string
 	for _, bg := range ts.background {
-		<-bg.wait
+		<-bg.done
 
-		args := append([]string{filepath.Base(bg.cmd.Args[0])}, bg.cmd.Args[1:]...)
-		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.cmd.ProcessState)
+		args := append([]string{filepath.Base(bg.args[0])}, bg.args[1:]...)
+		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.err)
 
-		cmdStdout := bg.cmd.Stdout.(*strings.Builder).String()
+		cmdStdout := bg.stdout.String()
 		if cmdStdout != "" {
 			fmt.Fprintf(&ts.log, "[stdout]\n%s", cmdStdout)
 			stdouts = append(stdouts, cmdStdout)
 		}
 
-		cmdStderr := bg.cmd.Stderr.(*strings.Builder).String()
+		cmdStderr := bg.stderr.String()
 		if cmdStderr != "" {
 			fmt.Fprintf(&ts.log, "[stderr]\n%s", cmdStderr)
 			stderrs = append(stderrs, cmdStderr)
 		}
 
-		if bg.cmd.ProcessState.Success() {
-			if bg.want == failure {
-				ts.fatalf("unexpected command success")
-			}
-		} else {
-			if testCtx.Err() != nil {
-				ts.fatalf("test timed out while running command")
-			} else if bg.want == success {
-				ts.fatalf("unexpected command failure")
-			}
-		}
+		ts.checkCmd(bg)
 	}
 
 	ts.stdout = strings.Join(stdouts, "")
@@ -987,58 +976,176 @@ func (ts *testScript) check(err error) {
 	}
 }
 
+func (ts *testScript) checkCmd(bg *backgroundCmd) {
+	select {
+	case <-bg.done:
+	default:
+		panic("checkCmd called when not done")
+	}
+
+	if bg.err == nil {
+		if bg.want == failure {
+			ts.fatalf("unexpected command success")
+		}
+		return
+	}
+
+	if errors.Is(bg.err, context.DeadlineExceeded) {
+		ts.fatalf("test timed out while running command")
+	}
+
+	if errors.Is(bg.err, context.Canceled) {
+		// The process was still running at the end of the test.
+		// The test must not depend on its exit status.
+		if bg.want != successOrFailure {
+			ts.fatalf("unexpected background command remaining at test end")
+		}
+		return
+	}
+
+	if bg.want == success {
+		ts.fatalf("unexpected command failure")
+	}
+}
+
 // exec runs the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env and then returns collected standard output and standard error.
 func (ts *testScript) exec(command string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.Command(command, args...)
-	cmd.Dir = ts.cd
-	cmd.Env = append(ts.env, "PWD="+ts.cd)
-	var stdoutBuf, stderrBuf strings.Builder
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	if err = cmd.Start(); err == nil {
-		err = ctxWait(testCtx, cmd)
+	bg, err := ts.startBackground(success, command, args...)
+	if err != nil {
+		return "", "", err
 	}
-	return stdoutBuf.String(), stderrBuf.String(), err
+	<-bg.done
+	return bg.stdout.String(), bg.stderr.String(), bg.err
 }
 
-// execBackground starts the given command line (an actual subprocess, not simulated)
+// startBackground starts the given command line (an actual subprocess, not simulated)
 // in ts.cd with environment ts.env.
-func (ts *testScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+func (ts *testScript) startBackground(want simpleStatus, command string, args ...string) (*backgroundCmd, error) {
+	done := make(chan struct{})
+	bg := &backgroundCmd{
+		want:   want,
+		args:   append([]string{command}, args...),
+		done:   done,
+		cancel: func() {},
+	}
+
+	ctx := context.Background()
+	gracePeriod := 100 * time.Millisecond
+	if deadline, ok := ts.t.Deadline(); ok {
+		timeout := time.Until(deadline)
+		// If time allows, increase the termination grace period to 5% of the
+		// remaining time.
+		if gp := timeout / 20; gp > gracePeriod {
+			gracePeriod = gp
+		}
+
+		// Send the first termination signal with two grace periods remaining.
+		// If it still hasn't finished after the first period has elapsed,
+		// we'll escalate to os.Kill with a second period remaining until the
+		// test deadline..
+		timeout -= 2 * gracePeriod
+
+		if timeout <= 0 {
+			// The test has less than the grace period remaining. There is no point in
+			// even starting the command, because it will be terminated immediately.
+			// Save the expense of starting it in the first place.
+			bg.err = context.DeadlineExceeded
+			close(done)
+			return bg, nil
+		}
+
+		ctx, bg.cancel = context.WithTimeout(ctx, timeout)
+	}
+
 	cmd := exec.Command(command, args...)
 	cmd.Dir = ts.cd
 	cmd.Env = append(ts.env, "PWD="+ts.cd)
-	var stdoutBuf, stderrBuf strings.Builder
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	return cmd, cmd.Start()
-}
-
-// ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
-//
-// This differs from exec.CommandContext in that it prefers os.Interrupt over os.Kill.
-// (See https://golang.org/issue/21135.)
-func ctxWait(ctx context.Context, cmd *exec.Cmd) error {
-	errc := make(chan error, 1)
-	go func() { errc <- cmd.Wait() }()
-
-	select {
-	case err := <-errc:
-		return err
-	case <-ctx.Done():
-		interruptProcess(cmd.Process)
-		return <-errc
+	cmd.Stdout = &bg.stdout
+	cmd.Stderr = &bg.stderr
+	if err := cmd.Start(); err != nil {
+		bg.cancel()
+		return nil, err
 	}
+
+	go func() {
+		bg.err = waitOrStop(ctx, cmd, stopSignal(), gracePeriod)
+		close(done)
+	}()
+	return bg, nil
 }
 
-// interruptProcess sends os.Interrupt to p if supported, or os.Kill otherwise.
-func interruptProcess(p *os.Process) {
-	if err := p.Signal(os.Interrupt); err != nil {
+// stopSignal returns the appropriate signal to use to request that a process
+// stop execution.
+func stopSignal() os.Signal {
+	if runtime.GOOS == "windows" {
 		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
 		// Windows; using it with os.Process.Signal will return an error.”
 		// Fall back to Kill instead.
-		p.Kill()
+		return os.Kill
 	}
+	return os.Interrupt
+}
+
+// waitOrStop waits for the already-started command cmd by calling its Wait method.
+//
+// If cmd does not return before ctx is done, waitOrStop sends it the given interrupt signal.
+// If killDelay is positive, waitOrStop waits that additional period for Wait to return before sending os.Kill.
+//
+// This function is copied from the one added to x/playground/internal in
+// http://golang.org/cl/228438.
+func waitOrStop(ctx context.Context, cmd *exec.Cmd, interrupt os.Signal, killDelay time.Duration) error {
+	if cmd.Process == nil {
+		panic("waitOrStop called with a nil cmd.Process — missing Start call?")
+	}
+	if interrupt == nil {
+		panic("waitOrStop requires a non-nil interrupt signal")
+	}
+
+	errc := make(chan error)
+	go func() {
+		select {
+		case errc <- nil:
+			return
+		case <-ctx.Done():
+		}
+
+		err := cmd.Process.Signal(interrupt)
+		if err == nil {
+			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
+		} else if err.Error() == "os: process already finished" {
+			errc <- nil
+			return
+		}
+
+		if killDelay > 0 {
+			timer := time.NewTimer(killDelay)
+			select {
+			// Report ctx.Err() as the reason we interrupted the process...
+			case errc <- ctx.Err():
+				timer.Stop()
+				return
+			// ...but after killDelay has elapsed, fall back to a stronger signal.
+			case <-timer.C:
+			}
+
+			// Wait still hasn't returned.
+			// Kill the process harder to make sure that it exits.
+			//
+			// Ignore any error: if cmd.Process has already terminated, we still
+			// want to send ctx.Err() (or the error from the Interrupt call)
+			// to properly attribute the signal that may have terminated it.
+			_ = cmd.Process.Kill()
+		}
+
+		errc <- err
+	}()
+
+	waitErr := cmd.Wait()
+	if interruptErr := <-errc; interruptErr != nil {
+		return interruptErr
+	}
+	return waitErr
 }
 
 // expand applies environment variable expansion to the string s.
