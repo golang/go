@@ -36,6 +36,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"sync"
 	"syscall"
 	"time"
@@ -43,7 +44,7 @@ import (
 
 func init() {
 	register("EINTR", EINTR)
-	register("Nop", Nop)
+	register("Block", Block)
 }
 
 // Test various operations when a signal handler is installed without
@@ -58,13 +59,6 @@ func EINTR() {
 	if errno := C.clearRestart(C.int(syscall.SIGCHLD)); errno != 0 {
 		log.Fatal(syscall.Errno(errno))
 	}
-
-	// Send ourselves SIGWINCH regularly.
-	go func() {
-		for range time.Tick(100 * time.Microsecond) {
-			syscall.Kill(0, syscall.SIGWINCH)
-		}
-	}()
 
 	var wg sync.WaitGroup
 	testPipe(&wg)
@@ -90,6 +84,22 @@ func spin() (float64, [][]byte) {
 	return r1, r2
 }
 
+// winch sends a few SIGWINCH signals to the process.
+func winch() {
+	ticker := time.NewTicker(100 * time.Microsecond)
+	defer ticker.Stop()
+	for n := 10; n > 0; n-- {
+		syscall.Kill(0, syscall.SIGWINCH)
+		<-ticker.C
+	}
+}
+
+// sendSomeSignals triggers a few SIGURG and SIGWINCH signals.
+func sendSomeSignals() {
+	spin()
+	winch()
+}
+
 // testPipe tests pipe operations.
 func testPipe(wg *sync.WaitGroup) {
 	r, w, err := os.Pipe()
@@ -109,19 +119,19 @@ func testPipe(wg *sync.WaitGroup) {
 		// Spin before calling Write so that the first ReadFull
 		// in the other goroutine will likely be interrupted
 		// by a signal.
-		spin()
+		sendSomeSignals()
 		// This Write will likely be interrupted by a signal
 		// as the other goroutine spins in the middle of reading.
 		// We write enough data that we should always fill the
 		// pipe buffer and need multiple write system calls.
-		if _, err := w.Write(bytes.Repeat([]byte{0}, 2 << 20)); err != nil {
+		if _, err := w.Write(bytes.Repeat([]byte{0}, 2<<20)); err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		defer r.Close()
-		b := make([]byte, 1 << 20)
+		b := make([]byte, 1<<20)
 		// This ReadFull will likely be interrupted by a signal,
 		// as the other goroutine spins before writing anything.
 		if _, err := io.ReadFull(r, b); err != nil {
@@ -130,7 +140,7 @@ func testPipe(wg *sync.WaitGroup) {
 		// Spin after reading half the data so that the Write
 		// in the other goroutine will likely be interrupted
 		// before it completes.
-		spin()
+		sendSomeSignals()
 		if _, err := io.ReadFull(r, b); err != nil {
 			log.Fatal(err)
 		}
@@ -164,14 +174,14 @@ func testNet(wg *sync.WaitGroup) {
 			log.Fatal(err)
 		}
 		// See comments in testPipe.
-		spin()
-		if _, err := cf.Write(bytes.Repeat([]byte{0}, 2 << 20)); err != nil {
+		sendSomeSignals()
+		if _, err := cf.Write(bytes.Repeat([]byte{0}, 2<<20)); err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		spin()
+		sendSomeSignals()
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
 			log.Fatal(err)
@@ -186,11 +196,11 @@ func testNet(wg *sync.WaitGroup) {
 			log.Fatal(err)
 		}
 		// See comments in testPipe.
-		b := make([]byte, 1 << 20)
+		b := make([]byte, 1<<20)
 		if _, err := io.ReadFull(cf, b); err != nil {
 			log.Fatal(err)
 		}
-		spin()
+		sendSomeSignals()
 		if _, err := io.ReadFull(cf, b); err != nil {
 			log.Fatal(err)
 		}
@@ -201,14 +211,30 @@ func testExec(wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := exec.Command(os.Args[0], "Nop").Run(); err != nil {
+		cmd := exec.Command(os.Args[0], "Block")
+		cmd.Stderr = new(bytes.Buffer)
+		cmd.Stdout = cmd.Stderr
+		if err := cmd.Start(); err != nil {
 			log.Fatal(err)
+		}
+
+		go func() {
+			sendSomeSignals()
+			if err := cmd.Process.Signal(os.Interrupt); err != nil {
+				panic(err)
+			}
+		}()
+
+		if err := cmd.Wait(); err != nil {
+			log.Fatalf("%v:\n%s", err, cmd.Stdout)
 		}
 	}()
 }
 
-// Nop just sleeps for a bit. This is used to test interrupts while waiting
-// for a child.
-func Nop() {
-	time.Sleep(time.Millisecond)
+// Block blocks until the process receives os.Interrupt.
+func Block() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer signal.Stop(c)
+	<-c
 }
