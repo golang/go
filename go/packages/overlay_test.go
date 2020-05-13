@@ -1,6 +1,7 @@
 package packages_test
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
 	"testing"
@@ -123,6 +124,68 @@ func TestOverlayChangesTestPackage(t *testing.T) {
 		t.Fatalf("got %v, expected no errors", initial[0].Errors)
 	}
 	log.SetFlags(0)
+}
+
+func TestOverlayXTests(t *testing.T) {
+	packagestest.TestAll(t, testOverlayXTests)
+}
+func testOverlayXTests(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a; const C = "C"; func Hello() {}`,
+			"a/a_test.go": `package a
+
+import "testing"
+
+const TestC = "test" + C
+
+func TestHello(){
+	Hello()
+}`,
+			"a/a_x_test.go": "",
+		},
+		Overlay: map[string][]byte{
+			"a/a_x_test.go": []byte(`package a_test
+
+import (
+	"testing"
+
+	"golang.org/fake/a"
+)
+
+const xTestC = "x" + a.C
+
+func TestHello(t *testing.T) {
+	a.Hello()
+}
+`),
+		},
+	}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = commonMode
+	exported.Config.Tests = true
+	exported.Config.Mode = packages.LoadTypes
+
+	initial, err := packages.Load(exported.Config, fmt.Sprintf("file=%s", exported.File("golang.org/fake", "a/a_x_test.go")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(initial))
+	}
+	xTestC := constant(initial[0], "xTestC")
+	if xTestC == nil {
+		t.Fatalf("no value for xTestC")
+	}
+	got := xTestC.Val().String()
+	// TODO(rstambler): Ideally, this test would check that the test variant
+	// was imported, but that's pretty complicated.
+	if want := `"xC"`; got != want {
+		t.Errorf("got: %q, want %q", got, want)
+	}
+
 }
 
 func checkPkg(t *testing.T, p *packages.Package, id, name string, syntax int) bool {
