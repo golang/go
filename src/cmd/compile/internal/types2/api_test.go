@@ -21,7 +21,8 @@ func unimplemented() {
 }
 
 func parseSrc(path, src string) (*syntax.File, error) {
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), nil, nil, 0)
+	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
 }
 
 func pkgFor(path, source string, info *Info) (*Package, error) {
@@ -272,7 +273,7 @@ func TestTypesInfo(t *testing.T) {
 		// tests for broken code that doesn't parse or type-check
 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		// {`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`}, // TODO(gri) cannot parse?
+		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `a`, `string`},
 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
