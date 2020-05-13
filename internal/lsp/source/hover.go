@@ -58,7 +58,8 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 	if err != nil {
 		return nil, err
 	}
-	hover, err := FormatHover(h, snapshot.View().Options())
+	isPrivate := h.Link != "" && snapshot.View().IsGoPrivatePath(h.Link)
+	hover, err := FormatHover(h, snapshot.View().Options(), isPrivate)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +331,7 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 	return &HoverInformation{source: obj, comment: decl.Doc}
 }
 
-func FormatHover(h *HoverInformation, options Options) (string, error) {
+func FormatHover(h *HoverInformation, options Options, isPrivate bool) (string, error) {
 	signature := h.Signature
 	if signature != "" && options.PreferredContentFormat == protocol.Markdown {
 		signature = fmt.Sprintf("```go\n%s\n```", signature)
@@ -348,7 +349,10 @@ func FormatHover(h *HoverInformation, options Options) (string, error) {
 		}
 		return string(b), nil
 	}
-	link := formatLink(h, options)
+	var link string
+	if !isPrivate {
+		link = formatLink(h, options)
+	}
 	switch options.HoverKind {
 	case SynopsisDocumentation:
 		doc := formatDoc(h.Synopsis, options)
@@ -374,7 +378,6 @@ func formatLink(h *HoverInformation, options Options) string {
 		return plainLink
 	}
 }
-
 func formatDoc(doc string, options Options) string {
 	if options.PreferredContentFormat == protocol.Markdown {
 		return CommentToMarkdown(doc)

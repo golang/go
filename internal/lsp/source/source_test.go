@@ -493,7 +493,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	hover, err := source.FormatHover(h, r.view.Options())
+	hover, err := source.FormatHover(h, r.view.Options(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

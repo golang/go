@@ -152,6 +152,10 @@ type View interface {
 	// user's workspace. In particular, if they are both outside of a module
 	// and their GOPATH.
 	ValidBuildConfiguration() bool
+
+	// IsGoPrivatePath reports whether target is a private import path, as identified
+	// by the GOPRIVATE environment variable.
+	IsGoPrivatePath(path string) bool
 }
 
 // Session represents a single connection from a client.

@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -108,7 +109,7 @@ type view struct {
 	goCommand bool
 
 	// `go env` variables that need to be tracked.
-	gopath, gocache string
+	gopath, gocache, goprivate string
 
 	// gocmdRunner guards go command calls from concurrency errors.
 	gocmdRunner *gocommand.Runner
@@ -709,10 +710,11 @@ func isSubdirectory(root, leaf string) bool {
 	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
-// getGoEnv sets the view's build information's GOPATH, GOCACHE, and GOPACKAGESDRIVER values.
-// It also returns the view's GOMOD value, which need not be cached.
+// getGoEnv sets the view's build information's GOPATH, GOCACHE, GOPRIVATE, and
+// GOPACKAGESDRIVER values.  It also returns the view's GOMOD value, which need
+// not be cached.
 func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
-	var gocache, gopath, gopackagesdriver bool
+	var gocache, gopath, gopackagesdriver, goprivate bool
 	isGoCommand := func(gopackagesdriver string) bool {
 		return gopackagesdriver == "" || gopackagesdriver == "off"
 	}
@@ -728,6 +730,9 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 		case "GOPATH":
 			v.gopath = split[1]
 			gopath = true
+		case "GOPRIVATE":
+			v.goprivate = split[1]
+			goprivate = true
 		case "GOPACKAGESDRIVER":
 			v.goCommand = isGoCommand(split[1])
 			gopackagesdriver = true
@@ -762,6 +767,12 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 			return "", errors.New("unable to determine GOCACHE")
 		}
 	}
+	if !goprivate {
+		if goprivate, ok := envMap["GOPRIVATE"]; ok {
+			v.goprivate = goprivate
+		}
+		// No error here: GOPRIVATE is not essential.
+	}
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
 	if !gopackagesdriver {
 		v.goCommand = isGoCommand(os.Getenv("GOPACKAGESDRIVER"))
@@ -770,6 +781,53 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 		return gomod, nil
 	}
 	return "", nil
+
+}
+
+func (v *view) IsGoPrivatePath(target string) bool {
+	return globsMatchPath(v.goprivate, target)
+}
+
+// Copied from
+// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/str/path.go;l=58;drc=2910c5b4a01a573ebc97744890a07c1a3122c67a
+func globsMatchPath(globs, target string) bool {
+	for globs != "" {
+		// Extract next non-empty glob in comma-separated list.
+		var glob string
+		if i := strings.Index(globs, ","); i >= 0 {
+			glob, globs = globs[:i], globs[i+1:]
+		} else {
+			glob, globs = globs, ""
+		}
+		if glob == "" {
+			continue
+		}
+
+		// A glob with N+1 path elements (N slashes) needs to be matched
+		// against the first N+1 path elements of target,
+		// which end just before the N+1'th slash.
+		n := strings.Count(glob, "/")
+		prefix := target
+		// Walk target, counting slashes, truncating at the N+1'th slash.
+		for i := 0; i < len(target); i++ {
+			if target[i] == '/' {
+				if n == 0 {
+					prefix = target[:i]
+					break
+				}
+				n--
+			}
+		}
+		if n > 0 {
+			// Not enough prefix elements.
+			continue
+		}
+		matched, _ := path.Match(glob, prefix)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
