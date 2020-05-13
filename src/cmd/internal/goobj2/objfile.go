@@ -578,83 +578,83 @@ func (r *Reader) NNonpkgref() int {
 }
 
 // SymOff returns the offset of the i-th symbol.
-func (r *Reader) SymOff(i int) uint32 {
+func (r *Reader) SymOff(i uint32) uint32 {
 	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
 }
 
 // Sym returns a pointer to the i-th symbol.
-func (r *Reader) Sym(i int) *Sym {
+func (r *Reader) Sym(i uint32) *Sym {
 	off := r.SymOff(i)
 	return (*Sym)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
-func (r *Reader) NReloc(i int) int {
+func (r *Reader) NReloc(i uint32) int {
 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
 	return int(r.uint32At(relocIdxOff+4) - r.uint32At(relocIdxOff))
 }
 
 // RelocOff returns the offset of the j-th relocation of the i-th symbol.
-func (r *Reader) RelocOff(i int, j int) uint32 {
+func (r *Reader) RelocOff(i uint32, j int) uint32 {
 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
 	relocIdx := r.uint32At(relocIdxOff)
 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
 }
 
 // Reloc returns a pointer to the j-th relocation of the i-th symbol.
-func (r *Reader) Reloc(i int, j int) *Reloc {
+func (r *Reader) Reloc(i uint32, j int) *Reloc {
 	off := r.RelocOff(i, j)
 	return (*Reloc)(unsafe.Pointer(&r.b[off]))
 }
 
 // Relocs returns a pointer to the relocations of the i-th symbol.
-func (r *Reader) Relocs(i int) []Reloc {
+func (r *Reader) Relocs(i uint32) []Reloc {
 	off := r.RelocOff(i, 0)
 	n := r.NReloc(i)
 	return (*[1 << 20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // NAux returns the number of aux symbols of the i-th symbol.
-func (r *Reader) NAux(i int) int {
-	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
+func (r *Reader) NAux(i uint32) int {
+	auxIdxOff := r.h.Offsets[BlkAuxIdx] + i*4
 	return int(r.uint32At(auxIdxOff+4) - r.uint32At(auxIdxOff))
 }
 
 // AuxOff returns the offset of the j-th aux symbol of the i-th symbol.
-func (r *Reader) AuxOff(i int, j int) uint32 {
-	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
+func (r *Reader) AuxOff(i uint32, j int) uint32 {
+	auxIdxOff := r.h.Offsets[BlkAuxIdx] + i*4
 	auxIdx := r.uint32At(auxIdxOff)
 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
 }
 
 // Aux returns a pointer to the j-th aux symbol of the i-th symbol.
-func (r *Reader) Aux(i int, j int) *Aux {
+func (r *Reader) Aux(i uint32, j int) *Aux {
 	off := r.AuxOff(i, j)
 	return (*Aux)(unsafe.Pointer(&r.b[off]))
 }
 
 // Auxs returns the aux symbols of the i-th symbol.
-func (r *Reader) Auxs(i int) []Aux {
+func (r *Reader) Auxs(i uint32) []Aux {
 	off := r.AuxOff(i, 0)
 	n := r.NAux(i)
 	return (*[1 << 20]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // DataOff returns the offset of the i-th symbol's data.
-func (r *Reader) DataOff(i int) uint32 {
-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+func (r *Reader) DataOff(i uint32) uint32 {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
 	return r.h.Offsets[BlkData] + r.uint32At(dataIdxOff)
 }
 
 // DataSize returns the size of the i-th symbol's data.
-func (r *Reader) DataSize(i int) int {
-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+func (r *Reader) DataSize(i uint32) int {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
 	return int(r.uint32At(dataIdxOff+4) - r.uint32At(dataIdxOff))
 }
 
 // Data returns the i-th symbol's data.
-func (r *Reader) Data(i int) []byte {
-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+func (r *Reader) Data(i uint32) []byte {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
 	base := r.h.Offsets[BlkData]
 	off := r.uint32At(dataIdxOff)
 	end := r.uint32At(dataIdxOff + 4)

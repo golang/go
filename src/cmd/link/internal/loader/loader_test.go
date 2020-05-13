@@ -19,7 +19,7 @@ import (
 // do anything interesting with this symbol (such as look at its
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
-	idx := len(ldr.objSyms)
+	idx := uint32(len(ldr.objSyms))
 	s, ok := ldr.AddSym(name, 0, or, idx, nonPkgDef, false, sym.SRODATA)
 	if !ok {
 		t.Errorf("AddrSym failed for '" + name + "'")

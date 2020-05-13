@@ -43,7 +43,7 @@ func (r *objReader) readNew() {
 	}
 
 	resolveSymRef := func(s goobj2.SymRef) SymID {
-		var i int
+		var i uint32
 		switch p := s.PkgIdx; p {
 		case goobj2.PkgIdxInvalid:
 			if s.SymIdx != 0 {
@@ -51,12 +51,12 @@ func (r *objReader) readNew() {
 			}
 			return SymID{}
 		case goobj2.PkgIdxNone:
-			i = int(s.SymIdx) + rr.NSym()
+			i = s.SymIdx + uint32(rr.NSym())
 		case goobj2.PkgIdxBuiltin:
 			name, abi := goobj2.BuiltinName(int(s.SymIdx))
 			return SymID{name, int64(abi)}
 		case goobj2.PkgIdxSelf:
-			i = int(s.SymIdx)
+			i = s.SymIdx
 		default:
 			// Symbol from other package, referenced by index.
 			// We don't know the name. Use index.
@@ -71,10 +71,10 @@ func (r *objReader) readNew() {
 
 	// Symbols
 	pcdataBase := start + rr.PcdataBase()
-	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
-	npkgdef := rr.NSym()
-	ndef := rr.NSym() + rr.NNonpkgdef()
-	for i := 0; i < n; i++ {
+	n := uint32(rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref())
+	npkgdef := uint32(rr.NSym())
+	ndef := uint32(rr.NSym() + rr.NNonpkgdef())
+	for i := uint32(0); i < n; i++ {
 		osym := rr.Sym(i)
 		if osym.Name(rr) == "" {
 			continue // not a real symbol
@@ -122,7 +122,7 @@ func (r *objReader) readNew() {
 		}
 
 		// Aux symbol info
-		isym := -1
+		isym := ^uint32(0)
 		funcdata := make([]goobj2.SymRef, 0, 4)
 		auxs := rr.Auxs(i)
 		for j := range auxs {
@@ -134,7 +134,7 @@ func (r *objReader) readNew() {
 				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
 					panic("funcinfo symbol not defined in current package")
 				}
-				isym = int(a.Sym().SymIdx)
+				isym = a.Sym().SymIdx
 			case goobj2.AuxFuncdata:
 				funcdata = append(funcdata, a.Sym())
 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
@@ -145,7 +145,7 @@ func (r *objReader) readNew() {
 		}
 
 		// Symbol Info
-		if isym == -1 {
+		if isym == ^uint32(0) {
 			continue
 		}
 		b := rr.BytesAt(rr.DataOff(isym), rr.DataSize(isym))
