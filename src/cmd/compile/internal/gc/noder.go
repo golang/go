@@ -445,6 +445,11 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
 }
 
 func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+	if decl.TParamList != nil {
+		yyerrorl(p.makeXPos(decl.Pos()), "generic types cannot be compiled yet")
+		errorexit()
+	}
+
 	n := p.declName(decl.Name)
 	n.Op = OTYPE
 	declare(n, dclcontext)
@@ -485,6 +490,11 @@ func (p *noder) declName(name *syntax.Name) *Node {
 }
 
 func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+	if fun.TParamList != nil {
+		yyerrorl(p.makeXPos(fun.Pos()), "generic functions cannot be compiled yet")
+		errorexit()
+	}
+
 	name := p.name(fun.Name)
 	t := p.signature(fun.Recv, fun.Type)
 	f := p.nod(fun, ODCLFUNC, nil, nil)
