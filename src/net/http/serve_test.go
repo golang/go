@@ -2849,29 +2849,47 @@ func TestStripPrefix(t *testing.T) {
 	defer afterTest(t)
 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("X-Path", r.URL.Path)
+		w.Header().Set("X-RawPath", r.URL.RawPath)
 	})
-	ts := httptest.NewServer(StripPrefix("/foo", h))
+	ts := httptest.NewServer(StripPrefix("/foo/bar", h))
 	defer ts.Close()
 
 	c := ts.Client()
 
-	res, err := c.Get(ts.URL + "/foo/bar")
-	if err != nil {
-		t.Fatal(err)
+	cases := []struct {
+		reqPath string
+		path    string // If empty we want a 404.
+		rawPath string
+	}{
+		{"/foo/bar/qux", "/qux", ""},
+		{"/foo/bar%2Fqux", "/qux", "%2Fqux"},
+		{"/foo%2Fbar/qux", "", ""}, // Escaped prefix does not match.
+		{"/bar", "", ""},           // No prefix match.
 	}
-	if g, e := res.Header.Get("X-Path"), "/bar"; g != e {
-		t.Errorf("test 1: got %s, want %s", g, e)
+	for _, tc := range cases {
+		t.Run(tc.reqPath, func(t *testing.T) {
+			res, err := c.Get(ts.URL + tc.reqPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body.Close()
+			if tc.path == "" {
+				if res.StatusCode != StatusNotFound {
+					t.Errorf("got %q, want 404 Not Found", res.Status)
+				}
+				return
+			}
+			if res.StatusCode != StatusOK {
+				t.Fatalf("got %q, want 200 OK", res.Status)
+			}
+			if g, w := res.Header.Get("X-Path"), tc.path; g != w {
+				t.Errorf("got Path %q, want %q", g, w)
+			}
+			if g, w := res.Header.Get("X-RawPath"), tc.rawPath; g != w {
+				t.Errorf("got RawPath %q, want %q", g, w)
+			}
+		})
 	}
-	res.Body.Close()
-
-	res, err = Get(ts.URL + "/bar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g, e := res.StatusCode, 404; g != e {
-		t.Errorf("test 2: got status %v, want %v", g, e)
-	}
-	res.Body.Close()
 }
 
 // https://golang.org/issue/18952.

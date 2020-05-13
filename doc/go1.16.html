@@ -112,3 +112,17 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO
 </p>
+
+<p>
+  In the <a href="/pkg/net/http/"><code>net/http</code></a> package, the
+  behavior of <a href="/pkg/net/http/#StripPrefix"><code>StripPrefix</code></a>
+  has been changed to strip the prefix from the request URL's
+  <code>RawPath</code> field in addition to its <code>Path</code> field.
+  In past releases, only the <code>Path</code> field was trimmed, and so if the
+  request URL contained any escaped characters the URL would be modified to
+  have mismatched <code>Path</code> and <code>RawPath</code> fields.
+  In Go 1.16, <code>StripPrefix</code> trims both fields.
+  If there are escaped characters in the prefix part of the request URL the
+  handler serves a 404 instead of its previous behavior of invoking the
+  underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
+</p>
