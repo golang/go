@@ -69,28 +69,6 @@ func TestLoadImportsC(t *testing.T) {
 	}
 }
 
-// Stolen from internal/testenv package in core.
-// hasGoBuild reports whether the current system can build programs with ``go build''
-// and then run them with os.StartProcess or exec.Command.
-func hasGoBuild() bool {
-	if os.Getenv("GO_GCFLAGS") != "" {
-		// It's too much work to require every caller of the go command
-		// to pass along "-gcflags="+os.Getenv("GO_GCFLAGS").
-		// For now, if $GO_GCFLAGS is set, report that we simply can't
-		// run go build.
-		return false
-	}
-	switch runtime.GOOS {
-	case "android", "js":
-		return false
-	case "darwin":
-		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			return false
-		}
-	}
-	return true
-}
-
 func TestCgoNoSyntax(t *testing.T) {
 	packagestest.TestAll(t, testCgoNoSyntax)
 }
