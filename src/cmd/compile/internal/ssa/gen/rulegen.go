@@ -1820,6 +1820,8 @@ func (op opData) auxIntType() string {
 		return "Op"
 	case "FlagConstant":
 		return "flagConstant"
+	case "ARM64BitField":
+		return "arm64BitField"
 	default:
 		return "invalid"
 	}
