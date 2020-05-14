@@ -133,19 +133,6 @@ func FoldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
 	return s, off
 }
 
-// applyOuterToXAdd takes a relocation and updates the relocation's
-// XAdd field to take into account the target syms's outer symbol (if
-// applicable).
-func ApplyOuterToXAdd(r *sym.Reloc) *sym.Symbol {
-	rs := r.Sym
-	r.Xadd = r.Add
-	if rs.Outer != nil {
-		r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
-		rs = rs.Outer
-	}
-	return rs
-}
-
 // relocsym resolve relocations in "s", updating the symbol's content
 // in "P".
 // The main loop walks through the list of relocations attached to "s"
@@ -1359,8 +1346,6 @@ type dodataState struct {
 	// Link context
 	ctxt *Link
 	// Data symbols bucketed by type.
-	data [sym.SXREF][]*sym.Symbol
-	// Data symbols bucketed by type.
 	data2 [sym.SXREF][]loader.Sym
 	// Max alignment for each flavor of data symbol.
 	dataMaxAlign [sym.SXREF]int32
@@ -1740,7 +1725,7 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
 
 	// Coverage instrumentation counters for libfuzzer.
-	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+	if len(state.data2[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
 		state.allocateNamedSectionAndAssignSyms2(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
 	}
 

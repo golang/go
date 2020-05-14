@@ -24,28 +24,6 @@ func isDwarf64(ctxt *Link) bool {
 	return ctxt.HeadType == objabi.Haix
 }
 
-// dwarfSecInfo2 is a replica of the dwarfSecInfo struct but with
-// *sym.Symbol content instead of loader.Sym content.
-type dwarfSecInfo2 struct {
-	syms []*sym.Symbol
-}
-
-func (dsi *dwarfSecInfo2) secSym() *sym.Symbol {
-	if len(dsi.syms) == 0 {
-		return nil
-	}
-	return dsi.syms[0]
-}
-
-func (dsi *dwarfSecInfo2) subSyms() []*sym.Symbol {
-	if len(dsi.syms) == 0 {
-		return []*sym.Symbol{}
-	}
-	return dsi.syms[1:]
-}
-
-var dwarfp []dwarfSecInfo2
-
 /*
  *  Elf.
  */

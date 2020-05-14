@@ -16,13 +16,8 @@ type LoaderSym int
 type CompilationUnit struct {
 	Pkg            string        // The package name, eg ("fmt", or "runtime")
 	Lib            *Library      // Our library
-	Consts         *Symbol       // Package constants DIEs
 	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
 	DWInfo         *dwarf.DWDie  // CU root DIE
-	FuncDIEs       []*Symbol     // Function DIE subtrees
-	AbsFnDIEs      []*Symbol     // Abstract function DIE subtrees
-	RangeSyms      []*Symbol     // Symbols for debug_range
-	Textp          []*Symbol     // Text symbols in this CU
 	DWARFFileTable []string      // The file table used to generate the .debug_lines
 
 	Consts2    LoaderSym   // Package constants DIEs (loader)

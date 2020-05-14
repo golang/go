@@ -70,14 +70,6 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	o(0xc3)
 }
 
-// makeWritable makes a readonly symbol writable if we do opcode rewriting.
-func makeWritable(s *sym.Symbol) {
-	if s.Attr.ReadOnly() {
-		s.Attr.Set(sym.AttrReadOnly, false)
-		s.P = append([]byte(nil), s.P...)
-	}
-}
-
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind

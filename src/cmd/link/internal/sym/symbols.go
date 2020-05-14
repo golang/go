@@ -33,16 +33,6 @@ package sym
 type Symbols struct {
 	// Symbol lookup based on name and indexed by version.
 	versions int
-
-	// Provided by the loader
-
-	// Look up the symbol with the given name and version, creating the
-	// symbol if it is not found.
-	Lookup func(name string, v int) *Symbol
-
-	// Look up the symbol with the given name and version, returning nil
-	// if it is not found.
-	ROLookup func(name string, v int) *Symbol
 }
 
 func NewSymbols() *Symbols {

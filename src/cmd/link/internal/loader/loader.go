@@ -202,13 +202,6 @@ func growBitmap(reqLen int, b Bitmap) Bitmap {
 //   extending the external symbol index space range. The host object
 //   loader stores symbol payloads in loader.payloads using SymbolBuilder.
 //
-// - For now, in loader.LoadFull we convert all symbols (Go + external)
-//   to sym.Symbols.
-//
-// - At some point (when the wayfront is pushed through all of the
-//   linker), all external symbols will be payload-based, and we can
-//   get rid of the loader.Syms array.
-//
 // - Each symbol gets a unique global index. For duplicated and
 //   overwriting/overwritten symbols, the second (or later) appearance
 //   of the symbol gets the same global index as the first appearance.
@@ -239,9 +232,6 @@ type Loader struct {
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
-
-	Syms     []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
-	symBatch []sym.Symbol  // batch of symbols.
 
 	anonVersion int // most recently assigned ext static sym pseudo-version
 
@@ -292,9 +282,6 @@ type Loader struct {
 	// the symbol that triggered the marking of symbol K as live.
 	Reachparent []Sym
 
-	relocBatch    []sym.Reloc    // for bulk allocation of relocations
-	relocExtBatch []sym.RelocExt // for bulk allocation of relocations
-
 	flags uint32
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
@@ -302,8 +289,6 @@ type Loader struct {
 	elfsetstring elfsetstringFunc
 
 	errorReporter *ErrorReporter
-
-	SymLookup func(name string, ver int) *sym.Symbol
 }
 
 const (
@@ -560,17 +545,6 @@ func (ms *extSymPayload) Grow(siz int64) {
 		ms.data = ms.data[0:cl]
 	}
 	ms.data = ms.data[:siz]
-}
-
-// Ensure Syms slice has enough space.
-func (l *Loader) growSyms(i int) {
-	n := len(l.Syms)
-	if n > i {
-		return
-	}
-	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
-	l.growValues(int(i) + 1)
-	l.growAttrBitmaps(int(i) + 1)
 }
 
 // Convert a local index to a global index.
@@ -2078,163 +2052,6 @@ func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
 	}
 }
 
-// Load full contents.
-func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc, needExtReloc bool) {
-	// create all Symbols first.
-	l.growSyms(l.NSym())
-	l.growSects(l.NSym())
-
-	if needReloc && len(l.extRelocs) != 0 {
-		// If needReloc is true, we are going to convert the loader's
-		// "internal" relocations to sym.Relocs. In this case, external
-		// relocations shouldn't be used.
-		panic("phase error")
-	}
-
-	nr := 0 // total number of sym.Reloc's we'll need
-	for _, o := range l.objs[goObjStart:] {
-		nr += loadObjSyms(l, syms, o.r, needReloc, needExtReloc)
-	}
-
-	// Make a first pass through the external symbols, making
-	// sure that each external symbol has a non-nil entry in
-	// l.Syms (note that relocations and symbol content will
-	// be copied in a later loop).
-	toConvert := make([]Sym, 0, len(l.payloads))
-	for _, i := range l.extReader.syms {
-		if !l.attrReachable.Has(i) {
-			continue
-		}
-		pp := l.getPayload(i)
-		if needReloc {
-			nr += len(pp.relocs)
-		}
-		if needExtReloc && int(i) < len(l.extRelocs) {
-			nr += len(l.extRelocs[i])
-		}
-		// create and install the sym.Symbol here so that l.Syms will
-		// be fully populated when we do relocation processing and
-		// outer/sub processing below. Note that once we do this,
-		// we'll need to get at the payload for a symbol with direct
-		// reference to l.payloads[] as opposed to calling l.getPayload().
-		s := l.allocSym(pp.name, 0)
-		l.installSym(i, s)
-		toConvert = append(toConvert, i)
-	}
-
-	// allocate a single large slab of relocations for all live symbols
-	if nr != 0 {
-		l.relocBatch = make([]sym.Reloc, nr)
-		if needExtReloc {
-			l.relocExtBatch = make([]sym.RelocExt, nr)
-		}
-	}
-
-	// convert payload-based external symbols into sym.Symbol-based
-	for _, i := range toConvert {
-
-		// Copy kind/size/value etc.
-		pp := l.payloads[l.extIndex(i)]
-		s := l.Syms[i]
-		s.Version = int16(pp.ver)
-		s.Type = pp.kind
-		s.Size = pp.size
-
-		// Copy relocations
-		if needReloc {
-			batch := l.relocBatch
-			s.R = batch[:len(pp.relocs):len(pp.relocs)]
-			l.relocBatch = batch[len(pp.relocs):]
-			relocs := l.Relocs(i)
-			l.convertRelocations(i, &relocs, s, false)
-		}
-		if needExtReloc {
-			l.convertExtRelocs(s, i)
-		}
-
-		// Copy data
-		s.P = pp.data
-
-		// Transfer over attributes.
-		l.migrateAttributes(i, s)
-	}
-
-	// load contents of defined symbols
-	for _, o := range l.objs[goObjStart:] {
-		loadObjFull(l, o.r, needReloc, needExtReloc)
-	}
-
-	// Sanity check: we should have consumed all batched allocations.
-	if len(l.relocBatch) != 0 || len(l.relocExtBatch) != 0 {
-		panic("batch allocation mismatch")
-	}
-
-	// Note: resolution of ABI aliases is now also handled in
-	// loader.convertRelocations, so once the host object loaders move
-	// completely to loader.Sym, we can remove the code below.
-
-	// Resolve ABI aliases for external symbols. This is only
-	// needed for internal cgo linking.
-	if needReloc {
-		for _, i := range l.extReader.syms {
-			if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
-				for ri := range s.R {
-					r := &s.R[ri]
-					if r.Sym != nil && r.Sym.Type == sym.SABIALIAS {
-						r.Sym = r.Sym.R[0].Sym
-					}
-				}
-			}
-		}
-	}
-
-	// Free some memory.
-	// At this point we still need basic index mapping, and some fields of
-	// external symbol payloads, but not much else.
-	l.values = nil
-	l.symSects = nil
-	l.outdata = nil
-	l.itablink = nil
-	l.attrOnList = nil
-	l.attrLocal = nil
-	l.attrNotInSymbolTable = nil
-	l.attrVisibilityHidden = nil
-	l.attrDuplicateOK = nil
-	l.attrShared = nil
-	l.attrExternal = nil
-	l.attrReadOnly = nil
-	l.attrTopFrame = nil
-	l.attrSpecial = nil
-	l.attrCgoExportDynamic = nil
-	l.attrCgoExportStatic = nil
-	l.outer = nil
-	l.align = nil
-	l.dynimplib = nil
-	l.dynimpvers = nil
-	l.localentry = nil
-	l.extname = nil
-	l.elfType = nil
-	l.plt = nil
-	l.got = nil
-	l.dynid = nil
-	if needExtReloc { // converted to sym.Relocs, drop loader references
-		l.relocVariant = nil
-		l.extRelocs = nil
-	}
-
-	// Drop fields that are no longer needed.
-	for _, i := range l.extReader.syms {
-		pp := l.getPayload(i)
-		pp.name = ""
-		pp.auxs = nil
-		pp.data = nil
-		if needExtReloc {
-			pp.relocs = nil
-			pp.reltypes = nil
-		}
-	}
-}
-
 // ResolveABIAlias given a symbol returns the ABI alias target of that
 // symbol. If the sym in question is not an alias, the sym itself is
 // returned.
@@ -2251,88 +2068,6 @@ func (l *Loader) ResolveABIAlias(s Sym) Sym {
 		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
 	}
 	return target
-}
-
-// ExtractSymbols grabs the symbols out of the loader for work that hasn't been
-// ported to the new symbol type.
-func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
-	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
-	// created via loader.Create (marked with versions less than zero), since
-	// if we tried to add these we'd wind up with collisions. We do, however,
-	// add these symbols to the list of global symbols so that other future
-	// steps (like pclntab generation) can find these symbols if neceassary.
-	// Along the way, update the version from the negative anon version to
-	// something larger than sym.SymVerStatic (needed so that
-	// sym.symbol.IsFileLocal() works properly).
-	anonVerReplacement := syms.IncVersion()
-	for _, s := range l.Syms {
-		if s == nil {
-			continue
-		}
-		if s.Version < 0 {
-			s.Version = int16(anonVerReplacement)
-		}
-	}
-
-	// Provide lookup functions for sym.Symbols.
-	l.SymLookup = func(name string, ver int) *sym.Symbol {
-		i := l.LookupOrCreateSym(name, ver)
-		if s := l.Syms[i]; s != nil {
-			return s
-		}
-		s := l.allocSym(name, ver)
-		l.installSym(i, s)
-		return s
-	}
-	syms.Lookup = l.SymLookup
-	syms.ROLookup = func(name string, ver int) *sym.Symbol {
-		i := l.Lookup(name, ver)
-		return l.Syms[i]
-	}
-}
-
-// allocSym allocates a new symbol backing.
-func (l *Loader) allocSym(name string, version int) *sym.Symbol {
-	batch := l.symBatch
-	if len(batch) == 0 {
-		batch = make([]sym.Symbol, 1000)
-	}
-	s := &batch[0]
-	l.symBatch = batch[1:]
-
-	s.Dynid = -1
-	s.Name = name
-	s.Version = int16(version)
-
-	return s
-}
-
-// installSym sets the underlying sym.Symbol for the specified sym index.
-func (l *Loader) installSym(i Sym, s *sym.Symbol) {
-	if s == nil {
-		panic("installSym nil symbol")
-	}
-	if l.Syms[i] != nil {
-		panic("sym already present in installSym")
-	}
-	l.Syms[i] = s
-	s.SymIdx = sym.LoaderSym(i)
-}
-
-// addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
-func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
-	s := l.allocSym(name, ver)
-	if s.Type != 0 && s.Type != sym.SXREF {
-		fmt.Println("symbol already processed:", unit.Lib, i, s)
-		panic("symbol already processed")
-	}
-	if t == sym.SBSS && (s.Type == sym.SRODATA || s.Type == sym.SNOPTRBSS) {
-		t = s.Type
-	}
-	s.Type = t
-	l.growSyms(int(i))
-	l.installSym(i, s)
-	return s
 }
 
 // TopLevelSym tests a symbol (by name and kind) to determine whether
@@ -2357,49 +2092,6 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
 	default:
 		return false
 	}
-}
-
-// loadObjSyms creates sym.Symbol objects for the live Syms in the
-// object corresponding to object reader "r". Return value is the
-// number of sym.Reloc entries required for all the new symbols.
-func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc, needExtReloc bool) int {
-	nr := 0
-	for i, n := uint32(0), uint32(r.NSym()+r.NNonpkgdef()); i < n; i++ {
-		gi := r.syms[i]
-		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-			continue // come from a different object
-		}
-		osym := r.Sym(i)
-		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
-		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
-
-		// Skip non-dwarf anonymous symbols (e.g. funcdata),
-		// since they will never be turned into sym.Symbols.
-		if !topLevelSym(name, t) {
-			continue
-		}
-		ver := abiToVer(osym.ABI(), r.version)
-		if t == sym.SXREF {
-			log.Fatalf("bad sxref")
-		}
-		if t == 0 {
-			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
-		}
-		if !l.attrReachable.Has(gi) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
-			// No need to load unreachable symbols.
-			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
-			continue
-		}
-
-		l.addNewSym(gi, name, ver, r.unit, t)
-		if needReloc {
-			nr += r.NReloc(i)
-		}
-		if needExtReloc && int(gi) < len(l.extRelocs) {
-			nr += len(l.extRelocs[gi])
-		}
-	}
-	return nr
 }
 
 // cloneToExternal takes the existing object file symbol (symIdx)
@@ -2505,72 +2197,6 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
 }
 
-// migrateAttributes copies over all of the attributes of symbol 'src' to
-// sym.Symbol 'dst'.
-func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
-	dst.Value = l.SymValue(src)
-	dst.Align = l.SymAlign(src)
-	dst.Sect = l.SymSect(src)
-
-	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
-	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
-	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
-	dst.Attr.Set(sym.AttrNotInSymbolTable, l.AttrNotInSymbolTable(src))
-	dst.Attr.Set(sym.AttrNoSplit, l.IsNoSplit(src))
-	dst.Attr.Set(sym.AttrVisibilityHidden, l.AttrVisibilityHidden(src))
-	dst.Attr.Set(sym.AttrDuplicateOK, l.AttrDuplicateOK(src))
-	dst.Attr.Set(sym.AttrShared, l.AttrShared(src))
-	dst.Attr.Set(sym.AttrExternal, l.AttrExternal(src))
-	dst.Attr.Set(sym.AttrTopFrame, l.AttrTopFrame(src))
-	dst.Attr.Set(sym.AttrSpecial, l.AttrSpecial(src))
-	dst.Attr.Set(sym.AttrCgoExportDynamic, l.AttrCgoExportDynamic(src))
-	dst.Attr.Set(sym.AttrCgoExportStatic, l.AttrCgoExportStatic(src))
-	dst.Attr.Set(sym.AttrReadOnly, l.AttrReadOnly(src))
-
-	// Convert outer relationship
-	if outer, ok := l.outer[src]; ok {
-		dst.Outer = l.Syms[outer]
-		// relocsym's foldSubSymbolOffset requires that we only
-		// have a single level of containment-- enforce here.
-		if l.outer[outer] != 0 {
-			panic("multiply nested outer syms")
-		}
-	}
-
-	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
-	// method for more on this, there is some tricky stuff here.
-	dst.Attr.Set(sym.AttrSubSymbol, l.outer[src] != 0 && l.sub[l.outer[src]] != 0)
-
-	// Copy over dynimplib, dynimpvers, extname.
-	if name, ok := l.extname[src]; ok {
-		dst.SetExtname(name)
-	}
-	if l.SymDynimplib(src) != "" {
-		dst.SetDynimplib(l.SymDynimplib(src))
-	}
-	if l.SymDynimpvers(src) != "" {
-		dst.SetDynimpvers(l.SymDynimpvers(src))
-	}
-
-	// Copy ELF type if set.
-	if et, ok := l.elfType[src]; ok {
-		dst.SetElfType(et)
-	}
-
-	// Copy pe objects values if set.
-	if plt, ok := l.plt[src]; ok {
-		dst.SetPlt(plt)
-	}
-	if got, ok := l.got[src]; ok {
-		dst.SetGot(got)
-	}
-
-	// Copy dynid
-	if dynid, ok := l.dynid[src]; ok {
-		dst.Dynid = dynid
-	}
-}
-
 // CreateExtSym creates a new external symbol with the specified name
 // without adding it to any lookup tables, returning a Sym index for it.
 func (l *Loader) CreateExtSym(name string, ver int) Sym {
@@ -2581,8 +2207,7 @@ func (l *Loader) CreateExtSym(name string, ver int) Sym {
 // without adding it to any lookup tables, returning a Sym index for it.
 func (l *Loader) CreateStaticSym(name string) Sym {
 	// Assign a new unique negative version -- this is to mark the
-	// symbol so that it can be skipped when ExtractSymbols is adding
-	// ext syms to the sym.Symbols hash.
+	// symbol so that it is not included in the name lookup table.
 	l.anonVersion--
 	return l.newExtSym(name, l.anonVersion)
 }
@@ -2591,144 +2216,6 @@ func (l *Loader) FreeSym(i Sym) {
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
 		*pp = extSymPayload{}
-	}
-}
-
-func loadObjFull(l *Loader, r *oReader, needReloc, needExtReloc bool) {
-	for i, n := uint32(0), uint32(r.NSym()+r.NNonpkgdef()); i < n; i++ {
-		// A symbol may be a dup or overwritten. In this case, its
-		// content will actually be provided by a different object
-		// (to which its global index points). Skip those symbols.
-		gi := l.toGlobal(r, i)
-		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-			continue
-		}
-		s := l.Syms[gi]
-		if s == nil {
-			continue
-		}
-
-		l.migrateAttributes(gi, s)
-		// Be careful not to overwrite attributes set by the linker.
-		// Don't use the attributes from the object file.
-
-		osym := r.Sym(i)
-		size := osym.Siz()
-
-		// Symbol data
-		s.P = l.OutData(gi)
-
-		// Relocs
-		if needReloc {
-			relocs := l.relocs(r, i)
-			batch := l.relocBatch
-			s.R = batch[:relocs.Count():relocs.Count()]
-			l.relocBatch = batch[relocs.Count():]
-			l.convertRelocations(gi, &relocs, s, false)
-		}
-		if needExtReloc {
-			l.convertExtRelocs(s, gi)
-		}
-
-		// Aux symbol info
-		auxs := r.Auxs(i)
-		for j := range auxs {
-			a := &auxs[j]
-			switch a.Type() {
-			case goobj2.AuxFuncInfo, goobj2.AuxFuncdata, goobj2.AuxGotype:
-				// already handled
-			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
-				// ignored for now
-			default:
-				panic("unknown aux type")
-			}
-		}
-
-		if s.Size < int64(size) {
-			s.Size = int64(size)
-		}
-	}
-}
-
-// convertRelocations takes a vector of loader.Reloc relocations and
-// translates them into an equivalent set of sym.Reloc relocations on
-// the symbol "dst", performing fixups along the way for ABI aliases,
-// etc. It is assumed that the caller has pre-allocated the dst symbol
-// relocations slice. If 'strict' is set, then this method will
-// panic if it finds a relocation targeting a nil symbol.
-func (l *Loader) convertRelocations(symIdx Sym, src *Relocs, dst *sym.Symbol, strict bool) {
-	for j := range dst.R {
-		r := src.At2(j)
-		rs := r.Sym()
-		sz := r.Siz()
-		rt := r.Type()
-		if rt == objabi.R_METHODOFF {
-			if l.attrReachable.Has(rs) {
-				rt = objabi.R_ADDROFF
-			} else {
-				sz = 0
-				rs = 0
-			}
-		}
-		if rt == objabi.R_WEAKADDROFF && !l.attrReachable.Has(rs) {
-			rs = 0
-			sz = 0
-		}
-		if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
-			rsrelocs := l.Relocs(rs)
-			rs = rsrelocs.At2(0).Sym()
-		}
-		if strict && rs != 0 && l.Syms[rs] == nil && rt != objabi.R_USETYPE {
-			panic("nil reloc target in convertRelocations")
-		}
-		dst.R[j] = sym.Reloc{
-			Off:  r.Off(),
-			Siz:  sz,
-			Type: rt,
-			Add:  r.Add(),
-			Sym:  l.Syms[rs],
-		}
-		if rv := l.RelocVariant(symIdx, j); rv != 0 {
-			dst.R[j].InitExt()
-			dst.R[j].Variant = rv
-		}
-	}
-}
-
-// Convert external relocations to sym.Relocs on symbol dst.
-func (l *Loader) convertExtRelocs(dst *sym.Symbol, src Sym) {
-	if int(src) >= len(l.extRelocs) {
-		return
-	}
-	extRelocs := l.extRelocs[src]
-	if len(extRelocs) == 0 {
-		return
-	}
-	if len(dst.R) != 0 {
-		panic("bad")
-	}
-
-	n := len(extRelocs)
-	batch := l.relocBatch
-	dst.R = batch[:n:n]
-	l.relocBatch = batch[n:]
-	relocs := l.Relocs(src)
-	for i := range dst.R {
-		er := &extRelocs[i]
-		sr := relocs.At2(er.Idx)
-		r := &dst.R[i]
-		r.RelocExt = &l.relocExtBatch[0]
-		l.relocExtBatch = l.relocExtBatch[1:]
-		r.Off = sr.Off()
-		r.Siz = sr.Siz()
-		r.Type = sr.Type()
-		r.Sym = l.Syms[l.ResolveABIAlias(sr.Sym())]
-		r.Add = sr.Add()
-		r.Xsym = l.Syms[er.Xsym]
-		r.Xadd = er.Xadd
-		if rv := l.RelocVariant(src, er.Idx); rv != 0 {
-			r.Variant = rv
-		}
 	}
 }
 
@@ -2941,15 +2428,7 @@ func (l *Loader) Dump() {
 		if l.IsExternal(i) {
 			pi = fmt.Sprintf("<ext %d>", l.extIndex(i))
 		}
-		var s *sym.Symbol
-		if int(i) < len(l.Syms) {
-			s = l.Syms[i]
-		}
-		if s != nil {
-			fmt.Println(i, s, s.Type, pi)
-		} else {
-			fmt.Println(i, l.SymName(i), "<not loaded>", pi)
-		}
+		fmt.Println(i, l.SymName(i), l.SymType(i), pi)
 	}
 	fmt.Println("symsByName")
 	for name, i := range l.symsByName[0] {
