@@ -72,7 +72,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	// Suppose we create some more symbols, which triggers a grow.
 	// Make sure the symbol builder's payload pointer is valid,
 	// even across a grow.
-	ldr.growSyms(9999)
+	for i := 0; i < 9999; i++ {
+		ldr.CreateStaticSym("dummy")
+	}
 
 	// Check get/set symbol type
 	es3typ := sb3.Type()

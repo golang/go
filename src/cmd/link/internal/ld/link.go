@@ -70,10 +70,8 @@ type Link struct {
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
-	Textp        []*sym.Symbol
 	Textp2       []loader.Sym
 	NumFilesyms  int
-	Moduledata   *sym.Symbol
 	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
@@ -90,7 +88,6 @@ type Link struct {
 	cgo_export_static  map[string]bool
 	cgo_export_dynamic map[string]bool
 
-	datap   []*sym.Symbol
 	datap2  []loader.Sym
 	dynexp2 []loader.Sym
 

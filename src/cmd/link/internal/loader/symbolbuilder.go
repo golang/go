@@ -9,7 +9,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
-	"fmt"
 	"sort"
 )
 
@@ -26,9 +25,6 @@ type SymbolBuilder struct {
 func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
 	// for now assume that any new sym is intended to be static
 	symIdx := l.CreateStaticSym(name)
-	if l.Syms[symIdx] != nil {
-		panic("can't build if sym.Symbol already present")
-	}
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
 	sb.extSymPayload = l.getPayload(symIdx)
 	return sb
@@ -46,14 +42,6 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
 	if !l.IsExternal(symIdx) {
 		// Create a clone with the same name/version/kind etc.
 		l.cloneToExternal(symIdx)
-	}
-	// Now that we're doing phase 2 DWARF generation using the loader
-	// but before the wavefront has reached dodata(), we can't have this
-	// assertion here. Commented out for now.
-	if false {
-		if l.Syms[symIdx] != nil {
-			panic(fmt.Sprintf("can't build if sym.Symbol %q already present", l.RawSymName(symIdx)))
-		}
 	}
 
 	// Construct updater and return.
