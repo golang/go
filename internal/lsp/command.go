@@ -49,6 +49,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, err
 		}
 		go s.runGenerate(xcontext.Detach(ctx), dir, recursive)
+	case source.CommandRegenerateCgo:
+		mod := source.FileModification{
+			URI:    protocol.DocumentURI(params.Arguments[0].(string)).SpanURI(),
+			Action: source.InvalidateMetadata,
+		}
+		_, err := s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
+		return nil, err
 	case source.CommandTidy:
 		if len(params.Arguments) == 0 || len(params.Arguments) > 1 {
 			return nil, errors.Errorf("expected one file URI for call to `go mod tidy`, got %v", params.Arguments)

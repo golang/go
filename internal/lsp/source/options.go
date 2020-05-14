@@ -61,6 +61,7 @@ const (
 	CommandTidy = "tidy"
 	// CommandUpgradeDependency is a gopls command to upgrade a dependency.
 	CommandUpgradeDependency = "upgrade.dependency"
+	CommandRegenerateCgo     = "regenerate_cgo"
 )
 
 // DefaultOptions is the options that are used for Gopls execution independent
@@ -90,10 +91,11 @@ func DefaultOptions() Options {
 				Sum: {},
 			},
 			SupportedCommands: []string{
-				CommandTest,              // for "go test" commands
-				CommandTidy,              // for go.mod files
-				CommandUpgradeDependency, // for go.mod dependency upgrades
-				CommandGenerate,          // for "go generate" commands
+				CommandTest,
+				CommandTidy,
+				CommandUpgradeDependency,
+				CommandGenerate,
+				CommandRegenerateCgo,
 			},
 		},
 		UserOptions: UserOptions{
@@ -108,6 +110,7 @@ func DefaultOptions() Options {
 			EnabledCodeLens: map[string]bool{
 				CommandGenerate:          true,
 				CommandUpgradeDependency: true,
+				CommandRegenerateCgo:     true,
 			},
 		},
 		DebuggingOptions: DebuggingOptions{

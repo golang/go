@@ -199,7 +199,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 					ls.printBuffers(t.Name(), os.Stderr)
 				}
 				if err := env.Editor.Shutdown(ctx); err != nil {
-					panic(err)
+					t.Logf("Shutdown: %v", err)
 				}
 			}()
 			test(t, env)

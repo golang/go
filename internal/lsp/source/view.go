@@ -220,13 +220,14 @@ type FileModification struct {
 type FileAction int
 
 const (
-	Open = FileAction(iota)
+	UnknownFileAction = FileAction(iota)
+	Open
 	Change
 	Close
 	Save
 	Create
 	Delete
-	UnknownFileAction
+	InvalidateMetadata
 )
 
 // Cache abstracts the core logic of dealing with the environment from the

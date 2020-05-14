@@ -586,7 +586,7 @@ func (v *view) awaitInitialized(ctx context.Context) {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *view) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle) source.Snapshot {
+func (v *view) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle, forceReloadMetadata bool) source.Snapshot {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
@@ -601,7 +601,7 @@ func (v *view) invalidateContent(ctx context.Context, uris map[span.URI]source.F
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, uris)
+	v.snapshot = v.snapshot.clone(ctx, uris, forceReloadMetadata)
 	return v.snapshot
 }
 

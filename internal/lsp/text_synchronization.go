@@ -30,6 +30,7 @@ const (
 	FromDidSave
 	// FromDidClose is a file modification caused by closing a file.
 	FromDidClose
+	FromRegenerateCgo
 )
 
 func (m ModificationSource) String() string {
@@ -42,6 +43,8 @@ func (m ModificationSource) String() string {
 		return "files changed on disk"
 	case FromDidSave:
 		return "saved files"
+	case FromRegenerateCgo:
+		return "regenerate cgo"
 	default:
 		return "unknown file modification"
 	}

@@ -16,6 +16,14 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
+type lensFunc func(context.Context, Snapshot, FileHandle, *ast.File, *protocol.ColumnMapper) ([]protocol.CodeLens, error)
+
+var lensFuncs = map[string]lensFunc{
+	CommandGenerate:      goGenerateCodeLens,
+	CommandTest:          runTestCodeLens,
+	CommandRegenerateCgo: regenerateCgoLens,
+}
+
 // CodeLens computes code lens for Go source code.
 func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	f, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull).Parse(ctx)
@@ -23,25 +31,19 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 		return nil, err
 	}
 
-	var codeLens []protocol.CodeLens
+	var result []protocol.CodeLens
+	for lens, lf := range lensFuncs {
+		if !snapshot.View().Options().EnabledCodeLens[lens] {
+			continue
+		}
+		added, err := lf(ctx, snapshot, fh, f, m)
 
-	if snapshot.View().Options().EnabledCodeLens[CommandGenerate] {
-		ggcl, err := goGenerateCodeLens(ctx, snapshot, fh, f, m)
 		if err != nil {
 			return nil, err
 		}
-		codeLens = append(codeLens, ggcl...)
+		result = append(result, added...)
 	}
-
-	if snapshot.View().Options().EnabledCodeLens[CommandTest] {
-		rtcl, err := runTestCodeLens(ctx, snapshot, fh, f, m)
-		if err != nil {
-			return nil, err
-		}
-		codeLens = append(codeLens, rtcl...)
-	}
-
-	return codeLens, nil
+	return result, nil
 }
 
 var testMatcher = regexp.MustCompile("^Test[^a-z]")
@@ -158,4 +160,31 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f
 		}
 	}
 	return nil, nil
+}
+
+func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *ast.File, m *protocol.ColumnMapper) ([]protocol.CodeLens, error) {
+	var c *ast.ImportSpec
+	for _, imp := range f.Imports {
+		if imp.Path.Value == `"C"` {
+			c = imp
+		}
+	}
+	if c == nil {
+		return nil, nil
+	}
+	fset := snapshot.View().Session().Cache().FileSet()
+	rng, err := newMappedRange(fset, m, c.Pos(), c.EndPos).Range()
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeLens{
+		{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "regenerate cgo definitions",
+				Command:   CommandRegenerateCgo,
+				Arguments: []interface{}{fh.Identity().URI},
+			},
+		},
+	}, nil
 }

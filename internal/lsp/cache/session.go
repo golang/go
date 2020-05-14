@@ -297,7 +297,11 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	if err != nil {
 		return nil, err
 	}
+	forceReloadMetadata := false
 	for _, c := range changes {
+		if c.Action == source.InvalidateMetadata {
+			forceReloadMetadata = true
+		}
 		// Do nothing if the file is open in the editor and we receive
 		// an on-disk action. The editor is the source of truth.
 		if s.isOpen(c.URI) && c.OnDisk {
@@ -330,7 +334,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	}
 	var snapshots []source.Snapshot
 	for view, uris := range views {
-		snapshots = append(snapshots, view.invalidateContent(ctx, uris))
+		snapshots = append(snapshots, view.invalidateContent(ctx, uris, forceReloadMetadata))
 	}
 	return snapshots, nil
 }
@@ -348,8 +352,8 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 	defer s.overlayMu.Unlock()
 
 	for _, c := range changes {
-		// Don't update overlays for on-disk changes.
-		if c.OnDisk {
+		// Don't update overlays for on-disk changes or metadata invalidations.
+		if c.OnDisk || c.Action == source.InvalidateMetadata {
 			continue
 		}
 
