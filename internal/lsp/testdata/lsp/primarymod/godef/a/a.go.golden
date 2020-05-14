@@ -81,7 +81,7 @@ func Random2(y int) int
 -- aPackage-hover --
 Package a is a package for testing go to definition\.
 -- err-definition --
-godef/a/a.go:25:6-9: defined here as ```go
+godef/a/a.go:33:6-9: defined here as ```go
 var err error
 ```
 
@@ -91,14 +91,14 @@ var err error
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 25,
+			"line": 33,
 			"column": 6,
-			"offset": 418
+			"offset": 597
 		},
 		"end": {
-			"line": 25,
+			"line": 33,
 			"column": 9,
-			"offset": 421
+			"offset": 600
 		}
 	},
 	"description": "```go\nvar err error\n```\n\n\\@err"
@@ -109,6 +109,18 @@ var err error
 
 ```go
 var err error
+```
+-- g-hover --
+When I hover on g, I should see this comment\.
+
+```go
+const g untyped int = 1
+```
+-- h-hover --
+Constant block\.
+
+```go
+const h untyped int = 2
 ```
 -- make-hover --
 The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.

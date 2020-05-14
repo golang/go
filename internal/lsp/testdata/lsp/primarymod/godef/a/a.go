@@ -12,6 +12,14 @@ var (
 	x string //@x,hover("x", x)
 )
 
+// Constant block. When I hover on h, I should see this comment.
+const (
+	// When I hover on g, I should see this comment.
+	g = 1 //@g,hover("g", g)
+
+	h = 2 //@h,hover("h", h)
+)
+
 // z is a variable too.
 var z string //@z,hover("z", z)
 

@@ -306,9 +306,9 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 			fieldList = t.Methods
 		}
 	case *ast.ValueSpec:
-		comment := decl.Doc
+		comment := spec.Doc
 		if comment == nil {
-			comment = spec.Doc
+			comment = decl.Doc
 		}
 		if comment == nil {
 			comment = spec.Comment
