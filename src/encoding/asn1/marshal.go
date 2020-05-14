@@ -578,6 +578,9 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 
 func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	if !v.IsValid() {
+		if params.omitEmpty {
+			return bytesEncoder(nil), nil
+		}
 		return nil, fmt.Errorf("asn1: cannot marshal nil value")
 	}
 	// If the field is an interface{} then recurse into it.
