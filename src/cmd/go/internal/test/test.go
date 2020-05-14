@@ -73,10 +73,10 @@ As part of building a test binary, go test runs go vet on the package
 and its test source files to identify significant problems. If go vet
 finds any problems, go test reports those and does not run the test
 binary. Only a high-confidence subset of the default go vet checks are
-used. That subset is: 'atomic', 'bool', 'buildtags', 'nilfunc', and
-'printf'. You can see the documentation for these and other vet tests
-via "go doc cmd/vet". To disable the running of go vet, use the
--vet=off flag.
+used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
+'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
+the documentation for these and other vet tests via "go doc cmd/vet".
+To disable the running of go vet, use the -vet=off flag.
 
 All test output and summary lines are printed to the go command's
 standard output, even if the test printed them to its own standard
@@ -548,12 +548,14 @@ var defaultVetFlags = []string{
 	// "-copylocks",
 	"-errorsas",
 	// "-httpresponse",
+	"-ifaceassert",
 	// "-lostcancel",
 	// "-methods",
 	"-nilfunc",
 	"-printf",
 	// "-rangeloops",
 	// "-shift",
+	"-stringintconv",
 	// "-structtags",
 	// "-tests",
 	// "-unreachable",

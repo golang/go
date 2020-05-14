@@ -99,14 +99,16 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				m.Pkgs = []string{m.Pattern()}
 
 			case strings.Contains(m.Pattern(), "..."):
-				m.Pkgs = matchPackages(m.Pattern(), loaded.tags, true, buildList)
+				m.Errs = m.Errs[:0]
+				matchPackages(m, loaded.tags, includeStd, buildList)
 
 			case m.Pattern() == "all":
 				loaded.testAll = true
 				if iterating {
 					// Enumerate the packages in the main module.
 					// We'll load the dependencies as we find them.
-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+					m.Errs = m.Errs[:0]
+					matchPackages(m, loaded.tags, omitStd, []module.Version{Target})
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
@@ -273,7 +275,9 @@ func resolveLocalPackage(dir string) (string, error) {
 		}
 
 		pkg := targetPrefix + suffix
-		if _, ok := dirInModule(pkg, targetPrefix, modRoot, true); !ok {
+		if _, ok, err := dirInModule(pkg, targetPrefix, modRoot, true); err != nil {
+			return "", err
+		} else if !ok {
 			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
 		}
 		return pkg, nil
@@ -422,7 +426,7 @@ func loadAll(testAll bool) []string {
 		loaded.testRoots = true
 	}
 	all := TargetPackages("...")
-	loaded.load(func() []string { return all })
+	loaded.load(func() []string { return all.Pkgs })
 	checkMultiplePaths()
 	WriteGoMod()
 
@@ -434,6 +438,9 @@ func loadAll(testAll bool) []string {
 		}
 		paths = append(paths, pkg.path)
 	}
+	for _, err := range all.Errs {
+		base.Errorf("%v", err)
+	}
 	base.ExitIfErrors()
 	return paths
 }
@@ -441,12 +448,14 @@ func loadAll(testAll bool) []string {
 // TargetPackages returns the list of packages in the target (top-level) module
 // matching pattern, which may be relative to the working directory, under all
 // build tag settings.
-func TargetPackages(pattern string) []string {
+func TargetPackages(pattern string) *search.Match {
 	// TargetPackages is relative to the main module, so ensure that the main
 	// module is a thing that can contain packages.
 	ModRoot()
 
-	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
+	m := search.NewMatch(pattern)
+	matchPackages(m, imports.AnyTags(), omitStd, []module.Version{Target})
+	return m
 }
 
 // BuildList returns the module build list,

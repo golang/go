@@ -7,8 +7,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
 github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
 github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4 h1:cZG+Ns0n5bdEEsURGnDinFswSebRNMqspbLvxrLZoIc=
-golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+golang.org/x/arch v0.0.0-20200511175325-f7c78586839d h1:YvwchuJby5xEAPdBGmdAVSiVME50C+RJfJJwJJsGEV8=
+golang.org/x/arch v0.0.0-20200511175325-f7c78586839d/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=

@@ -300,7 +300,7 @@ loop:
 		exp = dp - ndMant
 	}
 
-	if underscores && !underscoreOK(s) {
+	if underscores && !underscoreOK(s[:i]) {
 		return
 	}
 

@@ -31,7 +31,7 @@ type addrRange struct {
 // Throws if the base and limit are not in the same memory segment.
 func makeAddrRange(base, limit uintptr) addrRange {
 	r := addrRange{offAddr{base}, offAddr{limit}}
-	if (base+arenaBaseOffset >= arenaBaseOffset) != (limit+arenaBaseOffset >= arenaBaseOffset) {
+	if (base-arenaBaseOffset >= base) != (limit-arenaBaseOffset >= limit) {
 		throw("addr range base and limit are not in the same memory segment")
 	}
 	return r
@@ -71,33 +71,21 @@ func (a addrRange) subtract(b addrRange) addrRange {
 
 var (
 	// minOffAddr is the minimum address in the offset space, and
-	// it corresponds to the virtual address -arenaBaseOffset.
-	//
-	// We don't initialize this with offAddrFromRaw because allocation
-	// may happen during bootstrapping, and we rely on this value
-	// being initialized.
-	//
-	// As a result, creating this value in Go is tricky because of
-	// overflow not being allowed in constants. In order to get
-	// the value we want, we take arenaBaseOffset and do a manual
-	// two's complement negation, then mask that into what can fit
-	// into a uintptr.
-	minOffAddr = offAddr{((^arenaBaseOffset) + 1) & uintptrMask}
+	// it corresponds to the virtual address arenaBaseOffset.
+	minOffAddr = offAddr{arenaBaseOffset}
 
 	// maxOffAddr is the maximum address in the offset address
-	// space, and it corresponds to the virtual address
-	// ^uintptr(0) - arenaBaseOffset.
-	//
-	// We don't initialize this with offAddrFromRaw because allocation
-	// may happen during bootstrapping, and we rely on this value
-	// being initialized.
-	maxOffAddr = offAddr{^uintptr(0) - arenaBaseOffset}
+	// space. It corresponds to the highest virtual address representable
+	// by the page alloc chunk and heap arena maps.
+	maxOffAddr = offAddr{(((1 << heapAddrBits) - 1) + arenaBaseOffset) & uintptrMask}
 )
 
 // offAddr represents an address in a contiguous view
 // of the address space on systems where the address space is
 // segmented. On other systems, it's just a normal address.
 type offAddr struct {
+	// a is just the virtual address, but should never be used
+	// directly. Call addr() to get this value instead.
 	a uintptr
 }
 
@@ -120,13 +108,13 @@ func (l1 offAddr) diff(l2 offAddr) uintptr {
 // lessThan returns true if l1 is less than l2 in the offset
 // address space.
 func (l1 offAddr) lessThan(l2 offAddr) bool {
-	return (l1.a + arenaBaseOffset) < (l2.a + arenaBaseOffset)
+	return (l1.a - arenaBaseOffset) < (l2.a - arenaBaseOffset)
 }
 
 // lessEqual returns true if l1 is less than or equal to l2 in
 // the offset address space.
 func (l1 offAddr) lessEqual(l2 offAddr) bool {
-	return (l1.a + arenaBaseOffset) <= (l2.a + arenaBaseOffset)
+	return (l1.a - arenaBaseOffset) <= (l2.a - arenaBaseOffset)
 }
 
 // equal returns true if the two offAddr values are equal.
