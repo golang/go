@@ -61,7 +61,7 @@ func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax
 		}
 	case l > r && r != 1: // if r == 1 it may be a multi-valued function and we can't say anything yet
 		n := names[r]
-		check.errorf(n.Pos(), "missing init expr for %s", n)
+		check.errorf(n.Pos(), "missing init expr for %s", n.Value)
 	}
 }
 

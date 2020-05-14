@@ -27,7 +27,7 @@ func translateFile(importer *go2go.Importer, file string) {
 	if err != nil {
 		die(err.Error())
 	}
-	if err := ioutil.WriteFile(strings.TrimSuffix(file, ".go2") + ".go", out, 0644); err != nil {
+	if err := ioutil.WriteFile(strings.TrimSuffix(file, ".go2")+".go", out, 0644); err != nil {
 		die(err.Error())
 	}
 }
