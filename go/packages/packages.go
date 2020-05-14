@@ -50,10 +50,6 @@ const (
 	// NeedCompiledGoFiles adds CompiledGoFiles.
 	NeedCompiledGoFiles
 
-	// TypecheckCgo enables full support for type checking cgo. Requires Go 1.15+.
-	// Has no effect without NeedTypes.
-	TypecheckCgo
-
 	// NeedImports adds Imports. If NeedDeps is not set, the Imports field will contain
 	// "placeholder" Packages with only the ID set.
 	NeedImports
@@ -75,6 +71,10 @@ const (
 
 	// NeedTypesSizes adds TypesSizes.
 	NeedTypesSizes
+
+	// TypecheckCgo enables full support for type checking cgo. Requires Go 1.15+.
+	// Modifies CompiledGoFiles and Types, and has no effect on its own.
+	TypecheckCgo
 )
 
 const (
