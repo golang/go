@@ -629,10 +629,23 @@ func TestFuncAlign(t *testing.T) {
 	}
 }
 
-const helloSrc = `
+const testTrampSrc = `
 package main
 import "fmt"
-func main() { fmt.Println("hello") }
+func main() {
+	fmt.Println("hello")
+
+	defer func(){
+		if e := recover(); e == nil {
+			panic("did not panic")
+		}
+	}()
+	f1()
+}
+
+// Test deferreturn trampolines. See issue #39049.
+func f1() { defer f2() }
+func f2() { panic("XXX") }
 `
 
 func TestTrampoline(t *testing.T) {
@@ -655,7 +668,7 @@ func TestTrampoline(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err = ioutil.WriteFile(src, []byte(helloSrc), 0666)
+	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}

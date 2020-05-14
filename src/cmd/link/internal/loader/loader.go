@@ -236,7 +236,8 @@ type Loader struct {
 	outdata   [][]byte     // symbol's data in the output buffer
 	extRelocs [][]ExtReloc // symbol's external relocations
 
-	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+	deferReturnTramp map[Sym]bool     // whether the symbol is a trampoline of a deferreturn call
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
@@ -362,6 +363,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		itablink:             make(map[Sym]struct{}),
+		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
@@ -1060,6 +1062,16 @@ func (l *Loader) IsItabLink(i Sym) bool {
 		return true
 	}
 	return false
+}
+
+// Return whether this is a trampoline of a deferreturn call.
+func (l *Loader) IsDeferReturnTramp(i Sym) bool {
+	return l.deferReturnTramp[i]
+}
+
+// Set that i is a trampoline of a deferreturn call.
+func (l *Loader) SetIsDeferReturnTramp(i Sym, v bool) {
+	l.deferReturnTramp[i] = v
 }
 
 // growValues grows the slice used to store symbol values.
