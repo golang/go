@@ -145,8 +145,6 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 }
 
 func TestStdTest(t *testing.T) {
-	t.Skip("test/const2.go doesn't report an error")
-
 	testenv.MustHaveGoBuild(t)
 
 	if testing.Short() && testenv.Builder() == "" {

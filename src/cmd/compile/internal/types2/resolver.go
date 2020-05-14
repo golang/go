@@ -43,37 +43,25 @@ func (d *declInfo) addDep(obj Object) {
 	m[obj] = true
 }
 
-// arityMatch checks that the lhs and rhs of a const or var decl
-// have the appropriate number of names and init exprs. For const
-// decls, init is the value spec providing the init exprs; for
-// var decls, init is nil (the init exprs are in s in this case).
-func (check *Checker) arityMatch(pos syntax.Pos, names []*syntax.Name, typ syntax.Expr, values, init []syntax.Expr) {
+// arity checks that the lhs and rhs of a const or var decl
+// have a matching number of names and initialization values.
+// If inherited is set, the initialization values are from
+// another (constant) declaration.
+func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax.Expr, inherited bool) {
 	l := len(names)
-	r := len(values)
-	if init != nil {
-		r = len(init)
-	}
+	r := len(inits)
 
 	switch {
-	case init == nil && r == 0:
-		// var decl w/o init expr
-		if typ == nil {
-			check.errorf(pos, "missing type or init expr")
-		}
 	case l < r:
-		if l < len(values) {
-			// init exprs from s
-			n := values[l]
-			check.errorf(n.Pos(), "extra init expr %s", n)
-			// TODO(gri) avoid declared but not used error here
+		n := inits[l]
+		if inherited {
+			check.errorf(pos, "extra init expr at %s", n.Pos())
 		} else {
-			// init exprs "inherited"
-			check.errorf(pos, "extra init expr at %s", init[0].Pos())
-			// TODO(gri) avoid declared but not used error here
+			check.errorf(n.Pos(), "extra init expr %s", n)
 		}
-	case l > r && (init != nil || r != 1):
+	case l > r && r != 1: // if r == 1 it may be a multi-valued function and we can't say anything yet
 		n := names[r]
-		check.errorf(n.Pos(), "missing init expr for %s", n.Value)
+		check.errorf(n.Pos(), "missing init expr for %s", n)
 	}
 }
 
@@ -243,16 +231,11 @@ func (check *Checker) collectObjects() {
 		// we get "." as the directory which is what we would want.
 		fileDir := dir(file.PkgName.Pos().RelFilename()) // TODO(gri) should this be filename?
 
-		var iota int64             // valid if last != nil
-		var last *syntax.ConstDecl // last ConstDecl with type or init exprs seen
-		for _, decl := range file.DeclList {
-			if last != nil {
-				if cdecl, _ := decl.(*syntax.ConstDecl); cdecl != nil && cdecl.Group == last.Group {
-					iota++
-				} else {
-					iota = 0
-					last = nil
-				}
+		first := -1                // index of first ConstDecl in the current group, or -1
+		var last *syntax.ConstDecl // last ConstDecl with init expressions, or nil
+		for index, decl := range file.DeclList {
+			if _, ok := decl.(*syntax.ConstDecl); !ok {
+				first = -1 // we're not in a constant declaration
 			}
 
 			switch s := decl.(type) {
@@ -333,29 +316,44 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.ConstDecl:
+				// iota is the index of the current constDecl within the group
+				if first < 0 || file.DeclList[index-1].(*syntax.ConstDecl).Group != s.Group {
+					first = index
+					last = nil
+				}
+				iota := constant.MakeInt64(int64(index - first))
+
 				// determine which initialization expressions to use
+				inherited := true
 				switch {
 				case s.Type != nil || s.Values != nil:
 					last = s
+					inherited = false
 				case last == nil:
 					last = new(syntax.ConstDecl) // make sure last exists
+					inherited = false
 				}
 
 				// declare all constants
-				lastValues := unpack(last.Values)
+				values := unpack(last.Values)
 				for i, name := range s.NameList {
-					obj := NewConst(name.Pos(), pkg, name.Value, nil, constant.MakeInt64(iota))
+					obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 
 					var init syntax.Expr
-					if i < len(lastValues) {
-						init = lastValues[i]
+					if i < len(values) {
+						init = values[i]
 					}
 
 					d := &declInfo{file: fileScope, vtyp: last.Type, init: init}
 					check.declarePkgObj(name, obj, d)
 				}
 
-				check.arityMatch(s.Pos(), s.NameList, s.Type, unpack(s.Values), lastValues)
+				// Constants must always have init values.
+				if values != nil {
+					check.arity(s.Pos(), s.NameList, values, inherited)
+				} else {
+					check.errorf(s.Pos(), "missing init expr")
+				}
 
 			case *syntax.VarDecl:
 				lhs := make([]*Var, len(s.NameList))
@@ -366,7 +364,7 @@ func (check *Checker) collectObjects() {
 				var d1 *declInfo
 				if _, ok := s.Values.(*syntax.ListExpr); !ok {
 					// The lhs elements are only set up after the for loop below,
-					// but that's ok because declareVar only collects the declInfo
+					// but that's ok because declarePkgObj only collects the declInfo
 					// for a later phase.
 					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: s.Type, init: s.Values}
 				}
@@ -390,7 +388,11 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, d)
 				}
 
-				check.arityMatch(s.Pos(), s.NameList, s.Type, unpack(s.Values), nil)
+				// If we have no type, we must have values.
+				// If we have no type and no values we got an error by the parser.
+				if s.Type == nil {
+					check.arity(s.Pos(), s.NameList, values, false)
+				}
 
 			case *syntax.TypeDecl:
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)

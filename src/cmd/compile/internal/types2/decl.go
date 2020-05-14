@@ -940,48 +940,56 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 func (check *Checker) declStmt(list []syntax.Decl) {
 	pkg := check.pkg
 
-	var iota int64             // valid if last != nil
-	var last *syntax.ConstDecl // last ConstDecl with type or init exprs seen
-	for _, decl := range list {
-		if last != nil {
-			if cdecl, _ := decl.(*syntax.ConstDecl); cdecl != nil && cdecl.Group == last.Group {
-				iota++
-			} else {
-				iota = 0
-				last = nil
-			}
+	first := -1                // index of first ConstDecl in the current group, or -1
+	var last *syntax.ConstDecl // last ConstDecl with init expressions, or nil
+	for index, decl := range list {
+		if _, ok := decl.(*syntax.ConstDecl); !ok {
+			first = -1 // we're not in a constant declaration
 		}
 
 		switch s := decl.(type) {
 		case *syntax.ConstDecl:
 			top := len(check.delayed)
 
-			// determine which init exprs to use
-			values := unpack(s.Values)
+			// iota is the index of the current constDecl within the group
+			if first < 0 || list[index-1].(*syntax.ConstDecl).Group != s.Group {
+				first = index
+				last = nil
+			}
+			iota := constant.MakeInt64(int64(index - first))
+
+			// determine which initialization expressions to use
+			inherited := true
 			switch {
-			case s.Type != nil || len(values) > 0:
+			case s.Type != nil || s.Values != nil:
 				last = s
+				inherited = false
 			case last == nil:
 				last = new(syntax.ConstDecl) // make sure last exists
+				inherited = false
 			}
 
 			// declare all constants
 			lhs := make([]*Const, len(s.NameList))
-			lastValues := unpack(last.Values)
+			values := unpack(last.Values)
 			for i, name := range s.NameList {
-				obj := NewConst(name.Pos(), pkg, name.Value, nil, constant.MakeInt64(int64(iota)))
+				obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 				lhs[i] = obj
 
 				var init syntax.Expr
-				if i < len(lastValues) {
-					init = lastValues[i]
+				if i < len(values) {
+					init = values[i]
 				}
 
 				check.constDecl(obj, last.Type, init)
 			}
 
-			//check.arityMatch(s, last)
-			check.arityMatch(s.Pos(), s.NameList, s.Type, unpack(s.Values), lastValues)
+			// Constants must always have init values.
+			if values != nil {
+				check.arity(s.Pos(), s.NameList, values, inherited)
+			} else {
+				check.errorf(s.Pos(), "missing init expr")
+			}
 
 			// process function literals in init expressions before scope changes
 			check.processDelayed(top)
@@ -1037,8 +1045,11 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 				}
 			}
 
-			//check.arityMatch(s, nil)
-			check.arityMatch(s.Pos(), s.NameList, s.Type, values, nil)
+			// If we have no type, we must have values.
+			// If we have no type and no values we got an error by the parser.
+			if s.Type == nil {
+				check.arity(s.Pos(), s.NameList, values, false)
+			}
 
 			// process function literals in init expressions before scope changes
 			check.processDelayed(top)
