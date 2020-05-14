@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"path"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -401,6 +402,12 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			return depPkg.types, nil
 		}),
 	}
+	// We want to type check cgo code if go/types supports it.
+	// We passed TypecheckCgo to go/packages when we Loaded.
+	if usescgo := reflect.ValueOf(cfg).Elem().FieldByName("UsesCgo"); usescgo.IsValid() {
+		usescgo.SetBool(true)
+	}
+
 	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)
 
 	// Type checking errors are handled via the config, so ignore them here.
