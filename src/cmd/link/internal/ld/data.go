@@ -191,6 +191,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			st.err.Errorf(s, "invalid relocation %s: %d+%d not in [%d,%d)", rname, off, siz, 0, len(P))
 			continue
 		}
+		if siz == 0 { // informational relocation - no work to do
+			continue
+		}
 
 		var rst sym.SymKind
 		if rs != 0 {
@@ -216,9 +219,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		}
 
 		if rt >= objabi.ElfRelocOffset {
-			continue
-		}
-		if siz == 0 { // informational relocation - no work to do
 			continue
 		}
 

@@ -351,19 +351,15 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
 		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
-			bld := l.MakeSymbolUpdater(i)
-			bld.SetSpecial(true)
-			bld.SetNotInSymbolTable(true)
-			if bld.Reachable() {
+			if l.AttrReachable(i) {
+				l.SetAttrSpecial(i, true)
+				l.SetAttrNotInSymbolTable(i, true)
 				buf.WriteString(name[9:])
 				for p := l.Reachparent[i]; p != 0; p = l.Reachparent[p] {
 					buf.WriteString("\t")
 					buf.WriteString(l.SymName(p))
 				}
 				buf.WriteString("\n")
-
-				bld.SetType(sym.SCONST)
-				bld.SetValue(0)
 			}
 		}
 	}
