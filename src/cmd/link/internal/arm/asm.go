@@ -383,11 +383,15 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			offset := (signext24(r.Add()&0xffffff) + 2) * 4
 			var tramp loader.Sym
 			for i := 0; ; i++ {
-				name := ldr.SymName(rs) + fmt.Sprintf("%+d-tramp%d", offset, i)
+				oName := ldr.SymName(rs)
+				name := oName + fmt.Sprintf("%+d-tramp%d", offset, i)
 				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue
+				}
+				if oName == "runtime.deferreturn" {
+					ldr.SetIsDeferReturnTramp(tramp, true)
 				}
 				if ldr.SymValue(tramp) == 0 {
 					// either the trampoline does not exist -- we need to create one,
