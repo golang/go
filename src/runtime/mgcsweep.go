@@ -439,10 +439,31 @@ func (s *mspan) sweep(preserve bool) bool {
 		}
 	}
 
+	// Check for zombie objects.
+	if s.freeindex < s.nelems {
+		// Everything < freeindex is allocated and hence
+		// cannot be zombies.
+		//
+		// Check the first bitmap byte, where we have to be
+		// careful with freeindex.
+		obj := s.freeindex
+		if (*s.gcmarkBits.bytep(obj / 8)&^*s.allocBits.bytep(obj / 8))>>(obj%8) != 0 {
+			s.reportZombies()
+		}
+		// Check remaining bytes.
+		for i := obj/8 + 1; i < divRoundUp(s.nelems, 8); i++ {
+			if *s.gcmarkBits.bytep(i)&^*s.allocBits.bytep(i) != 0 {
+				s.reportZombies()
+			}
+		}
+	}
+
 	// Count the number of free objects in this span.
 	nalloc := uint16(s.countAlloc())
 	nfreed := s.allocCount - nalloc
 	if nalloc > s.allocCount {
+		// The zombie check above should have caught this in
+		// more detail.
 		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
 		throw("sweep increased allocation count")
 	}
@@ -753,6 +774,57 @@ func (s *mspan) oldSweep(preserve bool) bool {
 		mheap_.sweepSpans[sweepgen/2%2].push(s)
 	}
 	return res
+}
+
+// reportZombies reports any marked but free objects in s and throws.
+//
+// This generally means one of the following:
+//
+// 1. User code converted a pointer to a uintptr and then back
+// unsafely, and a GC ran while the uintptr was the only reference to
+// an object.
+//
+// 2. User code (or a compiler bug) constructed a bad pointer that
+// points to a free slot, often a past-the-end pointer.
+//
+// 3. The GC two cycles ago missed a pointer and freed a live object,
+// but it was still live in the last cycle, so this GC cycle found a
+// pointer to that object and marked it.
+func (s *mspan) reportZombies() {
+	printlock()
+	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
+	mbits := s.markBitsForBase()
+	abits := s.allocBitsForIndex(0)
+	for i := uintptr(0); i < s.nelems; i++ {
+		addr := s.base() + i*s.elemsize
+		print(hex(addr))
+		alloc := i < s.freeindex || abits.isMarked()
+		if alloc {
+			print(" alloc")
+		} else {
+			print(" free ")
+		}
+		if mbits.isMarked() {
+			print(" marked  ")
+		} else {
+			print(" unmarked")
+		}
+		zombie := mbits.isMarked() && !alloc
+		if zombie {
+			print(" zombie")
+		}
+		print("\n")
+		if zombie {
+			length := s.elemsize
+			if length > 1024 {
+				length = 1024
+			}
+			hexdumpWords(addr, addr+length, nil)
+		}
+		mbits.advance()
+		abits.advance()
+	}
+	throw("found pointer to free object")
 }
 
 // deductSweepCredit deducts sweep credit for allocating a span of
