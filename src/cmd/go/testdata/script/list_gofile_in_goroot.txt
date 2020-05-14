@@ -69,5 +69,8 @@ go 1.14
 package foo
 -- $WORK/goroot/src/fmt/fmt.go --
 package fmt
+-- $WORK/goroot/src/cmd/README --
+This directory must exist in order for the 'cmd' pattern to have something to
+match against.
 -- $GOPATH/src/foo.go --
 package foo

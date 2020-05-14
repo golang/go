@@ -33,9 +33,18 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		p.sigMu.Unlock()
 	}
 
-	var status syscall.WaitStatus
-	var rusage syscall.Rusage
-	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+	var (
+		status syscall.WaitStatus
+		rusage syscall.Rusage
+		pid1   int
+		e      error
+	)
+	for {
+		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}

@@ -17,6 +17,7 @@ var (
 	infm0 = complex(math.Inf(-1), 0)
 	inf0p = complex(0, math.Inf(+1))
 	inf0m = complex(0, math.Inf(-1))
+
 	infpp = complex(math.Inf(+1), math.Inf(+1))
 	infpm = complex(math.Inf(+1), math.Inf(-1))
 	infmp = complex(math.Inf(-1), math.Inf(+1))
@@ -30,7 +31,6 @@ type atocTest struct {
 }
 
 func TestParseComplex(t *testing.T) {
-
 	tests := []atocTest{
 		// Clearly invalid
 		{"", 0, ErrSyntax},
@@ -45,6 +45,7 @@ func TestParseComplex(t *testing.T) {
 		{"3+", 0, ErrSyntax},
 		{"3+5", 0, ErrSyntax},
 		{"3+5+5i", 0, ErrSyntax},
+
 		// Parentheses
 		{"()", 0, ErrSyntax},
 		{"(i)", 0, ErrSyntax},
@@ -54,6 +55,7 @@ func TestParseComplex(t *testing.T) {
 		{"(1)+1i", 0, ErrSyntax},
 		{"(3.0+5.5i", 0, ErrSyntax},
 		{"3.0+5.5i)", 0, ErrSyntax},
+
 		// NaNs
 		{"NaN", complex(math.NaN(), 0), nil},
 		{"NANi", complex(0, math.NaN()), nil},
@@ -61,6 +63,7 @@ func TestParseComplex(t *testing.T) {
 		{"+NaN", 0, ErrSyntax},
 		{"-NaN", 0, ErrSyntax},
 		{"NaN-NaNi", 0, ErrSyntax},
+
 		// Infs
 		{"Inf", infp0, nil},
 		{"+inf", infp0, nil},
@@ -74,6 +77,7 @@ func TestParseComplex(t *testing.T) {
 		{"+Inf-Infi", infpm, nil},
 		{"-Infinity+Infi", infmp, nil},
 		{"inf-inf", 0, ErrSyntax},
+
 		// Zeros
 		{"0", 0, nil},
 		{"0i", 0, nil},
@@ -88,6 +92,7 @@ func TestParseComplex(t *testing.T) {
 		{"+0e-0+0e-0i", 0, nil},
 		{"0e+0+0e+0i", 0, nil},
 		{"-0e+0-0e+0i", 0, nil},
+
 		// Regular non-zeroes
 		{"0.1", 0.1, nil},
 		{"0.1i", 0 + 0.1i, nil},
@@ -104,14 +109,17 @@ func TestParseComplex(t *testing.T) {
 		{"+3e+3-3e+3i", 3e+3 - 3e+3i, nil},
 		{"+3e+3+3e+3i", 3e+3 + 3e+3i, nil},
 		{"+3e+3+3e+3i+", 0, ErrSyntax},
+
 		// Separators
 		{"0.1", 0.1, nil},
 		{"0.1i", 0 + 0.1i, nil},
 		{"0.1_2_3", 0.123, nil},
 		{"+0x_3p3i", 0x3p3i, nil},
+		{"0_0+0x_0p0i", 0, nil},
 		{"0x_10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
-		{"+0x_1_0.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
-		{"0x10.3p+8-0x_3p3i", 0x10.3p+8 - 0x3p3i, nil},
+		{"+0x_1_0.3p-8+0x_3_0p3i", 0x10.3p-8 + 0x30p3i, nil},
+		{"0x1_0.3p+8-0x_3p3i", 0x10.3p+8 - 0x3p3i, nil},
+
 		// Hexadecimals
 		{"0x10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
 		{"+0x10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
@@ -125,6 +133,7 @@ func TestParseComplex(t *testing.T) {
 		{"0x1e2", 0, ErrSyntax},
 		{"1p2", 0, ErrSyntax},
 		{"0x1e2i", 0, ErrSyntax},
+
 		// ErrRange
 		// next float64 - too large
 		{"+0x1p1024", infp0, ErrRange},
@@ -177,19 +186,17 @@ func TestParseComplex(t *testing.T) {
 		{"1e+4294967296+1e+4294967296i", infpp, ErrRange},
 		{"1e+4294967296-1e+4294967296i", infpm, ErrRange},
 	}
-	for _, tt := range tests {
-		tt := tt // for capture in Run closures below
-		if tt.err != nil {
-			tt.err = &NumError{Func: "ParseComplex", Num: tt.in, Err: tt.err}
+	for i := range tests {
+		test := &tests[i]
+		if test.err != nil {
+			test.err = &NumError{Func: "ParseComplex", Num: test.in, Err: test.err}
 		}
-		t.Run(tt.in, func(t *testing.T) {
-			got, err := ParseComplex(tt.in, 128)
-			if !reflect.DeepEqual(err, tt.err) {
-				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v, %v", tt.in, got, err, tt.out, tt.err)
-			}
-			if !(cmplx.IsNaN(tt.out) && cmplx.IsNaN(got)) && got != tt.out {
-				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v, %v", tt.in, got, err, tt.out, tt.err)
-			}
-		})
+		got, err := ParseComplex(test.in, 128)
+		if !reflect.DeepEqual(err, test.err) {
+			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+		}
+		if !(cmplx.IsNaN(test.out) && cmplx.IsNaN(got)) && got != test.out {
+			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+		}
 	}
 }

@@ -99,12 +99,12 @@ type chunkIdx uint
 // chunkIndex returns the global index of the palloc chunk containing the
 // pointer p.
 func chunkIndex(p uintptr) chunkIdx {
-	return chunkIdx((p + arenaBaseOffset) / pallocChunkBytes)
+	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
 }
 
 // chunkIndex returns the base address of the palloc chunk at index ci.
 func chunkBase(ci chunkIdx) uintptr {
-	return uintptr(ci)*pallocChunkBytes - arenaBaseOffset
+	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
 }
 
 // chunkPageIndex computes the index of the page that contains p,
@@ -136,13 +136,13 @@ func (i chunkIdx) l2() uint {
 // offAddrToLevelIndex converts an address in the offset address space
 // to the index into summary[level] containing addr.
 func offAddrToLevelIndex(level int, addr offAddr) int {
-	return int((addr.a + arenaBaseOffset) >> levelShift[level])
+	return int((addr.a - arenaBaseOffset) >> levelShift[level])
 }
 
 // levelIndexToOffAddr converts an index into summary[level] into
 // the corresponding address in the offset address space.
 func levelIndexToOffAddr(level, idx int) offAddr {
-	return offAddr{(uintptr(idx) << levelShift[level]) - arenaBaseOffset}
+	return offAddr{(uintptr(idx) << levelShift[level]) + arenaBaseOffset}
 }
 
 // addrsToSummaryRange converts base and limit pointers into a range
@@ -159,8 +159,8 @@ func addrsToSummaryRange(level int, base, limit uintptr) (lo int, hi int) {
 	// of a summary's max page count boundary for this level
 	// (1 << levelLogPages[level]). So, make limit an inclusive upper bound
 	// then shift, then add 1, so we get an exclusive upper bound at the end.
-	lo = int((base + arenaBaseOffset) >> levelShift[level])
-	hi = int(((limit-1)+arenaBaseOffset)>>levelShift[level]) + 1
+	lo = int((base - arenaBaseOffset) >> levelShift[level])
+	hi = int(((limit-1)-arenaBaseOffset)>>levelShift[level]) + 1
 	return
 }
 

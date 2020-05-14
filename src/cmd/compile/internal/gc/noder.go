@@ -44,7 +44,7 @@ func parseFiles(filenames []string) uint {
 
 			f, err := os.Open(filename)
 			if err != nil {
-				p.error(syntax.Error{Pos: syntax.MakePos(base, 0, 0), Msg: err.Error()})
+				p.error(syntax.Error{Msg: err.Error()})
 				return
 			}
 			defer f.Close()

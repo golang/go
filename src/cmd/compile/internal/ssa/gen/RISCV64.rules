@@ -445,16 +445,6 @@
 (Addr {sym} base) => (MOVaddr {sym} [0] base)
 (LocalAddr {sym} base _) => (MOVaddr {sym} base)
 
-// Conditional branches
-//
-// cond is 1 if true.
-//
-// TODO(prattmic): RISCV branch instructions take two operands to compare,
-// so we could generate more efficient code by computing the condition in the
-// branch itself. This should be revisited now that the compiler has support
-// for two control values (https://golang.org/cl/196557).
-(If cond yes no) => (BNEZ cond yes no)
-
 // Calls
 (StaticCall  ...) => (CALLstatic  ...)
 (ClosureCall ...) => (CALLclosure ...)
@@ -480,10 +470,30 @@
 (AtomicExchange32 ...) => (LoweredAtomicExchange32 ...)
 (AtomicExchange64 ...) => (LoweredAtomicExchange64 ...)
 
+// Conditional branches
+(If cond yes no) => (BNEZ cond yes no)
+
 // Optimizations
 
-// Absorb SNEZ into branch.
+// Absorb SEQZ/SNEZ into branch.
+(BEQZ (SEQZ x) yes no) => (BNEZ x yes no)
+(BEQZ (SNEZ x) yes no) => (BEQZ x yes no)
+(BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
 (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
+
+// Convert BEQZ/BNEZ into more optimal branch conditions.
+(BEQZ (SUB x y) yes no) => (BEQ x y yes no)
+(BNEZ (SUB x y) yes no) => (BNE x y yes no)
+(BEQZ (SLT x y) yes no) => (BGE x y yes no)
+(BNEZ (SLT x y) yes no) => (BLT x y yes no)
+(BEQZ (SLTU x y) yes no) => (BGEU x y yes no)
+(BNEZ (SLTU x y) yes no) => (BLTU x y yes no)
+
+// Convert branch with zero to BEQZ/BNEZ.
+(BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
+(BEQ cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
+(BNE (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
+(BNE cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
 
 // Store zero
 (MOVBstore [off] {sym} ptr (MOVBconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)

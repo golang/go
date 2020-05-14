@@ -876,13 +876,9 @@ func FreePageAlloc(pp *PageAlloc) {
 // 64 bit and 32 bit platforms, allowing the tests to share code
 // between the two.
 //
-// On AIX, the arenaBaseOffset is 0x0a00000000000000. However, this
-// constant can't be used here because it is negative and will cause
-// a constant overflow.
-//
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + 0x0a00000000000000*sys.GoosAix))
+var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*sys.GoosAix))
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.

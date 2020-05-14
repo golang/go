@@ -2967,6 +2967,8 @@ func typecheckcomplit(n *Node) (res *Node) {
 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						if visible(ci.Sym) {
 							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
+						} else if nonexported(l.Sym) && l.Sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+							yyerror("cannot refer to unexported field '%v' in struct literal of type %v", l.Sym, t)
 						} else {
 							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
 						}
@@ -3068,6 +3070,11 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx stri
 // visible reports whether sym is exported or locally defined.
 func visible(sym *types.Sym) bool {
 	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
+}
+
+// nonexported reports whether sym is an unexported field.
+func nonexported(sym *types.Sym) bool {
+	return sym != nil && !types.IsExported(sym.Name)
 }
 
 // lvalue etc

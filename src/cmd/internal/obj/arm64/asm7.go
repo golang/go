@@ -1639,12 +1639,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 	}
 	if isaddcon(int64(v)) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(uint64(a.Offset)) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_ABCON
 		}
 		if movcon(int64(v)) >= 0 {
@@ -1658,7 +1658,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t := movcon(int64(v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
@@ -1666,13 +1666,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t = movcon(int64(^v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	if isbitcon(uint64(v)) {
+	if isbitcon(uint64(a.Offset)) {
 		return C_BITCON
 	}
 
