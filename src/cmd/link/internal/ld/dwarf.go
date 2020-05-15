@@ -349,9 +349,6 @@ func findchild(die *dwarf.DWDie, name string) *dwarf.DWDie {
 	return nil
 }
 
-// Used to avoid string allocation when looking up dwarf symbols
-var prefixBuf = []byte(dwarf.InfoPrefix)
-
 // find looks up the loader symbol for the DWARF DIE generated for the
 // type with the specified name.
 func (d *dwctxt2) find(name string) loader.Sym {
@@ -1155,10 +1152,6 @@ func expandFile(fname string) string {
 		fname = fname[len(src.FileSymPrefix):]
 	}
 	return expandGoroot(fname)
-}
-
-func expandFileSym(l *loader.Loader, fsym loader.Sym) string {
-	return expandFile(l.SymName(fsym))
 }
 
 func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
@@ -2103,20 +2096,6 @@ func (d *dwctxt2) collectlocs(units []*sym.CompilationUnit) dwarfSecInfo {
 	u.SetType(sym.SDWARFLOC)
 	d.ldr.SetAttrReachable(locsym, true)
 	return dwarfSecInfo{syms: append([]loader.Sym{locsym}, syms...)}
-}
-
-/*
- *  Elf.
- */
-func (d *dwctxt2) dwarfaddshstrings(ctxt *Link, shstrtab loader.Sym) {
-	panic("not yet implemented")
-}
-
-// dwarfcompress compresses the DWARF sections. Relocations are applied
-// on the fly. After this, dwarfp will contain a different (new) set of
-// symbols, and sections may have been replaced.
-func (d *dwctxt2) dwarfcompress(ctxt *Link) {
-	panic("not yet implemented")
 }
 
 // getPkgFromCUSym returns the package name for the compilation unit
