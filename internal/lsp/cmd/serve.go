@@ -31,9 +31,9 @@ type Serve struct {
 	Trace       bool          `flag:"rpc.trace" help:"print the full rpc trace in lsp inspector format"`
 	Debug       string        `flag:"debug" help:"serve debug information on the supplied address"`
 
-	RemoteListenTimeout time.Duration `flag:"remote.listen.timeout" help:"when used with -remote=auto, the listen.timeout used when auto-starting the remote"`
-	RemoteDebug         string        `flag:"remote.debug" help:"when used with -remote=auto, the debug address used when auto-starting the remote"`
-	RemoteLogfile       string        `flag:"remote.logfile" help:"when used with -remote=auto, the filename for the remote daemon to log to"`
+	RemoteListenTimeout time.Duration `flag:"remote.listen.timeout" help:"when used with -remote=auto, the -listen.timeout value used to start the daemon"`
+	RemoteDebug         string        `flag:"remote.debug" help:"when used with -remote=auto, the -debug value used to start the daemon"`
+	RemoteLogfile       string        `flag:"remote.logfile" help:"when used with -remote=auto, the -logfile value used to start the daemon"`
 
 	app *Application
 }

@@ -252,5 +252,3 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	// TODO(rfindley): once disconnection works, assert that len(Clients) == 1
 	// (as of writing, it is still 2)
 }
-
-// TODO: add a test for telemetry.
