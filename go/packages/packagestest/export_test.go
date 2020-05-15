@@ -15,7 +15,7 @@ import (
 var testdata = []packagestest.Module{{
 	Name: "golang.org/fake1",
 	Files: map[string]interface{}{
-		"a.go": packagestest.Symlink("testdata/a.go"),
+		"a.go": packagestest.Symlink("testdata/a.go"), // broken symlink
 		"b.go": "invalid file contents",
 	},
 	Overlay: map[string][]byte{
