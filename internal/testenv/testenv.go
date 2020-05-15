@@ -40,6 +40,18 @@ var checkGoGoroot struct {
 }
 
 func hasTool(tool string) error {
+	if tool == "cgo" {
+		out, err := exec.Command("go", "env", "CGO_ENABLED").CombinedOutput()
+		if err != nil {
+			return err
+		}
+		enabled := strings.TrimSpace(string(out))
+		if enabled != "1" {
+			return fmt.Errorf("cgo not enabled: CGO_ENABLED=%q", enabled)
+		}
+		return nil
+	}
+
 	_, err := exec.LookPath(tool)
 	if err != nil {
 		return err
@@ -125,6 +137,7 @@ func allowMissingTool(tool string) bool {
 }
 
 // NeedsTool skips t if the named tool is not present in the path.
+// As a special case, "cgo" means "go" is present and can compile cgo programs.
 func NeedsTool(t Testing, tool string) {
 	if t, ok := t.(helperer); ok {
 		t.Helper()

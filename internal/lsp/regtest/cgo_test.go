@@ -1,21 +1,18 @@
-//+build go1.15,cgo
+//+build go1.15
 
 package regtest
 
 import (
-	"runtime"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestRegenerateCgo(t *testing.T) {
-	// The android builders have a complex setup which causes this test to fail. See discussion on
-	// golang.org/cl/214943 for more details.
-	if runtime.GOOS == "android" {
-		t.Skip("android not supported")
-	}
+	testenv.NeedsTool(t, "cgo")
+
 	const workspace = `
 -- go.mod --
 module example.com

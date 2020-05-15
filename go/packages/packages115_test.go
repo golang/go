@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // TestInvalidFilesInXTest checks the fix for golang/go#37971.
@@ -48,11 +49,7 @@ func TestTypecheckCgo(t *testing.T) {
 }
 
 func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
-	// The android builders have a complex setup which causes this test to fail. See discussion on
-	// golang.org/cl/214943 for more details.
-	if !hasGoBuild() {
-		t.Skip("this test can't run on platforms without go build. See discussion on golang.org/cl/214943 for more details.")
-	}
+	testenv.NeedsTool(t, "cgo")
 
 	const cgo = `package cgo
 		import "C"

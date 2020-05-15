@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
 
@@ -231,8 +231,7 @@ func DefaultOptions() source.Options {
 }
 
 var (
-	haveCgo = false
-	go115   = false
+	go115 = false
 )
 
 // Load creates the folder structure required when testing with modules.
@@ -453,8 +452,8 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			for i, e := range exp {
 				t.Run(SpanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
 					t.Helper()
-					if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
-						t.Skip("test requires cgo, not supported")
+					if strings.Contains(t.Name(), "cgo") {
+						testenv.NeedsTool(t, "cgo")
 					}
 					if !go115 && strings.Contains(t.Name(), "declarecgo") {
 						t.Skip("test requires Go 1.15")
@@ -614,8 +613,8 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for spn, d := range data.Definitions {
 			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
-				if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
-					t.Skip("test requires cgo, not supported")
+				if strings.Contains(t.Name(), "cgo") {
+					testenv.NeedsTool(t, "cgo")
 				}
 				if !go115 && strings.Contains(t.Name(), "declarecgo") {
 					t.Skip("test requires Go 1.15")

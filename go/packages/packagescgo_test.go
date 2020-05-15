@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo
-
 package packages_test
 
 import (
@@ -73,11 +71,7 @@ func TestCgoNoSyntax(t *testing.T) {
 	packagestest.TestAll(t, testCgoNoSyntax)
 }
 func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
-	// The android builders have a complex setup which causes this test to fail. See discussion on
-	// golang.org/cl/214943 for more details.
-	if !hasGoBuild() {
-		t.Skip("this test can't run on platforms without go build. See discussion on golang.org/cl/214943 for more details.")
-	}
+	testenv.NeedsTool(t, "cgo")
 
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -118,9 +112,7 @@ func TestCgoBadPkgConfig(t *testing.T) {
 	packagestest.TestAll(t, testCgoBadPkgConfig)
 }
 func testCgoBadPkgConfig(t *testing.T, exporter packagestest.Exporter) {
-	if !hasGoBuild() {
-		t.Skip("this test can't run on platforms without go build. See discussion on golang.org/cl/214943 for more details.")
-	}
+	testenv.NeedsTool(t, "cgo")
 
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
