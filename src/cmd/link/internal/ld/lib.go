@@ -121,9 +121,6 @@ type ArchSyms struct {
 	DynStr2  loader.Sym
 }
 
-const BeforeLoadlibFull = 1
-const AfterLoadlibFull = 2
-
 // mkArchSym is a helper for setArchSyms, to set up a special symbol.
 func (ctxt *Link) mkArchSym(name string, ver int, ls *loader.Sym) {
 	*ls = ctxt.loader.LookupOrCreateSym(name, ver)
@@ -136,8 +133,7 @@ func (ctxt *Link) mkArchSymVec(name string, ver int, ls []loader.Sym) {
 }
 
 // setArchSyms sets up the ArchSyms structure, and must be called before
-// relocations are applied. This function is invoked twice, once prior
-// to loadlibfull(), and once after the work of loadlibfull is complete.
+// relocations are applied.
 func (ctxt *Link) setArchSyms() {
 	ctxt.mkArchSym(".got", 0, &ctxt.GOT2)
 	ctxt.mkArchSym(".plt", 0, &ctxt.PLT2)
