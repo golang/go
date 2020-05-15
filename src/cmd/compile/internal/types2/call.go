@@ -8,6 +8,8 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"strings"
+	"unicode"
 )
 
 func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
@@ -62,6 +64,8 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 
 	default:
 		// function/method call
+		cgocall := x.mode == cgofunc
+
 		sig := x.typ.Signature()
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
@@ -116,7 +120,11 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 		case 0:
 			x.mode = novalue
 		case 1:
-			x.mode = value
+			if cgocall {
+				x.mode = commaerr
+			} else {
+				x.mode = value
+			}
 			x.typ = sig.results.vars[0].typ // unpack tuple
 		default:
 			x.mode = value
@@ -206,7 +214,7 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 
 		// exactly one (possibly invalid or comma-ok) value
 		xlist = []*operand{&x}
-		if allowCommaOk && (x.mode == mapindex || x.mode == commaok) {
+		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
 			x.mode = value
 			xlist = append(xlist, &operand{mode: value, expr: e, typ: Typ[UntypedBool]})
 			commaOk = true
@@ -339,6 +347,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	return
 }
 
+var cgoPrefixes = [...]string{
+	"_Ciconst_",
+	"_Cfconst_",
+	"_Csconst_",
+	"_Ctype_",
+	"_Cvar_", // actually a pointer to the var
+	"_Cfpvar_fp_",
+	"_Cfunc_",
+	"_Cmacro_", // function to evaluate the expanded expression
+}
+
 func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 	// these must be declared before the "goto Error" statements
 	var (
@@ -359,16 +378,43 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			check.recordUse(ident, pname)
 			pname.used = true
 			pkg := pname.imported
-			exp := pkg.scope.Lookup(sel)
-			if exp == nil {
-				if !pkg.fake {
-					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+
+			var exp Object
+			funcMode := value
+			if pkg.cgo {
+				// cgo special cases C.malloc: it's
+				// rewritten to _CMalloc and does not
+				// support two-result calls.
+				if sel == "malloc" {
+					sel = "_CMalloc"
+				} else {
+					funcMode = cgofunc
 				}
-				goto Error
-			}
-			if !exp.Exported() {
-				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
-				// ok to continue
+				for _, prefix := range cgoPrefixes {
+					// cgo objects are part of the current package (in file
+					// _cgo_gotypes.go). Use regular lookup.
+					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
+					if exp != nil {
+						break
+					}
+				}
+				if exp == nil {
+					check.errorf(e.Sel.Pos(), "%s not declared by package C", sel)
+					goto Error
+				}
+				check.objDecl(exp, nil)
+			} else {
+				exp = pkg.scope.Lookup(sel)
+				if exp == nil {
+					if !pkg.fake {
+						check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+					}
+					goto Error
+				}
+				if !exp.Exported() {
+					check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
+					// ok to continue
+				}
 			}
 			check.recordUse(e.Sel, exp)
 
@@ -386,9 +432,16 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			case *Var:
 				x.mode = variable
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cvar_") {
+					x.typ = x.typ.(*Pointer).base
+				}
 			case *Func:
-				x.mode = value
+				x.mode = funcMode
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cmacro_") {
+					x.mode = value
+					x.typ = x.typ.(*Signature).results.vars[0].typ
+				}
 			case *Builtin:
 				x.mode = builtin
 				x.typ = exp.typ
@@ -412,12 +465,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 		switch {
 		case index != nil:
 			// TODO(gri) should provide actual type where the conflict happens
-			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
+			check.errorf(e.Sel.Pos(), "ambiguous selector %s.%s", x.expr, sel)
 		case indirect:
-			// TODO(gri) be more specific with this error message
-			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+			check.errorf(e.Sel.Pos(), "cannot call pointer method %s on %s", sel, x.typ)
 		default:
-			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
 			var why string
 			if tpar := x.typ.TypeParam(); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
@@ -432,7 +483,22 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			} else {
 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
 			}
+
+			// Check if capitalization of sel matters and provide better error message in that case.
+			if len(sel) > 0 {
+				var changeCase string
+				if r := rune(sel[0]); unicode.IsUpper(r) {
+					changeCase = string(unicode.ToLower(r)) + sel[1:]
+				} else {
+					changeCase = string(unicode.ToUpper(r)) + sel[1:]
+				}
+				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+					why += ", but does have " + changeCase
+				}
+			}
+
 			check.errorf(e.Sel.Pos(), "%s.%s undefined (%s)", x.expr, sel, why)
+
 		}
 		goto Error
 	}

@@ -286,6 +286,10 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
 // If addressable is set, V is the type of an addressable variable.
+// If the type has the correctly named method, but with the wrong
+// signature, the existing method is returned as well.
+// To improve error messages, also report the wrong signature
+// when the method exists on *V instead of V.
 func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, static bool) (method, wrongType *Func) {
 	check.completeInterface(nopos, T)
 
@@ -336,6 +340,15 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := check.rawLookupFieldOrMethod(V, addressable, m.pkg, m.name)
+
+		// Check if *V implements this method of T.
+		if obj == nil {
+			ptr := NewPointer(V)
+			obj, _, _ = check.rawLookupFieldOrMethod(ptr, false, m.pkg, m.name)
+			if obj != nil {
+				return m, obj.(*Func)
+			}
+		}
 
 		// we must have a method (not a field of matching function type)
 		f, _ := obj.(*Func)
