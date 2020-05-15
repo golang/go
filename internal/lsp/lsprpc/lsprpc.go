@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -225,8 +226,9 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	)
 	clientConn.Go(ctx,
 		protocol.Handlers(
-			protocol.ServerHandler(server,
-				jsonrpc2.MethodNotFound)))
+			forwarderHandler(
+				protocol.ServerHandler(server,
+					jsonrpc2.MethodNotFound))))
 
 	select {
 	case <-serverConn.Done():
@@ -319,6 +321,93 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		}
 	}
 	return nil, fmt.Errorf("dialing remote: %w", err)
+}
+
+// forwarderHandler intercepts 'exit' messages to prevent the shared gopls
+// instance from exiting. In the future it may also intercept 'shutdown' to
+// provide more graceful shutdown of the client connection.
+func forwarderHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
+	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
+		// The gopls workspace environment defaults to the process environment in
+		// which gopls daemon was started. To avoid discrepancies in Go environment
+		// between the editor and daemon, inject any unset variables in `go env`
+		// into the options sent by initialize.
+		//
+		// See also golang.org/issue/37830.
+		if r.Method() == "initialize" {
+			if newr, err := addGoEnvToInitializeRequest(ctx, r); err == nil {
+				r = newr
+			} else {
+				log.Printf("unable to add local env to initialize request: %v", err)
+			}
+		}
+		return handler(ctx, reply, r)
+	}
+}
+
+// addGoEnvToInitializeRequest builds a new initialize request in which we set
+// any environment variables output by `go env` and not already present in the
+// request.
+//
+// It returns an error if r is not an initialize requst, or is otherwise
+// malformed.
+func addGoEnvToInitializeRequest(ctx context.Context, r jsonrpc2.Request) (jsonrpc2.Request, error) {
+	var params protocol.ParamInitialize
+	if err := json.Unmarshal(r.Params(), &params); err != nil {
+		return nil, err
+	}
+	var opts map[string]interface{}
+	switch v := params.InitializationOptions.(type) {
+	case nil:
+		opts = make(map[string]interface{})
+	case map[string]interface{}:
+		opts = v
+	default:
+		return nil, fmt.Errorf("unexpected type for InitializationOptions: %T", v)
+	}
+	envOpt, ok := opts["env"]
+	if !ok {
+		envOpt = make(map[string]interface{})
+	}
+	env, ok := envOpt.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf(`env option is %T, expected a map`, envOpt)
+	}
+	goenv, err := getGoEnv(ctx, env)
+	if err != nil {
+		return nil, err
+	}
+	for govar, value := range goenv {
+		env[govar] = value
+	}
+	opts["env"] = env
+	params.InitializationOptions = opts
+	call, ok := r.(*jsonrpc2.Call)
+	if !ok {
+		return nil, fmt.Errorf("%T is not a *jsonrpc2.Call", r)
+	}
+	return jsonrpc2.NewCall(call.ID(), "initialize", params)
+}
+
+func getGoEnv(ctx context.Context, env map[string]interface{}) (map[string]string, error) {
+	var runEnv []string
+	for k, v := range env {
+		runEnv = append(runEnv, fmt.Sprintf("%s=%s", k, v))
+	}
+	runner := gocommand.Runner{}
+	output, err := runner.Run(ctx, gocommand.Invocation{
+		Verb: "env",
+		Args: []string{"-json"},
+		Env:  runEnv,
+	})
+	if err != nil {
+		return nil, err
+	}
+	envmap := make(map[string]string)
+	if err := json.Unmarshal(output.Bytes(), &envmap); err != nil {
+		return nil, err
+	}
+	return envmap, nil
 }
 
 // A handshakeRequest identifies a client to the LSP server.

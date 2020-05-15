@@ -549,6 +549,7 @@ func (e *Env) AnyDiagnosticAtCurrentVersion(name string) DiagnosticExpectation {
 // position matching the regexp search string re in the buffer specified by
 // name. Note that this currently ignores the end position.
 func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
+	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
 	expectation := DiagnosticAt(name, pos.Line, pos.Column)
 	expectation.description += fmt.Sprintf(" (location of %q)", re)

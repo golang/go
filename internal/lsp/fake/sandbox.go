@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
 
@@ -101,12 +102,16 @@ func (sb *Sandbox) GOPATH() string {
 // GoEnv returns the default environment variables that can be used for
 // invoking Go commands in the sandbox.
 func (sb *Sandbox) GoEnv() []string {
-	return []string{
+	vars := []string{
 		"GOPATH=" + sb.GOPATH(),
 		"GOPROXY=" + sb.Proxy.GOPROXY(),
 		"GO111MODULE=",
 		"GOSUMDB=off",
 	}
+	if testenv.Go1Point() >= 5 {
+		vars = append(vars, "GOMODCACHE=")
+	}
+	return vars
 }
 
 // RunGoCommand executes a go command in the sandbox.

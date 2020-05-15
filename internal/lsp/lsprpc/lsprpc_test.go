@@ -31,14 +31,20 @@ func (c fakeClient) LogMessage(ctx context.Context, params *protocol.LogMessageP
 	return nil
 }
 
-type pingServer struct{ protocol.Server }
+// fakeServer is intended to be embedded in the test fakes below, to trivially
+// implement Shutdown.
+type fakeServer struct {
+	protocol.Server
+}
 
-func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	event.Log(ctx, "ping")
+func (fakeServer) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (s pingServer) Shutdown(ctx context.Context) error {
+type pingServer struct{ fakeServer }
+
+func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+	event.Log(ctx, "ping")
 	return nil
 }
 
@@ -78,7 +84,7 @@ func TestClientLogging(t *testing.T) {
 // The requests chosen are arbitrary: we simply needed one that blocks, and
 // another that doesn't.
 type waitableServer struct {
-	protocol.Server
+	fakeServer
 
 	started chan struct{}
 }
@@ -97,10 +103,6 @@ func (s waitableServer) Resolve(_ context.Context, item *protocol.CompletionItem
 	return item, nil
 }
 
-func (s waitableServer) Shutdown(ctx context.Context) error {
-	return nil
-}
-
 func checkClose(t *testing.T, closer func() error) {
 	t.Helper()
 	if err := closer(); err != nil {
@@ -108,22 +110,29 @@ func checkClose(t *testing.T, closer func() error) {
 	}
 }
 
+func setupForwarding(ctx context.Context, t *testing.T, s protocol.Server) (direct, forwarded servertest.Connector, cleanup func()) {
+	t.Helper()
+	serveCtx := debug.WithInstance(ctx, "", "")
+	ss := NewStreamServer(cache.New(serveCtx, nil))
+	ss.serverForTest = s
+	tsDirect := servertest.NewTCPServer(serveCtx, ss, nil)
+
+	forwarderCtx := debug.WithInstance(ctx, "", "")
+	forwarder := NewForwarder("tcp", tsDirect.Addr)
+	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder, nil)
+	return tsDirect, tsForwarded, func() {
+		checkClose(t, tsDirect.Close)
+		checkClose(t, tsForwarded.Close)
+	}
+}
+
 func TestRequestCancellation(t *testing.T) {
+	ctx := context.Background()
 	server := waitableServer{
 		started: make(chan struct{}),
 	}
-	baseCtx := context.Background()
-	serveCtx := debug.WithInstance(baseCtx, "", "")
-	ss := NewStreamServer(cache.New(serveCtx, nil))
-	ss.serverForTest = server
-	tsDirect := servertest.NewTCPServer(serveCtx, ss, nil)
-	defer checkClose(t, tsDirect.Close)
-
-	forwarderCtx := debug.WithInstance(baseCtx, "", "")
-	forwarder := NewForwarder("tcp", tsDirect.Addr)
-	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder, nil)
-	defer checkClose(t, tsForwarded.Close)
-
+	tsDirect, tsForwarded, cleanup := setupForwarding(ctx, t, server)
+	defer cleanup()
 	tests := []struct {
 		serverType string
 		ts         servertest.Connector
@@ -134,9 +143,9 @@ func TestRequestCancellation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.serverType, func(t *testing.T) {
-			cc := test.ts.Connect(baseCtx)
+			cc := test.ts.Connect(ctx)
 			sd := protocol.ServerDispatcher(cc)
-			cc.Go(baseCtx,
+			cc.Go(ctx,
 				protocol.Handlers(
 					jsonrpc2.MethodNotFound))
 
@@ -264,5 +273,51 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	}
 	if got, want := len(serverDebug.State.Sessions()), 1; got != want {
 		t.Errorf("len(server:Sessions()) = %d, want %d", got, want)
+	}
+}
+
+type initServer struct {
+	fakeServer
+
+	params *protocol.ParamInitialize
+}
+
+func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
+	s.params = params
+	return &protocol.InitializeResult{}, nil
+}
+
+func TestEnvForwarding(t *testing.T) {
+	server := &initServer{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, tsForwarded, cleanup := setupForwarding(ctx, t, server)
+	defer cleanup()
+
+	conn := tsForwarded.Connect(ctx)
+	conn.Go(ctx, jsonrpc2.MethodNotFound)
+	dispatch := protocol.ServerDispatcher(conn)
+	initParams := &protocol.ParamInitialize{}
+	initParams.InitializationOptions = map[string]interface{}{
+		"env": map[string]interface{}{
+			"GONOPROXY": "example.com",
+		},
+	}
+	_, err := dispatch.Initialize(ctx, initParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if server.params == nil {
+		t.Fatalf("initialize params are unset")
+	}
+	env := server.params.InitializationOptions.(map[string]interface{})["env"].(map[string]interface{})
+
+	// Check for an arbitrary Go variable. It should be set.
+	if _, ok := env["GOPRIVATE"]; !ok {
+		t.Errorf("Go environment variable GOPRIVATE unset in initialization options")
+	}
+	// Check that the variable present in our user config was not overwritten.
+	if v := env["GONOPROXY"]; v != "example.com" {
+		t.Errorf("GONOPROXY environment variable was overwritten")
 	}
 }

@@ -225,7 +225,9 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 
 	for i, buf := range s.buffers {
 		fmt.Fprintf(os.Stderr, "#### Start Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
-		io.Copy(w, buf)
+		// Re-buffer buf to avoid a data rate (io.Copy mutates src).
+		writeBuf := bytes.NewBuffer(buf.Bytes())
+		io.Copy(w, writeBuf)
 		fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
 	}
 }
