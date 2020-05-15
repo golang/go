@@ -275,7 +275,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.setArchSyms()
 	ctxt.addexport()
 	bench.Start("Gentext")
-	thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
+	thearch.Gentext(ctxt, ctxt.loader) // trampolines, call stubs, etc.
 
 	bench.Start("textaddress")
 	ctxt.textaddress()
@@ -292,7 +292,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("symtab")
 	symGroupType := ctxt.symtab()
 	bench.Start("dodata")
-	ctxt.dodata2(symGroupType)
+	ctxt.dodata(symGroupType)
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")

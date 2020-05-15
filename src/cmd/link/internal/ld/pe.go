@@ -542,9 +542,9 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		seg    *sym.Segment
 		syms   []loader.Sym
 	}{
-		{f.textSect, &Segtext, ctxt.Textp2},
-		{f.rdataSect, &Segrodata, ctxt.datap2},
-		{f.dataSect, &Segdata, ctxt.datap2},
+		{f.textSect, &Segtext, ctxt.Textp},
+		{f.rdataSect, &Segrodata, ctxt.datap},
+		{f.dataSect, &Segdata, ctxt.datap},
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {
@@ -559,8 +559,8 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
-		si := dwarfp2[i]
-		if si.secSym() != loader.Sym(sect.Sym2) ||
+		si := dwarfp[i]
+		if si.secSym() != loader.Sym(sect.Sym) ||
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -704,7 +704,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 	}
 
 	// Add text symbols.
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		addsym(s)
 	}
 
@@ -841,8 +841,8 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh64.SizeOfUninitializedData = 0
 	oh.SizeOfUninitializedData = 0
 	if ctxt.LinkMode != LinkExternal {
-		oh64.AddressOfEntryPoint = uint32(Entryvalue2(ctxt) - PEBASE)
-		oh.AddressOfEntryPoint = uint32(Entryvalue2(ctxt) - PEBASE)
+		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
+		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 	}
 	oh64.BaseOfCode = f.textSect.virtualAddress
 	oh.BaseOfCode = f.textSect.virtualAddress
@@ -1477,10 +1477,10 @@ func addPEBaseReloc(ctxt *Link) {
 
 	// Get relocation information
 	ldr := ctxt.loader
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		addPEBaseRelocSym(ldr, s, &rt)
 	}
-	for _, s := range ctxt.datap2 {
+	for _, s := range ctxt.datap {
 		addPEBaseRelocSym(ldr, s, &rt)
 	}
 

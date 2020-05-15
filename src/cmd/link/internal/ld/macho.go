@@ -550,7 +550,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	if sect.Name == ".got" {
 		msect.name = "__nl_symbol_ptr"
 		msect.flag = S_NON_LAZY_SYMBOL_POINTERS
-		msect.res1 = uint32(ctxt.loader.SymSize(ctxt.ArchSyms.LinkEditPLT2) / 4) /* offset into indirect symbol table */
+		msect.res1 = uint32(ctxt.loader.SymSize(ctxt.ArchSyms.LinkEditPLT) / 4) /* offset into indirect symbol table */
 	}
 
 	if sect.Name == ".init_array" {
@@ -662,17 +662,17 @@ func Asmbmacho(ctxt *Link) {
 
 		case sys.AMD64:
 			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 42+2)
-			ml.data[0] = 4                            /* thread type */
-			ml.data[1] = 42                           /* word count */
-			ml.data[2+32] = uint32(Entryvalue2(ctxt)) /* start pc */
-			ml.data[2+32+1] = uint32(Entryvalue2(ctxt) >> 32)
+			ml.data[0] = 4                           /* thread type */
+			ml.data[1] = 42                          /* word count */
+			ml.data[2+32] = uint32(Entryvalue(ctxt)) /* start pc */
+			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
 			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 68+2)
-			ml.data[0] = 6                            /* thread type */
-			ml.data[1] = 68                           /* word count */
-			ml.data[2+64] = uint32(Entryvalue2(ctxt)) /* start pc */
-			ml.data[2+64+1] = uint32(Entryvalue2(ctxt) >> 32)
+			ml.data[0] = 6                           /* thread type */
+			ml.data[1] = 68                          /* word count */
+			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
+			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
 		}
 	}
 
@@ -681,8 +681,8 @@ func Asmbmacho(ctxt *Link) {
 
 		// must match domacholink below
 		s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
-		s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT2)
-		s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT2)
+		s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+		s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
 		s4 := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
 
 		if ctxt.LinkMode != LinkExternal {
@@ -758,7 +758,7 @@ func collectmachosyms(ctxt *Link) {
 	}
 
 	// Add text symbols.
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		addsym(s)
 	}
 
@@ -826,7 +826,7 @@ func machosymorder(ctxt *Link) {
 	// On Mac OS X Mountain Lion, we must sort exported symbols
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
-	for _, s := range ctxt.dynexp2 {
+	for _, s := range ctxt.dynexp {
 		if !ldr.AttrReachable(s) {
 			panic("dynexp symbol is not reachable")
 		}
@@ -953,8 +953,8 @@ func machodysymtab(ctxt *Link) {
 
 	// must match domacholink below
 	s1 := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
-	s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT2)
-	s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT2)
+	s2 := ldr.SymSize(ctxt.ArchSyms.LinkEditPLT)
+	s3 := ldr.SymSize(ctxt.ArchSyms.LinkEditGOT)
 	ml.data[12] = uint32(linkoff + s1)  /* indirectsymoff */
 	ml.data[13] = uint32((s2 + s3) / 4) /* nindirectsyms */
 
@@ -971,8 +971,8 @@ func Domacholink(ctxt *Link) int64 {
 
 	// write data that will be linkedit section
 	s1 := ldr.Lookup(".machosymtab", 0)
-	s2 := ctxt.ArchSyms.LinkEditPLT2
-	s3 := ctxt.ArchSyms.LinkEditGOT2
+	s2 := ctxt.ArchSyms.LinkEditPLT
+	s3 := ctxt.ArchSyms.LinkEditGOT
 	s4 := ldr.Lookup(".machosymstr", 0)
 
 	// Force the linkedit section to end on a 16-byte
@@ -1062,17 +1062,17 @@ func Machoemitreloc(ctxt *Link) {
 	}
 
 	ldr := ctxt.loader
-	machorelocsect(ctxt, ldr, Segtext.Sections[0], ctxt.Textp2)
+	machorelocsect(ctxt, ldr, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, ldr, sect, ctxt.datap2)
+		machorelocsect(ctxt, ldr, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, ldr, sect, ctxt.datap2)
+		machorelocsect(ctxt, ldr, sect, ctxt.datap)
 	}
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
-		si := dwarfp2[i]
-		if si.secSym() != loader.Sym(sect.Sym2) ||
+		si := dwarfp[i]
+		if si.secSym() != loader.Sym(sect.Sym) ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}

@@ -39,7 +39,7 @@ const (
 // funcValueOffset is the offset between the PC_F value of a function and the index of the function in WebAssembly
 const funcValueOffset = 0x1000 // TODO(neelance): make function addresses play nice with heap addresses
 
-func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 type wasmFunc struct {
@@ -136,7 +136,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		},
 	}
 	hostImportMap := make(map[loader.Sym]int64)
-	for _, fn := range ctxt.Textp2 {
+	for _, fn := range ctxt.Textp {
 		relocs := ldr.Relocs(fn)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At2(ri)
@@ -152,8 +152,8 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 
 	// collect functions with WebAssembly body
 	var buildid []byte
-	fns := make([]*wasmFunc, len(ctxt.Textp2))
-	for i, fn := range ctxt.Textp2 {
+	fns := make([]*wasmFunc, len(ctxt.Textp))
+	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
 		if ldr.SymName(fn) == "go.buildid" {
 			writeUleb128(wfn, 0) // number of sets of locals

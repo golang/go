@@ -20,9 +20,9 @@ type CompilationUnit struct {
 	DWInfo         *dwarf.DWDie  // CU root DIE
 	DWARFFileTable []string      // The file table used to generate the .debug_lines
 
-	Consts2    LoaderSym   // Package constants DIEs (loader)
-	FuncDIEs2  []LoaderSym // Function DIE subtrees (loader)
-	AbsFnDIEs2 []LoaderSym // Abstract function DIE subtrees (loader)
-	RangeSyms2 []LoaderSym // Symbols for debug_range (loader)
-	Textp2     []LoaderSym // Text symbols in this CU (loader)
+	Consts    LoaderSym   // Package constants DIEs
+	FuncDIEs  []LoaderSym // Function DIE subtrees
+	AbsFnDIEs []LoaderSym // Abstract function DIE subtrees
+	RangeSyms []LoaderSym // Symbols for debug_range
+	Textp     []LoaderSym // Text symbols in this CU
 }

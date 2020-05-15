@@ -183,7 +183,7 @@ func genelfsym(ctxt *Link, elfbind int) {
 	// Text symbols.
 	s := ldr.Lookup("runtime.text", 0)
 	putelfsym(ctxt, s, STT_FUNC, elfbind)
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		putelfsym(ctxt, s, STT_FUNC, elfbind)
 	}
 	s = ldr.Lookup("runtime.etext", 0)
@@ -288,7 +288,7 @@ func Asmplan9sym(ctxt *Link) {
 	}
 
 	// Add text symbols.
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		putplan9sym(ctxt, ldr, s, TextSym)
 	}
 
@@ -410,38 +410,38 @@ func (ctxt *Link) symtab() []sym.SymKind {
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	ctxt.xdefine2("runtime.text", sym.STEXT, 0)
-	ctxt.xdefine2("runtime.etext", sym.STEXT, 0)
-	ctxt.xdefine2("runtime.itablink", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.eitablink", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.rodata", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.erodata", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.types", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.etypes", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.noptrdata", sym.SNOPTRDATA, 0)
-	ctxt.xdefine2("runtime.enoptrdata", sym.SNOPTRDATA, 0)
-	ctxt.xdefine2("runtime.data", sym.SDATA, 0)
-	ctxt.xdefine2("runtime.edata", sym.SDATA, 0)
-	ctxt.xdefine2("runtime.bss", sym.SBSS, 0)
-	ctxt.xdefine2("runtime.ebss", sym.SBSS, 0)
-	ctxt.xdefine2("runtime.noptrbss", sym.SNOPTRBSS, 0)
-	ctxt.xdefine2("runtime.enoptrbss", sym.SNOPTRBSS, 0)
-	ctxt.xdefine2("runtime.end", sym.SBSS, 0)
-	ctxt.xdefine2("runtime.epclntab", sym.SRODATA, 0)
-	ctxt.xdefine2("runtime.esymtab", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.text", sym.STEXT, 0)
+	ctxt.xdefine("runtime.etext", sym.STEXT, 0)
+	ctxt.xdefine("runtime.itablink", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.eitablink", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.etypes", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.data", sym.SDATA, 0)
+	ctxt.xdefine("runtime.edata", sym.SDATA, 0)
+	ctxt.xdefine("runtime.bss", sym.SBSS, 0)
+	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
+	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.end", sym.SBSS, 0)
+	ctxt.xdefine("runtime.epclntab", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.esymtab", sym.SRODATA, 0)
 
 	// garbage collection symbols
 	s := ldr.CreateSymForUpdate("runtime.gcdata", 0)
 	s.SetType(sym.SRODATA)
 	s.SetSize(0)
 	s.SetReachable(true)
-	ctxt.xdefine2("runtime.egcdata", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.egcdata", sym.SRODATA, 0)
 
 	s = ldr.CreateSymForUpdate("runtime.gcbss", 0)
 	s.SetType(sym.SRODATA)
 	s.SetSize(0)
 	s.SetReachable(true)
-	ctxt.xdefine2("runtime.egcbss", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.egcbss", sym.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype, symtyperel loader.Sym
@@ -607,7 +607,7 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	// runtime to use. Any changes here must be matched by changes to
 	// the definition of moduledata in runtime/symtab.go.
 	// This code uses several global variables that are set by pcln.go:pclntab.
-	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata2)
+	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
 	pclntab := ldr.Lookup("runtime.pclntab", 0)
 	// The pclntab slice
 	moduledata.AddAddr(ctxt.Arch, pclntab)

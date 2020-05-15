@@ -61,10 +61,10 @@ func dwarfcompress(ctxt *Link) {
 
 	var compressedCount int
 	resChannel := make(chan compressedSect)
-	for i := range dwarfp2 {
+	for i := range dwarfp {
 		go func(resIndex int, syms []loader.Sym) {
 			resChannel <- compressedSect{resIndex, compressSyms(ctxt, syms), syms}
-		}(compressedCount, dwarfp2[i].syms)
+		}(compressedCount, dwarfp[i].syms)
 		compressedCount++
 	}
 	res := make([]compressedSect, compressedCount)
@@ -103,14 +103,14 @@ func dwarfcompress(ctxt *Link) {
 			}
 		}
 	}
-	dwarfp2 = newDwarfp
+	dwarfp = newDwarfp
 
 	// Re-compute the locations of the compressed DWARF symbols
 	// and sections, since the layout of these within the file is
 	// based on Section.Vaddr and Symbol.Value.
 	pos := Segdwarf.Vaddr
 	var prevSect *sym.Section
-	for _, si := range dwarfp2 {
+	for _, si := range dwarfp {
 		for _, s := range si.syms {
 			ldr.SetSymValue(s, int64(pos))
 			sect := ldr.SymSect(s)
@@ -137,11 +137,11 @@ func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
 
 func (v compilationUnitByStartPC) Less(i, j int) bool {
 	switch {
-	case len(v[i].Textp2) == 0 && len(v[j].Textp2) == 0:
+	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
 		return v[i].Lib.Pkg < v[j].Lib.Pkg
-	case len(v[i].Textp2) != 0 && len(v[j].Textp2) == 0:
+	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
 		return true
-	case len(v[i].Textp2) == 0 && len(v[j].Textp2) != 0:
+	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
 		return false
 	default:
 		return v[i].PCs[0].Start < v[j].PCs[0].Start

@@ -282,7 +282,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				needExtReloc = true
 				rr.Xsym = rs
 				if rr.Xsym == 0 {
-					rr.Xsym = syms.Tlsg2
+					rr.Xsym = syms.Tlsg
 				}
 				rr.Xadd = r.Add()
 				o = 0
@@ -313,7 +313,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				needExtReloc = true
 				rr.Xsym = rs
 				if rr.Xsym == 0 {
-					rr.Xsym = syms.Tlsg2
+					rr.Xsym = syms.Tlsg
 				}
 				rr.Xadd = r.Add()
 				o = 0
@@ -410,7 +410,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 					needExtReloc = false
 				}
 
-				rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym2)
+				rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
 				rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
 
 				o = rr.Xadd
@@ -437,7 +437,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case objabi.R_ADDRCUOFF:
 			// debug_range and debug_loc elements use this relocation type to get an
 			// offset from the start of the compile unit.
-			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(loader.Sym(ldr.SymUnit(rs).Textp2[0]))
+			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(loader.Sym(ldr.SymUnit(rs).Textp[0]))
 
 		// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
@@ -539,7 +539,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			o = r.Add()
 
 		case objabi.R_GOTOFF:
-			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT2)
+			o = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.GOT)
 		}
 
 		if target.IsPPC64() || target.IsS390X() {
@@ -650,7 +650,7 @@ func (ctxt *Link) reloc() {
 	go func() {
 		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
 			st := ctxt.makeRelocSymState()
-			for _, s := range ctxt.Textp2 {
+			for _, s := range ctxt.Textp {
 				st.relocsym(s, ldr.OutData(s))
 			}
 		}
@@ -658,14 +658,14 @@ func (ctxt *Link) reloc() {
 	}()
 	go func() {
 		st := ctxt.makeRelocSymState()
-		for _, s := range ctxt.datap2 {
+		for _, s := range ctxt.datap {
 			st.relocsym(s, ldr.OutData(s))
 		}
 		wg.Done()
 	}()
 	go func() {
 		st := ctxt.makeRelocSymState()
-		for _, si := range dwarfp2 {
+		for _, si := range dwarfp {
 			for _, s := range si.syms {
 				st.relocsym(s, ldr.OutData(s))
 			}
@@ -744,14 +744,14 @@ func (ctxt *Link) windynrelocsyms() {
 	relu := ctxt.loader.MakeSymbolUpdater(rel)
 	relu.SetType(sym.STEXT)
 
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		windynrelocsym(ctxt, relu, s)
 	}
 
-	ctxt.Textp2 = append(ctxt.Textp2, rel)
+	ctxt.Textp = append(ctxt.Textp, rel)
 }
 
-func dynrelocsym2(ctxt *Link, s loader.Sym) {
+func dynrelocsym(ctxt *Link, s loader.Sym) {
 	target := &ctxt.Target
 	ldr := ctxt.loader
 	syms := &ctxt.ArchSyms
@@ -778,7 +778,7 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
 	}
 }
 
-func (state *dodataState) dynreloc2(ctxt *Link) {
+func (state *dodataState) dynreloc(ctxt *Link) {
 	if ctxt.HeadType == objabi.Hwindows {
 		return
 	}
@@ -788,16 +788,16 @@ func (state *dodataState) dynreloc2(ctxt *Link) {
 		return
 	}
 
-	for _, s := range ctxt.Textp2 {
-		dynrelocsym2(ctxt, s)
+	for _, s := range ctxt.Textp {
+		dynrelocsym(ctxt, s)
 	}
-	for _, syms := range state.data2 {
+	for _, syms := range state.data {
 		for _, s := range syms {
-			dynrelocsym2(ctxt, s)
+			dynrelocsym(ctxt, s)
 		}
 	}
 	if ctxt.IsELF {
-		elfdynhash2(ctxt)
+		elfdynhash(ctxt)
 	}
 }
 
@@ -806,7 +806,7 @@ func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 }
 
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
-	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp2, addr, size, pad)
+	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp, addr, size, pad)
 }
 
 const blockSize = 1 << 20 // 1MB chunks written at a time.
@@ -978,7 +978,7 @@ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
 }
 
 func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap2, addr, size, zeros[:])
+	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap, addr, size, zeros[:])
 }
 
 func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
@@ -989,12 +989,12 @@ func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	// section, but this would run the risk of undoing any file offset
 	// adjustments made during layout.
 	n := 0
-	for i := range dwarfp2 {
-		n += len(dwarfp2[i].syms)
+	for i := range dwarfp {
+		n += len(dwarfp[i].syms)
 	}
 	syms := make([]loader.Sym, 0, n)
-	for i := range dwarfp2 {
-		syms = append(syms, dwarfp2[i].syms...)
+	for i := range dwarfp {
+		syms = append(syms, dwarfp[i].syms...)
 	}
 	writeBlocks(out, ctxt.outSem, ctxt.loader, syms, addr, size, zeros[:])
 }
@@ -1092,7 +1092,7 @@ func addinitarrdata(ctxt *Link, ldr *loader.Loader, s loader.Sym) {
 }
 
 // symalign returns the required alignment for the given symbol s.
-func symalign2(ldr *loader.Loader, s loader.Sym) int32 {
+func symalign(ldr *loader.Loader, s loader.Sym) int32 {
 	min := int32(thearch.Minalign)
 	align := ldr.SymAlign(s)
 	if align >= min {
@@ -1116,19 +1116,19 @@ func symalign2(ldr *loader.Loader, s loader.Sym) int32 {
 	return align
 }
 
-func aligndatsize2(state *dodataState, datsize int64, s loader.Sym) int64 {
-	return Rnd(datsize, int64(symalign2(state.ctxt.loader, s)))
+func aligndatsize(state *dodataState, datsize int64, s loader.Sym) int64 {
+	return Rnd(datsize, int64(symalign(state.ctxt.loader, s)))
 }
 
 const debugGCProg = false
 
-type GCProg2 struct {
+type GCProg struct {
 	ctxt *Link
 	sym  *loader.SymbolBuilder
 	w    gcprog.Writer
 }
 
-func (p *GCProg2) Init(ctxt *Link, name string) {
+func (p *GCProg) Init(ctxt *Link, name string) {
 	p.ctxt = ctxt
 	symIdx := ctxt.loader.LookupOrCreateSym(name, 0)
 	p.sym = ctxt.loader.MakeSymbolUpdater(symIdx)
@@ -1139,13 +1139,13 @@ func (p *GCProg2) Init(ctxt *Link, name string) {
 	}
 }
 
-func (p *GCProg2) writeByte() func(x byte) {
+func (p *GCProg) writeByte() func(x byte) {
 	return func(x byte) {
 		p.sym.AddUint8(x)
 	}
 }
 
-func (p *GCProg2) End(size int64) {
+func (p *GCProg) End(size int64) {
 	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
 	p.w.End()
 	if debugGCProg {
@@ -1153,7 +1153,7 @@ func (p *GCProg2) End(size int64) {
 	}
 }
 
-func (p *GCProg2) AddSym(s loader.Sym) {
+func (p *GCProg) AddSym(s loader.Sym) {
 	ldr := p.ctxt.loader
 	typ := ldr.SymGoType(s)
 
@@ -1208,7 +1208,7 @@ func (state *dodataState) checkdatsize(symn sym.SymKind) {
 }
 
 // fixZeroSizedSymbols gives a few special symbols with zero size some space.
-func fixZeroSizedSymbols2(ctxt *Link) {
+func fixZeroSizedSymbols(ctxt *Link) {
 	// The values in moduledata are filled out by relocations
 	// pointing to the addresses of these special symbols.
 	// Typically these symbols have no size and are not laid
@@ -1277,7 +1277,7 @@ func fixZeroSizedSymbols2(ctxt *Link) {
 }
 
 // makeRelroForSharedLib creates a section of readonly data if necessary.
-func (state *dodataState) makeRelroForSharedLib2(target *Link) {
+func (state *dodataState) makeRelroForSharedLib(target *Link) {
 	if !target.UseRelro() {
 		return
 	}
@@ -1290,9 +1290,9 @@ func (state *dodataState) makeRelroForSharedLib2(target *Link) {
 		symnrelro := sym.RelROMap[symnro]
 
 		ro := []loader.Sym{}
-		relro := state.data2[symnrelro]
+		relro := state.data[symnrelro]
 
-		for _, s := range state.data2[symnro] {
+		for _, s := range state.data[symnro] {
 			relocs := ldr.Relocs(s)
 			isRelro := relocs.Count() > 0
 			switch state.symType(s) {
@@ -1334,8 +1334,8 @@ func (state *dodataState) makeRelroForSharedLib2(target *Link) {
 			}
 		}
 
-		state.data2[symnro] = ro
-		state.data2[symnrelro] = relro
+		state.data[symnro] = ro
+		state.data[symnrelro] = relro
 	}
 }
 
@@ -1346,7 +1346,7 @@ type dodataState struct {
 	// Link context
 	ctxt *Link
 	// Data symbols bucketed by type.
-	data2 [sym.SXREF][]loader.Sym
+	data [sym.SXREF][]loader.Sym
 	// Max alignment for each flavor of data symbol.
 	dataMaxAlign [sym.SXREF]int32
 	// Overridden sym type
@@ -1389,10 +1389,10 @@ func (state *dodataState) setSymType(s loader.Sym, kind sym.SymKind) {
 	}
 }
 
-func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
+func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 
 	// Give zeros sized symbols space if necessary.
-	fixZeroSizedSymbols2(ctxt)
+	fixZeroSizedSymbols(ctxt)
 
 	// Collect data symbols by type into data.
 	state := dodataState{ctxt: ctxt, symGroupType: symGroupType}
@@ -1408,7 +1408,7 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 		if st <= sym.STEXT || st >= sym.SXREF {
 			continue
 		}
-		state.data2[st] = append(state.data2[st], s)
+		state.data[st] = append(state.data[st], s)
 
 		// Similarly with checking the onlist attr.
 		if ldr.AttrOnList(s) {
@@ -1426,10 +1426,10 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 	if ctxt.HeadType == objabi.Hdarwin {
 		machosymorder(ctxt)
 	}
-	state.dynreloc2(ctxt)
+	state.dynreloc(ctxt)
 
 	// Move any RO data with relocations to a separate section.
-	state.makeRelroForSharedLib2(ctxt)
+	state.makeRelroForSharedLib(ctxt)
 
 	// Set alignment for the symbol with the largest known index,
 	// so as to trigger allocation of the loader's internal
@@ -1440,11 +1440,11 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 
 	// Sort symbols.
 	var wg sync.WaitGroup
-	for symn := range state.data2 {
+	for symn := range state.data {
 		symn := sym.SymKind(symn)
 		wg.Add(1)
 		go func() {
-			state.data2[symn], state.dataMaxAlign[symn] = state.dodataSect2(ctxt, symn, state.data2[symn])
+			state.data[symn], state.dataMaxAlign[symn] = state.dodataSect(ctxt, symn, state.data[symn])
 			wg.Done()
 		}()
 	}
@@ -1453,7 +1453,7 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 	if ctxt.IsELF {
 		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
 		// and Solaris actually cares.
-		syms := state.data2[sym.SELFROSECT]
+		syms := state.data[sym.SELFROSECT]
 		reli, plti := -1, -1
 		for i, s := range syms {
 			switch ldr.SymName(s) {
@@ -1482,7 +1482,7 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 			ldr.SetSymAlign(rel, int32(ctxt.Arch.RegSize))
 			ldr.SetSymAlign(plt, int32(ctxt.Arch.RegSize))
 		}
-		state.data2[sym.SELFROSECT] = syms
+		state.data[sym.SELFROSECT] = syms
 	}
 
 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
@@ -1494,11 +1494,11 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 
 	// Create *sym.Section objects and assign symbols to sections for
 	// data/rodata (and related) symbols.
-	state.allocateDataSections2(ctxt)
+	state.allocateDataSections(ctxt)
 
 	// Create *sym.Section objects and assign symbols to sections for
 	// DWARF symbols.
-	state.allocateDwarfSections2(ctxt)
+	state.allocateDwarfSections(ctxt)
 
 	/* number the sections */
 	n := int16(1)
@@ -1529,11 +1529,11 @@ func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
 // single symbol will be placed. Here "seg" is the segment into which
 // the section will go, "s" is the symbol to be placed into the new
 // section, and "rwx" contains permissions for the section.
-func (state *dodataState) allocateDataSectionForSym2(seg *sym.Segment, s loader.Sym, rwx int) *sym.Section {
+func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s loader.Sym, rwx int) *sym.Section {
 	ldr := state.ctxt.loader
 	sname := ldr.SymName(s)
 	sect := addsection(ldr, state.ctxt.Arch, seg, sname, rwx)
-	sect.Align = symalign2(ldr, s)
+	sect.Align = symalign(ldr, s)
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	sect.Vaddr = uint64(state.datsize)
 	return sect
@@ -1569,7 +1569,7 @@ func (state *dodataState) allocateNamedDataSection(seg *sym.Segment, sName strin
 // "forceType" (if non-zero) contains a new sym type to apply to each
 // sym during the assignment, and "aligner" is a hook to call to
 // handle alignment during the assignment process.
-func (state *dodataState) assignDsymsToSection2(sect *sym.Section, syms []loader.Sym, forceType sym.SymKind, aligner func(state *dodataState, datsize int64, s loader.Sym) int64) {
+func (state *dodataState) assignDsymsToSection(sect *sym.Section, syms []loader.Sym, forceType sym.SymKind, aligner func(state *dodataState, datsize int64, s loader.Sym) int64) {
 	ldr := state.ctxt.loader
 	for _, s := range syms {
 		state.datsize = aligner(state, state.datsize, s)
@@ -1583,8 +1583,8 @@ func (state *dodataState) assignDsymsToSection2(sect *sym.Section, syms []loader
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 }
 
-func (state *dodataState) assignToSection2(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
-	state.assignDsymsToSection2(sect, state.data2[symn], forceType, aligndatsize2)
+func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
+	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
 	state.checkdatsize(symn)
 }
 
@@ -1594,10 +1594,10 @@ func (state *dodataState) assignToSection2(sect *sym.Section, symn sym.SymKind, 
 // symbol name. "Seg" is the segment into which to place the new
 // section, "forceType" is the new sym.SymKind to assign to the symbol
 // within the section, and "rwx" holds section permissions.
-func (state *dodataState) allocateSingleSymSections2(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
+func (state *dodataState) allocateSingleSymSections(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
 	ldr := state.ctxt.loader
-	for _, s := range state.data2[symn] {
-		sect := state.allocateDataSectionForSym2(seg, s, rwx)
+	for _, s := range state.data[symn] {
+		sect := state.allocateDataSectionForSym(seg, s, rwx)
 		ldr.SetSymSect(s, sect)
 		state.setSymType(s, forceType)
 		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
@@ -1614,16 +1614,16 @@ func (state *dodataState) allocateSingleSymSections2(seg *sym.Segment, symn sym.
 // name to give to the new section, "forceType" (if non-zero) contains
 // a new sym type to apply to each sym during the assignment, and
 // "rwx" holds section permissions.
-func (state *dodataState) allocateNamedSectionAndAssignSyms2(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
+func (state *dodataState) allocateNamedSectionAndAssignSyms(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
 
 	sect := state.allocateNamedDataSection(seg, secName, []sym.SymKind{symn}, rwx)
-	state.assignDsymsToSection2(sect, state.data2[symn], forceType, aligndatsize2)
+	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
 	return sect
 }
 
 // allocateDataSections allocates sym.Section objects for data/rodata
 // (and related) symbols, and then assigns symbols to those sections.
-func (state *dodataState) allocateDataSections2(ctxt *Link) {
+func (state *dodataState) allocateDataSections(ctxt *Link) {
 	// Allocate sections.
 	// Data is processed before segtext, because we need
 	// to see all symbols in the .data and .bss sections in order
@@ -1638,15 +1638,15 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 		sym.SWINDOWS,
 	}
 	for _, symn := range writable {
-		state.allocateSingleSymSections2(&Segdata, symn, sym.SDATA, 06)
+		state.allocateSingleSymSections(&Segdata, symn, sym.SDATA, 06)
 	}
 	ldr := ctxt.loader
 
 	// .got (and .toc on ppc64)
-	if len(state.data2[sym.SELFGOT]) > 0 {
-		sect := state.allocateNamedSectionAndAssignSyms2(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+	if len(state.data[sym.SELFGOT]) > 0 {
+		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
 		if ctxt.IsPPC64() {
-			for _, s := range state.data2[sym.SELFGOT] {
+			for _, s := range state.data[sym.SELFGOT] {
 				// Resolve .TOC. symbol for this object file (ppc64)
 
 				toc := ldr.Lookup(".TOC.", int(ldr.SymVersion(s)))
@@ -1660,7 +1660,7 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	}
 
 	/* pointer-free data */
-	sect := state.allocateNamedSectionAndAssignSyms2(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
+	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrdata", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrdata", 0), sect)
 
@@ -1673,29 +1673,29 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	}
 
 	if ctxt.HeadType == objabi.Haix {
-		if len(state.data2[sym.SINITARR]) > 0 {
+		if len(state.data[sym.SINITARR]) > 0 {
 			Errorf(nil, "XCOFF format doesn't allow .init_array section")
 		}
 	}
 
-	if hasinitarr && len(state.data2[sym.SINITARR]) > 0 {
-		state.allocateNamedSectionAndAssignSyms2(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
+	if hasinitarr && len(state.data[sym.SINITARR]) > 0 {
+		state.allocateNamedSectionAndAssignSyms(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
 	}
 
 	/* data */
-	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
+	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.data", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.edata", 0), sect)
 	dataGcEnd := state.datsize - int64(sect.Vaddr)
 
 	// On AIX, TOC entries must be the last of .data
 	// These aren't part of gc as they won't change during the runtime.
-	state.assignToSection2(sect, sym.SXCOFFTOC, sym.SDATA)
+	state.assignToSection(sect, sym.SXCOFFTOC, sym.SDATA)
 	state.checkdatsize(sym.SDATA)
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
 	/* bss */
-	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
+	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.bss", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ebss", 0), sect)
 	bssGcEnd := state.datsize - int64(sect.Vaddr)
@@ -1710,26 +1710,26 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 		{"runtime.gcbss", sym.SBSS, bssGcEnd},
 	}
 	for _, g := range gcsToEmit {
-		var gc GCProg2
+		var gc GCProg
 		gc.Init(ctxt, g.symName)
-		for _, s := range state.data2[g.symKind] {
+		for _, s := range state.data[g.symKind] {
 			gc.AddSym(s)
 		}
 		gc.End(g.gcEnd)
 	}
 
 	/* pointer-free bss */
-	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
+	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrbss", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrbss", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
 
 	// Coverage instrumentation counters for libfuzzer.
-	if len(state.data2[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
-		state.allocateNamedSectionAndAssignSyms2(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
 	}
 
-	if len(state.data2[sym.STLSBSS]) > 0 {
+	if len(state.data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section
 		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
@@ -1740,8 +1740,8 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 		}
 		state.datsize = 0
 
-		for _, s := range state.data2[sym.STLSBSS] {
-			state.datsize = aligndatsize2(state, state.datsize, s)
+		for _, s := range state.data[sym.STLSBSS] {
+			state.datsize = aligndatsize(state, state.datsize, s)
 			if sect != nil {
 				ldr.SetSymSect(s, sect)
 			}
@@ -1776,11 +1776,11 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	state.datsize = 0
 
 	/* read-only executable ELF, Mach-O sections */
-	if len(state.data2[sym.STEXT]) != 0 {
-		culprit := ldr.SymName(state.data2[sym.STEXT][0])
+	if len(state.data[sym.STEXT]) != 0 {
+		culprit := ldr.SymName(state.data[sym.STEXT][0])
 		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
 	}
-	state.allocateSingleSymSections2(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
 
 	/* read-only data */
 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
@@ -1792,19 +1792,19 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	}
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
-		state.assignToSection2(sect, symn, sym.SRODATA)
+		state.assignToSection(sect, symn, sym.SRODATA)
 		if ctxt.HeadType == objabi.Haix {
 			// Read-only symbols might be wrapped inside their outer
 			// symbol.
 			// XCOFF symbol table needs to know the size of
 			// these outer symbols.
-			xcoffUpdateOuterSize2(ctxt, state.datsize-symnStartValue, symn)
+			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 		}
 	}
 
 	/* read-only ELF, Mach-O sections */
-	state.allocateSingleSymSections2(segro, sym.SELFROSECT, sym.SRODATA, 04)
-	state.allocateSingleSymSections2(segro, sym.SMACHOPLT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
 
 	// There is some data that are conceptually read-only but are written to by
 	// relocations. On GNU systems, we can arrange for the dynamic linker to
@@ -1868,19 +1868,19 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 			symn := sym.RelROMap[symnro]
 			symnStartValue := state.datsize
 
-			for _, s := range state.data2[symn] {
+			for _, s := range state.data[symn] {
 				outer := ldr.OuterSym(s)
 				if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
 					ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
 				}
 			}
-			state.assignToSection2(sect, symn, sym.SRODATA)
+			state.assignToSection(sect, symn, sym.SRODATA)
 			if ctxt.HeadType == objabi.Haix {
 				// Read-only symbols might be wrapped inside their outer
 				// symbol.
 				// XCOFF symbol table needs to know the size of
 				// these outer symbols.
-				xcoffUpdateOuterSize2(ctxt, state.datsize-symnStartValue, symn)
+				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 			}
 		}
 
@@ -1898,22 +1898,22 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
 	/* itablink */
-	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
+	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.itablink", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.eitablink", 0), sect)
 	if ctxt.HeadType == objabi.Haix {
 		// Store .itablink size because its symbols are wrapped
 		// under an outer symbol: runtime.itablink.
-		xcoffUpdateOuterSize2(ctxt, int64(sect.Length), sym.SITABLINK)
+		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
 	}
 
 	/* gosymtab */
-	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
+	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.symtab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.esymtab", 0), sect)
 
 	/* gopclntab */
-	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
+	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
 
@@ -1924,35 +1924,35 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 
 	siz := 0
 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
-		siz += len(state.data2[symn])
+		siz += len(state.data[symn])
 	}
-	ctxt.datap2 = make([]loader.Sym, 0, siz)
+	ctxt.datap = make([]loader.Sym, 0, siz)
 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
-		ctxt.datap2 = append(ctxt.datap2, state.data2[symn]...)
+		ctxt.datap = append(ctxt.datap, state.data[symn]...)
 	}
 }
 
 // allocateDwarfSections allocates sym.Section objects for DWARF
 // symbols, and assigns symbols to sections.
-func (state *dodataState) allocateDwarfSections2(ctxt *Link) {
+func (state *dodataState) allocateDwarfSections(ctxt *Link) {
 
 	alignOne := func(state *dodataState, datsize int64, s loader.Sym) int64 { return datsize }
 
 	ldr := ctxt.loader
-	for i := 0; i < len(dwarfp2); i++ {
+	for i := 0; i < len(dwarfp); i++ {
 		// First the section symbol.
-		s := dwarfp2[i].secSym()
+		s := dwarfp[i].secSym()
 		sect := state.allocateNamedDataSection(&Segdwarf, ldr.SymName(s), []sym.SymKind{}, 04)
 		ldr.SetSymSect(s, sect)
-		sect.Sym2 = sym.LoaderSym(s)
+		sect.Sym = sym.LoaderSym(s)
 		curType := ldr.SymType(s)
 		state.setSymType(s, sym.SRODATA)
 		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
 		state.datsize += ldr.SymSize(s)
 
 		// Then any sub-symbols for the section symbol.
-		subSyms := dwarfp2[i].subSyms()
-		state.assignDsymsToSection2(sect, subSyms, sym.SRODATA, alignOne)
+		subSyms := dwarfp[i].subSyms()
+		state.assignDsymsToSection(sect, subSyms, sym.SRODATA, alignOne)
 
 		for j := 0; j < len(subSyms); j++ {
 			s := subSyms[j]
@@ -1973,7 +1973,7 @@ type symNameSize struct {
 	sym  loader.Sym
 }
 
-func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
+func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
 	var head, tail loader.Sym
 	ldr := ctxt.loader
 	sl := make([]symNameSize, len(syms))
@@ -2040,7 +2040,7 @@ func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loade
 	for k := range sl {
 		s := sl[k].sym
 		if s != head && s != tail {
-			align := symalign2(ldr, s)
+			align := symalign(ldr, s)
 			if maxAlign < align {
 				maxAlign = align
 			}
@@ -2071,9 +2071,9 @@ func (ctxt *Link) textbuildid() {
 	s.SetData([]byte(data))
 	s.SetSize(int64(len(data)))
 
-	ctxt.Textp2 = append(ctxt.Textp2, 0)
-	copy(ctxt.Textp2[1:], ctxt.Textp2)
-	ctxt.Textp2[0] = s.Sym()
+	ctxt.Textp = append(ctxt.Textp, 0)
+	copy(ctxt.Textp[1:], ctxt.Textp)
+	ctxt.Textp[0] = s.Sym()
 }
 
 func (ctxt *Link) buildinfo() {
@@ -2143,16 +2143,16 @@ func (ctxt *Link) textaddress() {
 		etext := ldr.LookupOrCreateSym("runtime.etext", 0)
 		ldr.SetSymSect(etext, sect)
 
-		ctxt.Textp2 = append(ctxt.Textp2, etext, 0)
-		copy(ctxt.Textp2[1:], ctxt.Textp2)
-		ctxt.Textp2[0] = text
+		ctxt.Textp = append(ctxt.Textp, etext, 0)
+		copy(ctxt.Textp[1:], ctxt.Textp)
+		ctxt.Textp[0] = text
 	}
 
 	va := uint64(*FlagTextAddr)
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false)
 
 		trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far
@@ -2175,9 +2175,9 @@ func (ctxt *Link) textaddress() {
 
 	// merge tramps into Textp, keeping Textp in address order
 	if ntramps != 0 {
-		newtextp := make([]loader.Sym, 0, len(ctxt.Textp2)+ntramps)
+		newtextp := make([]loader.Sym, 0, len(ctxt.Textp)+ntramps)
 		i := 0
-		for _, s := range ctxt.Textp2 {
+		for _, s := range ctxt.Textp {
 			for ; i < ntramps && ldr.SymValue(ctxt.tramps[i]) < ldr.SymValue(s); i++ {
 				newtextp = append(newtextp, ctxt.tramps[i])
 			}
@@ -2185,7 +2185,7 @@ func (ctxt *Link) textaddress() {
 		}
 		newtextp = append(newtextp, ctxt.tramps[i:ntramps]...)
 
-		ctxt.Textp2 = newtextp
+		ctxt.Textp = newtextp
 	}
 }
 
@@ -2410,7 +2410,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	for _, s := range ctxt.datap2 {
+	for _, s := range ctxt.datap {
 		if sect := ldr.SymSect(s); sect != nil {
 			ldr.AddToSymValue(s, int64(sect.Vaddr))
 		}
@@ -2420,7 +2420,7 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	for _, si := range dwarfp2 {
+	for _, si := range dwarfp {
 		for _, s := range si.syms {
 			if sect := ldr.SymSect(s); sect != nil {
 				ldr.AddToSymValue(s, int64(sect.Vaddr))
@@ -2443,8 +2443,8 @@ func (ctxt *Link) address() []*sym.Segment {
 		ldr.SetSymValue(s, int64(sect.Vaddr+16))
 	}
 
-	ctxt.xdefine2("runtime.text", sym.STEXT, int64(text.Vaddr))
-	ctxt.xdefine2("runtime.etext", sym.STEXT, int64(lasttext.Vaddr+lasttext.Length))
+	ctxt.xdefine("runtime.text", sym.STEXT, int64(text.Vaddr))
+	ctxt.xdefine("runtime.etext", sym.STEXT, int64(lasttext.Vaddr+lasttext.Length))
 
 	// If there are multiple text sections, create runtime.text.n for
 	// their section Vaddr, using n for index
@@ -2457,41 +2457,41 @@ func (ctxt *Link) address() []*sym.Segment {
 		if ctxt.HeadType != objabi.Haix || ctxt.LinkMode != LinkExternal {
 			// Addresses are already set on AIX with external linker
 			// because these symbols are part of their sections.
-			ctxt.xdefine2(symname, sym.STEXT, int64(sect.Vaddr))
+			ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
 		}
 		n++
 	}
 
-	ctxt.xdefine2("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
-	ctxt.xdefine2("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
-	ctxt.xdefine2("runtime.types", sym.SRODATA, int64(types.Vaddr))
-	ctxt.xdefine2("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
-	ctxt.xdefine2("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
-	ctxt.xdefine2("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
+	ctxt.xdefine("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
+	ctxt.xdefine("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
+	ctxt.xdefine("runtime.types", sym.SRODATA, int64(types.Vaddr))
+	ctxt.xdefine("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
+	ctxt.xdefine("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
+	ctxt.xdefine("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
 	s := ldr.Lookup("runtime.gcdata", 0)
 	ldr.SetAttrLocal(s, true)
-	ctxt.xdefine2("runtime.egcdata", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
+	ctxt.xdefine("runtime.egcdata", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcdata", 0), ldr.SymSect(s))
 
 	s = ldr.LookupOrCreateSym("runtime.gcbss", 0)
 	ldr.SetAttrLocal(s, true)
-	ctxt.xdefine2("runtime.egcbss", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
+	ctxt.xdefine("runtime.egcbss", sym.SRODATA, ldr.SymAddr(s)+ldr.SymSize(s))
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.egcbss", 0), ldr.SymSect(s))
 
-	ctxt.xdefine2("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
-	ctxt.xdefine2("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
-	ctxt.xdefine2("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
-	ctxt.xdefine2("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
-	ctxt.xdefine2("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
-	ctxt.xdefine2("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
-	ctxt.xdefine2("runtime.bss", sym.SBSS, int64(bss.Vaddr))
-	ctxt.xdefine2("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
-	ctxt.xdefine2("runtime.data", sym.SDATA, int64(data.Vaddr))
-	ctxt.xdefine2("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
-	ctxt.xdefine2("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
-	ctxt.xdefine2("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
-	ctxt.xdefine2("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+	ctxt.xdefine("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
+	ctxt.xdefine("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
+	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
+	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
+	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
+	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
+	ctxt.xdefine("runtime.bss", sym.SBSS, int64(bss.Vaddr))
+	ctxt.xdefine("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
+	ctxt.xdefine("runtime.data", sym.SDATA, int64(data.Vaddr))
+	ctxt.xdefine("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
+	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
+	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
 
 	if ctxt.IsSolaris() {
 		// On Solaris, in the runtime it sets the external names of the
@@ -2503,9 +2503,9 @@ func (ctxt *Link) address() []*sym.Segment {
 		ldr.SetSymExtname(etext, "runtime.etext")
 		ldr.SetSymExtname(edata, "runtime.edata")
 		ldr.SetSymExtname(end, "runtime.end")
-		ctxt.xdefine2("_etext", ldr.SymType(etext), ldr.SymValue(etext))
-		ctxt.xdefine2("_edata", ldr.SymType(edata), ldr.SymValue(edata))
-		ctxt.xdefine2("_end", ldr.SymType(end), ldr.SymValue(end))
+		ctxt.xdefine("_etext", ldr.SymType(etext), ldr.SymValue(etext))
+		ctxt.xdefine("_edata", ldr.SymType(edata), ldr.SymValue(edata))
+		ctxt.xdefine("_end", ldr.SymType(end), ldr.SymValue(end))
 		ldr.SetSymSect(ldr.Lookup("_etext", 0), ldr.SymSect(etext))
 		ldr.SetSymSect(ldr.Lookup("_edata", 0), ldr.SymSect(edata))
 		ldr.SetSymSect(ldr.Lookup("_end", 0), ldr.SymSect(end))

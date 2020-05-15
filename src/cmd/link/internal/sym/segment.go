@@ -55,6 +55,6 @@ type Section struct {
 	Elfsect interface{} // an *ld.ElfShdr
 	Reloff  uint64
 	Rellen  uint64
-	Sym2    LoaderSym // symbol for the section, if any
+	Sym     LoaderSym // symbol for the section, if any
 	Index   uint16    // each section has a unique index, used internally
 }
