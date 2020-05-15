@@ -478,6 +478,12 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/crypto/tls/#ClientAuthType"><code>ClientAuthType</code></a>
       now implement <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
     </p>
+    
+    <p><!-- CL 236737 -->
+      The <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      fields <code>OCSPResponse</code> and <code>SignedCertificateTimestamps</code>
+      are now repopulated on client-side resumed connections.
+    </p>
   </dd>
 </dl><!-- crypto/tls -->
 
