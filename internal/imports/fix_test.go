@@ -846,7 +846,6 @@ import (
 var _ = fmt.Sprintf
 `,
 	},
-
 	{
 		name: "import_grouping_not_path_dependent_no_groups",
 		in: `package main
@@ -2695,4 +2694,37 @@ func _() {
 		}
 		wg.Wait()
 	})
+}
+
+func TestNonlocalDot(t *testing.T) {
+	const input = `package main
+import (
+	"fmt"
+)
+var _, _ = fmt.Sprintf, dot.Dot
+`
+	const want = `package main
+
+import (
+	"fmt"
+	"noninternet/dot.v1/dot"
+)
+
+var _, _ = fmt.Sprintf, dot.Dot
+`
+	testConfig{
+		modules: []packagestest.Module{
+			{
+				Name:  "golang.org/fake",
+				Files: fm{"x.go": input},
+			},
+			{
+				Name: "noninternet/dot.v1",
+				Files: fm{
+					"dot/dot.go": "package dot\nfunc Dot(){}\n",
+				},
+			},
+		},
+		gopathOnly: true, // our modules testing setup doesn't allow modules without dots.
+	}.processTest(t, "golang.org/fake", "x.go", nil, nil, want)
 }

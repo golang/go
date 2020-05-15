@@ -50,7 +50,8 @@ var importToGroup = []func(env *ProcessEnv, importPath string) (num int, ok bool
 		return
 	},
 	func(_ *ProcessEnv, importPath string) (num int, ok bool) {
-		if strings.Contains(importPath, ".") {
+		firstComponent := strings.Split(importPath, "/")[0]
+		if strings.Contains(firstComponent, ".") {
 			return 1, true
 		}
 		return
