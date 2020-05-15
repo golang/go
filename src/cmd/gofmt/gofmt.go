@@ -25,6 +25,8 @@ import (
 )
 
 var (
+  printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+
 	// main operation modes
 	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
@@ -35,12 +37,12 @@ var (
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+  useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
 )
 
 // Keep these in sync with go/format/format.go.
 const (
-	tabWidth    = 8
-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+	tabWidth    = 2
 )
 
 var (
@@ -181,6 +183,12 @@ func main() {
 	os.Exit(exitCode)
 }
 
+func initPrinterMode() {
+  if *useSpaces {
+    printerMode = printer.UseSpaces
+  }
+}
+
 func gofmtMain() {
 	flag.Usage = usage
 	flag.Parse()
@@ -198,6 +206,7 @@ func gofmtMain() {
 	}
 
 	initParserMode()
+	initPrinterMode()
 	initRewrite()
 
 	if flag.NArg() == 0 {
