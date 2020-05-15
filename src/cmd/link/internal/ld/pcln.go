@@ -259,7 +259,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	//	offset to file table [4 bytes]
 
 	// Find container symbols and mark them as such.
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		outer := ldr.OuterSym(s)
 		if outer != 0 {
 			state.container.Set(outer)
@@ -268,8 +268,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 
 	// Gather some basic stats and info.
 	var nfunc int32
-	prevSect := ldr.SymSect(ctxt.Textp2[0])
-	for _, s := range ctxt.Textp2 {
+	prevSect := ldr.SymSect(ctxt.Textp[0])
+	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s, state.container) {
 			continue
 		}
@@ -297,7 +297,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	ftab.SetUint(ctxt.Arch, 8, uint64(nfunc))
 	pclntabPclntabOffset = int32(8 + ctxt.Arch.PtrSize)
 
-	szHint := len(ctxt.Textp2) * 2
+	szHint := len(ctxt.Textp) * 2
 	funcnameoff := make(map[string]int32, szHint)
 	nameToOffset := func(name string) int32 {
 		nameoff, ok := funcnameoff[name]
@@ -350,8 +350,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	funcdataoff := []int64{}
 
 	nfunc = 0 // repurpose nfunc as a running index
-	prevFunc := ctxt.Textp2[0]
-	for _, s := range ctxt.Textp2 {
+	prevFunc := ctxt.Textp[0]
+	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s, state.container) {
 			continue
 		}
@@ -524,7 +524,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		nfunc++
 	}
 
-	last := ctxt.Textp2[len(ctxt.Textp2)-1]
+	last := ctxt.Textp[len(ctxt.Textp)-1]
 	pclntabLastFunc = last
 	// Final entry of table is just end pc.
 	setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
@@ -592,8 +592,8 @@ func (ctxt *Link) findfunctab(container loader.Bitmap) {
 	ldr.SetAttrLocal(tsym, true)
 
 	// find min and max address
-	min := ldr.SymValue(ctxt.Textp2[0])
-	lastp := ctxt.Textp2[len(ctxt.Textp2)-1]
+	min := ldr.SymValue(ctxt.Textp[0])
+	lastp := ctxt.Textp[len(ctxt.Textp)-1]
 	max := ldr.SymValue(lastp) + ldr.SymSize(lastp)
 
 	// for each subbucket, compute the minimum of all symbol indexes
@@ -605,18 +605,18 @@ func (ctxt *Link) findfunctab(container loader.Bitmap) {
 		indexes[i] = NOIDX
 	}
 	idx := int32(0)
-	for i, s := range ctxt.Textp2 {
+	for i, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s, container) {
 			continue
 		}
 		p := ldr.SymValue(s)
 		var e loader.Sym
 		i++
-		if i < len(ctxt.Textp2) {
-			e = ctxt.Textp2[i]
+		if i < len(ctxt.Textp) {
+			e = ctxt.Textp[i]
 		}
-		for e != 0 && !emitPcln(ctxt, e, container) && i < len(ctxt.Textp2) {
-			e = ctxt.Textp2[i]
+		for e != 0 && !emitPcln(ctxt, e, container) && i < len(ctxt.Textp) {
+			e = ctxt.Textp[i]
 			i++
 		}
 		q := max

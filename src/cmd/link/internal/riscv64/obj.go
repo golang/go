@@ -25,9 +25,9 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
 		Asmb2:            asmb2,
-		Elfreloc2:        elfreloc2,
+		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
-		Gentext2:         gentext2,
+		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 
 		Linuxdynld: "/lib/ld.so.1",

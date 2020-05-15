@@ -45,7 +45,7 @@ func PADDR(x uint32) uint32 {
 	return x &^ 0x80000000
 }
 
-func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
 		return
@@ -61,7 +61,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
 	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
 	o(0x48, 0x8d, 0x3d)
-	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata2, 0)
+	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata, 0)
 	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
 	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
 	o(0xe8)
@@ -116,8 +116,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+4)
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
-			su.SetRelocSym(rIdx, syms.PLT2)
+			addpltsym(target, ldr, syms, targ)
+			su.SetRelocSym(rIdx, syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
 
@@ -143,10 +143,10 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 		// fall back to using GOT and hope for the best (CMOV*)
 		// TODO: just needs relocation, no need to put in .dynsym
-		addgotsym2(target, ldr, syms, targ)
+		addgotsym(target, ldr, syms, targ)
 
 		su.SetRelocType(rIdx, objabi.R_PCREL)
-		su.SetRelocSym(rIdx, syms.GOT2)
+		su.SetRelocSym(rIdx, syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+4+int64(ldr.SymGot(targ)))
 		return true
 
@@ -179,9 +179,9 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
+			addpltsym(target, ldr, syms, targ)
 			su := ldr.MakeSymbolUpdater(s)
-			su.SetRelocSym(rIdx, syms.PLT2)
+			su.SetRelocSym(rIdx, syms.PLT)
 			su.SetRelocType(rIdx, objabi.R_PCREL)
 			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 			return true
@@ -224,10 +224,10 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType != sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
 		}
-		addgotsym2(target, ldr, syms, targ)
+		addgotsym(target, ldr, syms, targ)
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
-		su.SetRelocSym(rIdx, syms.GOT2)
+		su.SetRelocSym(rIdx, syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 		return true
 	}
@@ -249,9 +249,9 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 		// Internal linking, for both ELF and Mach-O.
 		// Build a PLT entry and change the relocation target to that entry.
-		addpltsym2(target, ldr, syms, targ)
+		addpltsym(target, ldr, syms, targ)
 		su := ldr.MakeSymbolUpdater(s)
-		su.SetRelocSym(rIdx, syms.PLT2)
+		su.SetRelocSym(rIdx, syms.PLT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
 
@@ -259,17 +259,17 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
 			su := ldr.MakeSymbolUpdater(s)
 			if target.IsSolaris() {
-				addpltsym2(target, ldr, syms, targ)
-				su.SetRelocSym(rIdx, syms.PLT2)
+				addpltsym(target, ldr, syms, targ)
+				su.SetRelocSym(rIdx, syms.PLT)
 				su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 				return true
 			}
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
-			addgotsym2(target, ldr, syms, targ)
+			addgotsym(target, ldr, syms, targ)
 
-			su.SetRelocSym(rIdx, syms.GOT2)
+			su.SetRelocSym(rIdx, syms.GOT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 			return true
 		}
@@ -341,7 +341,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// AddAddrPlus is used for r_offset and r_addend to
 			// generate new R_ADDR relocations that will update
 			// these fields in the 'reloc' phase.
-			rela := ldr.MakeSymbolUpdater(syms.Rela2)
+			rela := ldr.MakeSymbolUpdater(syms.Rela)
 			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
 			if r.Siz() == 8 {
 				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
@@ -367,15 +367,15 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.
-			ld.Adddynsym2(ldr, target, syms, targ)
+			ld.Adddynsym(ldr, target, syms, targ)
 
-			got := ldr.MakeSymbolUpdater(syms.GOT2)
+			got := ldr.MakeSymbolUpdater(syms.GOT)
 			su := ldr.MakeSymbolUpdater(s)
 			su.SetType(got.Type())
 			got.PrependSub(s)
 			su.SetValue(got.Size())
 			got.AddUint64(target.Arch, 0)
-			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT2)
+			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
 			leg.AddUint32(target.Arch, uint32(ldr.SymDynid(targ)))
 			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
 			return true
@@ -385,10 +385,10 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
 	xst := ldr.SymType(r.Xsym)
 	switch r.Type() {
@@ -586,17 +586,17 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 	}
 }
 
-func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
 	if ldr.SymPlt(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym2(ldr, target, syms, s)
+	ld.Adddynsym(ldr, target, syms, s)
 
 	if target.IsElf() {
-		plt := ldr.MakeSymbolUpdater(syms.PLT2)
-		got := ldr.MakeSymbolUpdater(syms.GOTPLT2)
-		rela := ldr.MakeSymbolUpdater(syms.RelaPLT2)
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		got := ldr.MakeSymbolUpdater(syms.GOTPLT)
+		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
 		if plt.Size() == 0 {
 			panic("plt is not set up")
 		}
@@ -639,11 +639,11 @@ func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
-		addgotsym2(target, ldr, syms, s)
-		plt := ldr.MakeSymbolUpdater(syms.PLT2)
+		addgotsym(target, ldr, syms, s)
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
 
 		sDynid := ldr.SymDynid(s)
-		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT2)
+		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
 		lep.AddUint32(target.Arch, uint32(sDynid))
 
 		// jmpq *got+size(IP)
@@ -651,29 +651,29 @@ func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 
 		plt.AddUint8(0xff)
 		plt.AddUint8(0x25)
-		plt.AddPCRelPlus(target.Arch, syms.GOT2, int64(ldr.SymGot(s)))
+		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(ldr.SymGot(s)))
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
-func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
 	if ldr.SymGot(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym2(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT2)
+	ld.Adddynsym(ldr, target, syms, s)
+	got := ldr.MakeSymbolUpdater(syms.GOT)
 	ldr.SetGot(s, int32(got.Size()))
 	got.AddUint64(target.Arch, 0)
 
 	if target.IsElf() {
-		rela := ldr.MakeSymbolUpdater(syms.Rela2)
+		rela := ldr.MakeSymbolUpdater(syms.Rela)
 		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
 		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_X86_64_GLOB_DAT)))
 		rela.AddUint64(target.Arch, 0)
 	} else if target.IsDarwin() {
-		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT2)
+		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
 		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
 	} else {
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
@@ -809,7 +809,7 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
 		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
 		ctxt.Out.Write32b(uint32(ld.Symsize)) /* nsyms */
-		vl := ld.Entryvalue2(ctxt)
+		vl := ld.Entryvalue(ctxt)
 		ctxt.Out.Write32b(PADDR(uint32(vl))) /* va of entry */
 		ctxt.Out.Write32b(uint32(ld.Spsize)) /* sp offsets */
 		ctxt.Out.Write32b(uint32(ld.Lcsize)) /* line offsets */

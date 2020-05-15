@@ -360,7 +360,7 @@ type XcoffLdRel64 struct {
 
 // xcoffLoaderReloc holds information about a relocation made by the loader.
 type xcoffLoaderReloc struct {
-	sym2   loader.Sym
+	sym    loader.Sym
 	roff   int32
 	rtype  uint16
 	symndx int32
@@ -568,7 +568,7 @@ var (
 
 // xcoffUpdateOuterSize stores the size of outer symbols in order to have it
 // in the symbol table.
-func xcoffUpdateOuterSize2(ctxt *Link, size int64, stype sym.SymKind) {
+func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	if size == 0 {
 		return
 	}
@@ -622,7 +622,7 @@ func xcoffAlign(ldr *loader.Loader, x loader.Sym, t SymbolType) uint8 {
 		if t == TextSym {
 			align = int32(Funcalign)
 		} else {
-			align = symalign2(ldr, x)
+			align = symalign(ldr, x)
 		}
 	}
 	return logBase2(int(align))
@@ -671,7 +671,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			dwsize = getDwsectCUSize(sect.Name, name)
 			// .debug_abbrev is common to all packages and not found with the previous function
 			if sect.Name == ".debug_abbrev" {
-				dwsize = uint64(ldr.SymSize(loader.Sym(sect.Sym2)))
+				dwsize = uint64(ldr.SymSize(loader.Sym(sect.Sym)))
 
 			}
 		} else {
@@ -693,7 +693,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			// Dwarf relocations need the symbol number of .dw* symbols.
 			// It doesn't need to know it for each package, one is enough.
 			// currSymSrcFile.csectAux == nil means first package.
-			ldr.SetSymDynid(loader.Sym(sect.Sym2), int32(f.symbolCount))
+			ldr.SetSymDynid(loader.Sym(sect.Sym), int32(f.symbolCount))
 
 			if sect.Name == ".debug_frame" && ctxt.LinkMode != LinkExternal {
 				// CIE size must be added to the first package.
@@ -1125,7 +1125,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 		}
 	}
 
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		putaixsym(ctxt, s, TextSym)
 	}
 
@@ -1220,7 +1220,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 	}
 
 	xldr := &xcoffLoaderReloc{
-		sym2: s,
+		sym:  s,
 		roff: r.Off(),
 	}
 	targ := ldr.ResolveABIAlias(r.Sym())
@@ -1410,7 +1410,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 
 	off += uint64(16 * len(f.loaderReloc))
 	for _, r := range f.loaderReloc {
-		symp := r.sym2
+		symp := r.sym
 		if symp == 0 {
 			panic("unexpected 0 sym value")
 		}
@@ -1713,9 +1713,9 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 		for _, seg := range s.segs {
 			for _, sect := range seg.Sections {
 				if sect.Name == ".text" {
-					n += relocsect(sect, ctxt.Textp2, 0)
+					n += relocsect(sect, ctxt.Textp, 0)
 				} else {
-					n += relocsect(sect, ctxt.datap2, 0)
+					n += relocsect(sect, ctxt.datap, 0)
 				}
 			}
 		}
@@ -1725,8 +1725,8 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
-		si := dwarfp2[i]
-		if si.secSym() != loader.Sym(sect.Sym2) ||
+		si := dwarfp[i]
+		if si.secSym() != loader.Sym(sect.Sym) ||
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}

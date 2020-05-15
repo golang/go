@@ -20,8 +20,8 @@ type Library struct {
 	Safe        bool
 	Units       []*CompilationUnit
 
-	Textp2       []LoaderSym // text syms defined in this library
-	DupTextSyms2 []LoaderSym // dupok text syms defined in this library
+	Textp       []LoaderSym // text syms defined in this library
+	DupTextSyms []LoaderSym // dupok text syms defined in this library
 }
 
 func (l Library) String() string {

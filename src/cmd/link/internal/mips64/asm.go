@@ -41,9 +41,9 @@ import (
 	"sync"
 )
 
-func gentext2(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
 
-func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
@@ -56,7 +56,7 @@ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	ctxt.Out.Write32(uint32(elfsym))
 	ctxt.Out.Write8(0)
 	ctxt.Out.Write8(0)
@@ -236,8 +236,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
 		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
 		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ctxt.Out.Write32(uint32(ld.Symsize))           /* nsyms */
-		ctxt.Out.Write32(uint32(ld.Entryvalue2(ctxt))) /* va of entry */
+		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
 		ctxt.Out.Write32(0)
 		ctxt.Out.Write32(uint32(ld.Lcsize))
 

@@ -744,10 +744,10 @@ func elfhash(name string) uint32 {
 }
 
 func elfWriteDynEntSym(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
-	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
+	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
 }
 
-func Elfwritedynent2(arch *sys.Arch, s *loader.SymbolBuilder, tag int, val uint64) {
+func Elfwritedynent(arch *sys.Arch, s *loader.SymbolBuilder, tag int, val uint64) {
 	if elf64 {
 		s.AddUint64(arch, uint64(tag))
 		s.AddUint64(arch, val)
@@ -757,11 +757,11 @@ func Elfwritedynent2(arch *sys.Arch, s *loader.SymbolBuilder, tag int, val uint6
 	}
 }
 
-func elfwritedynentsym2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
-	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
+func elfwritedynentsym(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
 }
 
-func Elfwritedynentsymplus2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym, add int64) {
+func Elfwritedynentsymplus(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym, add int64) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
@@ -770,7 +770,7 @@ func Elfwritedynentsymplus2(ctxt *Link, s *loader.SymbolBuilder, tag int, t load
 	s.AddAddrPlus(ctxt.Arch, t, add)
 }
 
-func elfwritedynentsymsize2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+func elfwritedynentsymsize(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
 	if elf64 {
 		s.AddUint64(ctxt.Arch, uint64(tag))
 	} else {
@@ -1028,7 +1028,7 @@ havelib:
 	return aux
 }
 
-func elfdynhash2(ctxt *Link) {
+func elfdynhash(ctxt *Link) {
 	if !ctxt.IsELF {
 		return
 	}
@@ -1147,22 +1147,22 @@ func elfdynhash2(ctxt *Link) {
 	elfverneed = nfile
 	if elfverneed != 0 {
 		elfWriteDynEntSym(ctxt, s, DT_VERNEED, gnuVersionR.Sym())
-		Elfwritedynent2(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
+		Elfwritedynent(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
 		elfWriteDynEntSym(ctxt, s, DT_VERSYM, gnuVersion.Sym())
 	}
 
 	sy := ldr.CreateSymForUpdate(elfRelType+".plt", 0)
 	if sy.Size() > 0 {
 		if elfRelType == ".rela" {
-			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_RELA)
+			Elfwritedynent(ctxt.Arch, s, DT_PLTREL, DT_RELA)
 		} else {
-			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_REL)
+			Elfwritedynent(ctxt.Arch, s, DT_PLTREL, DT_REL)
 		}
-		elfwritedynentsymsize2(ctxt, s, DT_PLTRELSZ, sy.Sym())
+		elfwritedynentsymsize(ctxt, s, DT_PLTRELSZ, sy.Sym())
 		elfWriteDynEntSym(ctxt, s, DT_JMPREL, sy.Sym())
 	}
 
-	Elfwritedynent2(ctxt.Arch, s, DT_NULL, 0)
+	Elfwritedynent(ctxt.Arch, s, DT_NULL, 0)
 }
 
 func elfphload(seg *sym.Segment) *ElfPhdr {
@@ -1382,14 +1382,14 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 				ldr.Errorf(s, "missing xsym in relocation")
 				continue
 			}
-			esr := ElfSymForReloc2(ctxt, r.Xsym)
+			esr := ElfSymForReloc(ctxt, r.Xsym)
 			if esr == 0 {
 				ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
 			}
 			if !ldr.AttrReachable(r.Xsym) {
 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
 			}
-			if !thearch.Elfreloc2(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			if !thearch.Elfreloc1(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
@@ -1406,25 +1406,25 @@ func Elfemitreloc(ctxt *Link) {
 
 	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
-			elfrelocsect(ctxt, sect, ctxt.Textp2)
+			elfrelocsect(ctxt, sect, ctxt.Textp)
 		} else {
-			elfrelocsect(ctxt, sect, ctxt.datap2)
+			elfrelocsect(ctxt, sect, ctxt.datap)
 		}
 	}
 
 	for _, sect := range Segrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap2)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segrelrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap2)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap2)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
-		si := dwarfp2[i]
-		if si.secSym() != loader.Sym(sect.Sym2) ||
+		si := dwarfp[i]
+		if si.secSym() != loader.Sym(sect.Sym) ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1656,47 +1656,47 @@ func (ctxt *Link) doelf() {
 		/*
 		 * .dynamic table
 		 */
-		elfwritedynentsym2(ctxt, dynamic, DT_HASH, hash.Sym())
+		elfwritedynentsym(ctxt, dynamic, DT_HASH, hash.Sym())
 
-		elfwritedynentsym2(ctxt, dynamic, DT_SYMTAB, dynsym.Sym())
+		elfwritedynentsym(ctxt, dynamic, DT_SYMTAB, dynsym.Sym())
 		if elf64 {
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_SYMENT, ELF64SYMSIZE)
+			Elfwritedynent(ctxt.Arch, dynamic, DT_SYMENT, ELF64SYMSIZE)
 		} else {
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_SYMENT, ELF32SYMSIZE)
+			Elfwritedynent(ctxt.Arch, dynamic, DT_SYMENT, ELF32SYMSIZE)
 		}
-		elfwritedynentsym2(ctxt, dynamic, DT_STRTAB, dynstr.Sym())
-		elfwritedynentsymsize2(ctxt, dynamic, DT_STRSZ, dynstr.Sym())
+		elfwritedynentsym(ctxt, dynamic, DT_STRTAB, dynstr.Sym())
+		elfwritedynentsymsize(ctxt, dynamic, DT_STRSZ, dynstr.Sym())
 		if elfRelType == ".rela" {
 			rela := ldr.LookupOrCreateSym(".rela", 0)
-			elfwritedynentsym2(ctxt, dynamic, DT_RELA, rela)
-			elfwritedynentsymsize2(ctxt, dynamic, DT_RELASZ, rela)
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_RELAENT, ELF64RELASIZE)
+			elfwritedynentsym(ctxt, dynamic, DT_RELA, rela)
+			elfwritedynentsymsize(ctxt, dynamic, DT_RELASZ, rela)
+			Elfwritedynent(ctxt.Arch, dynamic, DT_RELAENT, ELF64RELASIZE)
 		} else {
 			rel := ldr.LookupOrCreateSym(".rel", 0)
-			elfwritedynentsym2(ctxt, dynamic, DT_REL, rel)
-			elfwritedynentsymsize2(ctxt, dynamic, DT_RELSZ, rel)
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_RELENT, ELF32RELSIZE)
+			elfwritedynentsym(ctxt, dynamic, DT_REL, rel)
+			elfwritedynentsymsize(ctxt, dynamic, DT_RELSZ, rel)
+			Elfwritedynent(ctxt.Arch, dynamic, DT_RELENT, ELF32RELSIZE)
 		}
 
 		if rpath.val != "" {
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
+			Elfwritedynent(ctxt.Arch, dynamic, DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
 		}
 
 		if ctxt.IsPPC64() {
-			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, plt.Sym())
+			elfwritedynentsym(ctxt, dynamic, DT_PLTGOT, plt.Sym())
 		} else {
-			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, gotplt.Sym())
+			elfwritedynentsym(ctxt, dynamic, DT_PLTGOT, gotplt.Sym())
 		}
 
 		if ctxt.IsPPC64() {
-			Elfwritedynent2(ctxt.Arch, dynamic, DT_PPC64_OPT, 0)
+			Elfwritedynent(ctxt.Arch, dynamic, DT_PPC64_OPT, 0)
 		}
 
 		// Solaris dynamic linker can't handle an empty .rela.plt if
 		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
 		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
 		// size of .rel(a).plt section.
-		Elfwritedynent2(ctxt.Arch, dynamic, DT_DEBUG, 0)
+		Elfwritedynent(ctxt.Arch, dynamic, DT_DEBUG, 0)
 	}
 
 	if ctxt.IsShared() {
@@ -1730,7 +1730,7 @@ func (ctxt *Link) doelf() {
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
-func shsym2(sh *ElfShdr, ldr *loader.Loader, s loader.Sym) {
+func shsym(sh *ElfShdr, ldr *loader.Loader, s loader.Sym) {
 	if s == 0 {
 		panic("bad symbol in shsym2")
 	}
@@ -2010,13 +2010,13 @@ func Asmbelf(ctxt *Link, symo int64) {
 			}
 		}
 		sh.info = i
-		shsym2(sh, ldr, s)
+		shsym(sh, ldr, s)
 
 		sh = elfshname(".dynstr")
 		sh.type_ = SHT_STRTAB
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
-		shsym2(sh, ldr, ldr.Lookup(".dynstr", 0))
+		shsym(sh, ldr, ldr.Lookup(".dynstr", 0))
 
 		if elfverneed != 0 {
 			sh := elfshname(".gnu.version")
@@ -2025,7 +2025,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = 2
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.entsize = 2
-			shsym2(sh, ldr, ldr.Lookup(".gnu.version", 0))
+			shsym(sh, ldr, ldr.Lookup(".gnu.version", 0))
 
 			sh = elfshname(".gnu.version_r")
 			sh.type_ = SHT_GNU_VERNEED
@@ -2033,7 +2033,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(ctxt.Arch.RegSize)
 			sh.info = uint32(elfverneed)
 			sh.link = uint32(elfshname(".dynstr").shnum)
-			shsym2(sh, ldr, ldr.Lookup(".gnu.version_r", 0))
+			shsym(sh, ldr, ldr.Lookup(".gnu.version_r", 0))
 		}
 
 		if elfRelType == ".rela" {
@@ -2044,7 +2044,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.addralign = uint64(ctxt.Arch.RegSize)
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			sh.info = uint32(elfshname(".plt").shnum)
-			shsym2(sh, ldr, ldr.Lookup(".rela.plt", 0))
+			shsym(sh, ldr, ldr.Lookup(".rela.plt", 0))
 
 			sh = elfshname(".rela")
 			sh.type_ = SHT_RELA
@@ -2052,7 +2052,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF64RELASIZE
 			sh.addralign = 8
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym2(sh, ldr, ldr.Lookup(".rela", 0))
+			shsym(sh, ldr, ldr.Lookup(".rela", 0))
 		} else {
 			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
@@ -2060,7 +2060,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym2(sh, ldr, ldr.Lookup(".rel.plt", 0))
+			shsym(sh, ldr, ldr.Lookup(".rel.plt", 0))
 
 			sh = elfshname(".rel")
 			sh.type_ = SHT_REL
@@ -2068,7 +2068,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = ELF32RELSIZE
 			sh.addralign = 4
 			sh.link = uint32(elfshname(".dynsym").shnum)
-			shsym2(sh, ldr, ldr.Lookup(".rel", 0))
+			shsym(sh, ldr, ldr.Lookup(".rel", 0))
 		}
 
 		if eh.machine == EM_PPC64 {
@@ -2076,7 +2076,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
 			sh.addralign = 4
-			shsym2(sh, ldr, ldr.Lookup(".glink", 0))
+			shsym(sh, ldr, ldr.Lookup(".glink", 0))
 		}
 
 		sh = elfshname(".plt")
@@ -2097,7 +2097,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.entsize = 4
 		}
 		sh.addralign = sh.entsize
-		shsym2(sh, ldr, ldr.Lookup(".plt", 0))
+		shsym(sh, ldr, ldr.Lookup(".plt", 0))
 
 		// On ppc64, .got comes from the input files, so don't
 		// create it here, and .got.plt is not used.
@@ -2107,14 +2107,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(ctxt.Arch.RegSize)
 			sh.addralign = uint64(ctxt.Arch.RegSize)
-			shsym2(sh, ldr, ldr.Lookup(".got", 0))
+			shsym(sh, ldr, ldr.Lookup(".got", 0))
 
 			sh = elfshname(".got.plt")
 			sh.type_ = SHT_PROGBITS
 			sh.flags = SHF_ALLOC + SHF_WRITE
 			sh.entsize = uint64(ctxt.Arch.RegSize)
 			sh.addralign = uint64(ctxt.Arch.RegSize)
-			shsym2(sh, ldr, ldr.Lookup(".got.plt", 0))
+			shsym(sh, ldr, ldr.Lookup(".got.plt", 0))
 		}
 
 		sh = elfshname(".hash")
@@ -2123,7 +2123,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 4
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".dynsym").shnum)
-		shsym2(sh, ldr, ldr.Lookup(".hash", 0))
+		shsym(sh, ldr, ldr.Lookup(".hash", 0))
 
 		/* sh and PT_DYNAMIC for .dynamic section */
 		sh = elfshname(".dynamic")
@@ -2133,7 +2133,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.entsize = 2 * uint64(ctxt.Arch.RegSize)
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".dynstr").shnum)
-		shsym2(sh, ldr, ldr.Lookup(".dynamic", 0))
+		shsym(sh, ldr, ldr.Lookup(".dynamic", 0))
 		ph := newElfPhdr()
 		ph.type_ = PT_DYNAMIC
 		ph.flags = PF_R + PF_W
@@ -2177,7 +2177,7 @@ elfobj:
 	sh := elfshname(".shstrtab")
 	sh.type_ = SHT_STRTAB
 	sh.addralign = 1
-	shsym2(sh, ldr, ldr.Lookup(".shstrtab", 0))
+	shsym(sh, ldr, ldr.Lookup(".shstrtab", 0))
 	eh.shstrndx = uint16(sh.shnum)
 
 	// put these sections early in the list
@@ -2215,7 +2215,7 @@ elfobj:
 		for _, sect := range Segdata.Sections {
 			elfshreloc(ctxt.Arch, sect)
 		}
-		for _, si := range dwarfp2 {
+		for _, si := range dwarfp {
 			sect := ldr.SymSect(si.secSym())
 			elfshreloc(ctxt.Arch, sect)
 		}
@@ -2280,7 +2280,7 @@ elfobj:
 	}
 
 	if ctxt.LinkMode != LinkExternal {
-		eh.entry = uint64(Entryvalue2(ctxt))
+		eh.entry = uint64(Entryvalue(ctxt))
 	}
 
 	eh.version = EV_CURRENT
@@ -2321,12 +2321,12 @@ elfobj:
 	}
 }
 
-func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
+func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
 	ldr.SetSymDynid(s, int32(Nelfsym))
 	Nelfsym++
-	d := ldr.MakeSymbolUpdater(syms.DynSym2)
+	d := ldr.MakeSymbolUpdater(syms.DynSym)
 	name := ldr.SymExtname(s)
-	dstru := ldr.MakeSymbolUpdater(syms.DynStr2)
+	dstru := ldr.MakeSymbolUpdater(syms.DynStr)
 	st := ldr.SymType(s)
 	cgoeStatic := ldr.AttrCgoExportStatic(s)
 	cgoeDynamic := ldr.AttrCgoExportDynamic(s)
@@ -2369,8 +2369,8 @@ func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.
 		dil := ldr.SymDynimplib(s)
 
 		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
-			du := ldr.MakeSymbolUpdater(syms.Dynamic2)
-			Elfwritedynent2(target.Arch, du, DT_NEEDED, uint64(dstru.Addstring(dil)))
+			du := ldr.MakeSymbolUpdater(syms.Dynamic)
+			Elfwritedynent(target.Arch, du, DT_NEEDED, uint64(dstru.Addstring(dil)))
 		}
 	} else {
 

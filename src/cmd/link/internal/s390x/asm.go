@@ -51,7 +51,7 @@ import (
 //	undef
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
-func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
 		return
@@ -60,7 +60,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	// larl %r2, <local.moduledata>
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0x20)
-	initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata2, 6, objabi.R_PCREL, 4)
+	initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 6, objabi.R_PCREL, 4)
 	r1 := initfunc.Relocs()
 	ldr.SetRelocVariant(initfunc.Sym(), r1.Count()-1, sym.RV_390_DBL)
 
@@ -136,8 +136,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
-			r.SetSym(syms.PLT2)
+			addpltsym(target, ldr, syms, targ)
+			r.SetSym(syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
 		return true
@@ -148,8 +148,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		if targType == sym.SDYNIMPORT {
-			addpltsym2(target, ldr, syms, targ)
-			r.SetSym(syms.PLT2)
+			addpltsym(target, ldr, syms, targ)
+			r.SetSym(syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
 		return true
@@ -181,7 +181,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPC):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		return true
 
@@ -200,16 +200,16 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(r.Siz()))
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
-		addgotsym2(target, ldr, syms, targ)
+		addgotsym(target, ldr, syms, targ)
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
-		r.SetSym(syms.GOT2)
+		r.SetSym(syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ))+int64(r.Siz()))
 		return true
 	}
@@ -221,10 +221,10 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
 	xst := ldr.SymType(r.Xsym)
 	switch r.Type() {
@@ -391,17 +391,17 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv
 	}
 }
 
-func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
 	if ldr.SymPlt(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym2(ldr, target, syms, s)
+	ld.Adddynsym(ldr, target, syms, s)
 
 	if target.IsElf() {
-		plt := ldr.MakeSymbolUpdater(syms.PLT2)
-		got := ldr.MakeSymbolUpdater(syms.GOT2)
-		rela := ldr.MakeSymbolUpdater(syms.RelaPLT2)
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		got := ldr.MakeSymbolUpdater(syms.GOT)
+		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
 		if plt.Size() == 0 {
 			panic("plt is not set up")
 		}
@@ -457,18 +457,18 @@ func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	}
 }
 
-func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
 	if ldr.SymGot(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym2(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT2)
+	ld.Adddynsym(ldr, target, syms, s)
+	got := ldr.MakeSymbolUpdater(syms.GOT)
 	ldr.SetGot(s, int32(got.Size()))
 	got.AddUint64(target.Arch, 0)
 
 	if target.IsElf() {
-		rela := ldr.MakeSymbolUpdater(syms.Rela2)
+		rela := ldr.MakeSymbolUpdater(syms.Rela)
 		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
 		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_390_GLOB_DAT)))
 		rela.AddUint64(target.Arch, 0)

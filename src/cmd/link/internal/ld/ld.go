@@ -248,11 +248,11 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.loader.SetAttrLocal(ifs, true)
 	initfunc.SetType(sym.STEXT)
 
-	// Add the init func and/or addmoduledata to Textp2.
+	// Add the init func and/or addmoduledata to Textp.
 	if ctxt.BuildMode == BuildModePlugin {
-		ctxt.Textp2 = append(ctxt.Textp2, amd)
+		ctxt.Textp = append(ctxt.Textp, amd)
 	}
-	ctxt.Textp2 = append(ctxt.Textp2, initfunc.Sym())
+	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
 	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)

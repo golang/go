@@ -98,27 +98,27 @@ import (
 // relocation.  Rather than allowing them universal access to all symbols,
 // we keep a subset for relocation application.
 type ArchSyms struct {
-	Rel2     loader.Sym
-	Rela2    loader.Sym
-	RelPLT2  loader.Sym
-	RelaPLT2 loader.Sym
+	Rel     loader.Sym
+	Rela    loader.Sym
+	RelPLT  loader.Sym
+	RelaPLT loader.Sym
 
-	LinkEditGOT2 loader.Sym
-	LinkEditPLT2 loader.Sym
+	LinkEditGOT loader.Sym
+	LinkEditPLT loader.Sym
 
-	TOC2    loader.Sym
-	DotTOC2 []loader.Sym // for each version
+	TOC    loader.Sym
+	DotTOC []loader.Sym // for each version
 
-	GOT2    loader.Sym
-	PLT2    loader.Sym
-	GOTPLT2 loader.Sym
+	GOT    loader.Sym
+	PLT    loader.Sym
+	GOTPLT loader.Sym
 
-	Tlsg2     loader.Sym
+	Tlsg      loader.Sym
 	Tlsoffset int
 
-	Dynamic2 loader.Sym
-	DynSym2  loader.Sym
-	DynStr2  loader.Sym
+	Dynamic loader.Sym
+	DynSym  loader.Sym
+	DynStr  loader.Sym
 }
 
 // mkArchSym is a helper for setArchSyms, to set up a special symbol.
@@ -135,15 +135,15 @@ func (ctxt *Link) mkArchSymVec(name string, ver int, ls []loader.Sym) {
 // setArchSyms sets up the ArchSyms structure, and must be called before
 // relocations are applied.
 func (ctxt *Link) setArchSyms() {
-	ctxt.mkArchSym(".got", 0, &ctxt.GOT2)
-	ctxt.mkArchSym(".plt", 0, &ctxt.PLT2)
-	ctxt.mkArchSym(".got.plt", 0, &ctxt.GOTPLT2)
-	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic2)
-	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym2)
-	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr2)
+	ctxt.mkArchSym(".got", 0, &ctxt.GOT)
+	ctxt.mkArchSym(".plt", 0, &ctxt.PLT)
+	ctxt.mkArchSym(".got.plt", 0, &ctxt.GOTPLT)
+	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
+	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
+	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
 
 	if ctxt.IsPPC64() {
-		ctxt.mkArchSym("TOC", 0, &ctxt.TOC2)
+		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
 
 		// NB: note the +2 below for DotTOC2 compared to the +1 for
 		// DocTOC. This is because loadlibfull() creates an additional
@@ -151,23 +151,23 @@ func (ctxt *Link) setArchSyms() {
 		// *sym.Symbol symbols. Symbols that are assigned this final
 		// version are not going to have TOC references, so it should
 		// be ok for them to inherit an invalid .TOC. symbol.
-		ctxt.DotTOC2 = make([]loader.Sym, ctxt.Syms.MaxVersion()+2)
+		ctxt.DotTOC = make([]loader.Sym, ctxt.Syms.MaxVersion()+2)
 		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
-			ctxt.mkArchSymVec(".TOC.", i, ctxt.DotTOC2)
+			ctxt.mkArchSymVec(".TOC.", i, ctxt.DotTOC)
 		}
 	}
 	if ctxt.IsElf() {
-		ctxt.mkArchSym(".rel", 0, &ctxt.Rel2)
-		ctxt.mkArchSym(".rela", 0, &ctxt.Rela2)
-		ctxt.mkArchSym(".rel.plt", 0, &ctxt.RelPLT2)
-		ctxt.mkArchSym(".rela.plt", 0, &ctxt.RelaPLT2)
+		ctxt.mkArchSym(".rel", 0, &ctxt.Rel)
+		ctxt.mkArchSym(".rela", 0, &ctxt.Rela)
+		ctxt.mkArchSym(".rel.plt", 0, &ctxt.RelPLT)
+		ctxt.mkArchSym(".rela.plt", 0, &ctxt.RelaPLT)
 	}
 	if ctxt.IsDarwin() {
-		ctxt.mkArchSym(".linkedit.got", 0, &ctxt.LinkEditGOT2)
-		ctxt.mkArchSym(".linkedit.plt", 0, &ctxt.LinkEditPLT2)
+		ctxt.mkArchSym(".linkedit.got", 0, &ctxt.LinkEditGOT)
+		ctxt.mkArchSym(".linkedit.plt", 0, &ctxt.LinkEditPLT)
 	}
 }
 
@@ -219,10 +219,9 @@ type Arch struct {
 	Asmb  func(*Link, *loader.Loader)
 	Asmb2 func(*Link, *loader.Loader)
 
-	Elfreloc2   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+	Elfreloc1   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
-	Gentext     func(*Link)
-	Gentext2    func(*Link, *loader.Loader)
+	Gentext     func(*Link, *loader.Loader)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	Xcoffreloc1 func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
@@ -618,7 +617,7 @@ func setupdynexp(ctxt *Link) {
 		ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
 		d[i] = t
 	}
-	ctxt.dynexp2 = d
+	ctxt.dynexp = d
 
 	ctxt.cgo_export_static = nil
 	ctxt.cgo_export_dynamic = nil
@@ -717,7 +716,7 @@ func (ctxt *Link) linksetup() {
 			Errorf(nil, "runtime declared tlsg variable %v", sb.Type())
 		}
 		ctxt.loader.SetAttrReachable(tlsg, true)
-		ctxt.Tlsg2 = tlsg
+		ctxt.Tlsg = tlsg
 	}
 
 	var moduledata loader.Sym
@@ -766,7 +765,7 @@ func (ctxt *Link) linksetup() {
 	// the GC.
 	mdsb.SetType(sym.SNOPTRDATA)
 	ctxt.loader.SetAttrReachable(moduledata, true)
-	ctxt.Moduledata2 = moduledata
+	ctxt.Moduledata = moduledata
 
 	// If package versioning is required, generate a hash of the
 	// packages used in the link.
@@ -787,7 +786,7 @@ func (ctxt *Link) linksetup() {
 		}
 	}
 
-	// DWARF-gen and other phases require that the unit Textp2 slices
+	// DWARF-gen and other phases require that the unit Textp slices
 	// be populated, so that it can walk the functions in each unit.
 	// Call into the loader to do this (requires that we collect the
 	// set of internal libraries first). NB: might be simpler if we
@@ -798,7 +797,7 @@ func (ctxt *Link) linksetup() {
 	for _, lib := range ctxt.Library {
 		intlibs = append(intlibs, isRuntimeDepPkg(lib.Pkg))
 	}
-	ctxt.Textp2 = ctxt.loader.AssignTextSymbolOrder(ctxt.Library, intlibs, ctxt.Textp2)
+	ctxt.Textp = ctxt.loader.AssignTextSymbolOrder(ctxt.Library, intlibs, ctxt.Textp)
 }
 
 // mangleTypeSym shortens the names of symbols that represent Go types
@@ -1803,7 +1802,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				return
 			}
 			ehdr.flags = flags
-			ctxt.Textp2 = append(ctxt.Textp2, textp...)
+			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
@@ -1815,7 +1814,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				Errorf(nil, "%v", err)
 				return
 			}
-			ctxt.Textp2 = append(ctxt.Textp2, textp...)
+			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}
@@ -1830,7 +1829,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			if rsrc != 0 {
 				setpersrc(ctxt, rsrc)
 			}
-			ctxt.Textp2 = append(ctxt.Textp2, textp...)
+			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
@@ -1842,7 +1841,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				Errorf(nil, "%v", err)
 				return
 			}
-			ctxt.Textp2 = append(ctxt.Textp2, textp...)
+			ctxt.Textp = append(ctxt.Textp, textp...)
 		}
 		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 	}
@@ -2242,14 +2241,14 @@ func (ctxt *Link) dostkcheck() {
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		if ldr.IsNoSplit(s) {
 			ch.sym = s
 			sc.check(&ch, 0)
 		}
 	}
 
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		if !ldr.IsNoSplit(s) {
 			ch.sym = s
 			sc.check(&ch, 0)
@@ -2435,7 +2434,7 @@ const (
 	DeletedAutoSym = 'x'
 )
 
-func (ctxt *Link) xdefine2(p string, t sym.SymKind, v int64) {
+func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(p, 0)
 	s.SetType(t)
@@ -2456,7 +2455,7 @@ func datoff(ldr *loader.Loader, s loader.Sym, addr int64) int64 {
 	return 0
 }
 
-func Entryvalue2(ctxt *Link) int64 {
+func Entryvalue(ctxt *Link) int64 {
 	a := *flagEntrySymbol
 	if a[0] >= '0' && a[0] <= '9' {
 		return atolwhex(a)
@@ -2479,7 +2478,7 @@ func (ctxt *Link) callgraph() {
 	}
 
 	ldr := ctxt.loader
-	for _, s := range ctxt.Textp2 {
+	for _, s := range ctxt.Textp {
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
@@ -2549,7 +2548,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 	*order = append(*order, lib)
 }
 
-func ElfSymForReloc2(ctxt *Link, s loader.Sym) int32 {
+func ElfSymForReloc(ctxt *Link, s loader.Sym) int32 {
 	// If putelfsym created a local version of this symbol, use that in all
 	// relocations.
 	les := ctxt.loader.SymLocalElfSym(s)
