@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/xerrors"
 )
 
@@ -382,7 +381,7 @@ type jsonPackage struct {
 	Imports         []string
 	ImportMap       map[string]string
 	Deps            []string
-	Module          *packagesinternal.Module
+	Module          *Module
 	TestGoFiles     []string
 	TestImports     []string
 	XTestGoFiles    []string
@@ -541,7 +540,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			forTest:         p.ForTest,
-			module:          p.Module,
+			Module:          p.Module,
 		}
 
 		if (state.cfg.Mode&TypecheckCgo) != 0 && len(p.CgoFiles) != 0 {

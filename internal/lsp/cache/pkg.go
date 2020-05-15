@@ -8,8 +8,8 @@ import (
 	"go/ast"
 	"go/types"
 
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -25,7 +25,7 @@ type pkg struct {
 	compiledGoFiles []*parseGoHandle
 	errors          []*source.Error
 	imports         map[packagePath]*pkg
-	module          *packagesinternal.Module
+	module          *packages.Module
 	typeErrors      []types.Error
 	types           *types.Package
 	typesInfo       *types.Info
@@ -124,6 +124,6 @@ func (p *pkg) Imports() []source.Package {
 	return result
 }
 
-func (p *pkg) Module() *packagesinternal.Module {
+func (p *pkg) Module() *packages.Module {
 	return p.module
 }

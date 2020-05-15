@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/internal/gocommand"
@@ -75,6 +76,9 @@ const (
 	// TypecheckCgo enables full support for type checking cgo. Requires Go 1.15+.
 	// Modifies CompiledGoFiles and Types, and has no effect on its own.
 	TypecheckCgo
+
+	// NeedModule adds Module.
+	NeedModule
 )
 
 const (
@@ -310,15 +314,31 @@ type Package struct {
 	forTest string
 
 	// module is the module information for the package if it exists.
-	module *packagesinternal.Module
+	Module *Module
+}
+
+// Module provides module information for a package.
+type Module struct {
+	Path      string       // module path
+	Version   string       // module version
+	Replace   *Module      // replaced by this module
+	Time      *time.Time   // time version was created
+	Main      bool         // is this the main module?
+	Indirect  bool         // is this module only an indirect dependency of main module?
+	Dir       string       // directory holding files for this module, if any
+	GoMod     string       // path to go.mod file used when loading this module, if any
+	GoVersion string       // go version used in module
+	Error     *ModuleError // error loading module
+}
+
+// ModuleError holds errors loading a module.
+type ModuleError struct {
+	Err string // the error itself
 }
 
 func init() {
 	packagesinternal.GetForTest = func(p interface{}) string {
 		return p.(*Package).forTest
-	}
-	packagesinternal.GetModule = func(p interface{}) *packagesinternal.Module {
-		return p.(*Package).module
 	}
 	packagesinternal.GetGoCmdRunner = func(config interface{}) *gocommand.Runner {
 		return config.(*Config).gocmdRunner
@@ -707,6 +727,9 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		}
 		if ld.requestedMode&NeedTypesSizes == 0 {
 			ld.pkgs[i].TypesSizes = nil
+		}
+		if ld.requestedMode&NeedModule == 0 {
+			ld.pkgs[i].Module = nil
 		}
 	}
 

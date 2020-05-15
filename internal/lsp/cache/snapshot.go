@@ -107,7 +107,8 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 			packages.NeedCompiledGoFiles |
 			packages.NeedImports |
 			packages.NeedDeps |
-			packages.NeedTypesSizes,
+			packages.NeedTypesSizes |
+			packages.NeedModule,
 		Fset:    s.view.session.cache.fset,
 		Overlay: s.buildOverlay(),
 		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {

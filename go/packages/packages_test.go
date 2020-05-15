@@ -2636,6 +2636,46 @@ func testIssue37529(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestModule(t *testing.T) {
+	packagestest.TestAll(t, testModule)
+}
+func testModule(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name:  "golang.org/fake",
+		Files: map[string]interface{}{"a/a.go": `package a`}}})
+	exported.Config.Mode = packages.NeedModule
+	rootDir := filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "a/a.go")))
+
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(initial) != 1 {
+		t.Fatal("want exactly one package, got ", initial)
+	}
+	a := initial[0]
+	switch exported.Exporter.Name() {
+	case "GOPATH":
+		if a.Module != nil {
+			t.Fatal("package.Module: want nil, got ", a.Module)
+		}
+	case "Modules":
+		// Make sure Modules field is set, and spot check a few of its fields.
+		if a.Module == nil {
+			t.Fatal("package.Module: want non-nil, got nil")
+		}
+		if a.Module.Path != "golang.org/fake" {
+			t.Fatalf("package.Modile.Path: want \"golang.org/fake\", got %q", a.Module.Path)
+		}
+		if a.Module.GoMod != filepath.Join(rootDir, "go.mod") {
+			t.Fatalf("package.Module.GoMod: want %q, got %q", filepath.Join(rootDir, "go.mod"), a.Module.GoMod)
+		}
+	default:
+		t.Fatalf("Expected exporter to be GOPATH or Modules, got %v", exported.Exporter.Name())
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
