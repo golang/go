@@ -55,7 +55,11 @@ func special(s string) (f float64, n int, ok bool) {
 		fallthrough
 	case 'i', 'I':
 		n := commonPrefixLenIgnoreCase(s, "infinity")
-		// both "inf" and "infinity" are ok
+		// Anything longer than "inf" is ok, but if we
+		// don't have "infinity", only consume "inf".
+		if 3 < n && n < 8 {
+			n = 3
+		}
 		if n == 3 || n == 8 {
 			return math.Inf(sign), nsign + n, true
 		}
@@ -296,7 +300,7 @@ loop:
 		exp = dp - ndMant
 	}
 
-	if underscores && !underscoreOK(s) {
+	if underscores && !underscoreOK(s[:i]) {
 		return
 	}
 
@@ -673,8 +677,8 @@ func atof64(s string) (f float64, n int, err error) {
 // away from the largest floating point number of the given size,
 // ParseFloat returns f = ±Inf, err.Err = ErrRange.
 //
-// ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
-// respective special floating point values. It ignores case when matching.
+// ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
+// as their respective special floating point values. It ignores case when matching.
 func ParseFloat(s string, bitSize int) (float64, error) {
 	f, n, err := parseFloatPrefix(s, bitSize)
 	if err == nil && n != len(s) {

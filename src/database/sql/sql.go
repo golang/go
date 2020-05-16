@@ -3013,10 +3013,11 @@ func (ci *ColumnType) Nullable() (nullable, ok bool) {
 }
 
 // DatabaseTypeName returns the database system name of the column type. If an empty
-// string is returned the driver type name is not supported.
+// string is returned, then the driver type name is not supported.
 // Consult your driver documentation for a list of driver data types. Length specifiers
 // are not included.
-// Common type include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL", "INT", "BIGINT".
+// Common type names include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL",
+// "INT", and "BIGINT".
 func (ci *ColumnType) DatabaseTypeName() string {
 	return ci.databaseType
 }

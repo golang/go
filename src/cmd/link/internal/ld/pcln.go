@@ -161,7 +161,7 @@ func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 
 			// set the resumption point to PC_B.
 			lastWasmAddr = uint32(r.Add())
 		}
-		if r.Type().IsDirectCall() && r.Sym() == state.deferReturnSym {
+		if r.Type().IsDirectCall() && (r.Sym() == state.deferReturnSym || state.ldr.IsDeferReturnTramp(r.Sym())) {
 			if target.IsWasm() {
 				deferreturn = lastWasmAddr - 1
 			} else {

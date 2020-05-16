@@ -9,6 +9,7 @@ package types
 import (
 	"go/ast"
 	"go/token"
+	"strings"
 	"unicode"
 )
 
@@ -55,6 +56,8 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 	default:
 		// function/method call
+		cgocall := x.mode == cgofunc
+
 		sig, _ := x.typ.Underlying().(*Signature)
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
@@ -75,7 +78,11 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		case 0:
 			x.mode = novalue
 		case 1:
-			x.mode = value
+			if cgocall {
+				x.mode = commaerr
+			} else {
+				x.mode = value
+			}
 			x.typ = sig.results.vars[0].typ // unpack tuple
 		default:
 			x.mode = value
@@ -193,10 +200,13 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
 		}, t.Len(), false
 	}
 
-	if x0.mode == mapindex || x0.mode == commaok {
+	if x0.mode == mapindex || x0.mode == commaok || x0.mode == commaerr {
 		// comma-ok value
 		if allowCommaOk {
 			a := [2]Type{x0.typ, Typ[UntypedBool]}
+			if x0.mode == commaerr {
+				a[1] = universeError
+			}
 			return func(x *operand, i int) {
 				x.mode = value
 				x.expr = x0.expr
@@ -303,6 +313,17 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 	check.assignment(x, typ, context)
 }
 
+var cgoPrefixes = [...]string{
+	"_Ciconst_",
+	"_Cfconst_",
+	"_Csconst_",
+	"_Ctype_",
+	"_Cvar_", // actually a pointer to the var
+	"_Cfpvar_fp_",
+	"_Cfunc_",
+	"_Cmacro_", // function to evaluate the expanded expression
+}
+
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// these must be declared before the "goto Error" statements
 	var (
@@ -323,16 +344,43 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			check.recordUse(ident, pname)
 			pname.used = true
 			pkg := pname.imported
-			exp := pkg.scope.Lookup(sel)
-			if exp == nil {
-				if !pkg.fake {
-					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+
+			var exp Object
+			funcMode := value
+			if pkg.cgo {
+				// cgo special cases C.malloc: it's
+				// rewritten to _CMalloc and does not
+				// support two-result calls.
+				if sel == "malloc" {
+					sel = "_CMalloc"
+				} else {
+					funcMode = cgofunc
 				}
-				goto Error
-			}
-			if !exp.Exported() {
-				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
-				// ok to continue
+				for _, prefix := range cgoPrefixes {
+					// cgo objects are part of the current package (in file
+					// _cgo_gotypes.go). Use regular lookup.
+					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
+					if exp != nil {
+						break
+					}
+				}
+				if exp == nil {
+					check.errorf(e.Sel.Pos(), "%s not declared by package C", sel)
+					goto Error
+				}
+				check.objDecl(exp, nil)
+			} else {
+				exp = pkg.scope.Lookup(sel)
+				if exp == nil {
+					if !pkg.fake {
+						check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+					}
+					goto Error
+				}
+				if !exp.Exported() {
+					check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
+					// ok to continue
+				}
 			}
 			check.recordUse(e.Sel, exp)
 
@@ -350,9 +398,16 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			case *Var:
 				x.mode = variable
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cvar_") {
+					x.typ = x.typ.(*Pointer).base
+				}
 			case *Func:
-				x.mode = value
+				x.mode = funcMode
 				x.typ = exp.typ
+				if pkg.cgo && strings.HasPrefix(exp.name, "_Cmacro_") {
+					x.mode = value
+					x.typ = x.typ.(*Signature).results.vars[0].typ
+				}
 			case *Builtin:
 				x.mode = builtin
 				x.typ = exp.typ

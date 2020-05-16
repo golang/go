@@ -302,7 +302,7 @@ const (
 	//
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
-	arenaBaseOffset = sys.GoarchAmd64*(1<<47) + (^0x0a00000000000000+1)&uintptrMask*sys.GoosAix
+	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*sys.GoosAix
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
@@ -604,7 +604,7 @@ func mallocinit() {
 			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
 			if a != nil {
 				mheap_.arena.init(uintptr(a), size)
-				p = uintptr(a) + size // For hint below
+				p = mheap_.arena.end // For hint below
 				break
 			}
 		}
@@ -1423,6 +1423,13 @@ type linearAlloc struct {
 }
 
 func (l *linearAlloc) init(base, size uintptr) {
+	if base+size < base {
+		// Chop off the last byte. The runtime isn't prepared
+		// to deal with situations where the bounds could overflow.
+		// Leave that memory reserved, though, so we don't map it
+		// later.
+		size -= 1
+	}
 	l.next, l.mapped = base, base
 	l.end = base + size
 }

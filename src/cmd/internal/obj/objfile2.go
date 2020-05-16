@@ -38,7 +38,11 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 	if ctxt.Flag_shared {
 		flags |= goobj2.ObjFlagShared
 	}
-	h := goobj2.Header{Magic: goobj2.Magic, Flags: flags}
+	h := goobj2.Header{
+		Magic:       goobj2.Magic,
+		Fingerprint: ctxt.Fingerprint,
+		Flags:       flags,
+	}
 	h.Write(w.Writer)
 
 	// String table
@@ -46,8 +50,8 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 
 	// Autolib
 	h.Offsets[goobj2.BlkAutolib] = w.Offset()
-	for _, pkg := range ctxt.Imports {
-		w.StringRef(pkg)
+	for i := range ctxt.Imports {
+		ctxt.Imports[i].Write(w.Writer)
 	}
 
 	// Package references
@@ -180,8 +184,8 @@ func (w *writer) init() {
 
 func (w *writer) StringTable() {
 	w.AddString("")
-	for _, pkg := range w.ctxt.Imports {
-		w.AddString(pkg)
+	for _, p := range w.ctxt.Imports {
+		w.AddString(p.Pkg)
 	}
 	for _, pkg := range w.pkglist {
 		w.AddString(pkg)

@@ -250,6 +250,7 @@ func adjustErr(err error, adj int) error {
 }
 
 type forLocalNameType int
+
 const (
 	forLocalName forLocalNameType = iota
 	notForLocalName

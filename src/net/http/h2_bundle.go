@@ -783,6 +783,7 @@ func (p *http2clientConnPool) getClientConn(req *Request, addr string, dialOnMis
 
 // dialCall is an in-flight Transport dial call to a host.
 type http2dialCall struct {
+	_    http2incomparable
 	p    *http2clientConnPool
 	done chan struct{}    // closed when done
 	res  *http2ClientConn // valid after done is closed
@@ -856,6 +857,7 @@ func (p *http2clientConnPool) addConnIfNeeded(key string, t *http2Transport, c *
 }
 
 type http2addConnCall struct {
+	_    http2incomparable
 	p    *http2clientConnPool
 	done chan struct{} // closed when done
 	err  error
@@ -874,12 +876,6 @@ func (c *http2addConnCall) run(t *http2Transport, key string, tc *tls.Conn) {
 	delete(p.addConnCalls, key)
 	p.mu.Unlock()
 	close(c.done)
-}
-
-func (p *http2clientConnPool) addConn(key string, cc *http2ClientConn) {
-	p.mu.Lock()
-	p.addConnLocked(key, cc)
-	p.mu.Unlock()
 }
 
 // p.mu must be held
@@ -1219,6 +1215,8 @@ var (
 
 // flow is the flow control window's size.
 type http2flow struct {
+	_ http2incomparable
+
 	// n is the number of DATA bytes we're allowed to send.
 	// A flow is kept both on a conn and a per-stream.
 	n int32
@@ -3315,6 +3313,7 @@ func (cw http2closeWaiter) Wait() {
 // Its buffered writer is lazily allocated as needed, to minimize
 // idle memory usage with many connections.
 type http2bufferedWriter struct {
+	_  http2incomparable
 	w  io.Writer     // immutable
 	bw *bufio.Writer // non-nil when data is buffered
 }
@@ -3387,6 +3386,7 @@ func http2bodyAllowedForStatus(status int) bool {
 }
 
 type http2httpError struct {
+	_       http2incomparable
 	msg     string
 	timeout bool
 }
@@ -3454,6 +3454,11 @@ func (s *http2sorter) SortStrings(ss []string) {
 func http2validPseudoPath(v string) bool {
 	return (len(v) > 0 && v[0] == '/') || v == "*"
 }
+
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type http2incomparable [0]func()
 
 // pipe is a goroutine-safe io.Reader/io.Writer pair. It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
@@ -4325,6 +4330,7 @@ func (sc *http2serverConn) readFrames() {
 
 // frameWriteResult is the message passed from writeFrameAsync to the serve goroutine.
 type http2frameWriteResult struct {
+	_   http2incomparable
 	wr  http2FrameWriteRequest // what was written (or attempted)
 	err error                  // result of the writeFrame call
 }
@@ -4335,7 +4341,7 @@ type http2frameWriteResult struct {
 // serverConn.
 func (sc *http2serverConn) writeFrameAsync(wr http2FrameWriteRequest) {
 	err := wr.write.writeFrame(sc)
-	sc.wroteFrameCh <- http2frameWriteResult{wr, err}
+	sc.wroteFrameCh <- http2frameWriteResult{wr: wr, err: err}
 }
 
 func (sc *http2serverConn) closeAllStreamsOnConnClose() {
@@ -4727,7 +4733,7 @@ func (sc *http2serverConn) startFrameWrite(wr http2FrameWriteRequest) {
 	if wr.write.staysWithinBuffer(sc.bw.Available()) {
 		sc.writingFrameAsync = false
 		err := wr.write.writeFrame(sc)
-		sc.wroteFrame(http2frameWriteResult{wr, err})
+		sc.wroteFrame(http2frameWriteResult{wr: wr, err: err})
 	} else {
 		sc.writingFrameAsync = true
 		go sc.writeFrameAsync(wr)
@@ -5841,6 +5847,7 @@ func (sc *http2serverConn) sendWindowUpdate32(st *http2stream, n int32) {
 // requestBody is the Handler's Request.Body type.
 // Read and Close may be called concurrently.
 type http2requestBody struct {
+	_             http2incomparable
 	stream        *http2stream
 	conn          *http2serverConn
 	closed        bool       // for use by Close only
@@ -7408,7 +7415,7 @@ func http2commaSeparatedTrailers(req *Request) (string, error) {
 		k = CanonicalHeaderKey(k)
 		switch k {
 		case "Transfer-Encoding", "Trailer", "Content-Length":
-			return "", &http2badStringError{"invalid Trailer key", k}
+			return "", fmt.Errorf("invalid Trailer key %q", k)
 		}
 		keys = append(keys, k)
 	}
@@ -7886,13 +7893,6 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err er
 	}
 }
 
-type http2badStringError struct {
-	what string
-	str  string
-}
-
-func (e *http2badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
-
 // requires cc.mu be held.
 func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
 	cc.hbuf.Reset()
@@ -8108,6 +8108,7 @@ func (cc *http2ClientConn) writeHeader(name, value string) {
 }
 
 type http2resAndError struct {
+	_   http2incomparable
 	res *Response
 	err error
 }
@@ -8155,6 +8156,7 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 
 // clientConnReadLoop is the state owned by the clientConn's frame-reading readLoop.
 type http2clientConnReadLoop struct {
+	_             http2incomparable
 	cc            *http2ClientConn
 	closeWhenIdle bool
 }
@@ -8971,6 +8973,7 @@ func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { retur
 // gzipReader wraps a response body so it can lazily
 // call gzip.NewReader on the first call to Read
 type http2gzipReader struct {
+	_    http2incomparable
 	body io.ReadCloser // underlying Response.Body
 	zr   *gzip.Reader  // lazily-initialized gzip reader
 	zerr error         // sticky error

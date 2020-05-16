@@ -177,8 +177,7 @@ func (d *decodeState) unmarshal(v interface{}) error {
 	d.scanWhile(scanSkipSpace)
 	// We decode rv not rv.Elem because the Unmarshaler interface
 	// test must be applied at the top level of the value.
-	err := d.value(rv)
-	if err != nil {
+	if err := d.value(rv); err != nil {
 		return d.addErrorContext(err)
 	}
 	return d.savedError
@@ -525,6 +524,7 @@ func (d *decodeState) array(v reflect.Value) error {
 		return nil
 	}
 	v = pv
+	initialSliceCap := 0
 
 	// Check type of target.
 	switch v.Kind() {
@@ -541,8 +541,9 @@ func (d *decodeState) array(v reflect.Value) error {
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
 		d.skip()
 		return nil
-	case reflect.Array, reflect.Slice:
-		break
+	case reflect.Slice:
+		initialSliceCap = v.Cap()
+	case reflect.Array:
 	}
 
 	i := 0
@@ -553,7 +554,6 @@ func (d *decodeState) array(v reflect.Value) error {
 			break
 		}
 
-		// Get element of array, growing if necessary.
 		if v.Kind() == reflect.Slice {
 			// Grow slice if necessary
 			if i >= v.Cap() {
@@ -569,19 +569,22 @@ func (d *decodeState) array(v reflect.Value) error {
 				v.SetLen(i + 1)
 			}
 		}
-
+		var into reflect.Value
 		if i < v.Len() {
-			// Decode into element.
-			if err := d.value(v.Index(i)); err != nil {
-				return err
-			}
-		} else {
-			// Ran out of fixed array: skip.
-			if err := d.value(reflect.Value{}); err != nil {
-				return err
+			into = v.Index(i)
+			if i < initialSliceCap {
+				// Reusing an element from the slice's original
+				// backing array; zero it before decoding.
+				into.Set(reflect.Zero(v.Type().Elem()))
 			}
 		}
 		i++
+		// Note that we decode the value even if we ran past the end of
+		// the fixed array. In that case, we decode into an empty value
+		// and do nothing with it.
+		if err := d.value(into); err != nil {
+			return err
+		}
 
 		// Next token must be , or ].
 		if d.opcode == scanSkipSpace {
@@ -597,16 +600,17 @@ func (d *decodeState) array(v reflect.Value) error {
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
-			// Array. Zero the rest.
-			z := reflect.Zero(v.Type().Elem())
+			// Zero the remaining elements.
+			zero := reflect.Zero(v.Type().Elem())
 			for ; i < v.Len(); i++ {
-				v.Index(i).Set(z)
+				v.Index(i).Set(zero)
 			}
 		} else {
 			v.SetLen(i)
 		}
 	}
-	if i == 0 && v.Kind() == reflect.Slice {
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		// Don't allow the resulting slice to be nil.
 		v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	}
 	return nil
@@ -673,7 +677,6 @@ func (d *decodeState) object(v reflect.Value) error {
 		return nil
 	}
 
-	var mapElem reflect.Value
 	origErrorContext := d.errorContext
 
 	for {
@@ -697,17 +700,66 @@ func (d *decodeState) object(v reflect.Value) error {
 		}
 
 		// Figure out field corresponding to key.
-		var subv reflect.Value
+		var kv, subv reflect.Value
 		destring := false // whether the value is wrapped in a string to be decoded first
 
 		if v.Kind() == reflect.Map {
-			elemType := t.Elem()
-			if !mapElem.IsValid() {
-				mapElem = reflect.New(elemType).Elem()
-			} else {
-				mapElem.Set(reflect.Zero(elemType))
+			// First, figure out the key value from the input.
+			kt := t.Key()
+			switch {
+			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
+				kv = reflect.New(kt)
+				if err := d.literalStore(item, kv, true); err != nil {
+					return err
+				}
+				kv = kv.Elem()
+			case kt.Kind() == reflect.String:
+				kv = reflect.ValueOf(key).Convert(kt)
+			default:
+				switch kt.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					s := string(key)
+					n, err := strconv.ParseInt(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowInt(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					s := string(key)
+					n, err := strconv.ParseUint(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowUint(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				default:
+					panic("json: Unexpected key type") // should never occur
+				}
 			}
-			subv = mapElem
+
+			// Then, decide what element value we'll decode into.
+			et := t.Elem()
+			if kv.IsValid() {
+				if existing := v.MapIndex(kv); !existing.IsValid() {
+					// Nothing to reuse.
+				} else if et.Kind() == reflect.Ptr {
+					// Pointer; decode directly into it if non-nil.
+					if !existing.IsNil() {
+						subv = existing
+					}
+				} else {
+					// Non-pointer. Make a copy and decode into the
+					// addressable copy. Don't just use a new/zero
+					// value, as that would lose existing data.
+					subv = reflect.New(et).Elem()
+					subv.Set(existing)
+				}
+			}
+			if !subv.IsValid() {
+				// We couldn't reuse an existing value.
+				subv = reflect.New(et).Elem()
+			}
 		} else {
 			var f *field
 			if i, ok := fields.nameIndex[string(key)]; ok {
@@ -786,43 +838,8 @@ func (d *decodeState) object(v reflect.Value) error {
 
 		// Write value back to map;
 		// if using struct, subv points into struct already.
-		if v.Kind() == reflect.Map {
-			kt := t.Key()
-			var kv reflect.Value
-			switch {
-			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
-				kv = reflect.New(kt)
-				if err := d.literalStore(item, kv, true); err != nil {
-					return err
-				}
-				kv = kv.Elem()
-			case kt.Kind() == reflect.String:
-				kv = reflect.ValueOf(key).Convert(kt)
-			default:
-				switch kt.Kind() {
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					s := string(key)
-					n, err := strconv.ParseInt(s, 10, 64)
-					if err != nil || reflect.Zero(kt).OverflowInt(n) {
-						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
-						break
-					}
-					kv = reflect.ValueOf(n).Convert(kt)
-				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-					s := string(key)
-					n, err := strconv.ParseUint(s, 10, 64)
-					if err != nil || reflect.Zero(kt).OverflowUint(n) {
-						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
-						break
-					}
-					kv = reflect.ValueOf(n).Convert(kt)
-				default:
-					panic("json: Unexpected key type") // should never occur
-				}
-			}
-			if kv.IsValid() {
-				v.SetMapIndex(kv, subv)
-			}
+		if v.Kind() == reflect.Map && kv.IsValid() {
+			v.SetMapIndex(kv, subv)
 		}
 
 		// Next token must be , or }.
@@ -1217,6 +1234,11 @@ func (d *decodeState) unquoteBytes(s []byte) (t []byte, ok bool) {
 	if r == -1 {
 		return s, true
 	}
+	// Only perform up to one safe unquote for each re-scanned string
+	// literal. In some edge cases, the decoder unquotes a literal a second
+	// time, even after another literal has been re-scanned. Thus, only the
+	// first unquote can safely use safeUnquote.
+	d.safeUnquote = 0
 
 	b := make([]byte, len(s)+2*utf8.UTFMax)
 	w := copy(b, s[0:r])

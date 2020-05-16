@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
@@ -74,7 +75,7 @@ var (
 	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
-	flagA           = flag.Bool("a", false, "disassemble output")
+	flagA           = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC           = flag.Bool("c", false, "dump call graph")
 	FlagD           = flag.Bool("d", false, "disable dynamic executable")
 	flagF           = flag.Bool("f", false, "ignore version mismatch")
@@ -154,6 +155,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 			usage()
 		}
 	}
+	if ctxt.HeadType == objabi.Hunknown {
+		ctxt.HeadType.Set(objabi.GOOS)
+	}
 
 	checkStrictDups = *FlagStrictDups
 
@@ -190,11 +194,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("libinit")
 	libinit(ctxt) // creates outfile
-
-	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
-	}
-
 	bench.Start("computeTLSOffset")
 	ctxt.computeTLSOffset()
 	bench.Start("Archinit")
@@ -208,6 +207,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
 	}
 
+	zerofp := goobj2.FingerprintType{}
 	switch ctxt.BuildMode {
 	case BuildModeShared:
 		for i := 0; i < flag.NArg(); i++ {
@@ -221,12 +221,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 			}
 			pkglistfornote = append(pkglistfornote, pkgpath...)
 			pkglistfornote = append(pkglistfornote, '\n')
-			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
+			addlibpath(ctxt, "command line", "command line", file, pkgpath, "", zerofp)
 		}
 	case BuildModePlugin:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "", zerofp)
 	default:
-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "", zerofp)
 	}
 	bench.Start("loadlib")
 	ctxt.loadlib()
@@ -297,11 +297,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dwarfGenerateDebugSyms")
 	dwarfGenerateDebugSyms(ctxt)
 	bench.Start("symtab")
-	ctxt.symtab()
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
+	symGroupType := ctxt.symtab()
 	bench.Start("dodata")
-	ctxt.dodata()
+	ctxt.dodata2(symGroupType)
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
@@ -321,19 +319,31 @@ func Main(arch *sys.Arch, theArch Arch) {
 		if err := ctxt.Out.Mmap(filesize); err != nil {
 			panic(err)
 		}
-		// Asmb will redirect symbols to the output file mmap, and relocations
-		// will be applied directly there.
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
+	}
+	// Asmb will redirect symbols to the output file mmap, and relocations
+	// will be applied directly there.
+	bench.Start("Asmb")
+	ctxt.loader.InitOutData()
+	thearch.Asmb(ctxt, ctxt.loader)
+
+	newreloc := ctxt.IsAMD64() || ctxt.Is386() || ctxt.IsWasm()
+	if newreloc {
 		bench.Start("reloc")
 		ctxt.reloc()
+		bench.Start("loadlibfull")
+		// We don't need relocations at this point.
+		// An exception is internal linking on Windows, see pe.go:addPEBaseRelocSym
+		// Wasm is another exception, where it applies text relocations in Asmb2.
+		needReloc := (ctxt.IsWindows() && ctxt.IsInternal()) || ctxt.IsWasm()
+		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
+		// need conversion. Otherwise we do.
+		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
+		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
 	} else {
-		// If we don't mmap, we need to apply relocations before
-		// writing out.
+		bench.Start("loadlibfull")
+		ctxt.loadlibfull(symGroupType, true, false) // XXX do it here for now
 		bench.Start("reloc")
-		ctxt.reloc()
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
+		ctxt.reloc2()
 	}
 	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)
@@ -346,7 +356,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("hostlink")
 	ctxt.hostlink()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
+		ctxt.Logf("%d symbols, %d reachable\n", len(ctxt.loader.Syms), ctxt.loader.NReachableSym())
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
 	bench.Start("Flush")

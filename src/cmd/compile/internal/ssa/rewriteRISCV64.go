@@ -391,7 +391,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64LoweredNilCheck
 		return true
 	case OpNot:
-		return rewriteValueRISCV64_OpNot(v)
+		v.Op = OpRISCV64SEQZ
+		return true
 	case OpOffPtr:
 		return rewriteValueRISCV64_OpOffPtr(v)
 	case OpOr16:
@@ -913,12 +914,11 @@ func rewriteValueRISCV64_OpEqB(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (EqB x y)
-	// result: (XORI [1] (XOR <typ.Bool> x y))
+	// result: (SEQZ (XOR <typ.Bool> x y))
 	for {
 		x := v_0
 		y := v_1
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64ToAuxInt(1)
+		v.reset(OpRISCV64SEQZ)
 		v0 := b.NewValue0(v.Pos, OpRISCV64XOR, typ.Bool)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -2129,18 +2129,6 @@ func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpNot(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Not x)
-	// result: (XORI [1] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64ToAuxInt(1)
-		v.AddArg(x)
 		return true
 	}
 }
@@ -5132,13 +5120,138 @@ func rewriteValueRISCV64_OpZeroExt8to64(v *Value) bool {
 }
 func rewriteBlockRISCV64(b *Block) bool {
 	switch b.Kind {
+	case BlockRISCV64BEQ:
+		// match: (BEQ (MOVDconst [0]) cond yes no)
+		// result: (BEQZ cond yes no)
+		for b.Controls[0].Op == OpRISCV64MOVDconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockRISCV64BEQZ, cond)
+			return true
+		}
+		// match: (BEQ cond (MOVDconst [0]) yes no)
+		// result: (BEQZ cond yes no)
+		for b.Controls[1].Op == OpRISCV64MOVDconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BEQZ, cond)
+			return true
+		}
+	case BlockRISCV64BEQZ:
+		// match: (BEQZ (SEQZ x) yes no)
+		// result: (BNEZ x yes no)
+		for b.Controls[0].Op == OpRISCV64SEQZ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockRISCV64BNEZ, x)
+			return true
+		}
+		// match: (BEQZ (SNEZ x) yes no)
+		// result: (BEQZ x yes no)
+		for b.Controls[0].Op == OpRISCV64SNEZ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockRISCV64BEQZ, x)
+			return true
+		}
+		// match: (BEQZ (SUB x y) yes no)
+		// result: (BEQ x y yes no)
+		for b.Controls[0].Op == OpRISCV64SUB {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BEQ, x, y)
+			return true
+		}
+		// match: (BEQZ (SLT x y) yes no)
+		// result: (BGE x y yes no)
+		for b.Controls[0].Op == OpRISCV64SLT {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BGE, x, y)
+			return true
+		}
+		// match: (BEQZ (SLTU x y) yes no)
+		// result: (BGEU x y yes no)
+		for b.Controls[0].Op == OpRISCV64SLTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BGEU, x, y)
+			return true
+		}
+	case BlockRISCV64BNE:
+		// match: (BNE (MOVDconst [0]) cond yes no)
+		// result: (BNEZ cond yes no)
+		for b.Controls[0].Op == OpRISCV64MOVDconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockRISCV64BNEZ, cond)
+			return true
+		}
+		// match: (BNE cond (MOVDconst [0]) yes no)
+		// result: (BNEZ cond yes no)
+		for b.Controls[1].Op == OpRISCV64MOVDconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BNEZ, cond)
+			return true
+		}
 	case BlockRISCV64BNEZ:
+		// match: (BNEZ (SEQZ x) yes no)
+		// result: (BEQZ x yes no)
+		for b.Controls[0].Op == OpRISCV64SEQZ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockRISCV64BEQZ, x)
+			return true
+		}
 		// match: (BNEZ (SNEZ x) yes no)
 		// result: (BNEZ x yes no)
 		for b.Controls[0].Op == OpRISCV64SNEZ {
 			v_0 := b.Controls[0]
 			x := v_0.Args[0]
 			b.resetWithControl(BlockRISCV64BNEZ, x)
+			return true
+		}
+		// match: (BNEZ (SUB x y) yes no)
+		// result: (BNE x y yes no)
+		for b.Controls[0].Op == OpRISCV64SUB {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BNE, x, y)
+			return true
+		}
+		// match: (BNEZ (SLT x y) yes no)
+		// result: (BLT x y yes no)
+		for b.Controls[0].Op == OpRISCV64SLT {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BLT, x, y)
+			return true
+		}
+		// match: (BNEZ (SLTU x y) yes no)
+		// result: (BLTU x y yes no)
+		for b.Controls[0].Op == OpRISCV64SLTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockRISCV64BLTU, x, y)
 			return true
 		}
 	case BlockIf:

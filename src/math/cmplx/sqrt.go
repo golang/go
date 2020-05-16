@@ -65,6 +65,8 @@ func Sqrt(x complex128) complex128 {
 			return complex(0, math.Copysign(math.Sqrt(-real(x)), imag(x)))
 		}
 		return complex(math.Sqrt(real(x)), imag(x))
+	} else if math.IsInf(imag(x), 0) {
+		return complex(math.Inf(1.0), imag(x))
 	}
 	if real(x) == 0 {
 		if imag(x) < 0 {

@@ -483,6 +483,8 @@ func GetNextArenaHint() uintptr {
 
 type G = g
 
+type Sudog = sudog
+
 func Getg() *G {
 	return getg()
 }
@@ -733,9 +735,12 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
+func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
+	pp := (*pageAlloc)(p)
 	systemstack(func() {
-		r = (*pageAlloc)(p).scavenge(nbytes, locked)
+		lock(pp.mheapLock)
+		r = pp.scavenge(nbytes, mayUnlock)
+		unlock(pp.mheapLock)
 	})
 	return
 }
@@ -743,8 +748,8 @@ func (p *PageAlloc) InUse() []AddrRange {
 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
 	for _, r := range p.inUse.ranges {
 		ranges = append(ranges, AddrRange{
-			Base:  r.base,
-			Limit: r.limit,
+			Base:  r.base.addr(),
+			Limit: r.limit.addr(),
 		})
 	}
 	return ranges
@@ -817,7 +822,6 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 				}
 			}
 		}
-		p.resetScavengeAddr()
 
 		// Apply alloc state.
 		for _, s := range init {
@@ -831,6 +835,11 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 		// Update heap metadata for the allocRange calls above.
 		p.update(addr, pallocChunkPages, false, false)
 	}
+	systemstack(func() {
+		lock(p.mheapLock)
+		p.scavengeStartGen()
+		unlock(p.mheapLock)
+	})
 	return (*PageAlloc)(p)
 }
 
@@ -867,13 +876,9 @@ func FreePageAlloc(pp *PageAlloc) {
 // 64 bit and 32 bit platforms, allowing the tests to share code
 // between the two.
 //
-// On AIX, the arenaBaseOffset is 0x0a00000000000000. However, this
-// constant can't be used here because it is negative and will cause
-// a constant overflow.
-//
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + 0x0a00000000000000*sys.GoosAix))
+var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*sys.GoosAix))
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.

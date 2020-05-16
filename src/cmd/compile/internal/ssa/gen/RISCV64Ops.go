@@ -10,6 +10,9 @@ import (
 	"fmt"
 )
 
+// Notes:
+//  - Boolean types occupy the entire register. 0=false, 1=true.
+
 // Suffixes encode the bit width of various instructions:
 //
 // D (double word) = 64 bit int

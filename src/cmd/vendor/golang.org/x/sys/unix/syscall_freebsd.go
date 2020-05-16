@@ -521,10 +521,6 @@ func PtraceGetFpRegs(pid int, fpregsout *FpReg) (err error) {
 	return ptrace(PTRACE_GETFPREGS, pid, uintptr(unsafe.Pointer(fpregsout)), 0)
 }
 
-func PtraceGetFsBase(pid int, fsbase *int64) (err error) {
-	return ptrace(PTRACE_GETFSBASE, pid, uintptr(unsafe.Pointer(fsbase)), 0)
-}
-
 func PtraceGetRegs(pid int, regsout *Reg) (err error) {
 	return ptrace(PTRACE_GETREGS, pid, uintptr(unsafe.Pointer(regsout)), 0)
 }

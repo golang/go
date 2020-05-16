@@ -46,10 +46,17 @@ func getLockRank(l *mutex) lockRank {
 // when acquiring a non-static lock.
 //go:nosplit
 func lockWithRank(l *mutex, rank lockRank) {
-	if l == &debuglock {
-		// debuglock is only used for println/printlock(). Don't do lock rank
-		// recording for it, since print/println are used when printing
-		// out a lock ordering problem below.
+	if l == &debuglock || l == &paniclk {
+		// debuglock is only used for println/printlock(). Don't do lock
+		// rank recording for it, since print/println are used when
+		// printing out a lock ordering problem below.
+		//
+		// paniclk has an ordering problem, since it can be acquired
+		// during a panic with any other locks held (especially if the
+		// panic is because of a directed segv), and yet also allg is
+		// acquired after paniclk in tracebackothers()). This is a genuine
+		// problem, so for now we don't do lock rank recording for paniclk
+		// either.
 		lock2(l)
 		return
 	}
@@ -75,26 +82,49 @@ func lockWithRank(l *mutex, rank lockRank) {
 	})
 }
 
+// acquireLockRank acquires a rank which is not associated with a mutex lock
+//go:nosplit
+func acquireLockRank(rank lockRank) {
+	gp := getg()
+	// Log the new class.
+	systemstack(func() {
+		i := gp.m.locksHeldLen
+		if i >= len(gp.m.locksHeld) {
+			throw("too many locks held concurrently for rank checking")
+		}
+		gp.m.locksHeld[i].rank = rank
+		gp.m.locksHeld[i].lockAddr = 0
+		gp.m.locksHeldLen++
+
+		// i is the index of the lock being acquired
+		if i > 0 {
+			checkRanks(gp, gp.m.locksHeld[i-1].rank, rank)
+		}
+	})
+}
+
+// checkRanks checks if goroutine g, which has mostly recently acquired a lock
+// with rank 'prevRank', can now acquire a lock with rank 'rank'.
 func checkRanks(gp *g, prevRank, rank lockRank) {
 	rankOK := false
-	// If rank < prevRank, then we definitely have a rank error
-	if prevRank <= rank {
-		if rank == lockRankLeafRank {
-			// If new lock is a leaf lock, then the preceding lock can
-			// be anything except another leaf lock.
-			rankOK = prevRank < lockRankLeafRank
-		} else {
-			// We've already verified the total lock ranking, but we
-			// also enforce the partial ordering specified by
-			// lockPartialOrder as well. Two locks with the same rank
-			// can only be acquired at the same time if explicitly
-			// listed in the lockPartialOrder table.
-			list := lockPartialOrder[rank]
-			for _, entry := range list {
-				if entry == prevRank {
-					rankOK = true
-					break
-				}
+	if rank < prevRank {
+		// If rank < prevRank, then we definitely have a rank error
+		rankOK = false
+	} else if rank == lockRankLeafRank {
+		// If new lock is a leaf lock, then the preceding lock can
+		// be anything except another leaf lock.
+		rankOK = prevRank < lockRankLeafRank
+	} else {
+		// We've now verified the total lock ranking, but we
+		// also enforce the partial ordering specified by
+		// lockPartialOrder as well. Two locks with the same rank
+		// can only be acquired at the same time if explicitly
+		// listed in the lockPartialOrder table.
+		list := lockPartialOrder[rank]
+		for _, entry := range list {
+			if entry == prevRank {
+				rankOK = true
+				break
 			}
 		}
 	}
@@ -109,11 +139,9 @@ func checkRanks(gp *g, prevRank, rank lockRank) {
 }
 
 //go:nosplit
-func lockRankRelease(l *mutex) {
-	if l == &debuglock {
-		// debuglock is only used for print/println. Don't do lock rank
-		// recording for it, since print/println are used when printing
-		// out a lock ordering problem below.
+func unlockWithRank(l *mutex) {
+	if l == &debuglock || l == &paniclk {
+		// See comment at beginning of lockWithRank.
 		unlock2(l)
 		return
 	}
@@ -125,6 +153,7 @@ func lockRankRelease(l *mutex) {
 				found = true
 				copy(gp.m.locksHeld[i:gp.m.locksHeldLen-1], gp.m.locksHeld[i+1:gp.m.locksHeldLen])
 				gp.m.locksHeldLen--
+				break
 			}
 		}
 		if !found {
@@ -132,6 +161,27 @@ func lockRankRelease(l *mutex) {
 			throw("unlock without matching lock acquire")
 		}
 		unlock2(l)
+	})
+}
+
+// releaseLockRank releases a rank which is not associated with a mutex lock
+//go:nosplit
+func releaseLockRank(rank lockRank) {
+	gp := getg()
+	systemstack(func() {
+		found := false
+		for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
+			if gp.m.locksHeld[i].rank == rank && gp.m.locksHeld[i].lockAddr == 0 {
+				found = true
+				copy(gp.m.locksHeld[i:gp.m.locksHeldLen-1], gp.m.locksHeld[i+1:gp.m.locksHeldLen])
+				gp.m.locksHeldLen--
+				break
+			}
+		}
+		if !found {
+			println(gp.m.procid, ":", rank.String(), rank)
+			throw("lockRank release without matching lockRank acquire")
+		}
 	})
 }
 

@@ -61,7 +61,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 
 	ctxt.Out.Write64(uint64(sectoff))
 
-	elfsym := r.Xsym.ElfsymForReloc()
+	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	ctxt.Out.Write32(uint32(elfsym))
 	ctxt.Out.Write8(0)
 	ctxt.Out.Write8(0)
@@ -69,7 +69,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	switch r.Type {
 	default:
 		return false
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz {
 		case 4:
 			ctxt.Out.Write8(uint8(elf.R_MIPS_32))
@@ -170,7 +170,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return -1
 }
 
-func asmb(ctxt *ld.Link) {
+func asmb(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}

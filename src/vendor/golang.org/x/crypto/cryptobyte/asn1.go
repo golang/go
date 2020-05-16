@@ -81,7 +81,7 @@ func (b *Builder) AddASN1BigInt(n *big.Int) {
 			for i := range bytes {
 				bytes[i] ^= 0xff
 			}
-			if bytes[0]&0x80 == 0 {
+			if len(bytes) == 0 || bytes[0]&0x80 == 0 {
 				c.add(0xff)
 			}
 			c.add(bytes...)

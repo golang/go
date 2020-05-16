@@ -310,6 +310,20 @@ func runGet(cmd *base.Command, args []string) {
 			continue
 		}
 
+		// Guard against 'go get x.go', a common mistake.
+		// Note that package and module paths may end with '.go', so only print an error
+		// if the argument has no version and either has no slash or refers to an existing file.
+		if strings.HasSuffix(arg, ".go") && vers == "" {
+			if !strings.Contains(arg, "/") {
+				base.Errorf("go get %s: arguments must be package or module paths", arg)
+				continue
+			}
+			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
+				continue
+			}
+		}
+
 		// If no version suffix is specified, assume @upgrade.
 		// If -u=patch was specified, assume @patch instead.
 		if vers == "" {
@@ -336,11 +350,15 @@ func runGet(cmd *base.Command, args []string) {
 			// package in the main module. If the path contains wildcards but
 			// matches no packages, we'll warn after package loading.
 			if !strings.Contains(path, "...") {
-				var pkgs []string
+				m := search.NewMatch(path)
 				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
-					pkgs = modload.TargetPackages(pkgPath)
+					m = modload.TargetPackages(pkgPath)
 				}
-				if len(pkgs) == 0 {
+				if len(m.Pkgs) == 0 {
+					for _, err := range m.Errs {
+						base.Errorf("go get %s: %v", arg, err)
+					}
+
 					abs, err := filepath.Abs(path)
 					if err != nil {
 						abs = path
@@ -380,7 +398,7 @@ func runGet(cmd *base.Command, args []string) {
 		default:
 			// The argument is a package or module path.
 			if modload.HasModRoot() {
-				if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+				if m := modload.TargetPackages(path); len(m.Pkgs) != 0 {
 					// The path is in the main module. Nothing to query.
 					if vers != "upgrade" && vers != "patch" {
 						base.Errorf("go get %s: can't request explicit version of path in main module", arg)

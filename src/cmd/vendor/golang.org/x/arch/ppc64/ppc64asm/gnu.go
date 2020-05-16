@@ -134,6 +134,19 @@ func GNUSyntax(inst Inst, pc uint64) string {
 			buf.WriteString("spr")
 		}
 
+	case "sync":
+		switch arg := inst.Args[0].(type) {
+		case Imm:
+			switch arg {
+			case 0:
+				buf.WriteString("hwsync")
+			case 1:
+				buf.WriteString("lwsync")
+			case 2:
+				buf.WriteString("ptesync")
+			}
+		}
+		startArg = 2
 	default:
 		buf.WriteString(inst.Op.String())
 	}
@@ -261,6 +274,8 @@ func isLoadStoreOp(op Op) bool {
 	case STQ:
 		return true
 	case LHBRX, LWBRX, STHBRX, STWBRX:
+		return true
+	case LBARX, LWARX, LHARX, LDARX:
 		return true
 	}
 	return false

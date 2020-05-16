@@ -62,6 +62,9 @@ type PublicKey struct {
 	X, Y *big.Int
 }
 
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
 // Equal reports whether pub and x have the same value.
 //
 // Two keys are only considered to have the same value if they have the same Curve value.
@@ -89,6 +92,17 @@ type PrivateKey struct {
 // Public returns the public key corresponding to priv.
 func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
+}
+
+// Equal reports whether priv and x have the same value.
+//
+// See PublicKey.Equal for details on how Curve is compared.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	return priv.PublicKey.Equal(&xx.PublicKey) && priv.D.Cmp(xx.D) == 0
 }
 
 // Sign signs digest with priv, reading randomness from rand. The opts argument

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!arm64,!ios
-
 package x509
+
+// This cgo implementation exists only to support side-by-side testing by
+// TestSystemRoots. It can be removed once we are confident in the no-cgo
+// implementation.
 
 /*
 #cgo CFLAGS: -mmacosx-version-min=10.11
@@ -283,7 +285,11 @@ import (
 	"unsafe"
 )
 
-func loadSystemRoots() (*CertPool, error) {
+func init() {
+	loadSystemRootsWithCgo = _loadSystemRootsWithCgo
+}
+
+func _loadSystemRootsWithCgo() (*CertPool, error) {
 	var data, untrustedData C.CFDataRef
 	err := C.CopyPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
 	if err == -1 {

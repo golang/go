@@ -2099,7 +2099,10 @@ func TestSkipArrayObjects(t *testing.T) {
 // slices, and arrays.
 // Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	// Values here change, cannot reuse table across runs.
+	type T struct {
+		A, B int
+	}
+	// Values here change, cannot reuse the table across runs.
 	var prefillTests = []struct {
 		in  string
 		ptr interface{}
@@ -2134,6 +2137,16 @@ func TestPrefilled(t *testing.T) {
 			in:  `[3]`,
 			ptr: &[...]int{1, 2},
 			out: &[...]int{3, 0},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[]T{{A: 3}},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[...]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[...]T{{A: 3, B: -2}, {}},
 		},
 	}
 
@@ -2419,7 +2432,7 @@ func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Test unmarshal to a map, with map key is a user defined type.
+// Test unmarshal to a map, where the map key is a user defined type.
 // See golang.org/issues/34437.
 func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	var p map[textUnmarshalerString]string
@@ -2428,7 +2441,36 @@ func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	}
 
 	if _, ok := p["foo"]; !ok {
-		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+		t.Errorf(`Key "foo" does not exist in map: %v`, p)
+	}
+}
+
+func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
+	// See golang.org/issues/38105.
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"开源":"12345开源"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if _, ok := p["开源"]; !ok {
+		t.Errorf(`Key "开源" does not exist in map: %v`, p)
+	}
+
+	// See golang.org/issues/38126.
+	type T struct {
+		F1 string `json:"F1,string"`
+	}
+	t1 := T{"aaa\tbbb"}
+
+	b, err := Marshal(t1)
+	if err != nil {
+		t.Fatalf("Marshal unexpected error: %v", err)
+	}
+	var t2 T
+	if err := Unmarshal(b, &t2); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if t1 != t2 {
+		t.Errorf("Marshal and Unmarshal roundtrip mismatch: want %q got %q", t1, t2)
 	}
 }
 
@@ -2525,5 +2567,59 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestUnmarshalMapPointerElem(t *testing.T) {
+	type S struct{ Unchanged, Changed int }
+	input := []byte(`{"S":{"Changed":5}}`)
+	want := S{1, 5}
+
+	// First, a map with struct pointer elements. The key-value pair exists,
+	// so reuse the existing value.
+	s := &S{1, 2}
+	ptrMap := map[string]*S{"S": s}
+	if err := Unmarshal(input, &ptrMap); err != nil {
+		t.Fatal(err)
+	}
+	if s != ptrMap["S"] {
+		t.Fatal("struct pointer element in map was completely replaced")
+	}
+	if got := *s; got != want {
+		t.Fatalf("want %#v, got %#v", want, got)
+	}
+
+	// Second, a map with struct elements. The key-value pair exists, but
+	// the value isn't addresable, so make a copy and use that.
+	s = &S{1, 2}
+	strMap := map[string]S{"S": *s}
+	if err := Unmarshal(input, &strMap); err != nil {
+		t.Fatal(err)
+	}
+	if *s == strMap["S"] {
+		t.Fatal("struct element in map wasn't copied")
+	}
+	if got := strMap["S"]; got != want {
+		t.Fatalf("want %#v, got %#v", want, got)
+	}
+
+	// Finally, check the cases where the key-value pair exists, but the
+	// value is zero.
+	want = S{0, 5}
+
+	ptrMap = map[string]*S{"S": nil}
+	if err := Unmarshal(input, &ptrMap); err != nil {
+		t.Fatal(err)
+	}
+	if got := *ptrMap["S"]; got != want {
+		t.Fatalf("want %#v, got %#v", want, got)
+	}
+
+	strMap = map[string]S{"S": {}}
+	if err := Unmarshal(input, &strMap); err != nil {
+		t.Fatal(err)
+	}
+	if got := strMap["S"]; got != want {
+		t.Fatalf("want %#v, got %#v", want, got)
 	}
 }
