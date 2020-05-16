@@ -113,7 +113,7 @@ func TestUnixgramZeroBytePayload(t *testing.T) {
 				t.Fatalf("unexpected peer address: %v", peer)
 			}
 		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			if !isDeadlineExceeded(err) {
 				t.Fatal(err)
 			}
 		}
@@ -163,7 +163,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
 				t.Fatalf("unexpected peer address: %v", peer)
 			}
 		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			if !isDeadlineExceeded(err) {
 				t.Fatal(err)
 			}
 		}

@@ -260,12 +260,13 @@ func TestPageAllocAllocToCache(t *testing.T) {
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
-	tests := map[string]struct {
+	type test struct {
 		before map[ChunkIdx][]BitRange
 		scav   map[ChunkIdx][]BitRange
 		hits   []PageCache // expected base addresses and patterns
 		after  map[ChunkIdx][]BitRange
-	}{
+	}
+	tests := map[string]test{
 		"AllFree": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -348,6 +349,34 @@ func TestPageAllocAllocToCache(t *testing.T) {
 				BaseChunkIdx: {{0, PallocChunkPages}},
 			},
 		},
+	}
+	if PageAlloc64Bit != 0 {
+		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+
+		// This test is similar to the one with the same name for
+		// pageAlloc.alloc and serves the same purpose.
+		// See mpagealloc_test.go for details.
+		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
+		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
+		tests["DiscontiguousMappedSumBoundary"] = test{
+			before: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages - 1}},
+				baseChunkIdx + chunkIdxBigJump:     {{1, PallocChunkPages - 1}},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			hits: []PageCache{
+				NewPageCache(PageBase(baseChunkIdx+sumsPerPhysPage-1, PallocChunkPages-64), 1<<63, 0),
+				NewPageCache(PageBase(baseChunkIdx+chunkIdxBigJump, 0), 1, 0),
+				NewPageCache(0, 0, 0),
+			},
+			after: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
+				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

@@ -586,7 +586,7 @@ s%~	%%g
 */
 
 func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
-	if s.Pkg != nil && flag&FmtShort == 0 {
+	if flag&FmtShort == 0 {
 		switch mode {
 		case FErr: // This is for the user
 			if s.Pkg == builtinpkg || s.Pkg == localpkg {
@@ -1306,9 +1306,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 	case OPAREN:
 		mode.Fprintf(s, "(%v)", n.Left)
 
-	case ODDDARG:
-		fmt.Fprint(s, "... argument")
-
 	case OLITERAL: // this is a bit of a mess
 		if mode == FErr {
 			if n.Orig != nil && n.Orig != n {
@@ -1404,6 +1401,10 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCOMPLIT:
 		if mode == FErr {
+			if n.Implicit() {
+				mode.Fprintf(s, "... argument")
+				return
+			}
 			if n.Right != nil {
 				mode.Fprintf(s, "%v literal", n.Right)
 				return

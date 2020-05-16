@@ -60,14 +60,14 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
 		res := &Response{
-			URL:        Redacted(url),
+			URL:        url.Redacted(),
 			Status:     "404 testing",
 			StatusCode: 404,
 			Header:     make(map[string][]string),
 			Body:       http.NoBody,
 		}
 		if cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
+			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
 		}
 		return res, nil
 	}
@@ -78,7 +78,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		// We print extra logging in -x mode instead, which traces what
 		// commands are executed.
 		if cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "# get %s\n", Redacted(url))
+			fmt.Fprintf(os.Stderr, "# get %s\n", url.Redacted())
 		}
 
 		req, err := http.NewRequest("GET", url.String(), nil)
@@ -111,7 +111,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		fetched, res, err = fetch(secure)
 		if err != nil {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(secure), err)
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", secure.Redacted(), err)
 			}
 			if security != Insecure || url.Scheme == "https" {
 				// HTTPS failed, and we can't fall back to plain HTTP.
@@ -126,9 +126,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		case "http":
 			if security == SecureOnly {
 				if cfg.BuildX {
-					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", Redacted(url))
+					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", url.Redacted())
 				}
-				return nil, fmt.Errorf("insecure URL: %s", Redacted(url))
+				return nil, fmt.Errorf("insecure URL: %s", url.Redacted())
 			}
 		case "":
 			if security != Insecure {
@@ -136,9 +136,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			}
 		default:
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", Redacted(url))
+				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", url.Redacted())
 			}
-			return nil, fmt.Errorf("unsupported scheme: %s", Redacted(url))
+			return nil, fmt.Errorf("unsupported scheme: %s", url.Redacted())
 		}
 
 		insecure := new(urlpkg.URL)
@@ -146,15 +146,15 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		insecure.Scheme = "http"
 		if insecure.User != nil && security != Insecure {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(insecure))
+				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", insecure.Redacted())
 			}
-			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
+			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", insecure.Redacted())
 		}
 
 		fetched, res, err = fetch(insecure)
 		if err != nil {
 			if cfg.BuildX {
-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(insecure), err)
+				fmt.Fprintf(os.Stderr, "# get %s: %v\n", insecure.Redacted(), err)
 			}
 			// HTTP failed, and we already tried HTTPS if applicable.
 			// Report the error from the HTTP attempt.
@@ -165,11 +165,11 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
 	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(fetched), res.Status, time.Since(start).Seconds())
+		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", fetched.Redacted(), res.Status, time.Since(start).Seconds())
 	}
 
 	r := &Response{
-		URL:        Redacted(fetched),
+		URL:        fetched.Redacted(),
 		Status:     res.Status,
 		StatusCode: res.StatusCode,
 		Header:     map[string][]string(res.Header),
@@ -201,7 +201,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 
 	if os.IsNotExist(err) {
 		return &Response{
-			URL:        Redacted(u),
+			URL:        u.Redacted(),
 			Status:     http.StatusText(http.StatusNotFound),
 			StatusCode: http.StatusNotFound,
 			Body:       http.NoBody,
@@ -211,7 +211,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 
 	if os.IsPermission(err) {
 		return &Response{
-			URL:        Redacted(u),
+			URL:        u.Redacted(),
 			Status:     http.StatusText(http.StatusForbidden),
 			StatusCode: http.StatusForbidden,
 			Body:       http.NoBody,
@@ -224,7 +224,7 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 	}
 
 	return &Response{
-		URL:        Redacted(u),
+		URL:        u.Redacted(),
 		Status:     http.StatusText(http.StatusOK),
 		StatusCode: http.StatusOK,
 		Body:       f,

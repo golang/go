@@ -1560,10 +1560,8 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // a stack pointer to an escaping argument. debugCallV1 cannot check
 // this invariant.
 TEXT runtime·debugCallV1(SB),NOSPLIT,$152-0
-	// Save all registers that may contain pointers in GC register
-	// map order (see ssa.registersAMD64). This makes it possible
-	// to copy the stack while updating pointers currently held in
-	// registers, and for the GC to find roots in registers.
+	// Save all registers that may contain pointers so they can be
+	// conservatively scanned.
 	//
 	// We can't do anything that might clobber any of these
 	// registers before this.

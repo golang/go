@@ -56,4 +56,5 @@ type Section struct {
 	Reloff  uint64
 	Rellen  uint64
 	Sym     *Symbol // symbol for the section, if any
+	Index   uint16  // each section has a unique index, used internally
 }
