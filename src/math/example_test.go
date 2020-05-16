@@ -238,3 +238,31 @@ func ExampleModf() {
 	// 3.00, 0.14
 	// -2.00, -0.71
 }
+
+func ExampleLog1p() {
+	fmt.Printf("%.2f\n", math.Log1p(100))
+	fmt.Printf("%.2f\n", math.Log1p(-1))
+	fmt.Printf("%.2f\n", math.Log1p(0))
+	fmt.Printf("%.2f\n", math.Log1p(math.NaN()))
+	fmt.Printf("%.2f\n", math.Log1p(math.Inf(1)))
+	// Output:
+	// 4.62
+	// -Inf
+	// 0.00
+	// NaN
+	// +Inf
+}
+
+func ExampleLogb() {
+	fmt.Printf("%.2f\n", math.Logb(100))
+	fmt.Printf("%.2f\n", math.Logb(-1))
+	fmt.Printf("%.2f\n", math.Logb(0))
+	fmt.Printf("%.2f\n", math.Logb(math.NaN()))
+	fmt.Printf("%.2f\n", math.Logb(math.Inf(1)))
+	// Output:
+	// 6.00
+	// 0.00
+	// -Inf
+	// NaN
+	// +Inf
+}
