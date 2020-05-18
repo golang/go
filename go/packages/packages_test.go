@@ -2175,6 +2175,7 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 
 func TestCgoNoCcompiler(t *testing.T) { packagestest.TestAll(t, testCgoNoCcompiler) }
 func testCgoNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsTool(t, "cgo")
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
@@ -2208,6 +2209,7 @@ const A = http.MethodGet
 
 func TestCgoMissingFile(t *testing.T) { packagestest.TestAll(t, testCgoMissingFile) }
 func testCgoMissingFile(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsTool(t, "cgo")
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
