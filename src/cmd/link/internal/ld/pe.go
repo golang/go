@@ -736,7 +736,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		}
 
 		switch t {
-		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT, sym.SCONST:
+		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
 			addsym(s)
 		}
 	}

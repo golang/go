@@ -334,7 +334,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 			}
 		case objabi.R_ADDR:
-			if target.IsExternal() && rst != sym.SCONST {
+			if target.IsExternal() {
 				needExtReloc = true
 
 				// set up addend for eventual relocation via outer symbol.
@@ -441,7 +441,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 		// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
-			if target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 && rst != sym.SCONST {
+			if target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 {
 				needExtReloc = true
 				rr.Xadd = r.Add()
 				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
@@ -464,7 +464,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				o = 0
 				break
 			}
-			if target.IsExternal() && rs != 0 && rst != sym.SCONST && (ldr.SymSect(rs) != ldr.SymSect(s) || rt == objabi.R_GOTPCREL) {
+			if target.IsExternal() && rs != 0 && (ldr.SymSect(rs) != ldr.SymSect(s) || rt == objabi.R_GOTPCREL) {
 				needExtReloc = true
 
 				// set up addend for eventual relocation via outer symbol.
