@@ -1981,11 +1981,6 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 				l.builtinSyms[bi] = gi
 			}
 		}
-		if strings.HasPrefix(name, "go.string.") ||
-			strings.HasPrefix(name, "gclocals·") ||
-			strings.HasPrefix(name, "runtime.gcbits.") {
-			l.SetAttrNotInSymbolTable(gi, true)
-		}
 		if a := osym.Align(); a != 0 {
 			l.SetSymAlign(gi, int32(a))
 		}
