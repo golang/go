@@ -8,11 +8,11 @@ package gsort
 import (
 	"sort"
 
-	"contracts"
+	"constraints"
 )
 
 // orderedSlice is a slice of values of some ordered type.
-type orderedSlice(type Elem contracts.Ordered) []Elem
+type orderedSlice(type Elem constraints.Ordered) []Elem
 
 // orderedSlice implements sort.Interface.
 
@@ -30,7 +30,7 @@ func (s orderedSlice(Elem)) Less(i, j int) bool {
 func (s orderedSlice(Elem)) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // OrderedSlice sorts a slice of any ordered type in ascending order.
-func OrderedSlice(type Elem contracts.Ordered)(s []Elem) {
+func OrderedSlice(type Elem constraints.Ordered)(s []Elem) {
 	sort.Sort(orderedSlice(Elem)(s))
 }
 

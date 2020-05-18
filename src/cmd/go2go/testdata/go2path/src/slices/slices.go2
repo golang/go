@@ -8,7 +8,7 @@ package slices
 
 import (
 	"alg"
-	"contracts"
+	"constraints"
 )
 
 // Equal reports whether two slices are equal: the same length and all
@@ -76,7 +76,7 @@ func Filter(type Elem)(s []Elem, f func(Elem) bool) []Elem {
 
 // Max returns the maximum element in a slice of some ordered type.
 // If the slice is empty it returns the zero value of the element type.
-func Max(type Elem contracts.Ordered)(s []Elem) Elem {
+func Max(type Elem constraints.Ordered)(s []Elem) Elem {
 	if len(s) == 0 {
 		var zero Elem
 		return zero
@@ -86,7 +86,7 @@ func Max(type Elem contracts.Ordered)(s []Elem) Elem {
 
 // Min returns the minimum element in a slice of some ordered type.
 // If the slice is empty it returns the zero value of the element type.
-func Min(type Elem contracts.Ordered)(s []Elem) Elem {
+func Min(type Elem constraints.Ordered)(s []Elem) Elem {
 	if len(s) == 0 {
 		var zero Elem
 		return zero

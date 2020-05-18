@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package contracts defines some useful type bounds.
-package contracts
+// Package constraints defines some useful type constraints.
+package constraints
 
 // Ordered permits any ordered type: any type that supports
 // the operations <, <=, >=, >, as well as == and !=.
