@@ -157,6 +157,32 @@ TODO
   the language.
 </p>
 
+<h4 id="vet-impossible-interface">New warning for impossible interface conversions</h4>
+
+<p><!-- CL 218779, 232660 -->
+  The vet tool now warns about type assertions from one interface type
+  to another interface type when the type assertion will always fail.
+  This will happen if both interface types implement a method with the
+  same name but with a different type signature.
+</p>
+
+<p>
+  There is no reason to write a type assertion that always fails, so
+  any code that triggers this vet check should be rewritten.
+</p>
+
+<p>
+  This new vet check is enabled by default when using <code>go test</code>.
+</p>
+
+<p>
+  We are considering prohibiting impossible interface type assertions
+  in a future release of Go.
+  Such a language change would not be backward compatible.
+  We are using this vet check as a first trial step toward changing
+  the language.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
