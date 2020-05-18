@@ -154,6 +154,7 @@ func processFile(filename string, in io.Reader, out io.Writer, argType argumentT
 		// formatting has changed
 		if *list {
 			fmt.Fprintln(out, filename)
+			exitCode = 1
 		}
 		if *write {
 			if argType == fromStdin {
