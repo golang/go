@@ -789,7 +789,7 @@ func Main(archInit func(*Arch)) {
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpdata()
-	Ctxt.NumberSyms(false)
+	Ctxt.NumberSyms()
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
