@@ -164,7 +164,7 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 // Assign index to symbols.
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
-func (ctxt *Link) NumberSyms(asm bool) {
+func (ctxt *Link) NumberSyms() {
 	if ctxt.Headtype == objabi.Haix {
 		// Data must be sorted to keep a constant order in TOC symbols.
 		// As they are created during Progedit, two symbols can be switched between
@@ -181,7 +181,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 
 	var idx, nonpkgidx int32 = 0, 0
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if isNonPkgSym(ctxt, asm, s) {
+		if isNonPkgSym(ctxt, s) {
 			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
@@ -240,7 +240,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
 	})
 
 	// Compute a fingerprint of the indices, for exporting.
-	if !asm {
+	if !ctxt.IsAsm {
 		h := md5.New()
 		for _, s := range ctxt.defs {
 			h.Write([]byte(s.Name))
@@ -251,8 +251,8 @@ func (ctxt *Link) NumberSyms(asm bool) {
 
 // Returns whether s is a non-package symbol, which needs to be referenced
 // by name instead of by index.
-func isNonPkgSym(ctxt *Link, asm bool, s *LSym) bool {
-	if asm && !s.Static() {
+func isNonPkgSym(ctxt *Link, s *LSym) bool {
+	if ctxt.IsAsm && !s.Static() {
 		// asm symbols are referenced by name only, except static symbols
 		// which are file-local and can be referenced by index.
 		return true
