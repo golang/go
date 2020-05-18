@@ -11,6 +11,7 @@ import (
 )
 
 func TestRegenerateCgo(t *testing.T) {
+	t.Skip("This test fails in some environments: see golang.org/issues/39135")
 	testenv.NeedsTool(t, "cgo")
 
 	const workspace = `
