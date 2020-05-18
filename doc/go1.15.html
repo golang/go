@@ -116,6 +116,47 @@ TODO
   <code>GODEBUG=modcacheunzipinplace=1</code>.
 </p>
 
+<h3 id="vet">Vet</h3>
+
+<h4 id="vet-string-int">New warning for string(x)</h4>
+
+<p><!-- CL 212919, 232660 -->
+  The vet tool now warns about conversions of the
+  form <code>string(x)</code> where <code>x</code> has an integer type
+  other than <code>rune</code> or <code>byte</code>.
+  Experience with Go has shown that many conversions of this form
+  erroneously assume that <code>string(x)</code> evaluates to the
+  string representation of the integer <code>x</code>.
+  It actually evaluates to a string containing the UTF-8 encoding of
+  the value of <code>x</code>.
+  For example, <code>string(9786)</code> does not evaluate to the
+  string <code>"9786"</code>; it evaluates to the
+  string <code>"\xe2\x98\xba"</code>, or <code>"☺"</code>.
+</p>
+
+<p>
+  Code that is using <code>string(x)</code> correctly can be rewritten
+  to <code>string(rune(x))</code>.
+  Or, in some cases, calling <code>utf8.EncodeRune(buf, x)</code> with
+  a suitable byte slice <code>buf</code> may be the right solution.
+  Other code should most likely use <code>strconv.Itoa</code>
+  or <code>fmt.Sprint</code>.
+</p>
+
+<p>
+  This new vet check is enabled by default when using <code>go test</code>.
+</p>
+
+<p>
+  We are considering prohibiting the conversion in a future release of Go.
+  That is, the language would change to only
+  permit <code>string(x)</code> for integer <code>x</code> when the
+  type of <code>x</code> is <code>rune</code> or <code>byte</code>.
+  Such a language change would not be backward compatible.
+  We are using this vet check as a first trial step toward changing
+  the language.
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
