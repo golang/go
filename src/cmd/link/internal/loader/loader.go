@@ -661,7 +661,11 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
-	return strings.Replace(r.Sym(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
+	name := r.Sym(li).Name(r.Reader)
+	if !r.NeedNameExpansion() {
+		return name
+	}
+	return strings.Replace(name, "\"\".", r.pkgprefix, -1)
 }
 
 // Returns the version of the i-th symbol.
@@ -843,7 +847,7 @@ func (l *Loader) AttrShared(i Sym) bool {
 		// might make more sense to copy the flag value out of the
 		// object into a larger bitmap during preload.
 		r, _ := l.toLocal(i)
-		return (r.Flags() & goobj2.ObjFlagShared) != 0
+		return r.Shared()
 	}
 	return l.attrShared.Has(l.extIndex(i))
 }
@@ -1948,9 +1952,13 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		panic("preloadSyms: bad kind")
 	}
 	l.growAttrBitmaps(len(l.objSyms) + int(end-start))
+	needNameExpansion := r.NeedNameExpansion()
 	for i := start; i < end; i++ {
 		osym := r.Sym(i)
-		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+		name := osym.Name(r.Reader)
+		if needNameExpansion {
+			name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
+		}
 		v := abiToVer(osym.ABI(), r.version)
 		dupok := osym.Dupok()
 		gi, added := l.AddSym(name, v, r, i, kind, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())])
@@ -1998,9 +2006,13 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 	ndef := uint32(r.NSym() + r.NNonpkgdef())
+	needNameExpansion := r.NeedNameExpansion()
 	for i, n := uint32(0), uint32(r.NNonpkgref()); i < n; i++ {
 		osym := r.Sym(ndef + i)
-		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+		name := osym.Name(r.Reader)
+		if needNameExpansion {
+			name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
+		}
 		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
 		gi := r.syms[ndef+i]
@@ -2109,7 +2121,10 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// Read the particulars from object.
 	r, li := l.toLocal(symIdx)
 	osym := r.Sym(li)
-	sname := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+	sname := osym.Name(r.Reader)
+	if r.NeedNameExpansion() {
+		sname = strings.Replace(sname, "\"\".", r.pkgprefix, -1)
+	}
 	sver := abiToVer(osym.ABI(), r.version)
 	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 
