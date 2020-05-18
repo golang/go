@@ -97,7 +97,7 @@ func main() {
 	}
 	if ok && !*flags.SymABIs {
 		ctxt.NumberSyms(true)
-		obj.WriteObjFile(ctxt, buf, "")
+		obj.WriteObjFile(ctxt, buf, *flags.Importpath)
 	}
 	if !ok || diag {
 		if failedFile != "" {
