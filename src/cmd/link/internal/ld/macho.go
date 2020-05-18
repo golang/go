@@ -779,7 +779,7 @@ func collectmachosyms(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF || t == sym.SCONST { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				// TLSBSS is not used on darwin. See data.go:allocateDataSections
 				continue

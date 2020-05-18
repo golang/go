@@ -102,7 +102,6 @@ const (
 	SMACHOINDIRECTPLT
 	SMACHOINDIRECTGOT
 	SFILEPATH
-	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
 	SUNDEFEXT // Undefined symbol for resolution by external linker
