@@ -55,13 +55,18 @@ import (
 const (
 	// CommandGenerate is a gopls command to run `go test` for a specific test function.
 	CommandTest = "test"
+
 	// CommandGenerate is a gopls command to run `go generate` for a directory.
 	CommandGenerate = "generate"
+
 	// CommandTidy is a gopls command to run `go mod tidy` for a module.
 	CommandTidy = "tidy"
+
 	// CommandUpgradeDependency is a gopls command to upgrade a dependency.
-	CommandUpgradeDependency = "upgrade.dependency"
-	CommandRegenerateCgo     = "regenerate_cgo"
+	CommandUpgradeDependency = "upgrade_dependency"
+
+	// CommandRegenerateCfgo is a gopls command to regenerate cgo definitions.
+	CommandRegenerateCgo = "regenerate_cgo"
 )
 
 // DefaultOptions is the options that are used for Gopls execution independent
