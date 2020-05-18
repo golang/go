@@ -38,6 +38,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	if ctxt.Flag_shared {
 		flags |= goobj2.ObjFlagShared
 	}
+	if pkgpath == "" {
+		flags |= goobj2.ObjFlagNeedNameExpansion
+	}
 	h := goobj2.Header{
 		Magic:       goobj2.Magic,
 		Fingerprint: ctxt.Fingerprint,

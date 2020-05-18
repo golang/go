@@ -228,7 +228,8 @@ const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
 const SymABIstatic = ^uint16(0)
 
 const (
-	ObjFlagShared = 1 << iota
+	ObjFlagShared            = 1 << iota // this object is built with -shared
+	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
 )
 
 const (
@@ -675,3 +676,6 @@ func (r *Reader) ReadOnly() bool {
 func (r *Reader) Flags() uint32 {
 	return r.h.Flags
 }
+
+func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
+func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
