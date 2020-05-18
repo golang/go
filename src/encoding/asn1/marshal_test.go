@@ -92,6 +92,11 @@ type numericStringTest struct {
 	A string `asn1:"numeric"`
 }
 
+type emptyInterfaceTest struct {
+	A interface{}
+	B interface{} `asn1:"omitempty"`
+}
+
 type testSET []int
 
 var PST = time.FixedZone("PST", -8*60*60)
@@ -179,6 +184,7 @@ var marshalTests = []marshalTest{
 	{applicationTest{1, 2}, "30084001016103020102"},
 	{privateTest{1, 2, 3, 4}, "3011c00101e103020102df1f0103df81000104"},
 	{numericStringTest{"1 9"}, "30051203312039"},
+	{emptyInterfaceTest{1, nil}, "3003020101"},
 }
 
 func TestMarshal(t *testing.T) {
@@ -231,6 +237,7 @@ var marshalErrTests = []marshalErrTest{
 	{numericStringTest{"a"}, "invalid character"},
 	{ia5StringTest{"\xb0"}, "invalid character"},
 	{printableStringTest{"!"}, "invalid character"},
+	{emptyInterfaceTest{}, "nil value"},
 }
 
 func TestMarshalError(t *testing.T) {
