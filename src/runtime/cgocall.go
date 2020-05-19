@@ -321,6 +321,10 @@ func cgocallbackg1(ctxt uintptr) {
 		// On mipsx, stack frame is two words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+	case "riscv64":
+		// On riscv64, stack frame is two words and there's a saved LR between
+		// SP and the stack frame and between the stack frame and the arguments.
+		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
 	}
 
 	// Invoke callback.
@@ -356,7 +360,7 @@ func unwindm(restore *bool) {
 		switch GOARCH {
 		default:
 			throw("unwindm not implemented")
-		case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x", "mips", "mipsle":
+		case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x", "mips", "mipsle", "riscv64":
 			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
 		case "arm64":
 			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))

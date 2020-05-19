@@ -282,6 +282,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
+	// initialize SB = PC&0xffffffff00000000
+	AUIPC	$0, X3
+	SRL	$32, X3
+	SLL	$32, X3
+
 	MOVW	A0, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A2, 24(X2)

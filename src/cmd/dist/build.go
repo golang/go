@@ -1533,7 +1533,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
-	"linux/riscv64":   false, // Issue 36641
+	"linux/riscv64":   true,
 	"linux/s390x":     true,
 	"linux/sparc64":   true,
 	"android/386":     true,
