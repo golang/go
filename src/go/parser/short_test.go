@@ -108,10 +108,10 @@ var valids = []string{
 
 	// interfaces with type lists
 	`package p; type _ interface{type int}`,
-	`package p; type _ interface{untyped type int, float32; type rune}`,
+	`package p; type _ interface{underlying type int, float32; type rune}`,
 	`package p; type _ interface{type int, float32; type bool; m(); type string}`,
-	`package p; type _ interface{type int, float32; m(); type string; untyped type bool}`,
-	`package p; type _ interface{untyped type int; untyped(untyped) untyped}`,
+	`package p; type _ interface{type int, float32; m(); type string; underlying type bool}`,
+	`package p; type _ interface{underlying type int; underlying(underlying) underlying}`,
 
 	// interfaces with parenthesized embedded and possibly parameterized interfaces
 	`package p; type I1 interface{}; type I2 interface{ (I1) }`,

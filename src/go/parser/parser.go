@@ -1105,16 +1105,16 @@ L:
 			list = append(list, p.parseMethodSpec(scope, doc, nil))
 		case token.IDENT:
 			ident := p.parseIdent()
-			if ident.Name != "untyped" || p.tok != token.TYPE {
+			if ident.Name != "underlying" || p.tok != token.TYPE {
 				list = append(list, p.parseMethodSpec(scope, doc, ident))
 				break
 			}
-			// untyped type list
-			keyword = "untyped type"
+			// underlying type list
+			keyword = "underlying type"
 			fallthrough
 		case token.TYPE:
-			// All types in a type list share the same field name "type" or "untyped type".
-			// ("type" is a keyword and "untyped type" is not a valid identifier, thus this
+			// All types in a type list share the same field name "type" or "underlying type".
+			// ("type" is a keyword and "underlying type" is not a valid identifier, thus this
 			// name cannot be confused with a method name.)
 			name := []*ast.Ident{&ast.Ident{NamePos: p.pos, Name: keyword}}
 			p.next()
