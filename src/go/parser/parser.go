@@ -788,9 +788,8 @@ func (p *parser) parseDotsType() *ast.Ellipsis {
 }
 
 type field struct {
-	pointer bool
-	name    *ast.Ident
-	typ     ast.Expr
+	name *ast.Ident
+	typ  ast.Expr
 }
 
 func (p *parser) parseParamDecl() (f field) {
@@ -838,12 +837,17 @@ func (p *parser) parseTParamDecl() (f field) {
 		defer un(trace(p, "TParamDeclOrNil"))
 	}
 
+	ptr := false
 	if p.tok == token.MUL {
-		f.pointer = true
+		ptr = true
 		p.next()
 	}
 
 	f.name = p.parseIdent()
+	if ptr {
+		// encode pointer designation in the name
+		f.name.Name = "*" + f.name.Name
+	}
 
 	switch p.tok {
 	case token.IDENT:

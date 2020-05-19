@@ -194,7 +194,7 @@ func isDirective(c string) bool {
 //
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/(type) parameter names, or type "type"; or nil
+	Names   []*Ident      // field/method/(type, *type) parameter names; or one of "type", "untyped type"; or nil
 	Type    Expr          // field/method/parameter type, type list type, or contract name; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil

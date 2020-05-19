@@ -95,6 +95,7 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
+	dup(`interface{type int, float32, complex128}`),
 
 	// maps
 	dup("map[string]int"),
