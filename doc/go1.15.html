@@ -228,22 +228,6 @@ TODO
 TODO
 </p>
 
-<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
-  <dd>
-    <p><!-- golang.org/issue/28135 -->
-      The <code>testing.T</code> type now has a <code>Deadline</code> method
-      that reports the time at which the test binary will have exceeded its
-      timeout.
-    </p>
-    <p><!-- golang.org/issue/34129 -->
-      A <code>TestMain</code> function is no longer required to call
-      <code>os.Exit</code>. If a <code>TestMain</code> function returns,
-      the test binary will call <code>os.Exit</code> with the value returned
-      by <code>m.Run</code>.
-    </p>
-  </dd>
-</dl><!-- testing -->
-
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -448,6 +432,20 @@ TODO
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
+    <p><!-- golang.org/issue/28135 -->
+      The <code>testing.T</code> type now has a
+      <a href="/pkg/testing/#T.Deadline"><code>Deadline</code></a> method
+      that reports the time at which the test binary will have exceeded its
+      timeout.
+    </p>
+
+    <p><!-- golang.org/issue/34129 -->
+      A <code>TestMain</code> function is no longer required to call
+      <code>os.Exit</code>. If a <code>TestMain</code> function returns,
+      the test binary will call <code>os.Exit</code> with the value returned
+      by <code>m.Run</code>.
+    </p>
+
     <p><!-- CL 226877, golang.org/issue/35998 -->
        The new methods
        <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
