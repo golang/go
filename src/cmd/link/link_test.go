@@ -541,6 +541,10 @@ func TestOldLink(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	if runtime.GOOS == "linux" && runtime.GOARCH == "riscv64" {
+		t.Skipf("skipping because oldlink does not handle TLS on linux/riscv64")
+	}
+
 	// Check that the old linker exists (we don't ship it in binary releases,
 	// see issue 39509).
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "-n", "oldlink")

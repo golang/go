@@ -1982,6 +1982,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
 				break
 			}
+			if addr.Sym.Type == objabi.STLSBSS {
+				if rt == objabi.R_RISCV_PCREL_ITYPE {
+					rt = objabi.R_RISCV_TLS_IE_ITYPE
+				} else if rt == objabi.R_RISCV_PCREL_STYPE {
+					rt = objabi.R_RISCV_TLS_IE_STYPE
+				}
+			}
 
 			rel := obj.Addrel(cursym)
 			rel.Off = int32(p.Pc)
