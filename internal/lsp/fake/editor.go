@@ -703,7 +703,7 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 
 // CodeAction executes a codeAction request on the server.
 func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAction, error) {
-	if e.server == nil {
+	if e.Server == nil {
 		return nil, nil
 	}
 	e.mu.Lock()
@@ -715,7 +715,7 @@ func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAc
 	params := &protocol.CodeActionParams{
 		TextDocument: e.textDocumentIdentifier(path),
 	}
-	lens, err := e.server.CodeAction(ctx, params)
+	lens, err := e.Server.CodeAction(ctx, params)
 	if err != nil {
 		return nil, err
 	}
