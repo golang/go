@@ -151,10 +151,9 @@ func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, 
 }
 
 func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, origData []byte, origMapper *protocol.ColumnMapper, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
-	filename := ph.File().Identity().URI.Filename()
 	// Apply the fixes and re-parse the file so that we can locate the
 	// new imports.
-	fixedData, err := imports.ApplyFixes(fixes, filename, origData, options, parser.ImportsOnly)
+	fixedData, err := imports.ApplyFixes(fixes, "", origData, options, parser.ImportsOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -162,21 +161,21 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
 	}
 	// trim the original data to match fixedData
-	left := importPrefix(filename, origData)
+	left := importPrefix(origData)
 	if len(left) > 0 && left[len(left)-1] != '\n' {
 		left += "\n"
 	}
-	f := view.Options().ComputeEdits
-	edits := f(ph.File().Identity().URI, left, string(fixedData))
+	uri := ph.File().Identity().URI
+	edits := view.Options().ComputeEdits(uri, left, string(fixedData))
 	return ToProtocolEdits(origMapper, edits)
 }
 
 // return the prefix of the src through the last imports, or if there are
 // no imports, through the package statement (and a subsequent comment group)
-func importPrefix(filename string, src []byte) string {
+func importPrefix(src []byte) string {
 	fset := token.NewFileSet()
 	// do as little parsing as possible
-	f, err := parser.ParseFile(fset, filename, src, parser.ImportsOnly|parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ImportsOnly|parser.ParseComments)
 	if err != nil { // This can happen if 'package' is misspelled
 		return ""
 	}
@@ -191,17 +190,15 @@ func importPrefix(filename string, src []byte) string {
 			}
 		}
 	}
-	if importEnd > 0 {
-		return string(src[:importEnd])
+	if importEnd == 0 {
+		importEnd = pkgEnd
 	}
-	// If there are no imports there may still be comments after the package
-	// name. There could be one group before the package statement, and one after.
 	for _, c := range f.Comments {
-		if int(c.End()) > pkgEnd {
-			pkgEnd = int(c.End())
+		if int(c.End()) > importEnd {
+			importEnd = int(c.End())
 		}
 	}
-	return string(src[:pkgEnd])
+	return string(src[:importEnd])
 }
 
 func computeTextEdits(ctx context.Context, view View, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
