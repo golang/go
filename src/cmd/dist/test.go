@@ -953,7 +953,7 @@ func (t *tester) internalLink() bool {
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/10373
 	// https://golang.org/issue/14449
-	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
+	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
 		return false
 	}
 	if goos == "aix" {
@@ -1117,8 +1117,8 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"android-arm", "android-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
-		"netbsd-386", "netbsd-amd64", "linux-arm64":
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
+		"netbsd-386", "netbsd-amd64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
