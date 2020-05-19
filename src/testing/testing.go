@@ -822,11 +822,10 @@ var tempDirReplacer struct {
 }
 
 // TempDir returns a temporary directory for the test to use.
-// It is lazily created on first access, and calls t.Fatal if the directory
-// creation fails.
-// Subsequent calls to t.TempDir return the same directory.
 // The directory is automatically removed by Cleanup when the test and
 // all its subtests complete.
+// Each subsequent call to t.TempDir returns a unique directory;
+// if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.

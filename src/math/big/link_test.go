@@ -20,8 +20,9 @@ func TestLinkerGC(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()
+	tmp := t.TempDir()
 	goBin := testenv.GoToolPath(t)
-	goFile := filepath.Join(t.TempDir(), "x.go")
+	goFile := filepath.Join(tmp, "x.go")
 	file := []byte(`package main
 import _ "math/big"
 func main() {}
@@ -30,13 +31,13 @@ func main() {}
 		t.Fatal(err)
 	}
 	cmd := exec.Command(goBin, "build", "-o", "x.exe", "x.go")
-	cmd.Dir = t.TempDir()
+	cmd.Dir = tmp
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("compile: %v, %s", err, out)
 	}
 
 	cmd = exec.Command(goBin, "tool", "nm", "x.exe")
-	cmd.Dir = t.TempDir()
+	cmd.Dir = tmp
 	nm, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("nm: %v, %s", err, nm)
