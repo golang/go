@@ -26,7 +26,9 @@ import (
 	"unicode"
 )
 
-const methodTypeParamsOk = typeParamsOk // set this to 0 to disallow type params in methods
+const methodTParamsOk = true
+
+var contractsOk = false // changed by tests
 
 // The parser structure holds the parser's internal state.
 type parser struct {
@@ -786,11 +788,12 @@ func (p *parser) parseDotsType() *ast.Ellipsis {
 }
 
 type field struct {
-	name *ast.Ident
-	typ  ast.Expr
+	pointer bool
+	name    *ast.Ident
+	typ     ast.Expr
 }
 
-func (p *parser) parseParamDeclOrNil() (f field) {
+func (p *parser) parseParamDecl() (f field) {
 	if p.trace {
 		defer un(trace(p, "ParamDeclOrNil"))
 	}
@@ -799,11 +802,8 @@ func (p *parser) parseParamDeclOrNil() (f field) {
 	case token.IDENT:
 		f.name = p.parseIdent()
 		switch p.tok {
-		case token.IDENT, token.MUL, token.ARROW, token.FUNC, token.CHAN, token.MAP, token.STRUCT, token.INTERFACE, token.LPAREN:
+		case token.IDENT, token.MUL, token.ARROW, token.FUNC, token.LBRACK, token.CHAN, token.MAP, token.STRUCT, token.INTERFACE, token.LPAREN:
 			// name type
-			f.typ = p.parseType(true)
-
-		case token.LBRACK:
 			f.typ = p.parseType(true)
 
 		case token.ELLIPSIS:
@@ -811,7 +811,7 @@ func (p *parser) parseParamDeclOrNil() (f field) {
 			f.typ = p.parseDotsType()
 
 		case token.PERIOD:
-			// qualified.name
+			// qualified.typename
 			f.typ = p.parseTypeName(f.name)
 			f.name = nil
 		}
@@ -822,6 +822,7 @@ func (p *parser) parseParamDeclOrNil() (f field) {
 
 	case token.ELLIPSIS:
 		// ...type
+		// (always accepted)
 		f.typ = p.parseDotsType()
 
 	default:
@@ -832,7 +833,32 @@ func (p *parser) parseParamDeclOrNil() (f field) {
 	return
 }
 
-func (p *parser) parseParameterList(scope *ast.Scope, mode paramMode) (params []*ast.Field) {
+func (p *parser) parseTParamDecl() (f field) {
+	if p.trace {
+		defer un(trace(p, "TParamDeclOrNil"))
+	}
+
+	if p.tok == token.MUL {
+		f.pointer = true
+		p.next()
+	}
+
+	f.name = p.parseIdent()
+
+	switch p.tok {
+	case token.IDENT:
+		// type bound name
+		f.typ = p.parseType(true)
+
+	case token.INTERFACE, token.LPAREN:
+		// type bound
+		f.typ = p.parseType(true)
+	}
+
+	return
+}
+
+func (p *parser) parseParameterList(scope *ast.Scope, tparams bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -842,7 +868,12 @@ func (p *parser) parseParameterList(scope *ast.Scope, mode paramMode) (params []
 	var named int // number of parameters that have an explicit name and type
 
 	for p.tok != token.RPAREN && p.tok != token.EOF {
-		par := p.parseParamDeclOrNil()
+		var par field
+		if tparams {
+			par = p.parseTParamDecl()
+		} else {
+			par = p.parseParamDecl()
+		}
 		if par.name != nil || par.typ != nil {
 			list = append(list, par)
 			if par.name != nil && par.typ != nil {
@@ -938,7 +969,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	}
 
 	p.expect(token.TYPE)
-	fields := p.parseParameterList(scope, 0)
+	fields := p.parseParameterList(scope, true)
 	// determine which form we have (list of type parameters with optional
 	// contract, or type parameters, all with interfaces as type bounds)
 	for _, f := range fields {
@@ -952,14 +983,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	return &ast.FieldList{List: fields}
 }
 
-type paramMode int
-
-const (
-	typeParamsOk paramMode = 1 << iota
-	variadicOk
-)
-
-func (p *parser) parseParameters(scope *ast.Scope, mode paramMode, context string) (tparams, params *ast.FieldList) {
+func (p *parser) parseParameters(scope *ast.Scope, tparamsOk bool, context string) (tparams, params *ast.FieldList) {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
@@ -980,14 +1004,14 @@ func (p *parser) parseParameters(scope *ast.Scope, mode paramMode, context strin
 		lparen = p.expect(token.LPAREN)
 	}
 
-	if tparams != nil && mode&typeParamsOk == 0 {
+	if tparams != nil && !tparamsOk {
 		p.error(tparams.Opening, context+" must have no type parameters")
 		tparams = nil
 	}
 
 	var fields []*ast.Field
 	if p.tok != token.RPAREN {
-		fields = p.parseParameterList(scope, variadicOk)
+		fields = p.parseParameterList(scope, false)
 	}
 
 	rparen := p.expect(token.RPAREN)
@@ -1002,7 +1026,7 @@ func (p *parser) parseResult(scope *ast.Scope, typeContext bool) *ast.FieldList 
 	}
 
 	if p.tok == token.LPAREN {
-		_, results := p.parseParameters(scope, 0, "result")
+		_, results := p.parseParameters(scope, false, "result")
 		return results
 	}
 
@@ -1023,7 +1047,7 @@ func (p *parser) parseFuncType(typeContext bool) (*ast.FuncType, *ast.Scope) {
 
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
-	_, params := p.parseParameters(scope, variadicOk, "function type")
+	_, params := p.parseParameters(scope, false, "function type")
 	results := p.parseResult(scope, typeContext)
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}, scope
@@ -1043,7 +1067,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 			// method
 			idents = []*ast.Ident{ident}
 			scope := ast.NewScope(nil) // method scope
-			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+			tparams, params := p.parseParameters(scope, methodTParamsOk, "method")
 			results := p.parseResult(scope, true)
 			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
 		} else {
@@ -1847,6 +1871,10 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 
 	switch p.tok {
 	case token.IDENT:
+		if !contractsOk {
+			break
+		}
+
 		// possibly a local contract declaration - accept but complain
 		// Note: This still doesn't catch local grouped contract declarations
 		//       since they look like a function call at first. But those will
@@ -2633,7 +2661,7 @@ func (p *parser) parseConstraint() *ast.Constraint {
 			// method
 			mname = ident
 			scope := ast.NewScope(nil) // method scope
-			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+			tparams, params := p.parseParameters(scope, methodTParamsOk, "method")
 			results := p.parseResult(scope, true)
 			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
 		} else if star.IsValid() {
@@ -2737,16 +2765,16 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
 
-	mode := typeParamsOk
+	tparamsOk := true
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		_, recv = p.parseParameters(scope, 0, "receiver")
-		mode = 0
+		_, recv = p.parseParameters(scope, false, "receiver")
+		tparamsOk = methodTParamsOk
 	}
 
 	ident := p.parseIdent()
 
-	tparams, params := p.parseParameters(scope, mode|methodTypeParamsOk|variadicOk, "method") // context string only used in methods
+	tparams, params := p.parseParameters(scope, tparamsOk, "method") // context string only used in methods
 	results := p.parseResult(scope, true)
 
 	var body *ast.BlockStmt
@@ -2810,7 +2838,7 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 
 	case token.IDENT:
 		// TODO(gri) we need to be smarter about this to avoid problems with existing code
-		if p.lit == "contract" {
+		if contractsOk && p.lit == "contract" {
 			f = p.parseContractSpec
 			break
 		}

@@ -72,6 +72,10 @@ var valids = []string{
 	`package p; func _(x T(P1, P2, P3))`,
 	`package p; func _((T(P1, P2, P3)))`,
 
+	`package p; func _(type *P)()`,
+	`package p; func _(type *P B)()`,
+	`package p; func _(type P, *Q interface{})()`,
+
 	// method type parameters (if methodTypeParamsOk)
 	`package p; func _(type A, B)(a A) B`,
 	`package p; func _(type A, B C)(a A) B`,
@@ -113,6 +117,11 @@ var valids = []string{
 }
 
 func TestValid(t *testing.T) {
+	// enable contract parsing for this test
+	saved := contractsOk
+	contractsOk = true
+	defer func() { contractsOk = saved }()
+
 	for _, src := range valids {
 		checkErrors(t, src, src)
 	}
@@ -210,6 +219,11 @@ var invalids = []string{
 }
 
 func TestInvalid(t *testing.T) {
+	// enable contract parsing for this test
+	saved := contractsOk
+	contractsOk = true
+	defer func() { contractsOk = saved }()
+
 	for _, src := range invalids {
 		checkErrors(t, src, src)
 	}
