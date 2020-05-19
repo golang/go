@@ -24,10 +24,11 @@ import (
 // L               = 64 bit int, used when the opcode starts with F
 
 const (
-	riscv64REG_G    = 4
+	riscv64REG_G    = 27
 	riscv64REG_CTXT = 20
 	riscv64REG_LR   = 1
 	riscv64REG_SP   = 2
+	riscv64REG_TP   = 4
 	riscv64REG_TMP  = 31
 	riscv64REG_ZERO = 0
 )
@@ -78,8 +79,8 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_TMP:
+		// ZERO, TP and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_TP, riscv64REG_TMP:
 		case riscv64REG_G:
 			gpgMask |= mask
 			gpspsbgMask |= mask
