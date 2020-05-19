@@ -49,7 +49,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
 	//		sym		uint32

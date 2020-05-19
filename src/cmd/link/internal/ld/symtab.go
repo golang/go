@@ -185,7 +185,11 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
 		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
-		ctxt.loader.SetSymLocalElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
+		if ctxt.Target.IsRISCV64() && x.SymIdx == 0 {
+			x.SetGot(int32(ctxt.numelfsym))
+		} else {
+			ctxt.loader.SetSymLocalElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
+		}
 		ctxt.numelfsym++
 		return
 	} else if bind != ctxt.elfbind {
@@ -193,7 +197,11 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
 	}
 
 	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
-	ctxt.loader.SetSymElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
+	if ctxt.Target.IsRISCV64() && x.SymIdx == 0 {
+		x.SetGot(int32(ctxt.numelfsym))
+	} else {
+		ctxt.loader.SetSymElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
+	}
 	ctxt.numelfsym++
 }
 

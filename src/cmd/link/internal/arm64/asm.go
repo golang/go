@@ -325,7 +325,7 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
 	ctxt.Out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)

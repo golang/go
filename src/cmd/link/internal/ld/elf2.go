@@ -69,7 +69,7 @@ func elfrelocsect2(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			if !r.Xsym.Attr.Reachable() {
 				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
 			}
-			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+			if !thearch.Elfreloc1(ctxt, s, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
 				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
 			}
 		}
