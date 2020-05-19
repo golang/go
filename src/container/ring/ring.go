@@ -32,7 +32,7 @@ func (r *Ring) Next() *Ring {
 
 // Prev returns the previous ring element. r must not be empty.
 func (r *Ring) Prev() *Ring {
-	if r.next == nil {
+	if r.prev == nil {
 		return r.init()
 	}
 	return r.prev
