@@ -1132,7 +1132,7 @@ func getCompilationDir() string {
 	return "."
 }
 
-func (d *dwctxt) importInfoSymbol(ctxt *Link, dsym loader.Sym) {
+func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 	d.ldr.SetAttrReachable(dsym, true)
 	d.ldr.SetAttrNotInSymbolTable(dsym, true)
 	dst := d.ldr.SymType(dsym)
@@ -1744,6 +1744,76 @@ func (d *dwctxt) mkBuiltinType(ctxt *Link, abrv int, tname string) *dwarf.DWDie 
 	return die
 }
 
+// dwarfVisitFunction takes a function (text) symbol and processes the
+// subprogram DIE for the function and picks up any other DIEs
+// (absfns, types) that it references.
+func (d *dwctxt) dwarfVisitFunction(fnSym loader.Sym, unit *sym.CompilationUnit) {
+	// The DWARF subprogram DIE symbol is listed as an aux sym
+	// of the text (fcn) symbol, so ask the loader to retrieve it,
+	// as well as the associated range symbol.
+	infosym, _, rangesym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
+	if infosym == 0 {
+		return
+	}
+	d.ldr.SetAttrNotInSymbolTable(infosym, true)
+	d.ldr.SetAttrReachable(infosym, true)
+	unit.FuncDIEs = append(unit.FuncDIEs, sym.LoaderSym(infosym))
+	if rangesym != 0 {
+		rs := len(d.ldr.Data(rangesym))
+		d.ldr.SetAttrNotInSymbolTable(rangesym, true)
+		d.ldr.SetAttrReachable(rangesym, true)
+		if d.linkctxt.IsAIX() {
+			addDwsectCUSize(".debug_ranges", unit.Lib.Pkg, uint64(rs))
+		}
+		unit.RangeSyms = append(unit.RangeSyms, sym.LoaderSym(rangesym))
+	}
+
+	// Walk the relocations of the subprogram DIE symbol to discover
+	// references to abstract function DIEs, Go type DIES, and
+	// (via R_USETYPE relocs) types that were originally assigned to
+	// locals/params but were optimized away.
+	drelocs := d.ldr.Relocs(infosym)
+	for ri := 0; ri < drelocs.Count(); ri++ {
+		r := drelocs.At2(ri)
+		// Look for "use type" relocs.
+		if r.Type() == objabi.R_USETYPE {
+			d.defgotype(r.Sym())
+			continue
+		}
+		if r.Type() != objabi.R_DWARFSECREF {
+			continue
+		}
+
+		rsym := r.Sym()
+		rst := d.ldr.SymType(rsym)
+
+		// Look for abstract function references.
+		if rst == sym.SDWARFABSFCN {
+			if !d.ldr.AttrOnList(rsym) {
+				// abstract function
+				d.ldr.SetAttrOnList(rsym, true)
+				unit.AbsFnDIEs = append(unit.AbsFnDIEs, sym.LoaderSym(rsym))
+				d.importInfoSymbol(rsym)
+			}
+			continue
+		}
+
+		// Look for type references.
+		if rst != sym.SDWARFTYPE && rst != sym.Sxxx {
+			continue
+		}
+		if _, ok := d.rtmap[rsym]; ok {
+			// type already generated
+			continue
+		}
+
+		rsn := d.ldr.SymName(rsym)
+		tn := rsn[len(dwarf.InfoPrefix):]
+		ts := d.ldr.Lookup("type."+tn, 0)
+		d.defgotype(ts)
+	}
+}
+
 // dwarfGenerateDebugInfo generated debug info entries for all types,
 // variables and functions in the program.
 // Along with dwarfGenerateDebugSyms they are the two main entry points into
@@ -1818,7 +1888,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			// We drop the constants into the first CU.
 			if consts != 0 {
 				unit.Consts = sym.LoaderSym(consts)
-				d.importInfoSymbol(ctxt, consts)
+				d.importInfoSymbol(consts)
 				consts = 0
 			}
 			ctxt.compUnits = append(ctxt.compUnits, unit)
@@ -1868,56 +1938,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			}
 			newattr(unit.DWInfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
 
-			// Scan all functions in this compilation unit, create DIEs for all
-			// referenced types, create the file table for debug_line, find all
-			// referenced abstract functions.
-			// Collect all debug_range symbols in unit.rangeSyms
-			for _, s := range unit.Textp { // Textp has been dead-code-eliminated already.
-				fnSym := loader.Sym(s)
-				infosym, _, rangesym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
-				if infosym == 0 {
-					continue
-				}
-				d.ldr.SetAttrNotInSymbolTable(infosym, true)
-				d.ldr.SetAttrReachable(infosym, true)
-
-				unit.FuncDIEs = append(unit.FuncDIEs, sym.LoaderSym(infosym))
-				if rangesym != 0 {
-					rs := len(d.ldr.Data(rangesym))
-					d.ldr.SetAttrNotInSymbolTable(rangesym, true)
-					d.ldr.SetAttrReachable(rangesym, true)
-					if ctxt.HeadType == objabi.Haix {
-						addDwsectCUSize(".debug_ranges", unit.Lib.Pkg, uint64(rs))
-					}
-					unit.RangeSyms = append(unit.RangeSyms, sym.LoaderSym(rangesym))
-				}
-
-				drelocs := d.ldr.Relocs(infosym)
-				for ri := 0; ri < drelocs.Count(); ri++ {
-					r := drelocs.At2(ri)
-					if r.Type() == objabi.R_DWARFSECREF {
-						rsym := r.Sym()
-						rsn := d.ldr.SymName(rsym)
-						if len(rsn) == 0 {
-							continue
-						}
-						// NB: there should be a better way to do this that doesn't involve materializing the symbol name and doing string prefix+suffix checks.
-						if strings.HasPrefix(rsn, dwarf.InfoPrefix) && strings.HasSuffix(rsn, dwarf.AbstractFuncSuffix) && !d.ldr.AttrOnList(rsym) {
-							// abstract function
-							d.ldr.SetAttrOnList(rsym, true)
-							unit.AbsFnDIEs = append(unit.AbsFnDIEs, sym.LoaderSym(rsym))
-							d.importInfoSymbol(ctxt, rsym)
-							continue
-						}
-						if _, ok := d.rtmap[rsym]; ok {
-							// type already generated
-							continue
-						}
-						tn := rsn[len(dwarf.InfoPrefix):]
-						ts := d.ldr.Lookup("type."+tn, 0)
-						d.defgotype(ts)
-					}
-				}
+			// Scan all functions in this compilation unit, create
+			// DIEs for all referenced types, find all referenced
+			// abstract functions, visit range symbols. Note that
+			// Textp has been dead-code-eliminated already.
+			for _, s := range unit.Textp {
+				d.dwarfVisitFunction(loader.Sym(s), unit)
 			}
 		}
 	}
@@ -1964,26 +1990,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		sv := d.ldr.SymValue(idx)
 		gt := d.ldr.SymGoType(idx)
 		d.dwarfDefineGlobal(ctxt, idx, sn, sv, gt)
-	}
-
-	// Create DIEs for variable types indirectly referenced by function
-	// autos (which may not appear directly as param/var DIEs).
-	for _, lib := range ctxt.Library {
-		for _, unit := range lib.Units {
-			lists := [][]sym.LoaderSym{unit.AbsFnDIEs, unit.FuncDIEs}
-			for _, list := range lists {
-				for _, s := range list {
-					symIdx := loader.Sym(s)
-					relocs := d.ldr.Relocs(symIdx)
-					for i := 0; i < relocs.Count(); i++ {
-						r := relocs.At2(i)
-						if r.Type() == objabi.R_USETYPE {
-							d.defgotype(r.Sym())
-						}
-					}
-				}
-			}
-		}
 	}
 
 	d.synthesizestringtypes(ctxt, dwtypes.Child)
