@@ -553,6 +553,7 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 	mux.Handle("example.com:3000/pkg/connect/", stringHandler("example.com:3000/pkg/connect/"))
 	mux.Handle("example.com:9000/", stringHandler("example.com:9000/"))
 	mux.Handle("/pkg/baz/", stringHandler("/pkg/baz/"))
+	mux.Handle("example.com/r/", stringHandler("example.com/r/https%3A%2F%2Fgoogle.com"))
 
 	tests := []struct {
 		method string
@@ -562,11 +563,13 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 		want   string
 	}{
 		{"GET", "http://example.com/", 404, "", ""},
+		{"GET", "http://example.com//", 301, "http://example.com/", ""},
 		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
 		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
 		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
 		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
 		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/r/https%3A%2F%2Fgoogle.com", 200, "", "example.com/r/https%3A%2F%2Fgoogle.com"},
 		{"CONNECT", "http://example.com/", 404, "", ""},
 		{"CONNECT", "http://example.com:3000/", 404, "", ""},
 		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
