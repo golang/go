@@ -202,9 +202,9 @@ func _(type T interface{ m(); type int })() {
 }
 
 // As a special case, an explicit type parameter may be omitted
-// from a type parameter bound if there is exactly one type
-// parameter to which the type bound applies, and the type bound
-// expects exactly one type argument.
+// from a type parameter bound if the type bound expects exactly
+// one type argument. In that case, the type argument is the
+// respective type paramater to which the type bound applies.
 type Adder(type T) interface {
 	Add(T) T
 }
@@ -229,7 +229,19 @@ func _(type T1 B1)()
 func _(type T1 B2 /* ERROR cannot use generic type .* without instantiation */ )()
 
 func _(type T1, T2 B0)()
-func _(type T1, T2 B1 /* ERROR cannot use generic type .* without instantiation */ )()
+func _(type T1, T2 B1)()
 func _(type T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ )()
 
 func _(type T1 B0, T2 B1)() // here B1 applies to T2
+
+// When the type argument is left away, the type bound is
+// instantiated for each type parameter with that type
+// parameter.
+func _(type A, B Adder, C Adder(A))() {
+	var a A // A's type bound is Adder(A)
+	a = a.Add(a)
+	var b B // B's type bound is Adder(B)
+	b = b.Add(b)
+	var c C // C's type bound is Adder(A)
+	a = c.Add(a)
+}

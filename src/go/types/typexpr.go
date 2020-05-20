@@ -722,7 +722,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			case "underlying type":
 				types = append(types, f.Type)
 				if firstUnderlying {
-					check.errorf(name.Pos(), `"underlying" designation recognized but currently ignored`)
+					check.errorf(name.Pos(), `"underlying" designation not yet supported ("underlying" is ignored)`)
 					firstUnderlying = false
 				}
 				continue

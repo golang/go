@@ -680,42 +680,50 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// TODO(gri) We should try to delay the IsInterface check
 		//           as it may expand a possibly incomplete type.
 		if bound := check.anyType(f.Type); IsInterface(bound) {
-			// If we have exactly one type parameter and the type bound expects exactly
-			// one type argument, permit leaving away the type argument for the type
-			// bound. This allows us to write (type T B(T)) as (type T B) instead.
+			// If the type bound expects exactly one type argument, permit leaving
+			// it away and use the corresponding type parameter as implicit argument.
+			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
 			if isGeneric(bound) {
 				base := bound.(*Named) // only a *Named type can be generic
-				if len(f.Names) != 1 || len(base.tparams) != 1 {
-					// TODO(gri) make this error message better
+				if len(base.tparams) != 1 {
 					check.errorf(f.Type.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)
-					bound = Typ[Invalid]
 					goto next
 				}
-				// We have and expect exactly one type parameter.
-				// "Manually" instantiate the bound with the parameter.
+				// We have exactly one type parameter.
+				// "Manually" instantiate the bound with each type
+				// parameter the bound applies to.
 				// TODO(gri) this code (in more general form) is also in
 				// checker.typInternal for the *ast.CallExpr case. Factor?
-				typ := new(instance)
-				typ.check = check
-				typ.pos = f.Type.Pos()
-				typ.base = base
-				typ.targs = []Type{tparams[index].typ}
-				typ.poslist = []token.Pos{f.Names[0].Pos()}
-				// make sure we check instantiation works at least once
-				// and that the resulting type is valid
-				check.atEnd(func() {
-					t := typ.expand()
-					check.validType(t, nil)
-				})
-				// update bound and recorded type
-				bound = typ
-				check.recordTypeAndValue(f.Type, typexpr, typ, nil)
+				for i, name := range f.Names {
+					typ := new(instance)
+					typ.check = check
+					typ.pos = f.Type.Pos()
+					typ.base = base
+					typ.targs = []Type{tparams[index+i].typ}
+					typ.poslist = []token.Pos{name.Pos()}
+					// Make sure we check instantiation works at least once
+					// and that the resulting type is valid.
+					check.atEnd(func() {
+						check.validType(typ.expand(), nil)
+					})
+					// Set bound for each type parameter and record type.
+					setBoundAt(index+i, typ)
+					// We don't have a mechanism to record multiple different types
+					// for a single type bound expression. Just do it for the first
+					// type parameter for now.
+					// TODO(gri) investigate what we need to do here
+					if i == 0 {
+						check.recordTypeAndValue(f.Type, typexpr, typ, nil)
+					}
+				}
+				goto next
 			}
+			// Otherwise, set the bound for each type parameter.
 			for i, _ := range f.Names {
 				setBoundAt(index+i, bound)
 			}
 		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type.Pos(), "%s is not an interface or contract", bound)
+			check.errorf(f.Type.Pos(), "%s is not an interface", bound)
 		}
 
 	next:
@@ -843,7 +851,7 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
 		nstr := name.Name
 		if len(nstr) > 0 && nstr[0] == '*' {
 			nstr = nstr[1:]
-			check.errorf(name.Pos(), "warning: *-designation recognized but currently ignored")
+			check.errorf(name.Pos(), `pointer designation not yet supported ("*" is ignored)`)
 		}
 		tpar := NewTypeName(name.Pos(), check.pkg, nstr, nil)
 		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
