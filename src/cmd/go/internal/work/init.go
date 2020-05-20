@@ -25,6 +25,12 @@ func BuildInit() {
 	instrumentInit()
 	buildModeInit()
 
+	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+
 	// Make sure -pkgdir is absolute, because we run commands
 	// in different directories.
 	if cfg.BuildPkgdir != "" && !filepath.IsAbs(cfg.BuildPkgdir) {
@@ -284,4 +290,11 @@ func inGOFLAGS(flag string) bool {
 		}
 	}
 	return false
+}
+
+func CheckGOOSARCHPair(goos, goarch string) error {
+	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
+	}
+	return nil
 }
