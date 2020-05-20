@@ -801,10 +801,6 @@ func (state *dodataState) dynreloc(ctxt *Link) {
 	}
 }
 
-func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	CodeblkPad(ctxt, out, addr, size, zeros[:])
-}
-
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
 	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp, addr, size, pad)
 }
@@ -951,8 +947,8 @@ func writeBlock(out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size i
 
 type writeFn func(*Link, *OutBuf, int64, int64)
 
-// WriteParallel handles scheduling parallel execution of data write functions.
-func WriteParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
+// writeParallel handles scheduling parallel execution of data write functions.
+func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
 	if out, err := ctxt.Out.View(seek); err != nil {
 		ctxt.Out.SeekSet(int64(seek))
 		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
@@ -981,7 +977,7 @@ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap, addr, size, zeros[:])
 }
 
-func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	// Concatenate the section symbol lists into a single list to pass
 	// to writeBlocks.
 	//
