@@ -428,7 +428,8 @@ func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
 	// Most aux symbols (ex: funcdata) are not interesting--
 	// pick out just the DWARF ones for now.
 	if aux.Type != objabi.SDWARFLOC &&
-		aux.Type != objabi.SDWARFINFO &&
+		aux.Type != objabi.SDWARFFCN &&
+		aux.Type != objabi.SDWARFABSFCN &&
 		aux.Type != objabi.SDWARFLINES &&
 		aux.Type != objabi.SDWARFRANGE {
 		return

@@ -277,24 +277,37 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string, version in
 
 	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
 
-	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
-		// Q: do we need version here? My understanding is that all these
-		// symbols should be version 0.
-		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
-			if abbrev == dwarf.DW_ABRV_COMPUNIT {
-				// Avoid collisions with "real" symbol names.
-				name = fmt.Sprintf(".pkg.%s.%d", name, len(d.linkctxt.compUnits))
-			}
-			ds := d.ldr.LookupOrCreateSym(dwarf.InfoPrefix+name, version)
-			dsu := d.ldr.MakeSymbolUpdater(ds)
-			dsu.SetType(sym.SDWARFINFO)
-			d.ldr.SetAttrNotInSymbolTable(ds, true)
-			d.ldr.SetAttrReachable(ds, true)
-			die.Sym = dwSym(ds)
-			if abbrev >= dwarf.DW_ABRV_NULLTYPE && abbrev <= dwarf.DW_ABRV_TYPEDECL {
-				d.tmap[name] = ds
-			}
-		}
+	// Sanity check: all DIEs created in the linker should have a non-empty
+	// name and be version zero.
+	if name == "" || version != 0 {
+		panic("nameless or version non-zero DWARF DIE")
+	}
+
+	var st sym.SymKind
+	switch abbrev {
+	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
+		// There are no relocations against these dies, and their names
+		// are not unique, so don't create a symbol.
+		return die
+	case dwarf.DW_ABRV_COMPUNIT, dwarf.DW_ABRV_COMPUNIT_TEXTLESS:
+		// Avoid collisions with "real" symbol names.
+		name = fmt.Sprintf(".pkg.%s.%d", name, len(d.linkctxt.compUnits))
+		st = sym.SDWARFCUINFO
+	case dwarf.DW_ABRV_VARIABLE:
+		st = sym.SDWARFVAR
+	default:
+		// Everything else is assigned a type of SDWARFTYPE. that
+		// this also includes loose ends such as STRUCT_FIELD.
+		st = sym.SDWARFTYPE
+	}
+	ds := d.ldr.LookupOrCreateSym(dwarf.InfoPrefix+name, version)
+	dsu := d.ldr.MakeSymbolUpdater(ds)
+	dsu.SetType(st)
+	d.ldr.SetAttrNotInSymbolTable(ds, true)
+	d.ldr.SetAttrReachable(ds, true)
+	die.Sym = dwSym(ds)
+	if abbrev >= dwarf.DW_ABRV_NULLTYPE && abbrev <= dwarf.DW_ABRV_TYPEDECL {
+		d.tmap[name] = ds
 	}
 
 	return die
@@ -480,7 +493,7 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, gotype loader.Sym, name string, 
 	// to be an anonymous symbol (we want this for perf reasons).
 	tds := d.ldr.CreateExtSym("", 0)
 	tdsu := d.ldr.MakeSymbolUpdater(tds)
-	tdsu.SetType(sym.SDWARFINFO)
+	tdsu.SetType(sym.SDWARFTYPE)
 	def.Sym = dwSym(tds)
 	d.ldr.SetAttrNotInSymbolTable(tds, true)
 	d.ldr.SetAttrReachable(tds, true)
@@ -850,7 +863,7 @@ func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valna
 	name := mkinternaltypename(typename, keyname, valname)
 	symname := dwarf.InfoPrefix + name
 	s := d.ldr.Lookup(symname, 0)
-	if s != 0 && d.ldr.SymType(s) == sym.SDWARFINFO {
+	if s != 0 && d.ldr.SymType(s) == sym.SDWARFTYPE {
 		return s
 	}
 	die := d.newdie(&dwtypes, abbrev, name, 0)
@@ -1122,7 +1135,8 @@ func getCompilationDir() string {
 func (d *dwctxt) importInfoSymbol(ctxt *Link, dsym loader.Sym) {
 	d.ldr.SetAttrReachable(dsym, true)
 	d.ldr.SetAttrNotInSymbolTable(dsym, true)
-	if d.ldr.SymType(dsym) != sym.SDWARFINFO {
+	dst := d.ldr.SymType(dsym)
+	if dst != sym.SDWARFCONST && dst != sym.SDWARFABSFCN {
 		log.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
 	}
 	relocs := d.ldr.Relocs(dsym)
@@ -1492,7 +1506,7 @@ func (d *dwctxt) writeinfo(units []*sym.CompilationUnit, abbrevsym loader.Sym, p
 
 	infosec := d.ldr.LookupOrCreateSym(".debug_info", 0)
 	disu := d.ldr.MakeSymbolUpdater(infosec)
-	disu.SetType(sym.SDWARFINFO)
+	disu.SetType(sym.SDWARFCUINFO)
 	d.ldr.SetAttrReachable(infosec, true)
 	syms := []loader.Sym{infosec}
 
@@ -1814,7 +1828,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				ctxt.runtimeCU = unit
 			}
 
-			unit.DWInfo = d.newdie(&dwroot, dwarf.DW_ABRV_COMPUNIT, unit.Lib.Pkg, 0)
+			cuabrv := dwarf.DW_ABRV_COMPUNIT
+			if len(unit.Textp) == 0 {
+				cuabrv = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
+			}
+			unit.DWInfo = d.newdie(&dwroot, cuabrv, unit.Lib.Pkg, 0)
 			newattr(unit.DWInfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(dwarf.DW_LANG_Go), 0)
 			// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
 			compDir := getCompilationDir()
@@ -1849,10 +1867,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				pkgname = string(pnsData)
 			}
 			newattr(unit.DWInfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
-
-			if len(unit.Textp) == 0 {
-				unit.DWInfo.Abbrev = dwarf.DW_ABRV_COMPUNIT_TEXTLESS
-			}
 
 			// Scan all functions in this compilation unit, create DIEs for all
 			// referenced types, create the file table for debug_line, find all
