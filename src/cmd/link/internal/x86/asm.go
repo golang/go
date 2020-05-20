@@ -310,31 +310,6 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			su.SetRelocSym(rIdx, 0)
 			return true
 		}
-
-		if target.IsDarwin() && ldr.SymSize(s) == int64(target.Arch.PtrSize) && r.Off() == 0 {
-			// Mach-O relocations are a royal pain to lay out.
-			// They use a compact stateful bytecode representation
-			// that is too much bother to deal with.
-			// Instead, interpret the C declaration
-			//	void *_Cvar_stderr = &stderr;
-			// as making _Cvar_stderr the name of a GOT entry
-			// for stderr. This is separate from the usual GOT entry,
-			// just in case the C code assigns to the variable,
-			// and of course it only works for single pointers,
-			// but we only need to support cgo and that's all it needs.
-			ld.Adddynsym(ldr, target, syms, targ)
-
-			got := ldr.MakeSymbolUpdater(syms.GOT)
-			su := ldr.MakeSymbolUpdater(s)
-			su.SetType(got.Type())
-			got.PrependSub(s)
-			su.SetValue(got.Size())
-			got.AddUint32(target.Arch, 0)
-			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
-			leg.AddUint32(target.Arch, uint32(ldr.SymDynid(targ)))
-			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
-			return true
-		}
 	}
 
 	return false
@@ -512,23 +487,6 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(sDynid), uint32(elf.R_386_JMP_SLOT)))
 
 		ldr.SetPlt(s, int32(plt.Size()-16))
-	} else if target.IsDarwin() {
-		// Same laziness as in 6l.
-
-		plt := ldr.MakeSymbolUpdater(syms.PLT)
-
-		addgotsym(target, ldr, syms, s)
-
-		sDynid := ldr.SymDynid(s)
-		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT)
-		lep.AddUint32(target.Arch, uint32(sDynid))
-
-		// jmpq *got+size(IP)
-		ldr.SetPlt(s, int32(plt.Size()))
-
-		plt.AddUint8(0xff)
-		plt.AddUint8(0x25)
-		plt.AddAddrPlus(target.Arch, syms.GOT, int64(ldr.SymGot(s)))
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
@@ -548,9 +506,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		rel := ldr.MakeSymbolUpdater(syms.Rel)
 		rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
 		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_386_GLOB_DAT)))
-	} else if target.IsDarwin() {
-		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
-		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
 	} else {
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
