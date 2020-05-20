@@ -1762,8 +1762,24 @@
 		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc == OpARM64LessThanU
 	=> (RORW x y)
 
+// rev16w | rev16
 // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) => (REV16W x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	=> (REV16W x)
+
+// ((x & 0xff00ff00ff00ff00)>>8) | ((x & 0x00ff00ff00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
+	=> (REV16 x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
+	=> (REV16 (ANDconst <x.Type> [0xffffffff] x))
 
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
