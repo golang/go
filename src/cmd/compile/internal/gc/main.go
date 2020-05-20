@@ -1488,7 +1488,7 @@ func recordFlags(flags ...string) {
 		return
 	}
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
@@ -1500,7 +1500,7 @@ func recordFlags(flags ...string) {
 // compiled, so that the linker can save it in the compile unit's DIE.
 func recordPackageName() {
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)

@@ -205,7 +205,7 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 	}
 	if s.Func.dwarfInfoSym == nil {
 		s.Func.dwarfInfoSym = &LSym{
-			Type: objabi.SDWARFINFO,
+			Type: objabi.SDWARFFCN,
 		}
 		if ctxt.Flag_locationlists {
 			s.Func.dwarfLocSym = &LSym{
@@ -296,7 +296,7 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) 
 		return
 	}
 	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func(s *LSym) {
-		s.Type = objabi.SDWARFINFO
+		s.Type = objabi.SDWARFCONST
 		ctxt.Data = append(ctxt.Data, s)
 	})
 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
@@ -422,7 +422,7 @@ func (ft *DwarfFixupTable) SetPrecursorFunc(s *LSym, fn interface{}) {
 	// the back end.
 	absfn := ft.ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name+dwarf.AbstractFuncSuffix)
 	absfn.Set(AttrDuplicateOK, true)
-	absfn.Type = objabi.SDWARFINFO
+	absfn.Type = objabi.SDWARFABSFCN
 	ft.ctxt.Data = append(ft.ctxt.Data, absfn)
 
 	// In the case of "late" inlining (inlines that happen during

@@ -1539,7 +1539,7 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 		switch a.Type() {
 		case goobj2.AuxDwarfInfo:
 			auxDwarfInfo = l.resolve(r, a.Sym())
-			if l.SymType(auxDwarfInfo) != sym.SDWARFINFO {
+			if l.SymType(auxDwarfInfo) != sym.SDWARFFCN {
 				panic("aux dwarf info sym with wrong type")
 			}
 		case goobj2.AuxDwarfLoc:
@@ -2105,7 +2105,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
 		return true
 	}
 	switch skind {
-	case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES, sym.SGOFUNC:
+	case sym.SDWARFFCN, sym.SDWARFABSFCN, sym.SDWARFTYPE, sym.SDWARFCONST, sym.SDWARFCUINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES, sym.SGOFUNC:
 		return true
 	default:
 		return false
