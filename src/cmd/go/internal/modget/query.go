@@ -295,7 +295,11 @@ func reportError(q *query, err error) {
 		}
 	}
 
-	base.Errorf("go get %s: %s", q, errStr)
+	if qs := q.String(); qs != "" {
+		base.Errorf("go get %s: %s", qs, errStr)
+	} else {
+		base.Errorf("go get: %s", errStr)
+	}
 }
 
 func reportConflict(pq *query, m module.Version, conflict versionReason) {
