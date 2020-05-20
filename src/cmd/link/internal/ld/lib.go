@@ -184,8 +184,18 @@ type Arch struct {
 	Openbsddynld   string
 	Dragonflydynld string
 	Solarisdynld   string
-	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
-	Archinit       func(*Link)
+
+	// Empty spaces between codeblocks will be padded with this value.
+	// For example an architecture might want to pad with a trap instruction to
+	// catch wayward programs. Architectures that do not define a padding value
+	// are padded with zeros.
+	CodePad []byte
+
+	// Set to true to write all text blocks in with CodeBlkWrite
+	WriteTextBlocks bool
+
+	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
+	Archinit  func(*Link)
 	// Archreloc is an arch-specific hook that assists in relocation processing
 	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
 	// Here "rel" is the current relocation being examined, "sym" is the symbol
@@ -212,10 +222,13 @@ type Arch struct {
 	// index of the relocation.
 	Trampoline func(ctxt *Link, ldr *loader.Loader, ri int, rs, s loader.Sym)
 
-	// Asmb and Asmb2 are arch-specific routines that write the output
-	// file. Typically, Asmb writes most of the content (sections and
-	// segments), for which we have computed the size and offset. Asmb2
-	// writes the rest.
+	// Assembling the binary breaks into two phases, writing the code/data/
+	// dwarf information (which is rather generic), and some more architecture
+	// specific work like setting up the elf headers/dynamic relocations, etc.
+	// The phases are called "Asmb" and "Asmb2". Asmb2 needs to be defined for
+	// every architecture, but only if architecture has an Asmb function will
+	// it be used for assembly.  Otherwise a generic assembly Asmb function is
+	// used.
 	Asmb  func(*Link, *loader.Loader)
 	Asmb2 func(*Link, *loader.Loader)
 
