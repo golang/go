@@ -505,6 +505,12 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
 			continue
 		}
 
+		// If there were no arguments, CleanPatterns returns ".". Set the raw
+		// string back to "" for better errors.
+		if len(rawArgs) == 0 {
+			q.raw = ""
+		}
+
 		// Guard against 'go get x.go', a common mistake.
 		// Note that package and module paths may end with '.go', so only print an error
 		// if the argument has no version and either has no slash or refers to an existing file.
@@ -820,6 +826,9 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 			}
 
 			if len(match.Pkgs) == 0 {
+				if q.raw == "" || q.raw == "." {
+					return errSet(fmt.Errorf("no package in current directory"))
+				}
 				if !q.isWildcard() {
 					return errSet(fmt.Errorf("%s%s is not a package in module rooted at %s", q.pattern, absDetail, modload.ModRoot()))
 				}
