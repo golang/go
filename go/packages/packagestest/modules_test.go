@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.11
-
 package packagestest_test
 
 import (
@@ -11,9 +9,11 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestModulesExport(t *testing.T) {
+	testenv.NeedsGo1Point(t, 11)
 	exported := packagestest.Export(t, packagestest.Modules, testdata)
 	defer exported.Cleanup()
 	// Check that the cfg contains all the right bits

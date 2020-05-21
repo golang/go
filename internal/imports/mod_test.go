@@ -1,5 +1,3 @@
-// +build go1.11
-
 package imports
 
 import (
@@ -21,6 +19,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/gopathwalk"
+	"golang.org/x/tools/internal/proxydir"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
@@ -647,6 +646,7 @@ type modTest struct {
 // in testdata/mod, along the lines of TestScript in cmd/go.
 func setup(t *testing.T, main, wd string) *modTest {
 	t.Helper()
+	testenv.NeedsGo1Point(t, 11)
 	testenv.NeedsTool(t, "go")
 
 	proxyOnce.Do(func() {
@@ -674,7 +674,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		GOROOT:      build.Default.GOROOT,
 		GOPATH:      filepath.Join(dir, "gopath"),
 		GO111MODULE: "on",
-		GOPROXY:     proxyDirToURL(proxyDir),
+		GOPROXY:     proxydir.ToURL(proxyDir),
 		GOSUMDB:     "off",
 		WorkingDir:  filepath.Join(mainDir, wd),
 		GocmdRunner: &gocommand.Runner{},
@@ -834,6 +834,7 @@ import _ "rsc.io/quote"
 
 // Tests that crud in the module cache is ignored.
 func TestInvalidModCache(t *testing.T) {
+	testenv.NeedsGo1Point(t, 11)
 	dir, err := ioutil.TempDir("", t.Name())
 	if err != nil {
 		t.Fatal(err)
@@ -920,6 +921,7 @@ import _ "rsc.io/quote"
 }
 
 func BenchmarkScanModCache(b *testing.B) {
+	testenv.NeedsGo1Point(b, 11)
 	env := &ProcessEnv{
 		GOPATH:      build.Default.GOPATH,
 		GOROOT:      build.Default.GOROOT,

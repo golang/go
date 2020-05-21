@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.11
-
 package gcimporter
 
 import (
@@ -11,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 var importedObjectTests = []struct {
@@ -38,6 +38,7 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
+	testenv.NeedsGo1Point(t, 11)
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
@@ -112,6 +113,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 	}
 }
 func TestIssue25301(t *testing.T) {
+	testenv.NeedsGo1Point(t, 11)
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.

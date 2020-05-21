@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.14
-
 package packages_test
 
 import (
@@ -13,13 +11,14 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // These tests check fixes that are only available in Go 1.14.
-// They can be moved into packages_test.go when we no longer support 1.13.
 // See golang/go#35973 for more information.
 func TestInvalidFilesInOverlay(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInOverlay) }
 func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGo1Point(t, 14)
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
 		{
 			Name: "golang.org/fake",

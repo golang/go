@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//+build go1.14
-
 package regtest
 
 import (
@@ -12,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 const ardanLabsProxy = `
@@ -28,6 +27,7 @@ var ErrHelpWanted error
 // -modfile flag that is used to provide modfile diagnostics is only available
 // with 1.14.
 func Test_Issue38211(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const ardanLabs = `
 -- go.mod --
 module mod.com
@@ -91,6 +91,7 @@ func main() {
 
 // Test for golang/go#38207.
 func TestNewModule_Issue38207(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const emptyFile = `
 -- go.mod --
 module mod.com
@@ -125,6 +126,7 @@ func main() {
 }
 
 func TestNewFileBadImports_Issue36960(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const simplePackage = `
 -- go.mod --
 module mod.com

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.15
-
 package packages_test
 
 import (
@@ -16,10 +14,9 @@ import (
 )
 
 // TestInvalidFilesInXTest checks the fix for golang/go#37971.
-func TestInvalidFilesInXTest(t *testing.T) {
-	packagestest.TestAll(t, testInvalidFilesInXTest)
-}
+func TestInvalidFilesInXTest(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInXTest) }
 func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGo1Point(t, 15)
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
 		{
 			Name: "golang.org/fake",
@@ -44,11 +41,9 @@ func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestTypecheckCgo(t *testing.T) {
-	packagestest.TestAll(t, testTypecheckCgo)
-}
-
+func TestTypecheckCgo(t *testing.T) { packagestest.TestAll(t, testTypecheckCgo) }
 func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGo1Point(t, 15)
 	testenv.NeedsTool(t, "cgo")
 
 	const cgo = `package cgo

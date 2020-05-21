@@ -9,6 +9,7 @@ package testenv
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -231,5 +232,39 @@ func ExitIfSmallMachine() {
 	case "plan9-arm":
 		fmt.Fprintln(os.Stderr, "skipping test: plan9-arm builder lacks sufficient memory (https://golang.org/issue/38772)")
 		os.Exit(0)
+	}
+}
+
+// Go1Point returns the x in Go 1.x.
+func Go1Point() int {
+	for i := len(build.Default.ReleaseTags) - 1; i >= 0; i-- {
+		var version int
+		if _, err := fmt.Sscanf(build.Default.ReleaseTags[i], "go1.%d", &version); err != nil {
+			continue
+		}
+		return version
+	}
+	panic("bad release tags")
+}
+
+// NeedsGo1Point skips t if the Go version used to run the test is older than
+// 1.x.
+func NeedsGo1Point(t Testing, x int) {
+	if t, ok := t.(helperer); ok {
+		t.Helper()
+	}
+	if Go1Point() < x {
+		t.Skipf("running Go version %q is version 1.%d, older than required 1.%d", runtime.Version(), Go1Point(), x)
+	}
+}
+
+// SkipAfterGo1Point skips t if the Go version used to run the test is newer than
+// 1.x.
+func SkipAfterGo1Point(t Testing, x int) {
+	if t, ok := t.(helperer); ok {
+		t.Helper()
+	}
+	if Go1Point() > x {
+		t.Skipf("running Go version %q is version 1.%d, newer than maximum 1.%d", runtime.Version(), Go1Point(), x)
 	}
 }
