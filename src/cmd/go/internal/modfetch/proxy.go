@@ -171,6 +171,14 @@ func proxyList() ([]proxySpec, error) {
 				fallBackOnError: fallBackOnError,
 			})
 		}
+
+		if len(proxyOnce.list) == 0 ||
+			len(proxyOnce.list) == 1 && proxyOnce.list[0].url == "noproxy" {
+			// There were no proxies, other than the implicit "noproxy" added when
+			// GONOPROXY is set. This can happen if GOPROXY is a non-empty string
+			// like "," or " ".
+			proxyOnce.err = fmt.Errorf("GOPROXY list is not the empty string, but contains no entries")
+		}
 	})
 
 	return proxyOnce.list, proxyOnce.err
@@ -191,7 +199,7 @@ func TryProxies(f func(proxy string) error) error {
 		return err
 	}
 	if len(proxies) == 0 {
-		return f("off")
+		panic("GOPROXY list is empty")
 	}
 
 	// We try to report the most helpful error to the user. "direct" and "noproxy"
