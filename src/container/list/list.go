@@ -11,6 +11,10 @@
 //
 package list
 
+import(
+	"sync"
+)
+
 // Element is an element of a linked list.
 type Element struct {
 	// Next and previous pointers in the doubly-linked list of elements.
@@ -41,6 +45,12 @@ func (e *Element) Prev() *Element {
 		return p
 	}
 	return nil
+}
+
+var elementPool = sync.Pool{
+	New: func() interface{} {
+		return new(Element)
+	},
 }
 
 // List represents a doubly linked list.
@@ -101,7 +111,9 @@ func (l *List) insert(e, at *Element) *Element {
 
 // insertValue is a convenience wrapper for insert(&Element{Value: v}, at).
 func (l *List) insertValue(v interface{}, at *Element) *Element {
-	return l.insert(&Element{Value: v}, at)
+	e := elementPool.Get().(*Element)
+	e.Value = v
+	return l.insert(e, at)
 }
 
 // remove removes e from its list, decrements l.len, and returns e.
@@ -112,6 +124,7 @@ func (l *List) remove(e *Element) *Element {
 	e.prev = nil // avoid memory leaks
 	e.list = nil
 	l.len--
+	elementPool.Put(e)
 	return e
 }
 

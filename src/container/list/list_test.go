@@ -341,3 +341,12 @@ func TestMoveUnknownMark(t *testing.T) {
 	checkList(t, &l1, []interface{}{1})
 	checkList(t, &l2, []interface{}{2})
 }
+
+func BenchmarkPool(b *testing.B) {
+	b.ReportAllocs()
+	l := New()
+	for i := 0; i < b.N; i++ {
+		e := l.PushBack(i)
+		l.Remove(e)
+	}
+}
