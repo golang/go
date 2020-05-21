@@ -797,9 +797,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 }
 
 func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	machlink := uint32(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = uint32(ld.Domacholink(ctxt))
+	if ctxt.IsDarwin() {
+		panic("darwin should be generic")
 	}
 
 	/* output symbol table */
@@ -816,8 +815,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
-		case objabi.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -831,11 +828,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -847,9 +839,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		objabi.Hnetbsd,
 		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 	}
 
 	if *ld.FlagC {

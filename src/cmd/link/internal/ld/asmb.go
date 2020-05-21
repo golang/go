@@ -69,6 +69,28 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 	wg.Wait()
 }
 
+// Assembling the binary is broken into two steps:
+//  - writing out the code/data/dwarf Segments
+//  - writing out the architecture specific pieces.
+// This function handles the second part.
+func asmb2(ctxt *Link) bool {
+	if ctxt.IsDarwin() {
+		machlink := Domacholink(ctxt)
+		Symsize = 0
+		Spsize = 0
+		Lcsize = 0
+		if !*FlagS && ctxt.IsExternal() {
+			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+			ctxt.Out.SeekSet(symo)
+			Machoemitreloc(ctxt)
+		}
+		ctxt.Out.SeekSet(0)
+		Asmbmacho(ctxt)
+		return true
+	}
+	return false
+}
+
 // WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
 func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
 	if is64Bit {

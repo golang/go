@@ -511,9 +511,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 }
 
 func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	machlink := uint32(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = uint32(ld.Domacholink(ctxt))
+	if ctxt.IsDarwin() {
+		panic("darwin should be generic")
 	}
 
 	ld.Symsize = 0
@@ -531,9 +530,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 
 		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case objabi.Hwindows:
 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -557,11 +553,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 
 		case objabi.Hwindows:
 			// Do nothing
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -571,9 +562,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	case objabi.Hplan9: /* plan9 */
 		magic := uint32(4*11*11 + 7)
 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
