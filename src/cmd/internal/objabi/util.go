@@ -37,16 +37,13 @@ var (
 
 const (
 	ElfRelocOffset   = 256
-	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
+	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
 )
 
+// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
 func goamd64() string {
-	switch v := envOr("GOAMD64", defaultGOAMD64); v {
-	case "normaljumps", "alignedjumps":
-		return v
-	}
-	log.Fatalf("Invalid GOAMD64 value. Must be normaljumps or alignedjumps.")
-	panic("unreachable")
+	return Go115AMD64
 }
 
 func goarm() int {

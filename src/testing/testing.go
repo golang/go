@@ -372,6 +372,7 @@ type common struct {
 	tempDirOnce sync.Once
 	tempDir     string
 	tempDirErr  error
+	tempDirSeq  int32
 }
 
 // Short reports whether the -test.short flag is set.
@@ -821,12 +822,13 @@ var tempDirReplacer struct {
 }
 
 // TempDir returns a temporary directory for the test to use.
-// It is lazily created on first access, and calls t.Fatal if the directory
-// creation fails.
-// Subsequent calls to t.TempDir return the same directory.
 // The directory is automatically removed by Cleanup when the test and
 // all its subtests complete.
+// Each subsequent call to t.TempDir returns a unique directory;
+// if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
+	// Use a single parent directory for all the temporary directories
+	// created by a test, each numbered sequentially.
 	c.tempDirOnce.Do(func() {
 		c.Helper()
 
@@ -849,7 +851,12 @@ func (c *common) TempDir() string {
 	if c.tempDirErr != nil {
 		c.Fatalf("TempDir: %v", c.tempDirErr)
 	}
-	return c.tempDir
+	seq := atomic.AddInt32(&c.tempDirSeq, 1)
+	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
+	if err := os.Mkdir(dir, 0777); err != nil {
+		c.Fatalf("TempDir: %v", err)
+	}
+	return dir
 }
 
 // panicHanding is an argument to runCleanup.

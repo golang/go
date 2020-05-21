@@ -2539,3 +2539,34 @@ func isDeadlineExceeded(err error) bool {
 	}
 	return true
 }
+
+// Test that opening a file does not change its permissions.  Issue 38225.
+func TestOpenFileKeepsPermissions(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	name := filepath.Join(dir, "x")
+	f, err := Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Error(err)
+	}
+	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := f.Stat(); err != nil {
+		t.Error(err)
+	} else if fi.Mode()&0222 == 0 {
+		t.Errorf("f.Stat.Mode after OpenFile is %v, should be writable", fi.Mode())
+	}
+	if err := f.Close(); err != nil {
+		t.Error(err)
+	}
+	if fi, err := Stat(name); err != nil {
+		t.Error(err)
+	} else if fi.Mode()&0222 == 0 {
+		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
+	}
+}
