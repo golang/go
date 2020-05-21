@@ -680,9 +680,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 }
 
 func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	machlink := int64(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = ld.Domacholink(ctxt)
+	if ctxt.IsDarwin() {
+		panic("darwin should be generic")
 	}
 
 	switch ctxt.HeadType {
@@ -692,9 +691,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 
 	case objabi.Hplan9:
 		break
-
-	case objabi.Hdarwin:
-		ld.Flag8 = true /* 64-bit addresses */
 
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
@@ -718,9 +714,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		case objabi.Hplan9:
 			*ld.FlagS = true
 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hdarwin:
-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case objabi.Hlinux,
 			objabi.Hfreebsd,
@@ -754,11 +747,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 
 		case objabi.Hwindows:
 			// Do nothing
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -768,9 +756,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	case objabi.Hplan9: /* plan9 */
 		magic := uint32(4*26*26 + 7)
 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
