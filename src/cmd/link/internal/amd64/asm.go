@@ -686,6 +686,9 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsElf() {
 		panic("elf should be generic")
 	}
+	if ctxt.IsWindows() {
+		panic("pe should be generic")
+	}
 
 	switch ctxt.HeadType {
 	default:
@@ -693,7 +696,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		fallthrough
 
 	case objabi.Hplan9:
-	case objabi.Hwindows:
 		break
 	}
 
@@ -701,24 +703,15 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	ld.Spsize = 0
 	ld.Lcsize = 0
 	if !*ld.FlagS {
-		if ctxt.HeadType == objabi.Hplan9 {
-			*ld.FlagS = true
-			symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-			ctxt.Out.SeekSet(symo)
-			ld.Asmplan9sym(ctxt)
-		}
+		*ld.FlagS = true
+		symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+		ctxt.Out.SeekSet(symo)
+		ld.Asmplan9sym(ctxt)
 	}
 
 	ctxt.Out.SeekSet(0)
-	switch ctxt.HeadType {
-	default:
-	case objabi.Hplan9: /* plan9 */
-		magic := uint32(4*26*26 + 7)
-		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
-
-	case objabi.Hwindows:
-		ld.Asmbpe(ctxt)
-	}
+	magic := uint32(4*26*26 + 7)
+	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
 }
 
 func tlsIEtoLE(P []byte, off, size int) {

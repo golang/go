@@ -675,27 +675,20 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsElf() {
 		panic("elf should be generic")
 	}
+	if ctxt.IsWindows() {
+		panic("pe should be generic")
+	}
 	/* output symbol table */
 	ld.Symsize = 0
 
 	ld.Lcsize = 0
 	if !*ld.FlagS {
-		if ctxt.IsPlan9() {
-			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-			ctxt.Out.SeekSet(int64(symo))
-			ld.Asmplan9sym(ctxt)
-		}
+		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+		ctxt.Out.SeekSet(int64(symo))
+		ld.Asmplan9sym(ctxt)
 	}
 
-	ctxt.Out.SeekSet(0)
-	switch ctxt.HeadType {
-	default:
-	case objabi.Hplan9: /* plan 9 */
-		ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
-
-	case objabi.Hwindows:
-		ld.Asmbpe(ctxt)
-	}
+	ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
 
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)

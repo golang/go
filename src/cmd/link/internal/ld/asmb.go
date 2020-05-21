@@ -108,6 +108,13 @@ func asmb2(ctxt *Link) bool {
 		Asmbelf(ctxt, symo)
 		return true
 	}
+	if ctxt.IsWindows() {
+		Symsize = 0
+		Spsize = 0
+		Lcsize = 0
+		Asmbpe(ctxt)
+		return true
+	}
 	return false
 }
 
