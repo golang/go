@@ -1081,49 +1081,16 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 }
 
 func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	/* output symbol table */
-	ld.Symsize = 0
-
-	ld.Lcsize = 0
-	symo := uint32(0)
-	if !*ld.FlagS {
-		// TODO: rationalize
-		switch ctxt.HeadType {
-		default:
-			if ctxt.IsELF {
-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
-			}
-
-		case objabi.Haix:
-			// Nothing to do
-		}
-
-		ctxt.Out.SeekSet(int64(symo))
-		switch ctxt.HeadType {
-		default:
-			if ctxt.IsELF {
-				ld.Asmelfsym(ctxt)
-				ctxt.Out.Write(ld.Elfstrdat)
-
-				if ctxt.LinkMode == ld.LinkExternal {
-					ld.Elfemitreloc(ctxt)
-				}
-			}
-
-		case objabi.Haix:
-			// symtab must be added once sections have been created in ld.Asmbxcoff
-		}
+	if ctxt.IsElf() {
+		panic("elf should be generic")
 	}
 
+	/* output symbol table */
+	ld.Symsize = 0
+	ld.Lcsize = 0
 	ctxt.Out.SeekSet(0)
 	switch ctxt.HeadType {
 	default:
-	case objabi.Hlinux,
-		objabi.Hfreebsd,
-		objabi.Hnetbsd,
-		objabi.Hopenbsd:
-		ld.Asmbelf(ctxt, int64(symo))
 
 	case objabi.Haix:
 		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)

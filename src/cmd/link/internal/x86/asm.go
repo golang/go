@@ -514,45 +514,18 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsDarwin() {
 		panic("darwin should be generic")
 	}
+	if ctxt.IsElf() {
+		panic("elf should be generic")
+	}
 
 	ld.Symsize = 0
 	ld.Spsize = 0
 	ld.Lcsize = 0
-	symo := uint32(0)
 	if !*ld.FlagS {
-		// TODO: rationalize
-		switch ctxt.HeadType {
-		default:
-			if ctxt.IsELF {
-				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
-			}
-
-		case objabi.Hplan9:
-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hwindows:
-			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
-		}
-
-		ctxt.Out.SeekSet(int64(symo))
-		switch ctxt.HeadType {
-		default:
-			if ctxt.IsELF {
-				ld.Asmelfsym(ctxt)
-				ctxt.Out.Write(ld.Elfstrdat)
-
-				if ctxt.LinkMode == ld.LinkExternal {
-					ld.Elfemitreloc(ctxt)
-				}
-			}
-
-		case objabi.Hplan9:
+		if ctxt.HeadType == objabi.Hplan9 {
+			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+			ctxt.Out.SeekSet(int64(symo))
 			ld.Asmplan9sym(ctxt)
-
-		case objabi.Hwindows:
-			// Do nothing
 		}
 	}
 
@@ -562,12 +535,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	case objabi.Hplan9: /* plan9 */
 		magic := uint32(4*11*11 + 7)
 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
-
-	case objabi.Hlinux,
-		objabi.Hfreebsd,
-		objabi.Hnetbsd,
-		objabi.Hopenbsd:
-		ld.Asmbelf(ctxt, int64(symo))
 
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)

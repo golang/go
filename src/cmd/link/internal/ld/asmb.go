@@ -74,6 +74,7 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 //  - writing out the architecture specific pieces.
 // This function handles the second part.
 func asmb2(ctxt *Link) bool {
+	// TODO: Spsize is only used for plan9
 	if ctxt.IsDarwin() {
 		machlink := Domacholink(ctxt)
 		Symsize = 0
@@ -86,6 +87,25 @@ func asmb2(ctxt *Link) bool {
 		}
 		ctxt.Out.SeekSet(0)
 		Asmbmacho(ctxt)
+		return true
+	}
+	if ctxt.IsElf() {
+		Symsize = 0
+		Spsize = 0
+		Lcsize = 0
+		var symo int64
+		if !*FlagS {
+			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+			symo = Rnd(symo, int64(*FlagRound))
+			ctxt.Out.SeekSet(symo)
+			Asmelfsym(ctxt)
+			ctxt.Out.Write(Elfstrdat)
+			if ctxt.IsExternal() {
+				Elfemitreloc(ctxt)
+			}
+		}
+		ctxt.Out.SeekSet(0)
+		Asmbelf(ctxt, symo)
 		return true
 	}
 	return false
