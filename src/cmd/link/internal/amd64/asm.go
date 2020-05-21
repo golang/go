@@ -690,16 +690,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		fallthrough
 
 	case objabi.Hplan9:
-		break
-
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,
 		objabi.Hopenbsd,
 		objabi.Hdragonfly,
 		objabi.Hsolaris:
-		ld.Flag8 = true /* 64-bit addresses */
-
 	case objabi.Hwindows:
 		break
 	}
