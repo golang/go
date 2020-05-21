@@ -2,6 +2,8 @@ package regtest
 
 import (
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/tests"
 )
 
 const unformattedProgram = `
@@ -33,8 +35,10 @@ func TestFormatting(t *testing.T) {
 	})
 }
 
-// this is the fixed case from #36824
-const onelineProgram = `
+// Tests golang/go#36824.
+func TestFormattingOneLine36824(t *testing.T) {
+
+	const onelineProgram = `
 -- a.go --
 package main; func f() {}
 
@@ -43,8 +47,6 @@ package main
 
 func f() {}
 `
-
-func TestFormattingOneLine36824(t *testing.T) {
 	runner.Run(t, onelineProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.FormatBuffer("a.go")
@@ -56,7 +58,11 @@ func TestFormattingOneLine36824(t *testing.T) {
 	})
 }
 
-const onelineProgramA = `
+// Tests golang/go#36824.
+func TestFormattingOneLineImports36824(t *testing.T) {
+	t.Skipf("golang/go#36824 has not been fixed yet")
+
+	const onelineProgramA = `
 -- a.go --
 package x; func f() {fmt.Println()}
 
@@ -67,18 +73,13 @@ import "fmt"
 
 func f() { fmt.Println() }
 `
-
-// this is the example from #36824 done properly
-// but gopls does not reformat before fixing the imports
-func TestFormattingOneLineImports36824(t *testing.T) {
 	runner.Run(t, onelineProgramA, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.FormatBuffer("a.go")
 		env.OrganizeImports("a.go")
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("OneLineImports go\n%q wanted\n%q", got, want)
+			t.Errorf("OneLineImports:\n%s", tests.Diff(want, got))
 		}
 	})
 }

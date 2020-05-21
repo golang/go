@@ -7,7 +7,6 @@
 package regtest
 
 import (
-	"fmt"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/fake"
@@ -31,6 +30,6 @@ func _() {
 			t.Fatal(err)
 		}
 	}, WithEditorConfig(fake.EditorConfig{
-		Env: []string{fmt.Sprintf("GOPATH=:/path/to/gopath")},
+		Env: []string{"GOPATH=:/path/to/gopath"},
 	}))
 }
