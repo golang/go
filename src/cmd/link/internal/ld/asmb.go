@@ -68,3 +68,26 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 
 	wg.Wait()
 }
+
+// WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
+func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
+	if is64Bit {
+		magic |= 0x00008000
+	}
+	buf.Write32b(magic)
+	buf.Write32b(uint32(Segtext.Filelen))
+	buf.Write32b(uint32(Segdata.Filelen))
+	buf.Write32b(uint32(Segdata.Length - Segdata.Filelen))
+	buf.Write32b(uint32(Symsize))
+	if is64Bit {
+		buf.Write32b(uint32(entry &^ 0x80000000))
+	} else {
+		buf.Write32b(uint32(entry))
+	}
+	buf.Write32b(uint32(Spsize))
+	buf.Write32b(uint32(Lcsize))
+	// amd64 includes the entry at the beginning of the symbol table.
+	if is64Bit {
+		buf.Write64b(uint64(entry))
+	}
+}
