@@ -151,8 +151,9 @@ func (ctxt *Link) setArchSyms() {
 		// *sym.Symbol symbols. Symbols that are assigned this final
 		// version are not going to have TOC references, so it should
 		// be ok for them to inherit an invalid .TOC. symbol.
-		ctxt.DotTOC = make([]loader.Sym, ctxt.Syms.MaxVersion()+2)
-		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
+		// TODO: revisit the +2, now that loadlibfull is gone.
+		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+2)
+		for i := 0; i <= ctxt.MaxVersion(); i++ {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
@@ -1809,7 +1810,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.flags)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1822,7 +1823,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1834,7 +1835,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1849,7 +1850,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1941,7 +1942,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
 	f.MustSeek(import1, 0)
 
-	fingerprint := ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset())
+	fingerprint := ctxt.loader.Preload(ctxt.IncVersion(), f, lib, unit, eof-f.Offset())
 	if !fingerprint.IsZero() { // Assembly objects don't have fingerprints. Ignore them.
 		// Check fingerprint, to ensure the importing and imported packages
 		// have consistent view of symbol indices.

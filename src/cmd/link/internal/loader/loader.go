@@ -1911,7 +1911,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
 // Does not read symbol data.
 // Returns the fingerprint of the object.
-func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
 	roObject, readonly, err := f.Slice(uint64(length))
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
@@ -1923,7 +1923,6 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 		}
 		panic("cannot read object file")
 	}
-	localSymVersion := syms.IncVersion()
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()

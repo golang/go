@@ -57,7 +57,7 @@ type Link struct {
 	outSem chan int // limits the number of output writers
 	Out    *OutBuf
 
-	Syms *sym.Symbols
+	version int // current version number for static/file-local symbols
 
 	Debugvlog int
 	Bso       *bufio.Writer
@@ -132,4 +132,15 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
 		}
 	}
 	l.Autolib = nil
+}
+
+// Allocate a new version (i.e. symbol namespace).
+func (ctxt *Link) IncVersion() int {
+	ctxt.version++
+	return ctxt.version - 1
+}
+
+// returns the maximum version number
+func (ctxt *Link) MaxVersion() int {
+	return ctxt.version
 }
