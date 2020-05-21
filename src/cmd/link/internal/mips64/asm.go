@@ -172,9 +172,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
-
-		case objabi.Hplan9:
-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 		}
 
 		ctxt.Out.SeekSet(int64(symo))
@@ -188,29 +185,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 					ld.Elfemitreloc(ctxt)
 				}
 			}
-
-		case objabi.Hplan9:
-			ld.Asmplan9sym(ctxt)
 		}
 	}
 
 	ctxt.Out.SeekSet(0)
 	switch ctxt.HeadType {
 	default:
-	case objabi.Hplan9: /* plan 9 */
-		magic := uint32(4*18*18 + 7)
-		if ctxt.Arch == sys.ArchMIPS64LE {
-			magic = uint32(4*26*26 + 7)
-		}
-		ctxt.Out.Write32(magic)                      /* magic */
-		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
-		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
-		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
-		ctxt.Out.Write32(0)
-		ctxt.Out.Write32(uint32(ld.Lcsize))
-
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,

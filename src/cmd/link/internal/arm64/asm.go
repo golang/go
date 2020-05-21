@@ -816,9 +816,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
-		case objabi.Hplan9:
-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
 		case objabi.Hdarwin:
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 		}
@@ -835,9 +832,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 				}
 			}
 
-		case objabi.Hplan9:
-			ld.Asmplan9sym(ctxt)
-
 		case objabi.Hdarwin:
 			if ctxt.LinkMode == ld.LinkExternal {
 				ld.Machoemitreloc(ctxt)
@@ -848,16 +842,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	ctxt.Out.SeekSet(0)
 	switch ctxt.HeadType {
 	default:
-	case objabi.Hplan9: /* plan 9 */
-		ctxt.Out.Write32(0x647)                      /* magic */
-		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
-		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
-		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
-		ctxt.Out.Write32(0)
-		ctxt.Out.Write32(uint32(ld.Lcsize))
-
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,

@@ -766,19 +766,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	switch ctxt.HeadType {
 	default:
 	case objabi.Hplan9: /* plan9 */
-		magic := int32(4*26*26 + 7)
-
-		magic |= 0x00008000                           /* fat header */
-		ctxt.Out.Write32b(uint32(magic))              /* magic */
-		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
-		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
-		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ctxt.Out.Write32b(uint32(ld.Symsize)) /* nsyms */
-		vl := ld.Entryvalue(ctxt)
-		ctxt.Out.Write32b(PADDR(uint32(vl))) /* va of entry */
-		ctxt.Out.Write32b(uint32(ld.Spsize)) /* sp offsets */
-		ctxt.Out.Write32b(uint32(ld.Lcsize)) /* line offsets */
-		ctxt.Out.Write64b(uint64(vl))        /* va of entry */
+		magic := uint32(4*26*26 + 7)
+		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
 
 	case objabi.Hdarwin:
 		ld.Asmbmacho(ctxt)
