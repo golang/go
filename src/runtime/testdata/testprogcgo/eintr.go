@@ -32,11 +32,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"sync"
 	"syscall"
 	"time"
@@ -71,14 +71,15 @@ func EINTR() {
 // spin does CPU bound spinning and allocating for a millisecond,
 // to get a SIGURG.
 //go:noinline
-func spin() (float64, [][]byte) {
+func spin() (float64, []byte) {
 	stop := time.Now().Add(time.Millisecond)
 	r1 := 0.0
-	var r2 [][]byte
+	r2 := make([]byte, 200)
 	for time.Now().Before(stop) {
 		for i := 1; i < 1e6; i++ {
 			r1 += r1 / float64(i)
-			r2 = append(r2, bytes.Repeat([]byte{byte(i)}, 100))
+			r2 = append(r2, bytes.Repeat([]byte{byte(i)}, 100)...)
+			r2 = r2[100:]
 		}
 	}
 	return r1, r2
@@ -96,8 +97,13 @@ func winch() {
 
 // sendSomeSignals triggers a few SIGURG and SIGWINCH signals.
 func sendSomeSignals() {
-	spin()
+	done := make(chan struct{})
+	go func() {
+		spin()
+		close(done)
+	}()
 	winch()
+	<-done
 }
 
 // testPipe tests pipe operations.
@@ -212,6 +218,10 @@ func testExec(wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 		cmd := exec.Command(os.Args[0], "Block")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
 		cmd.Stderr = new(bytes.Buffer)
 		cmd.Stdout = cmd.Stderr
 		if err := cmd.Start(); err != nil {
@@ -220,9 +230,7 @@ func testExec(wg *sync.WaitGroup) {
 
 		go func() {
 			sendSomeSignals()
-			if err := cmd.Process.Signal(os.Interrupt); err != nil {
-				panic(err)
-			}
+			stdin.Close()
 		}()
 
 		if err := cmd.Wait(); err != nil {
@@ -231,10 +239,7 @@ func testExec(wg *sync.WaitGroup) {
 	}()
 }
 
-// Block blocks until the process receives os.Interrupt.
+// Block blocks until stdin is closed.
 func Block() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	defer signal.Stop(c)
-	<-c
+	io.Copy(ioutil.Discard, os.Stdin)
 }

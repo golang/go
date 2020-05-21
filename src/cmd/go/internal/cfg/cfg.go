@@ -241,7 +241,6 @@ var (
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
 	GO386    = envOr("GO386", objabi.GO386)
-	GOAMD64  = envOr("GOAMD64", objabi.GOAMD64)
 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
@@ -267,8 +266,6 @@ func GetArchEnv() (key, val string) {
 		return "GOARM", GOARM
 	case "386":
 		return "GO386", GO386
-	case "amd64":
-		return "GOAMD64", GOAMD64
 	case "mips", "mipsle":
 		return "GOMIPS", GOMIPS
 	case "mips64", "mips64le":

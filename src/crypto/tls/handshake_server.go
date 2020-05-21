@@ -75,13 +75,8 @@ func (hs *serverHandshakeState) handshake() error {
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		// ticketSupported is set in a resumption handshake if the
-		// ticket from the client was encrypted with an old session
-		// ticket key and thus a refreshed ticket should be sent.
-		if hs.hello.ticketSupported {
-			if err := hs.sendSessionTicket(); err != nil {
-				return err
-			}
+		if err := hs.sendSessionTicket(); err != nil {
+			return err
 		}
 		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
 			return err
@@ -688,12 +683,22 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 }
 
 func (hs *serverHandshakeState) sendSessionTicket() error {
+	// ticketSupported is set in a resumption handshake if the
+	// ticket from the client was encrypted with an old session
+	// ticket key and thus a refreshed ticket should be sent.
 	if !hs.hello.ticketSupported {
 		return nil
 	}
 
 	c := hs.c
 	m := new(newSessionTicketMsg)
+
+	createdAt := uint64(c.config.time().Unix())
+	if hs.sessionState != nil {
+		// If this is re-wrapping an old key, then keep
+		// the original time it was created.
+		createdAt = hs.sessionState.createdAt
+	}
 
 	var certsFromClient [][]byte
 	for _, cert := range c.peerCertificates {
@@ -702,7 +707,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	state := sessionState{
 		vers:         c.vers,
 		cipherSuite:  hs.suite.id,
-		createdAt:    uint64(c.config.time().Unix()),
+		createdAt:    createdAt,
 		masterSecret: hs.masterSecret,
 		certificates: certsFromClient,
 	}

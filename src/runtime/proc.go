@@ -533,6 +533,7 @@ func cpuinit() {
 // The new G calls runtime·main.
 func schedinit() {
 	lockInit(&sched.lock, lockRankSched)
+	lockInit(&sched.sysmonlock, lockRankSysmon)
 	lockInit(&sched.deferlock, lockRankDefer)
 	lockInit(&sched.sudoglock, lockRankSudog)
 	lockInit(&deadlock, lockRankDeadlock)
@@ -4613,6 +4614,18 @@ func sysmon() {
 			}
 			unlock(&sched.lock)
 		}
+		lock(&sched.sysmonlock)
+		{
+			// If we spent a long time blocked on sysmonlock
+			// then we want to update now and next since it's
+			// likely stale.
+			now1 := nanotime()
+			if now1-now > 50*1000 /* 50µs */ {
+				next, _ = timeSleepUntil()
+			}
+			now = now1
+		}
+
 		// trigger libc interceptors if needed
 		if *cgo_yield != nil {
 			asmcgocall(*cgo_yield, nil)
@@ -4665,6 +4678,7 @@ func sysmon() {
 			lasttrace = now
 			schedtrace(debug.scheddetail > 0)
 		}
+		unlock(&sched.sysmonlock)
 	}
 }
 

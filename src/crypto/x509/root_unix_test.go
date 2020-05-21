@@ -204,7 +204,8 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 }
 
 func TestReadUniqueDirectoryEntries(t *testing.T) {
-	temp := func(base string) string { return filepath.Join(t.TempDir(), base) }
+	tmp := t.TempDir()
+	temp := func(base string) string { return filepath.Join(tmp, base) }
 	if f, err := os.Create(temp("file")); err != nil {
 		t.Fatal(err)
 	} else {
@@ -216,7 +217,7 @@ func TestReadUniqueDirectoryEntries(t *testing.T) {
 	if err := os.Symlink("../target-out", temp("link-out")); err != nil {
 		t.Fatal(err)
 	}
-	got, err := readUniqueDirectoryEntries(t.TempDir())
+	got, err := readUniqueDirectoryEntries(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}

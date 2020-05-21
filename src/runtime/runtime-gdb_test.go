@@ -108,7 +108,6 @@ import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	go func() { select{} }() // ensure a second goroutine is running
 	mapvar := make(map[string]string, 13)
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
@@ -231,9 +230,6 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN goroutine 1 bt\n",
 		"-ex", "goroutine 1 bt",
 		"-ex", "echo END\n",
-		"-ex", "echo BEGIN goroutine 2 bt\n",
-		"-ex", "goroutine 2 bt",
-		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine all bt\n",
 		"-ex", "goroutine all bt",
 		"-ex", "echo END\n",
@@ -310,7 +306,6 @@ func testGdbPython(t *testing.T, cgo bool) {
 
 	// Check that the backtraces are well formed.
 	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
-	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
 	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
 
 	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
@@ -318,12 +313,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
 	}
 
-	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
-	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
-		t.Fatalf("goroutine 2 bt failed: %s", bl)
-	}
-
-	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
+	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine all bt failed: %s", bl)
 	}
 

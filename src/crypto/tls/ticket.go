@@ -54,7 +54,6 @@ func (m *sessionState) unmarshal(data []byte) bool {
 	*m = sessionState{usedOldKey: m.usedOldKey}
 	s := cryptobyte.String(data)
 	if ok := s.ReadUint16(&m.vers) &&
-		m.vers != VersionTLS13 &&
 		s.ReadUint16(&m.cipherSuite) &&
 		readUint64(&s, &m.createdAt) &&
 		readUint16LengthPrefixed(&s, &m.masterSecret) &&

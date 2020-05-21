@@ -249,14 +249,15 @@ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte
 	t.Helper()
 
 	hook = hookCopyFileRange(t)
+	tmp := t.TempDir()
 
-	src, err := Create(filepath.Join(t.TempDir(), "src"))
+	src, err := Create(filepath.Join(tmp, "src"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { src.Close() })
 
-	dst, err = Create(filepath.Join(t.TempDir(), "dst"))
+	dst, err = Create(filepath.Join(tmp, "dst"))
 	if err != nil {
 		t.Fatal(err)
 	}
