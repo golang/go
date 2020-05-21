@@ -1039,11 +1039,11 @@ func parseContentLength(cl string) (int64, error) {
 	if cl == "" {
 		return -1, nil
 	}
-	n, err := strconv.ParseInt(cl, 10, 64)
-	if err != nil || n < 0 {
+	n, err := strconv.ParseUint(cl, 10, 63)
+	if err != nil {
 		return 0, badStringError("bad Content-Length", cl)
 	}
-	return n, nil
+	return int64(n), nil
 
 }
 

@@ -226,9 +226,9 @@ func parseContentLength(cl string) int64 {
 	if cl == "" {
 		return -1
 	}
-	n, err := strconv.ParseInt(cl, 10, 64)
+	n, err := strconv.ParseUint(cl, 10, 63)
 	if err != nil {
 		return -1
 	}
-	return n
+	return int64(n)
 }
