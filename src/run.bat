@@ -30,7 +30,7 @@ rem TODO avoid rebuild if possible
 
 if x%1==x--no-rebuild goto norebuild
 echo ##### Building packages and commands.
-go install -a -v std cmd
+..\bin\go install -a -v std cmd
 if errorlevel 1 goto fail
 echo.
 :norebuild
