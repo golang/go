@@ -683,6 +683,9 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	if ctxt.IsDarwin() {
 		panic("darwin should be generic")
 	}
+	if ctxt.IsElf() {
+		panic("elf should be generic")
+	}
 
 	switch ctxt.HeadType {
 	default:
@@ -690,12 +693,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 		fallthrough
 
 	case objabi.Hplan9:
-	case objabi.Hlinux,
-		objabi.Hfreebsd,
-		objabi.Hnetbsd,
-		objabi.Hopenbsd,
-		objabi.Hdragonfly,
-		objabi.Hsolaris:
 	case objabi.Hwindows:
 		break
 	}
@@ -703,46 +700,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	ld.Symsize = 0
 	ld.Spsize = 0
 	ld.Lcsize = 0
-	symo := int64(0)
 	if !*ld.FlagS {
-		switch ctxt.HeadType {
-		default:
-		case objabi.Hplan9:
+		if ctxt.HeadType == objabi.Hplan9 {
 			*ld.FlagS = true
-			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hlinux,
-			objabi.Hfreebsd,
-			objabi.Hnetbsd,
-			objabi.Hopenbsd,
-			objabi.Hdragonfly,
-			objabi.Hsolaris:
-			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-			symo = ld.Rnd(symo, int64(*ld.FlagRound))
-
-		case objabi.Hwindows:
-			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-			symo = ld.Rnd(symo, ld.PEFILEALIGN)
-		}
-
-		ctxt.Out.SeekSet(symo)
-		switch ctxt.HeadType {
-		default:
-			if ctxt.IsELF {
-				ctxt.Out.SeekSet(symo)
-				ld.Asmelfsym(ctxt)
-				ctxt.Out.Write(ld.Elfstrdat)
-
-				if ctxt.LinkMode == ld.LinkExternal {
-					ld.Elfemitreloc(ctxt)
-				}
-			}
-
-		case objabi.Hplan9:
+			symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+			ctxt.Out.SeekSet(symo)
 			ld.Asmplan9sym(ctxt)
-
-		case objabi.Hwindows:
-			// Do nothing
 		}
 	}
 
@@ -752,14 +715,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
 	case objabi.Hplan9: /* plan9 */
 		magic := uint32(4*26*26 + 7)
 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
-
-	case objabi.Hlinux,
-		objabi.Hfreebsd,
-		objabi.Hnetbsd,
-		objabi.Hopenbsd,
-		objabi.Hdragonfly,
-		objabi.Hsolaris:
-		ld.Asmbelf(ctxt, symo)
 
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)
