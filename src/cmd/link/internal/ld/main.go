@@ -84,7 +84,7 @@ var (
 	FlagS           = flag.Bool("s", false, "disable symbol table")
 	flagU           = flag.Bool("u", false, "reject unsafe packages")
 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
-	Flag8           bool // use 64-bit addresses in symbol table
+	flag8           bool // use 64-bit addresses in symbol table
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
@@ -121,7 +121,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	// TODO(matloob): define these above and then check flag values here
 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
-		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	flagHeadType := flag.String("H", "", "set header `type`")
 	flag.BoolVar(&ctxt.linkShared, "linkshared", false, "link against installed Go shared libraries")

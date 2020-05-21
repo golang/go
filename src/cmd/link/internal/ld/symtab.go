@@ -259,7 +259,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) 
 	}
 	l := 4
 	addr := ldr.SymValue(s)
-	if ctxt.IsAMD64() && !Flag8 {
+	if ctxt.IsAMD64() && !flag8 {
 		ctxt.Out.Write32b(uint32(addr >> 32))
 		l = 8
 	}
