@@ -1079,31 +1079,3 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 
 	return glink
 }
-
-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	if ctxt.IsElf() {
-		panic("elf should be generic")
-	}
-
-	/* output symbol table */
-	ld.Symsize = 0
-	ld.Lcsize = 0
-	ctxt.Out.SeekSet(0)
-	switch ctxt.HeadType {
-	default:
-
-	case objabi.Haix:
-		fileoff := uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-		fileoff = uint32(ld.Rnd(int64(fileoff), int64(*ld.FlagRound)))
-		ld.Asmbxcoff(ctxt, int64(fileoff))
-	}
-
-	if *ld.FlagC {
-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
-		fmt.Printf("symsize=%d\n", ld.Symsize)
-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
-	}
-}
