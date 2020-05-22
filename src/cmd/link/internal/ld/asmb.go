@@ -75,7 +75,7 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 //  - writing out the architecture specific pieces.
 // This function handles the second part.
 func asmb2(ctxt *Link) bool {
-	if ctxt.IsAIX() || ctxt.IsWasm() {
+	if ctxt.IsWasm() {
 		return false
 	}
 
@@ -123,6 +123,13 @@ func asmb2(ctxt *Link) bool {
 		}
 		ctxt.Out.SeekSet(0)
 		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+	}
+
+	if ctxt.IsAIX() {
+		ctxt.Out.SeekSet(0)
+		fileoff := uint32(Segdwarf.Fileoff + Segdwarf.Filelen)
+		fileoff = uint32(Rnd(int64(fileoff), int64(*FlagRound)))
+		Asmbxcoff(ctxt, int64(fileoff))
 	}
 
 	if *FlagC {
