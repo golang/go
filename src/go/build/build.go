@@ -1371,9 +1371,12 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 
 	// Look for +build comments to accept or reject the file.
-	ok, sawBinaryOnly := ctxt.shouldBuild(data, allTags)
+	ok, sawBinaryOnly, err := ctxt.shouldBuild(data, allTags)
+	if err != nil {
+		return // non-nil err
+	}
 	if !ok && !ctxt.UseAllFiles {
-		return
+		return // nil err
 	}
 
 	if binaryOnly != nil && sawBinaryOnly {
@@ -1402,7 +1405,25 @@ func ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return Default.ImportDir(dir, mode)
 }
 
-var slashslash = []byte("//")
+var (
+	bSlashSlash = []byte(slashSlash)
+	bStarSlash  = []byte(starSlash)
+	bSlashStar  = []byte(slashStar)
+
+	goBuildComment = []byte("//go:build")
+
+	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+	errMultipleGoBuild     = errors.New("multiple //go:build comments") // unused in Go 1.(N-1)
+)
+
+func isGoBuildComment(line []byte) bool {
+	if !bytes.HasPrefix(line, goBuildComment) {
+		return false
+	}
+	line = bytes.TrimSpace(line)
+	rest := line[len(goBuildComment):]
+	return len(rest) == 0 || len(bytes.TrimSpace(rest)) < len(rest)
+}
 
 // Special comment denoting a binary-only package.
 // See https://golang.org/design/2775-binary-only-packages
@@ -1426,34 +1447,20 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 //
 // shouldBuild reports whether the file should be built
 // and whether a //go:binary-only-package comment was found.
-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild bool, binaryOnly bool) {
-	sawBinaryOnly := false
+func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
 
 	// Pass 1. Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
-	end := 0
-	p := content
-	for len(p) > 0 {
-		line := p
-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
-			line, p = line[:i], p[i+1:]
-		} else {
-			p = p[len(p):]
-		}
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 { // Blank line
-			end = len(content) - len(p)
-			continue
-		}
-		if !bytes.HasPrefix(line, slashslash) { // Not comment line
-			break
-		}
+	// Also identify any //go:build comments.
+	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
+	if err != nil {
+		return false, false, err
 	}
-	content = content[:end]
 
-	// Pass 2.  Process each line in the run.
-	p = content
+	// Pass 2.  Process each +build line in the run.
+	p := content
 	shouldBuild = true
+	sawBuild := false
 	for len(p) > 0 {
 		line := p
 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
@@ -1462,17 +1469,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 			p = p[len(p):]
 		}
 		line = bytes.TrimSpace(line)
-		if !bytes.HasPrefix(line, slashslash) {
+		if !bytes.HasPrefix(line, bSlashSlash) {
 			continue
 		}
-		if bytes.Equal(line, binaryOnlyComment) {
-			sawBinaryOnly = true
-		}
-		line = bytes.TrimSpace(line[len(slashslash):])
+		line = bytes.TrimSpace(line[len(bSlashSlash):])
 		if len(line) > 0 && line[0] == '+' {
 			// Looks like a comment +line.
 			f := strings.Fields(string(line))
 			if f[0] == "+build" {
+				sawBuild = true
 				ok := false
 				for _, tok := range f[1:] {
 					if ctxt.match(tok, allTags) {
@@ -1486,7 +1491,78 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 		}
 	}
 
-	return shouldBuild, sawBinaryOnly
+	if goBuild != nil && !sawBuild {
+		return false, false, errGoBuildWithoutBuild
+	}
+
+	return shouldBuild, sawBinaryOnly, nil
+}
+
+func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
+	end := 0
+	p := content
+	ended := false       // found non-blank, non-// line, so stopped accepting // +build lines
+	inSlashStar := false // in /* */ comment
+
+Lines:
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 && !ended { // Blank line
+			// Remember position of most recent blank line.
+			// When we find the first non-blank, non-// line,
+			// this "end" position marks the latest file position
+			// where a // +build line can appear.
+			// (It must appear _before_ a blank line before the non-blank, non-// line.
+			// Yes, that's confusing, which is part of why we moved to //go:build lines.)
+			// Note that ended==false here means that inSlashStar==false,
+			// since seeing a /* would have set ended==true.
+			end = len(content) - len(p)
+			continue Lines
+		}
+		if !bytes.HasPrefix(line, slashSlash) { // Not comment line
+			ended = true
+		}
+
+		if !inSlashStar && isGoBuildComment(line) {
+			if false && goBuild != nil { // enabled in Go 1.N
+				return nil, nil, false, errMultipleGoBuild
+			}
+			goBuild = line
+		}
+		if !inSlashStar && bytes.Equal(line, binaryOnlyComment) {
+			sawBinaryOnly = true
+		}
+
+	Comments:
+		for len(line) > 0 {
+			if inSlashStar {
+				if i := bytes.Index(line, starSlash); i >= 0 {
+					inSlashStar = false
+					line = bytes.TrimSpace(line[i+len(starSlash):])
+					continue Comments
+				}
+				continue Lines
+			}
+			if bytes.HasPrefix(line, bSlashSlash) {
+				continue Lines
+			}
+			if bytes.HasPrefix(line, bSlashStar) {
+				inSlashStar = true
+				line = bytes.TrimSpace(line[len(bSlashStar):])
+				continue Comments
+			}
+			// Found non-comment text.
+			break Lines
+		}
+	}
+
+	return content[:end], goBuild, sawBinaryOnly, nil
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
