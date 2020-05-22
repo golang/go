@@ -509,28 +509,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
-
-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	if ctxt.IsDarwin() {
-		panic("darwin should be generic")
-	}
-	if ctxt.IsElf() {
-		panic("elf should be generic")
-	}
-	if ctxt.IsWindows() {
-		panic("pe should be generic")
-	}
-
-	ld.Symsize = 0
-	ld.Spsize = 0
-	ld.Lcsize = 0
-	if !*ld.FlagS {
-		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-		ctxt.Out.SeekSet(int64(symo))
-		ld.Asmplan9sym(ctxt)
-	}
-
-	ctxt.Out.SeekSet(0)
-	magic := uint32(4*11*11 + 7)
-	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
-}

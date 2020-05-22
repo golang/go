@@ -679,41 +679,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	}
 }
 
-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	if ctxt.IsDarwin() {
-		panic("darwin should be generic")
-	}
-	if ctxt.IsElf() {
-		panic("elf should be generic")
-	}
-	if ctxt.IsWindows() {
-		panic("pe should be generic")
-	}
-
-	switch ctxt.HeadType {
-	default:
-		ld.Errorf(nil, "unknown header type %v", ctxt.HeadType)
-		fallthrough
-
-	case objabi.Hplan9:
-		break
-	}
-
-	ld.Symsize = 0
-	ld.Spsize = 0
-	ld.Lcsize = 0
-	if !*ld.FlagS {
-		*ld.FlagS = true
-		symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-		ctxt.Out.SeekSet(symo)
-		ld.Asmplan9sym(ctxt)
-	}
-
-	ctxt.Out.SeekSet(0)
-	magic := uint32(4*26*26 + 7)
-	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
-}
-
 func tlsIEtoLE(P []byte, off, size int) {
 	// Transform the PC-relative instruction into a constant load.
 	// That is,
