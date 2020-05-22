@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/link/internal/loader"
+	"fmt"
 	"sync"
 )
 
@@ -74,12 +75,16 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 //  - writing out the architecture specific pieces.
 // This function handles the second part.
 func asmb2(ctxt *Link) bool {
-	// TODO: Spsize is only used for plan9
+	if ctxt.IsAIX() || ctxt.IsWasm() {
+		return false
+	}
+
+	Symsize = 0
+	Spsize = 0
+	Lcsize = 0
+
 	if ctxt.IsDarwin() {
 		machlink := Domacholink(ctxt)
-		Symsize = 0
-		Spsize = 0
-		Lcsize = 0
 		if !*FlagS && ctxt.IsExternal() {
 			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
 			ctxt.Out.SeekSet(symo)
@@ -87,12 +92,9 @@ func asmb2(ctxt *Link) bool {
 		}
 		ctxt.Out.SeekSet(0)
 		Asmbmacho(ctxt)
-		return true
 	}
+
 	if ctxt.IsElf() {
-		Symsize = 0
-		Spsize = 0
-		Lcsize = 0
 		var symo int64
 		if !*FlagS {
 			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
@@ -106,16 +108,33 @@ func asmb2(ctxt *Link) bool {
 		}
 		ctxt.Out.SeekSet(0)
 		Asmbelf(ctxt, symo)
-		return true
 	}
+
 	if ctxt.IsWindows() {
-		Symsize = 0
-		Spsize = 0
-		Lcsize = 0
 		Asmbpe(ctxt)
-		return true
 	}
-	return false
+
+	if ctxt.IsPlan9() {
+		if !*FlagS {
+			*FlagS = true
+			symo := int64(Segdata.Fileoff + Segdata.Filelen)
+			ctxt.Out.SeekSet(symo)
+			Asmplan9sym(ctxt)
+		}
+		ctxt.Out.SeekSet(0)
+		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+	}
+
+	if *FlagC {
+		fmt.Printf("textsize=%d\n", Segtext.Filelen)
+		fmt.Printf("datsize=%d\n", Segdata.Filelen)
+		fmt.Printf("bsssize=%d\n", Segdata.Length-Segdata.Filelen)
+		fmt.Printf("symsize=%d\n", Symsize)
+		fmt.Printf("lcsize=%d\n", Lcsize)
+		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(Symsize)+uint64(Lcsize))
+	}
+
+	return true
 }
 
 // WritePlan9Header writes out the plan9 header at the present position in the OutBuf.

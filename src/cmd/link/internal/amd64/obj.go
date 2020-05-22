@@ -53,11 +53,13 @@ func Init() (*sys.Arch, ld.Arch) {
 		// 0xCC is INT $3 - breakpoint instruction
 		CodePad: []byte{0xCC},
 
+		Plan9Magic:  uint32(4*26*26 + 7),
+		Plan9_64Bit: true,
+
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,

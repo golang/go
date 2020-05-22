@@ -670,32 +670,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
-
-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
-	if ctxt.IsElf() {
-		panic("elf should be generic")
-	}
-	if ctxt.IsWindows() {
-		panic("pe should be generic")
-	}
-	/* output symbol table */
-	ld.Symsize = 0
-
-	ld.Lcsize = 0
-	if !*ld.FlagS {
-		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-		ctxt.Out.SeekSet(int64(symo))
-		ld.Asmplan9sym(ctxt)
-	}
-
-	ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
-
-	if *ld.FlagC {
-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
-		fmt.Printf("symsize=%d\n", ld.Symsize)
-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
-	}
-}

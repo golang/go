@@ -195,6 +195,10 @@ type Arch struct {
 	// Set to true to write all text blocks in with CodeBlkWrite
 	WriteTextBlocks bool
 
+	// Plan 9 variables.
+	Plan9Magic  uint32
+	Plan9_64Bit bool
+
 	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
 	Archinit  func(*Link)
 	// Archreloc is an arch-specific hook that assists in relocation processing
