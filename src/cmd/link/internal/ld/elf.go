@@ -1398,7 +1398,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 }
 
-func Elfemitreloc(ctxt *Link) {
+func elfEmitReloc(ctxt *Link) {
 
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
@@ -1780,7 +1780,7 @@ func Asmbelfsetup() {
 	}
 }
 
-func Asmbelf(ctxt *Link, symo int64) {
+func asmbElf(ctxt *Link, symo int64) {
 
 	ldr := ctxt.loader
 	eh := getElfEhdr()

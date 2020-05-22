@@ -321,9 +321,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("reloc")
 	ctxt.reloc()
 	bench.Start("Asmb2")
-	if !asmb2(ctxt) {
-		thearch.Asmb2(ctxt, ctxt.loader)
-	}
+	asmb2(ctxt)
 
 	bench.Start("Munmap")
 	ctxt.Out.Close() // Close handles Munmapping if necessary.

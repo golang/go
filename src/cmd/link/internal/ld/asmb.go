@@ -74,9 +74,10 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
 //  - writing out the code/data/dwarf Segments
 //  - writing out the architecture specific pieces.
 // This function handles the second part.
-func asmb2(ctxt *Link) bool {
-	if ctxt.IsWasm() {
-		return false
+func asmb2(ctxt *Link) {
+	if thearch.Asmb2 != nil {
+		thearch.Asmb2(ctxt, ctxt.loader)
+		return
 	}
 
 	Symsize = 0
@@ -84,14 +85,14 @@ func asmb2(ctxt *Link) bool {
 	Lcsize = 0
 
 	if ctxt.IsDarwin() {
-		machlink := Domacholink(ctxt)
+		machlink := doMachoLink(ctxt)
 		if !*FlagS && ctxt.IsExternal() {
 			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
 			ctxt.Out.SeekSet(symo)
-			Machoemitreloc(ctxt)
+			machoEmitReloc(ctxt)
 		}
 		ctxt.Out.SeekSet(0)
-		Asmbmacho(ctxt)
+		asmbMacho(ctxt)
 	}
 
 	if ctxt.IsElf() {
@@ -100,18 +101,18 @@ func asmb2(ctxt *Link) bool {
 			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
 			symo = Rnd(symo, int64(*FlagRound))
 			ctxt.Out.SeekSet(symo)
-			Asmelfsym(ctxt)
+			asmElfSym(ctxt)
 			ctxt.Out.Write(Elfstrdat)
 			if ctxt.IsExternal() {
-				Elfemitreloc(ctxt)
+				elfEmitReloc(ctxt)
 			}
 		}
 		ctxt.Out.SeekSet(0)
-		Asmbelf(ctxt, symo)
+		asmbElf(ctxt, symo)
 	}
 
 	if ctxt.IsWindows() {
-		Asmbpe(ctxt)
+		asmbPe(ctxt)
 	}
 
 	if ctxt.IsPlan9() {
@@ -119,17 +120,17 @@ func asmb2(ctxt *Link) bool {
 			*FlagS = true
 			symo := int64(Segdata.Fileoff + Segdata.Filelen)
 			ctxt.Out.SeekSet(symo)
-			Asmplan9sym(ctxt)
+			asmbPlan9Sym(ctxt)
 		}
 		ctxt.Out.SeekSet(0)
-		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+		writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
 	}
 
 	if ctxt.IsAIX() {
 		ctxt.Out.SeekSet(0)
 		fileoff := uint32(Segdwarf.Fileoff + Segdwarf.Filelen)
 		fileoff = uint32(Rnd(int64(fileoff), int64(*FlagRound)))
-		Asmbxcoff(ctxt, int64(fileoff))
+		asmbXcoff(ctxt, int64(fileoff))
 	}
 
 	if *FlagC {
@@ -140,12 +141,10 @@ func asmb2(ctxt *Link) bool {
 		fmt.Printf("lcsize=%d\n", Lcsize)
 		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(Symsize)+uint64(Lcsize))
 	}
-
-	return true
 }
 
-// WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
-func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
+// writePlan9Header writes out the plan9 header at the present position in the OutBuf.
+func writePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
 	if is64Bit {
 		magic |= 0x00008000
 	}
