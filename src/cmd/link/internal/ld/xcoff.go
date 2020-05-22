@@ -1556,7 +1556,7 @@ func xcoffwrite(ctxt *Link) {
 }
 
 // Generate XCOFF assembly file
-func Asmbxcoff(ctxt *Link, fileoff int64) {
+func asmbXcoff(ctxt *Link, fileoff int64) {
 	xfile.sectNameToScnum = make(map[string]int16)
 
 	// Add sections

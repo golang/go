@@ -574,7 +574,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	}
 }
 
-func Asmbmacho(ctxt *Link) {
+func asmbMacho(ctxt *Link) {
 	/* apple MACH */
 	va := *FlagTextAddr - int64(HEADR)
 
@@ -964,7 +964,7 @@ func machodysymtab(ctxt *Link) {
 	ml.data[17] = 0 /* nlocrel */
 }
 
-func Domacholink(ctxt *Link) int64 {
+func doMachoLink(ctxt *Link) int64 {
 	machosymtab(ctxt)
 
 	ldr := ctxt.loader
@@ -1056,7 +1056,7 @@ func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []lo
 	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 }
 
-func Machoemitreloc(ctxt *Link) {
+func machoEmitReloc(ctxt *Link) {
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
 	}

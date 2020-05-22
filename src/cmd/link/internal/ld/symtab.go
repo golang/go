@@ -229,7 +229,7 @@ func genelfsym(ctxt *Link, elfbind int) {
 	}
 }
 
-func Asmelfsym(ctxt *Link) {
+func asmElfSym(ctxt *Link) {
 
 	// the first symbol entry is reserved
 	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
@@ -274,7 +274,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) 
 	Symsize += int32(l) + 1 + int32(len(name)) + 1
 }
 
-func Asmplan9sym(ctxt *Link) {
+func asmbPlan9Sym(ctxt *Link) {
 	ldr := ctxt.loader
 
 	// Add special runtime.text and runtime.etext symbols.

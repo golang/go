@@ -1547,7 +1547,7 @@ func addpersrc(ctxt *Link) {
 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
 }
 
-func Asmbpe(ctxt *Link) {
+func asmbPe(ctxt *Link) {
 	switch ctxt.Arch.Family {
 	default:
 		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
