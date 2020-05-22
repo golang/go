@@ -1371,8 +1371,8 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	}
 
 	// Look for +build comments to accept or reject the file.
-	var sawBinaryOnly bool
-	if !ctxt.shouldBuild(data, allTags, &sawBinaryOnly) && !ctxt.UseAllFiles {
+	ok, sawBinaryOnly := ctxt.shouldBuild(data, allTags)
+	if !ok && !ctxt.UseAllFiles {
 		return
 	}
 
@@ -1422,10 +1422,11 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 //
 // marks the file as applicable only on Windows and Linux.
 //
-// If shouldBuild finds a //go:binary-only-package comment in the file,
-// it sets *binaryOnly to true. Otherwise it does not change *binaryOnly.
+// For each build tag it consults, shouldBuild sets allTags[tag] = true.
 //
-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
+// shouldBuild reports whether the file should be built
+// and whether a //go:binary-only-package comment was found.
+func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild bool, binaryOnly bool) {
 	sawBinaryOnly := false
 
 	// Pass 1. Identify leading run of // comments and blank lines,
@@ -1452,7 +1453,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 
 	// Pass 2.  Process each line in the run.
 	p = content
-	allok := true
+	shouldBuild = true
 	for len(p) > 0 {
 		line := p
 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
@@ -1479,17 +1480,13 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 					}
 				}
 				if !ok {
-					allok = false
+					shouldBuild = false
 				}
 			}
 		}
 	}
 
-	if binaryOnly != nil && sawBinaryOnly {
-		*binaryOnly = true
-	}
-
-	return allok
+	return shouldBuild, sawBinaryOnly
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.

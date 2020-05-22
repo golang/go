@@ -6,6 +6,7 @@ package build
 
 import (
 	"flag"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -138,48 +139,78 @@ func TestLocalDirectory(t *testing.T) {
 	}
 }
 
+var shouldBuildTests = []struct {
+	content     string
+	tags        map[string]bool
+	binaryOnly  bool
+	shouldBuild bool
+}{
+	{
+		content: "// +build yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true},
+		shouldBuild: true,
+	},
+	{
+		content: "// +build no yes\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: true,
+	},
+	{
+		content: "// +build no,yes no\n\n" +
+			"package main\n",
+		tags:        map[string]bool{"yes": true, "no": true},
+		shouldBuild: false,
+	},
+	{
+		content: "// +build cgo\n\n" +
+			"// Copyright The Go Authors.\n\n" +
+			"// This package implements parsing of tags like\n" +
+			"// +build tag1\n" +
+			"package build",
+		tags:        map[string]bool{"cgo": true},
+		shouldBuild: false,
+	},
+	{
+		content: "// Copyright The Go Authors.\n\n" +
+			"package build\n\n" +
+			"// shouldBuild checks tags given by lines of the form\n" +
+			"// +build tag\n" +
+			"func shouldBuild(content []byte)\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		// too close to package line
+		content: "// +build yes\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+	{
+		// too close to package line
+		content: "// +build no\n" +
+			"package main\n",
+		tags:        map[string]bool{},
+		shouldBuild: true,
+	},
+}
+
 func TestShouldBuild(t *testing.T) {
-	const file1 = "// +build tag1\n\n" +
-		"package main\n"
-	want1 := map[string]bool{"tag1": true}
-
-	const file2 = "// +build cgo\n\n" +
-		"// This package implements parsing of tags like\n" +
-		"// +build tag1\n" +
-		"package build"
-	want2 := map[string]bool{"cgo": true}
-
-	const file3 = "// Copyright The Go Authors.\n\n" +
-		"package build\n\n" +
-		"// shouldBuild checks tags given by lines of the form\n" +
-		"// +build tag\n" +
-		"func shouldBuild(content []byte)\n"
-	want3 := map[string]bool{}
-
-	ctx := &Context{BuildTags: []string{"tag1"}}
-	m := map[string]bool{}
-	if !ctx.shouldBuild([]byte(file1), m, nil) {
-		t.Errorf("shouldBuild(file1) = false, want true")
-	}
-	if !reflect.DeepEqual(m, want1) {
-		t.Errorf("shouldBuild(file1) tags = %v, want %v", m, want1)
-	}
-
-	m = map[string]bool{}
-	if ctx.shouldBuild([]byte(file2), m, nil) {
-		t.Errorf("shouldBuild(file2) = true, want false")
-	}
-	if !reflect.DeepEqual(m, want2) {
-		t.Errorf("shouldBuild(file2) tags = %v, want %v", m, want2)
-	}
-
-	m = map[string]bool{}
-	ctx = &Context{BuildTags: nil}
-	if !ctx.shouldBuild([]byte(file3), m, nil) {
-		t.Errorf("shouldBuild(file3) = false, want true")
-	}
-	if !reflect.DeepEqual(m, want3) {
-		t.Errorf("shouldBuild(file3) tags = %v, want %v", m, want3)
+	for i, tt := range shouldBuildTests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			ctx := &Context{BuildTags: []string{"yes"}}
+			tags := map[string]bool{}
+			shouldBuild, binaryOnly := ctx.shouldBuild([]byte(tt.content), tags)
+			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) {
+				t.Errorf("mismatch:\n"+
+					"have shouldBuild=%v, binaryOnly=%v, tags=%v\n"+
+					"want shouldBuild=%v, binaryOnly=%v, tags=%v",
+					shouldBuild, binaryOnly, tags,
+					tt.shouldBuild, tt.binaryOnly, tt.tags)
+			}
+		})
 	}
 }
 
