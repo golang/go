@@ -50,10 +50,11 @@ func ExampleDuration_Round() {
 }
 
 func ExampleDuration_String() {
-	t1 := time.Date(2016, time.August, 15, 0, 0, 0, 0, time.UTC)
-	t2 := time.Date(2017, time.February, 16, 0, 0, 0, 0, time.UTC)
-	fmt.Println(t2.Sub(t1).String())
-	// Output: 4440h0m0s
+	fmt.Println(1*time.Hour + 2*time.Minute + 300*time.Millisecond)
+	fmt.Println(300*time.Millisecond)
+	// Output:
+	// 1h2m0.3s
+	// 300ms
 }
 
 func ExampleDuration_Truncate() {
