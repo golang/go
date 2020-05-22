@@ -242,6 +242,7 @@ func (p *noder) node() {
 	mkpackage(p.file.PkgName.Value)
 
 	if pragma, ok := p.file.Pragma.(*Pragma); ok {
+		pragma.Flag &^= GoBuildPragma
 		p.checkUnused(pragma)
 	}
 
