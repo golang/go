@@ -335,7 +335,7 @@ func (t *transferWriter) writeBody(w io.Writer) error {
 	var ncopy int64
 
 	// Write body. We "unwrap" the body first if it was wrapped in a
-	// nopCloser. This is to ensure that we can take advantage of
+	// nopCloser or readTrackingBody. This is to ensure that we can take advantage of
 	// OS-level optimizations in the event that the body is an
 	// *os.File.
 	if t.Body != nil {
@@ -413,7 +413,10 @@ func (t *transferWriter) unwrapBody() io.Reader {
 	if reflect.TypeOf(t.Body) == nopCloserType {
 		return reflect.ValueOf(t.Body).Field(0).Interface().(io.Reader)
 	}
-
+	if r, ok := t.Body.(*readTrackingBody); ok {
+		r.didRead = true
+		return r.ReadCloser
+	}
 	return t.Body
 }
 
@@ -1091,6 +1094,9 @@ func isKnownInMemoryReader(r io.Reader) bool {
 	}
 	if reflect.TypeOf(r) == nopCloserType {
 		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
+	}
+	if r, ok := r.(*readTrackingBody); ok {
+		return isKnownInMemoryReader(r.ReadCloser)
 	}
 	return false
 }

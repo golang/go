@@ -511,9 +511,16 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
+	req = setupRewindBody(req)
+
 	if altRT := t.alternateRoundTripper(req); altRT != nil {
 		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
 			return resp, err
+		}
+		var err error
+		req, err = rewindBody(req)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if !isHTTP {
@@ -587,16 +594,57 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		testHookRoundTripRetried()
 
 		// Rewind the body if we're able to.
-		if req.GetBody != nil {
-			newReq := *req
-			var err error
-			newReq.Body, err = req.GetBody()
-			if err != nil {
-				return nil, err
-			}
-			req = &newReq
+		req, err = rewindBody(req)
+		if err != nil {
+			return nil, err
 		}
 	}
+}
+
+var errCannotRewind = errors.New("net/http: cannot rewind body after connection loss")
+
+type readTrackingBody struct {
+	io.ReadCloser
+	didRead bool
+}
+
+func (r *readTrackingBody) Read(data []byte) (int, error) {
+	r.didRead = true
+	return r.ReadCloser.Read(data)
+}
+
+// setupRewindBody returns a new request with a custom body wrapper
+// that can report whether the body needs rewinding.
+// This lets rewindBody avoid an error result when the request
+// does not have GetBody but the body hasn't been read at all yet.
+func setupRewindBody(req *Request) *Request {
+	if req.Body == nil || req.Body == NoBody {
+		return req
+	}
+	newReq := *req
+	newReq.Body = &readTrackingBody{ReadCloser: req.Body}
+	return &newReq
+}
+
+// rewindBody returns a new request with the body rewound.
+// It returns req unmodified if the body does not need rewinding.
+// rewindBody takes care of closing req.Body when appropriate
+// (in all cases except when rewindBody returns req unmodified).
+func rewindBody(req *Request) (rewound *Request, err error) {
+	if req.Body == nil || req.Body == NoBody || !req.Body.(*readTrackingBody).didRead {
+		return req, nil // nothing to rewind
+	}
+	req.closeBody()
+	if req.GetBody == nil {
+		return nil, errCannotRewind
+	}
+	body, err := req.GetBody()
+	if err != nil {
+		return nil, err
+	}
+	newReq := *req
+	newReq.Body = &readTrackingBody{ReadCloser: body}
+	return &newReq, nil
 }
 
 // shouldRetryRequest reports whether we should retry sending a failed

@@ -6175,3 +6175,29 @@ func (timeoutProto) RoundTrip(req *Request) (*Response, error) {
 		return nil, errors.New("request was not canceled")
 	}
 }
+
+type roundTripFunc func(r *Request) (*Response, error)
+
+func (f roundTripFunc) RoundTrip(r *Request) (*Response, error) { return f(r) }
+
+// Issue 32441: body is not reset after ErrSkipAltProtocol
+func TestIssue32441(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if n, _ := io.Copy(ioutil.Discard, r.Body); n == 0 {
+			t.Error("body length is zero")
+		}
+	}))
+	defer ts.Close()
+	c := ts.Client()
+	c.Transport.(*Transport).RegisterProtocol("http", roundTripFunc(func(r *Request) (*Response, error) {
+		// Draining body to trigger failure condition on actual request to server.
+		if n, _ := io.Copy(ioutil.Discard, r.Body); n == 0 {
+			t.Error("body length is zero during round trip")
+		}
+		return nil, ErrSkipAltProtocol
+	}))
+	if _, err := c.Post(ts.URL, "application/octet-stream", bytes.NewBufferString("data")); err != nil {
+		t.Error(err)
+	}
+}
