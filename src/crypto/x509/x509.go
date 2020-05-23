@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+	"unicode"
 
 	"golang.org/x/crypto/cryptobyte"
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
@@ -1085,17 +1085,29 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
 	err = forEachSAN(value, func(tag int, data []byte) error {
 		switch tag {
 		case nameTypeEmail:
-			emailAddresses = append(emailAddresses, string(data))
+			email := string(data)
+			if err := isIA5String(email); err != nil {
+				return errors.New("x509: SAN rfc822Name is malformed")
+			}
+			emailAddresses = append(emailAddresses, email)
 		case nameTypeDNS:
-			dnsNames = append(dnsNames, string(data))
+			name := string(data)
+			if err := isIA5String(name); err != nil {
+				return errors.New("x509: SAN dNSName is malformed")
+			}
+			dnsNames = append(dnsNames, string(name))
 		case nameTypeURI:
-			uri, err := url.Parse(string(data))
+			uriStr := string(data)
+			if err := isIA5String(uriStr); err != nil {
+				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
+			}
+			uri, err := url.Parse(uriStr)
 			if err != nil {
-				return fmt.Errorf("x509: cannot parse URI %q: %s", string(data), err)
+				return fmt.Errorf("x509: cannot parse URI %q: %s", uriStr, err)
 			}
 			if len(uri.Host) > 0 {
 				if _, ok := domainToReverseLabels(uri.Host); !ok {
-					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", string(data))
+					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", uriStr)
 				}
 			}
 			uris = append(uris, uri)
@@ -1625,9 +1637,15 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
 	var rawValues []asn1.RawValue
 	for _, name := range dnsNames {
+		if err := isIA5String(name); err != nil {
+			return nil, err
+		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
 	}
 	for _, email := range emailAddresses {
+		if err := isIA5String(email); err != nil {
+			return nil, err
+		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeEmail, Class: 2, Bytes: []byte(email)})
 	}
 	for _, rawIP := range ipAddresses {
@@ -1639,14 +1657,19 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris [
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeIP, Class: 2, Bytes: ip})
 	}
 	for _, uri := range uris {
-		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uri.String())})
+		uriStr := uri.String()
+		if err := isIA5String(uriStr); err != nil {
+			return nil, err
+		}
+		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uriStr)})
 	}
 	return asn1.Marshal(rawValues)
 }
 
 func isIA5String(s string) error {
 	for _, r := range s {
-		if r >= utf8.RuneSelf {
+		// Per RFC5280 "IA5String is limited to the set of ASCII characters"
+		if r > unicode.MaxASCII {
 			return fmt.Errorf("x509: %q cannot be encoded as an IA5String", s)
 		}
 	}

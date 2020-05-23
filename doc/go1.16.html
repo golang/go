@@ -174,6 +174,16 @@ Do not send CLs removing the interior tags from such phrases.
   by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
 </p>
 
+<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
+
+<p><!-- CL 235078 -->
+  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
+  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
+  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
+  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
+  contain strings with characters within the ASCII range.
+</p>
+
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
 
 <p><!-- CL 250357 -->
