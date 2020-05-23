@@ -6,6 +6,7 @@
 package cookiejar
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -82,6 +83,57 @@ func New(o *Options) (*Jar, error) {
 		jar.psList = o.PublicSuffixList
 	}
 	return jar, nil
+}
+
+func deepCopy(value interface{}) interface{} {
+	if valueMap, ok := value.(map[string]interface{}); ok {
+		newMap := make(map[string]interface{})
+		for k, v := range valueMap {
+			newMap[k] = deepCopy(v)
+		}
+		return newMap
+	} else if valueSlice, ok := value.([]interface{}); ok {
+		newSlice := make([]interface{}, len(valueSlice))
+		for k, v := range valueSlice {
+			newSlice[k] = deepCopy(v)
+		}
+		return newSlice
+	}
+	return value
+}
+
+// Copy the data to a new jar
+func (j *Jar) Copy() *Jar {
+	j.mu.Lock()
+	entries := make(map[string]map[string]entry)
+	for k0, v0 := range j.entries {
+		e1 := make(map[string]entry)
+		for k1, v1 := range v0 {
+			e1[k1] = v1
+		}
+		entries[k0] = e1
+	}
+	j.mu.Unlock()
+	return &Jar{
+		entries: entries,
+	}
+}
+
+// MarshalJSON my impl
+func (j *Jar) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.entries)
+}
+
+// UnmarshalJSON my impl
+func (j *Jar) UnmarshalJSON(data []byte) error {
+	entries := make(map[string]map[string]entry)
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return err
+	}
+	j.mu.Lock()
+	j.entries = entries
+	j.mu.Unlock()
+	return nil
 }
 
 // entry is the internal representation of a cookie.
