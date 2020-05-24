@@ -152,6 +152,23 @@ func TestChildOnlyHeaders(t *testing.T) {
 	}
 }
 
+// Test that a child handler does not receive a nil Request Body.
+// golang.org/issue/39190
+func TestNilRequestBody(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	h := &Handler{
+		Path: os.Args[0],
+		Root: "/test.go",
+		Args: []string{"-test.run=TestBeChildCGIProcess"},
+	}
+	expectedMap := map[string]string{
+		"nil-request-body": "false",
+	}
+	_ = runCgiTest(t, h, "POST /test.go?nil-request-body=1 HTTP/1.0\nHost: example.com\n\n", expectedMap)
+	_ = runCgiTest(t, h, "POST /test.go?nil-request-body=1 HTTP/1.0\nHost: example.com\nContent-Length: 0\n\n", expectedMap)
+}
+
 // golang.org/issue/7198
 func Test500WithNoHeaders(t *testing.T)     { want500Test(t, "/immediate-disconnect") }
 func Test500WithNoContentType(t *testing.T) { want500Test(t, "/no-content-type") }
@@ -198,6 +215,10 @@ func TestBeChildCGIProcess(t *testing.T) {
 		os.Exit(0)
 	}
 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.FormValue("nil-request-body") == "1" {
+			fmt.Fprintf(rw, "nil-request-body=%v\n", req.Body == nil)
+			return
+		}
 		rw.Header().Set("X-Test-Header", "X-Test-Value")
 		req.ParseForm()
 		if req.FormValue("no-body") == "1" {
