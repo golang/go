@@ -60,7 +60,6 @@ func f() {}
 
 // Tests golang/go#36824.
 func TestFormattingOneLineImports36824(t *testing.T) {
-	t.Skipf("golang/go#36824 has not been fixed yet")
 
 	const onelineProgramA = `
 -- a.go --
@@ -79,7 +78,28 @@ func f() { fmt.Println() }
 		got := env.Editor.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
-			t.Errorf("OneLineImports:\n%s", tests.Diff(want, got))
+			t.Errorf("OneLineImports3824:\n%s", tests.Diff(want, got))
+		}
+	})
+}
+
+func TestFormattingOneLineRmImports36824(t *testing.T) {
+	const onelineProgramB = `
+-- a.go --
+package x; import "os"; func f() {}
+
+-- a.go.imported --
+package x
+
+func f() {}
+`
+	runner.Run(t, onelineProgramB, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		env.OrganizeImports("a.go")
+		got := env.Editor.BufferText("a.go")
+		want := env.ReadWorkspaceFile("a.go.imported")
+		if got != want {
+			t.Errorf("OneLineRmImports:\n%s", tests.Diff(want, got))
 		}
 	})
 }

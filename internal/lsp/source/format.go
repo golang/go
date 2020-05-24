@@ -12,6 +12,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"strings"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
@@ -151,19 +152,28 @@ func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, 
 }
 
 func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, origData []byte, origMapper *protocol.ColumnMapper, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
+	// trim the original data to match fixedData
+	left := importPrefix(origData)
+	extra := strings.Index(left, "\n") == -1 // one line may have more than imports
+	if extra {
+		left = string(origData)
+	}
+	if len(left) > 0 && left[len(left)-1] != '\n' {
+		left += "\n"
+	}
 	// Apply the fixes and re-parse the file so that we can locate the
 	// new imports.
-	fixedData, err := imports.ApplyFixes(fixes, "", origData, options, parser.ImportsOnly)
+	flags := parser.ImportsOnly
+	if extra {
+		// used all of origData above, use all of it here too
+		flags = 0
+	}
+	fixedData, err := imports.ApplyFixes(fixes, "", origData, options, flags)
 	if err != nil {
 		return nil, err
 	}
 	if fixedData == nil || fixedData[len(fixedData)-1] != '\n' {
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
-	}
-	// trim the original data to match fixedData
-	left := importPrefix(origData)
-	if len(left) > 0 && left[len(left)-1] != '\n' {
-		left += "\n"
 	}
 	uri := ph.File().Identity().URI
 	edits := view.Options().ComputeEdits(uri, left, string(fixedData))
