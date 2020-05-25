@@ -306,9 +306,6 @@ func getRandomData(r []byte) {
 	extendRandom(r, 0)
 }
 
-func goenvs() {
-}
-
 func initsig(preinit bool) {
 	if !preinit {
 		notify(unsafe.Pointer(funcPC(sigtramp)))
