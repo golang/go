@@ -336,7 +336,7 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+	var attrsAndFlags uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 		if createmode == CREATE_ALWAYS {
@@ -360,6 +360,11 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 			}
 		}
 	}
+
+	if O_SYNC {
+		attrsAndFlags != FILE_FLAG_WRITE_THROUGH
+	}
+
 	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 	return h, e
 }
