@@ -77,6 +77,7 @@ func PrintfTests() {
 	fmt.Printf("%G %G %G %G", 3e9, x, fslice, c)
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
+	fmt.Printf("%O %O", 3, i)
 	fmt.Printf("%p", p)
 	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
@@ -121,6 +122,7 @@ func PrintfTests() {
 	fmt.Printf("%g", imap)                      // want `Printf format %g has arg imap of wrong type map\[int\]int`
 	fmt.Printf("%G", i)                         // want "Printf format %G has arg i of wrong type int"
 	fmt.Printf("%o", x)                         // want "Printf format %o has arg x of wrong type float64"
+	fmt.Printf("%O", x)                         // want "Printf format %O has arg x of wrong type float64"
 	fmt.Printf("%p", nil)                       // want "Printf format %p has arg nil of wrong type untyped nil"
 	fmt.Printf("%p", 23)                        // want "Printf format %p has arg 23 of wrong type int"
 	fmt.Printf("%q", x)                         // want "Printf format %q has arg x of wrong type float64"
@@ -799,19 +801,21 @@ func PointerVerbs() {
 	chan_ := make(chan bool)
 	func_ := func(bool) {}
 
-	// %p, %b, %d, %o, %x, and %X all support pointers.
+	// %p, %b, %d, %o, %O, %x, and %X all support pointers.
 	fmt.Printf("%p", ptr)
 	fmt.Printf("%b", ptr)
 	fmt.Printf("%d", ptr)
 	fmt.Printf("%o", ptr)
+	fmt.Printf("%O", ptr)
 	fmt.Printf("%x", ptr)
 	fmt.Printf("%X", ptr)
 
-	// %p, %b, %d, %o, %x, and %X all support channels.
+	// %p, %b, %d, %o, %O, %x, and %X all support channels.
 	fmt.Printf("%p", chan_)
 	fmt.Printf("%b", chan_)
 	fmt.Printf("%d", chan_)
 	fmt.Printf("%o", chan_)
+	fmt.Printf("%O", chan_)
 	fmt.Printf("%x", chan_)
 	fmt.Printf("%X", chan_)
 
@@ -820,6 +824,7 @@ func PointerVerbs() {
 	fmt.Printf("%b", func_) // want `Printf format %b arg func_ is a func value, not called`
 	fmt.Printf("%d", func_) // want `Printf format %d arg func_ is a func value, not called`
 	fmt.Printf("%o", func_) // want `Printf format %o arg func_ is a func value, not called`
+	fmt.Printf("%O", func_) // want `Printf format %O arg func_ is a func value, not called`
 	fmt.Printf("%x", func_) // want `Printf format %x arg func_ is a func value, not called`
 	fmt.Printf("%X", func_) // want `Printf format %X arg func_ is a func value, not called`
 
@@ -831,6 +836,7 @@ func PointerVerbs() {
 	fmt.Printf("%d", slice) // want `Printf format %d has arg slice of wrong type \[\]bool`
 
 	fmt.Printf("%o", slice) // want `Printf format %o has arg slice of wrong type \[\]bool`
+	fmt.Printf("%O", slice) // want `Printf format %O has arg slice of wrong type \[\]bool`
 
 	fmt.Printf("%x", slice) // want `Printf format %x has arg slice of wrong type \[\]bool`
 	fmt.Printf("%X", slice) // want `Printf format %X has arg slice of wrong type \[\]bool`
@@ -840,6 +846,7 @@ func PointerVerbs() {
 	fmt.Printf("%b", array) // want `Printf format %b has arg array of wrong type \[3\]bool`
 	fmt.Printf("%d", array) // want `Printf format %d has arg array of wrong type \[3\]bool`
 	fmt.Printf("%o", array) // want `Printf format %o has arg array of wrong type \[3\]bool`
+	fmt.Printf("%O", array) // want `Printf format %O has arg array of wrong type \[3\]bool`
 	fmt.Printf("%x", array) // want `Printf format %x has arg array of wrong type \[3\]bool`
 	fmt.Printf("%X", array) // want `Printf format %X has arg array of wrong type \[3\]bool`
 
@@ -850,6 +857,7 @@ func PointerVerbs() {
 	fmt.Printf("%d", map_) // want `Printf format %d has arg map_ of wrong type map\[bool\]bool`
 
 	fmt.Printf("%o", map_) // want `Printf format %o has arg map_ of wrong type map\[bool\]bool`
+	fmt.Printf("%O", map_) // want `Printf format %O has arg map_ of wrong type map\[bool\]bool`
 
 	fmt.Printf("%x", map_) // want `Printf format %x has arg map_ of wrong type map\[bool\]bool`
 	fmt.Printf("%X", map_) // want `Printf format %X has arg map_ of wrong type map\[bool\]bool`

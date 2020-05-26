@@ -805,6 +805,7 @@ var printVerbs = []printVerb{
 	{'g', sharpNumFlag, argFloat | argComplex},
 	{'G', sharpNumFlag, argFloat | argComplex},
 	{'o', sharpNumFlag, argInt | argPointer},
+	{'O', sharpNumFlag, argInt | argPointer},
 	{'p', "-#", argPointer},
 	{'q', " -+.0#", argRune | argInt | argString},
 	{'s', " -+.0", argString},
