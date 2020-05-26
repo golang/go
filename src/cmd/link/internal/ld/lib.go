@@ -258,10 +258,10 @@ type Arch struct {
 
 var (
 	thearch Arch
-	Lcsize  int32
+	lcSize  int32
 	rpath   Rpath
-	Spsize  int32
-	Symsize int32
+	spSize  int32
+	symSize int32
 )
 
 const (

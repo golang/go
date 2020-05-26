@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"fmt"
 	"sync"
@@ -80,66 +81,47 @@ func asmb2(ctxt *Link) {
 		return
 	}
 
-	Symsize = 0
-	Spsize = 0
-	Lcsize = 0
+	symSize = 0
+	spSize = 0
+	lcSize = 0
 
-	if ctxt.IsDarwin() {
-		machlink := doMachoLink(ctxt)
-		if !*FlagS && ctxt.IsExternal() {
-			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
-			ctxt.Out.SeekSet(symo)
-			machoEmitReloc(ctxt)
-		}
-		ctxt.Out.SeekSet(0)
+	switch ctxt.HeadType {
+	default:
+		panic("unknown platform")
+
+	// Macho
+	case objabi.Hdarwin:
 		asmbMacho(ctxt)
-	}
 
-	if ctxt.IsElf() {
-		var symo int64
-		if !*FlagS {
-			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
-			symo = Rnd(symo, int64(*FlagRound))
-			ctxt.Out.SeekSet(symo)
-			asmElfSym(ctxt)
-			ctxt.Out.Write(Elfstrdat)
-			if ctxt.IsExternal() {
-				elfEmitReloc(ctxt)
-			}
-		}
-		ctxt.Out.SeekSet(0)
-		asmbElf(ctxt, symo)
-	}
+	// Plan9
+	case objabi.Hplan9:
+		asmbPlan9(ctxt)
 
-	if ctxt.IsWindows() {
+	// PE
+	case objabi.Hwindows:
 		asmbPe(ctxt)
-	}
 
-	if ctxt.IsPlan9() {
-		if !*FlagS {
-			*FlagS = true
-			symo := int64(Segdata.Fileoff + Segdata.Filelen)
-			ctxt.Out.SeekSet(symo)
-			asmbPlan9Sym(ctxt)
-		}
-		ctxt.Out.SeekSet(0)
-		writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
-	}
+	// Xcoff
+	case objabi.Haix:
+		asmbXcoff(ctxt)
 
-	if ctxt.IsAIX() {
-		ctxt.Out.SeekSet(0)
-		fileoff := uint32(Segdwarf.Fileoff + Segdwarf.Filelen)
-		fileoff = uint32(Rnd(int64(fileoff), int64(*FlagRound)))
-		asmbXcoff(ctxt, int64(fileoff))
+	// Elf
+	case objabi.Hdragonfly,
+		objabi.Hfreebsd,
+		objabi.Hlinux,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd,
+		objabi.Hsolaris:
+		asmbElf(ctxt)
 	}
 
 	if *FlagC {
 		fmt.Printf("textsize=%d\n", Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", Segdata.Filelen)
 		fmt.Printf("bsssize=%d\n", Segdata.Length-Segdata.Filelen)
-		fmt.Printf("symsize=%d\n", Symsize)
-		fmt.Printf("lcsize=%d\n", Lcsize)
-		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(Symsize)+uint64(Lcsize))
+		fmt.Printf("symsize=%d\n", symSize)
+		fmt.Printf("lcsize=%d\n", lcSize)
+		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(symSize)+uint64(lcSize))
 	}
 }
 
@@ -152,16 +134,28 @@ func writePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
 	buf.Write32b(uint32(Segtext.Filelen))
 	buf.Write32b(uint32(Segdata.Filelen))
 	buf.Write32b(uint32(Segdata.Length - Segdata.Filelen))
-	buf.Write32b(uint32(Symsize))
+	buf.Write32b(uint32(symSize))
 	if is64Bit {
 		buf.Write32b(uint32(entry &^ 0x80000000))
 	} else {
 		buf.Write32b(uint32(entry))
 	}
-	buf.Write32b(uint32(Spsize))
-	buf.Write32b(uint32(Lcsize))
+	buf.Write32b(uint32(spSize))
+	buf.Write32b(uint32(lcSize))
 	// amd64 includes the entry at the beginning of the symbol table.
 	if is64Bit {
 		buf.Write64b(uint64(entry))
 	}
+}
+
+// asmbPlan9 assembles a plan 9 binary.
+func asmbPlan9(ctxt *Link) {
+	if !*FlagS {
+		*FlagS = true
+		symo := int64(Segdata.Fileoff + Segdata.Filelen)
+		ctxt.Out.SeekSet(symo)
+		asmbPlan9Sym(ctxt)
+	}
+	ctxt.Out.SeekSet(0)
+	writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
 }

@@ -1130,7 +1130,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	}
 
 	if ctxt.Debugvlog != 0 || *flagN {
-		ctxt.Logf("symsize = %d\n", uint32(Symsize))
+		ctxt.Logf("symsize = %d\n", uint32(symSize))
 	}
 	xfile.updatePreviousFile(ctxt, true)
 }
@@ -1556,7 +1556,11 @@ func xcoffwrite(ctxt *Link) {
 }
 
 // Generate XCOFF assembly file
-func asmbXcoff(ctxt *Link, fileoff int64) {
+func asmbXcoff(ctxt *Link) {
+	ctxt.Out.SeekSet(0)
+	fileoff := int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+	fileoff = int64(Rnd(int64(fileoff), int64(*FlagRound)))
+
 	xfile.sectNameToScnum = make(map[string]int16)
 
 	// Add sections
