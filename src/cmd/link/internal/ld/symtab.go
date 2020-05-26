@@ -61,7 +61,7 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 		out.Write16(uint16(shndx))
 		out.Write64(uint64(addr))
 		out.Write64(uint64(size))
-		Symsize += ELF64SYMSIZE
+		symSize += ELF64SYMSIZE
 	} else {
 		out.Write32(uint32(off))
 		out.Write32(uint32(addr))
@@ -69,7 +69,7 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 		out.Write8(uint8(info))
 		out.Write8(uint8(other))
 		out.Write16(uint16(shndx))
-		Symsize += ELF32SYMSIZE
+		symSize += ELF32SYMSIZE
 	}
 }
 
@@ -271,7 +271,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) 
 	ctxt.Out.WriteString(name)
 	ctxt.Out.Write8(0)
 
-	Symsize += int32(l) + 1 + int32(len(name)) + 1
+	symSize += int32(l) + 1 + int32(len(name)) + 1
 }
 
 func asmbPlan9Sym(ctxt *Link) {

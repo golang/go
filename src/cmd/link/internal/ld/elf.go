@@ -1780,7 +1780,19 @@ func Asmbelfsetup() {
 	}
 }
 
-func asmbElf(ctxt *Link, symo int64) {
+func asmbElf(ctxt *Link) {
+	var symo int64
+	if !*FlagS {
+		symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+		symo = Rnd(symo, int64(*FlagRound))
+		ctxt.Out.SeekSet(symo)
+		asmElfSym(ctxt)
+		ctxt.Out.Write(Elfstrdat)
+		if ctxt.IsExternal() {
+			elfEmitReloc(ctxt)
+		}
+	}
+	ctxt.Out.SeekSet(0)
 
 	ldr := ctxt.loader
 	eh := getElfEhdr()
@@ -2231,7 +2243,7 @@ elfobj:
 		sh := elfshname(".symtab")
 		sh.type_ = SHT_SYMTAB
 		sh.off = uint64(symo)
-		sh.size = uint64(Symsize)
+		sh.size = uint64(symSize)
 		sh.addralign = uint64(ctxt.Arch.RegSize)
 		sh.entsize = 8 + 2*uint64(ctxt.Arch.RegSize)
 		sh.link = uint32(elfshname(".strtab").shnum)
@@ -2239,7 +2251,7 @@ elfobj:
 
 		sh = elfshname(".strtab")
 		sh.type_ = SHT_STRTAB
-		sh.off = uint64(symo) + uint64(Symsize)
+		sh.off = uint64(symo) + uint64(symSize)
 		sh.size = uint64(len(Elfstrdat))
 		sh.addralign = 1
 	}
