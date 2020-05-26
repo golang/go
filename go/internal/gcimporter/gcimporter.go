@@ -204,11 +204,14 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 		// Or, define a new standard go/types/gcexportdata package.
 		fset := token.NewFileSet()
 
-		// The indexed export format starts with an 'i'.
-		if len(data) == 0 || data[0] != 'i' {
-			return nil, fmt.Errorf("unknown export data format")
+		// The indexed export format starts with an 'i'; the older
+		// binary export format starts with a 'c', 'd', or 'v'
+		// (from "version"). Select appropriate importer.
+		if len(data) > 0 && data[0] == 'i' {
+			_, pkg, err = IImportData(fset, packages, data[1:], id)
+		} else {
+			_, pkg, err = BImportData(fset, packages, data, id)
 		}
-		_, pkg, err = IImportData(fset, packages, data[1:], id)
 
 	default:
 		err = fmt.Errorf("unknown export data header: %q", hdr)

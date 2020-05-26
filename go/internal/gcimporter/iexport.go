@@ -11,7 +11,6 @@ package gcimporter
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -25,15 +24,6 @@ import (
 // Current indexed export format version. Increase with each format change.
 // 0: Go1.11 encoding
 const iexportVersion = 0
-
-// internalError represents an error generated inside this package.
-type internalError string
-
-func (e internalError) Error() string { return "gcimporter: " + string(e) }
-
-func internalErrorf(format string, args ...interface{}) error {
-	return internalError(fmt.Sprintf(format, args...))
-}
 
 // IExportData returns the binary export data for pkg.
 //
@@ -536,16 +526,6 @@ func constantToFloat(x constant.Value) *big.Float {
 		assert(ok)
 	}
 	return &f
-}
-
-func valueToRat(x constant.Value) *big.Rat {
-	// Convert little-endian to big-endian.
-	// I can't believe this is necessary.
-	bytes := constant.Bytes(x)
-	for i := 0; i < len(bytes)/2; i++ {
-		bytes[i], bytes[len(bytes)-1-i] = bytes[len(bytes)-1-i], bytes[i]
-	}
-	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
 }
 
 // mpint exports a multi-precision integer.
