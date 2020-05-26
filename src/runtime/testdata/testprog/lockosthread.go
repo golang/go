@@ -220,7 +220,7 @@ func LockOSThreadTemplateThreadRace() {
 	}()
 
 	// Try to synchronize both LockOSThreads.
-	start := time.Now().Add(10*time.Millisecond)
+	start := time.Now().Add(10 * time.Millisecond)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -232,10 +232,10 @@ func LockOSThreadTemplateThreadRace() {
 
 			// Add work to the local runq to trigger early startm
 			// in handoffp.
-			go func(){}()
+			go func() {}()
 
 			runtime.LockOSThread()
-			runtime.Gosched()  // add a preemption point.
+			runtime.Gosched() // add a preemption point.
 			wg.Done()
 		}()
 	}
