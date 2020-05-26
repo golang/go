@@ -201,7 +201,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return false
 		}
 
-		addgotsym(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
 		su.SetRelocType(rIdx, objabi.R_CONST) // write r->add during relocsym
 		su.SetRelocSym(rIdx, 0)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
@@ -266,7 +266,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return true
 		}
 
-		addgotsym(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
 		su.SetRelocSym(rIdx, syms.GOT)
 		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
 		su.SetRelocType(rIdx, objabi.R_PCREL)
@@ -488,24 +488,5 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.SetPlt(s, int32(plt.Size()-16))
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
-	}
-}
-
-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
-	if ldr.SymGot(s) >= 0 {
-		return
-	}
-
-	ld.Adddynsym(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT)
-	ldr.SetGot(s, int32(got.Size()))
-	got.AddUint32(target.Arch, 0)
-
-	if target.IsElf() {
-		rel := ldr.MakeSymbolUpdater(syms.Rel)
-		rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_386_GLOB_DAT)))
-	} else {
-		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }

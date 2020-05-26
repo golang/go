@@ -142,7 +142,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 		// fall back to using GOT and hope for the best (CMOV*)
 		// TODO: just needs relocation, no need to put in .dynsym
-		addgotsym(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
 
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocSym(rIdx, syms.GOT)
@@ -223,7 +223,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType != sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
 		}
-		addgotsym(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		su.SetRelocSym(rIdx, syms.GOT)
@@ -266,7 +266,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
-			addgotsym(target, ldr, syms, targ)
+			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_X86_64_GLOB_DAT))
 
 			su.SetRelocSym(rIdx, syms.GOT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
@@ -638,7 +638,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
-		addgotsym(target, ldr, syms, s)
+		ld.AddGotSym(target, ldr, syms, s, uint32(elf.R_X86_64_GLOB_DAT))
 		plt := ldr.MakeSymbolUpdater(syms.PLT)
 
 		sDynid := ldr.SymDynid(s)
@@ -655,30 +655,6 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
-
-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
-	if ldr.SymGot(s) >= 0 {
-		return
-	}
-
-	ld.Adddynsym(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT)
-	ldr.SetGot(s, int32(got.Size()))
-	got.AddUint64(target.Arch, 0)
-
-	if target.IsElf() {
-		rela := ldr.MakeSymbolUpdater(syms.Rela)
-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_X86_64_GLOB_DAT)))
-		rela.AddUint64(target.Arch, 0)
-	} else if target.IsDarwin() {
-		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
-		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
-	} else {
-		ldr.Errorf(s, "addgotsym: unsupported binary format")
-	}
-}
-
 func tlsIEtoLE(P []byte, off, size int) {
 	// Transform the PC-relative instruction into a constant load.
 	// That is,

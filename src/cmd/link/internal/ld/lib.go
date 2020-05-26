@@ -2587,3 +2587,32 @@ func ElfSymForReloc(ctxt *Link, s loader.Sym) int32 {
 		return ctxt.loader.SymElfSym(s)
 	}
 }
+
+func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, elfRelocTyp uint32) {
+	if ldr.SymGot(s) >= 0 {
+		return
+	}
+
+	Adddynsym(ldr, target, syms, s)
+	got := ldr.MakeSymbolUpdater(syms.GOT)
+	ldr.SetGot(s, int32(got.Size()))
+	got.AddUint(target.Arch, 0)
+
+	if target.IsElf() {
+		if target.Arch.PtrSize == 8 {
+			rela := ldr.MakeSymbolUpdater(syms.Rela)
+			rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+			rela.AddUint64(target.Arch, ELF64_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+			rela.AddUint64(target.Arch, 0)
+		} else {
+			rel := ldr.MakeSymbolUpdater(syms.Rel)
+			rel.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
+			rel.AddUint32(target.Arch, ELF32_R_INFO(uint32(ldr.SymDynid(s)), elfRelocTyp))
+		}
+	} else if target.IsDarwin() {
+		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)
+		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
+	} else {
+		ldr.Errorf(s, "addgotsym: unsupported binary format")
+	}
+}

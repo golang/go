@@ -203,7 +203,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
-		addgotsym(target, ldr, syms, targ)
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_390_GLOB_DAT))
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_PCREL)
 		ldr.SetRelocVariant(s, rIdx, sym.RV_390_DBL)
@@ -452,25 +452,5 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	} else {
 		ldr.Errorf(s, "addpltsym: unsupported binary format")
-	}
-}
-
-func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
-	if ldr.SymGot(s) >= 0 {
-		return
-	}
-
-	ld.Adddynsym(ldr, target, syms, s)
-	got := ldr.MakeSymbolUpdater(syms.GOT)
-	ldr.SetGot(s, int32(got.Size()))
-	got.AddUint64(target.Arch, 0)
-
-	if target.IsElf() {
-		rela := ldr.MakeSymbolUpdater(syms.Rela)
-		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_390_GLOB_DAT)))
-		rela.AddUint64(target.Arch, 0)
-	} else {
-		ldr.Errorf(s, "addgotsym: unsupported binary format")
 	}
 }
