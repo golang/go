@@ -2378,6 +2378,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
 		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
 			du := ldr.MakeSymbolUpdater(syms.Dynamic)
 			Elfwritedynent(target.Arch, du, DT_NEEDED, uint64(dstru.Addstring(dil)))
+			seenlib[dil] = true
 		}
 	} else {
 
