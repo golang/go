@@ -1674,9 +1674,13 @@ func TestMaxPathLenNotCA(t *testing.T) {
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-	cert := serialiseAndParse(t, template)
-	if m := cert.MaxPathLen; m != -1 {
+	if m := serialiseAndParse(t, template).MaxPathLen; m != -1 {
 		t.Errorf("MaxPathLen should be -1 when IsCa is false, got %d", m)
+	}
+
+	template.MaxPathLen = -1
+	if m := serialiseAndParse(t, template).MaxPathLen; m != -1 {
+		t.Errorf("MaxPathLen should be -1 when IsCa is false and MaxPathLen set to -1, got %d", m)
 	}
 
 	template.MaxPathLen = 5
@@ -1691,8 +1695,7 @@ func TestMaxPathLenNotCA(t *testing.T) {
 	}
 
 	template.BasicConstraintsValid = false
-	cert2 := serialiseAndParse(t, template)
-	if m := cert2.MaxPathLen; m != 0 {
+	if m := serialiseAndParse(t, template).MaxPathLen; m != 0 {
 		t.Errorf("Bad MaxPathLen should be ignored if BasicConstraintsValid is false, got %d", m)
 	}
 }
