@@ -583,6 +583,7 @@ var gentab = []struct {
 	{"anames6.c", nil},
 	{"anames8.c", nil},
 	{"anames9.c", nil},
+	{"zbootstrap.go", nil},
 }
 
 // installed maps from a dir name (as given to install) to a chan
@@ -1085,6 +1086,7 @@ var cleanlist = []string{
 	"runtime/internal/sys",
 	"cmd/cgo",
 	"cmd/go/internal/cfg",
+	"cmd/internal/objabi",
 	"go/build",
 }
 
