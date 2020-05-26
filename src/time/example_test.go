@@ -51,7 +51,7 @@ func ExampleDuration_Round() {
 
 func ExampleDuration_String() {
 	fmt.Println(1*time.Hour + 2*time.Minute + 300*time.Millisecond)
-	fmt.Println(300*time.Millisecond)
+	fmt.Println(300 * time.Millisecond)
 	// Output:
 	// 1h2m0.3s
 	// 300ms
