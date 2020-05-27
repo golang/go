@@ -590,7 +590,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	}
 
 	// In case of a type parameter, conversion must succeed against
-	// all types enumerated by the the type parameter bound.
+	// all types enumerated by the type parameter bound.
 	if t := target.TypeParam(); t != nil {
 		types := t.Bound().allTypes
 		if len(types) == 0 {

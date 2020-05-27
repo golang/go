@@ -81,6 +81,7 @@ var tests = [][]string{
 	{"testdata/methodsets.src"},
 	{"testdata/shifts.src"},
 	{"testdata/builtins.src"},
+	{"testdata/builtins.go2"},
 	{"testdata/conversions.src"},
 	{"testdata/conversions2.src"},
 	{"testdata/stmt0.src"},
