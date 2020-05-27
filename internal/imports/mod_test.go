@@ -246,7 +246,7 @@ import _ "rsc.io/sampler"
 
 // Tests that -mod=vendor is auto-enabled only for go1.14 and higher.
 // Vaguely inspired by mod_vendor_auto.txt.
-func testModVendorAuto(t *testing.T, wantEnabled bool) {
+func TestModVendorAuto(t *testing.T) {
 	mt := setup(t, `
 -- go.mod --
 module m
@@ -264,7 +264,7 @@ import _ "rsc.io/sampler"
 	}
 
 	wantDir := `pkg.*mod.*/sampler@.*$`
-	if wantEnabled {
+	if testenv.Go1Point() >= 14 {
 		wantDir = `/vendor/`
 	}
 	mt.assertModuleFoundInDir("rsc.io/sampler", "sampler", wantDir)
@@ -547,6 +547,21 @@ package v
 	mt.assertModuleFoundInDir("example.com/x/v3", "x", `main/v3$`)
 	mt.assertModuleFoundInDir("example.com/y/z/w", "w", `main/y/z/w$`)
 	mt.assertModuleFoundInDir("example.com/vv", "v", `main/v12$`)
+}
+
+// Tests that we handle GO111MODULE=on with no go.mod file. See #30855.
+func TestNoMainModule(t *testing.T) {
+	testenv.NeedsGo1Point(t, 12)
+	mt := setup(t, `
+-- x.go --
+package x
+`, "")
+	defer mt.cleanup()
+	if _, err := mt.env.invokeGo(context.Background(), "mod", "download", "rsc.io/quote@v1.5.1"); err != nil {
+		t.Fatal(err)
+	}
+
+	mt.assertScanFinds("rsc.io/quote", "quote")
 }
 
 // assertFound asserts that the package at importPath is found to have pkgName,

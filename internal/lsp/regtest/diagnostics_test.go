@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // Use mod.com for all go.mod files due to golang/go#35230.
@@ -529,4 +530,154 @@ func main() {
 			NoDiagnostics(badFile),
 		)
 	}, InGOPATH())
+}
+
+const ardanLabsProxy = `
+-- github.com/ardanlabs/conf@v1.2.3/go.mod --
+module github.com/ardanlabs/conf
+
+go 1.12
+-- github.com/ardanlabs/conf@v1.2.3/conf.go --
+package conf
+
+var ErrHelpWanted error
+`
+
+// Test for golang/go#38211.
+func Test_Issue38211(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+	const ardanLabs = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main.go --
+package main
+
+import "github.com/ardanlabs/conf"
+
+func main() {
+	_ = conf.ErrHelpWanted
+}
+`
+	runner.Run(t, ardanLabs, func(t *testing.T, env *Env) {
+		// Expect a diagnostic with a suggested fix to add
+		// "github.com/ardanlabs/conf" to the go.mod file.
+		env.OpenFile("go.mod")
+		env.OpenFile("main.go")
+		metBy := env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		)
+		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("unexpected type for metBy (%T)", metBy)
+		}
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.SaveBuffer("go.mod")
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
+		// Comment out the line that depends on conf and expect a
+		// diagnostic and a fix to remove the import.
+		env.RegexpReplace("main.go", "_ = conf.ErrHelpWanted", "//_ = conf.ErrHelpWanted")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		)
+		env.SaveBuffer("main.go")
+		// Expect a diagnostic and fix to remove the dependency in the go.mod.
+		metBy = env.Await(
+			EmptyDiagnostics("main.go"),
+			env.DiagnosticAtRegexp("go.mod", "require github.com/ardanlabs/conf"),
+		)
+		d, ok = metBy[1].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("unexpected type for metBy (%T)", metBy)
+		}
+		env.ApplyQuickFixes("go.mod", d.Diagnostics)
+		env.SaveBuffer("go.mod")
+		env.Await(
+			EmptyDiagnostics("go.mod"),
+		)
+		// Uncomment the lines and expect a new diagnostic for the import.
+		env.RegexpReplace("main.go", "//_ = conf.ErrHelpWanted", "_ = conf.ErrHelpWanted")
+		env.SaveBuffer("main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		)
+	}, WithProxy(ardanLabsProxy))
+}
+
+// Test for golang/go#38207.
+func TestNewModule_Issue38207(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+	const emptyFile = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+`
+	runner.Run(t, emptyFile, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.OpenFile("go.mod")
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
+
+import "github.com/ardanlabs/conf"
+
+func main() {
+	_ = conf.ErrHelpWanted
+}
+`))
+		env.SaveBuffer("main.go")
+		metBy := env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		)
+		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("unexpected type for diagnostics (%T)", d)
+		}
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
+	}, WithProxy(ardanLabsProxy))
+}
+
+// Test for golang/go#36960.
+func TestNewFileBadImports_Issue36960(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+	const simplePackage = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- a/a1.go --
+package a
+
+import "fmt"
+
+func _() {
+	fmt.Println("hi")
+}
+`
+	runner.Run(t, simplePackage, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a1.go")
+		env.CreateBuffer("a/a2.go", ``)
+		if err := env.Editor.SaveBufferWithoutActions(env.Ctx, "a/a2.go"); err != nil {
+			t.Fatal(err)
+		}
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+				NoDiagnostics("a/a1.go"),
+			),
+		)
+		env.EditBuffer("a/a2.go", fake.NewEdit(0, 0, 0, 0, `package a`))
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoDiagnostics("a/a1.go"),
+			),
+		)
+	})
 }

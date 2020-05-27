@@ -14,6 +14,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 // WriteModuleVersion creates a directory in the proxy dir for a module.
@@ -75,5 +78,23 @@ func WriteModuleVersion(rootDir, module, ver string, files map[string][]byte) (r
 func checkClose(name string, closer io.Closer, err *error) {
 	if cerr := closer.Close(); cerr != nil && *err == nil {
 		*err = fmt.Errorf("closing %s: %v", name, cerr)
+	}
+}
+
+// ToURL returns the file uri for a proxy directory.
+func ToURL(dir string) string {
+	if testenv.Go1Point() >= 13 {
+		// file URLs on Windows must start with file:///. See golang.org/issue/6027.
+		path := filepath.ToSlash(dir)
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		return "file://" + path
+	} else {
+		// Prior to go1.13, the Go command on Windows only accepted GOPROXY file URLs
+		// of the form file://C:/path/to/proxy. This was incorrect: when parsed, "C:"
+		// is interpreted as the host. See golang.org/issue/6027. This has been
+		// fixed in go1.13, but we emit the old format for old releases.
+		return "file://" + filepath.ToSlash(dir)
 	}
 }
