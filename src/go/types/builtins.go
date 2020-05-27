@@ -448,20 +448,42 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		var min int // minimum number of arguments
-		switch T.Under().(type) {
-		case *Slice:
-			min = 2
-		case *Map, *Chan:
-			min = 1
-		default:
+		min, max := -1, 10
+		var valid func(t Type) bool
+		valid = func(t Type) bool {
+			var m int
+			switch t := t.Under().(type) {
+			case *Slice:
+				m = 2
+			case *Map, *Chan:
+				m = 1
+			case *TypeParam:
+				return t.Bound().is(valid)
+			default:
+				return false
+			}
+			if m > min {
+				min = m
+			}
+			if m+1 < max {
+				max = m + 1
+			}
+			return true
+		}
+
+		if !valid(T) {
 			check.invalidArg(arg0.Pos(), "cannot make %s; type must be slice, map, or channel", arg0)
 			return
 		}
-		if nargs < min || min+1 < nargs {
-			check.errorf(call.Pos(), "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+		if nargs < min || max < nargs {
+			if min == max {
+				check.errorf(call.Pos(), "%v expects %d arguments; found %d", call, min, nargs)
+			} else {
+				check.errorf(call.Pos(), "%v expects %d or %d arguments; found %d", call, min, max, nargs)
+			}
 			return
 		}
+
 		types := []Type{T}
 		var sizes []int64 // constant integer arguments, if any
 		for _, arg := range call.Args[1:] {
