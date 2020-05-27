@@ -115,7 +115,6 @@ func (out *OutBuf) Close() error {
 	if out.isMmapped() {
 		out.copyHeap()
 		out.munmap()
-		return nil
 	}
 	if out.f == nil {
 		return nil
