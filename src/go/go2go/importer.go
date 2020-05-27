@@ -183,7 +183,7 @@ func (imp *Importer) findFromPath(gopath, dir string) string {
 	if filepath.IsAbs(dir) || build.IsLocalImport(dir) {
 		return ""
 	}
-	for _, pd := range strings.Split(gopath, ":") {
+	for _, pd := range strings.Split(gopath, string(os.PathListSeparator)) {
 		d := filepath.Join(pd, "src", dir)
 		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 			return d

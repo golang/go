@@ -77,10 +77,10 @@ func main() {
 		cmd.Dir = rundir
 		gopath := importerTmpdir
 		if go2path := os.Getenv("GO2PATH"); go2path != "" {
-			gopath += ":" + go2path
+			gopath += string(os.PathListSeparator) + go2path
 		}
 		if oldGopath := os.Getenv("GOPATH"); oldGopath != "" {
-			gopath += ":" + oldGopath
+			gopath += string(os.PathListSeparator) + oldGopath
 		}
 		cmd.Env = append(os.Environ(),
 			"GOPATH="+gopath,
@@ -112,7 +112,7 @@ func expandPackages(pkgs []string) []string {
 pkgloop:
 	for _, pkg := range pkgs {
 		if go2path != "" {
-			for _, pd := range strings.Split(go2path, ":") {
+			for _, pd := range strings.Split(go2path, string(os.PathListSeparator)) {
 				d := filepath.Join(pd, "src", pkg)
 				if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 					dirs = append(dirs, d)
@@ -126,7 +126,7 @@ pkgloop:
 		if go2path != "" {
 			gopath := go2path
 			if oldGopath := os.Getenv("GOPATH"); oldGopath != "" {
-				gopath += ":" + oldGopath
+				gopath += string(os.PathListSeparator) + oldGopath
 			}
 			cmd.Env = append(os.Environ(),
 				"GOPATH="+gopath,
