@@ -5,9 +5,12 @@
 package regtest
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -173,6 +176,52 @@ const a = http.MethodGet
 		env.Await(
 			EmptyDiagnostics("c/c.go"),
 		)
+	})
+}
+
+// Tests golang/go#38878: good a.go, bad a_test.go, remove a_test.go but its errors remain
+// If the file is open in the editor, this is working as intended
+// If the file is not open in the editor, the errors go away
+const test38878 = `
+-- go.mod --
+module foo
+
+-- a.go --
+package x
+
+func f() {}
+
+-- a_test.go --
+package x
+
+import "testing"
+
+func TestA(t *testing.T) {
+	f(3)
+}
+`
+
+func TestRmTest38878Close(t *testing.T) {
+	runner.Run(t, test38878, func(t *testing.T, env *Env) {
+		env.OpenFile("a_test.go")
+		env.Await(DiagnosticAt("a_test.go", 5, 3))
+		env.CloseBuffer("a_test.go")
+		env.RemoveFileFromWorkspace("a_test.go")
+		// diagnostics go away
+		env.Await(EmptyDiagnostics("a_test.go"))
+	})
+}
+func TestRmTest38878(t *testing.T) {
+	log.SetFlags(log.Lshortfile)
+	runner.Run(t, test38878, func(t *testing.T, env *Env) {
+		env.OpenFile("a_test.go")
+		env.Await(DiagnosticAt("a_test.go", 5, 3))
+		env.Sandbox.Workdir.RemoveFile(context.Background(), "a_test.go")
+		// diagnostics remain after giving gopls a chance to do something
+		// (there is not yet a better way to decide gopls isn't going
+		// to do anything)
+		time.Sleep(time.Second)
+		env.Await(DiagnosticAt("a_test.go", 5, 3))
 	})
 }
 

@@ -134,7 +134,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 	if err != nil {
 		return err
 	}
-	// Clear the diagnostics for any deleted files.
+	// Clear the diagnostics for any deleted files that are not open in the editor.
 	for uri := range deletions {
 		if snapshot := snapshots[uri]; snapshot == nil || snapshot.IsOpen(uri) {
 			continue
