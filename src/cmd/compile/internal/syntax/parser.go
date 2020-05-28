@@ -1584,6 +1584,34 @@ func (p *parser) paramDeclOrNil() *Field {
 	return f
 }
 
+func (p *parser) tparamDecl() *Field {
+	if trace {
+		defer p.trace("tparamDecl")()
+	}
+
+	f := new(Field)
+	f.pos = p.pos()
+
+	pointer := p.got(_Star)
+	f.Name = p.name()
+	if pointer {
+		// encode pointer designation in the name
+		f.Name.Value = "*" + f.Name.Value
+	}
+
+	switch p.tok {
+	case _Name:
+		// type bound name
+		f.Type = p.type_(true)
+
+	case _Interface, _Lparen:
+		// type bound
+		f.Type = p.type_(true)
+	}
+
+	return f
+}
+
 // ...Type
 func (p *parser) dotsType() *DotsType {
 	if trace {
@@ -1614,11 +1642,16 @@ func (p *parser) paramList(tparams bool) (list []*Field) {
 	// TODO(gri) use the actual position where the error happens
 	pos := p.pos()
 
+	paramf := p.paramDeclOrNil
+	if tparams {
+		paramf = p.tparamDecl
+	}
+
 	var named int // number of parameters that have an explicit name and type/bound
 	p.list(_Comma, _Rparen, func() bool {
-		if par := p.paramDeclOrNil(); par != nil {
+		if par := paramf(); par != nil {
 			if debug && par.Name == nil && par.Type == nil {
-				panic("parameter without name or type")
+				panic("(type) parameter without name or type")
 			}
 			if par.Name != nil && par.Type != nil {
 				named++

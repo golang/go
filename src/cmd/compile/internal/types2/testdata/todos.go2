@@ -8,11 +8,14 @@
 
 package p
 
-// Pointer designation for type parameters is not yet supported.
-// TODO(gri) Do we need to do something about this now that we have only interfaces?
+// Pointer designation for type parameters is currently ignored.
+func _(type *P /* ERROR ignored */ )() {}
+
+// Underlying type designation in type lists is currently ignored.
 /*
-contract _C(T) {
-	*T m()
+type _ interface{
+	underlying type /* ERROR ignored */ int, uint
+	underlying type float32 // error is reported only the first time
 }
 */
 

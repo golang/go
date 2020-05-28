@@ -835,6 +835,11 @@ func (check *Checker) contractExpr(x syntax.Expr, unused map[*TypeParam]bool) (o
 }
 
 func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
+	value := name.Value
+	if len(value) > 0 && value[0] == '*' {
+		value = value[1:]
+		check.errorf(name.Pos(), "warning: *-designation recognized but currently ignored")
+	}
 	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
 	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
 	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position

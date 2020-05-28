@@ -384,3 +384,9 @@ func _(type P interface{}) (x P) {
 func _(type P) (x P) {
 	x.m /* ERROR type bound for P has no method m */ ()
 }
+
+// pointer designation in type parameter lists
+func _(type *P)()
+func _(type *P, Q)()
+func _(type P, *Q interface{})()
+func _(type *P, *Q interface{})()
