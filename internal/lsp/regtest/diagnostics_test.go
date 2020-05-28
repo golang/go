@@ -730,3 +730,76 @@ func _() {
 		)
 	})
 }
+
+// This test tries to replicate the workflow of a user creating a new x test.
+// It also tests golang/go#39315.
+func TestManuallyCreatingXTest(t *testing.T) {
+	t.Skipf("See golang/go#39315")
+
+	// Only for 1.15 because of golang/go#37971.
+	testenv.NeedsGo1Point(t, 15)
+
+	// Create a package that already has a test variant (in-package test).
+	const testVariant = `
+-- go.mod --
+module mod.com
+
+go 1.15
+-- hello/hello.go --
+package hello
+
+func Hello() {
+	var x int
+}
+-- hello/hello_test.go --
+package hello
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	var x int
+	Hello()
+}
+`
+	runner.Run(t, testVariant, func(t *testing.T, env *Env) {
+		// Open the file, triggering the workspace load.
+		// There are errors in the code to ensure all is working as expected.
+		env.OpenFile("hello/hello.go")
+		env.Await(
+			env.DiagnosticAtRegexp("hello/hello.go", "x"),
+			env.DiagnosticAtRegexp("hello/hello_test.go", "x"),
+		)
+
+		// Create an empty file with the intention of making it an x test.
+		// This resembles a typical flow in an editor like VS Code, in which
+		// a user would create an empty file and add content, saving
+		// intermittently.
+		// TODO(rstambler): There might be more edge cases here, as file
+		// content can be added incrementally.
+		env.CreateBuffer("hello/hello_x_test.go", ``)
+
+		// Save the empty file (no actions since formatting will fail).
+		env.Editor.SaveBufferWithoutActions(env.Ctx, "hello/hello_x_test.go")
+
+		// Add the content. The missing import is for the package under test.
+		env.EditBuffer("hello/hello_x_test.go", fake.NewEdit(0, 0, 0, 0, `package hello_test
+
+import (
+	"testing"
+)
+
+func TestHello(t *testing.T) {
+	hello.Hello()
+}
+`))
+		// Expect a diagnostic for the missing import. Save, which should
+		// trigger import organization. The diagnostic should clear.
+		env.Await(
+			env.DiagnosticAtRegexp("hello/hello_x_test.go", "hello.Hello"),
+		)
+		env.SaveBuffer("hello/hello_x_test.go")
+		env.Await(
+			EmptyDiagnostics("hello/hello_x_test.go"),
+		)
+	})
+}
