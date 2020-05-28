@@ -9,10 +9,7 @@ package syscall
 
 import "unsafe"
 
-const (
-	_SYS_dup       = SYS_DUP2
-	_SYS_setgroups = SYS_SETGROUPS
-)
+const _SYS_setgroups = SYS_SETGROUPS
 
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
