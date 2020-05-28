@@ -6,10 +6,7 @@ package syscall
 
 import "unsafe"
 
-const (
-	_SYS_dup       = SYS_DUP3
-	_SYS_setgroups = SYS_SETGROUPS
-)
+const _SYS_setgroups = SYS_SETGROUPS
 
 func EpollCreate(size int) (fd int, err error) {
 	if size <= 0 {
