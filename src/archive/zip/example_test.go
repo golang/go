@@ -30,11 +30,16 @@ func ExampleWriter() {
 		{"todo.txt", "Get animal handling licence.\nWrite more examples."},
 	}
 	for _, file := range files {
-		f, err := w.Create(file.Name)
+		fileHeader := &zip.FileHeader{
+			Name: file.Name,
+		}
+
+		writer, err := w.CreateHeader(fileHeader)
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = f.Write([]byte(file.Body))
+
+		_, err = writer.Write([]byte(file.Body))
 		if err != nil {
 			log.Fatal(err)
 		}
