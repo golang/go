@@ -37,6 +37,12 @@ func (T) _(type P interface{})()
 func (T) _(type P B)()
 func (T) _(type P B(P))()
 
+// pointer designations
+func _(type *P)()
+func _(type *P, Q)()
+func _(type P, *Q interface{})()
+func _(type *P, *Q interface{})()
+
 // type instantiations
 type _ T(int)
 
@@ -45,3 +51,20 @@ var _ = T(int){}
 
 // in embedded types
 type _ struct{ (T(int)) }
+
+// interfaces
+type _ interface{
+	m()
+	type int
+}
+
+type _ interface{
+	type int, float, string
+	type complex128
+	underlying(underlying underlying) underlying
+}
+
+type _ interface{
+	(T)
+	(T(int))
+}

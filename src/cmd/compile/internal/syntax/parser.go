@@ -1498,11 +1498,16 @@ func (p *parser) methodDecl() *Field {
 		defer p.trace("methodDecl")()
 	}
 
+	f := new(Field)
+
 	switch p.tok {
 	case _Name:
 		name := p.name()
 
 		// accept potential name list but complain
+		// TODO(gri) We probably don't need this special check anymore.
+		//           Nobody writes this kind of code. It's from ancient
+		//           Go beginnings.
 		hasNameList := false
 		for p.got(_Comma) {
 			p.name()
@@ -1513,7 +1518,6 @@ func (p *parser) methodDecl() *Field {
 			// already progressed, no need to advance
 		}
 
-		f := new(Field)
 		f.pos = name.Pos()
 		tpos := p.pos()
 		if p.got(_Lparen) {
@@ -1524,19 +1528,18 @@ func (p *parser) methodDecl() *Field {
 			// embedded interface
 			f.Type = p.qualifiedName(name)
 		}
-		return f
 
 	case _Lparen:
-		f := new(Field)
 		f.pos = p.pos()
 		p.next()
-		f.Type = p.qualifiedName(nil)
+		f.Type = p.type_(true)
 		p.want(_Rparen)
-		return f
 
 	default:
 		panic("unreachable")
 	}
+
+	return f
 }
 
 // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
