@@ -51,7 +51,7 @@ function initPlayground(transport) {
       var sk = e.shiftKey || localStorage.getItem('play-shiftKey') === 'true';
       if (running) running.Kill();
       output.style.display = 'block';
-      outpre.innerHTML = '';
+      outpre.textContent = '';
       run1.style.display = 'none';
       var options = { Race: sk };
       running = transport.Run(text(code), PlaygroundOutput(outpre), options);
@@ -72,20 +72,20 @@ function initPlayground(transport) {
     }
 
     var run1 = document.createElement('button');
-    run1.innerHTML = 'Run';
+    run1.textContent = 'Run';
     run1.className = 'run';
     run1.addEventListener('click', onRun, false);
     var run2 = document.createElement('button');
     run2.className = 'run';
-    run2.innerHTML = 'Run';
+    run2.textContent = 'Run';
     run2.addEventListener('click', onRun, false);
     var kill = document.createElement('button');
     kill.className = 'kill';
-    kill.innerHTML = 'Kill';
+    kill.textContent = 'Kill';
     kill.addEventListener('click', onKill, false);
     var close = document.createElement('button');
     close.className = 'close';
-    close.innerHTML = 'Close';
+    close.textContent = 'Close';
     close.addEventListener('click', onClose, false);
 
     var button = document.createElement('div');
