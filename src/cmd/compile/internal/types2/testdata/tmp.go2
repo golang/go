@@ -1,25 +1,3 @@
 package p
 
-type B(type P) interface{}
-
-func _f(type P B)() {}
-
-// These are only ok if AcceptContracts = false.
-// (The comparable contract cannot be embedded in Bound.)
-/*
-func _(type T comparable)(x, y T) bool {
-	return x == y || x != y
-}
-
-type Bound interface {
-	comparable
-}
-
-func _(type T Bound)(x, y T) bool {
-	return x == y || x != y
-}
-
-func _(type A, B Bound)(a1, a2 A, b1, b2 B) bool {
-	return a1 == a2 || b1 != b2
-}
-*/
+type T interface{type int}

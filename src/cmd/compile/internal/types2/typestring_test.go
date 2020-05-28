@@ -15,7 +15,6 @@ import (
 const filename = "<src>"
 
 func makePkg(src string) (*Package, error) {
-	//file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 	file, err := parseSrc(filename, src)
 	if err != nil {
 		return nil, err
@@ -92,7 +91,7 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
-	// dup(`interface{type int, float32, complex128}`), // TODO(gri) fix this
+	dup(`interface{type int, float32, complex128}`),
 
 	// maps
 	dup("map[string]int"),

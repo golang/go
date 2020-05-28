@@ -1370,13 +1370,13 @@ func (p *parser) interfaceType() *InterfaceType {
 				f.pos = p.pos()
 				f.Name = type_
 				f.Type = p.type_(true)
-				typ.MethodList = append(typ.MethodList, &Field{})
+				typ.MethodList = append(typ.MethodList, f)
 				for p.got(_Comma) {
 					f := new(Field)
 					f.pos = p.pos()
 					f.Name = type_
 					f.Type = p.type_(true)
-					typ.MethodList = append(typ.MethodList, &Field{})
+					typ.MethodList = append(typ.MethodList, f)
 				}
 			}
 
