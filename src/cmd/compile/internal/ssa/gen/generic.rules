@@ -1807,6 +1807,8 @@
 // invariant that pointers must stay within the pointed-to object,
 // we can't pull part of a pointer computation above the AddPtr.
 // See issue 37881.
+// Note: we don't need to handle any (x-C) cases because we already rewrite
+// (x-C) to (x+(-C)).
 
 // x + (C + z) -> C + (x + z)
 (Add64 (Add64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (Add64 i (Add64 <t> z x))
@@ -1820,23 +1822,29 @@
 (Add16 (Sub16 i:(Const16 <t>) z) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Add16 i (Sub16 <t> x z))
 (Add8  (Sub8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Add8  i (Sub8  <t> x z))
 
-// x + (z - C) -> (x + z) - C
-(Add64 (Sub64 z i:(Const64 <t>)) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (Sub64 (Add64 <t> x z) i)
-(Add32 (Sub32 z i:(Const32 <t>)) x) && (z.Op != OpConst32 && x.Op != OpConst32) => (Sub32 (Add32 <t> x z) i)
-(Add16 (Sub16 z i:(Const16 <t>)) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Sub16 (Add16 <t> x z) i)
-(Add8  (Sub8  z i:(Const8  <t>)) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Sub8  (Add8  <t> x z) i)
-
 // x - (C - z) -> x + (z - C) -> (x + z) - C
 (Sub64 x (Sub64 i:(Const64 <t>) z)) && (z.Op != OpConst64 && x.Op != OpConst64) => (Sub64 (Add64 <t> x z) i)
 (Sub32 x (Sub32 i:(Const32 <t>) z)) && (z.Op != OpConst32 && x.Op != OpConst32) => (Sub32 (Add32 <t> x z) i)
 (Sub16 x (Sub16 i:(Const16 <t>) z)) && (z.Op != OpConst16 && x.Op != OpConst16) => (Sub16 (Add16 <t> x z) i)
 (Sub8  x (Sub8  i:(Const8  <t>) z)) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Sub8  (Add8  <t> x z) i)
 
-// x - (z - C) -> x + (C - z) -> (x - z) + C
-(Sub64 x (Sub64 z i:(Const64 <t>))) && (z.Op != OpConst64 && x.Op != OpConst64) => (Add64 i (Sub64 <t> x z))
-(Sub32 x (Sub32 z i:(Const32 <t>))) && (z.Op != OpConst32 && x.Op != OpConst32) => (Add32 i (Sub32 <t> x z))
-(Sub16 x (Sub16 z i:(Const16 <t>))) && (z.Op != OpConst16 && x.Op != OpConst16) => (Add16 i (Sub16 <t> x z))
-(Sub8  x (Sub8  z i:(Const8  <t>))) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Add8  i (Sub8  <t> x z))
+// x - (z + C) -> x + (-z - C) -> (x - z) - C
+(Sub64 x (Add64 z i:(Const64 <t>))) && (z.Op != OpConst64 && x.Op != OpConst64) => (Sub64 (Sub64 <t> x z) i)
+(Sub32 x (Add32 z i:(Const32 <t>))) && (z.Op != OpConst32 && x.Op != OpConst32) => (Sub32 (Sub32 <t> x z) i)
+(Sub16 x (Add16 z i:(Const16 <t>))) && (z.Op != OpConst16 && x.Op != OpConst16) => (Sub16 (Sub16 <t> x z) i)
+(Sub8  x (Add8  z i:(Const8  <t>))) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Sub8 (Sub8  <t> x z) i)
+
+// (C - z) - x -> C - (z + x)
+(Sub64 (Sub64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (Sub64 i (Add64 <t> z x))
+(Sub32 (Sub32 i:(Const32 <t>) z) x) && (z.Op != OpConst32 && x.Op != OpConst32) => (Sub32 i (Add32 <t> z x))
+(Sub16 (Sub16 i:(Const16 <t>) z) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Sub16 i (Add16 <t> z x))
+(Sub8  (Sub8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Sub8  i (Add8  <t> z x))
+
+// (z + C) -x -> C + (z - x)
+(Sub64 (Add64 z i:(Const64 <t>)) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (Add64 i (Sub64 <t> z x))
+(Sub32 (Add32 z i:(Const32 <t>)) x) && (z.Op != OpConst32 && x.Op != OpConst32) => (Add32 i (Sub32 <t> z x))
+(Sub16 (Add16 z i:(Const16 <t>)) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Add16 i (Sub16 <t> z x))
+(Sub8  (Add8  z i:(Const8  <t>)) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Add8  i (Sub8  <t> z x))
 
 // x & (C & z) -> C & (x & z)
 (And64 (And64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (And64 i (And64 <t> z x))
@@ -1856,6 +1864,12 @@
 (Xor16 (Xor16 i:(Const16 <t>) z) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Xor16 i (Xor16 <t> z x))
 (Xor8  (Xor8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Xor8  i (Xor8  <t> z x))
 
+// x * (D * z) = D * (x * z)
+(Mul64 (Mul64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) => (Mul64 i (Mul64 <t> x z))
+(Mul32 (Mul32 i:(Const32 <t>) z) x) && (z.Op != OpConst32 && x.Op != OpConst32) => (Mul32 i (Mul32 <t> x z))
+(Mul16 (Mul16 i:(Const16 <t>) z) x) && (z.Op != OpConst16 && x.Op != OpConst16) => (Mul16 i (Mul16 <t> x z))
+(Mul8  (Mul8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  => (Mul8  i (Mul8  <t> x z))
+
 // C + (D + x) -> (C + D) + x
 (Add64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Add64 (Const64 <t> [c+d]) x)
 (Add32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Add32 (Const32 <t> [c+d]) x)
@@ -1868,23 +1882,17 @@
 (Add16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) => (Sub16 (Const16 <t> [c+d]) x)
 (Add8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) => (Sub8  (Const8  <t> [c+d]) x)
 
-// C + (x - D) -> (C - D) + x
-(Add64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) => (Add64 (Const64 <t> [c-d]) x)
-(Add32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) => (Add32 (Const32 <t> [c-d]) x)
-(Add16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) => (Add16 (Const16 <t> [c-d]) x)
-(Add8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) => (Add8  (Const8  <t> [c-d]) x)
-
-// C - (x - D) -> (C + D) - x
-(Sub64 (Const64 <t> [c]) (Sub64 x (Const64 <t> [d]))) => (Sub64 (Const64 <t> [c+d]) x)
-(Sub32 (Const32 <t> [c]) (Sub32 x (Const32 <t> [d]))) => (Sub32 (Const32 <t> [c+d]) x)
-(Sub16 (Const16 <t> [c]) (Sub16 x (Const16 <t> [d]))) => (Sub16 (Const16 <t> [c+d]) x)
-(Sub8  (Const8  <t> [c]) (Sub8  x (Const8  <t> [d]))) => (Sub8  (Const8  <t> [c+d]) x)
-
 // C - (D - x) -> (C - D) + x
 (Sub64 (Const64 <t> [c]) (Sub64 (Const64 <t> [d]) x)) => (Add64 (Const64 <t> [c-d]) x)
 (Sub32 (Const32 <t> [c]) (Sub32 (Const32 <t> [d]) x)) => (Add32 (Const32 <t> [c-d]) x)
 (Sub16 (Const16 <t> [c]) (Sub16 (Const16 <t> [d]) x)) => (Add16 (Const16 <t> [c-d]) x)
 (Sub8  (Const8  <t> [c]) (Sub8  (Const8  <t> [d]) x)) => (Add8  (Const8  <t> [c-d]) x)
+
+// C - (D + x) -> (C - D) - x
+(Sub64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Sub64 (Const64 <t> [c-d]) x)
+(Sub32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Sub32 (Const32 <t> [c-d]) x)
+(Sub16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) => (Sub16 (Const16 <t> [c-d]) x)
+(Sub8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) => (Sub8  (Const8  <t> [c-d]) x)
 
 // C & (D & x) -> (C & D) & x
 (And64 (Const64 <t> [c]) (And64 (Const64 <t> [d]) x)) => (And64 (Const64 <t> [c&d]) x)

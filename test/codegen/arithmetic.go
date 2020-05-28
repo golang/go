@@ -462,7 +462,6 @@ func addSpecial(a, b, c uint32) (uint32, uint32, uint32) {
 	return a, b, c
 }
 
-
 // Divide -> shift rules usually require fixup for negative inputs.
 // If the input is non-negative, make sure the fixup is eliminated.
 func divInt(v int64) int64 {
@@ -471,4 +470,34 @@ func divInt(v int64) int64 {
 	}
 	// amd64:-`.*SARQ.*63,`, -".*SHRQ", ".*SARQ.*[$]9,"
 	return v / 512
+}
+
+// The reassociate rules "x - (z + C) -> (x - z) - C" and
+// "(z + C) -x -> C + (z - x)" can optimize the following cases.
+func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
+	// arm64:"SUB","ADD\t[$]2"
+	r0 := (i0 + 3) - (j0 + 1)
+	// arm64:"SUB","SUB\t[$]4"
+	r1 := (i1 - 3) - (j1 + 1)
+	// arm64:"SUB","ADD\t[$]4"
+	r2 := (i2 + 3) - (j2 - 1)
+	// arm64:"SUB","SUB\t[$]2"
+	r3 := (i3 - 3) - (j3 - 1)
+	return r0, r1, r2, r3
+}
+
+// The reassociate rules "x - (z + C) -> (x - z) - C" and
+// "(C - z) - x -> C - (z + x)" can optimize the following cases.
+func constantFold2(i0, j0, i1, j1 int) (int, int) {
+	// arm64:"ADD","MOVD\t[$]2","SUB"
+	r0 := (3 - i0) - (j0 + 1)
+	// arm64:"ADD","MOVD\t[$]4","SUB"
+	r1 := (3 - i1) - (j1 - 1)
+	return r0, r1
+}
+
+func constantFold3(i, j int) int {
+	// arm64: "MOVD\t[$]30","MUL",-"ADD",-"LSL"
+	r := (5 * i) * (6 * j)
+	return r
 }
