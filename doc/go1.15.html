@@ -39,7 +39,7 @@ Do not send CLs removing the interior tags from such phrases.
   support for previous versions has been discontinued.
 </p>
 
-<p> <!-- golang.org/issue/37610, golang.org/issue/37611 -->
+<p> <!-- golang.org/issue/37610, golang.org/issue/37611, CL 227582, and CL 227198  -->
   As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
   notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
   iPadOS, watchOS, and tvOS (the <code>darwin/386</code>
@@ -208,6 +208,10 @@ TODO
   updated to satisfy the safety rules.
 </p>
 
+<p><!-- CL 231497 -->
+  TODO: <a href="https://golang.org/cl/231497">https://golang.org/cl/231497</a>: merge branch &#39;dev.link&#39; into master
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="time/tzdata">New embedded tzdata package</h3>
@@ -240,6 +244,22 @@ TODO
 TODO
 </p>
 
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 222637 -->
+      TODO: <a href="https://golang.org/cl/222637">https://golang.org/cl/222637</a>: copy some consts from cmd/link/internal/ld
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 226203 -->
+      VerifyPKCS1v15 now rejects invalid short signatures with missing leading zeroes.
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
+
 <dl id="crypto/tls"><dt><a href="/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 214977 -->
@@ -251,6 +271,22 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 205237 -->
+      TODO: <a href="https://golang.org/cl/205237">https://golang.org/cl/205237</a>: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- CL 203417 -->
+      TODO: <a href="https://golang.org/cl/203417">https://golang.org/cl/203417</a>: fix reserved namespace check to be case-insensitive
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
 
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
@@ -266,6 +302,30 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 215001 -->
+      TODO: <a href="https://golang.org/cl/215001">https://golang.org/cl/215001</a>: do not remove trailing zeros for %g and %G with #(sharp) flag
+    </p>
+  </dd>
+</dl><!-- fmt -->
+
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 212597 -->
+      TODO: <a href="https://golang.org/cl/212597">https://golang.org/cl/212597</a>: reject path separators in TempDir, TempFile pattern
+    </p>
+  </dd>
+</dl><!-- io/ioutil -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 230397 -->
+      TODO: <a href="https://golang.org/cl/230397">https://golang.org/cl/230397</a>: add (*Int).FillBytes
+    </p>
+  </dd>
+</dl><!-- math/big -->
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
@@ -291,6 +351,14 @@ TODO
   </dd>
 </dl>
 
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 231418 -->
+      TODO: <a href="https://golang.org/cl/231418">https://golang.org/cl/231418</a>: only support &#34;chunked&#34; in inbound Transfer-Encoding headers
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 230937 -->
@@ -298,6 +366,10 @@ TODO
       now supports not modifying the <code>X-Forwarded-For</code>
       header when the incoming <code>Request.Header</code> map entry
       for that field is <code>nil</code>.
+    </p>
+
+    <p><!-- CL 224897 -->
+      TODO: <a href="https://golang.org/cl/224897">https://golang.org/cl/224897</a>: make Switching Protocol requests (e.g. Websockets) cancelable
     </p>
   </dd>
 </dl>
@@ -361,6 +433,14 @@ TODO
   </dd>
 </dl>
 
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 187919 -->
+      TODO: <a href="https://golang.org/cl/187919">https://golang.org/cl/187919</a>: add (*Regexp).SubexpIndex
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
@@ -381,6 +461,18 @@ TODO
       the Go program will now reliably crash with a stack trace.
       In earlier releases the behavior was unpredictable.
     </p>
+
+    <p><!-- CL 211139 -->
+      TODO: <a href="https://golang.org/cl/211139">https://golang.org/cl/211139</a>: do not exit(2) if a Go built DLL receives a signal
+    </p>
+
+    <p><!-- CL 216401 -->
+      TODO: <a href="https://golang.org/cl/216401">https://golang.org/cl/216401</a>: prevent allocation when converting small ints to interfaces
+    </p>
+
+    <p><!-- CL 220578 -->
+      TODO: <a href="https://golang.org/cl/220578">https://golang.org/cl/220578</a>: allow float syscall return values on windows amd64
+    </p>
   </dd>
 </dl>
 
@@ -393,6 +485,14 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 216617 -->
+      TODO: <a href="https://golang.org/cl/216617">https://golang.org/cl/216617</a>: add ParseComplex and FormatComplex
+    </p>
+  </dd>
+</dl><!-- strconv -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
@@ -462,6 +562,10 @@ TODO
        The new method
        <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
        supports changing the duration of a ticker.
+    </p>
+
+    <p><!-- CL 227878 -->
+      TODO: <a href="https://golang.org/cl/227878">https://golang.org/cl/227878</a>: quote original value in errors returned by ParseDuration
     </p>
   </dd>
 </dl><!-- time -->
