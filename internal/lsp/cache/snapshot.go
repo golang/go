@@ -560,7 +560,18 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	if err := s.reloadWorkspace(ctx); err != nil {
 		return err
 	}
-	return s.reloadOrphanedFiles(ctx)
+	if err := s.reloadOrphanedFiles(ctx); err != nil {
+		return err
+	}
+	// If we still have absolutely no metadata, check if the view failed to
+	// initialize and return any errors.
+	// TODO(rstambler): Should we clear the error after we return it?
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.metadata) == 0 {
+		return s.view.initializedErr
+	}
+	return nil
 }
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.

@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -84,7 +85,26 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	// Diagnose all of the packages in the workspace.
 	wsPackages, err := snapshot.WorkspacePackages(ctx)
-	if err != nil {
+	if err == source.InconsistentVendoring {
+		item, err := s.client.ShowMessageRequest(ctx, &protocol.ShowMessageRequestParams{
+			Type: protocol.Error,
+			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
+See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
+			Actions: []protocol.MessageActionItem{
+				{Title: "go mod vendor"},
+			},
+		})
+		if item == nil || err != nil {
+			return nil, nil
+		}
+		if err := s.goModCommand(ctx, protocol.URIFromSpanURI(modURI), "vendor"); err != nil {
+			return nil, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
+			}
+		}
+		return nil, nil
+	} else if err != nil {
 		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
 		return nil, nil
 	}

@@ -29,17 +29,14 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 				Message: "could not run tests, there are unsaved files in the view",
 			})
 		}
-
 		funcName, uri, err := getRunTestArguments(params.Arguments)
 		if err != nil {
 			return nil, err
 		}
-
 		snapshot, fh, ok, err := s.beginFileRequest(protocol.DocumentURI(uri), source.Go)
 		if !ok {
 			return nil, err
 		}
-
 		dir := filepath.Dir(fh.Identity().URI.Filename())
 		go s.runTest(ctx, funcName, dir, snapshot)
 	case source.CommandGenerate:
@@ -55,51 +52,48 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		_, err := s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
 		return nil, err
-	case source.CommandTidy:
+	case source.CommandTidy, source.CommandVendor:
 		if len(params.Arguments) == 0 || len(params.Arguments) > 1 {
-			return nil, errors.Errorf("expected one file URI for call to `go mod tidy`, got %v", params.Arguments)
+			return nil, errors.Errorf("expected 1 argument, got %v", params.Arguments)
 		}
 		uri := protocol.DocumentURI(params.Arguments[0].(string))
-		snapshot, _, ok, err := s.beginFileRequest(uri, source.Mod)
-		if !ok {
-			return nil, err
+
+		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
+		// so we combine them into one case for convenience.
+		verb := "tidy"
+		if params.Command == source.CommandVendor {
+			verb = "vendor"
 		}
-		cfg := snapshot.Config(ctx)
-		// Run go.mod tidy on the view.
-		inv := gocommand.Invocation{
-			Verb:       "mod",
-			Args:       []string{"tidy"},
-			Env:        cfg.Env,
-			WorkingDir: snapshot.View().Folder().Filename(),
-		}
-		gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
-		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
-			return nil, err
-		}
+		err := s.goModCommand(ctx, uri, verb)
+		return nil, err
 	case source.CommandUpgradeDependency:
 		if len(params.Arguments) < 2 {
-			return nil, errors.Errorf("expected one file URI and one dependency for call to `go get`, got %v", params.Arguments)
+			return nil, errors.Errorf("expected 2 arguments, got %v", params.Arguments)
 		}
 		uri := protocol.DocumentURI(params.Arguments[0].(string))
 		deps := params.Arguments[1].(string)
-		snapshot, _, ok, err := s.beginFileRequest(uri, source.UnknownKind)
-		if !ok {
-			return nil, err
-		}
-		cfg := snapshot.Config(ctx)
-		// Run "go get" on the dependency to upgrade it to the latest version.
-		inv := gocommand.Invocation{
-			Verb:       "get",
-			Args:       strings.Split(deps, " "),
-			Env:        cfg.Env,
-			WorkingDir: snapshot.View().Folder().Filename(),
-		}
-		gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
-		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
-			return nil, err
-		}
+		err := s.goModCommand(ctx, uri, "get", strings.Split(deps, " ")...)
+		return nil, err
 	}
 	return nil, nil
+}
+
+func (s *Server) goModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {
+	view, err := s.session.ViewOf(uri.SpanURI())
+	if err != nil {
+		return err
+	}
+	snapshot := view.Snapshot()
+	cfg := snapshot.Config(ctx)
+	inv := gocommand.Invocation{
+		Verb:       "mod",
+		Args:       append([]string{verb}, args...),
+		Env:        cfg.Env,
+		WorkingDir: view.Folder().Filename(),
+	}
+	gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
+	_, err = gocmdRunner.Run(ctx, inv)
+	return err
 }
 
 func (s *Server) runTest(ctx context.Context, funcName string, dir string, snapshot source.Snapshot) {

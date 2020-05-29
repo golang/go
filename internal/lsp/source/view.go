@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // Snapshot represents the current state for the given view.
@@ -439,3 +440,5 @@ const (
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
 }
+
+var InconsistentVendoring = errors.New("inconsistent vendoring")
