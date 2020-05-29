@@ -154,7 +154,7 @@ func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, 
 func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, origData []byte, origMapper *protocol.ColumnMapper, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
 	// trim the original data to match fixedData
 	left := importPrefix(origData)
-	extra := strings.Index(left, "\n") == -1 // one line may have more than imports
+	extra := !strings.Contains(left, "\n") // one line may have more than imports
 	if extra {
 		left = string(origData)
 	}

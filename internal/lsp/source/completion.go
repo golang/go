@@ -731,31 +731,20 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 		// handle const, vars, and types
 		case *ast.GenDecl:
 			for _, spec := range node.Specs {
-				switch spec.(type) {
+				switch spec := spec.(type) {
 				case *ast.ValueSpec:
-					valueSpec, ok := spec.(*ast.ValueSpec)
-					if !ok {
-						continue
-					}
-					for _, name := range valueSpec.Names {
+					for _, name := range spec.Names {
 						if name.String() == "_" || !name.IsExported() {
 							continue
 						}
-
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
 						c.found(ctx, candidate{obj: obj, score: stdScore})
 					}
 				case *ast.TypeSpec:
-					typeSpec, ok := spec.(*ast.TypeSpec)
-					if !ok {
+					if spec.Name.String() == "_" || !spec.Name.IsExported() {
 						continue
 					}
-
-					if typeSpec.Name.String() == "_" || !typeSpec.Name.IsExported() {
-						continue
-					}
-
-					obj := c.pkg.GetTypesInfo().ObjectOf(typeSpec.Name)
+					obj := c.pkg.GetTypesInfo().ObjectOf(spec.Name)
 					c.found(ctx, candidate{obj: obj, score: stdScore})
 				}
 			}

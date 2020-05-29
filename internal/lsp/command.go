@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/xcontext"
-	"golang.org/x/xerrors"
 	errors "golang.org/x/xerrors"
 )
 
@@ -124,7 +123,7 @@ func (s *Server) runTest(ctx context.Context, funcName string, dir string, snaps
 	stderr := io.MultiWriter(er, wc)
 	if err := inv.RunPiped(ctx, er, stderr); err != nil {
 		event.Error(ctx, "test: command error", err, tag.Directory.Of(dir))
-		if !xerrors.Is(err, context.Canceled) {
+		if !errors.Is(err, context.Canceled) {
 			messageType = protocol.Error
 			message = "test failed"
 		}
