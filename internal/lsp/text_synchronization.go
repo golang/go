@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -203,6 +204,18 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 }
 
 func (s *Server) didModifyFiles(ctx context.Context, modifications []source.FileModification, cause ModificationSource) (map[span.URI]source.Snapshot, error) {
+	// diagnosticWG tracks outstanding diagnostic work as a result of this file
+	// modification.
+	var diagnosticWG sync.WaitGroup
+	if s.session.Options().VerboseWorkDoneProgress {
+		work := s.StartWork(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil)
+		defer func() {
+			go func() {
+				diagnosticWG.Wait()
+				work.End(ctx, "Done.")
+			}()
+		}()
+	}
 	snapshots, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
 		return nil, err
@@ -262,11 +275,9 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 				}
 			}
 		}
+		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot) {
-			if s.session.Options().VerboseWorkDoneProgress {
-				work := s.StartWork(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil)
-				defer work.End(ctx, "Done.")
-			}
+			defer diagnosticWG.Done()
 			s.diagnoseSnapshot(snapshot)
 		}(snapshot)
 	}
