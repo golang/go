@@ -1264,6 +1264,18 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 		}
 	}
 
+	// Issue 38192: the DWARF standard specifies that when you issue
+	// an end-sequence op, the PC value should be one past the last
+	// text address in the translation unit, so apply a delta to the
+	// text address before the end sequence op. If this isn't done,
+	// GDB will assign a line number of zero the last row in the line
+	// table, which we don't want. The 1 + ptrsize amount is somewhat
+	// arbitrary, this is chosen to be consistent with the way LLVM
+	// emits its end sequence ops.
+	lsu.AddUint8(dwarf.DW_LNS_advance_pc)
+	dwarf.Uleb128put(d, lsDwsym, int64(1+d.arch.PtrSize))
+
+	// Emit an end-sequence at the end of the unit.
 	lsu.AddUint8(0) // start extended opcode
 	dwarf.Uleb128put(d, lsDwsym, 1)
 	lsu.AddUint8(dwarf.DW_LNE_end_sequence)
