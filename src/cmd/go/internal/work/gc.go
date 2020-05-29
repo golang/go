@@ -25,6 +25,9 @@ import (
 	"crypto/sha1"
 )
 
+// The 'path' used for GOROOT_FINAL when -trimpath is specified
+const trimPathGoRootFinal = "go"
+
 // The Go toolchain.
 
 type gcToolchain struct{}
@@ -569,7 +572,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 
 	env := []string{}
 	if cfg.BuildTrimpath {
-		env = append(env, "GOROOT_FINAL=go")
+		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
 	}
 	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
 }
