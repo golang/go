@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 func init() {
@@ -19,6 +20,7 @@ func init() {
 	register("GCSys", GCSys)
 	register("GCPhys", GCPhys)
 	register("DeferLiveness", DeferLiveness)
+	register("GCZombie", GCZombie)
 }
 
 func GCSys() {
@@ -264,3 +266,37 @@ func DeferLiveness() {
 func escape(x interface{}) { sink2 = x; sink2 = nil }
 
 var sink2 interface{}
+
+// Test zombie object detection and reporting.
+func GCZombie() {
+	// Allocate several objects of unusual size (so free slots are
+	// unlikely to all be re-allocated by the runtime).
+	const size = 190
+	const count = 8192 / size
+	keep := make([]*byte, 0, (count+1)/2)
+	free := make([]uintptr, 0, (count+1)/2)
+	zombies := make([]*byte, 0, len(free))
+	for i := 0; i < count; i++ {
+		obj := make([]byte, size)
+		p := &obj[0]
+		if i%2 == 0 {
+			keep = append(keep, p)
+		} else {
+			free = append(free, uintptr(unsafe.Pointer(p)))
+		}
+	}
+
+	// Free the unreferenced objects.
+	runtime.GC()
+
+	// Bring the free objects back to life.
+	for _, p := range free {
+		zombies = append(zombies, (*byte)(unsafe.Pointer(p)))
+	}
+
+	// GC should detect the zombie objects.
+	runtime.GC()
+	println("failed")
+	runtime.KeepAlive(keep)
+	runtime.KeepAlive(zombies)
+}

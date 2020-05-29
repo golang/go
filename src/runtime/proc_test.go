@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"fmt"
 	"internal/race"
+	"internal/testenv"
 	"math"
 	"net"
 	"runtime"
@@ -926,6 +927,29 @@ func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
 		t.Skip("unshare syscall not permitted on this system")
 	} else if output != want {
 		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterations := 100
+	if testing.Short() {
+		// Reduce run time to ~100ms, with much lower probability of
+		// catching issues.
+		iterations = 5
+	}
+	for i := 0; i < iterations; i++ {
+		want := "OK\n"
+		output := runBuiltTestProg(t, exe, "LockOSThreadTemplateThreadRace")
+		if output != want {
+			t.Fatalf("run %d: want %q, got %q", i, want, output)
+		}
 	}
 }
 

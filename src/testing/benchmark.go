@@ -526,6 +526,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 			name:   "Main",
 			w:      os.Stdout,
 			chatty: *chatty,
+			bench:  true,
 		},
 		importPath: importPath,
 		benchFunc: func(b *B) {
@@ -559,6 +560,7 @@ func (ctx *benchContext) processBench(b *B) {
 						name:   b.name,
 						w:      b.w,
 						chatty: b.chatty,
+						bench:  true,
 					},
 					benchFunc: b.benchFunc,
 					benchTime: b.benchTime,
@@ -624,6 +626,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			creator: pc[:n],
 			w:       b.w,
 			chatty:  b.chatty,
+			bench:   true,
 		},
 		importPath: b.importPath,
 		benchFunc:  f,

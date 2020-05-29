@@ -1037,6 +1037,12 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names.
 //
+// After parsing b, any bytes that were leftover and not used to fill
+// val will be returned in rest. When parsing a SEQUENCE into a struct,
+// any trailing elements of the SEQUENCE that do not have matching
+// fields in val will not be included in rest, as these are considered
+// valid elements of the SEQUENCE and not trailing data.
+//
 // An ASN.1 INTEGER can be written to an int, int32, int64,
 // or *big.Int (from the math/big package).
 // If the encoded value does not fit in the Go type,
