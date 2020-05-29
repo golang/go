@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -189,6 +190,15 @@ func TestPeriodicGC(t *testing.T) {
 
 	if numGCs < want {
 		t.Fatalf("no periodic GC: got %v GCs, want >= 2", numGCs)
+	}
+}
+
+func TestGcZombieReporting(t *testing.T) {
+	// This test is somewhat sensitive to how the allocator works.
+	got := runTestProg(t, "testprog", "GCZombie")
+	want := "found pointer to free object"
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected %q in output, but got %q", want, got)
 	}
 }
 

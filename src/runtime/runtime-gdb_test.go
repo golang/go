@@ -241,8 +241,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
 	)
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
-	t.Logf("gdb output: %s\n", got)
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
 	if string(firstLine) != "Loading Go Runtime support." {
@@ -388,7 +391,11 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches the source code.
 	bt := []string{
@@ -403,8 +410,7 @@ func TestGdbBacktrace(t *testing.T) {
 		s := fmt.Sprintf("#%v.*main\\.%v", i, name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }
@@ -463,7 +469,11 @@ func TestGdbAutotmpTypes(t *testing.T) {
 		"-ex", "info types astruct",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	sgot := string(got)
 
@@ -477,8 +487,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
-			t.Errorf("could not find %s in 'info typrs astruct' output", name)
-			t.Fatalf("gdb output:\n%v", sgot)
+			t.Fatalf("could not find %s in 'info typrs astruct' output", name)
 		}
 	}
 }
@@ -532,11 +541,13 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
-
-	t.Logf("output %q", sgot)
 
 	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'\n$5 = 8192") {
 		t.Fatalf("output mismatch")
@@ -592,7 +603,11 @@ func TestGdbPanic(t *testing.T) {
 		"-ex", "backtrace",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches the source code.
 	bt := []string{
@@ -603,8 +618,7 @@ func TestGdbPanic(t *testing.T) {
 		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }
@@ -671,7 +685,11 @@ func TestGdbInfCallstack(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches
 	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
@@ -684,8 +702,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		s := fmt.Sprintf("#%v.*%v", i, name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }

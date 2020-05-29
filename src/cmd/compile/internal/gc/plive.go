@@ -1249,7 +1249,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 		if go115ReduceLiveness {
 			hasStackMap := lv.hasStackMap(v)
 			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
-			idx := LivenessIndex{StackMapDontCare, 0, isUnsafePoint}
+			idx := LivenessIndex{StackMapDontCare, StackMapDontCare, isUnsafePoint}
 			if hasStackMap {
 				idx.stackMapIndex = lv.stackMapSet.add(lv.livevars[pos].vars)
 				pos++

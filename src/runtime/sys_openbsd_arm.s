@@ -13,11 +13,23 @@
 #define CLOCK_REALTIME	$0
 #define	CLOCK_MONOTONIC	$3
 
+// With OpenBSD 6.7 onwards, an armv7 syscall returns two instructions
+// after the SWI instruction, to allow for a speculative execution
+// barrier to be placed after the SWI without impacting performance.
+// For now use hardware no-ops as this works with both older and newer
+// kernels. After OpenBSD 6.8 is released this should be changed to
+// speculation barriers.
+#define NOOP	MOVW    R0, R0
+#define	INVOKE_SYSCALL	\
+	SWI	$0;	\
+	NOOP;		\
+	NOOP
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW	code+0(FP), R0	// arg 1 - status
 	MOVW	$1, R12			// sys_exit
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$0, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	RET
@@ -26,7 +38,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW	wait+0(FP), R0		// arg 1 - notdead
 	MOVW	$302, R12		// sys___threxit
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$1, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	JMP	0(PC)
@@ -36,7 +48,7 @@ TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0
 	MOVW	mode+4(FP), R1		// arg 2 - mode
 	MOVW	perm+8(FP), R2		// arg 3 - perm
 	MOVW	$5, R12			// sys_open
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
@@ -44,7 +56,7 @@ TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0
 TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$6, R12			// sys_close
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
@@ -54,7 +66,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$3, R12			// sys_read
-	SWI	$0
+	INVOKE_SYSCALL
 	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
@@ -63,7 +75,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 TEXT runtime·pipe(SB),NOSPLIT,$0-12
 	MOVW	$r+0(FP), R0
 	MOVW	$263, R12
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW	R0, errno+8(FP)
 	RET
 
@@ -72,7 +84,7 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
 	MOVW	$r+4(FP), R0
 	MOVW	flags+0(FP), R1
 	MOVW	$101, R12
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW	R0, errno+12(FP)
 	RET
 
@@ -81,7 +93,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$4, R12			// sys_write
-	SWI	$0
+	INVOKE_SYSCALL
 	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
@@ -99,12 +111,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW	$4(R13), R0		// arg 1 - rqtp
 	MOVW	$0, R1			// arg 2 - rmtp
 	MOVW	$91, R12		// sys_nanosleep
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVW	$299, R12		// sys_getthrid
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW	R0, ret+0(FP)
 	RET
 
@@ -113,16 +125,16 @@ TEXT runtime·thrkill(SB),NOSPLIT,$0-8
 	MOVW	sig+4(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
 	MOVW	$119, R12		// sys_thrkill
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$12
-	MOVW	$20, R12
-	SWI	$0			// sys_getpid
+	MOVW	$20, R12		// sys_getpid
+	INVOKE_SYSCALL
 					// arg 1 - pid, already in R0
 	MOVW	sig+0(FP), R1		// arg 2 - signum
 	MOVW	$122, R12		// sys_kill
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$16
@@ -140,7 +152,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW	R7, 16(R13)		// high 32 bits
 	ADD	$4, R13
 	MOVW	$197, R12		// sys_mmap
-	SWI	$0
+	INVOKE_SYSCALL
 	SUB	$4, R13
 	MOVW	$0, R1
 	MOVW.CS	R0, R1			// if error, move to R1
@@ -153,7 +165,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0		// arg 1 - addr
 	MOVW	n+4(FP), R1		// arg 2 - len
 	MOVW	$73, R12		// sys_munmap
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$0, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	RET
@@ -163,7 +175,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	n+4(FP), R1		// arg 2 - len
 	MOVW	flags+8(FP), R2		// arg 2 - flags
 	MOVW	$75, R12		// sys_madvise
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
@@ -173,7 +185,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	MOVW	new+4(FP), R1		// arg 2 - new value
 	MOVW	old+8(FP), R2		// arg 3 - old value
 	MOVW	$69, R12		// sys_setitimer
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 // func walltime1() (sec int64, nsec int32)
@@ -181,7 +193,7 @@ TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
-	SWI	$0
+	INVOKE_SYSCALL
 
 	MOVW	8(R13), R0		// sec - l32
 	MOVW	12(R13), R1		// sec - h32
@@ -199,7 +211,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
-	SWI	$0
+	INVOKE_SYSCALL
 
 	MOVW	8(R13), R0		// sec - l32
 	MOVW	12(R13), R4		// sec - h32
@@ -220,7 +232,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVW	new+4(FP), R1		// arg 2 - new sigaction
 	MOVW	old+8(FP), R2		// arg 3 - old sigaction
 	MOVW	$46, R12		// sys_sigaction
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$3, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	RET
@@ -229,7 +241,7 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
 	MOVW	how+0(FP), R0		// arg 1 - mode
 	MOVW	new+4(FP), R1		// arg 2 - new
 	MOVW	$48, R12		// sys_sigprocmask
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$3, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	MOVW	R0, ret+8(FP)
@@ -280,7 +292,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
 	MOVW	param+0(FP), R0		// arg 1 - param
 	MOVW	psize+4(FP), R1		// arg 2 - psize
 	MOVW	$8, R12			// sys___tfork
-	SWI	$0
+	INVOKE_SYSCALL
 
 	// Return if syscall failed.
 	B.CC	4(PC)
@@ -313,14 +325,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVW	new+0(FP), R0		// arg 1 - new sigaltstack
 	MOVW	old+4(FP), R1		// arg 2 - old sigaltstack
 	MOVW	$288, R12		// sys_sigaltstack
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW.CS	$0, R8			// crash on syscall failure
 	MOVW.CS	R8, (R8)
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVW	$298, R12		// sys_sched_yield
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·thrsleep(SB),NOSPLIT,$4
@@ -332,7 +344,7 @@ TEXT runtime·thrsleep(SB),NOSPLIT,$4
 	MOVW	R4, 4(R13)
 	ADD	$4, R13
 	MOVW	$94, R12		// sys___thrsleep
-	SWI	$0
+	INVOKE_SYSCALL
 	SUB	$4, R13
 	MOVW	R0, ret+20(FP)
 	RET
@@ -341,7 +353,7 @@ TEXT runtime·thrwakeup(SB),NOSPLIT,$0
 	MOVW	ident+0(FP), R0		// arg 1 - ident
 	MOVW	n+4(FP), R1		// arg 2 - n
 	MOVW	$301, R12		// sys___thrwakeup
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVW	R0, ret+8(FP)
 	RET
 
@@ -356,7 +368,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$8
 	MOVW	R5, 8(R13)
 	ADD	$4, R13
 	MOVW	$202, R12		// sys___sysctl
-	SWI	$0
+	INVOKE_SYSCALL
 	SUB	$4, R13
 	MOVW.CC	$0, R0
 	RSB.CS	$0, R0
@@ -366,7 +378,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$8
 // int32 runtime·kqueue(void);
 TEXT runtime·kqueue(SB),NOSPLIT,$0
 	MOVW	$269, R12		// sys_kqueue
-	SWI	$0
+	INVOKE_SYSCALL
 	RSB.CS	$0, R0
 	MOVW	R0, ret+0(FP)
 	RET
@@ -383,7 +395,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
 	MOVW	R5, 8(R13)
 	ADD	$4, R13
 	MOVW	$72, R12		// sys_kevent
-	SWI	$0
+	INVOKE_SYSCALL
 	RSB.CS	$0, R0
 	SUB	$4, R13
 	MOVW	R0, ret+24(FP)
@@ -395,7 +407,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	$2, R1			// arg 2 - cmd (F_SETFD)
 	MOVW	$1, R2			// arg 3 - arg (FD_CLOEXEC)
 	MOVW	$92, R12		// sys_fcntl
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 // func runtime·setNonblock(fd int32)
@@ -404,12 +416,12 @@ TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
 	MOVW	$3, R1	// F_GETFL
 	MOVW	$0, R2
 	MOVW	$92, R12
-	SWI	$0
+	INVOKE_SYSCALL
 	ORR	$0x4, R0, R2	// O_NONBLOCK
 	MOVW	fd+0(FP), R0	// fd
 	MOVW	$4, R1	// F_SETFL
 	MOVW	$92, R12
-	SWI	$0
+	INVOKE_SYSCALL
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
@@ -418,6 +430,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVM.WP	[R1, R2, R3, R12], (R13)
 	MOVW	$330, R12		// sys___get_tcb
-	SWI	$0
+	INVOKE_SYSCALL
 	MOVM.IAW (R13), [R1, R2, R3, R12]
 	RET

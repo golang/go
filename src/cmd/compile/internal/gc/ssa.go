@@ -6313,34 +6313,39 @@ func defframe(s *SSAGenState, e *ssafn) {
 	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
 }
 
-type FloatingEQNEJump struct {
+// For generating consecutive jump instructions to model a specific branching
+type IndexJump struct {
 	Jump  obj.As
 	Index int
 }
 
-func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
-	p := s.Prog(jumps.Jump)
-	p.To.Type = obj.TYPE_BRANCH
+func (s *SSAGenState) oneJump(b *ssa.Block, jump *IndexJump) {
+	p := s.Br(jump.Jump, b.Succs[jump.Index].Block())
 	p.Pos = b.Pos
-	to := jumps.Index
-	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
 }
 
-func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+// CombJump generates combinational instructions (2 at present) for a block jump,
+// thereby the behaviour of non-standard condition codes could be simulated
+func (s *SSAGenState) CombJump(b, next *ssa.Block, jumps *[2][2]IndexJump) {
 	switch next {
 	case b.Succs[0].Block():
-		s.oneFPJump(b, &jumps[0][0])
-		s.oneFPJump(b, &jumps[0][1])
+		s.oneJump(b, &jumps[0][0])
+		s.oneJump(b, &jumps[0][1])
 	case b.Succs[1].Block():
-		s.oneFPJump(b, &jumps[1][0])
-		s.oneFPJump(b, &jumps[1][1])
+		s.oneJump(b, &jumps[1][0])
+		s.oneJump(b, &jumps[1][1])
 	default:
-		s.oneFPJump(b, &jumps[1][0])
-		s.oneFPJump(b, &jumps[1][1])
-		q := s.Prog(obj.AJMP)
+		var q *obj.Prog
+		if b.Likely != ssa.BranchUnlikely {
+			s.oneJump(b, &jumps[1][0])
+			s.oneJump(b, &jumps[1][1])
+			q = s.Br(obj.AJMP, b.Succs[1].Block())
+		} else {
+			s.oneJump(b, &jumps[0][0])
+			s.oneJump(b, &jumps[0][1])
+			q = s.Br(obj.AJMP, b.Succs[0].Block())
+		}
 		q.Pos = b.Pos
-		q.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
 	}
 }
 

@@ -5,6 +5,7 @@
 package build
 
 import (
+	"flag"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,14 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 func TestMatch(t *testing.T) {
 	ctxt := Default
