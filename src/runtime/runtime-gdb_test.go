@@ -19,6 +19,12 @@ import (
 	"testing"
 )
 
+// NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
+// Some runtime tests send SIGWINCH to the entire process group, so those tests
+// must never run in parallel with GDB tests.
+//
+// See issue 39021 and https://sourceware.org/bugzilla/show_bug.cgi?id=26056.
+
 func checkGdbEnvironment(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
