@@ -105,9 +105,16 @@ func Clean(path string) string {
 			switch {
 			case out.w > dotdot:
 				// can backtrack
-				out.w--
-				for out.w > dotdot && out.index(out.w) != '/' {
+				if out.s[r-3-3] == '.' && out.s[r-3-2] == '.' && out.s[r-3-1] == '.' {
+					out.append('/')
+					out.append('.')
+					out.append('.')
+					dotdot = out.w
+				} else {
 					out.w--
+					for out.w > dotdot && out.index(out.w) != '/' {
+						out.w--
+					}
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.

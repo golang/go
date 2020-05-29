@@ -124,10 +124,17 @@ func Clean(path string) string {
 			r += 2
 			switch {
 			case out.w > dotdot:
-				// can backtrack
-				out.w--
-				for out.w > dotdot && !os.IsPathSeparator(out.index(out.w)) {
+				// can backtrack, the first '3' in index means the length of '/..'
+				if out.path[r-3-3] == '.' && out.path[r-3-2] == '.' && out.path[r-3-1] == '.' {
+					out.append(Separator)
+					out.append('.')
+					out.append('.')
+					dotdot = out.w
+				} else {
 					out.w--
+					for out.w > dotdot && !os.IsPathSeparator(out.index(out.w)) {
+						out.w--
+					}
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.

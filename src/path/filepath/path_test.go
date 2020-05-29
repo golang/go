@@ -34,6 +34,7 @@ var cleantests = []PathTest{
 	{"../../abc", "../../abc"},
 	{"/abc", "/abc"},
 	{"/", "/"},
+	{"abc/def/.../..", "abc/def/.../.."},
 
 	// Empty is current dir
 	{"", "."},

@@ -25,6 +25,7 @@ var cleantests = []PathTest{
 	{"../../abc", "../../abc"},
 	{"/abc", "/abc"},
 	{"/", "/"},
+	{"../../abc/.../..", "../../abc/.../.."},
 
 	// Remove trailing slash
 	{"abc/", "abc"},
