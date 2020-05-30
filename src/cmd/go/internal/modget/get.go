@@ -6,10 +6,8 @@
 package modget
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -704,12 +702,6 @@ func runGet(cmd *base.Command, args []string) {
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
 
-	// Print the changes we made.
-	// TODO(golang.org/issue/33284): include more information about changes to
-	// relevant module versions due to MVS upgrades and downgrades. For now,
-	// the log only contains messages for versions resolved with getQuery.
-	writeUpdateLog()
-
 	// If -d was specified, we're done after the module work.
 	// We've already downloaded modules by loading packages above.
 	// Otherwise, we need to build and install the packages matched by
@@ -1042,28 +1034,11 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
 	return r.Reqs.Required(mod)
 }
 
-var updateLog struct {
-	mu     sync.Mutex
-	buf    bytes.Buffer
-	logged map[string]bool
-}
+var loggedLines sync.Map
 
 func logOncef(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	updateLog.mu.Lock()
-	defer updateLog.mu.Unlock()
-	if updateLog.logged == nil {
-		updateLog.logged = make(map[string]bool)
+	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
+		fmt.Fprintln(os.Stderr, msg)
 	}
-	if updateLog.logged[msg] {
-		return
-	}
-	updateLog.logged[msg] = true
-	fmt.Fprintln(&updateLog.buf, msg)
-}
-
-func writeUpdateLog() {
-	updateLog.mu.Lock()
-	defer updateLog.mu.Unlock()
-	io.Copy(os.Stderr, &updateLog.buf)
 }
