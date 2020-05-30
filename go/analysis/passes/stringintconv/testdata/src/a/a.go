@@ -25,12 +25,12 @@ func StringTest() {
 		o struct{ x int }
 	)
 	const p = 0
-	_ = string(i) // want `^conversion from int to string yields a string of one rune$`
+	_ = string(i) // want `^conversion from int to string yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
 	_ = string(j)
 	_ = string(k)
-	_ = string(p)    // want `^conversion from untyped int to string yields a string of one rune$`
-	_ = A(l)         // want `^conversion from C \(int\) to A \(string\) yields a string of one rune$`
-	_ = B(m)         // want `^conversion from uintptr to B \(string\) yields a string of one rune$`
-	_ = string(n[1]) // want `^conversion from int to string yields a string of one rune$`
-	_ = string(o.x)  // want `^conversion from int to string yields a string of one rune$`
+	_ = string(p)    // want `^conversion from untyped int to string yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
+	_ = A(l)         // want `^conversion from C \(int\) to A \(string\) yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
+	_ = B(m)         // want `^conversion from uintptr to B \(string\) yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
+	_ = string(n[1]) // want `^conversion from int to string yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
+	_ = string(o.x)  // want `^conversion from int to string yields a string of one rune, not a string of digits \(did you mean fmt\.Sprint\(x\)\?\)$`
 }
