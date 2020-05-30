@@ -201,7 +201,7 @@ type View interface {
 	Session() Session
 }
 
-// A File is is a file within a session.
+// A File is a file within a session.
 type File struct {
 	Session Session
 	URI     span.URI
