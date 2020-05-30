@@ -413,7 +413,7 @@ type in Go are instead represented by a uintptr. Those include:
 	jobjectArray
 	jweak
 
-3. The EGLDisplay type from the EGL API.
+3. The EGLDisplay and EGLConfig types from the EGL API.
 
 These types are uintptr on the Go side because they would otherwise
 confuse the Go garbage collector; they are sometimes not really
@@ -429,10 +429,15 @@ from Go 1.9 and earlier, use the cftype or jni rewrites in the Go fix tool:
 
 It will replace nil with 0 in the appropriate places.
 
-The EGLDisplay case were introduced in Go 1.12. Use the egl rewrite
+The EGLDisplay case was introduced in Go 1.12. Use the egl rewrite
 to auto-update code from Go 1.11 and earlier:
 
 	go tool fix -r egl <pkg>
+
+The EGLConfig case was introduced in Go 1.15. Use the eglconf rewrite
+to auto-update code from Go 1.14 and earlier:
+
+	go tool fix -r eglconf <pkg>
 
 Using cgo directly
 
