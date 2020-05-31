@@ -219,7 +219,7 @@ func (l *List) MoveAfter(e, mark *Element) {
 	l.move(e, mark)
 }
 
-// PushBackList inserts a copy of an other list at the back of list l.
+// PushBackList inserts a copy of another list at the back of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushBackList(other *List) {
 	l.lazyInit()
@@ -228,7 +228,7 @@ func (l *List) PushBackList(other *List) {
 	}
 }
 
-// PushFrontList inserts a copy of an other list at the front of list l.
+// PushFrontList inserts a copy of another list at the front of list l.
 // The lists l and other may be the same. They must not be nil.
 func (l *List) PushFrontList(other *List) {
 	l.lazyInit()
