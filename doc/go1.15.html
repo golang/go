@@ -241,6 +241,16 @@ TODO
 TODO
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 235817 -->
+	Go 1.15 will translate the C type <code>EGLConfig</code> to the
+	Go type <code>uintptr</code>. This change is similar to how Go
+	1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
+	Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
+	documentation</a> for more information.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
