@@ -18,6 +18,7 @@ path to this file based on the path to the runtime package.
 from __future__ import print_function
 import re
 import sys
+import gdb
 
 print("Loading Go Runtime support.", file=sys.stderr)
 #http://python3porting.com/differences.html
@@ -26,6 +27,12 @@ if sys.version > '3':
 # allow to manually reload while developing
 goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
+
+# Older gdb renders some types differently.
+def oldnew(old, new):
+  if (gdb.VERSION[0] == '7'):
+    return old
+  return new
 
 # G state (runtime2.go)
 
@@ -102,7 +109,7 @@ class SliceValue:
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string( \*)?$')
+	pattern = re.compile(oldnew(r'^struct string( \*)?$',r'^string$'))
 
 	def __init__(self, val):
 		self.val = val
@@ -118,7 +125,7 @@ class StringTypePrinter:
 class SliceTypePrinter:
 	"Pretty print slices."
 
-	pattern = re.compile(r'^struct \[\]')
+	pattern = re.compile(oldnew(r'^struct \[\]',r'^\[\]'))
 
 	def __init__(self, val):
 		self.val = val
@@ -127,7 +134,7 @@ class SliceTypePrinter:
 		return 'array'
 
 	def to_string(self):
-		return str(self.val.type)[6:]  # skip 'struct '
+		return str(self.val.type)[oldnew(6,0):]  # skip 'struct ' for old gdb
 
 	def children(self):
 		sval = SliceValue(self.val)
@@ -195,7 +202,7 @@ class ChanTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(r'^struct hchan<.*>$')
+	pattern = re.compile(oldnew(r'^struct hchan<.*>$',r'^chan '))
 
 	def __init__(self, val):
 		self.val = val
@@ -209,7 +216,7 @@ class ChanTypePrinter:
 	def children(self):
 		# see chan.c chanbuf(). et is the type stolen from hchan<T>::recvq->first->elem
 		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
-		ptr = (self.val.address + 1).cast(et.pointer())
+		ptr = (self.val.address["buf"]).cast(et)
 		for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
 			yield ('[{0}]'.format(i), (ptr + j).dereference())
@@ -229,8 +236,6 @@ def makematcher(klass):
 	return matcher
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
-
-
 #
 #  Utilities
 #
