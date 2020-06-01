@@ -82,7 +82,6 @@ var (
 	flagH           = flag.Bool("h", false, "halt on error")
 	flagN           = flag.Bool("n", false, "dump symbol table")
 	FlagS           = flag.Bool("s", false, "disable symbol table")
-	flagU           = flag.Bool("u", false, "reject unsafe packages")
 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
 	flag8           bool // use 64-bit addresses in symbol table
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")

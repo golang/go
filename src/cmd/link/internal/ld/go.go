@@ -39,18 +39,12 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
-		if *flagU {
-			errorexit()
-		}
 		return
 	}
 
 	bdata := make([]byte, length)
 	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
-		if *flagU {
-			errorexit()
-		}
 		return
 	}
 	data := string(bdata)
@@ -62,9 +56,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 			line, data = data[:i], data[i+1:]
 		} else {
 			line, data = data, ""
-		}
-		if line == "safe" {
-			lib.Safe = true
 		}
 		if line == "main" {
 			lib.Main = true
@@ -82,9 +73,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 		i := strings.IndexByte(data[p0+1:], '\n')
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
-			if *flagU {
-				errorexit()
-			}
 			return
 		}
 		p0 += 1 + i
@@ -95,9 +83,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 		}
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
-			if *flagU {
-				errorexit()
-			}
 			return
 		}
 		p1 += p0

@@ -17,7 +17,6 @@ type Library struct {
 	Autolib     []goobj2.ImportedPkg
 	Imports     []*Library
 	Main        bool
-	Safe        bool
 	Units       []*CompilationUnit
 
 	Textp       []LoaderSym // text syms defined in this library

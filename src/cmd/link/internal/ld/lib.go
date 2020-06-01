@@ -995,21 +995,6 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 		if pkg == "main" && !lib.Main {
 			Exitf("%s: not package main", lib.File)
 		}
-
-		// Ideally, we'd check that *all* object files within
-		// the archive were marked safe, but here we settle
-		// for *any*.
-		//
-		// Historically, cmd/link only checked the __.PKGDEF
-		// file, which in turn came from the first object
-		// file, typically produced by cmd/compile. The
-		// remaining object files are normally produced by
-		// cmd/asm, which doesn't support marking files as
-		// safe anyway. So at least in practice, this matches
-		// how safe mode has always worked.
-		if *flagU && !lib.Safe {
-			Exitf("%s: load of unsafe package %s", lib.File, pkg)
-		}
 	}()
 
 	for i := 0; i < len(ARMAG); i++ {
