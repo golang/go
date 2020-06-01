@@ -211,8 +211,18 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 	}
 
+	// Not a special test output line.
 	if !ok {
-		// Not a special test output line.
+		// Lookup the name of the test which produced the output using the
+		// indentation of the output as an index into the stack of the current
+		// subtests.
+		// If the indentation is greater than the number of current subtests
+		// then the output must have included extra indentation. We can't
+		// determine which subtest produced this output, so we default to the
+		// old behaviour of assuming the most recently run subtest produced it.
+		if indent > 0 && indent <= len(c.report) {
+			c.testName = c.report[indent-1].Test
+		}
 		c.output.write(origLine)
 		return
 	}
