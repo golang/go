@@ -353,15 +353,14 @@ func (p *testPrinter) Print(testName, out string) {
 }
 
 func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
-	if !p.chatty || strings.HasPrefix(out, "--- PASS") || strings.HasPrefix(out, "--- FAIL") {
-		fmt.Fprint(w, out)
-		return
-	}
-
 	p.lastNameMu.Lock()
 	defer p.lastNameMu.Unlock()
 
-	if strings.HasPrefix(out, "=== CONT") || strings.HasPrefix(out, "=== RUN") {
+	if !p.chatty ||
+		strings.HasPrefix(out, "--- PASS") ||
+		strings.HasPrefix(out, "--- FAIL") ||
+		strings.HasPrefix(out, "=== CONT") ||
+		strings.HasPrefix(out, "=== RUN") {
 		p.lastName = testName
 		fmt.Fprint(w, out)
 		return
