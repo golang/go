@@ -34,7 +34,6 @@ package obj
 import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
-	"crypto/md5"
 	"fmt"
 	"log"
 	"math"
@@ -238,15 +237,6 @@ func (ctxt *Link) NumberSyms() {
 		ctxt.pkgIdx[pkg] = ipkg
 		ipkg++
 	})
-
-	// Compute a fingerprint of the indices, for exporting.
-	if !ctxt.IsAsm {
-		h := md5.New()
-		for _, s := range ctxt.defs {
-			h.Write([]byte(s.Name))
-		}
-		copy(ctxt.Fingerprint[:], h.Sum(nil)[:])
-	}
 }
 
 // Returns whether s is a non-package symbol, which needs to be referenced
