@@ -117,7 +117,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 
 	var params ecdheParameters
 	if hello.supportedVersions[0] == VersionTLS13 {
-		hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13()...)
+		hello.cipherSuites = append(defaultCipherSuitesTLS13(), hello.cipherSuites...)
 
 		curveID := config.curvePreferences()[0]
 		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
