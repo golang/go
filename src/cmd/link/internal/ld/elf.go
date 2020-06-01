@@ -12,7 +12,6 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
-	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1713,7 +1712,7 @@ func (ctxt *Link) doelf() {
 		sort.Sort(byPkg(ctxt.Library))
 		h := sha1.New()
 		for _, l := range ctxt.Library {
-			io.WriteString(h, l.Hash)
+			h.Write(l.Fingerprint[:])
 		}
 		addgonote(ctxt, ".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
 		addgonote(ctxt, ".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
