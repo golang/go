@@ -55,7 +55,6 @@ type Runner struct {
 	DefaultModes             Mode
 	Timeout                  time.Duration
 	GoplsPath                string
-	AlwaysPrintLogs          bool
 	PrintGoroutinesOnFailure bool
 
 	mu        sync.Mutex
@@ -194,7 +193,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
 				}
-				if t.Failed() || r.AlwaysPrintLogs {
+				if t.Failed() || testing.Verbose() {
 					ls.printBuffers(t.Name(), os.Stderr)
 				}
 				env.CloseEditor()
