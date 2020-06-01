@@ -207,6 +207,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/goobj2"
 	"cmd/internal/src"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -295,12 +296,15 @@ func iexport(out *bufio.Writer) {
 	hdr.uint64(dataLen)
 
 	// Flush output.
-	io.Copy(out, &hdr)
-	io.Copy(out, &p.strings)
-	io.Copy(out, &p.data0)
+	h := md5.New()
+	wr := io.MultiWriter(out, h)
+	io.Copy(wr, &hdr)
+	io.Copy(wr, &p.strings)
+	io.Copy(wr, &p.data0)
 
 	// Add fingerprint (used by linker object file).
 	// Attach this to the end, so tools (e.g. gcimporter) don't care.
+	copy(Ctxt.Fingerprint[:], h.Sum(nil)[:])
 	out.Write(Ctxt.Fingerprint[:])
 }
 
