@@ -591,13 +591,13 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			s := ldr.CreateSymForUpdate("go.link.pkghashbytes."+l.Pkg, 0)
 			s.SetReachable(true)
 			s.SetType(sym.SRODATA)
-			s.SetSize(int64(len(l.Hash)))
-			s.SetData([]byte(l.Hash))
+			s.SetSize(int64(len(l.Fingerprint)))
+			s.SetData(l.Fingerprint[:])
 			str := ldr.CreateSymForUpdate("go.link.pkghash."+l.Pkg, 0)
 			str.SetReachable(true)
 			str.SetType(sym.SRODATA)
 			str.AddAddr(ctxt.Arch, s.Sym())
-			str.AddUint(ctxt.Arch, uint64(len(l.Hash)))
+			str.AddUint(ctxt.Arch, uint64(len(l.Fingerprint)))
 		}
 	}
 
@@ -698,7 +698,7 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			// pkghashes[i].name
 			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
 			// pkghashes[i].linktimehash
-			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), l.Hash)
+			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Fingerprint[:]))
 			// pkghashes[i].runtimehash
 			hash := ldr.Lookup("go.link.pkghash."+l.Pkg, 0)
 			pkghashes.AddAddr(ctxt.Arch, hash)

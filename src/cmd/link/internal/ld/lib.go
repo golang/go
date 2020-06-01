@@ -48,7 +48,6 @@ import (
 	"debug/macho"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -785,16 +784,6 @@ func (ctxt *Link) linksetup() {
 	ctxt.loader.SetAttrReachable(moduledata, true)
 	ctxt.Moduledata = moduledata
 
-	// If package versioning is required, generate a hash of the
-	// packages used in the link.
-	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
-		for _, lib := range ctxt.Library {
-			if lib.Shlib == "" {
-				genhash(ctxt, lib)
-			}
-		}
-	}
-
 	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
 		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
 			got := ctxt.loader.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
@@ -917,67 +906,6 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 		arsize++
 	}
 	return arsize + SAR_HDR
-}
-
-func genhash(ctxt *Link, lib *sym.Library) {
-	f, err := bio.Open(lib.File)
-	if err != nil {
-		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
-		return
-	}
-	defer f.Close()
-
-	var magbuf [len(ARMAG)]byte
-	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
-		Exitf("file %s too short", lib.File)
-	}
-
-	if string(magbuf[:]) != ARMAG {
-		Exitf("%s is not an archive file", lib.File)
-	}
-
-	var arhdr ArHdr
-	l := nextar(f, f.Offset(), &arhdr)
-	if l <= 0 {
-		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
-		return
-	}
-	if arhdr.name != pkgdef {
-		Errorf(nil, "%s: missing package data entry", lib.File)
-		return
-	}
-
-	h := sha1.New()
-
-	// To compute the hash of a package, we hash the first line of
-	// __.PKGDEF (which contains the toolchain version and any
-	// GOEXPERIMENT flags) and the export data (which is between
-	// the first two occurrences of "\n$$").
-
-	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
-	_, err = io.ReadFull(f, pkgDefBytes)
-	if err != nil {
-		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
-		return
-	}
-	firstEOL := bytes.IndexByte(pkgDefBytes, '\n')
-	if firstEOL < 0 {
-		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
-		return
-	}
-	firstDoubleDollar := bytes.Index(pkgDefBytes, []byte("\n$$"))
-	if firstDoubleDollar < 0 {
-		Errorf(nil, "cannot parse package data of %s for hash generation, no \\n$$ found", lib.File)
-		return
-	}
-	secondDoubleDollar := bytes.Index(pkgDefBytes[firstDoubleDollar+1:], []byte("\n$$"))
-	if secondDoubleDollar < 0 {
-		Errorf(nil, "cannot parse package data of %s for hash generation, only one \\n$$ found", lib.File)
-		return
-	}
-	h.Write(pkgDefBytes[0:firstEOL])
-	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
-	lib.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
 func loadobjfile(ctxt *Link, lib *sym.Library) {
