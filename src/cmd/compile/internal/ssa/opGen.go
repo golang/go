@@ -61,6 +61,10 @@ const (
 	BlockARMULE
 	BlockARMUGT
 	BlockARMUGE
+	BlockARMLTnoov
+	BlockARMLEnoov
+	BlockARMGTnoov
+	BlockARMGEnoov
 
 	BlockARM64EQ
 	BlockARM64NE
@@ -185,16 +189,20 @@ var blockString = [...]string{
 	BlockAMD64ORD: "ORD",
 	BlockAMD64NAN: "NAN",
 
-	BlockARMEQ:  "EQ",
-	BlockARMNE:  "NE",
-	BlockARMLT:  "LT",
-	BlockARMLE:  "LE",
-	BlockARMGT:  "GT",
-	BlockARMGE:  "GE",
-	BlockARMULT: "ULT",
-	BlockARMULE: "ULE",
-	BlockARMUGT: "UGT",
-	BlockARMUGE: "UGE",
+	BlockARMEQ:     "EQ",
+	BlockARMNE:     "NE",
+	BlockARMLT:     "LT",
+	BlockARMLE:     "LE",
+	BlockARMGT:     "GT",
+	BlockARMGE:     "GE",
+	BlockARMULT:    "ULT",
+	BlockARMULE:    "ULE",
+	BlockARMUGT:    "UGT",
+	BlockARMUGE:    "UGE",
+	BlockARMLTnoov: "LTnoov",
+	BlockARMLEnoov: "LEnoov",
+	BlockARMGTnoov: "GTnoov",
+	BlockARMGEnoov: "GEnoov",
 
 	BlockARM64EQ:     "EQ",
 	BlockARM64NE:     "NE",
