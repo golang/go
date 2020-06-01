@@ -55,6 +55,15 @@ Do not send CLs removing the interior tags from such phrases.
   on Windows.
 </p>
 
+<h3 id="android">Android</h3>
+
+<p> <!-- golang.org/cl/235017 golang.org/issue/38838 -->
+	When linking binaries for Android, Go 1.15 explicitly selects
+	the <code>lld</code> linker available in recent versions of the NDK.
+	The <code>lld</code> linker avoids crashes on some devices, and is
+	planned to become the default NDK linker in a future NDK version.
+</p>
+
 <p>
 TODO
 </p>
