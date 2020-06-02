@@ -11,12 +11,6 @@ package p
 // Pointer designation for type parameters is currently ignored.
 func _(type *P /* ERROR ignored */ )() {}
 
-// Underlying type designation in type lists is currently ignored.
-type _ interface{
-	underlying type /* ERROR ignored */ int, uint
-	underlying type float32 // error is reported only the first time
-}
-
 // Indexing on generic types containing type parameters in their type list
 // is not yet supported.
 func _(type T interface { type T })(x T) {

@@ -106,12 +106,9 @@ var valids = []string{
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 
-	// interfaces with type lists
+	// interfaces with (contract) type lists
 	`package p; type _ interface{type int}`,
-	`package p; type _ interface{underlying type int, float32; type rune}`,
-	`package p; type _ interface{type int, float32; type bool; m(); type string}`,
-	`package p; type _ interface{type int, float32; m(); type string; underlying type bool}`,
-	`package p; type _ interface{underlying type int; underlying(underlying) underlying}`,
+	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
 
 	// interfaces with parenthesized embedded and possibly parameterized interfaces
 	`package p; type I1 interface{}; type I2 interface{ (I1) }`,

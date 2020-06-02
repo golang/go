@@ -1057,15 +1057,16 @@ func (p *parser) parseFuncType(typeContext bool) (*ast.FuncType, *ast.Scope) {
 	return &ast.FuncType{Func: pos, Params: params, Results: results}, scope
 }
 
-func (p *parser) parseMethodSpec(scope *ast.Scope, doc *ast.CommentGroup, ident *ast.Ident) *ast.Field {
+func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	if p.trace {
 		defer un(trace(p, "MethodSpec"))
 	}
 
+	doc := p.leadComment
 	var idents []*ast.Ident
 	var typ ast.Expr
-	if ident != nil || p.tok == token.IDENT {
-		x := p.parseTypeName(ident)
+	if p.tok == token.IDENT {
+		x := p.parseTypeName(nil)
 		if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
 			// method
 			idents = []*ast.Ident{ident}
@@ -1102,25 +1103,13 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	var list []*ast.Field
 L:
 	for {
-		doc := p.leadComment // must be consumed before identifier is consumed
-		keyword := "type"
 		switch p.tok {
-		case token.LPAREN:
-			list = append(list, p.parseMethodSpec(scope, doc, nil))
-		case token.IDENT:
-			ident := p.parseIdent()
-			if ident.Name != "underlying" || p.tok != token.TYPE {
-				list = append(list, p.parseMethodSpec(scope, doc, ident))
-				break
-			}
-			// underlying type list
-			keyword = "underlying type"
-			fallthrough
+		case token.IDENT, token.LPAREN:
+			list = append(list, p.parseMethodSpec(scope))
 		case token.TYPE:
-			// All types in a type list share the same field name "type" or "underlying type".
-			// ("type" is a keyword and "underlying type" is not a valid identifier, thus this
-			// name cannot be confused with a method name.)
-			name := []*ast.Ident{&ast.Ident{NamePos: p.pos, Name: keyword}}
+			// all types in a type list share the same field name "type"
+			// (since type is a keyword, a Go program cannot have that field name)
+			name := []*ast.Ident{&ast.Ident{NamePos: p.pos, Name: "type"}}
 			p.next()
 			// add each type as a field named "type"
 			for _, typ := range p.parseTypeList() {

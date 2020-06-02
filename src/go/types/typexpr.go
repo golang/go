@@ -704,27 +704,20 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
 	var types []ast.Expr
-	firstUnderlying := true
 	for _, f := range iface.Methods.List {
 		if len(f.Names) > 0 {
 			// We have a method with name f.Names[0], or a type
-			// of a type list (name.Name is "type" or "underlying type").
+			// of a type list (name.Name == "type").
 			// (The parser ensures that there's only one method
 			// and we don't care if a constructed AST has more.)
 			name := f.Names[0]
-			switch name.Name {
-			case "_":
+			if name.Name == "_" {
 				check.errorf(name.Pos(), "invalid method name _")
 				continue // ignore
-			case "type":
+			}
+
+			if name.Name == "type" {
 				types = append(types, f.Type)
-				continue
-			case "underlying type":
-				types = append(types, f.Type)
-				if firstUnderlying {
-					check.errorf(name.Pos(), `"underlying" designation not yet supported ("underlying" is ignored)`)
-					firstUnderlying = false
-				}
 				continue
 			}
 
