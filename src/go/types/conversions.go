@@ -104,7 +104,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	}
 
 	// "x's type and T are both integer or floating point types"
-	if (isInteger(V) || isFloat(V)) && (isInteger(T) || isFloat(T)) {
+	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
 		return true
 	}
 
