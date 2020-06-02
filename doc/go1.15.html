@@ -406,6 +406,20 @@ TODO
       <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
       method permits using a context to both connect and handshake with a TLS server.
     </p>
+
+    <p><!-- CL 229122 -->
+      The new
+      <a href="/pkg/crypto/tls/#Config.VerifyConnection"><code>VerifyConnection</code></a>
+      callback on the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type
+      allows custom verification logic for every connection. It has access to the
+      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      which includes peer certificates, SCTs, and stapled OCSP responses.
+    </p>
+
+    <p><!-- CL 230679 -->
+      Auto-generated session ticket keys are now automatically rotated every 24 hours,
+      with a lifetime of 7 days, to limit their impact on forward secrecy.
+    </p>
   </dd>
 </dl>
 
