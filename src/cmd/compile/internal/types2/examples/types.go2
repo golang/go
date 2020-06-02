@@ -233,3 +233,22 @@ func _(type T1, T2 B1 /* ERROR cannot use generic type .* without instantiation 
 func _(type T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ )()
 
 func _(type T1 B0, T2 B1)() // here B1 applies to T2
+
+// The type of variables (incl. parameters and return values) cannot
+// be an interface with type constraints.
+type I interface {
+	type int
+}
+
+var (
+	_ interface /* ERROR cannot contain type constraints */ {type int}
+	_ I /* ERROR cannot contain type constraints */
+)
+
+func _(I /* ERROR cannot contain type constraints */ )
+func _(x, y, z I /* ERROR cannot contain type constraints */ )
+func _() I /* ERROR cannot contain type constraints */
+
+func _() {
+	var _ I /* ERROR cannot contain type constraints */
+}

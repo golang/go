@@ -132,6 +132,25 @@ func (check *Checker) typ(e syntax.Expr) Type {
 	return check.definedType(e, nil)
 }
 
+// varType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must not be an (uninstantiated) generic type and it must not be an
+// interface type containing type lists.
+func (check *Checker) varType(e syntax.Expr) Type {
+	typ := check.definedType(e, nil)
+	if t := typ.Interface(); t != nil {
+		// We don't want to complete interfaces while we are in the middle
+		// of type-checking parameter declarations that might belong to
+		// interface methods. Delay this check to the end of type-checking.
+		check.atEnd(func() {
+			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
+			if len(t.allTypes) != 0 {
+				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints")
+			}
+		})
+	}
+	return typ
+}
+
 // anyType type-checks the type expression e and returns its type, or Typ[Invalid].
 // The type may be generic or instantiated.
 func (check *Checker) anyType(e syntax.Expr) Type {
@@ -673,7 +692,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 				// ignore ... and continue
 			}
 		}
-		typ := check.typ(ftype)
+		typ := check.varType(ftype)
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
 		if field.Name != nil {
