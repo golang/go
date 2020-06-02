@@ -189,14 +189,29 @@ type Session interface {
 	// It returns the resulting snapshots, a guaranteed one per view.
 	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, error)
 
-	// UnsavedFiles returns a slice of open but unsaved files in the session.
-	UnsavedFiles() []span.URI
+	// Overlays returns a slice of file overlays for the session.
+	Overlays() []Overlay
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options
 
 	// SetOptions sets the options of this session to new values.
 	SetOptions(Options)
+}
+
+// Overlay is the type for a file held in memory on a session.
+type Overlay interface {
+	// Session returns the session this overlay belongs to.
+	Session() Session
+
+	// Identity returns the FileIdentity for the overlay.
+	Identity() FileIdentity
+
+	// Saved returns whether this overlay has been saved to disk.
+	Saved() bool
+
+	// Data is the contents of the overlay held in memory.
+	Data() []byte
 }
 
 // FileModification represents a modification to a file.

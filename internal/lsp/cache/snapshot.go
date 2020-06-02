@@ -29,7 +29,7 @@ import (
 
 type snapshot struct {
 	id   uint64
-	view *view
+	view *View
 
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
@@ -667,7 +667,7 @@ func (s *snapshot) orphanedFileScopes() []interface{} {
 	return scopes
 }
 
-func contains(views []*view, view *view) bool {
+func contains(views []*View, view *View) bool {
 	for _, v := range views {
 		if v == view {
 			return true

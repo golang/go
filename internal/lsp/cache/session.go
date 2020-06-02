@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
@@ -27,8 +26,8 @@ type Session struct {
 	options source.Options
 
 	viewMu  sync.Mutex
-	views   []*view
-	viewMap map[span.URI]*view
+	views   []*View
+	viewMap map[span.URI]*View
 
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
@@ -60,9 +59,16 @@ func (o *overlay) Identity() source.FileIdentity {
 		Kind:       o.kind,
 	}
 }
+
 func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 	return o.text, o.hash, nil
 }
+
+func (o *overlay) Session() source.Session { return o.session }
+func (o *overlay) Saved() bool             { return o.saved }
+func (o *overlay) Data() []byte            { return o.text }
+
+func (s *Session) ID() string { return s.id }
 
 func (s *Session) Options() source.Options {
 	return s.options
@@ -80,9 +86,6 @@ func (s *Session) Shutdown(ctx context.Context) {
 	}
 	s.views = nil
 	s.viewMap = nil
-	if di := debug.GetInstance(ctx); di != nil {
-		di.State.DropSession(DebugSession{s})
-	}
 }
 
 func (s *Session) Cache() source.Cache {
@@ -98,18 +101,18 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	}
 	s.views = append(s.views, v)
 	// we always need to drop the view map
-	s.viewMap = make(map[span.URI]*view)
+	s.viewMap = make(map[span.URI]*View)
 	return v, snapshot, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options, snapshotID uint64) (*view, *snapshot, error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options, snapshotID uint64) (*View, *snapshot, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := event.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
-	v := &view{
+	v := &View{
 		session:       s,
 		initialized:   make(chan struct{}),
 		id:            strconv.FormatInt(index, 10),
@@ -148,10 +151,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 
 	// Initialize the view without blocking.
 	go v.initialize(xcontext.Detach(ctx), v.snapshot)
-
-	if di := debug.GetInstance(ctx); di != nil {
-		di.State.AddView(debugView{v})
-	}
 	return v, v.snapshot, nil
 }
 
@@ -173,7 +172,7 @@ func (s *Session) ViewOf(uri span.URI) (source.View, error) {
 	return s.viewOf(uri)
 }
 
-func (s *Session) viewOf(uri span.URI) (*view, error) {
+func (s *Session) viewOf(uri span.URI) (*View, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
@@ -190,11 +189,11 @@ func (s *Session) viewOf(uri span.URI) (*view, error) {
 	return v, nil
 }
 
-func (s *Session) viewsOf(uri span.URI) []*view {
+func (s *Session) viewsOf(uri span.URI) []*View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
-	var views []*view
+	var views []*View
 	for _, view := range s.views {
 		if strings.HasPrefix(string(uri), string(view.Folder())) {
 			views = append(views, view)
@@ -215,12 +214,12 @@ func (s *Session) Views() []source.View {
 
 // bestView finds the best view to associate a given URI with.
 // viewMu must be held when calling this method.
-func (s *Session) bestView(uri span.URI) (*view, error) {
+func (s *Session) bestView(uri span.URI) (*View, error) {
 	if len(s.views) == 0 {
 		return nil, errors.Errorf("no views in the session")
 	}
 	// we need to find the best view for this file
-	var longest *view
+	var longest *View
 	for _, view := range s.views {
 		if longest != nil && len(longest.Folder()) > len(view.Folder()) {
 			continue
@@ -236,7 +235,7 @@ func (s *Session) bestView(uri span.URI) (*view, error) {
 	return s.views[0], nil
 }
 
-func (s *Session) removeView(ctx context.Context, view *view) error {
+func (s *Session) removeView(ctx context.Context, view *View) error {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
@@ -251,7 +250,7 @@ func (s *Session) removeView(ctx context.Context, view *view) error {
 	return nil
 }
 
-func (s *Session) updateView(ctx context.Context, view *view, options source.Options) (*view, *snapshot, error) {
+func (s *Session) updateView(ctx context.Context, view *View, options source.Options) (*View, *snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
@@ -276,9 +275,9 @@ func (s *Session) updateView(ctx context.Context, view *view, options source.Opt
 	return v, snapshot, nil
 }
 
-func (s *Session) dropView(ctx context.Context, v *view) (int, error) {
+func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 	// we always need to drop the view map
-	s.viewMap = make(map[span.URI]*view)
+	s.viewMap = make(map[span.URI]*View)
 	for i := range s.views {
 		if v == s.views[i] {
 			// we found the view, drop it and return the index it was found at
@@ -291,7 +290,7 @@ func (s *Session) dropView(ctx context.Context, v *view) (int, error) {
 }
 
 func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
-	views := make(map[*view]map[span.URI]source.FileHandle)
+	views := make(map[*View]map[span.URI]source.FileHandle)
 
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
@@ -442,15 +441,13 @@ func (s *Session) readOverlay(uri span.URI) *overlay {
 	return nil
 }
 
-func (s *Session) UnsavedFiles() []span.URI {
+func (s *Session) Overlays() []source.Overlay {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
-	var unsaved []span.URI
-	for uri, overlay := range s.overlays {
-		if !overlay.saved {
-			unsaved = append(unsaved, uri)
-		}
+	overlays := make([]source.Overlay, 0, len(s.overlays))
+	for _, overlay := range s.overlays {
+		overlays = append(overlays, overlay)
 	}
-	return unsaved
+	return overlays
 }

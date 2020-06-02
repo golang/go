@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
@@ -26,9 +25,6 @@ func New(ctx context.Context, options func(*source.Options)) *Cache {
 		id:      strconv.FormatInt(index, 10),
 		fset:    token.NewFileSet(),
 		options: options,
-	}
-	if di := debug.GetInstance(ctx); di != nil {
-		di.State.AddCache(debugCache{c})
 	}
 	return c
 }
@@ -84,9 +80,6 @@ func (c *Cache) NewSession(ctx context.Context) *Session {
 		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
-	if di := debug.GetInstance(ctx); di != nil {
-		di.State.AddSession(DebugSession{s})
-	}
 	return s
 }
 
@@ -119,8 +112,5 @@ func hashContents(contents []byte) string {
 
 var cacheIndex, sessionIndex, viewIndex int64
 
-type debugCache struct{ *Cache }
-
-func (c *Cache) ID() string                         { return c.id }
-func (c debugCache) FileSet() *token.FileSet        { return c.fset }
-func (c debugCache) MemStats() map[reflect.Type]int { return c.store.Stats() }
+func (c *Cache) ID() string                     { return c.id }
+func (c *Cache) MemStats() map[reflect.Type]int { return c.store.Stats() }

@@ -95,8 +95,8 @@ type debugClient struct {
 	serverID string
 }
 
-func (c debugClient) Session() debug.Session {
-	return cache.DebugSession{Session: c.session}
+func (c debugClient) Session() *cache.Session {
+	return c.session
 }
 
 func (c debugClient) ServerID() string {
@@ -462,7 +462,7 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 			client.goplsPath = req.GoplsPath
 			resp := handshakeResponse{
 				ClientID:  client.id,
-				SessionID: cache.DebugSession{Session: client.session}.ID(),
+				SessionID: client.session.ID(),
 				GoplsPath: goplsPath,
 			}
 			if di := debug.GetInstance(ctx); di != nil {

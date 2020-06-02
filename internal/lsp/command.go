@@ -23,7 +23,14 @@ import (
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
 	switch params.Command {
 	case source.CommandTest:
-		if len(s.session.UnsavedFiles()) != 0 {
+		unsaved := false
+		for _, overlay := range s.session.Overlays() {
+			if !overlay.Saved() {
+				unsaved = true
+				break
+			}
+		}
+		if unsaved {
 			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: "could not run tests, there are unsaved files in the view",
