@@ -574,7 +574,13 @@ TODO
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
     <p><!-- CL 216617 -->
-      TODO: <a href="https://golang.org/cl/216617">https://golang.org/cl/216617</a>: add ParseComplex and FormatComplex
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> and <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> are added for working with complex numbers.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> converts a complex number into a string of the form (a+bi), where a and b are the real and imaginary parts.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> converts a string into a complex number of a specificed precision. <code>ParseComplex</code> accepts complex numbers in the format <code>N+Ni</code>.
     </p>
   </dd>
 </dl><!-- strconv -->
