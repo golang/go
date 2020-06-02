@@ -87,7 +87,11 @@ func (s State) String() string {
 		if name == "" {
 			name = fmt.Sprintf("!NO NAME(token: %s)", token)
 		}
-		fmt.Fprintf(&b, "\t%s: %.2f", name, state.percent)
+		fmt.Fprintf(&b, "\t%s: %.2f\n", name, state.percent)
+	}
+	b.WriteString("#### completed work:\n")
+	for name, count := range s.completedWork {
+		fmt.Fprintf(&b, "\t%s: %d\n", name, count)
 	}
 	return b.String()
 }
