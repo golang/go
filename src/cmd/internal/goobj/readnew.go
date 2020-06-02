@@ -7,7 +7,6 @@ package goobj
 import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
-	"fmt"
 	"strings"
 )
 
@@ -31,7 +30,13 @@ func (r *objReader) readNew() {
 		// Ignore fingerprint (for tools like objdump which only reads one object).
 	}
 
-	pkglist := rr.Pkglist()
+	// Name of referenced indexed symbols.
+	nrefName := rr.NRefName()
+	refNames := make(map[goobj2.SymRef]string, nrefName)
+	for i := 0; i < nrefName; i++ {
+		rn := rr.RefName(i)
+		refNames[rn.Sym()] = rn.Name(rr)
+	}
 
 	abiToVer := func(abi uint16) int64 {
 		var vers int64
@@ -58,8 +63,7 @@ func (r *objReader) readNew() {
 		case goobj2.PkgIdxSelf:
 			i = int(s.SymIdx)
 		default:
-			pkg := pkglist[p]
-			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
+			return SymID{refNames[s], 0}
 		}
 		sym := rr.Sym(i)
 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}

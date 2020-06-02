@@ -73,6 +73,14 @@ import (
 //    Data   [...]byte
 //    Pcdata [...]byte
 //
+//    // blocks only used by tools (objdump, nm)
+//
+//    RefNames [...]struct { // referenced symbol names
+//       Sym  symRef
+//       Name string
+//       // TODO: include ABI version as well?
+//    }
+//
 // string is encoded as is a uint32 length followed by a uint32 offset
 // that points to the corresponding string bytes.
 //
@@ -152,6 +160,8 @@ const (
 	BlkAux
 	BlkData
 	BlkPcdata
+	BlkRefName
+	BlkEnd
 	NBlk
 )
 
@@ -368,6 +378,37 @@ func (a *Aux) Write(w *Writer) { w.Bytes(a[:]) }
 
 // for testing
 func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
+
+// Referenced symbol name.
+//
+// Serialized format:
+// RefName struct {
+//    Sym  symRef
+//    Name string
+// }
+type RefName [RefNameSize]byte
+
+const RefNameSize = 8 + stringRefSize
+
+func (n *RefName) Sym() SymRef {
+	return SymRef{binary.LittleEndian.Uint32(n[:]), binary.LittleEndian.Uint32(n[4:])}
+}
+func (n *RefName) Name(r *Reader) string {
+	len := binary.LittleEndian.Uint32(n[8:])
+	off := binary.LittleEndian.Uint32(n[12:])
+	return r.StringAt(off, len)
+}
+
+func (n *RefName) SetSym(x SymRef) {
+	binary.LittleEndian.PutUint32(n[:], x.PkgIdx)
+	binary.LittleEndian.PutUint32(n[4:], x.SymIdx)
+}
+func (n *RefName) SetName(x string, w *Writer) {
+	binary.LittleEndian.PutUint32(n[8:], uint32(len(x)))
+	binary.LittleEndian.PutUint32(n[12:], w.stringOff(x))
+}
+
+func (n *RefName) Write(w *Writer) { w.Bytes(n[:]) }
 
 type Writer struct {
 	wr        *bio.Writer
@@ -664,6 +705,18 @@ func (r *Reader) Data(i int) []byte {
 // AuxDataBase returns the base offset of the aux data block.
 func (r *Reader) PcdataBase() uint32 {
 	return r.h.Offsets[BlkPcdata]
+}
+
+// NRefName returns the number of referenced symbol names.
+func (r *Reader) NRefName() int {
+	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize
+}
+
+// RefName returns a pointer to the i-th referenced symbol name.
+// Note: here i is not a local symbol index, just a counter.
+func (r *Reader) RefName(i int) *RefName {
+	off := r.h.Offsets[BlkRefName] + uint32(i*RefNameSize)
+	return (*RefName)(unsafe.Pointer(&r.b[off]))
 }
 
 // ReadOnly returns whether r.BytesAt returns read-only bytes.
