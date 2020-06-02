@@ -164,6 +164,27 @@ func (s *Store) Stats() map[reflect.Type]int {
 	return result
 }
 
+// DebugOnlyIterate iterates through all live cache entries and calls f on them.
+// It should only be used for debugging purposes.
+func (s *Store) DebugOnlyIterate(f func(k, v interface{})) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k, e := range s.entries {
+		h := (*Handle)(unsafe.Pointer(e))
+		var v interface{}
+		h.mu.Lock()
+		if h.state == stateCompleted {
+			v = h.value
+		}
+		h.mu.Unlock()
+		if v == nil {
+			continue
+		}
+		f(k, v)
+	}
+}
+
 // Cached returns the value associated with a handle.
 //
 // It will never cause the value to be generated.

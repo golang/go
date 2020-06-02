@@ -686,6 +686,8 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "body"}}
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
+<h2>Per-package usage - not accurate, for guidance only</h2>
+{{.PackageStats}}
 {{end}}
 `))
 
