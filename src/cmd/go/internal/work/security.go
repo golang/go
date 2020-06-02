@@ -202,6 +202,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-undefined[=,]([^,@\-][^,]+)`),
 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
 	re(`-Wl,--(no-)?warn-([^,]+)`),
+	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
 	re(`-Wl,-z,(no)?execstack`),
 	re(`-Wl,-z,relro`),
 
