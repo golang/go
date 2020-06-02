@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -285,11 +284,9 @@ func TestDisasmGoobj(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
 	}
-
-	// TODO(go115newobj): drop old object file support.
 	need := []string{
-		`main(#\d+)?\(SB\)`, // either new or old object file
-		`fmthello\.go:6`,
+		"main(SB)",
+		"fmthello.go:6",
 	}
 
 	args = []string{
@@ -305,9 +302,8 @@ func TestDisasmGoobj(t *testing.T) {
 	text := string(out)
 	ok := true
 	for _, s := range need {
-		re := regexp.MustCompile(s)
-		if !re.MatchString(text) {
-			t.Errorf("disassembly missing %q", s)
+		if !strings.Contains(text, s) {
+			t.Errorf("disassembly missing '%s'", s)
 			ok = false
 		}
 	}
