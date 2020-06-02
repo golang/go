@@ -55,9 +55,7 @@ func checkGdbEnvironment(t *testing.T) {
 	}
 }
 
-// checkGdbVersion ensures gdb version is supported, and returns major version
-// to allow testing conditional on gdb version.
-func checkGdbVersion(t *testing.T) int {
+func checkGdbVersion(t *testing.T) {
 	// Issue 11214 reports various failures with older versions of gdb.
 	out, err := exec.Command("gdb", "--version").CombinedOutput()
 	if err != nil {
@@ -77,7 +75,6 @@ func checkGdbVersion(t *testing.T) int {
 		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
 	}
 	t.Logf("gdb version %d.%d", major, minor)
-	return major
 }
 
 func checkGdbPython(t *testing.T) {
@@ -170,7 +167,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 
 	checkGdbEnvironment(t)
 	t.Parallel()
-	gdbMajor := checkGdbVersion(t)
+	checkGdbVersion(t)
 	checkGdbPython(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
@@ -319,16 +316,14 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("print slicemap failed: %s", bl)
 	}
 
-	if gdbMajor > 7 {
-		chanIntSfx := `chan int = {99, 11}`
-		if bl := strings.ReplaceAll(blocks["print chanint"], "  ", " "); !strings.HasSuffix(bl, chanIntSfx) {
-			t.Fatalf("print chanint failed: %s", bl)
-		}
+	chanIntSfx := `chan int = {99, 11}`
+	if bl := strings.ReplaceAll(blocks["print chanint"], "  ", " "); !strings.HasSuffix(bl, chanIntSfx) {
+		t.Fatalf("print chanint failed: %s", bl)
+	}
 
-		chanStrSfx := `chan string = {"spongepants", "squarebob"}`
-		if bl := strings.ReplaceAll(blocks["print chanstr"], "  ", " "); !strings.HasSuffix(bl, chanStrSfx) {
-			t.Fatalf("print chanstr failed: %s", bl)
-		}
+	chanStrSfx := `chan string = {"spongepants", "squarebob"}`
+	if bl := strings.ReplaceAll(blocks["print chanstr"], "  ", " "); !strings.HasSuffix(bl, chanStrSfx) {
+		t.Fatalf("print chanstr failed: %s", bl)
 	}
 
 	strVarRe := regexp.MustCompile(`^\$[0-9]+ = (0x[0-9a-f]+\s+)?"abc"$`)
@@ -407,7 +402,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	checkGdbEnvironment(t)
 	t.Parallel()
-	_ = checkGdbVersion(t)
+	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -481,7 +476,7 @@ func main() {
 func TestGdbAutotmpTypes(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
-	_ = checkGdbVersion(t)
+	checkGdbVersion(t)
 
 	if runtime.GOOS == "aix" && testing.Short() {
 		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
@@ -554,7 +549,7 @@ func main() {
 func TestGdbConst(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
-	_ = checkGdbVersion(t)
+	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -621,7 +616,7 @@ func crash() {
 func TestGdbPanic(t *testing.T) {
 	checkGdbEnvironment(t)
 	t.Parallel()
-	_ = checkGdbVersion(t)
+	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -699,7 +694,7 @@ func TestGdbInfCallstack(t *testing.T) {
 	}
 
 	t.Parallel()
-	_ = checkGdbVersion(t)
+	checkGdbVersion(t)
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
