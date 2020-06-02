@@ -209,8 +209,34 @@ TODO
   updated to satisfy the safety rules.
 </p>
 
-<p><!-- CL 231497 -->
-  TODO: <a href="https://golang.org/cl/231497">https://golang.org/cl/231497</a>: merge branch &#39;dev.link&#39; into master
+<h2 id="linker">Linker</h2>
+
+<p>
+  This release includes substantial improvements to the Go linker,
+  which reduce linker resource usage (both time and memory) and
+  improve code robustness/maintainability.
+</p>
+
+<p>
+  For a representative set of large Go programs, linking is 20% faster
+  and requires 30% less memory on average, for <code>ELF</code>-based
+  OSes running on <code>amd64</code> architectures, with more modest
+  improvements for other architecture/OS combinations.
+</p>
+
+<p>
+  The key contributors to better linker performance are a newly
+  redesigned object file format, and a revamping of internal
+  phases to increase concurrency (for example, applying relocations to
+  symbols in parallel). Object files in Go 1.15 are slightly larger
+  than their 1.14 equivalents.
+</p>
+
+<p>
+  These changes are part of a multi-release project
+  to <a href="https://golang.org/s/better-linker">modernize the Go
+  linker</a>, meaning that there will be additional linker
+  improvements expected in future releases. 
 </p>
 
 <h2 id="library">Core library</h2>
