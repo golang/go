@@ -28,10 +28,22 @@ if sys.version > '3':
 goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
 
+# A bit of hand optimization since oldnew is used for slice printing
+splitgdbversion = gdb.VERSION.split('.')
+majorgdbversion = int(splitgdbversion[0])
+
 # Older gdb renders some types differently.
 def oldnew(old, new):
-  if (gdb.VERSION[0] == '7'):
+  if majorgdbversion < 8:
     return old
+  if majorgdbversion > 8:
+     return new
+  try:
+    # Minor versions need not be actual numbers, e.g., 7.3a.
+    if int(splitgdbversion[1]) < 2:
+      return old
+  except Exception:
+    return new # All the existing gdb 8.minor versions are numbers, so if it is not a number, it is new.
   return new
 
 # G state (runtime2.go)
@@ -202,7 +214,7 @@ class ChanTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(oldnew(r'^struct hchan<.*>$',r'^chan '))
+	pattern = re.compile(r'^chan ')
 
 	def __init__(self, val):
 		self.val = val
