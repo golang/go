@@ -1221,6 +1221,13 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // distribution (exp(MemProfileRate)), so the best return value is a random
 // number taken from an exponential distribution whose mean is MemProfileRate.
 func nextSample() uintptr {
+	if MemProfileRate == 1 {
+		// Callers assign our return value to
+		// mcache.next_sample, but next_sample is not used
+		// when the rate is 1. So avoid the math below and
+		// just return something.
+		return 0
+	}
 	if GOOS == "plan9" {
 		// Plan 9 doesn't support floating point in note handler.
 		if g := getg(); g == g.m.gsignal {
