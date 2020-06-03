@@ -55,6 +55,11 @@ Do not send CLs removing the interior tags from such phrases.
   on Windows.
 </p>
 
+<p><!-- CL 211139 -->
+  Go-built DLLs no longer cause the process to exit when it receives a
+  signal (such as Ctrl-C at a terminal).
+</p>
+
 <h3 id="android">Android</h3>
 
 <p> <!-- golang.org/cl/235017 golang.org/issue/38838 -->
@@ -63,6 +68,8 @@ Do not send CLs removing the interior tags from such phrases.
 	The <code>lld</code> linker avoids crashes on some devices, and is
 	planned to become the default NDK linker in a future NDK version.
 </p>
+
+<h3 id="riscv">RISC-V</h3>
 
 <p>
 TODO
@@ -192,6 +199,17 @@ TODO
 
 <h2 id="runtime">Runtime</h2>
 
+<p><!-- CL 232862 -->
+  Go now retries system calls that return <code>EINTR</code>. This
+  became more common in Go 1.14 with the addition of asynchronous
+  preemption, but is now handled transparently.
+</p>
+
+<p><!-- CL 221182, CL 229998 -->
+  Allocation of small objects now performs much better at high core
+  counts, and has lower worst-case latency.
+</p>
+
 <p>
 TODO
 </p>
@@ -207,6 +225,16 @@ TODO
   uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
   one conversion. Code that used multiple conversions should be
   updated to satisfy the safety rules.
+</p>
+
+<p><!-- CL 230544, CL 231397 -->
+  Go 1.15 reduces typical binary sizes by around 5% compared to Go
+  1.14 by eliminating certain types of GC metadata and more
+  aggressively eliminating unused type metadata.
+</p>
+
+<p><!-- CL 222661 -->
+  TODO: -spectre flags
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -486,6 +514,7 @@ TODO
       <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
       then the value will be printed, instead of just its address.
+      Previously, this was only true for values of exactly these types.
     </p>
 
     <p><!-- CL -->
@@ -499,16 +528,22 @@ TODO
       In earlier releases the behavior was unpredictable.
     </p>
 
-    <p><!-- CL 211139 -->
-      TODO: <a href="https://golang.org/cl/211139">https://golang.org/cl/211139</a>: do not exit(2) if a Go built DLL receives a signal
+    <p><!-- CL 216557 -->
+      Several functions, including
+      <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
+      and
+      <a href="/pkg/runtime/#GoroutineProfile"><code>GoroutineProfile</code></a>,
+      no longer block if a garbage collection is in progress.
     </p>
 
     <p><!-- CL 216401 -->
-      TODO: <a href="https://golang.org/cl/216401">https://golang.org/cl/216401</a>: prevent allocation when converting small ints to interfaces
+      Converting small integer values into an interface value no
+      longer causes allocation.
     </p>
 
-    <p><!-- CL 220578 -->
-      TODO: <a href="https://golang.org/cl/220578">https://golang.org/cl/220578</a>: allow float syscall return values on windows amd64
+    <p><!-- CL 216818 -->
+      Non-blocking receives on closed channels now perform as well as
+      non-blocking receives on open channels.
     </p>
   </dd>
 </dl>
@@ -563,6 +598,12 @@ TODO
       cases where using a parent file descriptor also happened to work.
       Some programs that set <code>Setctty</code> will need to change
       the value of <code>Ctty</code> to use a child descriptor number.
+    </p>
+
+    <p><!-- CL 220578 -->
+      It is now possible to call system calls that return floating
+      point values on windows/amd64.
+      TODO: Point to (write?) documentation on how to do this.
     </p>
   </dd>
 </dl>
