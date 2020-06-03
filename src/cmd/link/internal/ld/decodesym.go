@@ -90,10 +90,6 @@ func decodetypeIfaceMethodCount(arch *sys.Arch, p []byte) int64 {
 	return int64(decodeInuxi(arch, p[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
 }
 
-// methodsig is a fully qualified typed method signature, like
-// "Visit(type.go/ast.Node) (type.go/ast.Visitor)".
-type methodsig string
-
 // Matches runtime/typekind.go and reflect.Kind.
 const (
 	kindArray     = 17

@@ -5,7 +5,6 @@
 package ld
 
 import (
-	"bytes"
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -123,7 +122,7 @@ func (d *deadcodePass) flood() {
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
 				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
 					if d.ctxt.Debugvlog > 1 {
-						d.ctxt.Logf("reached iface method: %s\n", sig)
+						d.ctxt.Logf("reached iface method: %v\n", sig)
 					}
 					d.ifaceMethod[sig] = true
 				}
@@ -191,6 +190,9 @@ func (d *deadcodePass) flood() {
 			}
 			for i, m := range methodsigs {
 				methods[i].m = m
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("markable method: %v of sym %v %s\n", m, symIdx, d.ldr.SymName(symIdx))
+				}
 			}
 			d.markableMethods = append(d.markableMethods, methods...)
 		}
@@ -316,6 +318,12 @@ func deadcode(ctxt *Link) {
 	}
 }
 
+// methodsig is a typed method signature (name + type).
+type methodsig struct {
+	name string
+	typ  loader.Sym // type descriptor symbol of the function
+}
+
 // methodref holds the relocations from a receiver type symbol to its
 // method. There are three relocations, one for each of the fields in
 // the reflect.method struct: mtyp, ifn, and tfn.
@@ -326,52 +334,24 @@ type methodref struct {
 }
 
 func (m methodref) isExported() bool {
-	for _, r := range m.m {
+	for _, r := range m.m.name {
 		return unicode.IsUpper(r)
 	}
 	panic("methodref has no signature")
 }
 
-// decodeMethodSig2 decodes an array of method signature information.
+// decodeMethodSig decodes an array of method signature information.
 // Each element of the array is size bytes. The first 4 bytes is a
 // nameOff for the method name, and the next 4 bytes is a typeOff for
 // the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
 func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, off, size, count int) []methodsig {
-	var buf bytes.Buffer
-	var methods []methodsig
+	var methods = make([]methodsig, count)
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetypeName(ldr, symIdx, relocs, off))
-		mtypSym := decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
-		// FIXME: add some sort of caching here, since we may see some of the
-		// same symbols over time for param types.
-		mrelocs := ldr.Relocs(mtypSym)
-		mp := ldr.Data(mtypSym)
-
-		buf.WriteRune('(')
-		inCount := decodetypeFuncInCount(arch, mp)
-		for i := 0; i < inCount; i++ {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			a := decodetypeFuncInType(ldr, arch, mtypSym, &mrelocs, i)
-			buf.WriteString(ldr.SymName(a))
-		}
-		buf.WriteString(") (")
-		outCount := decodetypeFuncOutCount(arch, mp)
-		for i := 0; i < outCount; i++ {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			a := decodetypeFuncOutType(ldr, arch, mtypSym, &mrelocs, i)
-			buf.WriteString(ldr.SymName(a))
-		}
-		buf.WriteRune(')')
-
+		methods[i].name = decodetypeName(ldr, symIdx, relocs, off)
+		methods[i].typ = decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
 		off += size
-		methods = append(methods, methodsig(buf.String()))
-		buf.Reset()
 	}
 	return methods
 }
