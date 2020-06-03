@@ -4,7 +4,7 @@ env GO111MODULE=on
 ! go get appengine
 stderr '^go get appengine: package appengine is not in GOROOT \(.*\)$'
 ! go get x/y.z
-stderr 'malformed module path "x/y.z": missing dot in first path element'
+stderr '^go get x/y.z: package x/y.z is not in GOROOT \(.*\)$'
 
 # 'go list -m' should report errors about module names, never GOROOT.
 ! go list -m -versions appengine
