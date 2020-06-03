@@ -1,5 +1,5 @@
 // Inferno utils/include/ar.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/include/ar.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/include/ar.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
