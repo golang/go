@@ -22,7 +22,8 @@ using different register names.
 
   Examples:
     MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
-    MOVB.W 16(R16), R10        <=>      ldr x10, [x16,#16]!
+    MOVB.W 16(R16), R10        <=>      ldrsb x10, [x16,#16]!
+    MOVBU.W 16(R16), R10       <=>      ldrb x10, [x16,#16]!
 
 3. Go uses a series of MOV instructions as load and store.
 
