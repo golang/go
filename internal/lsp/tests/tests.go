@@ -57,6 +57,7 @@ type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
 type SuggestedFixes map[span.Span][]string
+type RefactorRewriteActions map[span.Span]string
 type Definitions map[span.Span]Definition
 type Implementations map[span.Span][]span.Span
 type Highlights map[span.Span][]span.Span
@@ -87,6 +88,7 @@ type Data struct {
 	Formats                       Formats
 	Imports                       Imports
 	SuggestedFixes                SuggestedFixes
+	RefactorRewrite               RefactorRewriteActions
 	Definitions                   Definitions
 	Implementations               Implementations
 	Highlights                    Highlights
@@ -140,6 +142,7 @@ type Tests interface {
 	CaseSensitiveWorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
+	RefactorRewrite(*testing.T, span.Span, string)
 }
 
 type Definition struct {
@@ -293,6 +296,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			CaseSensitiveWorkspaceSymbols: make(WorkspaceSymbols),
 			Signatures:                    make(Signatures),
 			Links:                         make(Links),
+			RefactorRewrite:               make(RefactorRewriteActions),
 
 			t:         t,
 			dir:       folder,
@@ -334,6 +338,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 						Filename: goldFile,
 						Archive:  archive,
 					}
+					fmt.Printf("Trimmed : %s, goldfile: %s, ArchiveCount : %d\n", trimmed, goldFile, len(archive.Files))
 				} else if trimmed := strings.TrimSuffix(fragment, inFileSuffix); trimmed != fragment {
 					delete(m.Files, fragment)
 					m.Files[trimmed] = operation
@@ -417,6 +422,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			"signature":       datum.collectSignatures,
 			"link":            datum.collectLinks,
 			"suggestedfix":    datum.collectSuggestedFixes,
+			"refactorrewrite": datum.collectRefactorRewrite,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -590,6 +596,17 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(uriName(spn.URI()), func(t *testing.T) {
 				t.Helper()
 				tests.Import(t, spn)
+			})
+		}
+	})
+
+	t.Run("RefactorRewrite", func(t *testing.T) {
+		t.Helper()
+
+		for spn, title := range data.RefactorRewrite {
+			t.Run(SpanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.RefactorRewrite(t, spn, title)
 			})
 		}
 	})
@@ -811,6 +828,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
+	fmt.Fprintf(buf, "RefactorRewriteCount = %v\n", len(data.RefactorRewrite))
 
 	want := string(data.Golden("summary", summaryFile, func() ([]byte, error) {
 		return buf.Bytes(), nil
@@ -886,6 +904,7 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 		}
 		file.Data = append(contents, '\n') // add trailing \n for txtar
 		golden.Modified = true
+
 	}
 	if file == nil {
 		data.t.Fatalf("could not find golden contents %v: %v", fragment, tag)
@@ -1017,6 +1036,10 @@ func (data *Data) collectSuggestedFixes(spn span.Span, actionKind string) {
 		data.SuggestedFixes[spn] = []string{}
 	}
 	data.SuggestedFixes[spn] = append(data.SuggestedFixes[spn], actionKind)
+}
+
+func (data *Data) collectRefactorRewrite(spn span.Span, title string) {
+	data.RefactorRewrite[spn] = title
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {

@@ -1,0 +1,85 @@
+-- fill_struct_20_15 --
+package fillstruct
+
+type StructA struct {
+	unexportedIntField int
+	ExportedIntField   int
+	MapA               map[int]string
+	Array              []int
+	StructB
+}
+
+type StructA2 struct {
+	B *StructB
+}
+
+type StructA3 struct {
+	B StructB
+}
+
+func fill() {
+	a := StructA{
+		unexportedIntField: 0,
+		ExportedIntField:   0,
+		MapA:               nil,
+		Array:              nil,
+		StructB:            StructB{},
+	}  //@refactorrewrite("}", "Fill struct")
+	b := StructA2{} //@refactorrewrite("}", "Fill struct")
+	c := StructA3{} //@refactorrewrite("}", "Fill struct")
+}
+
+-- fill_struct_21_16 --
+package fillstruct
+
+type StructA struct {
+	unexportedIntField int
+	ExportedIntField   int
+	MapA               map[int]string
+	Array              []int
+	StructB
+}
+
+type StructA2 struct {
+	B *StructB
+}
+
+type StructA3 struct {
+	B StructB
+}
+
+func fill() {
+	a := StructA{}  //@refactorrewrite("}", "Fill struct")
+	b := StructA2{
+		B: nil,
+	} //@refactorrewrite("}", "Fill struct")
+	c := StructA3{} //@refactorrewrite("}", "Fill struct")
+}
+
+-- fill_struct_22_16 --
+package fillstruct
+
+type StructA struct {
+	unexportedIntField int
+	ExportedIntField   int
+	MapA               map[int]string
+	Array              []int
+	StructB
+}
+
+type StructA2 struct {
+	B *StructB
+}
+
+type StructA3 struct {
+	B StructB
+}
+
+func fill() {
+	a := StructA{}  //@refactorrewrite("}", "Fill struct")
+	b := StructA2{} //@refactorrewrite("}", "Fill struct")
+	c := StructA3{
+		B: StructB{},
+	} //@refactorrewrite("}", "Fill struct")
+}
+

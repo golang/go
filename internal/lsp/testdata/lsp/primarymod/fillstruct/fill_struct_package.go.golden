@@ -1,0 +1,13 @@
+-- fill_struct_package_8_14 --
+package fillstruct
+
+import (
+	data "golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+func unexported() {
+	a := data.A{
+		ExportedInt: 0,
+	} //@refactorrewrite("}", "Fill struct")
+}
+

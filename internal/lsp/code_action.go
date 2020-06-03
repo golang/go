@@ -143,6 +143,11 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				})
 			}
 		}
+		fillActions, err := source.FillStruct(ctx, snapshot, fh, params.Range)
+		if err != nil {
+			return nil, err
+		}
+		codeActions = append(codeActions, fillActions...)
 	default:
 		// Unsupported file kind for a code action.
 		return nil, nil

@@ -473,6 +473,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 }
 
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {}
+func (r *runner) RefactorRewrite(t *testing.T, spn span.Span, title string)      {}
 
 func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	_, srcRng, err := spanToRange(r.data, d.Src)

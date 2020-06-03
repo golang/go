@@ -25,4 +25,5 @@ CaseSensitiveWorkspaceSymbolsCount = 2
 SignaturesCount = 32
 LinksCount = 8
 ImplementationsCount = 14
+RefactorRewriteCount = 5
 

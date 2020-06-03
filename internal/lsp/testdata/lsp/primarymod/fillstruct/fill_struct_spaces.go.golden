@@ -1,0 +1,13 @@
+-- fill_struct_spaces_10_1 --
+package fillstruct
+
+type StructB struct {
+	ExportedIntField int
+}
+
+func spaces() {
+	b := StructB{
+		ExportedIntField: 0,
+	}
+}
+

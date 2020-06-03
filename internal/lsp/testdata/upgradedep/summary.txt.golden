@@ -25,4 +25,5 @@ CaseSensitiveWorkspaceSymbolsCount = 0
 SignaturesCount = 0
 LinksCount = 4
 ImplementationsCount = 0
+RefactorRewriteCount = 0
 
