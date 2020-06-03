@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
@@ -80,6 +81,7 @@ func (c *Cache) NewSession(ctx context.Context) *Session {
 		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
+	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s
 }
 

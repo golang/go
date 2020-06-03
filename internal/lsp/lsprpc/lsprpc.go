@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -30,7 +31,7 @@ import (
 const AutoNetwork = "auto"
 
 // Unique identifiers for client/server.
-var clientIndex, serverIndex int64
+var serverIndex int64
 
 // The StreamServer type is a jsonrpc2.StreamServer that handles incoming
 // streams as a new LSP session, using a shared cache.
@@ -51,15 +52,8 @@ func NewStreamServer(cache *cache.Cache) *StreamServer {
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
 // incoming streams using a new lsp server.
 func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) error {
-	id := strconv.FormatInt(atomic.AddInt64(&clientIndex, 1), 10)
-
 	client := protocol.ClientDispatcher(conn)
 	session := s.cache.NewSession(ctx)
-	dc := &debug.Client{ID: id, Session: session}
-	if di := debug.GetInstance(ctx); di != nil {
-		di.State.AddClient(dc)
-		defer di.State.DropClient(id)
-	}
 	server := s.serverForTest
 	if server == nil {
 		server = lsp.NewServer(session, client)
@@ -80,7 +74,7 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 	ctx = protocol.WithClient(ctx, client)
 	conn.Go(ctx,
 		protocol.Handlers(
-			handshaker(dc, executable,
+			handshaker(session, executable,
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
 	<-conn.Done()
@@ -205,7 +199,6 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	// Do a handshake with the server instance to exchange debug information.
 	index := atomic.AddInt64(&serverIndex, 1)
 	serverID := strconv.FormatInt(index, 10)
-	di := debug.GetInstance(ctx)
 	var (
 		hreq = handshakeRequest{
 			ServerID:  serverID,
@@ -213,7 +206,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 		}
 		hresp handshakeResponse
 	)
-	if di != nil {
+	if di := debug.GetInstance(ctx); di != nil {
 		hreq.Logfile = di.Logfile
 		hreq.DebugAddr = di.ListenedDebugAddress
 	}
@@ -223,15 +216,13 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	if hresp.GoplsPath != f.goplsPath {
 		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
 	}
-	if di != nil {
-		di.State.AddServer(&debug.Server{
-			ID:           serverID,
-			Logfile:      hresp.Logfile,
-			DebugAddress: hresp.DebugAddr,
-			GoplsPath:    hresp.GoplsPath,
-			ClientID:     hresp.ClientID,
-		})
-	}
+	event.Log(ctx, "New server",
+		tag.NewServer.Of(serverID),
+		tag.Logfile.Of(hresp.Logfile),
+		tag.DebugAddress.Of(hresp.DebugAddr),
+		tag.GoplsPath.Of(hresp.GoplsPath),
+		tag.ClientID.Of(hresp.SessionID),
+	)
 	clientConn.Go(ctx,
 		protocol.Handlers(
 			protocol.ServerHandler(server,
@@ -346,8 +337,6 @@ type handshakeRequest struct {
 // A handshakeResponse is returned by the LSP server to tell the LSP client
 // information about its session.
 type handshakeResponse struct {
-	// ClientID is the ID of the client as seen on the server.
-	ClientID string `json:"clientID"`
 	// SessionID is the server session associated with the client.
 	SessionID string `json:"sessionID"`
 	// Logfile is the location of the server logs.
@@ -363,7 +352,6 @@ type handshakeResponse struct {
 // that it looks similar to handshakeResposne, but in fact 'Logfile' and
 // 'DebugAddr' now refer to the client.
 type ClientSession struct {
-	ClientID  string `json:"clientID"`
 	SessionID string `json:"sessionID"`
 	Logfile   string `json:"logfile"`
 	DebugAddr string `json:"debugAddr"`
@@ -385,7 +373,7 @@ const (
 	sessionsMethod  = "gopls/sessions"
 )
 
-func handshaker(client *debug.Client, goplsPath string, handler jsonrpc2.Handler) jsonrpc2.Handler {
+func handshaker(session *cache.Session, goplsPath string, handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 		switch r.Method() {
 		case handshakeMethod:
@@ -394,13 +382,15 @@ func handshaker(client *debug.Client, goplsPath string, handler jsonrpc2.Handler
 				sendError(ctx, reply, err)
 				return nil
 			}
-			client.DebugAddress = req.DebugAddr
-			client.Logfile = req.Logfile
-			client.ServerID = req.ServerID
-			client.GoplsPath = req.GoplsPath
+			event.Log(ctx, "Handshake session update",
+				cache.KeyUpdateSession.Of(session),
+				tag.DebugAddress.Of(req.DebugAddr),
+				tag.Logfile.Of(req.Logfile),
+				tag.ServerID.Of(req.ServerID),
+				tag.GoplsPath.Of(req.GoplsPath),
+			)
 			resp := handshakeResponse{
-				ClientID:  client.ID,
-				SessionID: client.Session.ID(),
+				SessionID: session.ID(),
 				GoplsPath: goplsPath,
 			}
 			if di := debug.GetInstance(ctx); di != nil {
@@ -412,15 +402,13 @@ func handshaker(client *debug.Client, goplsPath string, handler jsonrpc2.Handler
 		case sessionsMethod:
 			resp := ServerState{
 				GoplsPath:       goplsPath,
-				CurrentClientID: client.ID,
+				CurrentClientID: session.ID(),
 			}
-			//TODO: this should not need access to the debug information
 			if di := debug.GetInstance(ctx); di != nil {
 				resp.Logfile = di.Logfile
 				resp.DebugAddr = di.ListenedDebugAddress
 				for _, c := range di.State.Clients() {
 					resp.Clients = append(resp.Clients, ClientSession{
-						ClientID:  c.ID,
 						SessionID: c.Session.ID(),
 						Logfile:   c.Logfile,
 						DebugAddr: c.DebugAddress,

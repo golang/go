@@ -68,7 +68,8 @@ func (o *overlay) Session() source.Session { return o.session }
 func (o *overlay) Saved() bool             { return o.saved }
 func (o *overlay) Data() []byte            { return o.text }
 
-func (s *Session) ID() string { return s.id }
+func (s *Session) ID() string     { return s.id }
+func (s *Session) String() string { return s.id }
 
 func (s *Session) Options() source.Options {
 	return s.options
@@ -86,6 +87,7 @@ func (s *Session) Shutdown(ctx context.Context) {
 	}
 	s.views = nil
 	s.viewMap = nil
+	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
 
 func (s *Session) Cache() source.Cache {

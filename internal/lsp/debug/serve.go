@@ -35,6 +35,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/xerrors"
 )
 
@@ -149,6 +150,16 @@ func (st *State) Clients() []*Client {
 	return clients
 }
 
+// View returns the View that matches the supplied id.
+func (st *State) Client(id string) *Client {
+	for _, c := range st.Clients() {
+		if c.Session.ID() == id {
+			return c
+		}
+	}
+	return nil
+}
+
 // Servers returns the set of Servers the instance is currently connected to.
 func (st *State) Servers() []*Server {
 	st.mu.Lock()
@@ -160,7 +171,6 @@ func (st *State) Servers() []*Server {
 
 // A Client is an incoming connection from a remote client.
 type Client struct {
-	ID           string
 	Session      *cache.Session
 	DebugAddress string
 	Logfile      string
@@ -178,18 +188,18 @@ type Server struct {
 }
 
 // AddClient adds a client to the set being served.
-func (st *State) AddClient(client *Client) {
+func (st *State) addClient(session *cache.Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.clients = append(st.clients, client)
+	st.clients = append(st.clients, &Client{Session: session})
 }
 
 // DropClient removes a client from the set being served.
-func (st *State) DropClient(id string) {
+func (st *State) dropClient(session source.Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	for i, c := range st.clients {
-		if c.ID == id {
+		if c.Session == session {
 			copy(st.clients[i:], st.clients[i+1:])
 			st.clients[len(st.clients)-1] = nil
 			st.clients = st.clients[:len(st.clients)-1]
@@ -200,14 +210,14 @@ func (st *State) DropClient(id string) {
 
 // AddServer adds a server to the set being queried. In practice, there should
 // be at most one remote server.
-func (st *State) AddServer(server *Server) {
+func (st *State) addServer(server *Server) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.servers = append(st.servers, server)
 }
 
 // DropServer drops a server from the set being queried.
-func (st *State) DropServer(id string) {
+func (st *State) dropServer(id string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	for i, s := range st.servers {
@@ -229,15 +239,7 @@ func (i *Instance) getSession(r *http.Request) interface{} {
 }
 
 func (i Instance) getClient(r *http.Request) interface{} {
-	i.State.mu.Lock()
-	defer i.State.mu.Unlock()
-	id := path.Base(r.URL.Path)
-	for _, c := range i.State.clients {
-		if c.ID == id {
-			return c
-		}
-	}
-	return nil
+	return i.State.Client(path.Base(r.URL.Path))
 }
 
 func (i Instance) getServer(r *http.Request) interface{} {
@@ -480,6 +482,34 @@ func makeInstanceExporter(i *Instance) event.Exporter {
 		if i.traces != nil {
 			ctx = i.traces.ProcessEvent(ctx, ev, lm)
 		}
+		if event.IsLog(ev) {
+			if s := cache.KeyCreateSession.Get(ev); s != nil {
+				i.State.addClient(s)
+			}
+			if sid := tag.NewServer.Get(ev); sid != "" {
+				i.State.addServer(&Server{
+					ID:           sid,
+					Logfile:      tag.Logfile.Get(ev),
+					DebugAddress: tag.DebugAddress.Get(ev),
+					GoplsPath:    tag.GoplsPath.Get(ev),
+					ClientID:     tag.ClientID.Get(ev),
+				})
+			}
+			if s := cache.KeyShutdownSession.Get(ev); s != nil {
+				i.State.dropClient(s)
+			}
+			if sid := tag.EndServer.Get(ev); sid != "" {
+				i.State.dropServer(sid)
+			}
+			if s := cache.KeyUpdateSession.Get(ev); s != nil {
+				if c := i.State.Client(s.ID()); c != nil {
+					c.DebugAddress = tag.DebugAddress.Get(ev)
+					c.Logfile = tag.Logfile.Get(ev)
+					c.ServerID = tag.ServerID.Get(ev)
+					c.GoplsPath = tag.GoplsPath.Get(ev)
+				}
+			}
+		}
 		return ctx
 	}
 	metrics := metric.Config{}
@@ -601,7 +631,7 @@ var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 <h2>Views</h2>
 <ul>{{range .State.Views}}<li>{{.Name}} is {{template "viewlink" .ID}} from {{template "sessionlink" .Session.ID}} in {{.Folder}}</li>{{end}}</ul>
 <h2>Clients</h2>
-<ul>{{range .State.Clients}}<li>{{template "clientlink" .ID}}</li>{{end}}</ul>
+<ul>{{range .State.Clients}}<li>{{template "clientlink" .Session.ID}}</li>{{end}}</ul>
 <h2>Servers</h2>
 <ul>{{range .State.Servers}}<li>{{template "serverlink" .ID}}</li>{{end}}</ul>
 {{end}}
@@ -662,7 +692,7 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 `))
 
 var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
-{{define "title"}}Client {{.ID}}{{end}}
+{{define "title"}}Client {{.Session.ID}}{{end}}
 {{define "body"}}
 Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
 {{if .DebugAddress}}Debug this client at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>{{end}}

@@ -32,6 +32,15 @@ var (
 	Port         = keys.NewInt("port", "")
 	Type         = keys.New("type", "")
 	HoverKind    = keys.NewString("hoverkind", "")
+
+	NewServer = keys.NewString("new_server", "A new server was added")
+	EndServer = keys.NewString("end_server", "A server was shut down")
+
+	ServerID     = keys.NewString("server", "The server ID an event is related to")
+	Logfile      = keys.NewString("logfile", "")
+	DebugAddress = keys.NewString("debug_address", "")
+	GoplsPath    = keys.NewString("gopls_path", "")
+	ClientID     = keys.NewString("client_id", "")
 )
 
 var (
