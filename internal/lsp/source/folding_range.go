@@ -76,6 +76,9 @@ func foldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node) *Fo
 			kind = protocol.Imports
 		}
 		start, end = n.Lparen+1, n.Rparen
+	case *ast.CompositeLit:
+		// Fold from position of "{" to position of "}".
+		start, end = n.Lbrace+1, n.Rbrace
 	}
 	if !start.IsValid() || !end.IsValid() {
 		return nil
@@ -155,6 +158,15 @@ func lineFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node)
 			break
 		}
 		start, end = n.Lparen+1, n.Specs[nSpecs-1].End()
+	case *ast.CompositeLit:
+		// Fold lines between "{" and "}".
+		if !n.Lbrace.IsValid() || !n.Rbrace.IsValid() {
+			break
+		}
+		if len(n.Elts) == 0 {
+			break
+		}
+		start, end = n.Lbrace+1, n.Elts[len(n.Elts)-1].End()
 	}
 
 	// Check that folding positions are valid.

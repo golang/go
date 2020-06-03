@@ -22,6 +22,11 @@ import _ "os"
 // With a multiline doc comment.
 func bar() string {
 	switch {<>}
+	_ = []int{<>}
+	_ = [2]string{<>}
+	_ = map[string]int{<>}
+	type T struct {<>}
+	_ = T{<>}
 	// This is a multiline comment<>
 	return `
 this string
@@ -45,6 +50,28 @@ func bar() string {
 	case true:<>
 	case false:<>
 	default:<>
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -73,6 +100,28 @@ func bar() string {
 		fmt.Println(<>)
 	default:
 		fmt.Println(<>)
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -106,6 +155,28 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
+	}
 	// This is a multiline comment
 	// that is not a doc comment.
 	return `
@@ -117,7 +188,7 @@ is not indented`
 3:9-6:0
 10:22-11:32
 12:10-12:9
-12:20-30:0
+12:20-52:0
 13:10-24:1
 14:12-19:3
 15:12-17:2
@@ -128,7 +199,12 @@ is not indented`
 21:15-21:21
 22:10-23:24
 23:15-23:23
-25:32-26:30
+25:12-29:1
+30:16-31:5
+32:21-36:1
+37:17-41:1
+42:8-46:1
+47:32-48:30
 
 -- foldingRange-comment-0 --
 package folding //@fold("package")
@@ -153,6 +229,28 @@ func bar() string {
 		fmt.Println("false")
 	default:
 		fmt.Println("default")
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment<>
 	return `
@@ -181,6 +279,28 @@ func bar() string {
 		fmt.Println("false")
 	default:
 		fmt.Println("default")
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -216,6 +336,15 @@ import _ "os"
 func bar() string {
 	switch {<>
 	}
+	_ = []int{<>,
+	}
+	_ = [2]string{<>}
+	_ = map[string]int{<>,
+	}
+	type T struct {<>
+	}
+	_ = T{<>,
+	}
 	// This is a multiline comment<>
 	return `
 this string
@@ -239,6 +368,28 @@ func bar() string {
 	case true:<>
 	case false:<>
 	default:<>
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -269,6 +420,28 @@ func bar() string {
 		fmt.Println("false")
 	default:
 		fmt.Println("default")
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -301,6 +474,28 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
+	}
 	// This is a multiline comment<>
 	return `
 this string
@@ -329,6 +524,28 @@ func bar() string {
 		fmt.Println("false")
 	default:
 		fmt.Println("default")
+	}
+	_ = []int{
+		1,
+		2,
+		3,
+	}
+	_ = [2]string{"d",
+		"e"}
+	_ = map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+	type T struct {
+		f string
+		g int
+		h string
+	}
+	_ = T{
+		f: "j",
+		g: 4,
+		h: "i",
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
