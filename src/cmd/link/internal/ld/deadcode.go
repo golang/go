@@ -10,32 +10,16 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"container/heap"
 	"fmt"
 	"unicode"
 )
 
 var _ = fmt.Print
 
-type workQueue []loader.Sym
-
-// Implement container/heap.Interface.
-func (q *workQueue) Len() int           { return len(*q) }
-func (q *workQueue) Less(i, j int) bool { return (*q)[i] < (*q)[j] }
-func (q *workQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
-func (q *workQueue) Push(i interface{}) { *q = append(*q, i.(loader.Sym)) }
-func (q *workQueue) Pop() interface{}   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
-
-// Functions for deadcode pass to use.
-// Deadcode pass should call push/pop, not Push/Pop.
-func (q *workQueue) push(i loader.Sym) { heap.Push(q, i) }
-func (q *workQueue) pop() loader.Sym   { return heap.Pop(q).(loader.Sym) }
-func (q *workQueue) empty() bool       { return len(*q) == 0 }
-
 type deadcodePass struct {
 	ctxt *Link
 	ldr  *loader.Loader
-	wq   workQueue
+	wq   heap // work queue, using min-heap for beter locality
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
@@ -48,7 +32,6 @@ func (d *deadcodePass) init() {
 	if objabi.Fieldtrack_enabled != 0 {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
-	heap.Init(&d.wq)
 
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
