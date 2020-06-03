@@ -48,77 +48,17 @@ func NewStreamServer(cache *cache.Cache) *StreamServer {
 	return &StreamServer{cache: cache}
 }
 
-// debugInstance is the common functionality shared between client and server
-// gopls instances.
-type debugInstance struct {
-	id           string
-	debugAddress string
-	logfile      string
-	goplsPath    string
-}
-
-func (d debugInstance) ID() string {
-	return d.id
-}
-
-func (d debugInstance) DebugAddress() string {
-	return d.debugAddress
-}
-
-func (d debugInstance) Logfile() string {
-	return d.logfile
-}
-
-func (d debugInstance) GoplsPath() string {
-	return d.goplsPath
-}
-
-// A debugServer is held by the client to identity the remove server to which
-// it is connected.
-type debugServer struct {
-	debugInstance
-	// clientID is the id of this client on the server.
-	clientID string
-}
-
-func (s debugServer) ClientID() string {
-	return s.clientID
-}
-
-// A debugClient is held by the server to identify an incoming client
-// connection.
-type debugClient struct {
-	debugInstance
-	// session is the session serving this client.
-	session *cache.Session
-	// serverID is this id of this server on the client.
-	serverID string
-}
-
-func (c debugClient) Session() *cache.Session {
-	return c.session
-}
-
-func (c debugClient) ServerID() string {
-	return c.serverID
-}
-
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
 // incoming streams using a new lsp server.
 func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) error {
-	index := atomic.AddInt64(&clientIndex, 1)
+	id := strconv.FormatInt(atomic.AddInt64(&clientIndex, 1), 10)
 
 	client := protocol.ClientDispatcher(conn)
 	session := s.cache.NewSession(ctx)
-	dc := &debugClient{
-		debugInstance: debugInstance{
-			id: strconv.FormatInt(index, 10),
-		},
-		session: session,
-	}
+	dc := &debug.Client{ID: id, Session: session}
 	if di := debug.GetInstance(ctx); di != nil {
 		di.State.AddClient(dc)
-		defer di.State.DropClient(dc)
+		defer di.State.DropClient(id)
 	}
 	server := s.serverForTest
 	if server == nil {
@@ -284,14 +224,12 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
 	}
 	if di != nil {
-		di.State.AddServer(debugServer{
-			debugInstance: debugInstance{
-				id:           serverID,
-				logfile:      hresp.Logfile,
-				debugAddress: hresp.DebugAddr,
-				goplsPath:    hresp.GoplsPath,
-			},
-			clientID: hresp.ClientID,
+		di.State.AddServer(&debug.Server{
+			ID:           serverID,
+			Logfile:      hresp.Logfile,
+			DebugAddress: hresp.DebugAddr,
+			GoplsPath:    hresp.GoplsPath,
+			ClientID:     hresp.ClientID,
 		})
 	}
 	clientConn.Go(ctx,
@@ -447,7 +385,7 @@ const (
 	sessionsMethod  = "gopls/sessions"
 )
 
-func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler) jsonrpc2.Handler {
+func handshaker(client *debug.Client, goplsPath string, handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 		switch r.Method() {
 		case handshakeMethod:
@@ -456,13 +394,13 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 				sendError(ctx, reply, err)
 				return nil
 			}
-			client.debugAddress = req.DebugAddr
-			client.logfile = req.Logfile
-			client.serverID = req.ServerID
-			client.goplsPath = req.GoplsPath
+			client.DebugAddress = req.DebugAddr
+			client.Logfile = req.Logfile
+			client.ServerID = req.ServerID
+			client.GoplsPath = req.GoplsPath
 			resp := handshakeResponse{
-				ClientID:  client.id,
-				SessionID: client.session.ID(),
+				ClientID:  client.ID,
+				SessionID: client.Session.ID(),
 				GoplsPath: goplsPath,
 			}
 			if di := debug.GetInstance(ctx); di != nil {
@@ -474,17 +412,18 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 		case sessionsMethod:
 			resp := ServerState{
 				GoplsPath:       goplsPath,
-				CurrentClientID: client.ID(),
+				CurrentClientID: client.ID,
 			}
+			//TODO: this should not need access to the debug information
 			if di := debug.GetInstance(ctx); di != nil {
 				resp.Logfile = di.Logfile
 				resp.DebugAddr = di.ListenedDebugAddress
 				for _, c := range di.State.Clients() {
 					resp.Clients = append(resp.Clients, ClientSession{
-						ClientID:  c.ID(),
-						SessionID: c.Session().ID(),
-						Logfile:   c.Logfile(),
-						DebugAddr: c.DebugAddress(),
+						ClientID:  c.ID,
+						SessionID: c.Session.ID(),
+						Logfile:   c.Logfile,
+						DebugAddr: c.DebugAddress,
 					})
 				}
 			}

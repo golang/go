@@ -66,39 +66,8 @@ type Instance struct {
 // State holds debugging information related to the server state.
 type State struct {
 	mu      sync.Mutex
-	clients objset
-	servers objset
-}
-
-type ider interface {
-	ID() string
-}
-
-type objset struct {
-	objs []ider
-}
-
-func (s *objset) add(elem ider) {
-	s.objs = append(s.objs, elem)
-}
-
-func (s *objset) drop(elem ider) {
-	var newobjs []ider
-	for _, obj := range s.objs {
-		if obj.ID() != elem.ID() {
-			newobjs = append(newobjs, obj)
-		}
-	}
-	s.objs = newobjs
-}
-
-func (s *objset) find(id string) ider {
-	for _, e := range s.objs {
-		if e.ID() == id {
-			return e
-		}
-	}
-	return nil
+	clients []*Client
+	servers []*Server
 }
 
 // Caches returns the set of Cache objects currently being served.
@@ -106,7 +75,7 @@ func (st *State) Caches() []*cache.Cache {
 	var caches []*cache.Cache
 	seen := make(map[string]struct{})
 	for _, client := range st.Clients() {
-		cache, ok := client.Session().Cache().(*cache.Cache)
+		cache, ok := client.Session.Cache().(*cache.Cache)
 		if !ok {
 			continue
 		}
@@ -133,7 +102,7 @@ func (st *State) Cache(id string) *cache.Cache {
 func (st *State) Sessions() []*cache.Session {
 	var sessions []*cache.Session
 	for _, client := range st.Clients() {
-		sessions = append(sessions, client.Session())
+		sessions = append(sessions, client.Session)
 	}
 	return sessions
 }
@@ -172,71 +141,83 @@ func (st *State) View(id string) *cache.View {
 }
 
 // Clients returns the set of Clients currently being served.
-func (st *State) Clients() []Client {
+func (st *State) Clients() []*Client {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	clients := make([]Client, len(st.clients.objs))
-	for i, c := range st.clients.objs {
-		clients[i] = c.(Client)
-	}
+	clients := make([]*Client, len(st.clients))
+	copy(clients, st.clients)
 	return clients
 }
 
 // Servers returns the set of Servers the instance is currently connected to.
-func (st *State) Servers() []Server {
+func (st *State) Servers() []*Server {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	servers := make([]Server, len(st.servers.objs))
-	for i, s := range st.servers.objs {
-		servers[i] = s.(Server)
-	}
+	servers := make([]*Server, len(st.servers))
+	copy(servers, st.servers)
 	return servers
 }
 
 // A Client is an incoming connection from a remote client.
-type Client interface {
-	ID() string
-	Session() *cache.Session
-	DebugAddress() string
-	Logfile() string
-	ServerID() string
+type Client struct {
+	ID           string
+	Session      *cache.Session
+	DebugAddress string
+	Logfile      string
+	GoplsPath    string
+	ServerID     string
 }
 
 // A Server is an outgoing connection to a remote LSP server.
-type Server interface {
-	ID() string
-	DebugAddress() string
-	Logfile() string
-	ClientID() string
+type Server struct {
+	ID           string
+	DebugAddress string
+	Logfile      string
+	GoplsPath    string
+	ClientID     string
 }
 
 // AddClient adds a client to the set being served.
-func (st *State) AddClient(client Client) {
+func (st *State) AddClient(client *Client) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.clients.add(client)
+	st.clients = append(st.clients, client)
 }
 
-// DropClient adds a client to the set being served.
-func (st *State) DropClient(client Client) {
+// DropClient removes a client from the set being served.
+func (st *State) DropClient(id string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.clients.drop(client)
+	for i, c := range st.clients {
+		if c.ID == id {
+			copy(st.clients[i:], st.clients[i+1:])
+			st.clients[len(st.clients)-1] = nil
+			st.clients = st.clients[:len(st.clients)-1]
+			return
+		}
+	}
 }
 
 // AddServer adds a server to the set being queried. In practice, there should
 // be at most one remote server.
-func (st *State) AddServer(server Server) {
+func (st *State) AddServer(server *Server) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.servers.add(server)
+	st.servers = append(st.servers, server)
 }
 
-// DropServer drops a server to the set being queried.
-func (st *State) DropServer(server Server) {
+// DropServer drops a server from the set being queried.
+func (st *State) DropServer(id string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.servers.drop(server)
+	for i, s := range st.servers {
+		if s.ID == id {
+			copy(st.servers[i:], st.servers[i+1:])
+			st.servers[len(st.servers)-1] = nil
+			st.servers = st.servers[:len(st.servers)-1]
+			return
+		}
+	}
 }
 
 func (i *Instance) getCache(r *http.Request) interface{} {
@@ -251,22 +232,24 @@ func (i Instance) getClient(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	c, ok := i.State.clients.find(id).(Client)
-	if !ok {
-		return nil
+	for _, c := range i.State.clients {
+		if c.ID == id {
+			return c
+		}
 	}
-	return c
+	return nil
 }
 
 func (i Instance) getServer(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	s, ok := i.State.servers.find(id).(Server)
-	if !ok {
-		return nil
+	for _, s := range i.State.servers {
+		if s.ID == id {
+			return s
+		}
 	}
-	return s
+	return nil
 }
 
 func (i Instance) getView(r *http.Request) interface{} {
