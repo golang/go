@@ -672,14 +672,6 @@ func geneq(t *types.Type) *obj.LSym {
 					eqlen, eqmem := eqstring(p, q)
 					and(eqlen)
 					and(eqmem)
-				case f.Type.IsInterface():
-					p.Type = f.Type
-					p = typecheck(p, ctxExpr)
-					q.Type = f.Type
-					q = typecheck(q, ctxExpr)
-					eqtab, eqdata := eqinterface(p, q)
-					and(eqtab)
-					and(eqdata)
 				default:
 					and(nod(OEQ, p, q))
 				}
