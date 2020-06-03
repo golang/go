@@ -502,6 +502,7 @@ var execTests = []execTest{
 	{"map MUI64S", "{{index .MUI64S 3}}", "ui643", tVal, true},
 	{"map MI8S", "{{index .MI8S 3}}", "i83", tVal, true},
 	{"map MUI8S", "{{index .MUI8S 2}}", "u82", tVal, true},
+	{"index of an interface field", "{{index .Empty3 0}}", "7", tVal, true},
 
 	// Slicing.
 	{"slice[:]", "{{slice .SI}}", "[3 4 5]", tVal, true},
@@ -527,12 +528,14 @@ var execTests = []execTest{
 	{"string[1:2]", "{{slice .S 1 2}}", "y", tVal, true},
 	{"out of range", "{{slice .S 1 5}}", "", tVal, false},
 	{"3-index slice of string", "{{slice .S 1 2 2}}", "", tVal, false},
+	{"slice of an interface field", "{{slice .Empty3 0 1}}", "[7]", tVal, true},
 
 	// Len.
 	{"slice", "{{len .SI}}", "3", tVal, true},
 	{"map", "{{len .MSI }}", "3", tVal, true},
 	{"len of int", "{{len 3}}", "", tVal, false},
 	{"len of nothing", "{{len .Empty0}}", "", tVal, false},
+	{"len of an interface field", "{{len .Empty3}}", "2", tVal, true},
 
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
@@ -908,9 +911,9 @@ func TestJSEscaping(t *testing.T) {
 		{`Go "jump" \`, `Go \"jump\" \\`},
 		{`Yukihiro says "今日は世界"`, `Yukihiro says \"今日は世界\"`},
 		{"unprintable \uFDFF", `unprintable \uFDFF`},
-		{`<html>`, `\x3Chtml\x3E`},
-		{`no = in attributes`, `no \x3D in attributes`},
-		{`&#x27; does not become HTML entity`, `\x26#x27; does not become HTML entity`},
+		{`<html>`, `\u003Chtml\u003E`},
+		{`no = in attributes`, `no \u003D in attributes`},
+		{`&#x27; does not become HTML entity`, `\u0026#x27; does not become HTML entity`},
 	}
 	for _, tc := range testCases {
 		s := JSEscapeString(tc.in)

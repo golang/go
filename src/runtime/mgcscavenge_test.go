@@ -272,6 +272,9 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 
 // Tests end-to-end scavenging on a pageAlloc.
 func TestPageAllocScavenge(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type test struct {
 		request, expect uintptr
 	}
@@ -279,12 +282,13 @@ func TestPageAllocScavenge(t *testing.T) {
 	if minPages < 1 {
 		minPages = 1
 	}
-	tests := map[string]struct {
+	type setup struct {
 		beforeAlloc map[ChunkIdx][]BitRange
 		beforeScav  map[ChunkIdx][]BitRange
 		expect      []test
 		afterScav   map[ChunkIdx][]BitRange
-	}{
+	}
+	tests := map[string]setup{
 		"AllFreeUnscavExhaust": {
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {},
@@ -393,14 +397,34 @@ func TestPageAllocScavenge(t *testing.T) {
 			},
 		},
 	}
+	if PageAlloc64Bit != 0 {
+		tests["ScavAllVeryDiscontiguous"] = setup{
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {},
+				BaseChunkIdx + 0x1000: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {},
+				BaseChunkIdx + 0x1000: {},
+			},
+			expect: []test{
+				{^uintptr(0), 2 * PallocChunkPages * PageSize},
+				{^uintptr(0), 0},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {{0, PallocChunkPages}},
+				BaseChunkIdx + 0x1000: {{0, PallocChunkPages}},
+			},
+		}
+	}
 	for name, v := range tests {
 		v := v
-		runTest := func(t *testing.T, locked bool) {
+		runTest := func(t *testing.T, mayUnlock bool) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
 
 			for iter, h := range v.expect {
-				if got := b.Scavenge(h.request, locked); got != h.expect {
+				if got := b.Scavenge(h.request, mayUnlock); got != h.expect {
 					t.Fatalf("bad scavenge #%d: want %d, got %d", iter+1, h.expect, got)
 				}
 			}
@@ -412,7 +436,7 @@ func TestPageAllocScavenge(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runTest(t, false)
 		})
-		t.Run(name+"Locked", func(t *testing.T) {
+		t.Run(name+"MayUnlock", func(t *testing.T) {
 			runTest(t, true)
 		})
 	}

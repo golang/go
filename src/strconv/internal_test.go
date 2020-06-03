@@ -17,3 +17,7 @@ func SetOptimize(b bool) bool {
 	optimize = b
 	return old
 }
+
+func ParseFloatPrefix(s string, bitSize int) (float64, int, error) {
+	return parseFloatPrefix(s, bitSize)
+}

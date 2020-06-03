@@ -40,6 +40,18 @@ const (
 // PublicKey is the type of Ed25519 public keys.
 type PublicKey []byte
 
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
+// Equal reports whether pub and x have the same value.
+func (pub PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(PublicKey)
+	if !ok {
+		return false
+	}
+	return bytes.Equal(pub, xx)
+}
+
 // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
 type PrivateKey []byte
 
@@ -48,6 +60,15 @@ func (priv PrivateKey) Public() crypto.PublicKey {
 	publicKey := make([]byte, PublicKeySize)
 	copy(publicKey, priv[32:])
 	return PublicKey(publicKey)
+}
+
+// Equal reports whether priv and x have the same value.
+func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(PrivateKey)
+	if !ok {
+		return false
+	}
+	return bytes.Equal(priv, xx)
 }
 
 // Seed returns the private key seed corresponding to priv. It is provided for
@@ -133,7 +154,7 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 	return signature
 }
 
-func sign(signature, privateKey, message []byte) {
+func signGeneric(signature, privateKey, message []byte) {
 	if l := len(privateKey); l != PrivateKeySize {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
 	}
@@ -180,6 +201,10 @@ func sign(signature, privateKey, message []byte) {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
+	return verify(publicKey, message, sig)
+}
+
+func verifyGeneric(publicKey PublicKey, message, sig []byte) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}

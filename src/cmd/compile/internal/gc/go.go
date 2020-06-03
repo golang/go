@@ -45,6 +45,14 @@ func isRuntimePkg(p *types.Pkg) bool {
 	return p.Path == "runtime"
 }
 
+// isReflectPkg reports whether p is package reflect.
+func isReflectPkg(p *types.Pkg) bool {
+	if p == localpkg {
+		return myimportpath == "reflect"
+	}
+	return p.Path == "reflect"
+}
+
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.
@@ -64,32 +72,30 @@ const (
 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
 
-// note this is the runtime representation
-// of the compilers slices.
+// Slices in the runtime are represented by three components:
 //
-// typedef	struct
-// {				// must not move anything
-// 	uchar	array[8];	// pointer to data
-// 	uchar	nel[4];		// number of elements
-// 	uchar	cap[4];		// allocated number of elements
-// } Slice;
-var slice_array int // runtime offsetof(Slice,array) - same for String
-
-var slice_nel int // runtime offsetof(Slice,nel) - same for String
-
-var slice_cap int // runtime offsetof(Slice,cap)
-
-var sizeof_Slice int // runtime sizeof(Slice)
-
-// note this is the runtime representation
-// of the compilers strings.
+// type slice struct {
+// 	ptr unsafe.Pointer
+// 	len int
+// 	cap int
+// }
 //
-// typedef	struct
-// {				// must not move anything
-// 	uchar	array[8];	// pointer to data
-// 	uchar	nel[4];		// number of elements
-// } String;
-var sizeof_String int // runtime sizeof(String)
+// Strings in the runtime are represented by two components:
+//
+// type string struct {
+// 	ptr unsafe.Pointer
+// 	len int
+// }
+//
+// These variables are the offsets of fields and sizes of these structs.
+var (
+	slicePtrOffset int64
+	sliceLenOffset int64
+	sliceCapOffset int64
+
+	sizeofSlice  int64
+	sizeofString int64
+)
 
 var pragcgobuf [][]string
 
@@ -279,7 +285,7 @@ type Arch struct {
 var thearch Arch
 
 var (
-	staticbytes,
+	staticuint64s,
 	zerobase *Node
 
 	assertE2I,
@@ -334,3 +340,6 @@ var (
 	WasmTruncU,
 	SigPanic *obj.LSym
 )
+
+// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+var GCWriteBarrierReg map[int16]*obj.LSym

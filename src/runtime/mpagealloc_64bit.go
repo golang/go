@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 !darwin,arm64 mips64 mips64le ppc64 ppc64le s390x
+// +build amd64 !darwin,arm64 mips64 mips64le ppc64 ppc64le riscv64 s390x
 
 // See mpagealloc_32bit.go for why darwin/arm64 is excluded here.
 
@@ -17,6 +17,13 @@ const (
 	// Constants for testing.
 	pageAlloc32Bit = 0
 	pageAlloc64Bit = 1
+
+	// Number of bits needed to represent all indices into the L1 of the
+	// chunks map.
+	//
+	// See (*pageAlloc).chunks for more details. Update the documentation
+	// there should this number change.
+	pallocChunksL1Bits = 13
 )
 
 // levelBits is the number of bits in the radix for a given level in the super summary
@@ -95,42 +102,79 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 		throw("sysGrow bounds not aligned to pallocChunkBytes")
 	}
 
+	// addrRangeToSummaryRange converts a range of addresses into a range
+	// of summary indices which must be mapped to support those addresses
+	// in the summary range.
+	addrRangeToSummaryRange := func(level int, r addrRange) (int, int) {
+		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base.addr(), r.limit.addr())
+		return blockAlignSummaryRange(level, sumIdxBase, sumIdxLimit)
+	}
+
+	// summaryRangeToSumAddrRange converts a range of indices in any
+	// level of s.summary into page-aligned addresses which cover that
+	// range of indices.
+	summaryRangeToSumAddrRange := func(level, sumIdxBase, sumIdxLimit int) addrRange {
+		baseOffset := alignDown(uintptr(sumIdxBase)*pallocSumBytes, physPageSize)
+		limitOffset := alignUp(uintptr(sumIdxLimit)*pallocSumBytes, physPageSize)
+		base := unsafe.Pointer(&s.summary[level][0])
+		return addrRange{
+			offAddr{uintptr(add(base, baseOffset))},
+			offAddr{uintptr(add(base, limitOffset))},
+		}
+	}
+
+	// addrRangeToSumAddrRange is a convienience function that converts
+	// an address range r to the address range of the given summary level
+	// that stores the summaries for r.
+	addrRangeToSumAddrRange := func(level int, r addrRange) addrRange {
+		sumIdxBase, sumIdxLimit := addrRangeToSummaryRange(level, r)
+		return summaryRangeToSumAddrRange(level, sumIdxBase, sumIdxLimit)
+	}
+
+	// Find the first inUse index which is strictly greater than base.
+	//
+	// Because this function will never be asked remap the same memory
+	// twice, this index is effectively the index at which we would insert
+	// this new growth, and base will never overlap/be contained within
+	// any existing range.
+	//
+	// This will be used to look at what memory in the summary array is already
+	// mapped before and after this new range.
+	inUseIndex := s.inUse.findSucc(base)
+
 	// Walk up the radix tree and map summaries in as needed.
-	cbase, climit := chunkBase(s.start), chunkBase(s.end)
-	for l := len(s.summary) - 1; l >= 0; l-- {
+	for l := range s.summary {
 		// Figure out what part of the summary array this new address space needs.
-		// Note that we need to align the ranges to the block width (1<<levelBits[l])
-		// at this level because the full block is needed to compute the summary for
-		// the next level.
-		lo, hi := addrsToSummaryRange(l, base, limit)
-		lo, hi = blockAlignSummaryRange(l, lo, hi)
+		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, makeAddrRange(base, limit))
 
 		// Update the summary slices with a new upper-bound. This ensures
 		// we get tight bounds checks on at least the top bound.
 		//
-		// We must do this regardless of whether we map new memory, because we
-		// may be extending further into the mapped memory.
-		if hi > len(s.summary[l]) {
-			s.summary[l] = s.summary[l][:hi]
+		// We must do this regardless of whether we map new memory.
+		if needIdxLimit > len(s.summary[l]) {
+			s.summary[l] = s.summary[l][:needIdxLimit]
 		}
 
-		// Figure out what part of the summary array is already mapped.
-		// If we're doing our first growth, just pass zero.
-		// addrsToSummaryRange won't accept cbase == climit.
-		var mlo, mhi int
-		if s.start != 0 {
-			mlo, mhi = addrsToSummaryRange(l, cbase, climit)
-			mlo, mhi = blockAlignSummaryRange(l, mlo, mhi)
+		// Compute the needed address range in the summary array for level l.
+		need := summaryRangeToSumAddrRange(l, needIdxBase, needIdxLimit)
+
+		// Prune need down to what needs to be newly mapped. Some parts of it may
+		// already be mapped by what inUse describes due to page alignment requirements
+		// for mapping. prune's invariants are guaranteed by the fact that this
+		// function will never be asked to remap the same memory twice.
+		if inUseIndex > 0 {
+			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex-1]))
+		}
+		if inUseIndex < len(s.inUse.ranges) {
+			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex]))
+		}
+		// It's possible that after our pruning above, there's nothing new to map.
+		if need.size() == 0 {
+			continue
 		}
 
-		// Extend the mappings for this summary level.
-		extendMappedRegion(
-			unsafe.Pointer(&s.summary[l][0]),
-			uintptr(mlo)*pallocSumBytes,
-			uintptr(mhi)*pallocSumBytes,
-			uintptr(lo)*pallocSumBytes,
-			uintptr(hi)*pallocSumBytes,
-			s.sysStat,
-		)
+		// Map and commit need.
+		sysMap(unsafe.Pointer(need.base.addr()), need.size(), s.sysStat)
+		sysUsed(unsafe.Pointer(need.base.addr()), need.size())
 	}
 }

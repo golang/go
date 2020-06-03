@@ -14,6 +14,9 @@ go get -d golang.org/x/text@14c0d48
 
 # dropping -d, we should see a build.
 [short] skip
+
+env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+
 go get -x golang.org/x/text/language@14c0d48
 stderr 'compile|cp|gccgo .*language\.a$'
 

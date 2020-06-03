@@ -9,7 +9,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"internal/race"
 	"math/big"
 	"math/rand"
 	"os"
@@ -67,6 +66,13 @@ var nanoutctests = []TimeTest{
 var localtests = []TimeTest{
 	{0, parsedTime{1969, December, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
 	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
+	{2159200800, parsedTime{2038, June, 3, 11, 0, 0, 0, Thursday, -7 * 60 * 60, "PDT"}},
+	{2152173599, parsedTime{2038, March, 14, 1, 59, 59, 0, Sunday, -8 * 60 * 60, "PST"}},
+	{2152173600, parsedTime{2038, March, 14, 3, 0, 0, 0, Sunday, -7 * 60 * 60, "PDT"}},
+	{2152173601, parsedTime{2038, March, 14, 3, 0, 1, 0, Sunday, -7 * 60 * 60, "PDT"}},
+	{2172733199, parsedTime{2038, November, 7, 1, 59, 59, 0, Sunday, -7 * 60 * 60, "PDT"}},
+	{2172733200, parsedTime{2038, November, 7, 1, 0, 0, 0, Sunday, -8 * 60 * 60, "PST"}},
+	{2172733201, parsedTime{2038, November, 7, 1, 0, 1, 0, Sunday, -8 * 60 * 60, "PST"}},
 }
 
 var nanolocaltests = []TimeTest{
@@ -811,86 +817,103 @@ func TestNotJSONEncodableTime(t *testing.T) {
 
 var parseDurationTests = []struct {
 	in   string
-	ok   bool
 	want Duration
 }{
 	// simple
-	{"0", true, 0},
-	{"5s", true, 5 * Second},
-	{"30s", true, 30 * Second},
-	{"1478s", true, 1478 * Second},
+	{"0", 0},
+	{"5s", 5 * Second},
+	{"30s", 30 * Second},
+	{"1478s", 1478 * Second},
 	// sign
-	{"-5s", true, -5 * Second},
-	{"+5s", true, 5 * Second},
-	{"-0", true, 0},
-	{"+0", true, 0},
+	{"-5s", -5 * Second},
+	{"+5s", 5 * Second},
+	{"-0", 0},
+	{"+0", 0},
 	// decimal
-	{"5.0s", true, 5 * Second},
-	{"5.6s", true, 5*Second + 600*Millisecond},
-	{"5.s", true, 5 * Second},
-	{".5s", true, 500 * Millisecond},
-	{"1.0s", true, 1 * Second},
-	{"1.00s", true, 1 * Second},
-	{"1.004s", true, 1*Second + 4*Millisecond},
-	{"1.0040s", true, 1*Second + 4*Millisecond},
-	{"100.00100s", true, 100*Second + 1*Millisecond},
+	{"5.0s", 5 * Second},
+	{"5.6s", 5*Second + 600*Millisecond},
+	{"5.s", 5 * Second},
+	{".5s", 500 * Millisecond},
+	{"1.0s", 1 * Second},
+	{"1.00s", 1 * Second},
+	{"1.004s", 1*Second + 4*Millisecond},
+	{"1.0040s", 1*Second + 4*Millisecond},
+	{"100.00100s", 100*Second + 1*Millisecond},
 	// different units
-	{"10ns", true, 10 * Nanosecond},
-	{"11us", true, 11 * Microsecond},
-	{"12µs", true, 12 * Microsecond}, // U+00B5
-	{"12μs", true, 12 * Microsecond}, // U+03BC
-	{"13ms", true, 13 * Millisecond},
-	{"14s", true, 14 * Second},
-	{"15m", true, 15 * Minute},
-	{"16h", true, 16 * Hour},
+	{"10ns", 10 * Nanosecond},
+	{"11us", 11 * Microsecond},
+	{"12µs", 12 * Microsecond}, // U+00B5
+	{"12μs", 12 * Microsecond}, // U+03BC
+	{"13ms", 13 * Millisecond},
+	{"14s", 14 * Second},
+	{"15m", 15 * Minute},
+	{"16h", 16 * Hour},
 	// composite durations
-	{"3h30m", true, 3*Hour + 30*Minute},
-	{"10.5s4m", true, 4*Minute + 10*Second + 500*Millisecond},
-	{"-2m3.4s", true, -(2*Minute + 3*Second + 400*Millisecond)},
-	{"1h2m3s4ms5us6ns", true, 1*Hour + 2*Minute + 3*Second + 4*Millisecond + 5*Microsecond + 6*Nanosecond},
-	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
+	{"3h30m", 3*Hour + 30*Minute},
+	{"10.5s4m", 4*Minute + 10*Second + 500*Millisecond},
+	{"-2m3.4s", -(2*Minute + 3*Second + 400*Millisecond)},
+	{"1h2m3s4ms5us6ns", 1*Hour + 2*Minute + 3*Second + 4*Millisecond + 5*Microsecond + 6*Nanosecond},
+	{"39h9m14.425s", 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
-	{"52763797000ns", true, 52763797000 * Nanosecond},
+	{"52763797000ns", 52763797000 * Nanosecond},
 	// more than 9 digits after decimal point, see https://golang.org/issue/6617
-	{"0.3333333333333333333h", true, 20 * Minute},
+	{"0.3333333333333333333h", 20 * Minute},
 	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
-	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
+	{"9007199254740993ns", (1<<53 + 1) * Nanosecond},
 	// largest duration that can be represented by int64 in nanoseconds
-	{"9223372036854775807ns", true, (1<<63 - 1) * Nanosecond},
-	{"9223372036854775.807us", true, (1<<63 - 1) * Nanosecond},
-	{"9223372036s854ms775us807ns", true, (1<<63 - 1) * Nanosecond},
+	{"9223372036854775807ns", (1<<63 - 1) * Nanosecond},
+	{"9223372036854775.807us", (1<<63 - 1) * Nanosecond},
+	{"9223372036s854ms775us807ns", (1<<63 - 1) * Nanosecond},
 	// large negative value
-	{"-9223372036854775807ns", true, -1<<63 + 1*Nanosecond},
+	{"-9223372036854775807ns", -1<<63 + 1*Nanosecond},
 	// huge string; issue 15011.
-	{"0.100000000000000000000h", true, 6 * Minute},
+	{"0.100000000000000000000h", 6 * Minute},
 	// This value tests the first overflow check in leadingFraction.
-	{"0.830103483285477580700h", true, 49*Minute + 48*Second + 372539827*Nanosecond},
-
-	// errors
-	{"", false, 0},
-	{"3", false, 0},
-	{"-", false, 0},
-	{"s", false, 0},
-	{".", false, 0},
-	{"-.", false, 0},
-	{".s", false, 0},
-	{"+.s", false, 0},
-	{"3000000h", false, 0},                  // overflow
-	{"9223372036854775808ns", false, 0},     // overflow
-	{"9223372036854775.808us", false, 0},    // overflow
-	{"9223372036854ms775us808ns", false, 0}, // overflow
-	// largest negative value of type int64 in nanoseconds should fail
-	// see https://go-review.googlesource.com/#/c/2461/
-	{"-9223372036854775808ns", false, 0},
+	{"0.830103483285477580700h", 49*Minute + 48*Second + 372539827*Nanosecond},
 }
 
 func TestParseDuration(t *testing.T) {
 	for _, tc := range parseDurationTests {
 		d, err := ParseDuration(tc.in)
-		if tc.ok && (err != nil || d != tc.want) {
+		if err != nil || d != tc.want {
 			t.Errorf("ParseDuration(%q) = %v, %v, want %v, nil", tc.in, d, err, tc.want)
-		} else if !tc.ok && err == nil {
+		}
+	}
+}
+
+var parseDurationErrorTests = []struct {
+	in     string
+	expect string
+}{
+	// invalid
+	{"", `""`},
+	{"3", `"3"`},
+	{"-", `"-"`},
+	{"s", `"s"`},
+	{".", `"."`},
+	{"-.", `"-."`},
+	{".s", `".s"`},
+	{"+.s", `"+.s"`},
+	{"1d", `"1d"`},
+	// overflow
+	{"9223372036854775810ns", `"9223372036854775810ns"`},
+	{"9223372036854775808ns", `"9223372036854775808ns"`},
+	// largest negative value of type int64 in nanoseconds should fail
+	// see https://go-review.googlesource.com/#/c/2461/
+	{"-9223372036854775808ns", `"-9223372036854775808ns"`},
+	{"9223372036854776us", `"9223372036854776us"`},
+	{"3000000h", `"3000000h"`},
+	{"9223372036854775.808us", `"9223372036854775.808us"`},
+	{"9223372036854ms775us808ns", `"9223372036854ms775us808ns"`},
+}
+
+func TestParseDurationErrors(t *testing.T) {
+	for _, tc := range parseDurationErrorTests {
+		_, err := ParseDuration(tc.in)
+		if err == nil {
 			t.Errorf("ParseDuration(%q) = _, nil, want _, non-nil", tc.in)
+		} else if !strings.Contains(err.Error(), tc.expect) {
+			t.Errorf("ParseDuration(%q) = _, %q, error does not contain %q", tc.in, err, tc.expect)
 		}
 	}
 }
@@ -1349,6 +1372,13 @@ func BenchmarkDay(b *testing.B) {
 	}
 }
 
+func BenchmarkISOWeek(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_, _ = t.ISOWeek()
+	}
+}
+
 func TestMarshalBinaryZeroTime(t *testing.T) {
 	t0 := Time{}
 	enc, err := t0.MarshalBinary()
@@ -1393,23 +1423,11 @@ func TestReadFileLimit(t *testing.T) {
 }
 
 // Issue 25686: hard crash on concurrent timer access.
+// Issue 37400: panic with "racy use of timers"
 // This test deliberately invokes a race condition.
-// We are testing that we don't crash with "fatal error: panic holding locks".
+// We are testing that we don't crash with "fatal error: panic holding locks",
+// and that we also don't panic.
 func TestConcurrentTimerReset(t *testing.T) {
-	if race.Enabled {
-		t.Skip("skipping test under race detector")
-	}
-
-	// We expect this code to panic rather than crash.
-	// Don't worry if it doesn't panic.
-	catch := func(i int) {
-		if e := recover(); e != nil {
-			t.Logf("panic in goroutine %d, as expected, with %q", i, e)
-		} else {
-			t.Logf("no panic in goroutine %d", i)
-		}
-	}
-
 	const goroutines = 8
 	const tries = 1000
 	var wg sync.WaitGroup
@@ -1418,10 +1436,31 @@ func TestConcurrentTimerReset(t *testing.T) {
 	for i := 0; i < goroutines; i++ {
 		go func(i int) {
 			defer wg.Done()
-			defer catch(i)
 			for j := 0; j < tries; j++ {
 				timer.Reset(Hour + Duration(i*j))
 			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+// Issue 37400: panic with "racy use of timers".
+func TestConcurrentTimerResetStop(t *testing.T) {
+	const goroutines = 8
+	const tries = 1000
+	var wg sync.WaitGroup
+	wg.Add(goroutines * 2)
+	timer := NewTimer(Hour)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < tries; j++ {
+				timer.Reset(Hour + Duration(i*j))
+			}
+		}(i)
+		go func(i int) {
+			defer wg.Done()
+			timer.Stop()
 		}(i)
 	}
 	wg.Wait()

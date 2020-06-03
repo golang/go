@@ -143,6 +143,26 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
+// ReadFrom implements io.ReaderFrom.
+func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
+	if err := f.checkValid("write"); err != nil {
+		return 0, err
+	}
+	n, handled, e := f.readFrom(r)
+	if !handled {
+		return genericReadFrom(f, r) // without wrapping
+	}
+	return n, f.wrapErr("write", e)
+}
+
+func genericReadFrom(f *File, r io.Reader) (int64, error) {
+	return io.Copy(onlyWriter{f}, r)
+}
+
+type onlyWriter struct {
+	io.Writer
+}
+
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
@@ -204,6 +224,10 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
+//
+// If f is a directory, the behavior of Seek varies by operating
+// system; you can seek to the beginning of the directory on Unix-like
+// operating systems, but not on Windows.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 	if err := f.checkValid("seek"); err != nil {
 		return 0, err
@@ -360,7 +384,7 @@ func TempDir() string {
 // within this one and use that.
 //
 // On Unix systems, it returns $XDG_CACHE_HOME as specified by
-// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.cache.
 // On Darwin, it returns $HOME/Library/Caches.
 // On Windows, it returns %LocalAppData%.
@@ -478,7 +502,7 @@ func UserHomeDir() (string, error) {
 	case "android":
 		return "/sdcard", nil
 	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+		if runtime.GOARCH == "arm64" {
 			return "/", nil
 		}
 	}
@@ -522,10 +546,12 @@ func (f *File) Chmod(mode FileMode) error { return f.chmod(mode) }
 // After a deadline has been exceeded, the connection can be refreshed
 // by setting a deadline in the future.
 //
-// An error returned after a timeout fails will implement the
-// Timeout method, and calling the Timeout method will return true.
-// The PathError and SyscallError types implement the Timeout method.
-// In general, call IsTimeout to test whether an error indicates a timeout.
+// If the deadline is exceeded a call to Read or Write or to other I/O
+// methods will return an error that wraps ErrDeadlineExceeded.
+// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
+// That error implements the Timeout method, and calling the Timeout
+// method will return true, but there are other possible errors for which
+// the Timeout will return true even if the deadline has not been exceeded.
 //
 // An idle timeout can be implemented by repeatedly extending
 // the deadline after successful Read or Write calls.

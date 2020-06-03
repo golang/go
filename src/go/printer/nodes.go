@@ -791,6 +791,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 
 	case *ast.BasicLit:
+		if p.Config.Mode&StdFormat != 0 {
+			x = normalizeNumbers(x)
+		}
 		p.print(x)
 
 	case *ast.FuncLit:
@@ -969,6 +972,62 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	default:
 		panic("unreachable")
 	}
+}
+
+// normalizeNumbers rewrites base prefixes and exponents to
+// use lower-case letters, and removes leading 0's from
+// integer imaginary literals. It leaves hexadecimal digits
+// alone.
+func normalizeNumbers(lit *ast.BasicLit) *ast.BasicLit {
+	if lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG {
+		return lit // not a number - nothing to do
+	}
+	if len(lit.Value) < 2 {
+		return lit // only one digit (common case) - nothing to do
+	}
+	// len(lit.Value) >= 2
+
+	// We ignore lit.Kind because for lit.Kind == token.IMAG the literal may be an integer
+	// or floating-point value, decimal or not. Instead, just consider the literal pattern.
+	x := lit.Value
+	switch x[:2] {
+	default:
+		// 0-prefix octal, decimal int, or float (possibly with 'i' suffix)
+		if i := strings.LastIndexByte(x, 'E'); i >= 0 {
+			x = x[:i] + "e" + x[i+1:]
+			break
+		}
+		// remove leading 0's from integer (but not floating-point) imaginary literals
+		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+			x = strings.TrimLeft(x, "0_")
+			if x == "i" {
+				x = "0i"
+			}
+		}
+	case "0X":
+		x = "0x" + x[2:]
+		// possibly a hexadecimal float
+		if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+			x = x[:i] + "p" + x[i+1:]
+		}
+	case "0x":
+		// possibly a hexadecimal float
+		i := strings.LastIndexByte(x, 'P')
+		if i == -1 {
+			return lit // nothing to do
+		}
+		x = x[:i] + "p" + x[i+1:]
+	case "0O":
+		x = "0o" + x[2:]
+	case "0o":
+		return lit // nothing to do
+	case "0B":
+		x = "0b" + x[2:]
+	case "0b":
+		return lit // nothing to do
+	}
+
+	return &ast.BasicLit{ValuePos: lit.ValuePos, Kind: lit.Kind, Value: x}
 }
 
 func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {

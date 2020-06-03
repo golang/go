@@ -377,6 +377,11 @@ var optab = []Optab{
 	{ATEQ, C_SCON, C_NONE, C_REG, 15, 4, 0, 0, 0},
 	{ACMOVT, C_REG, C_NONE, C_REG, 17, 4, 0, 0, 0},
 
+	{AVMOVB, C_SCON, C_NONE, C_WREG, 56, 4, 0, sys.MIPS64, 0},
+	{AVMOVB, C_ADDCON, C_NONE, C_WREG, 56, 4, 0, sys.MIPS64, 0},
+	{AVMOVB, C_SOREG, C_NONE, C_WREG, 57, 4, 0, sys.MIPS64, 0},
+	{AVMOVB, C_WREG, C_NONE, C_SOREG, 58, 4, 0, sys.MIPS64, 0},
+
 	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0}, /* really CACHE instruction */
 	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
 	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
@@ -397,6 +402,11 @@ var oprange [ALAST & obj.AMask][]Optab
 var xcmp [C_NCLASS][C_NCLASS]bool
 
 func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on mips")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	p := cursym.Func.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
@@ -516,16 +526,29 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
-// Return whether p is an unsafe point.
+// isUnsafePoint returns whether p is an unsafe point.
 func (c *ctxt0) isUnsafePoint(p *obj.Prog) bool {
-	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
-		return true
+	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
+	// preemption sequence clobbers REGTMP.
+	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
+}
+
+// isRestartable returns whether p is a multi-instruction sequence that,
+// if preempted, can be restarted.
+func (c *ctxt0) isRestartable(p *obj.Prog) bool {
+	if c.isUnsafePoint(p) {
+		return false
 	}
-	// Most of the multi-instruction sequence uses REGTMP, except
-	// ones marked safe.
+	// If p is a multi-instruction sequence with uses REGTMP inserted by
+	// the assembler in order to materialize a large constant/offset, we
+	// can restart p (at the start of the instruction sequence), recompute
+	// the content of REGTMP, upon async preemption. Currently, all cases
+	// of assembler-inserted REGTMP fall into this category.
+	// If p doesn't use REGTMP, it can be simply preempted, so we don't
+	// mark it.
 	o := c.oplook(p)
 	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
@@ -555,6 +578,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		}
 		if REG_FCR0 <= a.Reg && a.Reg <= REG_FCR31 {
 			return C_FCREG
+		}
+		if REG_W0 <= a.Reg && a.Reg <= REG_W31 {
+			return C_WREG
 		}
 		if a.Reg == REG_LO {
 			return C_LO
@@ -1029,6 +1055,11 @@ func buildop(ctxt *obj.Link) {
 		case AMOVVL:
 			opset(AMOVVR, r0)
 
+		case AVMOVB:
+			opset(AVMOVH, r0)
+			opset(AVMOVW, r0)
+			opset(AVMOVD, r0)
+
 		case AMOVW,
 			AMOVD,
 			AMOVF,
@@ -1119,6 +1150,14 @@ func OP_FRRR(op uint32, r1 uint32, r2 uint32, r3 uint32) uint32 {
 
 func OP_JMP(op uint32, i uint32) uint32 {
 	return op | i&0x3FFFFFF
+}
+
+func OP_VI10(op uint32, df uint32, s10 int32, wd uint32, minor uint32) uint32 {
+	return 0x1e<<26 | (op&7)<<23 | (df&3)<<21 | uint32(s10&0x3FF)<<11 | (wd&31)<<6 | minor&0x3F
+}
+
+func OP_VMI10(s10 int32, rs uint32, wd uint32, minor uint32, df uint32) uint32 {
+	return 0x1e<<26 | uint32(s10&0x3FF)<<16 | (rs&31)<<11 | (wd&31)<<6 | (minor&15)<<2 | df&3
 }
 
 func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
@@ -1329,10 +1368,12 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.To.Reg), uint32(r))
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 0
-		rel.Type = objabi.R_CALLIND
+		if p.As == obj.ACALL {
+			rel := obj.Addrel(c.cursym)
+			rel.Off = int32(c.pc)
+			rel.Siz = 0
+			rel.Type = objabi.R_CALLIND
+		}
 
 	case 19: /* mov $lcon,r ==> lu+or */
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1629,6 +1670,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = objabi.R_ADDRMIPSTLS
+
+	case 56: /* vmov{b,h,w,d} $scon, wr */
+
+		v := c.regoff(&p.From)
+		o1 = OP_VI10(110, c.twobitdf(p.As), v, uint32(p.To.Reg), 7)
+
+	case 57: /* vld $soreg, wr */
+		v := c.lsoffset(p.As, c.regoff(&p.From))
+		o1 = OP_VMI10(v, uint32(p.From.Reg), uint32(p.To.Reg), 8, c.twobitdf(p.As))
+
+	case 58: /* vst wr, $soreg */
+		v := c.lsoffset(p.As, c.regoff(&p.To))
+		o1 = OP_VMI10(v, uint32(p.To.Reg), uint32(p.From.Reg), 9, c.twobitdf(p.As))
 	}
 
 	out[0] = o1
@@ -2008,4 +2062,44 @@ func vshift(a obj.As) bool {
 		return true
 	}
 	return false
+}
+
+// MSA Two-bit Data Format Field Encoding
+func (c *ctxt0) twobitdf(a obj.As) uint32 {
+	switch a {
+	case AVMOVB:
+		return 0
+	case AVMOVH:
+		return 1
+	case AVMOVW:
+		return 2
+	case AVMOVD:
+		return 3
+	default:
+		c.ctxt.Diag("unsupported data format %v", a)
+	}
+	return 0
+}
+
+// MSA Load/Store offset have to be multiple of size of data format
+func (c *ctxt0) lsoffset(a obj.As, o int32) int32 {
+	var mod int32
+	switch a {
+	case AVMOVB:
+		mod = 1
+	case AVMOVH:
+		mod = 2
+	case AVMOVW:
+		mod = 4
+	case AVMOVD:
+		mod = 8
+	default:
+		c.ctxt.Diag("unsupported instruction:%v", a)
+	}
+
+	if o%mod != 0 {
+		c.ctxt.Diag("invalid offset for %v: %d is not a multiple of %d", a, o, mod)
+	}
+
+	return o / mod
 }

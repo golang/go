@@ -5,6 +5,7 @@
 package poll
 
 import (
+	"internal/syscall/unix"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -86,6 +87,9 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
 	}
 	for {
 		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err != syscall.EAGAIN {
 			return n, err
 		}
@@ -169,7 +173,7 @@ func newTempPipe() (prfd, pwfd int, sc string, err error) {
 		defer atomic.StorePointer(&disableSplice, unsafe.Pointer(p))
 
 		// F_GETPIPE_SZ was added in 2.6.35, which does not have the -EAGAIN bug.
-		if _, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
+		if _, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fds[0]), syscall.F_GETPIPE_SZ, 0); errno != 0 {
 			*p = true
 			destroyTempPipe(fds[0], fds[1])
 			return -1, -1, "fcntl", errno

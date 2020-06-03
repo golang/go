@@ -1,0 +1,8 @@
+env GOBIN=.
+! go install
+stderr 'cannot install, GOBIN must be an absolute path'
+
+-- triv.go --
+package main
+
+func main() {}

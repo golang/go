@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
 
-		Adddynrel:        adddynrel,
+		Adddynrel2:       adddynrel2,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
@@ -54,10 +54,11 @@ func Init() (*sys.Arch, ld.Arch) {
 		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
-		Gentext:          gentext,
+		Gentext2:         gentext2,
 		Machoreloc1:      machoreloc1,
 
-		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
+		Androiddynld: "/system/bin/linker64",
+		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
 
 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 		Openbsddynld:   "/usr/libexec/ld.so",

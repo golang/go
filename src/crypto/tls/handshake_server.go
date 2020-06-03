@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
+	"time"
 )
 
 // serverHandshakeState contains details of a server handshake in progress.
@@ -36,10 +37,6 @@ type serverHandshakeState struct {
 
 // serverHandshake performs a TLS handshake as a server.
 func (c *Conn) serverHandshake() error {
-	// If this is the first server handshake, we generate a random key to
-	// encrypt the tickets with.
-	c.config.serverInitOnce.Do(func() { c.config.serverInit(nil) })
-
 	clientHello, err := c.readClientHello()
 	if err != nil {
 		return err
@@ -71,19 +68,15 @@ func (hs *serverHandshakeState) handshake() error {
 	c.buffering = true
 	if hs.checkForResumption() {
 		// The client has included a session ticket and so we do an abbreviated handshake.
+		c.didResume = true
 		if err := hs.doResumeHandshake(); err != nil {
 			return err
 		}
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		// ticketSupported is set in a resumption handshake if the
-		// ticket from the client was encrypted with an old session
-		// ticket key and thus a refreshed ticket should be sent.
-		if hs.hello.ticketSupported {
-			if err := hs.sendSessionTicket(); err != nil {
-				return err
-			}
+		if err := hs.sendSessionTicket(); err != nil {
+			return err
 		}
 		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
 			return err
@@ -95,7 +88,6 @@ func (hs *serverHandshakeState) handshake() error {
 		if err := hs.readFinished(nil); err != nil {
 			return err
 		}
-		c.didResume = true
 	} else {
 		// The client didn't include a session ticket, or it wasn't
 		// valid so we do a full handshake.
@@ -142,16 +134,18 @@ func (c *Conn) readClientHello() (*clientHelloMsg, error) {
 		return nil, unexpectedMessageError(clientHello, msg)
 	}
 
+	var configForClient *Config
+	originalConfig := c.config
 	if c.config.GetConfigForClient != nil {
 		chi := clientHelloInfo(c, clientHello)
-		if newConfig, err := c.config.GetConfigForClient(chi); err != nil {
+		if configForClient, err = c.config.GetConfigForClient(chi); err != nil {
 			c.sendAlert(alertInternalError)
 			return nil, err
-		} else if newConfig != nil {
-			newConfig.serverInitOnce.Do(func() { newConfig.serverInit(c.config) })
-			c.config = newConfig
+		} else if configForClient != nil {
+			c.config = configForClient
 		}
 	}
+	c.ticketKeys = originalConfig.ticketKeys(configForClient)
 
 	clientVersions := clientHello.supportedVersions
 	if len(clientHello.supportedVersions) == 0 {
@@ -193,7 +187,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	serverRandom := hs.hello.random
 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
 	maxVers := c.config.maxSupportedVersion()
-	if maxVers >= VersionTLS12 && c.vers < maxVers {
+	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
 		if c.vers == VersionTLS12 {
 			copy(serverRandom[24:], downgradeCanaryTLS12)
 		} else {
@@ -365,6 +359,11 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	hs.sessionState = &sessionState{usedOldKey: usedOldKey}
 	ok := hs.sessionState.unmarshal(plaintext)
 	if !ok {
+		return false
+	}
+
+	createdAt := time.Unix(int64(hs.sessionState.createdAt), 0)
+	if c.config.time().Sub(createdAt) > maxSessionTicketLifetime {
 		return false
 	}
 
@@ -549,6 +548,15 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		if err != nil {
 			return err
 		}
+	} else {
+		// Make sure the connection is still being verified whether or not
+		// the server requested a client certificate.
+		if c.config.VerifyConnection != nil {
+			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
 	}
 
 	// Get client key exchange
@@ -675,12 +683,22 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 }
 
 func (hs *serverHandshakeState) sendSessionTicket() error {
+	// ticketSupported is set in a resumption handshake if the
+	// ticket from the client was encrypted with an old session
+	// ticket key and thus a refreshed ticket should be sent.
 	if !hs.hello.ticketSupported {
 		return nil
 	}
 
 	c := hs.c
 	m := new(newSessionTicketMsg)
+
+	createdAt := uint64(c.config.time().Unix())
+	if hs.sessionState != nil {
+		// If this is re-wrapping an old key, then keep
+		// the original time it was created.
+		createdAt = hs.sessionState.createdAt
+	}
 
 	var certsFromClient [][]byte
 	for _, cert := range c.peerCertificates {
@@ -689,6 +707,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	state := sessionState{
 		vers:         c.vers,
 		cipherSuite:  hs.suite.id,
+		createdAt:    createdAt,
 		masterSecret: hs.masterSecret,
 		certificates: certsFromClient,
 	}
@@ -766,6 +785,19 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		c.verifiedChains = chains
 	}
 
+	c.peerCertificates = certs
+	c.ocspResponse = certificate.OCSPStaple
+	c.scts = certificate.SignedCertificateTimestamps
+
+	if len(certs) > 0 {
+		switch certs[0].PublicKey.(type) {
+		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+		default:
+			c.sendAlert(alertUnsupportedCertificate)
+			return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
+		}
+	}
+
 	if c.config.VerifyPeerCertificate != nil {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
 			c.sendAlert(alertBadCertificate)
@@ -773,20 +805,13 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		}
 	}
 
-	if len(certs) == 0 {
-		return nil
+	if c.config.VerifyConnection != nil {
+		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
+		}
 	}
 
-	switch certs[0].PublicKey.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
-	default:
-		c.sendAlert(alertUnsupportedCertificate)
-		return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
-	}
-
-	c.peerCertificates = certs
-	c.ocspResponse = certificate.OCSPStaple
-	c.scts = certificate.SignedCertificateTimestamps
 	return nil
 }
 

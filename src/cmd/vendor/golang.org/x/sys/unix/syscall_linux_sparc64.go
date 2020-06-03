@@ -8,7 +8,7 @@ package unix
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
-//sys	Dup2(oldfd int, newfd int) (err error)
+//sys	dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
@@ -30,8 +30,8 @@ package unix
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
-//sys	Setfsgid(gid int) (err error)
-//sys	Setfsuid(uid int) (err error)
+//sys	setfsgid(gid int) (prev int, err error)
+//sys	setfsuid(uid int) (prev int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
@@ -105,6 +105,10 @@ func (iov *Iovec) SetLen(length int) {
 
 func (msghdr *Msghdr) SetControllen(length int) {
 	msghdr.Controllen = uint64(length)
+}
+
+func (msghdr *Msghdr) SetIovlen(length int) {
+	msghdr.Iovlen = uint64(length)
 }
 
 func (cmsg *Cmsghdr) SetLen(length int) {

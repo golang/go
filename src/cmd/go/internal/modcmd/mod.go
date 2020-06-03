@@ -7,7 +7,6 @@ package modcmd
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 )
 
 var CmdMod = &base.Command{
@@ -31,8 +30,4 @@ See 'go help modules' for an overview of module functionality.
 		cmdVerify,
 		cmdWhy,
 	},
-}
-
-func addModFlags(cmd *base.Command) {
-	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
 }

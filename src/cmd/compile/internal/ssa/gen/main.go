@@ -26,6 +26,9 @@ import (
 	"sync"
 )
 
+// TODO: capitalize these types, so that we can more easily tell variable names
+// apart from type names, and avoid awkward func parameters like "arch arch".
+
 type arch struct {
 	name            string
 	pkg             string // obj package to import for this arch.
@@ -71,7 +74,7 @@ type opData struct {
 type blockData struct {
 	name     string // the suffix for this block ("EQ", "LT", etc.)
 	controls int    // the number of control values this type of block requires
-	auxint   string // the type of the AuxInt value, if any
+	aux      string // the type of the Aux/AuxInt value, if any
 }
 
 type regInfo struct {
@@ -226,10 +229,10 @@ func genOp() {
 	fmt.Fprintln(w, "switch k {")
 	for _, a := range archs {
 		for _, b := range a.blocks {
-			if b.auxint == "" {
+			if b.auxIntType() == "invalid" {
 				continue
 			}
-			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
+			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxIntType())
 		}
 	}
 	fmt.Fprintln(w, "}")
@@ -307,13 +310,13 @@ func genOp() {
 			}
 			if v.faultOnNilArg0 {
 				fmt.Fprintln(w, "faultOnNilArg0: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
 				}
 			}
 			if v.faultOnNilArg1 {
 				fmt.Fprintln(w, "faultOnNilArg1: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}
@@ -405,6 +408,7 @@ func genOp() {
 
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
 	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
 
 	// generate registers

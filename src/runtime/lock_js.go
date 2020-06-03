@@ -26,6 +26,10 @@ const (
 )
 
 func lock(l *mutex) {
+	lockWithRank(l, getLockRank(l))
+}
+
+func lock2(l *mutex) {
 	if l.key == mutex_locked {
 		// js/wasm is single-threaded so we should never
 		// observe this.
@@ -40,6 +44,10 @@ func lock(l *mutex) {
 }
 
 func unlock(l *mutex) {
+	unlockWithRank(l)
+}
+
+func unlock2(l *mutex) {
 	if l.key == mutex_unlocked {
 		throw("unlock of unlocked lock")
 	}
@@ -165,7 +173,9 @@ var idleID int32
 // beforeIdle gets called by the scheduler if no goroutine is awake.
 // If we are not already handling an event, then we pause for an async event.
 // If an event handler returned, we resume it and it will pause the execution.
-func beforeIdle(delay int64) bool {
+// beforeIdle either returns the specific goroutine to schedule next or
+// indicates with otherReady that some goroutine became ready.
+func beforeIdle(delay int64) (gp *g, otherReady bool) {
 	if delay > 0 {
 		clearIdleID()
 		if delay < 1e6 {
@@ -182,15 +192,14 @@ func beforeIdle(delay int64) bool {
 
 	if len(events) == 0 {
 		go handleAsyncEvent()
-		return true
+		return nil, true
 	}
 
 	e := events[len(events)-1]
 	if e.returned {
-		goready(e.gp, 1)
-		return true
+		return e.gp, false
 	}
-	return false
+	return nil, false
 }
 
 func handleAsyncEvent() {

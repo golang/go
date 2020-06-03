@@ -9,34 +9,8 @@
 package unix
 
 import (
-	"runtime"
 	"unsafe"
 )
-
-// Round the length of a raw sockaddr up to align it properly.
-func cmsgAlignOf(salen int) int {
-	salign := SizeofPtr
-
-	switch runtime.GOOS {
-	case "aix":
-		// There is no alignment on AIX.
-		salign = 1
-	case "darwin", "dragonfly", "solaris", "illumos":
-		// NOTE: It seems like 64-bit Darwin, DragonFly BSD,
-		// illumos, and Solaris kernels still require 32-bit
-		// aligned access to network subsystem.
-		if SizeofPtr == 8 {
-			salign = 4
-		}
-	case "netbsd", "openbsd":
-		// NetBSD and OpenBSD armv7 require 64-bit alignment.
-		if runtime.GOARCH == "arm" {
-			salign = 8
-		}
-	}
-
-	return (salen + salign - 1) & ^(salign - 1)
-}
 
 // CmsgLen returns the value to store in the Len field of the Cmsghdr
 // structure, taking into account any necessary alignment.
@@ -50,8 +24,8 @@ func CmsgSpace(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
 }
 
-func cmsgData(h *Cmsghdr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
+func (h *Cmsghdr) data(offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)) + offset)
 }
 
 // SocketControlMessage represents a socket control message.
@@ -94,10 +68,8 @@ func UnixRights(fds ...int) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_RIGHTS
 	h.SetLen(CmsgLen(datalen))
-	data := cmsgData(h)
-	for _, fd := range fds {
-		*(*int32)(data) = int32(fd)
-		data = unsafe.Pointer(uintptr(data) + 4)
+	for i, fd := range fds {
+		*(*int32)(h.data(4 * uintptr(i))) = int32(fd)
 	}
 	return b
 }

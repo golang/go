@@ -67,7 +67,7 @@ import "errors"
 // that insist on that format, and RFC3339 should be preferred for new protocols.
 // RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
 // when used with time.Parse they do not accept all the time formats
-// permitted by the RFCs.
+// permitted by the RFCs and they do accept time formats not formally defined.
 // The RFC3339Nano format removes trailing zeros from the seconds field
 // and thus may not sort correctly once formatted.
 const (
@@ -792,6 +792,9 @@ func skip(value, prefix string) (string, error) {
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
 //
+// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
+// as 19NN and a value NN < 69 will be treated as 20NN.
+//
 // In the absence of a time zone indicator, Parse returns a time in UTC.
 //
 // When parsing a time with a zone offset like -0700, if the offset corresponds
@@ -853,7 +856,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 		if std == 0 {
 			if len(value) != 0 {
-				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
+				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
 			}
 			break
 		}
@@ -1109,7 +1112,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
 		}
 		if m == 0 {
-			m = yday/31 + 1
+			m = (yday-1)/31 + 1
 			if int(daysBefore[m]) < yday {
 				m++
 			}
@@ -1387,7 +1390,7 @@ func ParseDuration(s string) (Duration, error) {
 		return 0, nil
 	}
 	if s == "" {
-		return 0, errors.New("time: invalid duration " + orig)
+		return 0, errors.New("time: invalid duration " + quote(orig))
 	}
 	for s != "" {
 		var (
@@ -1399,13 +1402,13 @@ func ParseDuration(s string) (Duration, error) {
 
 		// The next character must be [0-9.]
 		if !(s[0] == '.' || '0' <= s[0] && s[0] <= '9') {
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		// Consume [0-9]*
 		pl := len(s)
 		v, s, err = leadingInt(s)
 		if err != nil {
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		pre := pl != len(s) // whether we consumed anything before a period
 
@@ -1419,7 +1422,7 @@ func ParseDuration(s string) (Duration, error) {
 		}
 		if !pre && !post {
 			// no digits (e.g. ".s" or "-.s")
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 
 		// Consume unit.
@@ -1431,17 +1434,17 @@ func ParseDuration(s string) (Duration, error) {
 			}
 		}
 		if i == 0 {
-			return 0, errors.New("time: missing unit in duration " + orig)
+			return 0, errors.New("time: missing unit in duration " + quote(orig))
 		}
 		u := s[:i]
 		s = s[i:]
 		unit, ok := unitMap[u]
 		if !ok {
-			return 0, errors.New("time: unknown unit " + u + " in duration " + orig)
+			return 0, errors.New("time: unknown unit " + quote(u) + " in duration " + quote(orig))
 		}
 		if v > (1<<63-1)/unit {
 			// overflow
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		v *= unit
 		if f > 0 {
@@ -1450,13 +1453,13 @@ func ParseDuration(s string) (Duration, error) {
 			v += int64(float64(f) * (float64(unit) / scale))
 			if v < 0 {
 				// overflow
-				return 0, errors.New("time: invalid duration " + orig)
+				return 0, errors.New("time: invalid duration " + quote(orig))
 			}
 		}
 		d += v
 		if d < 0 {
 			// overflow
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 	}
 

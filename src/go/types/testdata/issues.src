@@ -4,8 +4,12 @@
 
 package issues
 
-import "fmt"
-import syn "cmd/compile/internal/syntax"
+import (
+	"fmt"
+	syn "cmd/compile/internal/syntax"
+	t1 "text/template"
+	t2 "html/template"
+)
 
 func issue7035() {
 	type T struct{ X int }
@@ -125,6 +129,16 @@ func issue10260() {
 		t1 *T1
 		t2 *T2
 	)
+
+	var x I1
+	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
+
+	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+
+	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
+
 	i1 = i0 /* ERROR cannot use .* missing method foo */
 	i1 = t0 /* ERROR cannot use .* missing method foo */
 	i1 = i2 /* ERROR cannot use .* wrong type for method foo */
@@ -142,7 +156,7 @@ func issue10260() {
 	// a few more - less exhaustive now
 
 	f := func(I1, I2){}
-	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo */)
+	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo \(have func\(\), want func\(x int\)\) */ )
 
 	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
 	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
@@ -316,7 +330,7 @@ func issue28281g() (... /* ERROR expected type */ TT)
 
 // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
 func issue26234a(f *syn.File) {
-	// The error message below should refer to the actual package path base (syntax)
+	// The error message below should refer to the actual package name (syntax)
 	// not the local package name (syn).
 	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
 }
@@ -331,9 +345,21 @@ type E1 struct{ f int }
 type E2 struct{ f int }
 
 func issue26234b(x T) {
-	_ = x.f /* ERROR ambiguous selector f */
+	_ = x.f /* ERROR ambiguous selector x.f */
 }
 
 func issue26234c() {
 	T.x /* ERROR T.x undefined \(type T has no method x\) */ ()
+}
+
+func issue35895() {
+	// T is defined in this package, don't qualify its name with the package name.
+	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
+
+	// There is only one package with name syntax imported, only use the (global) package name in error messages.
+	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
+
+	// Because both t1 and t2 have the same global package name (template),
+	// qualify packages with full path name in this case.
+	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
 }

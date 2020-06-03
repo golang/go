@@ -33,6 +33,7 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 )
@@ -61,6 +62,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
+
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	q := (*obj.Prog)(nil)
 	if framesize <= objabi.StackSmall {
@@ -156,6 +163,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	bls.As = ABLS
 	bls.To.Type = obj.TYPE_BRANCH
 
+	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
+
 	var last *obj.Prog
 	for last = c.cursym.Func.Text; last.Link != nil; last = last.Link {
 	}
@@ -167,7 +176,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	// MOV	LR, R3
 	movlr := obj.Appendp(pcdata, c.newprog)
@@ -204,18 +214,16 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+
 	// B	start
-	jmp := obj.Appendp(call, c.newprog)
+	jmp := obj.Appendp(pcdata, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = c.cursym.Func.Text.Link
 	jmp.Spadj = +framesize
 
-	// placeholder for bls's jump target
-	// p = obj.Appendp(ctxt, p)
-	// p.As = obj.ANOP
-
-	return bls
+	return end
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -586,6 +594,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
+			var prologueEnd *obj.Prog
+
 			aoffset := c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
@@ -611,6 +621,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGTMP
+
+				prologueEnd = q
 
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
@@ -655,7 +667,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Offset = int64(-aoffset)
 				q1.To.Reg = REGSP
 				q1.Spadj = aoffset
+
+				prologueEnd = q1
 			}
+
+			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
 			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 				q1 = obj.Appendp(q1, c.newprog)

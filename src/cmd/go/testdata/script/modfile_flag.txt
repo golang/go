@@ -11,6 +11,15 @@ cp go.sum go.sum.orig
 go mod init example.com/m
 grep example.com/m go.alt.mod
 
+# 'go env GOMOD' should print the path to the real file.
+# 'go env' does not recognize the '-modfile' flag.
+go env GOMOD
+stdout '^\$WORK[/\\]gopath[/\\]src[/\\]go.mod$'
+
+# 'go list -m' should print the effective go.mod file as GoMod though.
+go list -m -f '{{.GoMod}}'
+stdout '^go.alt.mod$'
+
 # go mod edit should operate on the alternate file
 go mod edit -require rsc.io/quote@v1.5.2
 grep rsc.io/quote go.alt.mod

@@ -11,7 +11,6 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"hash"
@@ -27,14 +26,7 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		if !ok {
 			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
 		}
-		ecdsaSig := new(ecdsaSignature)
-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
-			return err
-		}
-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+		if !ecdsa.VerifyASN1(pubKey, signed, sig) {
 			return errors.New("ECDSA verification failure")
 		}
 	case signatureEd25519:
@@ -114,7 +106,7 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	case Ed25519:
 		sigType = signatureEd25519
 	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
 	}
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, ECDSAWithSHA1:
@@ -128,7 +120,7 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	case Ed25519:
 		hash = directSigning
 	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
 	}
 	return sigType, hash, nil
 }

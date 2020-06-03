@@ -193,7 +193,7 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 		// so try to extend the address space.
 		p = sbrk(n)
 	}
-	if p == nil {
+	if p == nil && v == nil {
 		p = memAlloc(n)
 		memCheck()
 	}

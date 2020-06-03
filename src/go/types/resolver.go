@@ -141,9 +141,10 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 	}
 
 	// no package yet => import it
-	if path == "C" && check.conf.FakeImportC {
+	if path == "C" && (check.conf.FakeImportC || check.conf.UsesCgo) {
 		imp = NewPackage("C", "C")
-		imp.fake = true
+		imp.fake = true // package scope is not populated
+		imp.cgo = check.conf.UsesCgo
 	} else {
 		// ordinary import
 		var err error
@@ -188,6 +189,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
+		check.pkgCnt[imp.name]++
 		return imp
 	}
 

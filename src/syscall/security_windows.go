@@ -163,7 +163,7 @@ func (sid *SID) String() (string, error) {
 		return "", e
 	}
 	defer LocalFree((Handle)(unsafe.Pointer(s)))
-	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
+	return utf16PtrToString(s), nil
 }
 
 // Len returns the length, in bytes, of a valid security identifier sid.

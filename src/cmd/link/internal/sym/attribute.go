@@ -4,6 +4,8 @@
 
 package sym
 
+import "sync/atomic"
+
 // Attribute is a set of common symbol attributes.
 type Attribute int32
 
@@ -84,34 +86,44 @@ const (
 	// 19 attributes defined so far.
 )
 
-func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
-func (a Attribute) External() bool         { return a&AttrExternal != 0 }
-func (a Attribute) NoSplit() bool          { return a&AttrNoSplit != 0 }
-func (a Attribute) Reachable() bool        { return a&AttrReachable != 0 }
-func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0 }
-func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
-func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
-func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
-func (a Attribute) NotInSymbolTable() bool { return a&AttrNotInSymbolTable != 0 }
-func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
-func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
-func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
-func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
-func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
-func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
-func (a Attribute) SubSymbol() bool        { return a&AttrSubSymbol != 0 }
-func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
-func (a Attribute) TopFrame() bool         { return a&AttrTopFrame != 0 }
-func (a Attribute) ReadOnly() bool         { return a&AttrReadOnly != 0 }
+func (a *Attribute) load() Attribute { return Attribute(atomic.LoadInt32((*int32)(a))) }
 
-func (a Attribute) CgoExport() bool {
+func (a *Attribute) DuplicateOK() bool      { return a.load()&AttrDuplicateOK != 0 }
+func (a *Attribute) External() bool         { return a.load()&AttrExternal != 0 }
+func (a *Attribute) NoSplit() bool          { return a.load()&AttrNoSplit != 0 }
+func (a *Attribute) Reachable() bool        { return a.load()&AttrReachable != 0 }
+func (a *Attribute) CgoExportDynamic() bool { return a.load()&AttrCgoExportDynamic != 0 }
+func (a *Attribute) CgoExportStatic() bool  { return a.load()&AttrCgoExportStatic != 0 }
+func (a *Attribute) Special() bool          { return a.load()&AttrSpecial != 0 }
+func (a *Attribute) StackCheck() bool       { return a.load()&AttrStackCheck != 0 }
+func (a *Attribute) NotInSymbolTable() bool { return a.load()&AttrNotInSymbolTable != 0 }
+func (a *Attribute) OnList() bool           { return a.load()&AttrOnList != 0 }
+func (a *Attribute) Local() bool            { return a.load()&AttrLocal != 0 }
+func (a *Attribute) ReflectMethod() bool    { return a.load()&AttrReflectMethod != 0 }
+func (a *Attribute) MakeTypelink() bool     { return a.load()&AttrMakeTypelink != 0 }
+func (a *Attribute) Shared() bool           { return a.load()&AttrShared != 0 }
+func (a *Attribute) VisibilityHidden() bool { return a.load()&AttrVisibilityHidden != 0 }
+func (a *Attribute) SubSymbol() bool        { return a.load()&AttrSubSymbol != 0 }
+func (a *Attribute) Container() bool        { return a.load()&AttrContainer != 0 }
+func (a *Attribute) TopFrame() bool         { return a.load()&AttrTopFrame != 0 }
+func (a *Attribute) ReadOnly() bool         { return a.load()&AttrReadOnly != 0 }
+
+func (a *Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()
 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
-	if value {
-		*a |= flag
-	} else {
-		*a &^= flag
+	// XXX it would be nice if we have atomic And, Or.
+	for {
+		a0 := a.load()
+		var anew Attribute
+		if value {
+			anew = a0 | flag
+		} else {
+			anew = a0 &^ flag
+		}
+		if atomic.CompareAndSwapInt32((*int32)(a), int32(a0), int32(anew)) {
+			return
+		}
 	}
 }

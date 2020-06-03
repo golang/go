@@ -211,7 +211,7 @@ applied to a Go struct, but now a Module struct:
         Main      bool         // is this the main module?
         Indirect  bool         // is this module only an indirect dependency of main module?
         Dir       string       // directory holding files for this module, if any
-        GoMod     string       // path to go.mod file for this module, if any
+        GoMod     string       // path to go.mod file used when loading this module, if any
         GoVersion string       // go version used in module
         Error     *ModuleError // error loading module
     }
@@ -219,6 +219,9 @@ applied to a Go struct, but now a Module struct:
     type ModuleError struct {
         Err string // the error itself
     }
+
+The file GoMod refers to may be outside the module directory if the
+module is in the module cache or if the -modfile flag is used.
 
 The default output is to print the module path and then
 information about the version and replacement if any.
@@ -387,15 +390,24 @@ func runList(cmd *base.Command, args []string) {
 
 		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
+			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
+
+			if *listVersions {
+				base.Fatalf(actionDisabledFormat, "determine available versions")
+			}
+			if *listU {
+				base.Fatalf(actionDisabledFormat, "determine available upgrades")
+			}
+
 			for _, arg := range args {
 				// In vendor mode, the module graph is incomplete: it contains only the
 				// explicit module dependencies and the modules that supply packages in
 				// the import graph. Reject queries that imply more information than that.
 				if arg == "all" {
-					base.Fatalf("go list -m: can't compute 'all' using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+					base.Fatalf(actionDisabledFormat, "compute 'all'")
 				}
 				if strings.Contains(arg, "...") {
-					base.Fatalf("go list -m: can't match module patterns using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+					base.Fatalf(actionDisabledFormat, "match module patterns")
 				}
 			}
 		}
@@ -439,6 +451,7 @@ func runList(cmd *base.Command, args []string) {
 		pkgs = load.PackagesAndErrors(args)
 	} else {
 		pkgs = load.Packages(args)
+		base.ExitIfErrors()
 	}
 
 	if cache.Default() == nil {
@@ -459,9 +472,6 @@ func runList(cmd *base.Command, args []string) {
 		c := cache.Default()
 		// Add test binaries to packages to be listed.
 		for _, p := range pkgs {
-			if p.Error != nil {
-				continue
-			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				var pmain, ptest, pxtest *load.Package
 				var err error

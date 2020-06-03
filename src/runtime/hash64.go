@@ -6,7 +6,7 @@
 //   xxhash: https://code.google.com/p/xxhash/
 // cityhash: https://code.google.com/p/cityhash/
 
-// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
+// +build amd64 arm64 mips64 mips64le ppc64 ppc64le riscv64 s390x wasm
 
 package runtime
 

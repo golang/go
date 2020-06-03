@@ -307,7 +307,7 @@ func p256Diff(out, in, in2 *[p256Limbs]uint32) {
 }
 
 // p256ReduceDegree sets out = tmp/R mod p where tmp contains 64-bit words with
-// the same 29,28,... bit positions as an field element.
+// the same 29,28,... bit positions as a field element.
 //
 // The values in field elements are in Montgomery form: x*R mod p where R =
 // 2**257. Since we just multiplied two Montgomery values together, the result

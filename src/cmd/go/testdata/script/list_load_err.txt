@@ -1,0 +1,79 @@
+# go list -e -deps should list imports from any file it can read, even if
+# other files in the same package cause go/build.Import to return an error.
+# Verfifies golang.org/issue/38568
+
+
+go list -e -deps ./scan
+stdout m/want
+
+
+go list -e -deps ./multi
+stdout m/want
+
+
+go list -e -deps ./constraint
+stdout m/want
+
+
+[cgo] go list -e -test -deps ./cgotest
+[cgo] stdout m/want
+
+
+[cgo] go list -e -deps ./cgoflag
+[cgo] stdout m/want
+
+-- go.mod --
+module m
+
+go 1.14
+
+-- want/want.go --
+package want
+
+-- scan/scan.go --
+// scan error
+ʕ◔ϖ◔ʔ
+
+-- scan/good.go --
+package scan
+
+import _ "m/want"
+
+-- multi/a.go --
+package a
+
+-- multi/b.go --
+package b
+
+import _ "m/want"
+
+-- constraint/constraint.go --
+// +build !!nope
+
+package constraint
+
+-- constraint/good.go --
+package constraint
+
+import _ "m/want"
+
+-- cgotest/cgo_test.go --
+package cgo_test
+
+// cgo is not allowed in tests.
+// See golang.org/issue/18647
+
+import "C"
+import (
+	"testing"
+	_ "m/want"
+)
+
+func Test(t *testing.T) {}
+
+-- cgoflag/cgoflag.go --
+package cgoflag
+
+// #cgo ʕ◔ϖ◔ʔ:
+
+import _ "m/want"

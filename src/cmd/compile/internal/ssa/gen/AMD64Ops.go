@@ -127,6 +127,7 @@ func init() {
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
 		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, 0}}
 		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gp2flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 		flagsgp      = regInfo{inputs: nil, outputs: gponly}
 
 		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
@@ -135,10 +136,11 @@ func init() {
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
 
-		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
-		gp21load  = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
-		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
-		gp21pax   = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+		gpload      = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+		gp21load    = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
+		gploadidx   = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsb, gpsp, 0}, outputs: gponly}
+		gp21pax     = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
 
 		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
 		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
@@ -220,10 +222,13 @@ func init() {
 		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
 		{name: "MULQU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt64,Flags)", asm: "MULQ", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply). Returns uint64(x), and flags set to overflow if uint64(x) != x.
 
-		{name: "HMULQ", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULQ", clobberFlags: true}, // (arg0 * arg1) >> width
-		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
-		{name: "HMULQU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULQ", clobberFlags: true}, // (arg0 * arg1) >> width
-		{name: "HMULLU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
+		// HMULx[U] are intentionally not marked as commutative, even though they are.
+		// This is because they have asymmetric register requirements.
+		// There are rewrite rules to try to place arguments in preferable slots.
+		{name: "HMULQ", argLength: 2, reg: gp21hmul, asm: "IMULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+		{name: "HMULQU", argLength: 2, reg: gp21hmul, asm: "MULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
 
 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
 
@@ -295,6 +300,24 @@ func init() {
 		{name: "CMPLconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPL", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
 		{name: "CMPWconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPW", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
 		{name: "CMPBconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPB", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
+
+		// compare *(arg0+N*arg1+auxint+aux) to arg2 (in that order). arg3=mem.
+		{name: "CMPQloadidx8", argLength: 4, reg: gp2flagsLoad, asm: "CMPQ", scale: 8, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPQloadidx1", argLength: 4, reg: gp2flagsLoad, asm: "CMPQ", scale: 1, commutative: true, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPLloadidx4", argLength: 4, reg: gp2flagsLoad, asm: "CMPL", scale: 4, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPLloadidx1", argLength: 4, reg: gp2flagsLoad, asm: "CMPL", scale: 1, commutative: true, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPWloadidx2", argLength: 4, reg: gp2flagsLoad, asm: "CMPW", scale: 2, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPWloadidx1", argLength: 4, reg: gp2flagsLoad, asm: "CMPW", scale: 1, commutative: true, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPBloadidx1", argLength: 4, reg: gp2flagsLoad, asm: "CMPB", scale: 1, commutative: true, aux: "SymOff", typ: "Flags", symEffect: "Read"},
+
+		// compare *(arg0+N*arg1+ValAndOff(AuxInt).Off()+aux) to ValAndOff(AuxInt).Val() (in that order). arg2=mem.
+		{name: "CMPQconstloadidx8", argLength: 3, reg: gp1flagsLoad, asm: "CMPQ", scale: 8, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPQconstloadidx1", argLength: 3, reg: gp1flagsLoad, asm: "CMPQ", scale: 1, commutative: true, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPLconstloadidx4", argLength: 3, reg: gp1flagsLoad, asm: "CMPL", scale: 4, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPLconstloadidx1", argLength: 3, reg: gp1flagsLoad, asm: "CMPL", scale: 1, commutative: true, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPWconstloadidx2", argLength: 3, reg: gp1flagsLoad, asm: "CMPW", scale: 2, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPWconstloadidx1", argLength: 3, reg: gp1flagsLoad, asm: "CMPW", scale: 1, commutative: true, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
+		{name: "CMPBconstloadidx1", argLength: 3, reg: gp1flagsLoad, asm: "CMPB", scale: 1, commutative: true, aux: "SymValAndOff", typ: "Flags", symEffect: "Read"},
 
 		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
 		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
@@ -387,6 +410,32 @@ func init() {
 		{name: "XORQload", argLength: 3, reg: gp21load, asm: "XORQ", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
 		{name: "XORLload", argLength: 3, reg: gp21load, asm: "XORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
 
+		{name: "ADDLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ADDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "ADDLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "ADDQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ADDQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ADDQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ADDQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "SUBLloadidx1", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "SUBLloadidx4", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "SUBLloadidx8", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "SUBQloadidx1", argLength: 4, reg: gp21loadidx, asm: "SUBQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "SUBQloadidx8", argLength: 4, reg: gp21loadidx, asm: "SUBQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "ANDLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ANDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "ANDLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "ANDQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ANDQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ANDQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ANDQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "ORLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "ORLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "ORQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ORQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "ORQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ORQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "XORLloadidx1", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "XORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
+		{name: "XORLloadidx8", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+		{name: "XORQloadidx1", argLength: 4, reg: gp21loadidx, asm: "XORQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
+		{name: "XORQloadidx8", argLength: 4, reg: gp21loadidx, asm: "XORQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
+
 		// direct binary-op on memory (read-modify-write)
 		{name: "ADDQmodify", argLength: 3, reg: gpstore, asm: "ADDQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) += arg1, arg2=mem
 		{name: "SUBQmodify", argLength: 3, reg: gpstore, asm: "SUBQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) -= arg1, arg2=mem
@@ -398,6 +447,53 @@ func init() {
 		{name: "ANDLmodify", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) &= arg1, arg2=mem
 		{name: "ORLmodify", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},   // *(arg0+auxint+aux) |= arg1, arg2=mem
 		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
+
+		{name: "ADDQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ADDQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) += arg2, arg3=mem
+		{name: "ADDQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ADDQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) += arg2, arg3=mem
+		{name: "SUBQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "SUBQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) -= arg2, arg3=mem
+		{name: "SUBQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "SUBQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) -= arg2, arg3=mem
+		{name: "ANDQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ANDQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) &= arg2, arg3=mem
+		{name: "ANDQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ANDQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) &= arg2, arg3=mem
+		{name: "ORQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ORQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+auxint+aux) |= arg2, arg3=mem
+		{name: "ORQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ORQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+auxint+aux) |= arg2, arg3=mem
+		{name: "XORQmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "XORQ", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) ^= arg2, arg3=mem
+		{name: "XORQmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "XORQ", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) ^= arg2, arg3=mem
+		{name: "ADDLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) += arg2, arg3=mem
+		{name: "ADDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) += arg2, arg3=mem
+		{name: "ADDLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ADDL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) += arg2, arg3=mem
+		{name: "SUBLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) -= arg2, arg3=mem
+		{name: "SUBLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) -= arg2, arg3=mem
+		{name: "SUBLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "SUBL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) -= arg2, arg3=mem
+		{name: "ANDLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) &= arg2, arg3=mem
+		{name: "ANDLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) &= arg2, arg3=mem
+		{name: "ANDLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ANDL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) &= arg2, arg3=mem
+		{name: "ORLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+auxint+aux) |= arg2, arg3=mem
+		{name: "ORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+4*arg1+auxint+aux) |= arg2, arg3=mem
+		{name: "ORLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "ORL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+auxint+aux) |= arg2, arg3=mem
+		{name: "XORLmodifyidx1", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 1, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+auxint+aux) ^= arg2, arg3=mem
+		{name: "XORLmodifyidx4", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 4, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+auxint+aux) ^= arg2, arg3=mem
+		{name: "XORLmodifyidx8", argLength: 4, reg: gpstoreidx, asm: "XORL", scale: 8, aux: "SymOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+auxint+aux) ^= arg2, arg3=mem
+
+		{name: "ADDQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ADDQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ADDQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ANDQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ANDQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ANDQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ORQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ORQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ORQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "XORQconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORQ", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "XORQconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "XORQ", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ADDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ADDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ADDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) += ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ANDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ANDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ANDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) &= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "ORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"},   // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) |= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "XORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+1*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "XORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+4*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
+		{name: "XORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write"}, // *(arg0+8*arg1+ValAndOff(AuxInt).Off()+aux) ^= ValAndOff(AuxInt).Val(), arg2=mem
 
 		// unary ops
 		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true, clobberFlags: true}, // -arg0
@@ -594,15 +690,14 @@ func init() {
 		{name: "MOVQloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVQ", scale: 1, aux: "SymOff", typ: "UInt64", symEffect: "Read"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
 		{name: "MOVQloadidx8", argLength: 3, reg: gploadidx, asm: "MOVQ", scale: 8, aux: "SymOff", typ: "UInt64", symEffect: "Read"},                       // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
 		// TODO: sign-extending indexed loads
-		// TODO: mark the MOVXstoreidx1 ops as commutative.  Generates too many rewrite rules at the moment.
-		{name: "MOVBstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVB", scale: 1, aux: "SymOff", symEffect: "Write"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVWstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVW", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVWstoreidx2", argLength: 4, reg: gpstoreidx, asm: "MOVW", scale: 2, aux: "SymOff", symEffect: "Write"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
-		{name: "MOVLstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVL", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVLstoreidx4", argLength: 4, reg: gpstoreidx, asm: "MOVL", scale: 4, aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
-		{name: "MOVLstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVL", scale: 8, aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
-		{name: "MOVQstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVQ", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVQ", scale: 8, aux: "SymOff", symEffect: "Write"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVB", scale: 1, aux: "SymOff", symEffect: "Write"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVWstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVW", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVWstoreidx2", argLength: 4, reg: gpstoreidx, asm: "MOVW", scale: 2, aux: "SymOff", symEffect: "Write"},                    // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+		{name: "MOVLstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVL", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVLstoreidx4", argLength: 4, reg: gpstoreidx, asm: "MOVL", scale: 4, aux: "SymOff", symEffect: "Write"},                    // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+		{name: "MOVLstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVL", scale: 8, aux: "SymOff", symEffect: "Write"},                    // store 4 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVQstoreidx1", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVQ", scale: 1, aux: "SymOff", symEffect: "Write"}, // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVQ", scale: 8, aux: "SymOff", symEffect: "Write"},                    // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 		// TODO: add size-mismatched indexed loads, like MOVBstoreidx4.
 
 		// For storeconst ops, the AuxInt field encodes both
@@ -613,13 +708,13 @@ func init() {
 		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 4 bytes of ...
 		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of ...
 
-		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVB", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
-		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVW", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 2 bytes of ... arg1 ...
-		{name: "MOVWstoreconstidx2", argLength: 3, reg: gpstoreconstidx, asm: "MOVW", scale: 2, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 2 bytes of ... 2*arg1 ...
-		{name: "MOVLstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVL", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 4 bytes of ... arg1 ...
-		{name: "MOVLstoreconstidx4", argLength: 3, reg: gpstoreconstidx, asm: "MOVL", scale: 4, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 4 bytes of ... 4*arg1 ...
-		{name: "MOVQstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store 8 bytes of ... arg1 ...
-		{name: "MOVQstoreconstidx8", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", scale: 8, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store 8 bytes of ... 8*arg1 ...
+		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVB", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
+		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVW", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 2 bytes of ... arg1 ...
+		{name: "MOVWstoreconstidx2", argLength: 3, reg: gpstoreconstidx, asm: "MOVW", scale: 2, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"},                    // store low 2 bytes of ... 2*arg1 ...
+		{name: "MOVLstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVL", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 4 bytes of ... arg1 ...
+		{name: "MOVLstoreconstidx4", argLength: 3, reg: gpstoreconstidx, asm: "MOVL", scale: 4, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"},                    // store low 4 bytes of ... 4*arg1 ...
+		{name: "MOVQstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVQ", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store 8 bytes of ... arg1 ...
+		{name: "MOVQstoreconstidx8", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", scale: 8, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"},                    // store 8 bytes of ... 8*arg1 ...
 
 		// arg0 = pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
@@ -660,7 +755,7 @@ func init() {
 		// arg0 = destination pointer
 		// arg1 = source pointer
 		// arg2 = mem
-		// auxint = offset from duffcopy symbol to call
+		// auxint = # of bytes to copy, must be multiple of 16
 		// returns memory
 		{
 			name:      "DUFFCOPY",
@@ -715,14 +810,16 @@ func init() {
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary, but may clobber others.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+
+		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{dx, bx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{cx, dx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{ax, cx}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 
 		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the

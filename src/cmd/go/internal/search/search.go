@@ -9,7 +9,6 @@ import (
 	"cmd/go/internal/cfg"
 	"fmt"
 	"go/build"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,25 +18,97 @@ import (
 
 // A Match represents the result of matching a single package pattern.
 type Match struct {
-	Pattern string   // the pattern itself
-	Literal bool     // whether it is a literal (no wildcards)
-	Pkgs    []string // matching packages (dirs or import paths)
+	pattern string   // the pattern itself
+	Dirs    []string // if the pattern is local, directories that potentially contain matching packages
+	Pkgs    []string // matching packages (import paths)
+	Errs    []error  // errors matching the patterns to packages, NOT errors loading those packages
+
+	// Errs may be non-empty even if len(Pkgs) > 0, indicating that some matching
+	// packages could be located but results may be incomplete.
+	// If len(Pkgs) == 0 && len(Errs) == 0, the pattern is well-formed but did not
+	// match any packages.
 }
 
-// MatchPackages returns all the packages that can be found
-// under the $GOPATH directories and $GOROOT matching pattern.
-// The pattern is either "all" (all packages), "std" (standard packages),
-// "cmd" (standard commands), or a path including "...".
-func MatchPackages(pattern string) *Match {
-	m := &Match{
-		Pattern: pattern,
-		Literal: false,
+// NewMatch returns a Match describing the given pattern,
+// without resolving its packages or errors.
+func NewMatch(pattern string) *Match {
+	return &Match{pattern: pattern}
+}
+
+// Pattern returns the pattern to be matched.
+func (m *Match) Pattern() string { return m.pattern }
+
+// AddError appends a MatchError wrapping err to m.Errs.
+func (m *Match) AddError(err error) {
+	m.Errs = append(m.Errs, &MatchError{Match: m, Err: err})
+}
+
+// Literal reports whether the pattern is free of wildcards and meta-patterns.
+//
+// A literal pattern must match at most one package.
+func (m *Match) IsLiteral() bool {
+	return !strings.Contains(m.pattern, "...") && !m.IsMeta()
+}
+
+// Local reports whether the pattern must be resolved from a specific root or
+// directory, such as a filesystem path or a single module.
+func (m *Match) IsLocal() bool {
+	return build.IsLocalImport(m.pattern) || filepath.IsAbs(m.pattern)
+}
+
+// Meta reports whether the pattern is a “meta-package” keyword that represents
+// multiple packages, such as "std", "cmd", or "all".
+func (m *Match) IsMeta() bool {
+	return IsMetaPackage(m.pattern)
+}
+
+// IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
+func IsMetaPackage(name string) bool {
+	return name == "std" || name == "cmd" || name == "all"
+}
+
+// A MatchError indicates an error that occurred while attempting to match a
+// pattern.
+type MatchError struct {
+	Match *Match
+	Err   error
+}
+
+func (e *MatchError) Error() string {
+	if e.Match.IsLiteral() {
+		return fmt.Sprintf("%s: %v", e.Match.Pattern(), e.Err)
 	}
+	return fmt.Sprintf("pattern %s: %v", e.Match.Pattern(), e.Err)
+}
+
+func (e *MatchError) Unwrap() error {
+	return e.Err
+}
+
+// MatchPackages sets m.Pkgs to a non-nil slice containing all the packages that
+// can be found under the $GOPATH directories and $GOROOT that match the
+// pattern. The pattern must be either "all" (all packages), "std" (standard
+// packages), "cmd" (standard commands), or a path including "...".
+//
+// If any errors may have caused the set of packages to be incomplete,
+// MatchPackages appends those errors to m.Errs.
+func (m *Match) MatchPackages() {
+	m.Pkgs = []string{}
+	if m.IsLocal() {
+		m.AddError(fmt.Errorf("internal error: MatchPackages: %s is not a valid package pattern", m.pattern))
+		return
+	}
+
+	if m.IsLiteral() {
+		m.Pkgs = []string{m.pattern}
+		return
+	}
+
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if !IsMetaPackage(pattern) {
-		match = MatchPattern(pattern)
-		treeCanMatch = TreeCanMatchPattern(pattern)
+	if !m.IsMeta() {
+		match = MatchPattern(m.pattern)
+		treeCanMatch = TreeCanMatchPattern(m.pattern)
 	}
 
 	have := map[string]bool{
@@ -48,17 +119,20 @@ func MatchPackages(pattern string) *Match {
 	}
 
 	for _, src := range cfg.BuildContext.SrcDirs() {
-		if (pattern == "std" || pattern == "cmd") && src != cfg.GOROOTsrc {
+		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
 			continue
 		}
 		src = filepath.Clean(src) + string(filepath.Separator)
 		root := src
-		if pattern == "cmd" {
+		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
-		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
-			if err != nil || path == src {
-				return nil
+		err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return err // Likely a permission error, which could interfere with matching.
+			}
+			if path == src {
+				return nil // GOROOT/src and GOPATH/src cannot contain packages.
 			}
 
 			want := true
@@ -69,7 +143,7 @@ func MatchPackages(pattern string) *Match {
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if pattern == "std" && (!IsStandardImportPath(name) || name == "cmd") {
+			if m.pattern == "std" && (!IsStandardImportPath(name) || name == "cmd") {
 				// The name "std" is only the standard library.
 				// If the name is cmd, it's the root of the command tree.
 				want = false
@@ -100,23 +174,30 @@ func MatchPackages(pattern string) *Match {
 			pkg, err := cfg.BuildContext.ImportDir(path, 0)
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
+					// The package does not actually exist, so record neither the package
+					// nor the error.
 					return nil
 				}
+				// There was an error importing path, but not matching it,
+				// which is all that Match promises to do.
+				// Ignore the import error.
 			}
 
 			// If we are expanding "cmd", skip main
 			// packages under cmd/vendor. At least as of
 			// March, 2017, there is one there for the
 			// vendored pprof tool.
-			if pattern == "cmd" && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
+			if m.pattern == "cmd" && pkg != nil && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
 				return nil
 			}
 
 			m.Pkgs = append(m.Pkgs, name)
 			return nil
 		})
+		if err != nil {
+			m.AddError(err)
+		}
 	}
-	return m
 }
 
 var modRoot string
@@ -125,24 +206,31 @@ func SetModRoot(dir string) {
 	modRoot = dir
 }
 
-// MatchPackagesInFS is like MatchPackages but is passed a pattern that
-// begins with an absolute path or "./" or "../". On Windows, the pattern may
-// use slash or backslash separators or a mix of both.
+// MatchDirs sets m.Dirs to a non-nil slice containing all directories that
+// potentially match a local pattern. The pattern must begin with an absolute
+// path, or "./", or "../". On Windows, the pattern may use slash or backslash
+// separators or a mix of both.
 //
-// MatchPackagesInFS scans the tree rooted at the directory that contains the
-// first "..." wildcard and returns a match with packages that
-func MatchPackagesInFS(pattern string) *Match {
-	m := &Match{
-		Pattern: pattern,
-		Literal: false,
+// If any errors may have caused the set of directories to be incomplete,
+// MatchDirs appends those errors to m.Errs.
+func (m *Match) MatchDirs() {
+	m.Dirs = []string{}
+	if !m.IsLocal() {
+		m.AddError(fmt.Errorf("internal error: MatchDirs: %s is not a valid filesystem pattern", m.pattern))
+		return
+	}
+
+	if m.IsLiteral() {
+		m.Dirs = []string{m.pattern}
+		return
 	}
 
 	// Clean the path and create a matching predicate.
 	// filepath.Clean removes "./" prefixes (and ".\" on Windows). We need to
 	// preserve these, since they are meaningful in MatchPattern and in
 	// returned import paths.
-	cleanPattern := filepath.Clean(pattern)
-	isLocal := strings.HasPrefix(pattern, "./") || (os.PathSeparator == '\\' && strings.HasPrefix(pattern, `.\`))
+	cleanPattern := filepath.Clean(m.pattern)
+	isLocal := strings.HasPrefix(m.pattern, "./") || (os.PathSeparator == '\\' && strings.HasPrefix(m.pattern, `.\`))
 	prefix := ""
 	if cleanPattern != "." && isLocal {
 		prefix = "./"
@@ -166,16 +254,20 @@ func MatchPackagesInFS(pattern string) *Match {
 	if modRoot != "" {
 		abs, err := filepath.Abs(dir)
 		if err != nil {
-			base.Fatalf("go: %v", err)
+			m.AddError(err)
+			return
 		}
 		if !hasFilepathPrefix(abs, modRoot) {
-			base.Fatalf("go: pattern %s refers to dir %s, outside module root %s", pattern, abs, modRoot)
-			return nil
+			m.AddError(fmt.Errorf("directory %s is outside module root (%s)", abs, modRoot))
+			return
 		}
 	}
 
-	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() {
+	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err // Likely a permission error, which could interfere with matching.
+		}
+		if !fi.IsDir() {
 			return nil
 		}
 		top := false
@@ -218,15 +310,21 @@ func MatchPackagesInFS(pattern string) *Match {
 		// behavior means people miss serious mistakes.
 		// See golang.org/issue/11407.
 		if p, err := cfg.BuildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
-			if _, noGo := err.(*build.NoGoError); !noGo {
-				log.Print(err)
+			if _, noGo := err.(*build.NoGoError); noGo {
+				// The package does not actually exist, so record neither the package
+				// nor the error.
+				return nil
 			}
-			return nil
+			// There was an error importing path, but not matching it,
+			// which is all that Match promises to do.
+			// Ignore the import error.
 		}
-		m.Pkgs = append(m.Pkgs, name)
+		m.Dirs = append(m.Dirs, name)
 		return nil
 	})
-	return m
+	if err != nil {
+		m.AddError(err)
+	}
 }
 
 // TreeCanMatchPattern(pattern)(name) reports whether
@@ -316,8 +414,8 @@ func replaceVendor(x, repl string) string {
 // WarnUnmatched warns about patterns that didn't match any packages.
 func WarnUnmatched(matches []*Match) {
 	for _, m := range matches {
-		if len(m.Pkgs) == 0 {
-			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.Pattern)
+		if len(m.Pkgs) == 0 && len(m.Errs) == 0 {
+			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.pattern)
 		}
 	}
 }
@@ -334,40 +432,30 @@ func ImportPaths(patterns []string) []*Match {
 func ImportPathsQuiet(patterns []string) []*Match {
 	var out []*Match
 	for _, a := range CleanPatterns(patterns) {
-		if IsMetaPackage(a) {
-			out = append(out, MatchPackages(a))
-			continue
-		}
-
-		if build.IsLocalImport(a) || filepath.IsAbs(a) {
-			var m *Match
-			if strings.Contains(a, "...") {
-				m = MatchPackagesInFS(a)
-			} else {
-				m = &Match{Pattern: a, Literal: true, Pkgs: []string{a}}
-			}
+		m := NewMatch(a)
+		if m.IsLocal() {
+			m.MatchDirs()
 
 			// Change the file import path to a regular import path if the package
 			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
 			// (or something similar) will report them later.
-			for i, dir := range m.Pkgs {
+			m.Pkgs = make([]string, len(m.Dirs))
+			for i, dir := range m.Dirs {
+				absDir := dir
 				if !filepath.IsAbs(dir) {
-					dir = filepath.Join(base.Cwd, dir)
+					absDir = filepath.Join(base.Cwd, dir)
 				}
-				if bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
 					m.Pkgs[i] = bp.ImportPath
+				} else {
+					m.Pkgs[i] = dir
 				}
 			}
-			out = append(out, m)
-			continue
+		} else {
+			m.MatchPackages()
 		}
 
-		if strings.Contains(a, "...") {
-			out = append(out, MatchPackages(a))
-			continue
-		}
-
-		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
+		out = append(out, m)
 	}
 	return out
 }
@@ -417,11 +505,6 @@ func CleanPatterns(patterns []string) []string {
 		out = append(out, p+v)
 	}
 	return out
-}
-
-// IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
-func IsMetaPackage(name string) bool {
-	return name == "std" || name == "cmd" || name == "all"
 }
 
 // hasPathPrefix reports whether the path s begins with the

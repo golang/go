@@ -88,7 +88,8 @@ func jumpX86(word string) bool {
 
 func jumpRISCV(word string) bool {
 	switch word {
-	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
+	case "BEQ", "BEQZ", "BGE", "BGEU", "BGEZ", "BGT", "BGTU", "BGTZ", "BLE", "BLEU", "BLEZ",
+		"BLT", "BLTU", "BLTZ", "BNE", "BNEZ", "CALL", "JAL", "JALR", "JMP":
 		return true
 	}
 	return false
@@ -484,6 +485,9 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := mips.REG_W0; i <= mips.REG_W31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	register["HI"] = mips.REG_HI
 	register["LO"] = mips.REG_LO
 	// Pseudo-registers.
@@ -501,6 +505,7 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 		"FCR": true,
 		"M":   true,
 		"R":   true,
+		"W":   true,
 	}
 
 	instructions := make(map[string]obj.As)

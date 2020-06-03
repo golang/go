@@ -338,20 +338,20 @@ func init() {
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
 		// insert low width bits of arg1 into the result starting at bit lsb, copy other bits from arg0
-		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "Int64", resultInArg0: true},
+		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "ARM64BitField", resultInArg0: true},
 		// extract width bits of arg1 starting at bit lsb and insert at low end of result, copy other bits from arg0
-		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "Int64", resultInArg0: true},
+		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "ARM64BitField", resultInArg0: true},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left of the inserted bit field are set to the high/sign bit of the inserted bit field, bits to the right are zeroed
-		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "Int64"},
+		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "ARM64BitField"},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are set to the high/sign bit of the extracted bitfield
-		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "Int64"},
+		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "ARM64BitField"},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left and right of the inserted bit field are zeroed
-		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "Int64"},
+		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "ARM64BitField"},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are zeroed
-		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "Int64"},
+		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "ARM64BitField"},
 
 		// moves
-		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 32 low bits of auxint
+		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 64 bits from auxint
 		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVS", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
 		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
 
@@ -675,9 +675,9 @@ func init() {
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 	}
 
 	blocks := []blockData{
@@ -691,16 +691,20 @@ func init() {
 		{name: "ULE", controls: 1},
 		{name: "UGT", controls: 1},
 		{name: "UGE", controls: 1},
-		{name: "Z", controls: 1},    // Control == 0 (take a register instead of flags)
-		{name: "NZ", controls: 1},   // Control != 0
-		{name: "ZW", controls: 1},   // Control == 0, 32-bit
-		{name: "NZW", controls: 1},  // Control != 0, 32-bit
-		{name: "TBZ", controls: 1},  // Control & (1 << Aux.(int64)) == 0
-		{name: "TBNZ", controls: 1}, // Control & (1 << Aux.(int64)) != 0
+		{name: "Z", controls: 1},                  // Control == 0 (take a register instead of flags)
+		{name: "NZ", controls: 1},                 // Control != 0
+		{name: "ZW", controls: 1},                 // Control == 0, 32-bit
+		{name: "NZW", controls: 1},                // Control != 0, 32-bit
+		{name: "TBZ", controls: 1, aux: "Int64"},  // Control & (1 << AuxInt) == 0
+		{name: "TBNZ", controls: 1, aux: "Int64"}, // Control & (1 << AuxInt) != 0
 		{name: "FLT", controls: 1},
 		{name: "FLE", controls: 1},
 		{name: "FGT", controls: 1},
 		{name: "FGE", controls: 1},
+		{name: "LTnoov", controls: 1}, // 'LT' but without honoring overflow
+		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
+		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
+		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
 	}
 
 	archs = append(archs, arch{

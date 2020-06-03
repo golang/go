@@ -1,0 +1,27 @@
+[short] skip
+[gccgo] skip
+
+# Test for issue 24588
+
+go test -c -o $WORK/coverdep -coverprofile=$WORK/no/such/dir/cover.out coverdep
+exists -exec $WORK/coverdep
+
+-- coverdep/p.go --
+package p
+
+import _ "coverdep/p1"
+
+func F() {
+}
+-- coverdep/p1/p1.go --
+package p1
+
+import _ "errors"
+-- coverdep/p_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {
+	F()
+}

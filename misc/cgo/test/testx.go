@@ -102,6 +102,11 @@ static void issue7978c(uint32_t *sync) {
 // #include'd twice.  No runtime test; just make sure it compiles.
 #include "issue8331.h"
 
+// issue 8945
+
+typedef void (*PFunc8945)();
+extern PFunc8945 func8945; // definition is in test.go
+
 // issue 20910
 void callMulti(void);
 
@@ -119,6 +124,11 @@ typedef struct {
 } Issue31891B;
 
 void callIssue31891(void);
+
+typedef struct {
+	int i;
+} Issue38408, *PIssue38408;
+
 */
 import "C"
 
@@ -154,7 +164,7 @@ func Add(x int) {
 }
 
 func testCthread(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
 	}
 	sum.i = 0
@@ -514,6 +524,13 @@ func test7978(t *testing.T) {
 
 var issue8331Var C.issue8331
 
+// issue 8945
+
+//export Test8945
+func Test8945() {
+	_ = C.func8945
+}
+
 // issue 20910
 
 //export multi
@@ -540,3 +557,8 @@ func useIssue31891B(c *C.Issue31891B) {}
 func test31891(t *testing.T) {
 	C.callIssue31891()
 }
+
+// issue 38408
+// A typedef pointer can be used as the element type.
+// No runtime test; just make sure it compiles.
+var _ C.PIssue38408 = &C.Issue38408{i: 1}

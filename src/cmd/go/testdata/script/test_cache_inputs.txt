@@ -29,6 +29,23 @@ go test testcache -run=TestLookupEnv
 go test testcache -run=TestLookupEnv
 stdout '\(cached\)'
 
+# Changes in arguments forwarded to the test should invalidate cached test
+# results.
+go test testcache -run=TestOSArgs -v hello
+! stdout '\(cached\)'
+stdout 'hello'
+go test testcache -run=TestOSArgs -v goodbye
+! stdout '\(cached\)'
+stdout 'goodbye'
+
+# golang.org/issue/36134: that includes the `-timeout` argument.
+go test testcache -run=TestOSArgs -timeout=20m -v
+! stdout '\(cached\)'
+stdout '-test\.timeout[= ]20m'
+go test testcache -run=TestOSArgs -timeout=5s -v
+! stdout '\(cached\)'
+stdout '-test\.timeout[= ]5s'
+
 # If the test stats a file, changes to the file should invalidate the cache.
 go test testcache -run=FileSize
 go test testcache -run=FileSize
@@ -206,6 +223,10 @@ func TestExternalFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestOSArgs(t *testing.T) {
+	t.Log(os.Args)
 }
 -- mkold.go --
 package main

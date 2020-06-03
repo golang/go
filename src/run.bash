@@ -16,8 +16,13 @@
 
 set -e
 
-eval $(go env)
-export GOROOT   # the api test requires GOROOT to be set.
+if [ ! -f ../bin/go ]; then
+	echo 'run.bash must be run from $GOROOT/src after installing cmd/go' 1>&2
+	exit 1
+fi
+
+eval $(../bin/go env)
+export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
 
 # We disallow local import for non-local packages, if $GOROOT happens
 # to be under $GOPATH, then some tests below will fail.  $GOPATH needs
@@ -56,4 +61,4 @@ if ulimit -T &> /dev/null; then
 	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
 fi
 
-exec go tool dist test -rebuild "$@"
+exec ../bin/go tool dist test -rebuild "$@"

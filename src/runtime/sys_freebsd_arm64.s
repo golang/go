@@ -129,7 +129,7 @@ ok:
 
 // func pipe() (r, w int32, errno int32)
 TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	ADD	$8, RSP, R0
+	MOVD	$r+0(FP), R0
 	MOVW	$0, R1
 	MOVD	$SYS_pipe2, R8
 	SVC
@@ -141,7 +141,7 @@ ok:
 
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
-	ADD	$16, RSP, R0
+	MOVD	$r+8(FP), R0
 	MOVW	flags+0(FP), R1
 	MOVD	$SYS_pipe2, R8
 	SVC
@@ -506,38 +506,33 @@ TEXT runtime·getCntxct(SB),NOSPLIT,$0
 	CMP	$0, R0
 	BEQ	3(PC)
 
-	// get CNTPCT (Physical Count Register) into x0
-	// mrs x0, cntpct_el0 = d53be020
-	WORD	$0xd53be020 // SIGILL
+	// get CNTPCT (Physical Count Register) into R0
+	MRS	CNTPCT_EL0, R0 // SIGILL
 	B	2(PC)
 
-	// get CNTVCT (Virtual Count Register) into x0
-	// mrs x0, cntvct_el0 = d53be040
-	WORD	$0xd53be040
+	// get CNTVCT (Virtual Count Register) into R0
+	MRS	CNTVCT_EL0, R0
 
 	MOVW	R0, ret+8(FP)
 	RET
 
 // func getisar0() uint64
 TEXT runtime·getisar0(SB),NOSPLIT,$0
-	// get Instruction Set Attributes 0 into x0
-	// mrs x0, ID_AA64ISAR0_EL1 = d5380600
-	WORD	$0xd5380600
+	// get Instruction Set Attributes 0 into R0
+	MRS	ID_AA64ISAR0_EL1, R0
 	MOVD	R0, ret+0(FP)
 	RET
 
 // func getisar1() uint64
 TEXT runtime·getisar1(SB),NOSPLIT,$0
-	// get Instruction Set Attributes 1 into x0
-	// mrs x0, ID_AA64ISAR1_EL1 = d5380620
-	WORD	$0xd5380620
+	// get Instruction Set Attributes 1 into R0
+	MRS	ID_AA64ISAR1_EL1, R0
 	MOVD	R0, ret+0(FP)
 	RET
 
 // func getpfr0() uint64
 TEXT runtime·getpfr0(SB),NOSPLIT,$0
-	// get Processor Feature Register 0 into x0
-	// mrs x0, ID_AA64PFR0_EL1 = d5380400
-	WORD	$0xd5380400
+	// get Processor Feature Register 0 into R0
+	MRS	ID_AA64PFR0_EL1, R0
 	MOVD	R0, ret+0(FP)
 	RET

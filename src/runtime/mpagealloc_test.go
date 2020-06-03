@@ -22,8 +22,14 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 	}
 
 	for i := gotStart; i < gotEnd; i++ {
-		// Check the bitmaps.
+		// Check the bitmaps. Note that we may have nil data.
 		gb, wb := got.PallocData(i), want.PallocData(i)
+		if gb == nil && wb == nil {
+			continue
+		}
+		if (gb == nil && wb != nil) || (gb != nil && wb == nil) {
+			t.Errorf("chunk %d nilness mismatch", i)
+		}
 		if !checkPallocBits(t, gb.PallocBits(), wb.PallocBits()) {
 			t.Logf("in chunk %d (mallocBits)", i)
 		}
@@ -34,16 +40,198 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 	// TODO(mknyszek): Verify summaries too?
 }
 
+func TestPageAllocGrow(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
+	type test struct {
+		chunks []ChunkIdx
+		inUse  []AddrRange
+	}
+	tests := map[string]test{
+		"One": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+			},
+		},
+		"Contiguous2": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
+			},
+		},
+		"Contiguous5": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 3,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"Discontiguous": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				{PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)},
+				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"Mixed": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 2,
+				BaseChunkIdx + 4,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+3, 0)},
+				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+			},
+		},
+		"WildlyDiscontiguous": {
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 1,
+				BaseChunkIdx + 0x10,
+				BaseChunkIdx + 0x21,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+2, 0)},
+				{PageBase(BaseChunkIdx+0x10, 0), PageBase(BaseChunkIdx+0x11, 0)},
+				{PageBase(BaseChunkIdx+0x21, 0), PageBase(BaseChunkIdx+0x22, 0)},
+			},
+		},
+		"ManyDiscontiguous": {
+			// The initial cap is 16. Test 33 ranges, to exercise the growth path (twice).
+			chunks: []ChunkIdx{
+				BaseChunkIdx, BaseChunkIdx + 2, BaseChunkIdx + 4, BaseChunkIdx + 6,
+				BaseChunkIdx + 8, BaseChunkIdx + 10, BaseChunkIdx + 12, BaseChunkIdx + 14,
+				BaseChunkIdx + 16, BaseChunkIdx + 18, BaseChunkIdx + 20, BaseChunkIdx + 22,
+				BaseChunkIdx + 24, BaseChunkIdx + 26, BaseChunkIdx + 28, BaseChunkIdx + 30,
+				BaseChunkIdx + 32, BaseChunkIdx + 34, BaseChunkIdx + 36, BaseChunkIdx + 38,
+				BaseChunkIdx + 40, BaseChunkIdx + 42, BaseChunkIdx + 44, BaseChunkIdx + 46,
+				BaseChunkIdx + 48, BaseChunkIdx + 50, BaseChunkIdx + 52, BaseChunkIdx + 54,
+				BaseChunkIdx + 56, BaseChunkIdx + 58, BaseChunkIdx + 60, BaseChunkIdx + 62,
+				BaseChunkIdx + 64,
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				{PageBase(BaseChunkIdx+2, 0), PageBase(BaseChunkIdx+3, 0)},
+				{PageBase(BaseChunkIdx+4, 0), PageBase(BaseChunkIdx+5, 0)},
+				{PageBase(BaseChunkIdx+6, 0), PageBase(BaseChunkIdx+7, 0)},
+				{PageBase(BaseChunkIdx+8, 0), PageBase(BaseChunkIdx+9, 0)},
+				{PageBase(BaseChunkIdx+10, 0), PageBase(BaseChunkIdx+11, 0)},
+				{PageBase(BaseChunkIdx+12, 0), PageBase(BaseChunkIdx+13, 0)},
+				{PageBase(BaseChunkIdx+14, 0), PageBase(BaseChunkIdx+15, 0)},
+				{PageBase(BaseChunkIdx+16, 0), PageBase(BaseChunkIdx+17, 0)},
+				{PageBase(BaseChunkIdx+18, 0), PageBase(BaseChunkIdx+19, 0)},
+				{PageBase(BaseChunkIdx+20, 0), PageBase(BaseChunkIdx+21, 0)},
+				{PageBase(BaseChunkIdx+22, 0), PageBase(BaseChunkIdx+23, 0)},
+				{PageBase(BaseChunkIdx+24, 0), PageBase(BaseChunkIdx+25, 0)},
+				{PageBase(BaseChunkIdx+26, 0), PageBase(BaseChunkIdx+27, 0)},
+				{PageBase(BaseChunkIdx+28, 0), PageBase(BaseChunkIdx+29, 0)},
+				{PageBase(BaseChunkIdx+30, 0), PageBase(BaseChunkIdx+31, 0)},
+				{PageBase(BaseChunkIdx+32, 0), PageBase(BaseChunkIdx+33, 0)},
+				{PageBase(BaseChunkIdx+34, 0), PageBase(BaseChunkIdx+35, 0)},
+				{PageBase(BaseChunkIdx+36, 0), PageBase(BaseChunkIdx+37, 0)},
+				{PageBase(BaseChunkIdx+38, 0), PageBase(BaseChunkIdx+39, 0)},
+				{PageBase(BaseChunkIdx+40, 0), PageBase(BaseChunkIdx+41, 0)},
+				{PageBase(BaseChunkIdx+42, 0), PageBase(BaseChunkIdx+43, 0)},
+				{PageBase(BaseChunkIdx+44, 0), PageBase(BaseChunkIdx+45, 0)},
+				{PageBase(BaseChunkIdx+46, 0), PageBase(BaseChunkIdx+47, 0)},
+				{PageBase(BaseChunkIdx+48, 0), PageBase(BaseChunkIdx+49, 0)},
+				{PageBase(BaseChunkIdx+50, 0), PageBase(BaseChunkIdx+51, 0)},
+				{PageBase(BaseChunkIdx+52, 0), PageBase(BaseChunkIdx+53, 0)},
+				{PageBase(BaseChunkIdx+54, 0), PageBase(BaseChunkIdx+55, 0)},
+				{PageBase(BaseChunkIdx+56, 0), PageBase(BaseChunkIdx+57, 0)},
+				{PageBase(BaseChunkIdx+58, 0), PageBase(BaseChunkIdx+59, 0)},
+				{PageBase(BaseChunkIdx+60, 0), PageBase(BaseChunkIdx+61, 0)},
+				{PageBase(BaseChunkIdx+62, 0), PageBase(BaseChunkIdx+63, 0)},
+				{PageBase(BaseChunkIdx+64, 0), PageBase(BaseChunkIdx+65, 0)},
+			},
+		},
+	}
+	if PageAlloc64Bit != 0 {
+		tests["ExtremelyDiscontiguous"] = test{
+			chunks: []ChunkIdx{
+				BaseChunkIdx,
+				BaseChunkIdx + 0x100000, // constant translates to O(TiB)
+			},
+			inUse: []AddrRange{
+				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
+				{PageBase(BaseChunkIdx+0x100000, 0), PageBase(BaseChunkIdx+0x100001, 0)},
+			},
+		}
+	}
+	for name, v := range tests {
+		v := v
+		t.Run(name, func(t *testing.T) {
+			// By creating a new pageAlloc, we will
+			// grow it for each chunk defined in x.
+			x := make(map[ChunkIdx][]BitRange)
+			for _, c := range v.chunks {
+				x[c] = []BitRange{}
+			}
+			b := NewPageAlloc(x, nil)
+			defer FreePageAlloc(b)
+
+			got := b.InUse()
+			want := v.inUse
+
+			// Check for mismatches.
+			if len(got) != len(want) {
+				t.Fail()
+			} else {
+				for i := range want {
+					if want[i] != got[i] {
+						t.Fail()
+						break
+					}
+				}
+			}
+			if t.Failed() {
+				t.Logf("found inUse mismatch")
+				t.Logf("got:")
+				for i, r := range got {
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+				}
+				t.Logf("want:")
+				for i, r := range want {
+					t.Logf("\t#%d [0x%x, 0x%x)", i, r.Base, r.Limit)
+				}
+			}
+		})
+	}
+}
+
 func TestPageAllocAlloc(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type hit struct {
 		npages, base, scav uintptr
 	}
-	tests := map[string]struct {
+	type test struct {
 		scav   map[ChunkIdx][]BitRange
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
 		hits   []hit
-	}{
+	}
+	tests := map[string]test{
 		"AllFree1": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -184,7 +372,6 @@ func TestPageAllocAlloc(t *testing.T) {
 				BaseChunkIdx: {{0, 195}},
 			},
 		},
-		// TODO(mknyszek): Add tests close to the chunk size.
 		"ExhaustPallocChunkPages-3": {
 			before: map[ChunkIdx][]BitRange{
 				BaseChunkIdx: {},
@@ -384,6 +571,48 @@ func TestPageAllocAlloc(t *testing.T) {
 			},
 		},
 	}
+	if PageAlloc64Bit != 0 {
+		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
+
+		// This test attempts to trigger a bug wherein we look at unmapped summary
+		// memory that isn't just in the case where we exhaust the heap.
+		//
+		// It achieves this by placing a chunk such that its summary will be
+		// at the very end of a physical page. It then also places another chunk
+		// much further up in the address space, such that any allocations into the
+		// first chunk do not exhaust the heap and the second chunk's summary is not in the
+		// page immediately adjacent to the first chunk's summary's page.
+		// Allocating into this first chunk to exhaustion and then into the second
+		// chunk may then trigger a check in the allocator which erroneously looks at
+		// unmapped summary memory and crashes.
+
+		// Figure out how many chunks are in a physical page, then align BaseChunkIdx
+		// to a physical page in the chunk summary array. Here we only assume that
+		// each summary array is aligned to some physical page.
+		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
+		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
+		tests["DiscontiguousMappedSumBoundary"] = test{
+			before: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			scav: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {},
+				baseChunkIdx + chunkIdxBigJump:     {},
+			},
+			hits: []hit{
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+sumsPerPhysPage-1, 0), 0},
+				{1, PageBase(baseChunkIdx+sumsPerPhysPage-1, PallocChunkPages-1), 0},
+				{1, PageBase(baseChunkIdx+chunkIdxBigJump, 0), 0},
+				{PallocChunkPages - 1, PageBase(baseChunkIdx+chunkIdxBigJump, 1), 0},
+				{1, 0, 0},
+			},
+			after: map[ChunkIdx][]BitRange{
+				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
+				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
+			},
+		}
+	}
 	for name, v := range tests {
 		v := v
 		t.Run(name, func(t *testing.T) {
@@ -408,6 +637,9 @@ func TestPageAllocAlloc(t *testing.T) {
 }
 
 func TestPageAllocExhaust(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	for _, npages := range []uintptr{1, 2, 3, 4, 5, 8, 16, 64, 1024, 1025, 2048, 2049} {
 		npages := npages
 		t.Run(fmt.Sprintf("%d", npages), func(t *testing.T) {
@@ -457,6 +689,9 @@ func TestPageAllocExhaust(t *testing.T) {
 }
 
 func TestPageAllocFree(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	tests := map[string]struct {
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
@@ -686,6 +921,9 @@ func TestPageAllocFree(t *testing.T) {
 }
 
 func TestPageAllocAllocAndFree(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type hit struct {
 		alloc  bool
 		npages uintptr

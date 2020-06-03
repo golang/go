@@ -286,4 +286,18 @@ const (
 	SYS_IO_PGETEVENTS          = 292
 	SYS_RSEQ                   = 293
 	SYS_KEXEC_FILE_LOAD        = 294
+	SYS_PIDFD_SEND_SIGNAL      = 424
+	SYS_IO_URING_SETUP         = 425
+	SYS_IO_URING_ENTER         = 426
+	SYS_IO_URING_REGISTER      = 427
+	SYS_OPEN_TREE              = 428
+	SYS_MOVE_MOUNT             = 429
+	SYS_FSOPEN                 = 430
+	SYS_FSCONFIG               = 431
+	SYS_FSMOUNT                = 432
+	SYS_FSPICK                 = 433
+	SYS_PIDFD_OPEN             = 434
+	SYS_CLONE3                 = 435
+	SYS_OPENAT2                = 437
+	SYS_PIDFD_GETFD            = 438
 )

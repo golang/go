@@ -41,7 +41,7 @@ func ExampleDB_QueryContext() {
 	// encounter an auto-commit error and be forced to rollback changes.
 	rerr := rows.Close()
 	if rerr != nil {
-		log.Fatal(err)
+		log.Fatal(rerr)
 	}
 
 	// Rows.Err will report the last error encountered by Rows.Scan.
@@ -220,7 +220,7 @@ func ExampleTx_Prepare() {
 	}
 }
 
-func ExampleConn_BeginTx() {
+func ExampleDB_BeginTx() {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		log.Fatal(err)

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"container/heap"
 	"sort"
 )
@@ -59,6 +60,18 @@ func (h ValHeap) Less(i, j int) bool {
 			return c < 0 // smaller args comes later
 		}
 	}
+	if c := x.Uses - y.Uses; c != 0 {
+		return c < 0 // smaller uses come later
+	}
+	// These comparisons are fairly arbitrary.
+	// The goal here is stability in the face
+	// of unrelated changes elsewhere in the compiler.
+	if c := x.AuxInt - y.AuxInt; c != 0 {
+		return c > 0
+	}
+	if cmp := x.Type.Compare(y.Type); cmp != types.CMPeq {
+		return cmp == types.CMPgt
+	}
 	return x.ID > y.ID
 }
 
@@ -66,7 +79,7 @@ func (op Op) isLoweredGetClosurePtr() bool {
 	switch op {
 	case OpAMD64LoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr, OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
 		Op386LoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr, OpS390XLoweredGetClosurePtr, OpMIPSLoweredGetClosurePtr,
-		OpWasmLoweredGetClosurePtr:
+		OpRISCV64LoweredGetClosurePtr, OpWasmLoweredGetClosurePtr:
 		return true
 	}
 	return false
@@ -115,7 +128,7 @@ func schedule(f *Func) {
 				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
 				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
 				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck ||
-				v.Op == OpWasmLoweredNilCheck:
+				v.Op == OpRISCV64LoweredNilCheck || v.Op == OpWasmLoweredNilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:

@@ -109,6 +109,7 @@ func makechan(t *chantype, size int) *hchan {
 	c.elemsize = uint16(elem.size)
 	c.elemtype = elem
 	c.dataqsiz = uint(size)
+	lockInit(&c.lock, lockRankHchan)
 
 	if debugChan {
 		print("makechan: chan=", c, "; elemsize=", elem.size, "; dataqsiz=", size, "\n")
@@ -484,6 +485,9 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// Sequential consistency is also required here, when racing with such a send.
 		if empty(c) {
 			// The channel is irreversibly closed and empty.
+			if raceenabled {
+				raceacquire(c.raceaddr())
+			}
 			if ep != nil {
 				typedmemclr(c.elemtype, ep)
 			}

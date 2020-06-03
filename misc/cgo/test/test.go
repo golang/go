@@ -562,6 +562,11 @@ void issue8811Execute() {
 		issue8811Init();
 }
 
+// issue 8945
+
+typedef void (*PFunc8945)();
+PFunc8945 func8945;
+
 // issue 9557
 
 struct issue9557_t {
@@ -892,6 +897,10 @@ static uint16_t issue31093F(uint16_t v) { return v; }
 
 // issue 32579
 typedef struct S32579 { unsigned char data[1]; } S32579;
+
+// issue 38649
+// Test that #define'd type aliases work.
+#define netbsd_gid unsigned int
 */
 import "C"
 
@@ -2187,3 +2196,7 @@ func test32579(t *testing.T) {
 		t.Errorf("&s[0].data[0] failed: got %d, want %d", s[0].data[0], 1)
 	}
 }
+
+// issue 38649
+
+var issue38649 C.netbsd_gid = 42

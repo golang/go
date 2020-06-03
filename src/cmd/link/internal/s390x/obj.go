@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
 
-		Adddynrel:        adddynrel,
+		Adddynrel2:       adddynrel2,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
@@ -54,7 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Asmb2:            asmb2, // in asm.go
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
-		Gentext:          gentext,
+		Gentext2:         gentext2,
 		Machoreloc1:      machoreloc1,
 
 		Linuxdynld: "/lib64/ld64.so.1",

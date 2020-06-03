@@ -15,15 +15,16 @@ const debug = false
 const trace = false
 
 type parser struct {
-	file *PosBase
-	errh ErrorHandler
-	mode Mode
+	file  *PosBase
+	errh  ErrorHandler
+	mode  Mode
+	pragh PragmaHandler
 	scanner
 
 	base   *PosBase // current position base
 	first  error    // first error encountered
 	errcnt int      // number of errors encountered
-	pragma Pragma   // pragma flags
+	pragma Pragma   // pragmas
 
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
@@ -34,6 +35,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 	p.file = file
 	p.errh = errh
 	p.mode = mode
+	p.pragh = pragh
 	p.scanner.init(
 		r,
 		// Error and directive handler for scanner.
@@ -47,9 +49,11 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 				return
 			}
 
-			// otherwise it must be a comment containing a line or go: directive
+			// otherwise it must be a comment containing a line or go: directive.
+			// //line directives must be at the start of the line (column colbase).
+			// /*line*/ directives can be anywhere in the line.
 			text := commentText(msg)
-			if strings.HasPrefix(text, "line ") {
+			if (col == colbase || msg[1] == '*') && strings.HasPrefix(text, "line ") {
 				var pos Pos // position immediately following the comment
 				if msg[1] == '/' {
 					// line comment (newline is part of the comment)
@@ -67,7 +71,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 
 			// go: directive (but be conservative and test)
 			if pragh != nil && strings.HasPrefix(text, "go:") {
-				p.pragma |= pragh(p.posAt(line, col+2), text) // +2 to skip over // or /*
+				p.pragma = pragh(p.posAt(line, col+2), p.scanner.blank, text, p.pragma) // +2 to skip over // or /*
 			}
 		},
 		directives,
@@ -76,11 +80,30 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 	p.base = file
 	p.first = nil
 	p.errcnt = 0
-	p.pragma = 0
+	p.pragma = nil
 
 	p.fnest = 0
 	p.xnest = 0
 	p.indent = nil
+}
+
+// takePragma returns the current parsed pragmas
+// and clears them from the parser state.
+func (p *parser) takePragma() Pragma {
+	prag := p.pragma
+	p.pragma = nil
+	return prag
+}
+
+// clearPragma is called at the end of a statement or
+// other Go form that does NOT accept a pragma.
+// It sends the pragma back to the pragma handler
+// to be reported as unused.
+func (p *parser) clearPragma() {
+	if p.pragma != nil {
+		p.pragh(p.pos(), p.scanner.blank, "", p.pragma)
+		p.pragma = nil
+	}
 }
 
 // updateBase sets the current position base to a new line base at pos.
@@ -362,6 +385,7 @@ func (p *parser) fileOrNil() *File {
 		p.syntaxError("package statement must be first")
 		return nil
 	}
+	f.Pragma = p.takePragma()
 	f.PkgName = p.name()
 	p.want(_Semi)
 
@@ -410,7 +434,7 @@ func (p *parser) fileOrNil() *File {
 
 		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
 		// since comments before may set pragmas for the next function decl.
-		p.pragma = 0
+		p.clearPragma()
 
 		if p.tok != _EOF && !p.got(_Semi) {
 			p.syntaxError("after top level declaration")
@@ -419,7 +443,8 @@ func (p *parser) fileOrNil() *File {
 	}
 	// p.tok == _EOF
 
-	f.Lines = p.source.line
+	p.clearPragma()
+	f.Lines = p.line
 
 	return f
 }
@@ -469,6 +494,7 @@ func (p *parser) list(open, sep, close token, f func() bool) Pos {
 func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 	if p.tok == _Lparen {
 		g := new(Group)
+		p.clearPragma()
 		p.list(_Lparen, _Semi, _Rparen, func() bool {
 			list = append(list, f(g))
 			return false
@@ -497,6 +523,8 @@ func (p *parser) importDecl(group *Group) Decl {
 
 	d := new(ImportDecl)
 	d.pos = p.pos()
+	d.Group = group
+	d.Pragma = p.takePragma()
 
 	switch p.tok {
 	case _Name:
@@ -511,7 +539,6 @@ func (p *parser) importDecl(group *Group) Decl {
 		p.advance(_Semi, _Rparen)
 		return nil
 	}
-	d.Group = group
 
 	return d
 }
@@ -524,6 +551,8 @@ func (p *parser) constDecl(group *Group) Decl {
 
 	d := new(ConstDecl)
 	d.pos = p.pos()
+	d.Group = group
+	d.Pragma = p.takePragma()
 
 	d.NameList = p.nameList(p.name())
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
@@ -532,7 +561,6 @@ func (p *parser) constDecl(group *Group) Decl {
 			d.Values = p.exprList()
 		}
 	}
-	d.Group = group
 
 	return d
 }
@@ -545,6 +573,8 @@ func (p *parser) typeDecl(group *Group) Decl {
 
 	d := new(TypeDecl)
 	d.pos = p.pos()
+	d.Group = group
+	d.Pragma = p.takePragma()
 
 	d.Name = p.name()
 	d.Alias = p.gotAssign()
@@ -554,8 +584,6 @@ func (p *parser) typeDecl(group *Group) Decl {
 		p.syntaxError("in type declaration")
 		p.advance(_Semi, _Rparen)
 	}
-	d.Group = group
-	d.Pragma = p.pragma
 
 	return d
 }
@@ -568,6 +596,8 @@ func (p *parser) varDecl(group *Group) Decl {
 
 	d := new(VarDecl)
 	d.pos = p.pos()
+	d.Group = group
+	d.Pragma = p.takePragma()
 
 	d.NameList = p.nameList(p.name())
 	if p.gotAssign() {
@@ -578,7 +608,6 @@ func (p *parser) varDecl(group *Group) Decl {
 			d.Values = p.exprList()
 		}
 	}
-	d.Group = group
 
 	return d
 }
@@ -595,6 +624,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 
 	f := new(FuncDecl)
 	f.pos = p.pos()
+	f.Pragma = p.takePragma()
 
 	if p.tok == _Lparen {
 		rcvr := p.paramList()
@@ -620,7 +650,6 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	if p.tok == _Lbrace {
 		f.Body = p.funcBody()
 	}
-	f.Pragma = p.pragma
 
 	return f
 }
@@ -1886,11 +1915,16 @@ done:
 		// which turns an expression into an assignment. Provide
 		// a more explicit error message in that case to prevent
 		// further confusion.
-		str := String(s)
+		var str string
 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
-			str = "assignment " + str
+			// Emphasize Lhs and Rhs of assignment with parentheses to highlight '='.
+			// Do it always - it's not worth going through the trouble of doing it
+			// only for "complex" left and right sides.
+			str = "assignment (" + String(as.Lhs) + ") = (" + String(as.Rhs) + ")"
+		} else {
+			str = String(s)
 		}
-		p.syntaxError(fmt.Sprintf("%s used as value", str))
+		p.syntaxErrorAt(s.Pos(), fmt.Sprintf("cannot use %s as value", str))
 	}
 
 	p.xnest = outer
@@ -2049,6 +2083,7 @@ func (p *parser) stmtOrNil() Stmt {
 	// Most statements (assignments) start with an identifier;
 	// look for it first before doing anything more expensive.
 	if p.tok == _Name {
+		p.clearPragma()
 		lhs := p.exprList()
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
 			return p.labeledStmtOrNil(label)
@@ -2057,9 +2092,6 @@ func (p *parser) stmtOrNil() Stmt {
 	}
 
 	switch p.tok {
-	case _Lbrace:
-		return p.blockStmt("")
-
 	case _Var:
 		return p.declStmt(p.varDecl)
 
@@ -2068,6 +2100,13 @@ func (p *parser) stmtOrNil() Stmt {
 
 	case _Type:
 		return p.declStmt(p.typeDecl)
+	}
+
+	p.clearPragma()
+
+	switch p.tok {
+	case _Lbrace:
+		return p.blockStmt("")
 
 	case _Operator, _Star:
 		switch p.op {
@@ -2146,6 +2185,7 @@ func (p *parser) stmtList() (l []Stmt) {
 
 	for p.tok != _EOF && p.tok != _Rbrace && p.tok != _Case && p.tok != _Default {
 		s := p.stmtOrNil()
+		p.clearPragma()
 		if s == nil {
 			break
 		}

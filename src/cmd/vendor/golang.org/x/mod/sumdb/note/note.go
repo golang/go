@@ -4,9 +4,6 @@
 
 // Package note defines the notes signed by the Go module database server.
 //
-// This package is part of a DRAFT of what the Go module database server will look like.
-// Do not assume the details here are final!
-//
 // A note is text signed by one or more server keys.
 // The text should be ignored unless the note is signed by
 // a trusted server key and the signature has been verified

@@ -75,12 +75,14 @@ go: example.com/badchain/a@v1.1.0 requires
 	module declares its path as: badchain.example.com/c
 	        but was required as: example.com/badchain/c
 -- list-missing-expected --
+go: finding module for package example.com/badchain/c
 go: found example.com/badchain/c in example.com/badchain/c v1.1.0
 go: m/use imports
 	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod:
 	module declares its path as: badchain.example.com/c
 	        but was required as: example.com/badchain/c
 -- list-missing-test-expected --
+go: finding module for package example.com/badchain/c
 go: found example.com/badchain/c in example.com/badchain/c v1.1.0
 go: m/testuse tested by
 	m/testuse.test imports

@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -79,6 +80,7 @@ type Checker struct {
 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -190,6 +192,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
 		posMap: make(map[*Interface][]token.Pos),
+		pkgCnt: make(map[string]int),
 	}
 }
 
@@ -245,7 +248,13 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
+var errBadCgo = errors.New("cannot use FakeImportC and UsesCgo together")
+
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.conf.FakeImportC && check.conf.UsesCgo {
+		return errBadCgo
+	}
+
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)
@@ -314,7 +323,6 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if mode == invalid {
 		return // omit
 	}
-	assert(typ != nil)
 	if mode == constant_ {
 		assert(val != nil)
 		assert(typ == Typ[Invalid] || isConstType(typ))
@@ -347,7 +355,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

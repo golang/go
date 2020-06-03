@@ -50,10 +50,11 @@ func ExampleDuration_Round() {
 }
 
 func ExampleDuration_String() {
-	t1 := time.Date(2016, time.August, 15, 0, 0, 0, 0, time.UTC)
-	t2 := time.Date(2017, time.February, 16, 0, 0, 0, 0, time.UTC)
-	fmt.Println(t2.Sub(t1).String())
-	// Output: 4440h0m0s
+	fmt.Println(1*time.Hour + 2*time.Minute + 300*time.Millisecond)
+	fmt.Println(300 * time.Millisecond)
+	// Output:
+	// 1h2m0.3s
+	// 300ms
 }
 
 func ExampleDuration_Truncate() {
@@ -206,7 +207,7 @@ func ExampleNewTicker() {
 
 func ExampleTime_Format() {
 	// Parse a time value from a string in the standard Unix format.
-	t, err := time.Parse(time.UnixDate, "Sat Mar  7 11:06:39 PST 2015")
+	t, err := time.Parse(time.UnixDate, "Wed Feb 25 11:06:39 PST 2015")
 	if err != nil { // Always check errors even if they should not happen.
 		panic(err)
 	}
@@ -245,14 +246,77 @@ func ExampleTime_Format() {
 			fmt.Printf("error: for %q got %q; expected %q\n", layout, got, want)
 			return
 		}
-		fmt.Printf("%-15s %q gives %q\n", name, layout, got)
+		fmt.Printf("%-16s %q gives %q\n", name, layout, got)
 	}
 
 	// Print a header in our output.
 	fmt.Printf("\nFormats:\n\n")
 
-	// A simple starter example.
-	do("Basic", "Mon Jan 2 15:04:05 MST 2006", "Sat Mar 7 11:06:39 PST 2015")
+	// Simple starter examples.
+	do("Basic full date", "Mon Jan 2 15:04:05 MST 2006", "Wed Feb 25 11:06:39 PST 2015")
+	do("Basic short date", "2006/01/02", "2015/02/25")
+
+	// The hour of the reference time is 15, or 3PM. The layout can express
+	// it either way, and since our value is the morning we should see it as
+	// an AM time. We show both in one format string. Lower case too.
+	do("AM/PM", "3PM==3pm==15h", "11AM==11am==11h")
+
+	// When parsing, if the seconds value is followed by a decimal point
+	// and some digits, that is taken as a fraction of a second even if
+	// the layout string does not represent the fractional second.
+	// Here we add a fractional second to our time value used above.
+	t, err = time.Parse(time.UnixDate, "Wed Feb 25 11:06:39.1234 PST 2015")
+	if err != nil {
+		panic(err)
+	}
+	// It does not appear in the output if the layout string does not contain
+	// a representation of the fractional second.
+	do("No fraction", time.UnixDate, "Wed Feb 25 11:06:39 PST 2015")
+
+	// Fractional seconds can be printed by adding a run of 0s or 9s after
+	// a decimal point in the seconds value in the layout string.
+	// If the layout digits are 0s, the fractional second is of the specified
+	// width. Note that the output has a trailing zero.
+	do("0s for fraction", "15:04:05.00000", "11:06:39.12340")
+
+	// If the fraction in the layout is 9s, trailing zeros are dropped.
+	do("9s for fraction", "15:04:05.99999999", "11:06:39.1234")
+
+	// Output:
+	// default format: 2015-02-25 11:06:39 -0800 PST
+	// Unix format: Wed Feb 25 11:06:39 PST 2015
+	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
+	//
+	// Formats:
+	//
+	// Basic full date  "Mon Jan 2 15:04:05 MST 2006" gives "Wed Feb 25 11:06:39 PST 2015"
+	// Basic short date "2006/01/02" gives "2015/02/25"
+	// AM/PM            "3PM==3pm==15h" gives "11AM==11am==11h"
+	// No fraction      "Mon Jan _2 15:04:05 MST 2006" gives "Wed Feb 25 11:06:39 PST 2015"
+	// 0s for fraction  "15:04:05.00000" gives "11:06:39.12340"
+	// 9s for fraction  "15:04:05.99999999" gives "11:06:39.1234"
+
+}
+
+func ExampleTime_Format_pad() {
+	// Parse a time value from a string in the standard Unix format.
+	t, err := time.Parse(time.UnixDate, "Sat Mar 7 11:06:39 PST 2015")
+	if err != nil { // Always check errors even if they should not happen.
+		panic(err)
+	}
+
+	// Define a helper function to make the examples' output look nice.
+	do := func(name, layout, want string) {
+		got := t.Format(layout)
+		if want != got {
+			fmt.Printf("error: for %q got %q; expected %q\n", layout, got, want)
+			return
+		}
+		fmt.Printf("%-16s %q gives %q\n", name, layout, got)
+	}
+
+	// The predefined constant Unix uses an underscore to pad the day.
+	do("Unix", time.UnixDate, "Sat Mar  7 11:06:39 PST 2015")
 
 	// For fixed-width printing of values, such as the date, that may be one or
 	// two characters (7 vs. 07), use an _ instead of a space in the layout string.
@@ -271,53 +335,12 @@ func ExampleTime_Format() {
 	// so it doesn't need padding, but the minutes (04, 06) does.
 	do("Suppressed pad", "04:05", "06:39")
 
-	// The predefined constant Unix uses an underscore to pad the day.
-	// Compare with our simple starter example.
-	do("Unix", time.UnixDate, "Sat Mar  7 11:06:39 PST 2015")
-
-	// The hour of the reference time is 15, or 3PM. The layout can express
-	// it either way, and since our value is the morning we should see it as
-	// an AM time. We show both in one format string. Lower case too.
-	do("AM/PM", "3PM==3pm==15h", "11AM==11am==11h")
-
-	// When parsing, if the seconds value is followed by a decimal point
-	// and some digits, that is taken as a fraction of a second even if
-	// the layout string does not represent the fractional second.
-	// Here we add a fractional second to our time value used above.
-	t, err = time.Parse(time.UnixDate, "Sat Mar  7 11:06:39.1234 PST 2015")
-	if err != nil {
-		panic(err)
-	}
-	// It does not appear in the output if the layout string does not contain
-	// a representation of the fractional second.
-	do("No fraction", time.UnixDate, "Sat Mar  7 11:06:39 PST 2015")
-
-	// Fractional seconds can be printed by adding a run of 0s or 9s after
-	// a decimal point in the seconds value in the layout string.
-	// If the layout digits are 0s, the fractional second is of the specified
-	// width. Note that the output has a trailing zero.
-	do("0s for fraction", "15:04:05.00000", "11:06:39.12340")
-
-	// If the fraction in the layout is 9s, trailing zeros are dropped.
-	do("9s for fraction", "15:04:05.99999999", "11:06:39.1234")
-
 	// Output:
-	// default format: 2015-03-07 11:06:39 -0800 PST
-	// Unix format: Sat Mar  7 11:06:39 PST 2015
-	// Same, in UTC: Sat Mar  7 19:06:39 UTC 2015
-	//
-	// Formats:
-	//
-	// Basic           "Mon Jan 2 15:04:05 MST 2006" gives "Sat Mar 7 11:06:39 PST 2015"
-	// No pad          "<2>" gives "<7>"
-	// Spaces          "<_2>" gives "< 7>"
-	// Zeros           "<02>" gives "<07>"
-	// Suppressed pad  "04:05" gives "06:39"
-	// Unix            "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
-	// AM/PM           "3PM==3pm==15h" gives "11AM==11am==11h"
-	// No fraction     "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
-	// 0s for fraction "15:04:05.00000" gives "11:06:39.12340"
-	// 9s for fraction "15:04:05.99999999" gives "11:06:39.1234"
+	// Unix             "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
+	// No pad           "<2>" gives "<7>"
+	// Spaces           "<_2>" gives "< 7>"
+	// Zeros            "<02>" gives "<07>"
+	// Suppressed pad   "04:05" gives "06:39"
 
 }
 
@@ -357,7 +380,7 @@ func ExampleParse() {
 	// 2013-02-03 00:00:00 +0000 UTC
 	// 2006-01-02 15:04:05 +0000 UTC
 	// 2006-01-02 15:04:05 +0700 +0700
-	// error parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00
+	// error parsing time "2006-01-02T15:04:05Z07:00": extra text: "07:00"
 }
 
 func ExampleParseInLocation() {

@@ -1,0 +1,75 @@
+go test -cpu=1 -run=X/Y -bench=X/Y -count=2 -v testregexp
+
+# Test the following:
+
+# TestX is run, twice
+stdout -count=2 '^=== RUN   TestX$'
+stdout -count=2 '^    x_test.go:6: LOG: X running$'
+
+# TestX/Y is run, twice
+stdout -count=2 '^=== RUN   TestX/Y$'
+stdout -count=2 '^    x_test.go:8: LOG: Y running$'
+
+# TestXX is run, twice
+stdout -count=2 '^=== RUN   TestXX$'
+stdout -count=2 '^    z_test.go:10: LOG: XX running'
+
+# TestZ is not run
+! stdout '^=== RUN   TestZ$'
+
+# BenchmarkX is run with N=1 once, only to discover what sub-benchmarks it has,
+# and should not print a final summary line.
+stdout -count=1 '^    x_test.go:13: LOG: X running N=1$'
+! stdout '^\s+BenchmarkX: x_test.go:13: LOG: X running N=\d\d+'
+! stdout 'BenchmarkX\s+\d+'
+
+# Same for BenchmarkXX.
+stdout -count=1 '^    z_test.go:18: LOG: XX running N=1$'
+! stdout  '^    z_test.go:18: LOG: XX running N=\d\d+'
+! stdout 'BenchmarkXX\s+\d+'
+
+# BenchmarkX/Y is run in full twice due to -count=2.
+# "Run in full" means that it runs for approximately the default benchtime,
+# but may cap out at N=1e9.
+# We don't actually care what the final iteration count is, but it should be
+# a large number, and the last iteration count prints right before the results.
+stdout -count=2 '^    x_test.go:15: LOG: Y running N=[1-9]\d{4,}\nBenchmarkX/Y\s+\d+'
+
+-- testregexp/x_test.go --
+package x
+
+import "testing"
+
+func TestX(t *testing.T) {
+	t.Logf("LOG: X running")
+	t.Run("Y", func(t *testing.T) {
+		t.Logf("LOG: Y running")
+	})
+}
+
+func BenchmarkX(b *testing.B) {
+	b.Logf("LOG: X running N=%d", b.N)
+	b.Run("Y", func(b *testing.B) {
+		b.Logf("LOG: Y running N=%d", b.N)
+	})
+}
+-- testregexp/z_test.go --
+package x
+
+import "testing"
+
+func TestZ(t *testing.T) {
+	t.Logf("LOG: Z running")
+}
+
+func TestXX(t *testing.T) {
+	t.Logf("LOG: XX running")
+}
+
+func BenchmarkZ(b *testing.B) {
+	b.Logf("LOG: Z running N=%d", b.N)
+}
+
+func BenchmarkXX(b *testing.B) {
+	b.Logf("LOG: XX running N=%d", b.N)
+}

@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/syscall/windows"
 	"os"
 	"runtime"
 	"syscall"
@@ -233,7 +234,7 @@ func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
 	defer syscall.DnsRecordListFree(r, 1)
 
 	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
-	cname := syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(resolved))[:])
+	cname := windows.UTF16PtrToString(resolved)
 	return absDomainName([]byte(cname)), nil
 }
 
@@ -277,7 +278,7 @@ func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	mxs := make([]*MX, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
-		mxs = append(mxs, &MX{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:]))), v.Preference})
+		mxs = append(mxs, &MX{absDomainName([]byte(windows.UTF16PtrToString(v.NameExchange))), v.Preference})
 	}
 	byPref(mxs).sort()
 	return mxs, nil
@@ -317,8 +318,8 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
 	for _, p := range validRecs(r, syscall.DNS_TYPE_TEXT, name) {
 		d := (*syscall.DNSTXTData)(unsafe.Pointer(&p.Data[0]))
 		s := ""
-		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount] {
-			s += syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
+		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount:d.StringCount] {
+			s += windows.UTF16PtrToString(v)
 		}
 		txts = append(txts, s)
 	}
@@ -343,7 +344,7 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) 
 	ptrs := make([]string, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
-		ptrs = append(ptrs, absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))))
+		ptrs = append(ptrs, absDomainName([]byte(windows.UTF16PtrToString(v.Host))))
 	}
 	return ptrs, nil
 }

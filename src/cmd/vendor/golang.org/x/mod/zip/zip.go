@@ -247,6 +247,9 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 
 	var files []File
 	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		relPath, err := filepath.Rel(dir, filePath)
 		if err != nil {
 			return err
@@ -313,6 +316,12 @@ func (f dirFile) Path() string                 { return f.slashPath }
 func (f dirFile) Lstat() (os.FileInfo, error)  { return f.info, nil }
 func (f dirFile) Open() (io.ReadCloser, error) { return os.Open(f.filePath) }
 
+// isVendoredPackage attempts to report whether the given filename is contained
+// in a package whose import path contains (but does not end with) the component
+// "vendor".
+//
+// Unfortunately, isVendoredPackage reports false positives for files in any
+// non-top-level package whose import path ends in "vendor".
 func isVendoredPackage(name string) bool {
 	var i int
 	if strings.HasPrefix(name, "vendor/") {
@@ -322,15 +331,8 @@ func isVendoredPackage(name string) bool {
 		//
 		// 	i = j + len("/vendor/")
 		//
-		// (See https://golang.org/issue/31562.)
-		//
-		// Unfortunately, we can't fix it without invalidating checksums.
-		// Fortunately, the error appears to be strictly conservative: we'll retain
-		// vendored packages that we should have pruned, but we won't prune
-		// non-vendored packages that we should have retained.
-		//
-		// Since this defect doesn't seem to break anything, it's not worth fixing
-		// for now.
+		// (See https://golang.org/issue/31562 and https://golang.org/issue/37397.)
+		// Unfortunately, we can't fix it without invalidating module checksums.
 		i += len("/vendor/")
 	} else {
 		return false

@@ -9,8 +9,7 @@ package p
 var sink interface{}
 
 func _() {
-	// BAD: t should not escape
-	var t T         // ERROR "moved to heap"
+	var t T
 	f := t.noescape // ERROR "t.noescape does not escape"
 	f()
 }

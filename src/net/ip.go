@@ -671,8 +671,8 @@ func parseIPv6(s string) (ip IP) {
 }
 
 // ParseIP parses s as an IP address, returning the result.
-// The string s can be in dotted decimal ("192.0.2.1")
-// or IPv6 ("2001:db8::68") form.
+// The string s can be in IPv4 dotted decimal ("192.0.2.1"), IPv6
+// ("2001:db8::68"), or IPv4-mapped IPv6 ("::ffff:192.0.2.1") form.
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {

@@ -83,12 +83,7 @@ var (
 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
 )
 
-type badStringError struct {
-	what string
-	str  string
-}
-
-func (e *badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
 
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
@@ -350,8 +345,8 @@ func (r *Request) Context() context.Context {
 // sending the request, and reading the response headers and body.
 //
 // To create a new request with a context, use NewRequestWithContext.
-// To change the context of a request (such as an incoming) you then
-// also want to modify to send back out, use Request.Clone. Between
+// To change the context of a request, such as an incoming request you
+// want to modify before sending back out, use Request.Clone. Between
 // those two uses, it's rare to need WithContext.
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
@@ -430,6 +425,8 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 // AddCookie does not attach more than one Cookie header field. That
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
+// AddCookie only sanitizes c's name and value, and does not sanitize
+// a Cookie header already present in the request.
 func (r *Request) AddCookie(c *Cookie) {
 	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
 	if c := r.Header.Get("Cookie"); c != "" {
@@ -1025,14 +1022,14 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	var ok bool
 	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
 	if !ok {
-		return nil, &badStringError{"malformed HTTP request", s}
+		return nil, badStringError("malformed HTTP request", s)
 	}
 	if !validMethod(req.Method) {
-		return nil, &badStringError{"invalid method", req.Method}
+		return nil, badStringError("invalid method", req.Method)
 	}
 	rawurl := req.RequestURI
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", req.Proto}
+		return nil, badStringError("malformed HTTP version", req.Proto)
 	}
 
 	// CONNECT requests are used two different ways, and neither uses a full URL:
@@ -1223,16 +1220,16 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 // For all requests, ParseForm parses the raw query from the URL and updates
 // r.Form.
 //
-// For POST, PUT, and PATCH requests, it also parses the request body as a form
-// and puts the results into both r.PostForm and r.Form. Request body parameters
-// take precedence over URL query string values in r.Form.
+// For POST, PUT, and PATCH requests, it also reads the request body, parses it
+// as a form and puts the results into both r.PostForm and r.Form. Request body
+// parameters take precedence over URL query string values in r.Form.
+//
+// If the request Body's size has not already been limited by MaxBytesReader,
+// the size is capped at 10MB.
 //
 // For other HTTP methods, or when the Content-Type is not
 // application/x-www-form-urlencoded, the request Body is not read, and
 // r.PostForm is initialized to a non-nil, empty value.
-//
-// If the request Body's size has not already been limited by MaxBytesReader,
-// the size is capped at 10MB.
 //
 // ParseMultipartForm calls ParseForm automatically.
 // ParseForm is idempotent.

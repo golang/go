@@ -34,6 +34,7 @@ var (
 type jsFile struct {
 	path    string
 	entries []string
+	dirIdx  int // entries[:dirIdx] have already been returned in ReadDirent
 	pos     int64
 	seeked  bool
 }
@@ -101,6 +102,10 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		}
 	}
 
+	if path[0] != '/' {
+		cwd := jsProcess.Call("cwd").String()
+		path = cwd + "/" + path
+	}
 	f := &jsFile{
 		path:    path,
 		entries: entries,
@@ -141,8 +146,8 @@ func ReadDirent(fd int, buf []byte) (int, error) {
 	}
 
 	n := 0
-	for len(f.entries) > 0 {
-		entry := f.entries[0]
+	for f.dirIdx < len(f.entries) {
+		entry := f.entries[f.dirIdx]
 		l := 2 + len(entry)
 		if l > len(buf) {
 			break
@@ -152,7 +157,7 @@ func ReadDirent(fd int, buf []byte) (int, error) {
 		copy(buf[2:], entry)
 		buf = buf[l:]
 		n += l
-		f.entries = f.entries[1:]
+		f.dirIdx++
 	}
 
 	return n, nil
@@ -470,6 +475,7 @@ func Seek(fd int, offset int64, whence int) (int64, error) {
 	}
 
 	f.seeked = true
+	f.dirIdx = 0 // Reset directory read position. See issue 35767.
 	f.pos = newPos
 	return newPos, nil
 }
@@ -493,7 +499,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 	}
 
 	c := make(chan callResult, 1)
-	jsFS.Call(name, append(args, js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
@@ -509,7 +515,9 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 
 		c <- res
 		return nil
-	}))...)
+	})
+	defer f.Release()
+	jsFS.Call(name, append(args, f)...)
 	res := <-c
 	return res.val, res.err
 }

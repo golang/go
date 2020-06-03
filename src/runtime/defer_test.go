@@ -281,3 +281,132 @@ func TestDeferForFuncWithNoExit(t *testing.T) {
 	for {
 	}
 }
+
+// Test case approximating issue #37664, where a recursive function (interpreter)
+// may do repeated recovers/re-panics until it reaches the frame where the panic
+// can actually be handled. The recurseFnPanicRec() function is testing that there
+// are no stale defer structs on the defer chain after the interpreter() sequence,
+// by writing a bunch of 0xffffffffs into several recursive stack frames, and then
+// doing a single panic-recover which would invoke any such stale defer structs.
+func TestDeferWithRepeatedRepanics(t *testing.T) {
+	interpreter(0, 6, 2)
+	recurseFnPanicRec(0, 10)
+	interpreter(0, 5, 1)
+	recurseFnPanicRec(0, 10)
+	interpreter(0, 6, 3)
+	recurseFnPanicRec(0, 10)
+}
+
+func interpreter(level int, maxlevel int, rec int) {
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+		if level != e.(int) {
+			//fmt.Fprintln(os.Stderr, "re-panicing, level", level)
+			panic(e)
+		}
+		//fmt.Fprintln(os.Stderr, "Recovered, level", level)
+	}()
+	if level+1 < maxlevel {
+		interpreter(level+1, maxlevel, rec)
+	} else {
+		//fmt.Fprintln(os.Stderr, "Initiating panic")
+		panic(rec)
+	}
+}
+
+func recurseFnPanicRec(level int, maxlevel int) {
+	defer func() {
+		recover()
+	}()
+	recurseFn(level, maxlevel)
+}
+
+var saveInt uint32
+
+func recurseFn(level int, maxlevel int) {
+	a := [40]uint32{0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff}
+	if level+1 < maxlevel {
+		// Make sure a array is referenced, so it is not optimized away
+		saveInt = a[4]
+		recurseFn(level+1, maxlevel)
+	} else {
+		panic("recurseFn panic")
+	}
+}
+
+// Try to reproduce issue #37688, where a pointer to an open-coded defer struct is
+// mistakenly held, and that struct keeps a pointer to a stack-allocated defer
+// struct, and that stack-allocated struct gets overwritten or the stack gets
+// moved, so a memory error happens on GC.
+func TestIssue37688(t *testing.T) {
+	for j := 0; j < 10; j++ {
+		g2()
+		g3()
+	}
+}
+
+type foo struct {
+}
+
+//go:noinline
+func (f *foo) method1() {
+}
+
+//go:noinline
+func (f *foo) method2() {
+}
+
+func g2() {
+	var a foo
+	ap := &a
+	// The loop forces this defer to be heap-allocated and the remaining two
+	// to be stack-allocated.
+	for i := 0; i < 1; i++ {
+		defer ap.method1()
+	}
+	defer ap.method2()
+	defer ap.method1()
+	ff1(ap, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+	// Try to get the stack to be be moved by growing it too large, so
+	// existing stack-allocated defer becomes invalid.
+	rec1(2000)
+}
+
+func g3() {
+	// Mix up the stack layout by adding in an extra function frame
+	g2()
+}
+
+var globstruct struct {
+	a, b, c, d, e, f, g, h, i int
+}
+
+func ff1(ap *foo, a, b, c, d, e, f, g, h, i int) {
+	defer ap.method1()
+
+	// Make a defer that has a very large set of args, hence big size for the
+	// defer record for the open-coded frame (which means it won't use the
+	// defer pool)
+	defer func(ap *foo, a, b, c, d, e, f, g, h, i int) {
+		if v := recover(); v != nil {
+		}
+		globstruct.a = a
+		globstruct.b = b
+		globstruct.c = c
+		globstruct.d = d
+		globstruct.e = e
+		globstruct.f = f
+		globstruct.g = g
+		globstruct.h = h
+	}(ap, a, b, c, d, e, f, g, h, i)
+	panic("ff1 panic")
+}
+
+func rec1(max int) {
+	if max > 0 {
+		rec1(max - 1)
+	}
+}

@@ -510,7 +510,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
 	/* call function */			\
 	MOVQ	f+8(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
-	CALL	(DX);				\
+	MOVQ	(DX), AX;			\
+	CALL	AX;				\
 	/* copy return values back */		\
 	MOVQ	argtype+0(FP), DX;		\
 	MOVQ	argptr+16(FP), DI;		\
@@ -1244,7 +1245,6 @@ aesloop:
 TEXT runtime·memhash32(SB),NOSPLIT,$0-24
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	runtime·memhash32Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
@@ -1260,7 +1260,6 @@ noaes:
 TEXT runtime·memhash64(SB),NOSPLIT,$0-24
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	runtime·memhash64Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
@@ -1476,6 +1475,55 @@ flush:
 	MOVQ	96(SP), R15
 	JMP	ret
 
+// gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+TEXT runtime·gcWriteBarrierCX(SB),NOSPLIT,$0
+	XCHGQ CX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ CX, AX
+	RET
+
+// gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
+TEXT runtime·gcWriteBarrierDX(SB),NOSPLIT,$0
+	XCHGQ DX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ DX, AX
+	RET
+
+// gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
+TEXT runtime·gcWriteBarrierBX(SB),NOSPLIT,$0
+	XCHGQ BX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ BX, AX
+	RET
+
+// gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
+TEXT runtime·gcWriteBarrierBP(SB),NOSPLIT,$0
+	XCHGQ BP, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ BP, AX
+	RET
+
+// gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
+TEXT runtime·gcWriteBarrierSI(SB),NOSPLIT,$0
+	XCHGQ SI, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ SI, AX
+	RET
+
+// gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
+TEXT runtime·gcWriteBarrierR8(SB),NOSPLIT,$0
+	XCHGQ R8, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ R8, AX
+	RET
+
+// gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
+TEXT runtime·gcWriteBarrierR9(SB),NOSPLIT,$0
+	XCHGQ R9, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ R9, AX
+	RET
+
 DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
 GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 
@@ -1512,10 +1560,8 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 // a stack pointer to an escaping argument. debugCallV1 cannot check
 // this invariant.
 TEXT runtime·debugCallV1(SB),NOSPLIT,$152-0
-	// Save all registers that may contain pointers in GC register
-	// map order (see ssa.registersAMD64). This makes it possible
-	// to copy the stack while updating pointers currently held in
-	// registers, and for the GC to find roots in registers.
+	// Save all registers that may contain pointers so they can be
+	// conservatively scanned.
 	//
 	// We can't do anything that might clobber any of these
 	// registers before this.
@@ -1745,3 +1791,34 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 DATA runtime·tls_g+0(SB)/8, $16
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif
+
+// The compiler and assembler's -spectre=ret mode rewrites
+// all indirect CALL AX / JMP AX instructions to be
+// CALL retpolineAX / JMP retpolineAX.
+// See https://support.google.com/faqs/answer/7625886.
+#define RETPOLINE(reg) \
+	/*   CALL setup */     BYTE $0xE8; BYTE $(2+2); BYTE $0; BYTE $0; BYTE $0;	\
+	/* nospec: */									\
+	/*   PAUSE */           BYTE $0xF3; BYTE $0x90;					\
+	/*   JMP nospec */      BYTE $0xEB; BYTE $-(2+2);				\
+	/* setup: */									\
+	/*   MOVQ AX, 0(SP) */  BYTE $0x48|((reg&8)>>1); BYTE $0x89;			\
+	                        BYTE $0x04|((reg&7)<<3); BYTE $0x24;			\
+	/*   RET */             BYTE $0xC3
+
+TEXT runtime·retpolineAX(SB),NOSPLIT,$0; RETPOLINE(0)
+TEXT runtime·retpolineCX(SB),NOSPLIT,$0; RETPOLINE(1)
+TEXT runtime·retpolineDX(SB),NOSPLIT,$0; RETPOLINE(2)
+TEXT runtime·retpolineBX(SB),NOSPLIT,$0; RETPOLINE(3)
+/* SP is 4, can't happen / magic encodings */
+TEXT runtime·retpolineBP(SB),NOSPLIT,$0; RETPOLINE(5)
+TEXT runtime·retpolineSI(SB),NOSPLIT,$0; RETPOLINE(6)
+TEXT runtime·retpolineDI(SB),NOSPLIT,$0; RETPOLINE(7)
+TEXT runtime·retpolineR8(SB),NOSPLIT,$0; RETPOLINE(8)
+TEXT runtime·retpolineR9(SB),NOSPLIT,$0; RETPOLINE(9)
+TEXT runtime·retpolineR10(SB),NOSPLIT,$0; RETPOLINE(10)
+TEXT runtime·retpolineR11(SB),NOSPLIT,$0; RETPOLINE(11)
+TEXT runtime·retpolineR12(SB),NOSPLIT,$0; RETPOLINE(12)
+TEXT runtime·retpolineR13(SB),NOSPLIT,$0; RETPOLINE(13)
+TEXT runtime·retpolineR14(SB),NOSPLIT,$0; RETPOLINE(14)
+TEXT runtime·retpolineR15(SB),NOSPLIT,$0; RETPOLINE(15)

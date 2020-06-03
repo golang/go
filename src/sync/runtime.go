@@ -28,16 +28,6 @@ func runtime_SemacquireMutex(s *uint32, lifo bool, skipframes int)
 // runtime_Semrelease's caller.
 func runtime_Semrelease(s *uint32, handoff bool, skipframes int)
 
-// Approximation of notifyList in runtime/sema.go. Size and alignment must
-// agree.
-type notifyList struct {
-	wait   uint32
-	notify uint32
-	lock   uintptr
-	head   unsafe.Pointer
-	tail   unsafe.Pointer
-}
-
 // See runtime/sema.go for documentation.
 func runtime_notifyListAdd(l *notifyList) uint32
 

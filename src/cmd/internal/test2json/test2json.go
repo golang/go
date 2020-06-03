@@ -128,8 +128,15 @@ func (c *converter) Write(b []byte) (int, error) {
 }
 
 var (
+	// printed by test on successful run.
 	bigPass = []byte("PASS\n")
+
+	// printed by test after a normal test failure.
 	bigFail = []byte("FAIL\n")
+
+	// printed by 'go test' along with an error if the test binary terminates
+	// with an error.
+	bigFailErrorPrefix = []byte("FAIL\t")
 
 	updates = [][]byte{
 		[]byte("=== RUN   "),
@@ -155,7 +162,7 @@ var (
 // before or after emitting other events.
 func (c *converter) handleInputLine(line []byte) {
 	// Final PASS or FAIL.
-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
+	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
 		c.flushReport(0)
 		c.output.write(line)
 		if bytes.Equal(line, bigPass) {
@@ -204,8 +211,18 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 	}
 
+	// Not a special test output line.
 	if !ok {
-		// Not a special test output line.
+		// Lookup the name of the test which produced the output using the
+		// indentation of the output as an index into the stack of the current
+		// subtests.
+		// If the indentation is greater than the number of current subtests
+		// then the output must have included extra indentation. We can't
+		// determine which subtest produced this output, so we default to the
+		// old behaviour of assuming the most recently run subtest produced it.
+		if indent > 0 && indent <= len(c.report) {
+			c.testName = c.report[indent-1].Test
+		}
 		c.output.write(origLine)
 		return
 	}

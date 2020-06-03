@@ -33,6 +33,10 @@ const (
 )
 
 func lock(l *mutex) {
+	lockWithRank(l, getLockRank(l))
+}
+
+func lock2(l *mutex) {
 	gp := getg()
 	if gp.m.locks < 0 {
 		throw("runtime·lock: lock count")
@@ -89,9 +93,13 @@ Loop:
 	}
 }
 
+func unlock(l *mutex) {
+	unlockWithRank(l)
+}
+
 //go:nowritebarrier
 // We might not be holding a p in this code.
-func unlock(l *mutex) {
+func unlock2(l *mutex) {
 	gp := getg()
 	var mp *m
 	for {
@@ -289,8 +297,8 @@ func notetsleepg(n *note, ns int64) bool {
 	return ok
 }
 
-func beforeIdle(int64) bool {
-	return false
+func beforeIdle(int64) (*g, bool) {
+	return nil, false
 }
 
 func checkTimeouts() {}

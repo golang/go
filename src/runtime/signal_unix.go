@@ -326,16 +326,19 @@ func sigpipe() {
 func doSigPreempt(gp *g, ctxt *sigctxt) {
 	// Check if this G wants to be preempted and is safe to
 	// preempt.
-	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()) {
-		// Inject a call to asyncPreempt.
-		ctxt.pushCall(funcPC(asyncPreempt))
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
+			// Adjust the PC and inject a call to asyncPreempt.
+			ctxt.pushCall(funcPC(asyncPreempt), newpc)
+		}
 	}
 
 	// Acknowledge the preemption.
 	atomic.Xadd(&gp.m.preemptGen, 1)
+	atomic.Store(&gp.m.signalPending, 0)
 }
 
-const preemptMSupported = pushCallSupported
+const preemptMSupported = true
 
 // preemptM sends a preemption request to mp. This request may be
 // handled asynchronously and may be coalesced with other requests to
@@ -344,13 +347,8 @@ const preemptMSupported = pushCallSupported
 // safe-point, it will preempt the goroutine. It always atomically
 // increments mp.preemptGen after handling a preemption request.
 func preemptM(mp *m) {
-	if !pushCallSupported {
-		// This architecture doesn't support ctxt.pushCall
-		// yet, so doSigPreempt won't work.
-		return
-	}
-	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") && !iscgo {
-		// On darwin, we use libc calls, and cgo is required on ARM and ARM64
+	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
+		// On darwin, we use libc calls, and cgo is required on ARM64
 		// so we have TLS set up to save/restore G during C calls. If cgo is
 		// absent, we cannot save/restore G in TLS, and if a signal is
 		// received during C execution we cannot get the G. Therefore don't
@@ -359,7 +357,14 @@ func preemptM(mp *m) {
 		// required).
 		return
 	}
-	signalM(mp, sigPreempt)
+	if atomic.Cas(&mp.signalPending, 0, 1) {
+		// If multiple threads are preempting the same M, it may send many
+		// signals to the same M such that it hardly make progress, causing
+		// live-lock problem. Apparently this could happen on darwin. See
+		// issue #37741.
+		// Only send a signal if there isn't already one pending.
+		signalM(mp, sigPreempt)
+	}
 }
 
 // sigFetchG fetches the value of G safely when running in a signal handler.
@@ -410,6 +415,16 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if g == nil {
 		if sig == _SIGPROF {
 			sigprofNonGoPC(c.sigpc())
+			return
+		}
+		if sig == sigPreempt && preemptMSupported && debug.asyncpreemptoff == 0 {
+			// This is probably a signal from preemptM sent
+			// while executing Go code but received while
+			// executing non-Go code.
+			// We got past sigfwdgo, so we know that there is
+			// no non-Go signal handler for sigPreempt.
+			// The default behavior for sigPreempt is to ignore
+			// the signal, so badsignal will be a no-op anyway.
 			return
 		}
 		c.fixsigcode(sig)
@@ -533,10 +548,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
 	}
-	if flags&_SigPanic != 0 && gp.throwsplit {
+	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 && gp.throwsplit {
 		// We can't safely sigpanic because it may grow the
 		// stack. Abort in the signal handler instead.
-		flags = (flags &^ _SigPanic) | _SigThrow
+		flags = _SigThrow
 	}
 	if isAbortPC(c.sigpc()) {
 		// On many architectures, the abort function just
@@ -575,7 +590,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		dieFromSignal(sig)
 	}
 
-	if flags&_SigThrow == 0 {
+	// _SigThrow means that we should exit now.
+	// If we get here with _SigPanic, it means that the signal
+	// was sent to us by a program (c.sigcode() == _SI_USER);
+	// in that case, if we didn't handle it in sigsend, we exit now.
+	if flags&(_SigThrow|_SigPanic) == 0 {
 		return
 	}
 
@@ -596,6 +615,30 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg.ptr()
+	}
+	if sig == _SIGILL {
+		// It would be nice to know how long the instruction is.
+		// Unfortunately, that's complicated to do in general (mostly for x86
+		// and s930x, but other archs have non-standard instruction lengths also).
+		// Opt to print 16 bytes, which covers most instructions.
+		const maxN = 16
+		n := uintptr(maxN)
+		// We have to be careful, though. If we're near the end of
+		// a page and the following page isn't mapped, we could
+		// segfault. So make sure we don't straddle a page (even though
+		// that could lead to printing an incomplete instruction).
+		// We're assuming here we can read at least the page containing the PC.
+		// I suppose it is possible that the page is mapped executable but not readable?
+		pc := c.sigpc()
+		if n > physPageSize-pc%physPageSize {
+			n = physPageSize - pc%physPageSize
+		}
+		print("instruction bytes:")
+		b := (*[maxN]byte)(unsafe.Pointer(pc))
+		for i := uintptr(0); i < n; i++ {
+			print(" ", hex(b[i]))
+		}
+		println()
 	}
 	print("\n")
 
@@ -1149,7 +1192,7 @@ func signalstack(s *stack) {
 	sigaltstack(&st, nil)
 }
 
-// setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+// setsigsegv is used on darwin/arm64 to fake a segmentation fault.
 //
 // This is exported via linkname to assembly in runtime/cgo.
 //

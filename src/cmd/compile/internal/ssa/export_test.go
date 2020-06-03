@@ -90,7 +90,7 @@ func (d *DummyAuto) IsAutoTmp() bool {
 	return true
 }
 
-func (DummyFrontend) StringData(s string) interface{} {
+func (DummyFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
 func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
@@ -153,7 +153,7 @@ func init() {
 	// TODO(josharian): move universe initialization to the types package,
 	// so this test setup can share it.
 
-	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
+	types.Tconv = func(t *types.Type, flag, mode int) string {
 		return t.Etype.String()
 	}
 	types.Sconv = func(s *types.Sym, flag, mode int) string {

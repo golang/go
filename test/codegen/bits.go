@@ -278,6 +278,11 @@ func bitOpOnMem(a []uint32) {
 	a[5] ^= 0x2000
 }
 
+func bitcheckMostNegative(b uint8) bool {
+	// amd64:"TESTB"
+	return b&0x80 == 0x80
+}
+
 // Check AND masking on arm64 (Issue #19857)
 
 func and_mask_1(a uint64) uint64 {

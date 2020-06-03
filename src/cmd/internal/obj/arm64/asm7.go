@@ -287,8 +287,8 @@ var optab = []Optab{
 	{AADD, C_BITCON, C_RSP, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{AADD, C_BITCON, C_NONE, C_NONE, C_RSP, 62, 8, 0, 0, 0},
 	{ACMP, C_BITCON, C_RSP, C_NONE, C_NONE, 62, 8, 0, 0, 0},
-	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, 0, 0},
-	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, 0, 0},
+	{AADD, C_ADDCON2, C_RSP, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
+	{AADD, C_ADDCON2, C_NONE, C_NONE, C_RSP, 48, 8, 0, NOTUSETMP, 0},
 	{AADD, C_MOVCON2, C_RSP, C_NONE, C_RSP, 13, 12, 0, 0, 0},
 	{AADD, C_MOVCON2, C_NONE, C_NONE, C_RSP, 13, 12, 0, 0, 0},
 	{AADD, C_MOVCON3, C_RSP, C_NONE, C_RSP, 13, 16, 0, 0, 0},
@@ -840,6 +840,7 @@ var optab = []Optab{
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
+	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
@@ -880,7 +881,23 @@ var prfopfield = []struct {
 	{REG_PSTL3STRM, 21},
 }
 
+// Used for padinng NOOP instruction
+const OP_NOOP = 0xd503201f
+
+// align code to a certain length by padding bytes.
+func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
+	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
+	}
+	return int(-pc & (alignedValue - 1))
+}
+
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on arm64")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	p := cursym.Func.Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
@@ -906,12 +923,21 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+			switch p.As {
+			case obj.APCALIGN:
+				alignedValue := p.From.Offset
+				m = pcAlignPadLength(pc, alignedValue, ctxt)
+				// Update the current text symbol alignment value.
+				if int32(alignedValue) > cursym.Func.Align {
+					cursym.Func.Align = int32(alignedValue)
+				}
+				break
+			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+				continue
+			default:
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
-			continue
 		}
-
 		switch o.flag & (LFROM | LTO) {
 		case LFROM:
 			c.addpool(p, &p.From)
@@ -978,10 +1004,16 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			m = int(o.size)
 
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+				switch p.As {
+				case obj.APCALIGN:
+					alignedValue := p.From.Offset
+					m = pcAlignPadLength(pc, alignedValue, ctxt)
+					break
+				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+					continue
+				default:
 					c.ctxt.Diag("zero-width instruction\n%v", p)
 				}
-				continue
 			}
 
 			pc += int64(m)
@@ -1017,11 +1049,22 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span7 is too small, need at least %d for %v", o.size/4, p)
 		}
-		c.asmout(p, o, out[:])
-		for i = 0; i < int(o.size/4); i++ {
-			c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
-			bp = bp[4:]
-			psz += 4
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(p.Pc, alignedValue, c.ctxt)
+			for i = 0; i < int(v/4); i++ {
+				// emit ANOOP instruction by the padding size
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
+				bp = bp[4:]
+				psz += 4
+			}
+		} else {
+			c.asmout(p, o, out[:])
+			for i = 0; i < int(o.size/4); i++ {
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+				bp = bp[4:]
+				psz += 4
+			}
 		}
 	}
 
@@ -1029,16 +1072,29 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// We use REGTMP as a scratch register during call injection,
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
-	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
-// Return whether p is an unsafe point.
+// isUnsafePoint returns whether p is an unsafe point.
 func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
-	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
-		return true
+	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
+	// preemption sequence clobbers REGTMP.
+	return p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP
+}
+
+// isRestartable returns whether p is a multi-instruction sequence that,
+// if preempted, can be restarted.
+func (c *ctxt7) isRestartable(p *obj.Prog) bool {
+	if c.isUnsafePoint(p) {
+		return false
 	}
-	// Most of the multi-instruction sequence uses REGTMP, except
-	// ones marked safe.
+	// If p is a multi-instruction sequence with uses REGTMP inserted by
+	// the assembler in order to materialize a large constant/offset, we
+	// can restart p (at the start of the instruction sequence), recompute
+	// the content of REGTMP, upon async preemption. Currently, all cases
+	// of assembler-inserted REGTMP fall into this category.
+	// If p doesn't use REGTMP, it can be simply preempted, so we don't
+	// mark it.
 	o := c.oplook(p)
 	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
@@ -1583,12 +1639,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 	}
 	if isaddcon(int64(v)) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(uint64(a.Offset)) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_ABCON
 		}
 		if movcon(int64(v)) >= 0 {
@@ -1602,7 +1658,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t := movcon(int64(v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
@@ -1610,13 +1666,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t = movcon(int64(^v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	if isbitcon(uint64(v)) {
+	if isbitcon(uint64(a.Offset)) {
 		return C_BITCON
 	}
 
@@ -2719,6 +2775,7 @@ func buildop(ctxt *obj.Link) {
 		case AVREV32:
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
+			oprangeset(AVREV16, t)
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
@@ -2749,6 +2806,7 @@ func buildop(ctxt *obj.Link) {
 		case obj.ANOP,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
+			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
@@ -3786,6 +3844,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= fields | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		op := c.opirr(p, p.As)
 		if op&Sbit != 0 {
 			c.ctxt.Diag("can not break addition/subtraction when S bit is set", p)
@@ -4468,6 +4528,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if p.As == AVREV32 && (af == ARNG_2S || af == ARNG_4S) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
@@ -5593,6 +5657,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVORR:
 		return 7<<25 | 5<<21 | 7<<10
+
+	case AVREV16:
+		return 3<<26 | 2<<24 | 1<<21 | 3<<11
 
 	case AVREV32:
 		return 11<<26 | 2<<24 | 1<<21 | 1<<11

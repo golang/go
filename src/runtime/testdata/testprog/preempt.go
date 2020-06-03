@@ -34,13 +34,19 @@ func AsyncPreempt() {
 	// This is an especially interesting case for
 	// LR machines.
 	go func() {
-		atomic.StoreUint32(&ready2, 1)
+		atomic.AddUint32(&ready2, 1)
 		frameless()
+	}()
+	// Also test empty infinite loop.
+	go func() {
+		atomic.AddUint32(&ready2, 1)
+		for {
+		}
 	}()
 
 	// Wait for the goroutine to stop passing through sync
 	// safe-points.
-	for atomic.LoadUint32(&ready) == 0 || atomic.LoadUint32(&ready2) == 0 {
+	for atomic.LoadUint32(&ready) == 0 || atomic.LoadUint32(&ready2) < 2 {
 		runtime.Gosched()
 	}
 

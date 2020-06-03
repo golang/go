@@ -147,7 +147,7 @@ func TestWaitGroupMisuse3(t *testing.T) {
 		}
 	}()
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	done := make(chan interface{}, 2)
+	done := make(chan interface{}, 3)
 	// The detection is opportunistically, so we want it to panic
 	// at least in one run out of a million.
 	for i := 0; i < 1e6; i++ {
@@ -171,8 +171,13 @@ func TestWaitGroupMisuse3(t *testing.T) {
 			}()
 			wg.Wait()
 		}()
-		wg.Wait()
-		for j := 0; j < 2; j++ {
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Wait()
+		}()
+		for j := 0; j < 3; j++ {
 			if err := <-done; err != nil {
 				panic(err)
 			}

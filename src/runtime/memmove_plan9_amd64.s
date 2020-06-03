@@ -25,6 +25,8 @@
 
 #include "textflag.h"
 
+// See memmove Go doc for important implementation constraints.
+
 // func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-24
 

@@ -2099,7 +2099,10 @@ func TestSkipArrayObjects(t *testing.T) {
 // slices, and arrays.
 // Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	// Values here change, cannot reuse table across runs.
+	type T struct {
+		A, B int
+	}
+	// Values here change, cannot reuse the table across runs.
 	var prefillTests = []struct {
 		in  string
 		ptr interface{}
@@ -2134,6 +2137,16 @@ func TestPrefilled(t *testing.T) {
 			in:  `[3]`,
 			ptr: &[...]int{1, 2},
 			out: &[...]int{3, 0},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[]T{{A: 3}},
+		},
+		{
+			in:  `[{"A": 3}]`,
+			ptr: &[...]T{{A: -1, B: -2}, {A: -3, B: -4}},
+			out: &[...]T{{A: 3, B: -2}, {}},
 		},
 	}
 
@@ -2419,7 +2432,7 @@ func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Test unmarshal to a map, with map key is a user defined type.
+// Test unmarshal to a map, where the map key is a user defined type.
 // See golang.org/issues/34437.
 func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	var p map[textUnmarshalerString]string
@@ -2428,6 +2441,131 @@ func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	}
 
 	if _, ok := p["foo"]; !ok {
-		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+		t.Errorf(`Key "foo" does not exist in map: %v`, p)
+	}
+}
+
+func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
+	// See golang.org/issues/38105.
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"开源":"12345开源"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if _, ok := p["开源"]; !ok {
+		t.Errorf(`Key "开源" does not exist in map: %v`, p)
+	}
+
+	// See golang.org/issues/38126.
+	type T struct {
+		F1 string `json:"F1,string"`
+	}
+	t1 := T{"aaa\tbbb"}
+
+	b, err := Marshal(t1)
+	if err != nil {
+		t.Fatalf("Marshal unexpected error: %v", err)
+	}
+	var t2 T
+	if err := Unmarshal(b, &t2); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if t1 != t2 {
+		t.Errorf("Marshal and Unmarshal roundtrip mismatch: want %q got %q", t1, t2)
+	}
+}
+
+func TestUnmarshalMaxDepth(t *testing.T) {
+	testcases := []struct {
+		name        string
+		data        string
+		errMaxDepth bool
+	}{
+		{
+			name:        "ArrayUnderMaxNestingDepth",
+			data:        `{"a":` + strings.Repeat(`[`, 10000-1) + strings.Repeat(`]`, 10000-1) + `}`,
+			errMaxDepth: false,
+		},
+		{
+			name:        "ArrayOverMaxNestingDepth",
+			data:        `{"a":` + strings.Repeat(`[`, 10000) + strings.Repeat(`]`, 10000) + `}`,
+			errMaxDepth: true,
+		},
+		{
+			name:        "ArrayOverStackDepth",
+			data:        `{"a":` + strings.Repeat(`[`, 3000000) + strings.Repeat(`]`, 3000000) + `}`,
+			errMaxDepth: true,
+		},
+		{
+			name:        "ObjectUnderMaxNestingDepth",
+			data:        `{"a":` + strings.Repeat(`{"a":`, 10000-1) + `0` + strings.Repeat(`}`, 10000-1) + `}`,
+			errMaxDepth: false,
+		},
+		{
+			name:        "ObjectOverMaxNestingDepth",
+			data:        `{"a":` + strings.Repeat(`{"a":`, 10000) + `0` + strings.Repeat(`}`, 10000) + `}`,
+			errMaxDepth: true,
+		},
+		{
+			name:        "ObjectOverStackDepth",
+			data:        `{"a":` + strings.Repeat(`{"a":`, 3000000) + `0` + strings.Repeat(`}`, 3000000) + `}`,
+			errMaxDepth: true,
+		},
+	}
+
+	targets := []struct {
+		name     string
+		newValue func() interface{}
+	}{
+		{
+			name: "unstructured",
+			newValue: func() interface{} {
+				var v interface{}
+				return &v
+			},
+		},
+		{
+			name: "typed named field",
+			newValue: func() interface{} {
+				v := struct {
+					A interface{} `json:"a"`
+				}{}
+				return &v
+			},
+		},
+		{
+			name: "typed missing field",
+			newValue: func() interface{} {
+				v := struct {
+					B interface{} `json:"b"`
+				}{}
+				return &v
+			},
+		},
+		{
+			name: "custom unmarshaler",
+			newValue: func() interface{} {
+				v := unmarshaler{}
+				return &v
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		for _, target := range targets {
+			t.Run(target.name+"-"+tc.name, func(t *testing.T) {
+				err := Unmarshal([]byte(tc.data), target.newValue())
+				if !tc.errMaxDepth {
+					if err != nil {
+						t.Errorf("unexpected error: %v", err)
+					}
+				} else {
+					if err == nil {
+						t.Errorf("expected error containing 'exceeded max depth', got none")
+					} else if !strings.Contains(err.Error(), "exceeded max depth") {
+						t.Errorf("expected error containing 'exceeded max depth', got: %v", err)
+					}
+				}
+			})
+		}
 	}
 }

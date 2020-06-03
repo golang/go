@@ -11,12 +11,11 @@ go build ./importy
 
 # An import provided by both the main module and the vendor directory
 # should be flagged as an error only when -mod=vendor is set.
-# TODO: This error message is a bit redundant.
 mkdir vendor/example.com/m/importy
 cp $WORK/importy/importy.go vendor/example.com/m/importy/importy.go
 go build example.com/m/importy
 ! go build -mod=vendor example.com/m/importy
-stderr '^can.t load package: package example.com/m/importy: ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
+stderr '^ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
 
 -- $WORK/go.mod --
 module example.com/m

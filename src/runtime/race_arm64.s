@@ -421,8 +421,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will
 	// benefit from this fast path.
-	CMP	$0, R0
-	BNE	rest
+	CBNZ	R0, rest
 	MOVD	g, R13
 	load_g
 	MOVD	g_m(g), R0

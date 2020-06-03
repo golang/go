@@ -108,8 +108,9 @@ func block() {
 // selectgo implements the select statement.
 //
 // cas0 points to an array of type [ncases]scase, and order0 points to
-// an array of type [2*ncases]uint16. Both reside on the goroutine's
-// stack (regardless of any escaping in selectgo).
+// an array of type [2*ncases]uint16 where ncases must be <= 65536.
+// Both reside on the goroutine's stack (regardless of any escaping in
+// selectgo).
 //
 // selectgo returns the index of the chosen scase, which matches the
 // ordinal position of its respective select{recv,send,default} call.
@@ -120,6 +121,8 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 		print("select: cas0=", cas0, "\n")
 	}
 
+	// NOTE: In order to maintain a lean stack size, the number of scases
+	// is capped at 65536.
 	cas1 := (*[1 << 16]scase)(unsafe.Pointer(cas0))
 	order1 := (*[1 << 17]uint16)(unsafe.Pointer(order0))
 
