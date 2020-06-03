@@ -62,11 +62,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="android">Android</h3>
 
-<p> <!-- golang.org/cl/235017 golang.org/issue/38838 -->
-	When linking binaries for Android, Go 1.15 explicitly selects
-	the <code>lld</code> linker available in recent versions of the NDK.
-	The <code>lld</code> linker avoids crashes on some devices, and is
-	planned to become the default NDK linker in a future NDK version.
+<p> <!-- CL 235017, golang.org/issue/38838 -->
+  When linking binaries for Android, Go 1.15 explicitly selects
+  the <code>lld</code> linker available in recent versions of the NDK.
+  The <code>lld</code> linker avoids crashes on some devices, and is
+  planned to become the default NDK linker in a future NDK version.
 </p>
 
 <h3 id="openbsd">OpenBSD</h3>
@@ -80,8 +80,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="riscv">RISC-V</h3>
 
-<p>
-TODO
+<p> <!-- CL 226400, CL 226206, and others -->
+  There has been progress in improving the stability and performance
+  of the 64-bit RISC-V port on Linux (<code>GOOS=linux</code>,
+  <code>GOARCH=riscv64</code>). It also now supports asynchronous
+  preemption.
 </p>
 
 <h2 id="tools">Tools</h2>
