@@ -246,7 +246,11 @@ TODO
 </p>
 
 <p><!-- CL 222661 -->
-  TODO: -spectre flags
+  Go 1.15 adds a <code>-spectre</code> flag to both the
+  compiler and the assembler, to allow enabling Spectre mitigations.
+  These should almost never be needed and are provided mainly as a
+  “defense in depth” mechanism.
+  See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -276,7 +280,7 @@ TODO
   These changes are part of a multi-release project
   to <a href="https://golang.org/s/better-linker">modernize the Go
   linker</a>, meaning that there will be additional linker
-  improvements expected in future releases. 
+  improvements expected in future releases.
 </p>
 
 <h2 id="library">Core library</h2>
