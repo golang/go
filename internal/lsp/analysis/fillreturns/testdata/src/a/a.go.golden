@@ -68,3 +68,13 @@ func m() (int, error) {
 	}
 	return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
 }
+
+func convertibleTypes() (ast2.Expr, int) {
+	return &ast2.ArrayType{}, 0 // want "wrong number of return values \\(want 2, got 1\\)"
+}
+
+func assignableTypes() (map[string]int, int) {
+	type X map[string]int
+	var x X
+	return x, 0 // want "wrong number of return values \\(want 2, got 1\\)"
+}

@@ -186,8 +186,7 @@ func equalTypes(t1, t2 types.Type) bool {
 			return rhs.Info()&types.IsConstType == lhs.Info()&types.IsConstType
 		}
 	}
-	// TODO: Figure out if we want to check for types.AssignableTo(t1, t2) || types.ConvertibleTo(t1, t2)
-	return false
+	return types.AssignableTo(t1, t2) || types.ConvertibleTo(t1, t2)
 }
 
 func FixesError(msg string) bool {
