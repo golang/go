@@ -2,12 +2,11 @@ This file works as a sort of notebook/implementation log. It replaces my noteboo
 I only switched to this file in Nov 2019, thus it doesn't contain earlier documentation.
 
 ----------------------------------------------------------------------------------------------------
-TODO
+TODO (implementation issues)
 
 - report a better error when a type is not in a type list (investigate)
 - fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
 - fix endless instantiation when printing: type T(type P) T(P)
-- review all direct accesses to Named.underlying and verify that they are still correct
 - better error message when we need parentheses around a parameterized function parameter type
 - revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
 - revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
@@ -43,6 +42,10 @@ OBSERVATIONS
   this problem. This is not a backward-compatible change but perhaps worthwhile investigating. Specifically,
   will this always work (look specifically at channel types where we need parentheses for disambiguation
   and possibly function types). File a proposal?
+
+- 6/3/2020: Observation: gofmt already removes superflous parentheses around types in parameter lists,
+  so in gofmt'ed code there won't be any such parentheses. Thus we can perhaps make the suggested language
+  change above without too many problems.
 
 - 2/21/2020: We do need top-level parentheses around types in certain situations such as conversions
   or composite literals. We could disallow parentheses around types in parameter lists only, but that
@@ -160,3 +163,13 @@ DESIGN/IMPLEMENTATION
   interface that applies to exactly one type parameter and the type bound expects exactly
   one type argument. This makes parameterized interface type bounds easier to use in a common
   case.
+
+- 5/?/2020: Relaxed above syntactic sugar and permit omission of explicit type bound instantiation
+  in any case where the type bound only accepts a single type parameter.
+  We may not want to permit this in the first version as this is something we can always add later.
+
+- 6/3/2020: A function type parameter acts like a named type. If its type bound has a type list
+  that type list determines the underlying type of the type parameter. If the bound doesn't have
+  a type list, the underlying type of a type parameter is itself. (We may decide that in this
+  latter case there may no underlying type at all which would perhaps more consistent. But this
+  is not clear cut.)

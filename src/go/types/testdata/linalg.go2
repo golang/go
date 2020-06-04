@@ -71,7 +71,7 @@ func (a ComplexAbs(T)) Abs() ComplexAbs(T) {
 	r := float64(real(a))
 	i := float64(imag(a))
 	d := math.Sqrt(r * r + i * i)
-	return T(complex(d, 0))
+	return (ComplexAbs(T))(complex(d, 0))
 }
 
 func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {

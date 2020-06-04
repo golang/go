@@ -157,6 +157,9 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 			}
 		}
 
+	case *Sum:
+		return isParameterizedList(t.types, seen)
+
 	case *Signature:
 		assert(t.tparams == nil) // TODO(gri) is this correct?
 		// TODO(gri) Rethink check below: contract interfaces

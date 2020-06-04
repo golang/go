@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file shows some examples of type-parameterized types.
+// This file shows some examples of generic types.
 
 package p
 
 // List is just what it says - a slice of E elements.
 type List(type E) []E
 
-// A parameterized (generic) type must always be instantiated
+// A generic (parameterized) type must always be instantiated
 // before it can be used to designate the type of a variable
 // (including a struct field, or function parameter); though
 // for the latter cases, the provided type may be another type
@@ -25,8 +25,7 @@ type Tree(type E) struct {
 // A simple instantiation of Tree:
 var root1 Tree(int)
 
-// The actual type parameter provided may be a parameterized
-// type itself:
+// The actual type parameter provided may be a generic type itself:
 var root2 Tree(List(int))
 
 // A couple of more complex examples.
@@ -36,7 +35,9 @@ var root2 Tree(List(int))
 var _ List(List(int)) = [](List(int)){}
 var _ List(List(List(Tree(int)))) = [](List(List(Tree(int)))){}
 
-// Type parameters act like type aliases. Given the declarations:
+// Type parameters act like type aliases when used in generic types
+// in the sense that we can "emulate" a specific type instantiation
+// with type aliases.
 type T1(type P) struct {
 	f P
 }
@@ -100,12 +101,11 @@ func _() {
 	xint = xbool // ERROR assignment
 }
 
-// Generic types cannot be used without instantiation
-// (except in special cases in type parameter lists).
+// Generic types cannot be used without instantiation.
 var _ T // ERROR cannot use generic type T
 
-// In type context, parameterized (generic) types cannot use instantiation syntax.
-// See also NOTES entry from 12/4/2019.
+// In type context, generic (parameterized) types cannot be parenthesized before
+// being instantiated. See also NOTES entry from 12/4/2019.
 var _ (T /* ERROR cannot use generic type T */ )( /* ERROR expected ';' */ int)
 
 // All types may be parameterized, including interfaces.
@@ -194,17 +194,18 @@ func _(type T interface{ m(); type int })() {
 	_ = x - x
 
 	// On the other hand, if we define a local alias for T,
-	// that alias stands for T.
+	// that alias stands for T as expected.
 	type A = T
 	var y A
 	y.m()
 	_ = y < 0
 }
 
-// As a special case, an explicit type parameter may be omitted
+// As a special case, an explicit type argument may be omitted
 // from a type parameter bound if the type bound expects exactly
 // one type argument. In that case, the type argument is the
-// respective type paramater to which the type bound applies.
+// respective type parameter to which the type bound applies.
+// Note: We may not permit this syntactic sugar at first.
 type Adder(type T) interface {
 	Add(T) T
 }
@@ -237,6 +238,7 @@ func _(type T1 B0, T2 B1)() // here B1 applies to T2
 // When the type argument is left away, the type bound is
 // instantiated for each type parameter with that type
 // parameter.
+// Note: We may not permit this syntactic sugar at first.
 func _(type A, B Adder, C Adder(A))() {
 	var a A // A's type bound is Adder(A)
 	a = a.Add(a)

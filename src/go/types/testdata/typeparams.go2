@@ -99,7 +99,7 @@ func _(type T interface{ type string, []rune }) (x T, i int) { _ = x /* ERROR "c
 // slicing
 // TODO(gri) implement this
 
-func _(type T interface{ type string }) (x T, i, j, k int) { _ = x /* ERROR not yet implemented */ [i:j:k] }
+func _(type T interface{ type string }) (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
 
 // len/cap built-ins
 

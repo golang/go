@@ -35,6 +35,10 @@ func (t T1([ /* ERROR must be an identifier */ ]int)) m2() {}
 // style. In m3 below, int is the name of the local receiver type parameter
 // and it shadows the predeclared identifier int which then cannot be used
 // anymore as expected.
+// This is no different from locally redelaring a predeclared identifier
+// and usually should be avoided. There are some notable exceptions; e.g.,
+// sometimes it makes sense to use the identifier "copy" which happens to
+// also be the name of a predeclared built-in function.
 func (t T1(int)) m3() { var _ int = 42 /* ERROR cannot convert 42 .* to int */ }
 
 // The names of the type parameters used in a parameterized receiver
@@ -91,7 +95,7 @@ type T0 struct{}
 func (T0) m() {}
 
 // This doesn't work for parameterized receiver types because there is
-// a syntactic ambiguity: what looks like a parameterized reciver type
+// a syntactic ambiguity: what looks like a parameterized receiver type
 // T1(A) is parsed as a receiver argument named T1 followed by a
 // parenthesized receiver type (A): (T1 (A)).
 func (T1(A /* ERROR undeclared name: A */ )) _() {}

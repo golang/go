@@ -175,8 +175,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				mode = value
 			}
 
-		case *TypeParam:
-			if t.Bound().is(func(t Type) bool {
+		case *Sum:
+			if t.is(func(t Type) bool {
 				switch t.(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
@@ -457,8 +457,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				m = 2
 			case *Map, *Chan:
 				m = 1
-			case *TypeParam:
-				return t.Bound().is(valid)
+			case *Sum:
+				return t.is(valid)
 			default:
 				return false
 			}
@@ -718,7 +718,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		ptyp.bound = &Interface{types: resTypes, allMethods: markComplete, allTypes: resTypes}
+		ptyp.bound = &Interface{types: resTypes, allMethods: markComplete, allTypes: NewSum(resTypes)}
 
 		return ptyp
 	}

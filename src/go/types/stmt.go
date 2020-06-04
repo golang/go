@@ -616,6 +616,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
+			// TODO(gri) disable
 			xtyp = t.Bound()
 			strict = true
 		default:
@@ -894,11 +895,11 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *TypeParam:
+	case *Sum:
 		first := true
 		var key, val Type
 		var msg string
-		typ.Bound().is(func(t Type) bool {
+		typ.is(func(t Type) bool {
 			k, v, m := rangeKeyVal(t, wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m

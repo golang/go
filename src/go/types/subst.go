@@ -158,20 +158,20 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// targ's underlying type must also be one of the interface types listed, if any
-		if len(iface.allTypes) == 0 {
+		if iface.allTypes == nil {
 			break // nothing to do
 		}
-		// len(iface.allTypes) > 0
+		// iface.allTypes != nil
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 		if targ := targ.TypeParam(); targ != nil {
 			targBound := targ.Bound()
-			if len(targBound.allTypes) == 0 {
+			if targBound.allTypes == nil {
 				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 				break
 			}
-			for _, t := range targBound.allTypes {
+			for _, t := range unpack(targBound.allTypes) {
 				if !iface.includes(t.Under()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
@@ -269,6 +269,15 @@ func (subst *subster) typ(typ Type) Type {
 				results:  results,
 				variadic: t.variadic,
 			}
+		}
+
+	case *Sum:
+		types, copied := subst.typeList(t.types)
+		if copied {
+			// Don't do it manually, with a Sum literal: the new
+			// types list may not be unique and NewSum may remove
+			// duplicates.
+			return NewSum(types)
 		}
 
 	case *Interface:

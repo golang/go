@@ -32,6 +32,8 @@ func is(typ Type, what BasicInfo) bool {
 	switch t := typ.Under().(type) {
 	case *Basic:
 		return t.info&what != 0
+	case *Sum:
+		return t.is(func(typ Type) bool { return is(typ, what) })
 	case *TypeParam:
 		return t.Bound().is(func(typ Type) bool { return is(typ, what) })
 	}
@@ -100,11 +102,13 @@ func Comparable(T Type) bool {
 		return true
 	case *Array:
 		return Comparable(t.elem)
+	case *Sum:
+		return t.is(Comparable)
 	case *TypeParam:
 		iface := t.Bound()
 		// If the magic method == exists, the type parameter is comparable.
 		_, m := lookupMethod(iface.allMethods, nil, "==")
-		return m != nil || iface.is(Comparable)
+		return m != nil
 	}
 	return false
 }
@@ -231,6 +235,29 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 				check.identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
 				check.identical0(x.params, y.params, cmpTags, p) &&
 				check.identical0(x.results, y.results, cmpTags, p)
+		}
+
+	case *Sum:
+		// Two sum types are identical if they contain the same types.
+		// (Sum types always consist of at least two types. Also, the
+		// the set (list) of types in a sum type consists of unique
+		// types - each type appears exactly once. Thus, two sum types
+		// must contain the same number of types to have chance of
+		// being equal.
+		if y, ok := y.(*Sum); ok && len(x.types) == len(y.types) {
+			// Every type in x.types must be in y.types.
+			// Quadratic algorithm, but probably good enough for now.
+			// TODO(gri) we need a fast quick type ID/hash for all types.
+		L:
+			for _, x := range x.types {
+				for _, y := range y.types {
+					if Identical(x, y) {
+						continue L // x is in y.types
+					}
+				}
+				return false // x is not in y.types
+			}
+			return true
 		}
 
 	case *Interface:

@@ -74,12 +74,15 @@ func (s sanitizer) typ(typ Type) Type {
 		s.tuple(t.params)
 		s.tuple(t.results)
 
+	case *Sum:
+		s.typeList(t.types)
+
 	case *Interface:
 		s.funcList(t.methods)
 		s.typeList(t.types)
 		s.typeList(t.embeddeds)
 		s.funcList(t.allMethods)
-		s.typeList(t.allTypes)
+		s.typ(t.allTypes)
 
 	case *Map:
 		t.key = s.typ(t.key)

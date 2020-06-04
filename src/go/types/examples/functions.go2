@@ -6,7 +6,7 @@
 
 package p
 
-// Reverse is a function that takes a []T argument and
+// Reverse is a generic function that takes a []T argument and
 // reverses that slice in place.
 func Reverse (type T) (list []T) {
 	i := 0
@@ -44,9 +44,9 @@ func new (type T) () *T {
 	return &x
 }
 
-// When calling our own new, we need to pass the type parameter
+// When calling our own `new`, we need to pass the type parameter
 // explicitly since there is no (value) argument from which the
-// result type could be inferred. We doen't try to infer the
+// result type could be inferred. We don't try to infer the
 // result type from the assignment to keep things simple and
 // easy to understand.
 var _ = new(int)()
@@ -66,7 +66,7 @@ var _ float64 = foo(42, []float64{1.0}, &s)
 
 // Type inference works in a straight-forward manner even
 // for variadic functions.
-func variadic(type A, B)(A, B, ...B) int { panic("unimplemented") }
+func variadic(type A, B)(A, B, ...B) int
 
 // var _ = variadic(1) // ERROR not enough arguments
 var _ = variadic(1, 2.3)

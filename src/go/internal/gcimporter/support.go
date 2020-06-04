@@ -135,6 +135,7 @@ func (anyType) Struct() *types.Struct       { return nil }
 func (anyType) Pointer() *types.Pointer     { return nil }
 func (anyType) Tuple() *types.Tuple         { return nil }
 func (anyType) Signature() *types.Signature { return nil }
+func (anyType) Sum() *types.Sum             { return nil }
 func (anyType) Interface() *types.Interface { return nil }
 func (anyType) Map() *types.Map             { return nil }
 func (anyType) Chan() *types.Chan           { return nil }

@@ -515,11 +515,11 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	// all types enumerated by the type parameter bound.
 	if t := target.TypeParam(); t != nil {
 		types := t.Bound().allTypes
-		if len(types) == 0 {
+		if types == nil {
 			goto Error
 		}
 
-		for _, t := range types {
+		for _, t := range unpack(types) {
 			check.convertUntypedInternal(x, t)
 			if x.mode == invalid {
 				goto Error
@@ -1363,12 +1363,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.expr = e
 			return expression
 
-		case *TypeParam:
-			// A generic variable can be indexed if all types
-			// in its type bound support indexing and have the
-			// same element type.
+		case *Sum:
+			// A sum type can be indexed if all the sum's types
+			// support indexing and have the same element type.
 			var elem Type
-			if typ.Bound().is(func(t Type) bool {
+			if typ.is(func(t Type) bool {
 				var e Type
 				switch t := t.(type) {
 				case *Basic:
@@ -1462,7 +1461,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			valid = true
 			// x.typ doesn't change
 
-		case *TypeParam:
+		case *Sum, *TypeParam:
 			check.errorf(x.pos(), "generic slice expressions not yet implemented")
 			goto Error
 		}
@@ -1531,6 +1530,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
+			// TODO(gri) disable for now
 			xtyp = t.Bound()
 			strict = true
 		default:

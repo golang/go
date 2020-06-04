@@ -144,7 +144,7 @@ func (check *Checker) varType(e ast.Expr) Type {
 		// interface methods. Delay this check to the end of type-checking.
 		check.atEnd(func() {
 			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
-			if len(t.allTypes) != 0 {
+			if t.allTypes != nil {
 				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints")
 			}
 		})
@@ -878,14 +878,16 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		for _, m := range etyp.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
-		types = append(types, etyp.allTypes...)
+		if etyp.allTypes != nil {
+			types = append(types, unpack(etyp.allTypes)...)
+		}
 	}
 
 	if methods != nil {
 		sort.Sort(byUniqueMethodName(methods))
 		ityp.allMethods = methods
 	}
-	ityp.allTypes = types
+	ityp.allTypes = NewSum(types)
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.

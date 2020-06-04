@@ -152,6 +152,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("func")
 		writeSignature(buf, t, qf, visited)
 
+	case *Sum:
+		for i, t := range t.types {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			writeType(buf, t, qf, visited)
+		}
+
 	case *Interface:
 		// We write the source-level methods and embedded types rather
 		// than the actual method set since resolved method signatures
@@ -177,15 +185,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
-			if !empty && len(t.allTypes) > 0 {
+			if !empty && t.allTypes != nil {
 				buf.WriteString("; ")
 			}
-			for i, typ := range t.allTypes {
-				if i > 0 {
-					buf.WriteString(", ")
-				}
-				writeType(buf, typ, qf, visited)
-				empty = false
+			if t.allTypes != nil {
+				buf.WriteString("type ")
+				writeType(buf, t.allTypes, qf, visited)
 			}
 		} else {
 			// print explicit interface methods and embedded types
