@@ -210,13 +210,18 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	}
 
 	// Set the workspace packages. If any of the package's files belong to the
-	// view, then the package is considered to be a workspace package.
+	// view, then the package may be a workspace package.
 	for _, uri := range append(m.compiledGoFiles, m.goFiles...) {
 		if !s.view.contains(uri) {
 			continue
 		}
 
 		// The package's files are in this view. It may be a workspace package.
+		if strings.Contains(string(uri), "/vendor/") {
+			// Vendored packages are not likely to be interesting to the user.
+			continue
+		}
+
 		switch m.forTest {
 		case "":
 			// A normal package.
