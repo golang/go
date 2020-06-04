@@ -55,6 +55,13 @@ Do not send CLs removing the interior tags from such phrases.
   on Windows.
 </p>
 
+<p><!-- CL 227003 -->
+  The <code>-race</code> and <code>-msan</code> flags now always
+  enable <code>-d=checkptr</code>, which checks uses
+  of <code>unsafe.Pointer</code>. This was previously the case on all
+  OSes except Windows.
+</p>
+
 <p><!-- CL 211139 -->
   Go-built DLLs no longer cause the process to exit when it receives a
   signal (such as Ctrl-C at a terminal).
@@ -245,12 +252,34 @@ TODO
   aggressively eliminating unused type metadata.
 </p>
 
+<p><!-- CL 219357, CL 231600 -->
+  The toolchain now mitigates
+  <a href="https://www.intel.com/content/www/us/en/support/articles/000055650/processors.html">Intel
+  CPU erratum SKX102</a> on <code>GOARCH=amd64</code> by aligning
+  functions to 32 byte boundaries and padding jump instructions. While
+  this padding increases binary sizes, this is more than made up for
+  by the binary size improvements mentioned above.
+</p>
+
 <p><!-- CL 222661 -->
   Go 1.15 adds a <code>-spectre</code> flag to both the
   compiler and the assembler, to allow enabling Spectre mitigations.
   These should almost never be needed and are provided mainly as a
   “defense in depth” mechanism.
   See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
+</p>
+
+<p><!-- CL 228578 -->
+  The compiler now rejects <code>//go:</code> compiler directives that
+  have no meaning for the declaration they are applied to with a
+  "misplaced compiler directive" error. Such misapplied directives
+  were broken before, but were silently ignored by the compiler.
+</p>
+
+<p><!-- CL 206658, CL 205066 -->
+  The compiler's <code>-json</code> optimization logging now reports
+  large (>= 128 byte) copies and includes explanations of escape
+  analysis decisions.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -281,6 +310,14 @@ TODO
   to <a href="https://golang.org/s/better-linker">modernize the Go
   linker</a>, meaning that there will be additional linker
   improvements expected in future releases.
+</p>
+
+<h2 id="objdump">Objdump</h2>
+
+<p><!-- CL 225459 -->
+  The <a href="/cmd/objdump/">objdump</a> tool now supports
+  disassembling in GNU assembler syntax with the <code>-gnu</code>
+  flag.
 </p>
 
 <h2 id="library">Core library</h2>
