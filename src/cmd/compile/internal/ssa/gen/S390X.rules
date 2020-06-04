@@ -716,20 +716,40 @@
 (ANDWconst [0xFF] x) => (MOVBZreg x)
 (ANDWconst [0xFFFF] x) => (MOVHZreg x)
 
-// strength reduction
-(MULLDconst [-1] x) => (NEG x)
-(MULLDconst [0] _) => (MOVDconst [0])
-(MULLDconst [1] x) => x
-(MULLDconst [c] x) && isPowerOfTwo(c) -> (SLDconst [log2(c)] x)
-(MULLDconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUB (SLDconst <v.Type> [log2(c+1)] x) x)
-(MULLDconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (ADD (SLDconst <v.Type> [log2(c-1)] x) x)
+// Strength reduce multiplication to the sum (or difference) of two powers of two.
+//
+// Examples:
+//     5x -> 4x + 1x
+//    10x -> 8x + 2x
+//   120x -> 128x - 8x
+//  -120x -> 8x - 128x
+//
+// We know that the rightmost bit of any positive value, once isolated, must either
+// be a power of 2 (because it is a single bit) or 0 (if the original value is 0).
+// In all of these rules we use a rightmost bit calculation to determine one operand
+// for the addition or subtraction. We then just need to calculate if the other
+// operand is a valid power of 2 before we can match the rule.
+//
+// Notes:
+//   - the generic rules have already matched single powers of two so we ignore them here
+//   - isPowerOfTwo32 asserts that its argument is greater than 0
+//   - c&(c-1) = clear rightmost bit
+//   - c&^(c-1) = isolate rightmost bit
 
-(MULLWconst [-1] x) => (NEGW x)
-(MULLWconst [0] _) => (MOVDconst [0])
-(MULLWconst [1] x) => x
-(MULLWconst [c] x) && isPowerOfTwo(c) -> (SLWconst [log2(c)] x)
-(MULLWconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBW (SLWconst <v.Type> [log2(c+1)] x) x)
-(MULLWconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (ADDW (SLWconst <v.Type> [log2(c-1)] x) x)
+// c = 2ˣ + 2ʸ => c - 2ˣ = 2ʸ
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c&(c-1))
+  => ((ADD|ADDW) (SL(D|W)const <t> x [int8(log32(c&(c-1)))])
+                 (SL(D|W)const <t> x [int8(log32(c&^(c-1)))]))
+
+// c = 2ʸ - 2ˣ => c + 2ˣ = 2ʸ
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c+(c&^(c-1)))
+  => ((SUB|SUBW) (SL(D|W)const <t> x [int8(log32(c+(c&^(c-1))))])
+                 (SL(D|W)const <t> x [int8(log32(c&^(c-1)))]))
+
+// c = 2ˣ - 2ʸ => -c + 2ˣ = 2ʸ
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(-c+(-c&^(-c-1)))
+  => ((SUB|SUBW) (SL(D|W)const <t> x [int8(log32(-c&^(-c-1)))])
+                 (SL(D|W)const <t> x [int8(log32(-c+(-c&^(-c-1))))]))
 
 // Fold ADD into MOVDaddr. Odd offsets from SB shouldn't be folded (LARL can't handle them).
 (ADDconst [c] (MOVDaddr [d] {s} x:(SB))) && ((c+d)&1 == 0) && is32Bit(c+d) -> (MOVDaddr [c+d] {s} x)
@@ -1132,6 +1152,9 @@
 (ORWconst [c] _) && int32(c)==-1  => (MOVDconst [-1])
 (XORconst [0] x)                  => x
 (XORWconst [c] x) && int32(c)==0   => x
+
+// Shifts by zero (may be inserted during multiplication strength reduction).
+((SLD|SLW|SRD|SRW|SRAD|SRAW)const x [0]) => x
 
 // Convert constant subtracts to constant adds.
 (SUBconst [c] x) && c != -(1<<31) => (ADDconst [-c] x)

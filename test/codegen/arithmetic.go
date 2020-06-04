@@ -71,7 +71,13 @@ func Mul_96(n int) int {
 	// 386:`SHLL\t[$]5`,`LEAL\t\(.*\)\(.*\*2\),`,-`IMULL`
 	// arm64:`LSL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
 	// arm:`SLL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
+	// s390x:`SLD\t[$]5`,`SLD\t[$]6`,-`MULLD`
 	return n * 96
+}
+
+func Mul_n120(n int) int {
+	// s390x:`SLD\t[$]3`,`SLD\t[$]7`,-`MULLD`
+	return n * -120
 }
 
 func MulMemSrc(a []uint32, b []float32) {
