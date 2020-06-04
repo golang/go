@@ -22,6 +22,10 @@ func main() {
 		{true, A{[]byte{1}, 1}, A{[]byte{1}, 2}},
 		{false, S{1, []byte{1}}, S{2, []byte{1}}},
 		{true, S{[]byte{1}, 1}, S{[]byte{1}, 2}},
+		{false, A{1, []byte{1}}, A{"2", []byte{1}}},
+		{true, A{[]byte{1}, 1}, A{[]byte{1}, "2"}},
+		{false, S{1, []byte{1}}, S{"2", []byte{1}}},
+		{true, S{[]byte{1}, 1}, S{[]byte{1}, "2"}},
 	} {
 		f := func() {
 			if test.a == test.b {
