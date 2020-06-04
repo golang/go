@@ -7,8 +7,8 @@ package ssa
 import (
 	"math"
 	"math/rand"
-	"testing"
 	"runtime"
+	"testing"
 )
 
 var (
