@@ -212,16 +212,21 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	// Set the workspace packages. If any of the package's files belong to the
 	// view, then the package is considered to be a workspace package.
 	for _, uri := range append(m.compiledGoFiles, m.goFiles...) {
-		// If the package's files are in this view, mark it as a workspace package.
-		if s.view.contains(uri) {
-			// A test variant of a package can only be loaded directly by loading
-			// the non-test variant with -test. Track the import path of the non-test variant.
-			if m.forTest != "" {
-				s.workspacePackages[m.id] = m.forTest
-			} else {
-				s.workspacePackages[m.id] = pkgPath
-			}
-			break
+		if !s.view.contains(uri) {
+			continue
+		}
+
+		// The package's files are in this view. It may be a workspace package.
+		switch m.forTest {
+		case "":
+			// A normal package.
+			s.workspacePackages[m.id] = pkgPath
+		case m.pkgPath:
+			// The test variant of some workspace package. To load it, we need to
+			// load the non-test variant with -test.
+			s.workspacePackages[m.id] = m.forTest
+		default:
+			// A test variant of some intermediate package. We don't care about it.
 		}
 	}
 	return m, nil
