@@ -24,6 +24,8 @@ type deadcodePass struct {
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectSeen     bool               // whether we have seen a reflect method call
+
+	methodsigstmp []methodsig // scratch buffer for decoding method signatures
 }
 
 func (d *deadcodePass) init() {
@@ -92,6 +94,7 @@ func (d *deadcodePass) init() {
 }
 
 func (d *deadcodePass) flood() {
+	var methods []methodref
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
@@ -112,7 +115,7 @@ func (d *deadcodePass) flood() {
 			}
 		}
 
-		var methods []methodref
+		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
 			t := r.Type()
@@ -330,7 +333,10 @@ func (m methodref) isExported() bool {
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
 func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, off, size, count int) []methodsig {
-	var methods = make([]methodsig, count)
+	if cap(d.methodsigstmp) < count {
+		d.methodsigstmp = append(d.methodsigstmp[:0], make([]methodsig, count)...)
+	}
+	var methods = d.methodsigstmp[:count]
 	for i := 0; i < count; i++ {
 		methods[i].name = decodetypeName(ldr, symIdx, relocs, off)
 		methods[i].typ = decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
