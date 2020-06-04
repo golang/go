@@ -63,9 +63,6 @@ var (
 )
 
 func MkEnv() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
-
 	envFile, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
