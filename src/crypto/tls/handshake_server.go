@@ -308,6 +308,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
+	c.cipherSuite = hs.suite.id
 
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
@@ -407,6 +408,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
 	hs.hello.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.id
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
@@ -743,7 +745,6 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 		return err
 	}
 
-	c.cipherSuite = hs.suite.id
 	copy(out, finished.verifyData)
 
 	return nil
