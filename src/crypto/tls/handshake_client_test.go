@@ -1470,25 +1470,28 @@ func TestVerifyConnection(t *testing.T) {
 }
 
 func testVerifyConnection(t *testing.T, version uint16) {
-	checkFields := func(c ConnectionState, called *int) error {
+	checkFields := func(c ConnectionState, called *int, errorType string) error {
 		if c.Version != version {
-			return fmt.Errorf("got Version %v, want %v", c.Version, version)
+			return fmt.Errorf("%s: got Version %v, want %v", errorType, c.Version, version)
 		}
 		if c.HandshakeComplete {
-			return fmt.Errorf("got HandshakeComplete, want false")
+			return fmt.Errorf("%s: got HandshakeComplete, want false", errorType)
 		}
 		if c.ServerName != "example.golang" {
-			return fmt.Errorf("got ServerName %s, want %s", c.ServerName, "example.golang")
+			return fmt.Errorf("%s: got ServerName %s, want %s", errorType, c.ServerName, "example.golang")
 		}
 		if c.NegotiatedProtocol != "protocol1" {
-			return fmt.Errorf("got NegotiatedProtocol %s, want %s", c.NegotiatedProtocol, "protocol1")
+			return fmt.Errorf("%s: got NegotiatedProtocol %s, want %s", errorType, c.NegotiatedProtocol, "protocol1")
+		}
+		if c.CipherSuite == 0 {
+			return fmt.Errorf("%s: got CipherSuite 0, want non-zero", errorType)
 		}
 		wantDidResume := false
 		if *called == 2 { // if this is the second time, then it should be a resumption
 			wantDidResume = true
 		}
 		if c.DidResume != wantDidResume {
-			return fmt.Errorf("got DidResume %t, want %t", c.DidResume, wantDidResume)
+			return fmt.Errorf("%s: got DidResume %t, want %t", errorType, c.DidResume, wantDidResume)
 		}
 		return nil
 	}
@@ -1510,7 +1513,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					if len(c.VerifiedChains) == 0 {
 						return fmt.Errorf("server: got len(VerifiedChains) = 0, wanted non-zero")
 					}
-					return checkFields(c, called)
+					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
@@ -1533,7 +1536,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					if len(c.SignedCertificateTimestamps) == 0 {
 						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
 					}
-					return checkFields(c, called)
+					return checkFields(c, called, "client")
 				}
 			},
 		},
@@ -1550,7 +1553,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					if c.VerifiedChains != nil {
 						return fmt.Errorf("server: got Verified Chains %v, want nil", c.VerifiedChains)
 					}
-					return checkFields(c, called)
+					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
@@ -1574,7 +1577,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					if len(c.SignedCertificateTimestamps) == 0 {
 						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
 					}
-					return checkFields(c, called)
+					return checkFields(c, called, "client")
 				}
 			},
 		},
@@ -1584,13 +1587,13 @@ func testVerifyConnection(t *testing.T, version uint16) {
 				config.ClientAuth = NoClientCert
 				config.VerifyConnection = func(c ConnectionState) error {
 					*called++
-					return checkFields(c, called)
+					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
 				config.VerifyConnection = func(c ConnectionState) error {
 					*called++
-					return checkFields(c, called)
+					return checkFields(c, called, "client")
 				}
 			},
 		},
@@ -1600,7 +1603,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 				config.ClientAuth = RequestClientCert
 				config.VerifyConnection = func(c ConnectionState) error {
 					*called++
-					return checkFields(c, called)
+					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
@@ -1624,7 +1627,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					if len(c.SignedCertificateTimestamps) == 0 {
 						return fmt.Errorf("client: got len(SignedCertificateTimestamps) = 0, wanted non-zero")
 					}
-					return checkFields(c, called)
+					return checkFields(c, called, "client")
 				}
 			},
 		},
