@@ -395,7 +395,11 @@ TODO
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 212597 -->
-      TODO: <a href="https://golang.org/cl/212597">https://golang.org/cl/212597</a>: reject path separators in TempDir, TempFile pattern
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> and
+      <a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      now reject patterns that contain path separators.
+      That is, calls such as <code>ioutil.TempFile("/tmp",</code> <code>"../base*")</code> will no longer succeed.
+      This prevents unintended directory traversal.
     </p>
   </dd>
 </dl><!-- io/ioutil -->
