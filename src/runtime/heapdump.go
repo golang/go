@@ -713,7 +713,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		if i != 1 && !hbits.morePointers() {
+		if !hbits.morePointers() {
 			break // end of object
 		}
 		if hbits.isPointer() {

@@ -1670,13 +1670,13 @@ func gcMarkTermination(nextTriggerRatio float64) {
 			// mark using checkmark bits, to check that we
 			// didn't forget to mark anything during the
 			// concurrent mark process.
+			startCheckmarks()
 			gcResetMarkState()
-			initCheckmarks()
 			gcw := &getg().m.p.ptr().gcw
 			gcDrain(gcw, 0)
 			wbBufFlush1(getg().m.p.ptr())
 			gcw.dispose()
-			clearCheckmarks()
+			endCheckmarks()
 		}
 
 		// marking is complete so we can turn the write barrier off
