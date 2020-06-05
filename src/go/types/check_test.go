@@ -281,6 +281,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.AcceptMethodTypeParams = true
 	// special case for importC.src
 	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
 		conf.FakeImportC = true

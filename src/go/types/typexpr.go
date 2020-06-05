@@ -311,6 +311,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	if ftyp.TParams != nil {
 		sig.tparams = check.collectTypeParams(ftyp.TParams)
+		// Always type-check method type parameters but complain if they are not enabled.
+		// (A separate check is needed when type-checking interface method signatures because
+		// they don't have a receiver specification.)
+		if recvPar != nil && !check.conf.AcceptMethodTypeParams {
+			check.errorf(ftyp.TParams.Pos(), "methods cannot have type parameters")
+		}
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
@@ -747,6 +753,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
 				}
 				continue // ignore
+			}
+
+			// Always type-check method type parameters but complain if they are not enabled.
+			// (This extra check is needed here because interface method signatures don't have
+			// a receiver specification.)
+			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
+				check.errorf(f.Type.(*ast.FuncType).TParams.Pos(), "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
