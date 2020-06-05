@@ -605,7 +605,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		hbits := heapBitsForAddr(base)
 		n := span.elemsize
 		for i = uintptr(0); i < n; i += sys.PtrSize {
-			if i != 1*sys.PtrSize && !hbits.morePointers() {
+			if !hbits.morePointers() {
 				// No more possible pointers.
 				break
 			}

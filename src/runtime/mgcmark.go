@@ -1354,11 +1354,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		}
 		// Load bits once. See CL 22712 and issue 16973 for discussion.
 		bits := hbits.bits()
-		// During checkmarking, 1-word objects store the checkmark
-		// in the type bit for the one word. The only one-word objects
-		// are pointers, or else they'd be merged with other non-pointer
-		// data into larger allocations.
-		if i != 1*sys.PtrSize && bits&bitScan == 0 {
+		if bits&bitScan == 0 {
 			break // no more pointers in this object
 		}
 		if bits&bitPointer == 0 {
@@ -1511,27 +1507,9 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 	mbits := span.markBitsForIndex(objIndex)
 
 	if useCheckmark {
-		if !mbits.isMarked() {
-			printlock()
-			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), "\n")
-			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
-
-			// Dump the source (base) object
-			gcDumpObject("base", base, off)
-
-			// Dump the object
-			gcDumpObject("obj", obj, ^uintptr(0))
-
-			getg().m.traceback = 2
-			throw("checkmark found unmarked object")
-		}
-		hbits := heapBitsForAddr(obj)
-		if hbits.isCheckmarked(span.elemsize) {
+		if setCheckmark(obj, base, off, mbits) {
+			// Already marked.
 			return
-		}
-		hbits.setCheckmarked(span.elemsize)
-		if !hbits.isCheckmarked(span.elemsize) {
-			throw("setCheckmarked and isCheckmarked disagree")
 		}
 	} else {
 		if debug.gccheckmark > 0 && span.isFree(objIndex) {
@@ -1659,47 +1637,5 @@ func gcMarkTinyAllocs() {
 		_, span, objIndex := findObject(c.tiny, 0, 0)
 		gcw := &p.gcw
 		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
-	}
-}
-
-// Checkmarking
-
-// To help debug the concurrent GC we remark with the world
-// stopped ensuring that any object encountered has their normal
-// mark bit set. To do this we use an orthogonal bit
-// pattern to indicate the object is marked. The following pattern
-// uses the upper two bits in the object's boundary nibble.
-// 01: scalar  not marked
-// 10: pointer not marked
-// 11: pointer     marked
-// 00: scalar      marked
-// Xoring with 01 will flip the pattern from marked to unmarked and vica versa.
-// The higher bit is 1 for pointers and 0 for scalars, whether the object
-// is marked or not.
-// The first nibble no longer holds the typeDead pattern indicating that the
-// there are no more pointers in the object. This information is held
-// in the second nibble.
-
-// If useCheckmark is true, marking of an object uses the
-// checkmark bits (encoding above) instead of the standard
-// mark bits.
-var useCheckmark = false
-
-//go:nowritebarrier
-func initCheckmarks() {
-	useCheckmark = true
-	for _, s := range mheap_.allspans {
-		if s.state.get() == mSpanInUse {
-			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
-		}
-	}
-}
-
-func clearCheckmarks() {
-	useCheckmark = false
-	for _, s := range mheap_.allspans {
-		if s.state.get() == mSpanInUse {
-			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
-		}
 	}
 }
