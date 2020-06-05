@@ -14593,6 +14593,18 @@ func rewriteValueARM64_OpARM64MULW(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MVN(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MVN (XOR x y))
+	// result: (EON x y)
+	for {
+		if v_0.Op != OpARM64XOR {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64EON)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (MVN (MOVDconst [c]))
 	// result: (MOVDconst [^c])
 	for {
