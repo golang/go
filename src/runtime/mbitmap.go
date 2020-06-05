@@ -1403,17 +1403,20 @@ Phase4:
 	// Double check the whole bitmap.
 	if doubleCheck {
 		// x+size may not point to the heap, so back up one
-		// word and then call next().
-		end := heapBitsForAddr(x + size - sys.PtrSize).next()
-		endAI := arenaIdx(end.arena)
-		if !outOfPlace && (end.bitp == nil || (end.shift == 0 && end.bitp == &mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0])) {
-			// The unrolling code above walks hbitp just
-			// past the bitmap without moving to the next
-			// arena. Synthesize this for end.bitp.
-			end.arena--
-			endAI = arenaIdx(end.arena)
-			end.bitp = addb(&mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0], heapArenaBitmapBytes)
-			end.last = nil
+		// word and then advance it the way we do above.
+		end := heapBitsForAddr(x + size - sys.PtrSize)
+		if outOfPlace {
+			// In out-of-place copying, we just advance
+			// using next.
+			end = end.next()
+		} else {
+			// Don't use next because that may advance to
+			// the next arena and the in-place logic
+			// doesn't do that.
+			end.shift += heapBitsShift
+			if end.shift == 4*heapBitsShift {
+				end.bitp, end.shift = add1(end.bitp), 0
+			}
 		}
 		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
 			println("ended at wrong bitmap byte for", typ.string(), "x", dataSize/typ.size)
@@ -1437,8 +1440,9 @@ Phase4:
 			var have, want uint8
 			have = (*h.bitp >> h.shift) & (bitPointer | bitScan)
 			if i >= totalptr {
-				want = 0 // deadmarker
 				if typ.kind&kindGCProg != 0 && i < (totalptr+3)/4*4 {
+					// heapBitsSetTypeGCProg always fills
+					// in full nibbles of bitScan.
 					want = bitScan
 				}
 			} else {
