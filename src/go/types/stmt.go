@@ -615,12 +615,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		switch t := x.typ.Under().(type) {
 		case *Interface:
 			xtyp = t
-		case *TypeParam:
-			// TODO(gri) disable
-			xtyp = t.Bound()
-			strict = true
+		// Disabled for now. See comment in the implementation of type assertions (expr.go).
+		// case *TypeParam:
+		// 	xtyp = t.Bound()
+		// 	strict = true
 		default:
-			check.errorf(x.pos(), "%s is not an interface or generic type", &x)
+			check.errorf(x.pos(), "%s is not an interface type", &x)
 			return
 		}
 

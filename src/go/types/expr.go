@@ -1529,12 +1529,15 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		switch t := x.typ.Under().(type) {
 		case *Interface:
 			xtyp = t
-		case *TypeParam:
-			// TODO(gri) disable for now
-			xtyp = t.Bound()
-			strict = true
+		// Disabled for now. It is not clear what the right approach is
+		// here. Also, the implementation below is inconsistent because
+		// the underlying type of a type parameter is either itself or
+		// a sum type if the corresponding type bound contains a type list.
+		// case *TypeParam:
+		// 	xtyp = t.Bound()
+		// 	strict = true
 		default:
-			check.invalidOp(x.pos(), "%s is not an interface or generic type", x)
+			check.invalidOp(x.pos(), "%s is not an interface type", x)
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches

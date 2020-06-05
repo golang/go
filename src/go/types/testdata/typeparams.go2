@@ -4,7 +4,7 @@
 
 package p
 
-import "io" // for type assertion tests
+// import "io" // for type assertion tests
 
 func identity(type T)(x T) T { return x }
 
@@ -323,49 +323,78 @@ func (_ R2(X, Y)) m1(X)
 func (_ R2(X, Y)) m2(X) Y
 
 // type assertions and type switches over generic types
+// NOTE: These are currently disabled because it's unclear what the correct
+// approach is, and one can always work around by assigning the variable to
+// an interface first.
 
-// ReadByte1 corresponds to the ReadByte example in the contracts draft design.
-func ReadByte1(type T io.Reader)(r T) (byte, error) {
-	if br, ok := r.(io.ByteReader); ok {
-		return br.ReadByte()
+// // ReadByte1 corresponds to the ReadByte example in the contracts draft design.
+// func ReadByte1(type T io.Reader)(r T) (byte, error) {
+// 	if br, ok := r.(io.ByteReader); ok {
+// 		return br.ReadByte()
+// 	}
+// 	var b [1]byte
+// 	_, err := r.Read(b[:])
+// 	return b[0], err
+// }
+// 
+// // ReadBytes2 is like ReadByte1 but uses a type switch instead.
+// func ReadByte2(type T io.Reader)(r T) (byte, error) {
+//         switch br := r.(type) {
+//         case io.ByteReader:
+//                 return br.ReadByte()
+//         }
+// 	var b [1]byte
+// 	_, err := r.Read(b[:])
+// 	return b[0], err
+// }
+// 
+// // type assertions and type switches over generic types are strict
+// type I3 interface {
+//         m(int)
+// }
+// 
+// type I4 interface {
+//         m() int // different signature from I3.m
+// }
+// 
+// func _(type T I3)(x I3, p T) {
+//         // type assertions and type switches over interfaces are not strict
+//         _ = x.(I4)
+//         switch x.(type) {
+//         case I4:
+//         }
+// 
+//         // type assertions and type switches over generic types are strict
+//         _ = p /* ERROR cannot have dynamic type I4 */.(I4)
+//         switch p.(type) {
+//         case I4 /* ERROR cannot have dynamic type I4 */ :
+//         }
+// }
+
+// type assertions and type switches over generic types lead to errors for now
+
+func _(type T)(x T) {
+	_ = x /* ERROR not an interface */ .(int)
+	switch x /* ERROR not an interface */ .(type) {
 	}
-	var b [1]byte
-	_, err := r.Read(b[:])
-	return b[0], err
+
+	// work-around
+	var t interface{} = x
+	_ = t.(int)
+	switch t.(type) {
+	}
 }
 
-// ReadBytes2 is like ReadByte1 but uses a type switch instead.
-func ReadByte2(type T io.Reader)(r T) (byte, error) {
-        switch br := r.(type) {
-        case io.ByteReader:
-                return br.ReadByte()
-        }
-	var b [1]byte
-	_, err := r.Read(b[:])
-	return b[0], err
-}
+func _(type T interface{type int})(x T) {
+	_ = x /* ERROR not an interface */ .(int)
+	switch x /* ERROR not an interface */ .(type) {
+	}
 
-// type assertions and type switches over generic types are strict
-type I3 interface {
-        m(int)
-}
-
-type I4 interface {
-        m() int // different signature from I3.m
-}
-
-func _(type T I3)(x I3, p T) {
-        // type assertions and type switches over interfaces are not strict
-        _ = x.(I4)
-        switch x.(type) {
-        case I4:
-        }
-
-        // type assertions and type switches over generic types are strict
-        _ = p /* ERROR cannot have dynamic type I4 */.(I4)
-        switch p.(type) {
-        case I4 /* ERROR cannot have dynamic type I4 */ :
-        }
+	// work-around
+	var t interface{} = x
+	_ = t.(int)
+	switch t.(type) {
+	}
 }
 
 // error messages related to type bounds mention those bounds
