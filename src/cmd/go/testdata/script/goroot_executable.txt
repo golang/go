@@ -2,6 +2,13 @@
 
 mkdir $WORK/new/bin
 
+# In this test, we are specifically checking the logic for deriving
+# the value of GOROOT from runtime.GOROOT.
+# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
+# and will thus cause the test to fail if it is set when our
+# new cmd/go is built.
+env GOROOT_FINAL=
+
 go build -o $WORK/new/bin/go$GOEXE cmd/go &
 go build -o $WORK/bin/check$GOEXE check.go &
 wait

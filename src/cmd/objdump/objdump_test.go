@@ -138,7 +138,11 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
 	args = append(args, flags...)
 	args = append(args, "fmthello.go")
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
-	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+	// "Bad line" bug #36683 is sensitive to being run in the source directory.
+	cmd.Dir = "testdata"
+	// Ensure that the source file location embedded in the binary matches our
+	// actual current GOROOT, instead of GOROOT_FINAL if set.
+	cmd.Env = append(os.Environ(), "GOROOT_FINAL=")
 	t.Logf("Running %v", cmd.Args)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
