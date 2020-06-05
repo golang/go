@@ -191,6 +191,13 @@ type driver func(cfg *Config, patterns ...string) (*driverResponse, error)
 
 // driverResponse contains the results for a driver query.
 type driverResponse struct {
+	// NotHandled is returned if the request can't be handled by the current
+	// driver. If an external driver returns a response with NotHandled, the
+	// rest of the driverResponse is ignored, and go/packages will fallback
+	// to the next driver. If go/packages is extended in the future to support
+	// lists of multiple drivers, go/packages will fall back to the next driver.
+	NotHandled bool
+
 	// Sizes, if not nil, is the types.Sizes to use when type checking.
 	Sizes *types.StdSizes
 
@@ -232,14 +239,22 @@ func Load(cfg *Config, patterns ...string) ([]*Package, error) {
 	return l.refine(response.Roots, response.Packages...)
 }
 
-// defaultDriver is a driver that looks for an external driver binary, and if
-// it does not find it falls back to the built in go list driver.
+// defaultDriver is a driver that implements go/packages' fallback behavior.
+// It will try to request to an external driver, if one exists. If there's
+// no external driver, or the driver returns a response with NotHandled set,
+// defaultDriver will fall back to the go list driver.
 func defaultDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	driver := findExternalDriver(cfg)
 	if driver == nil {
 		driver = goListDriver
 	}
-	return driver(cfg, patterns...)
+	response, err := driver(cfg, patterns...)
+	if err != nil {
+		return response, err
+	} else if response.NotHandled {
+		return goListDriver(cfg, patterns...)
+	}
+	return response, nil
 }
 
 // A Package describes a loaded Go package.

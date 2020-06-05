@@ -2981,6 +2981,92 @@ func testModule(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestExternal_NotHandled(t *testing.T) {
+	packagestest.TestAll(t, testExternal_NotHandled)
+}
+func testExternal_NotHandled(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGoBuild(t)
+
+	tempdir, err := ioutil.TempDir("", "testexternal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempdir)
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a`,
+			"empty_driver/main.go": `package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+)
+
+func main() {
+	ioutil.ReadAll(os.Stdin)
+	fmt.Println("{}")
+}
+`,
+			"nothandled_driver/main.go": `package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+)
+
+func main() {
+	ioutil.ReadAll(os.Stdin)
+	fmt.Println("{\"NotHandled\": true}")
+}
+`,
+		}}})
+	baseEnv := exported.Config.Env
+
+	// As a control, create a fake driver that always returns an empty response.
+	emptyDriverPath := filepath.Join(tempdir, "empty_driver.exe") // Add .exe because Windows expects it.
+	cmd := exec.Command("go", "build", "-o", emptyDriverPath, "golang.org/fake/empty_driver")
+	cmd.Env = baseEnv
+	cmd.Dir = exported.Config.Dir
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Log(string(b))
+		t.Fatal(err)
+	}
+
+	exported.Config.Env = append(append([]string{}, baseEnv...), "GOPACKAGESDRIVER="+emptyDriverPath)
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(initial) != 0 {
+		t.Errorf("package.Load with empty driver: want [], got %v", initial)
+	}
+
+	// Create a fake driver that always returns a NotHandled response.
+	notHandledDriverPath := filepath.Join(tempdir, "nothandled_driver.exe")
+	cmd = exec.Command("go", "build", "-o", notHandledDriverPath, "golang.org/fake/nothandled_driver")
+	cmd.Env = baseEnv
+	cmd.Dir = exported.Config.Dir
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Log(string(b))
+		t.Fatal(err)
+	}
+
+	exported.Config.Env = append(append([]string{}, baseEnv...), "GOPACKAGESDRIVER="+notHandledDriverPath)
+	initial, err = packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(initial) != 1 || initial[0].PkgPath != "golang.org/fake/a" {
+		t.Errorf("package.Load: want [golang.org/fake/a], got %v", initial)
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
