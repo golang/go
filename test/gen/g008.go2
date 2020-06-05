@@ -1,0 +1,41 @@
+// run
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+type Setter interface {
+	Set(string)
+}
+
+func FromStrings(type T Setter)(s []string) []T {
+	result := make([]T, len(s))
+	for i, v := range s {
+		result[i].Set(v)
+	}
+	return result
+}
+
+type Settable int
+
+func (p *Settable) Set(s string) {
+	*p = 0
+}
+
+func F() {
+	defer func() {
+		if recover() == nil {
+			panic("did not panic as expected")
+		}
+	}()
+	// This should type check but should panic at run time,
+	// because it will make a slice of *Settable and then call
+	// Set on a nil value.
+	FromStrings(*Settable)([]string{"1"})
+}
+
+func main() {
+	F()
+}
