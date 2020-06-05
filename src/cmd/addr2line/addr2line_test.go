@@ -74,18 +74,26 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 		t.Fatalf("Stat failed: %v", err)
 	}
 	fi2, err := os.Stat(srcPath)
+	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" && strings.HasPrefix(srcPath, gorootFinal) {
+		if os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2)) {
+			// srcPath has had GOROOT_FINAL substituted for GOROOT, and it doesn't
+			// match the actual file. GOROOT probably hasn't been moved to its final
+			// location yet, so try the original location instead.
+			fi2, err = os.Stat(runtime.GOROOT() + strings.TrimPrefix(srcPath, gorootFinal))
+		}
+	}
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "89" {
-		t.Fatalf("line number = %v; want 89", srcLineNo)
+	if srcLineNo != "97" {
+		t.Fatalf("line number = %v; want 97", srcLineNo)
 	}
 }
 
-// This is line 88. The test depends on that.
+// This is line 96. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 

@@ -178,15 +178,6 @@ func (t *tester) run() {
 		return
 	}
 
-	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
-	// correct access to source code, so if we have GOROOT_FINAL in effect,
-	// at least runtime/debug test will fail.
-	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
-	// Nothing we can do about that other than not checking them below.
-	// (We call checkNotStale but only with "std" not "cmd".)
-	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
-	os.Unsetenv("GOROOT_FINAL")
-
 	for _, name := range t.runNames {
 		if !t.isRegisteredTestName(name) {
 			fatalf("unknown test %q", name)
