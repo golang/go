@@ -219,13 +219,13 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ed1.Shutdown(clientCtx)
+	defer ed1.Close(clientCtx)
 	conn2 := tsBackend.Connect(baseCtx)
 	ed2, err := fake.NewEditor(sb, fake.EditorConfig{}).Connect(baseCtx, conn2, fake.ClientHooks{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ed2.Shutdown(baseCtx)
+	defer ed2.Close(baseCtx)
 
 	serverDebug := debug.GetInstance(serverCtx)
 	if got, want := len(serverDebug.State.Clients()), 2; got != want {
@@ -240,12 +240,29 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	}
 	// Close one of the connections to verify that the client and session were
 	// dropped.
-	if err := ed1.Shutdown(clientCtx); err != nil {
+	if err := ed1.Close(clientCtx); err != nil {
 		t.Fatal(err)
+	}
+	/*TODO: at this point we have verified the editor is closed
+	However there is no way currently to wait for all associated go routines to
+	go away, and we need to wait for those to trigger the client drop
+	for now we just give it a little bit of time, but we need to fix this
+	in a principled way
+	*/
+	start := time.Now()
+	delay := time.Millisecond
+	const maxWait = time.Second
+	for len(serverDebug.State.Clients()) > 1 {
+		if time.Since(start) > maxWait {
+			break
+		}
+		time.Sleep(delay)
+		delay *= 2
+	}
+	if got, want := len(serverDebug.State.Clients()), 1; got != want {
+		t.Errorf("len(server:Clients) = %d, want %d", got, want)
 	}
 	if got, want := len(serverDebug.State.Sessions()), 1; got != want {
 		t.Errorf("len(server:Sessions()) = %d, want %d", got, want)
 	}
-	// TODO(rfindley): once disconnection works, assert that len(Clients) == 1
-	// (as of writing, it is still 2)
 }

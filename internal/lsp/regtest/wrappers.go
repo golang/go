@@ -165,8 +165,7 @@ func checkIsFatal(t *testing.T, err error) {
 // CloseEditor shuts down the editor, calling t.Fatal on any error.
 func (e *Env) CloseEditor() {
 	e.T.Helper()
-	checkIsFatal(e.T, e.Editor.Shutdown(e.Ctx))
-	checkIsFatal(e.T, e.Editor.Exit(e.Ctx))
+	checkIsFatal(e.T, e.Editor.Close(e.Ctx))
 }
 
 // RunGenerate runs go:generate on the given dir, calling t.Fatal on any error.
