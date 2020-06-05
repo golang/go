@@ -1323,6 +1323,7 @@
 (AND x (MVN y)) -> (BIC x y)
 (XOR x (MVN y)) -> (EON x y)
 (OR  x (MVN y)) -> (ORN x y)
+(MVN (XOR x y)) -> (EON x y)
 (CSEL {cc} x (MOVDconst [0]) flag) -> (CSEL0 {cc} x flag)
 (CSEL {cc} (MOVDconst [0]) y flag) -> (CSEL0 {arm64Negate(cc.(Op))} y flag)
 (SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)
