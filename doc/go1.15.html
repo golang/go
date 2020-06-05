@@ -218,10 +218,24 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p><!-- CL 232862 -->
-  Go now retries system calls that return <code>EINTR</code>. This
-  became more common in Go 1.14 with the addition of asynchronous
-  preemption, but is now handled transparently.
+<p><!-- CL 221779 -->
+  If <code>panic</code> is invoked with a value whose type is derived from any
+  of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
+  <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
+  <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
+  then the value will be printed, instead of just its address.
+  Previously, this was only true for values of exactly these types.
+</p>
+
+<p><!-- CL 228900 -->
+  On a Unix system, if the <code>kill</code> command
+  or <code>kill</code> system call is used to send
+  a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+  or <code>SIGFPE</code> signal to a Go program, and if the signal
+  is not being handled via
+  <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+  the Go program will now reliably crash with a stack trace.
+  In earlier releases the behavior was unpredictable.
 </p>
 
 <p><!-- CL 221182, CL 229998 -->
@@ -229,8 +243,14 @@ Do not send CLs removing the interior tags from such phrases.
   counts, and has lower worst-case latency.
 </p>
 
-<p>
-TODO
+<p><!-- CL 216401 -->
+  Converting a small integer value into an interface value no longer
+  causes allocation.
+</p>
+
+<p><!-- CL 216818 -->
+  Non-blocking receives on closed channels now perform as well as
+  non-blocking receives on open channels.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -540,6 +560,14 @@ TODO
       which <code>Timeout</code> returns <code>true</code> although a
       deadline has not been exceeded.
     </p>
+
+    <p><!-- CL 232862 -->
+      Packages <code>os</code> and <code>net</code> now automatically
+      retry system calls that fail with <code>EINTR</code>. Previously
+      this led to spurious failures, which became more common in Go
+      1.14 with the addition of asynchronous preemption. Now this is
+      handled transparently.
+    </p>
   </dd>
 </dl>
 
@@ -559,7 +587,7 @@ TODO
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 228902 -->
-      Package reflect now disallows accessing methods of all
+      Package <code>reflect</code> now disallows accessing methods of all
       non-exported fields, whereas previously it allowed accessing
       those of non-exported, embedded fields. Code that relies on the
       previous behavior should be updated to instead access the
@@ -580,42 +608,12 @@ TODO
 
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- CL 221779 -->
-      If <code>panic</code> is invoked with a value whose type is derived from any
-      of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
-      <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
-      <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
-      then the value will be printed, instead of just its address.
-      Previously, this was only true for values of exactly these types.
-    </p>
-
-    <p><!-- CL -->
-      On a Unix system, if the <code>kill</code> command
-      or <code>kill</code> system call is used to send
-      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
-      or <code>SIGFPE</code> signal to a Go program, and if the signal
-      is not being handled via
-      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
-      the Go program will now reliably crash with a stack trace.
-      In earlier releases the behavior was unpredictable.
-    </p>
-
     <p><!-- CL 216557 -->
       Several functions, including
       <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
       and
       <a href="/pkg/runtime/#GoroutineProfile"><code>GoroutineProfile</code></a>,
       no longer block if a garbage collection is in progress.
-    </p>
-
-    <p><!-- CL 216401 -->
-      Converting small integer values into an interface value no
-      longer causes allocation.
-    </p>
-
-    <p><!-- CL 216818 -->
-      Non-blocking receives on closed channels now perform as well as
-      non-blocking receives on open channels.
     </p>
   </dd>
 </dl>
