@@ -11,8 +11,8 @@
 //
 // The commands are:
 //
-//	build      translate and then run "go build packages"
-//	run        translate and then run a list of files
+//      build      translate and then run "go build packages"
+//      run        translate and then run a list of files
 //      test       translate and then run "go test packages"
 //      translate  translate .go2 files into .go files for listed packages
 //
