@@ -425,8 +425,53 @@ TODO
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
+    <p><!-- CL 231378, CL 231380, CL 231381 -->
+      If either the name on the certificate or the name being verified (with
+      <a href="/pkg/crypto/x509/#VerifyOptions.DNSName"><code>VerifyOptions.DNSName</code></a>
+      or <a href="/pkg/crypto/x509/#Certificate.VerifyHostname"><code>VerifyHostname</code></a>)
+      are invalid, they will now be compared case-insensitively without further
+      processing (without honoring wildcards or stripping trailing dots).
+      Invalid names include those with any characters other than letters,
+      digits, hyphens and underscores, those with empty labels, and names on
+      certificates with trailing dots.
+    </p>
+
+    <p><!-- CL 231379 -->
+      The deprecated, legacy behavior of treating the <code>CommonName</code>
+      field as a hostname when no Subject Alternative Names are present is now
+      disabled by default. It can be temporarily re-enabled by adding the value
+      <code>x509ignoreCN=0</code> to the <code>GODEBUG</code> environment
+      variable. If the <code>CommonName</code> is an invalid hostname, it's
+      always ignored.
+    </p>
+
+    <p><!-- CL 217298 -->
+      The new <a href="/pkg/crypto/x509/#CreateRevocationList"><code>CreateRevocationList</code></a>
+      function and <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a> type
+      allow creating RFC 5280-compliant X.509 v2 Certificate Revocation Lists.
+    </p>
+
+    <p><!-- CL 227098 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now automatically generates the <code>SubjectKeyId</code> if the template
+      is a CA and doesn't explicitly specify one.
+    </p>
+
+    <p><!-- CL 228777 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now returns an error if the template specifies <code>MaxPathLen</code> but is not a CA.
+    </p>
+
     <p><!-- CL 205237 -->
-      TODO: <a href="https://golang.org/cl/205237">https://golang.org/cl/205237</a>: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+      On Unix systems other than macOS, the <code>SSL_CERT_DIR</code>
+      environment variable can now be a colon-separated list.
+    </p>
+
+    <p><!-- CL 227037 -->
+      On macOS, binaries are now always linked against
+      <code>Security.framework</code> to extract the system trust roots,
+      regardless of whether cgo is available. The resulting behavior should be
+      more consistent with the OS verifier.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
