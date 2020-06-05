@@ -39,7 +39,7 @@ Do not send CLs removing the interior tags from such phrases.
   support for previous versions has been discontinued.
 </p>
 
-<p> <!-- golang.org/issue/37610, golang.org/issue/37611 -->
+<p> <!-- golang.org/issue/37610, golang.org/issue/37611, CL 227582, and CL 227198  -->
   As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
   notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
   iPadOS, watchOS, and tvOS (the <code>darwin/386</code>
@@ -55,15 +55,39 @@ Do not send CLs removing the interior tags from such phrases.
   on Windows.
 </p>
 
-<p>
-TODO
+<p><!-- CL 211139 -->
+  Go-built DLLs no longer cause the process to exit when it receives a
+  signal (such as Ctrl-C at a terminal).
+</p>
+
+<h3 id="android">Android</h3>
+
+<p> <!-- CL 235017, golang.org/issue/38838 -->
+  When linking binaries for Android, Go 1.15 explicitly selects
+  the <code>lld</code> linker available in recent versions of the NDK.
+  The <code>lld</code> linker avoids crashes on some devices, and is
+  planned to become the default NDK linker in a future NDK version.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- CL 234381 -->
+  Go 1.15 adds support for OpenBSD 6.7 on <code>GOARCH=arm</code>
+  and <code>GOARCH=arm64</code>. Previous versions of Go already
+  supported OpenBSD 6.7 on <code>GOARCH=386</code>
+  and <code>GOARCH=amd64</code>.
+</p>
+
+<h3 id="riscv">RISC-V</h3>
+
+<p> <!-- CL 226400, CL 226206, and others -->
+  There has been progress in improving the stability and performance
+  of the 64-bit RISC-V port on Linux (<code>GOOS=linux</code>,
+  <code>GOARCH=riscv64</code>). It also now supports asynchronous
+  preemption.
 </p>
 
 <h2 id="tools">Tools</h2>
-
-<p>
-TODO
-</p>
 
 <h3 id="go-command">Go command</h3>
 
@@ -77,10 +101,6 @@ TODO
   list after any error. Note that the default value of <code>GOPROXY</code>
   remains <code>https://proxy.golang.org,direct</code>, which does not fall
   back to <code>direct</code> in case of errors.
-</p>
-
-<p>
-TODO
 </p>
 
 <h4 id="go-test"><code>go</code> <code>test</code></h4>
@@ -191,21 +211,76 @@ TODO
 
 <h2 id="runtime">Runtime</h2>
 
+<p><!-- CL 232862 -->
+  Go now retries system calls that return <code>EINTR</code>. This
+  became more common in Go 1.14 with the addition of asynchronous
+  preemption, but is now handled transparently.
+</p>
+
+<p><!-- CL 221182, CL 229998 -->
+  Allocation of small objects now performs much better at high core
+  counts, and has lower worst-case latency.
+</p>
+
 <p>
 TODO
 </p>
 
 <h2 id="compiler">Compiler</h2>
 
-<p><!-- https://golang.org/cl/229578 -->
+<p><!-- CL 229578 -->
   Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
   rules</a> allow converting an <code>unsafe.Pointer</code>
   into <code>uintptr</code> when calling certain
   functions. Previously, in some cases, the compiler allowed multiple
-  chained conversions (for example, <code>syscall.Syscall(…,
-  uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
-  one conversion. Code that used multiple conversions should be
-  updated to satisfy the safety rules.
+  chained conversions (for example, <code>syscall.Syscall(…,</code>
+  <code>uintptr(uintptr(ptr)),</code> <code>…)</code>). The compiler
+  now requires exactly one conversion. Code that used multiple
+  conversions should be updated to satisfy the safety rules.
+</p>
+
+<p><!-- CL 230544, CL 231397 -->
+  Go 1.15 reduces typical binary sizes by around 5% compared to Go
+  1.14 by eliminating certain types of GC metadata and more
+  aggressively eliminating unused type metadata.
+</p>
+
+<p><!-- CL 222661 -->
+  Go 1.15 adds a <code>-spectre</code> flag to both the
+  compiler and the assembler, to allow enabling Spectre mitigations.
+  These should almost never be needed and are provided mainly as a
+  “defense in depth” mechanism.
+  See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
+</p>
+
+<h2 id="linker">Linker</h2>
+
+<p>
+  This release includes substantial improvements to the Go linker,
+  which reduce linker resource usage (both time and memory) and
+  improve code robustness/maintainability.
+</p>
+
+<p>
+  For a representative set of large Go programs, linking is 20% faster
+  and requires 30% less memory on average, for <code>ELF</code>-based
+  OSes running on <code>amd64</code> architectures, with more modest
+  improvements for other architecture/OS combinations.
+</p>
+
+<p>
+  The key contributors to better linker performance are a newly
+  redesigned object file format, and a revamping of internal
+  phases to increase concurrency (for example, applying relocations to
+  symbols in parallel). Object files in Go 1.15 are slightly larger
+  than their 1.14 equivalents.
+</p>
+
+<p>
+  These changes are part of a multi-release project
+  to <a href="https://golang.org/s/better-linker">modernize the Go
+  linker</a>, meaning that there will be additional linker
+  improvements expected in future releases.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -228,6 +303,16 @@ TODO
 TODO
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p><!-- CL 235817 -->
+	Go 1.15 will translate the C type <code>EGLConfig</code> to the
+	Go type <code>uintptr</code>. This change is similar to how Go
+	1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
+	Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
+	documentation</a> for more information.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -240,6 +325,25 @@ TODO
 TODO
 </p>
 
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 222637 -->
+      The package now defines the
+      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
+      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
+      PE file format.
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- CL 226203 -->
+      VerifyPKCS1v15 now rejects invalid short signatures with missing leading zeroes.
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
+
 <dl id="crypto/tls"><dt><a href="/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 214977 -->
@@ -251,6 +355,22 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 205237 -->
+      TODO: <a href="https://golang.org/cl/205237">https://golang.org/cl/205237</a>: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- CL 203417 -->
+      TODO: <a href="https://golang.org/cl/203417">https://golang.org/cl/203417</a>: fix reserved namespace check to be case-insensitive
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
 
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
@@ -266,6 +386,34 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
+  <dd>
+    <p><!-- CL 215001 -->
+      TODO: <a href="https://golang.org/cl/215001">https://golang.org/cl/215001</a>: do not remove trailing zeros for %g and %G with #(sharp) flag
+    </p>
+  </dd>
+</dl><!-- fmt -->
+
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 212597 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> and
+      <a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
+      now reject patterns that contain path separators.
+      That is, calls such as <code>ioutil.TempFile("/tmp",</code> <code>"../base*")</code> will no longer succeed.
+      This prevents unintended directory traversal.
+    </p>
+  </dd>
+</dl><!-- io/ioutil -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- CL 230397 -->
+      TODO: <a href="https://golang.org/cl/230397">https://golang.org/cl/230397</a>: add (*Int).FillBytes
+    </p>
+  </dd>
+</dl><!-- math/big -->
 
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
@@ -291,6 +439,14 @@ TODO
   </dd>
 </dl>
 
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 231418 -->
+      TODO: <a href="https://golang.org/cl/231418">https://golang.org/cl/231418</a>: only support &#34;chunked&#34; in inbound Transfer-Encoding headers
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
 <dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
   <dd>
     <p><!-- CL 230937 -->
@@ -298,6 +454,10 @@ TODO
       now supports not modifying the <code>X-Forwarded-For</code>
       header when the incoming <code>Request.Header</code> map entry
       for that field is <code>nil</code>.
+    </p>
+
+    <p><!-- CL 224897 -->
+      TODO: <a href="https://golang.org/cl/224897">https://golang.org/cl/224897</a>: make Switching Protocol requests (e.g. Websockets) cancelable
     </p>
   </dd>
 </dl>
@@ -349,6 +509,19 @@ TODO
   </dd>
 </dl>
 
+<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+  <dd>
+    <p><!-- CL 182959 -->
+      DWARF generation is now supported (and enabled by default) for <code>-buildmode=plugin</code> on macOS.
+    </p>
+  </dd>
+  <dd>
+    <p><!-- CL 191617 -->
+      Building with <code>-buildmode=plugin</code> is now supported on <code>freebsd/amd64</code>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 228902 -->
@@ -361,6 +534,16 @@ TODO
   </dd>
 </dl>
 
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- CL 187919 -->
+      The new <a href="/pkg/regexp/#Regexp.SubexpIndex"><code>Regexp.SubexpIndex</code></a>
+      method returns the index of the first subexpression with the given name
+      within the regular expression.
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
@@ -369,6 +552,7 @@ TODO
       <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
       then the value will be printed, instead of just its address.
+      Previously, this was only true for values of exactly these types.
     </p>
 
     <p><!-- CL -->
@@ -380,6 +564,24 @@ TODO
       <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
       the Go program will now reliably crash with a stack trace.
       In earlier releases the behavior was unpredictable.
+    </p>
+
+    <p><!-- CL 216557 -->
+      Several functions, including
+      <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
+      and
+      <a href="/pkg/runtime/#GoroutineProfile"><code>GoroutineProfile</code></a>,
+      no longer block if a garbage collection is in progress.
+    </p>
+
+    <p><!-- CL 216401 -->
+      Converting small integer values into an interface value no
+      longer causes allocation.
+    </p>
+
+    <p><!-- CL 216818 -->
+      Non-blocking receives on closed channels now perform as well as
+      non-blocking receives on open channels.
     </p>
   </dd>
 </dl>
@@ -393,6 +595,20 @@ TODO
     </p>
   </dd>
 </dl>
+
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p><!-- CL 216617 -->
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> and <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> are added for working with complex numbers.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> converts a complex number into a string of the form (a+bi), where a and b are the real and imaginary parts.
+    </p>
+    <p>
+      <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> converts a string into a complex number of a specificed precision. <code>ParseComplex</code> accepts complex numbers in the format <code>N+Ni</code>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
@@ -426,6 +642,12 @@ TODO
       cases where using a parent file descriptor also happened to work.
       Some programs that set <code>Setctty</code> will need to change
       the value of <code>Ctty</code> to use a child descriptor number.
+    </p>
+
+    <p><!-- CL 220578 -->
+      It is <a href="/pkg/syscall/#Proc.Call">now possible</a> to call
+      system calls that return floating point values
+      on <code>windows/amd64</code>.
     </p>
   </dd>
 </dl>
@@ -462,6 +684,10 @@ TODO
        The new method
        <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
        supports changing the duration of a ticker.
+    </p>
+
+    <p><!-- CL 227878 -->
+      When returning an error, <a href="/pkg/time/#ParseDuration"><code>ParseDuration</code></a> now quotes the original value.
     </p>
   </dd>
 </dl><!-- time -->

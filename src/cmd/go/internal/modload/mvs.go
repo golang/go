@@ -157,6 +157,12 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	return r.modFileToList(f), nil
 }
 
+// Max returns the maximum of v1 and v2 according to semver.Compare.
+//
+// As a special case, the version "" is considered higher than all other
+// versions. The main module (also known as the target) has no version and must
+// be chosen over other versions of the same module in the module dependency
+// graph.
 func (*mvsReqs) Max(v1, v2 string) string {
 	if v1 != "" && semver.Compare(v1, v2) == -1 {
 		return v2

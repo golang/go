@@ -591,24 +591,6 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 
 		switch t.Elem().Etype {
-		case TINTER:
-			// Do two loops. First, check that all the types match (cheap).
-			// Second, check that all the data match (expensive).
-			// TODO: when the array size is small, unroll the tab match checks.
-			checkAll(3, func(pi, qi *Node) *Node {
-				// Compare types.
-				pi = typecheck(pi, ctxExpr)
-				qi = typecheck(qi, ctxExpr)
-				eqtab, _ := eqinterface(pi, qi)
-				return eqtab
-			})
-			checkAll(1, func(pi, qi *Node) *Node {
-				// Compare data.
-				pi = typecheck(pi, ctxExpr)
-				qi = typecheck(qi, ctxExpr)
-				_, eqdata := eqinterface(pi, qi)
-				return eqdata
-			})
 		case TSTRING:
 			// Do two loops. First, check that all the lengths match (cheap).
 			// Second, check that all the contents match (expensive).
@@ -672,14 +654,6 @@ func geneq(t *types.Type) *obj.LSym {
 					eqlen, eqmem := eqstring(p, q)
 					and(eqlen)
 					and(eqmem)
-				case f.Type.IsInterface():
-					p.Type = f.Type
-					p = typecheck(p, ctxExpr)
-					q.Type = f.Type
-					q = typecheck(q, ctxExpr)
-					eqtab, eqdata := eqinterface(p, q)
-					and(eqtab)
-					and(eqdata)
 				default:
 					and(nod(OEQ, p, q))
 				}
