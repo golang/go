@@ -14,13 +14,13 @@ import (
 // argument. It attempts to use the AST hints from builtin.go where
 // possible.
 func (c *completer) builtinArgKind(ctx context.Context, obj types.Object, call *ast.CallExpr) objKind {
-	astObj, err := c.snapshot.View().LookupBuiltin(ctx, obj.Name())
+	builtin, err := c.snapshot.View().BuiltinPackage(ctx)
 	if err != nil {
 		return 0
 	}
 	exprIdx := exprAtPos(c.pos, call.Args)
 
-	decl, ok := astObj.Decl.(*ast.FuncDecl)
+	decl, ok := builtin.Package().Scope.Lookup(obj.Name()).Decl.(*ast.FuncDecl)
 	if !ok || exprIdx >= len(decl.Type.Params.List) {
 		return 0
 	}

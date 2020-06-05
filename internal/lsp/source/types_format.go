@@ -75,11 +75,11 @@ func (s *signature) format() string {
 }
 
 func newBuiltinSignature(ctx context.Context, view View, name string) (*signature, error) {
-	astObj, err := view.LookupBuiltin(ctx, name)
+	builtin, err := view.BuiltinPackage(ctx)
 	if err != nil {
 		return nil, err
 	}
-	decl, ok := astObj.Decl.(*ast.FuncDecl)
+	decl, ok := builtin.Package().Scope.Lookup(name).Decl.(*ast.FuncDecl)
 	if !ok {
 		return nil, fmt.Errorf("no function declaration for builtin: %s", name)
 	}

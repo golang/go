@@ -165,20 +165,23 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		astObj, err := view.LookupBuiltin(ctx, result.Name)
+		builtin, err := view.BuiltinPackage(ctx)
 		if err != nil {
 			return nil, err
 		}
-		decl, ok := astObj.Decl.(ast.Node)
+		decl, ok := builtin.Package().Scope.Lookup(result.Name).Decl.(ast.Node)
 		if !ok {
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
 
-		rng, err := nameToMappedRange(view, pkg, decl.Pos(), result.Name)
+		// The builtin package isn't in the dependency graph, so the usual utilities
+		// won't work here.
+		_, _, m, _, err := builtin.ParseGoHandle().Cached()
 		if err != nil {
 			return nil, err
 		}
+		rng := newMappedRange(view.Session().Cache().FileSet(), m, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
 		return result, nil

@@ -113,8 +113,8 @@ type View interface {
 	// ModFiles returns the URIs of the go.mod files attached to the view associated with this snapshot.
 	ModFiles() (span.URI, span.URI)
 
-	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
-	LookupBuiltin(ctx context.Context, name string) (*ast.Object, error)
+	// BuiltinPackage returns the go/ast.Object for the given name in the builtin package.
+	BuiltinPackage(ctx context.Context) (BuiltinPackage, error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -122,9 +122,6 @@ type View interface {
 
 	// Shutdown closes this view, and detaches it from it's session.
 	Shutdown(ctx context.Context)
-
-	// Ignore returns true if this file should be ignored by this view.
-	Ignore(span.URI) bool
 
 	// WriteEnv writes the view-specific environment to the io.Writer.
 	WriteEnv(ctx context.Context, w io.Writer) error
@@ -156,6 +153,11 @@ type View interface {
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
+}
+
+type BuiltinPackage interface {
+	Package() *ast.Package
+	ParseGoHandle() ParseGoHandle
 }
 
 // Session represents a single connection from a client.

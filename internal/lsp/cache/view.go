@@ -81,10 +81,6 @@ type View struct {
 	snapshotMu sync.Mutex
 	snapshot   *snapshot
 
-	// ignoredURIs is the set of URIs of files that we ignore.
-	ignoredURIsMu sync.Mutex
-	ignoredURIs   map[span.URI]struct{}
-
 	// initialized is closed when the view has been fully initialized.
 	// On initialization, the view's workspace packages are loaded.
 	// All of the fields below are set as part of initialization.
@@ -127,7 +123,16 @@ type builtinPackageData struct {
 	memoize.NoCopy
 
 	pkg *ast.Package
+	pgh *parseGoHandle
 	err error
+}
+
+func (d *builtinPackageData) Package() *ast.Package {
+	return d.pkg
+}
+
+func (d *builtinPackageData) ParseGoHandle() source.ParseGoHandle {
+	return d.pgh
 }
 
 // fileBase holds the common functionality for all files.
@@ -212,7 +217,7 @@ func (v *View) Rebuild(ctx context.Context) (source.Snapshot, error) {
 	return snapshot, err
 }
 
-func (v *View) LookupBuiltin(ctx context.Context, name string) (*ast.Object, error) {
+func (v *View) BuiltinPackage(ctx context.Context) (source.BuiltinPackage, error) {
 	v.awaitInitialized(ctx)
 
 	if v.builtin == nil {
@@ -235,11 +240,7 @@ func (v *View) LookupBuiltin(ctx context.Context, name string) (*ast.Object, err
 	if d.pkg == nil || d.pkg.Scope == nil {
 		return nil, errors.Errorf("no builtin package")
 	}
-	astObj := d.pkg.Scope.Lookup(name)
-	if astObj == nil {
-		return nil, errors.Errorf("no builtin object for %s", name)
-	}
-	return astObj, nil
+	return d, nil
 }
 
 func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error {
@@ -247,7 +248,6 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 		return errors.Errorf("only expected 1 file, got %v", len(goFiles))
 	}
 	uri := span.URIFromPath(goFiles[0])
-	v.addIgnoredFile(uri) // to avoid showing diagnostics for builtin.go
 
 	// Get the FileHandle through the cache to avoid adding it to the snapshot
 	// and to get the file content from disk.
@@ -255,19 +255,23 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	if err != nil {
 		return err
 	}
-	pgh := v.session.cache.ParseGoHandle(ctx, fh, source.ParseFull)
+	pgh := v.session.cache.parseGoHandle(ctx, fh, source.ParseFull)
 	fset := v.session.cache.fset
 	h := v.session.cache.store.Bind(fh.Identity(), func(ctx context.Context) interface{} {
-		data := &builtinPackageData{}
 		file, _, _, _, err := pgh.Parse(ctx)
 		if err != nil {
-			data.err = err
-			return data
+			return &builtinPackageData{err: err}
 		}
-		data.pkg, data.err = ast.NewPackage(fset, map[string]*ast.File{
+		pkg, err := ast.NewPackage(fset, map[string]*ast.File{
 			pgh.File().URI().Filename(): file,
 		}, nil, nil)
-		return data
+		if err != nil {
+			return &builtinPackageData{err: err}
+		}
+		return &builtinPackageData{
+			pgh: pgh,
+			pkg: pkg,
+		}
 	})
 	v.builtin = &builtinPackageHandle{
 		handle: h,
@@ -532,30 +536,6 @@ func (v *View) shutdown(ctx context.Context) {
 		os.Remove(v.tempMod.Filename())
 		os.Remove(tempSumFile(v.tempMod.Filename()))
 	}
-}
-
-// Ignore checks if the given URI is a URI we ignore.
-// As of right now, we only ignore files in the "builtin" package.
-func (v *View) Ignore(uri span.URI) bool {
-	v.ignoredURIsMu.Lock()
-	defer v.ignoredURIsMu.Unlock()
-
-	_, ok := v.ignoredURIs[uri]
-
-	// Files with _ prefixes are always ignored.
-	if !ok && strings.HasPrefix(filepath.Base(uri.Filename()), "_") {
-		v.ignoredURIs[uri] = struct{}{}
-		return true
-	}
-
-	return ok
-}
-
-func (v *View) addIgnoredFile(uri span.URI) {
-	v.ignoredURIsMu.Lock()
-	defer v.ignoredURIsMu.Unlock()
-
-	v.ignoredURIs[uri] = struct{}{}
 }
 
 func (v *View) BackgroundContext() context.Context {

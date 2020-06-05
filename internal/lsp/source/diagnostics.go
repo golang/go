@@ -213,7 +213,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 }
 
 func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, missingModules map[string]*modfile.Require, uri span.URI) error {
-	if snapshot.View().Ignore(uri) || len(missingModules) == 0 {
+	if len(missingModules) == 0 {
 		return nil
 	}
 	fh, err := snapshot.GetFile(ctx, uri)
@@ -305,9 +305,6 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 }
 
 func clearReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI) {
-	if snapshot.View().Ignore(uri) {
-		return
-	}
 	fh := snapshot.FindFile(uri)
 	if fh == nil {
 		return
@@ -316,9 +313,6 @@ func clearReports(ctx context.Context, snapshot Snapshot, reports map[FileIdenti
 }
 
 func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
-	if snapshot.View().Ignore(uri) {
-		return nil
-	}
 	fh := snapshot.FindFile(uri)
 	if fh == nil {
 		return nil

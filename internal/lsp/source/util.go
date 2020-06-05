@@ -536,17 +536,7 @@ func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Pack
 	}
 	uri := span.URIFromPath(tok.Name())
 
-	var (
-		ph  ParseGoHandle
-		pkg Package
-		err error
-	)
-	// Special case for ignored files.
-	if v.Ignore(uri) {
-		ph, err = findIgnoredFile(v, uri)
-	} else {
-		ph, pkg, err = FindFileInPackage(searchpkg, uri)
-	}
+	ph, pkg, err := FindFileInPackage(searchpkg, uri)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -561,16 +551,7 @@ func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Pack
 }
 
 func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.ColumnMapper, error) {
-	var (
-		ph  ParseGoHandle
-		err error
-	)
-	// Special case for ignored files.
-	if v.Ignore(uri) {
-		ph, err = findIgnoredFile(v, uri)
-	} else {
-		ph, _, err = FindFileInPackage(searchpkg, uri)
-	}
+	ph, _, err := FindFileInPackage(searchpkg, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -579,17 +560,6 @@ func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.Col
 		return nil, err
 	}
 	return m, nil
-}
-
-func findIgnoredFile(v View, uri span.URI) (ParseGoHandle, error) {
-	// Using the View's context here is not good, but threading a context
-	// through to this function is prohibitively difficult for such a rare
-	// code path.
-	fh, err := v.Snapshot().GetFile(v.BackgroundContext(), uri)
-	if err != nil {
-		return nil, err
-	}
-	return v.Session().Cache().ParseGoHandle(v.BackgroundContext(), fh, ParseFull), nil
 }
 
 // FindFileInPackage finds uri in pkg or its dependencies.

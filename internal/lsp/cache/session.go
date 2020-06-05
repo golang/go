@@ -146,7 +146,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 			unloadableFiles:   make(map[span.URI]struct{}),
 			modHandles:        make(map[span.URI]*modHandle),
 		},
-		ignoredURIs: make(map[span.URI]struct{}),
 		gocmdRunner: &gocommand.Runner{},
 	}
 	v.snapshot.view = v
@@ -319,9 +318,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		// Look through all of the session's views, invalidating the file for
 		// all of the views to which it is known.
 		for _, view := range s.views {
-			if view.Ignore(c.URI) {
-				return nil, errors.Errorf("ignored file %v", c.URI)
-			}
 			// Don't propagate changes that are outside of the view's scope
 			// or knowledge.
 			if !view.relevantChange(c) {
