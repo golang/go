@@ -373,6 +373,7 @@ also won't be using <code>fmt</code> anymore, so we have to remove that.
 import (
 	<b>"html/template"</b>
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 </pre>
@@ -581,7 +582,7 @@ this, we can write a function to validate the title with a regular expression.
 </p>
 
 <p>
-First, add <code>"regexp"</code> to the <code>import</code> list.
+First, add <code>"regexp"</code> and <code>"errors"</code> to the <code>import</code> list.
 Then we can create a global variable to store our validation
 expression:
 </p>
