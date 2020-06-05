@@ -478,7 +478,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/crypto/tls/#ClientAuthType"><code>ClientAuthType</code></a>
       now implement <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
     </p>
-    
+
     <p><!-- CL 236737 -->
       The <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
       fields <code>OCSPResponse</code> and <code>SignedCertificateTimestamps</code>
@@ -569,7 +569,13 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
   <dd>
     <p><!-- CL 203417 -->
-      TODO: <a href="https://golang.org/cl/203417">https://golang.org/cl/203417</a>: fix reserved namespace check to be case-insensitive
+      The encoder has always taken care to avoid using namespace prefixes beginning with
+      <code>xml</code>,
+      which are reserved by the XML specification.
+      Now, following the specification more closely,
+      that check is case-insensitive, so that prefixes beginning with
+      <code>XML</code>, <code>XmL</code>,
+      and so on are also avoided.
     </p>
   </dd>
 </dl><!-- encoding/xml -->
