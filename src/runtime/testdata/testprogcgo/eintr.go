@@ -89,8 +89,9 @@ func spin() (float64, []byte) {
 func winch() {
 	ticker := time.NewTicker(100 * time.Microsecond)
 	defer ticker.Stop()
+	pid := syscall.Getpid()
 	for n := 10; n > 0; n-- {
-		syscall.Kill(0, syscall.SIGWINCH)
+		syscall.Kill(pid, syscall.SIGWINCH)
 		<-ticker.C
 	}
 }

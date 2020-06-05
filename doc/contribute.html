@@ -263,6 +263,24 @@ a new issue</a> or by claiming
 an <a href="https://golang.org/issues">existing one</a>.
 </p>
 
+<h3 id="where">Where to contribute</h3>
+
+<p>
+The Go project consists of the main
+<a href="https://go.googlesource.com/go">go</a> repository, which contains the
+source code for the Go language, as well as many golang.org/x/... repostories.
+These contain the various tools and infrastructure that support Go. For
+example, <a href="https://go.googlesource.com/pkgsite">golang.org/x/pkgsite</a>
+is for <a href="https://pkg.go.dev">pkg.go.dev</a>,
+<a href="https://go.googlesource.com/playground">golang.org/x/playground</a>
+is for the Go playground, and
+<a href="https://go.googlesource.com/tools">golang.org/x/tools</a> contains
+a variety of Go tools, including the Go language server,
+<a href="https://golang.org/s/gopls">gopls</a>. You can see a
+list of all the golang.org/x/... repositories on
+<a href="https://go.googlesource.com">go.googlesource.com</a>.
+</p>
+
 <h3 id="check_tracker">Check the issue tracker</h3>
 
 <p>
@@ -270,6 +288,13 @@ Whether you already know what contribution to make, or you are searching for
 an idea, the <a href="https://github.com/golang/go/issues">issue tracker</a> is
 always the first place to go.
 Issues are triaged to categorize them and manage the workflow.
+</p>
+
+<p>
+The majority of the golang.org/x/... repos also use the main Go
+issue tracker. However, a few of these repositories manage their issues
+separately, so please be sure to check the right tracker for the repository to
+which you would like to contribute.
 </p>
 
 <p>
@@ -329,11 +354,16 @@ the code review tool is not the place for high-level discussions.
 
 <p>
 When planning work, please note that the Go project follows a <a
-href="https://golang.org/wiki/Go-Release-Cycle">six-month development cycle</a>.
-The latter half of each cycle is a three-month feature freeze during
-which only bug fixes and documentation updates are accepted.
-New contributions can be sent during a feature freeze, but they will
-not be merged until the freeze is over.
+href="https://golang.org/wiki/Go-Release-Cycle">six-month development cycle</a>
+for the main Go repository. The latter half of each cycle is a three-month
+feature freeze during which only bug fixes and documentation updates are
+accepted. New contributions can be sent during a feature freeze, but they will
+not be merged until the freeze is over. The freeze applies to the entire main
+repository as well as to the code in golang.org/x/... repositories that is
+needed to build the binaries included in the release. See the lists of packages
+vendored into
+<a href="https://github.com/golang/go/blob/master/src/vendor/modules.txt">the standard library</a>
+and the <a href="https://github.com/golang/go/blob/master/src/cmd/vendor/modules.txt"><code>go</code> command</a>.
 </p>
 
 <p>
@@ -408,12 +438,28 @@ This is an overview of the overall process:
 
 <ul>
 <li>
-<b>Step 1:</b> Clone the Go source code from <code>go.googlesource.com</code>
-and make sure it's stable by compiling and testing it once:
+<b>Step 1:</b> Clone the source code from <code>go.googlesource.com</code> and
+make sure it's stable by compiling and testing it once.
+
+<p>If you're making a change to the
+<a href="https://go.googlesource.com/go">main Go repository</a>:</p>
+
 <pre>
 $ git clone https://go.googlesource.com/go
 $ cd go/src
 $ ./all.bash                                # compile and test
+</pre>
+
+<p>
+If you're making a change to one of the golang.org/x/... repositories
+(<a href="https://go.googlesource.com/tools">golang.org/x/tools</a>,
+in this example):
+</p>
+
+<pre>
+$ git clone https://go.googlesource.com/tools
+$ cd tools
+$ go test ./...                             # compile and test
 </pre>
 </li>
 
@@ -434,9 +480,17 @@ $ [etc.]
 </li>
 
 <li>
-<b>Step 3:</b> Test your changes, re-running <code>all.bash</code>.
+<b>Step 3:</b> Test your changes, either by running the tests in the package
+you edited or by re-running <code>all.bash</code>.
+
+<p>In the main Go repository:</p>
 <pre>
 $ ./all.bash    # recompile and test
+</pre>
+
+<p>In a golang.org/x/... repository:</p>
+<pre>
+$ go test ./... # recompile and test
 </pre>
 </li>
 
@@ -465,7 +519,7 @@ The rest of this section describes these steps in more detail.
 </p>
 
 
-<h3 id="checkout_go">Step 1: Clone the Go source code</h3>
+<h3 id="checkout_go">Step 1: Clone the source code</h3>
 
 <p>
 In addition to a recent Go installation, you need to have a local copy of the source
@@ -475,9 +529,17 @@ you want as long as it's outside your <code>GOPATH</code>.
 Clone from <code>go.googlesource.com</code> (not GitHub):
 </p>
 
+<p>Main Go repository:</p>
 <pre>
 $ git clone https://go.googlesource.com/go
 $ cd go
+</pre>
+
+<p>golang.org/x/... repository</p>
+(<a href="https://go.googlesource.com/tools">golang.org/x/tools</a> in this example):
+<pre>
+$ git clone https://go.googlesource.com/tools
+$ cd tools
 </pre>
 
 <h3 id="make_branch">Step 2: Prepare changes in a new branch</h3>
@@ -543,8 +605,12 @@ into a single one.
 <p>
 You've <a href="code.html">written and tested your code</a>, but
 before sending code out for review, run <i>all the tests for the whole
-tree</i> to make sure the changes don't break other packages or programs:
+tree</i> to make sure the changes don't break other packages or programs.
 </p>
+
+<h4 id="test-gorepo">In the main Go repository</h4>
+
+<p>This can be done by running <code>all.bash</code>:</p>
 
 <pre>
 $ cd go/src
@@ -572,6 +638,33 @@ under the directory in which you cloned the Go repository, and you can
 run it directly from there.
 See also
 the section on how to <a href="#quick_test">test your changes quickly</a>.
+</p>
+
+<h4 id="test-xrepo">In the golang.org/x/... repositories</h4>
+
+<p>
+Run the tests for the entire repository
+(<a href="https://go.googlesource.com/tools">golang.org/x/tools</a>,
+in this example):
+</p>
+
+<pre>
+$ cd tools
+$ go test ./...
+</pre>
+
+<p>
+If you're concerned about the build status,
+you can check the <a href="https://build.golang.org">Build Dashboard</a>.
+Test failures may also be caught by the TryBots in code review.
+</p>
+
+<p>
+Some repositories, like
+<a href="https://go.googlesource.com/vscode-go">golang.org/x/vscode-go</a> will
+have different testing infrastructures, so always check the documentation
+for the repository in which you are working. The README file in the root of the
+repository will usually have this information.
 </p>
 
 <h3 id="mail">Step 4: Send changes for review</h3>
@@ -720,10 +813,10 @@ when the change is applied.
 </p>
 
 <p>
-If you are sending a change against a subrepository, you must use
+If you are sending a change against a golang.org/x/... repository, you must use
 the fully-qualified syntax supported by GitHub to make sure the change is
-linked to the issue in the main repository, not the subrepository.
-All issues are tracked in the main repository's issue tracker.
+linked to the issue in the main repository, not the x/ repository.
+Most issues are tracked in the main repository's issue tracker.
 The correct form is "Fixes golang/go#159".
 </p>
 
@@ -1070,25 +1163,6 @@ $ $GODIR/bin/go run run.go
 </pre>
 </ul>
 
-<h3 id="subrepos">Contributing to subrepositories (golang.org/x/...)</h3>
-
-<p>
-If you are contributing a change to a subrepository, obtain the
-Go package using <code>go get</code>.
-For example, to contribute
-to <code>golang.org/x/oauth2</code>, check out the code by running:
-</p>
-
-<pre>
-$ go get -d golang.org/x/oauth2/...
-</pre>
-
-<p>
-Then, change your directory to the package's source directory
-(<code>$GOPATH/src/golang.org/x/oauth2</code>), and follow the
-normal contribution flow.
-</p>
-
 
 <h3 id="cc">Specifying a reviewer / CCing others</h3>
 
@@ -1209,5 +1283,5 @@ $ git codereview mail HEAD
 
 <p>
 Make sure to explicitly specify <code>HEAD</code>, which is usually not required when sending
-single changes.
+single changes. More details can be found in the <a href="https://pkg.go.dev/golang.org/x/review/git-codereview?tab=doc#hdr-Multiple_Commit_Work_Branches">git-codereview documentation</a>.
 </p>

@@ -315,7 +315,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 		}
 		for i := range syms {
 			sym := &syms[i]
-			if sym.Type == typ && matchSymName(name, sym.Name) && sym.CSym == csym {
+			if sym.Type == typ && sym.Name == name && sym.CSym == csym {
 				if sym.Found {
 					t.Fatalf("duplicate symbol %s %s", sym.Type, sym.Name)
 				}
@@ -332,14 +332,6 @@ func testGoLib(t *testing.T, iscgo bool) {
 
 func TestGoLib(t *testing.T) {
 	testGoLib(t, false)
-}
-
-// Check that a symbol has a given name, accepting both
-// with (for packaged symbols) and without index (for
-// non-package symbols).
-func matchSymName(symname, want string) bool {
-	return symname == want ||
-		strings.HasPrefix(symname, want+"#")
 }
 
 const testexec = `

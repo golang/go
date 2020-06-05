@@ -744,6 +744,12 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // the name being validated. Note that DirectoryName constraints are not
 // supported.
 //
+// Name constraint validation follows the rules from RFC 5280, with the
+// addition that DNS name constraints may use the leading period format
+// defined for emails and URIs. When a constraint has a leading period
+// it indicates that at least one additional label must be prepended to
+// the constrained name to be considered valid.
+//
 // Extended Key Usage values are enforced down a chain, so an intermediate or
 // root that enumerates EKUs prevents a leaf from asserting an EKU not in that
 // list.

@@ -297,8 +297,8 @@ func notetsleepg(n *note, ns int64) bool {
 	return ok
 }
 
-func beforeIdle(int64) bool {
-	return false
+func beforeIdle(int64) (*g, bool) {
+	return nil, false
 }
 
 func checkTimeouts() {}

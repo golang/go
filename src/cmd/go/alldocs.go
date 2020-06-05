@@ -1480,56 +1480,91 @@
 //
 // Build constraints
 //
-// Build constraints describe the conditions under which each source file
-// should be included in the corresponding package. Build constraints
-// for a given source file may be added by build constraint comments
-// within the file, or by specific patterns in the file's name.
-//
-// A build constraint comment appears before the file's package clause and
-// must be separated from the package clause by at least one blank line.
-// The comment begins with:
+// A build constraint, also known as a build tag, is a line comment that begins
 //
 // 	// +build
 //
-// and follows with a space-separated list of options on the same line.
-// The constraint is evaluated as the OR of the options.
+// that lists the conditions under which a file should be included in the package.
+// Constraints may appear in any kind of source file (not just Go), but
+// they must appear near the top of the file, preceded
+// only by blank lines and other line comments. These rules mean that in Go
+// files a build constraint must appear before the package clause.
+//
+// To distinguish build constraints from package documentation, a series of
+// build constraints must be followed by a blank line.
+//
+// A build constraint is evaluated as the OR of space-separated options.
 // Each option evaluates as the AND of its comma-separated terms.
 // Each term consists of letters, digits, underscores, and dots.
-// Each term may be negated with a leading exclamation point.
-//
+// A term may be negated with a preceding !.
 // For example, the build constraint:
 //
-// 	// +build linux,386 darwin,!cgo arm
+// 	// +build linux,386 darwin,!cgo
 //
-// corresponds to boolean formula:
+// corresponds to the boolean formula:
 //
-// 	(linux AND 386) OR (darwin AND NOT cgo) OR arm
+// 	(linux AND 386) OR (darwin AND (NOT cgo))
 //
-// During a particular build, the following terms are satisfied:
-// - the target operating system and architecture, as spelled by
-//   runtime.GOOS and runtime.GOARCH respectively
-// - the compiler being used, either "gc" or "gccgo"
-// - "cgo", if the cgo command is supported
-//   (see CGO_ENABLED in 'go help environment')
-// - a term for each Go major release, through the current version:
-//   "go1.1" from Go version 1.1 onward,
-//   "go1.2" from Go version 1.2 onward, and so on
-// - and any additional tags given by the '-tags' flag (see 'go help build').
+// A file may have multiple build constraints. The overall constraint is the AND
+// of the individual constraints. That is, the build constraints:
 //
-// An additional build constraint may be derived from the source file name.
+// 	// +build linux darwin
+// 	// +build amd64
+//
+// corresponds to the boolean formula:
+//
+// 	(linux OR darwin) AND amd64
+//
+// During a particular build, the following words are satisfied:
+//
+// 	- the target operating system, as spelled by runtime.GOOS, set with the
+// 	  GOOS environment variable.
+// 	- the target architecture, as spelled by runtime.GOARCH, set with the
+// 	  GOARCH environment variable.
+// 	- the compiler being used, either "gc" or "gccgo"
+// 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
+// 	  'go help environment').
+// 	- a term for each Go major release, through the current version:
+// 	  "go1.1" from Go version 1.1 onward, "go1.12" from Go 1.12, and so on.
+// 	- any additional tags given by the -tags flag (see 'go help build').
+//
+// There are no separate build tags for beta or minor releases.
+//
 // If a file's name, after stripping the extension and a possible _test suffix,
-// matches the patterns *_GOOS, *_GOARCH, or *_GOOS_GOARCH for any known
-// GOOS or GOARCH value, then the file is implicitly constrained to that
-// specific GOOS and/or GOARCH, in addition to any other build constraints
-// declared as comments within the file.
+// matches any of the following patterns:
+// 	*_GOOS
+// 	*_GOARCH
+// 	*_GOOS_GOARCH
+// (example: source_windows_amd64.go) where GOOS and GOARCH represent
+// any known operating system and architecture values respectively, then
+// the file is considered to have an implicit build constraint requiring
+// those terms (in addition to any explicit constraints in the file).
 //
-// For example, the file:
+// Using GOOS=android matches build tags and files as for GOOS=linux
+// in addition to android tags and files.
 //
-// 	source_windows_amd64.go
+// Using GOOS=illumos matches build tags and files as for GOOS=solaris
+// in addition to illumos tags and files.
 //
-// is implicitly constrained to windows / amd64.
+// To keep a file from being considered for the build:
 //
-// See 'go doc go/build' for more details.
+// 	// +build ignore
+//
+// (any other unsatisfied word will work as well, but "ignore" is conventional.)
+//
+// To build a file only when using cgo, and only on Linux and OS X:
+//
+// 	// +build linux,cgo darwin,cgo
+//
+// Such a file is usually paired with another file implementing the
+// default functionality for other systems, which in this case would
+// carry the constraint:
+//
+// 	// +build !linux,!darwin !cgo
+//
+// Naming a file dns_windows.go will cause it to be included only when
+// building the package for Windows; similarly, math_386.s will be included
+// only when building the package for 32-bit x86.
 //
 //
 // Build modes

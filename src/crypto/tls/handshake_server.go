@@ -308,6 +308,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		c.sendAlert(alertHandshakeFailure)
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
+	c.cipherSuite = hs.suite.id
 
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
@@ -407,6 +408,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	c := hs.c
 
 	hs.hello.cipherSuite = hs.suite.id
+	c.cipherSuite = hs.suite.id
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
@@ -423,6 +425,13 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		Certificate: hs.sessionState.certificates,
 	}); err != nil {
 		return err
+	}
+
+	if c.config.VerifyConnection != nil {
+		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
+		}
 	}
 
 	hs.masterSecret = hs.sessionState.masterSecret
@@ -548,14 +557,11 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		if err != nil {
 			return err
 		}
-	} else {
-		// Make sure the connection is still being verified whether or not
-		// the server requested a client certificate.
-		if c.config.VerifyConnection != nil {
-			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
-				c.sendAlert(alertBadCertificate)
-				return err
-			}
+	}
+	if c.config.VerifyConnection != nil {
+		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return err
 		}
 	}
 
@@ -739,7 +745,6 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 		return err
 	}
 
-	c.cipherSuite = hs.suite.id
 	copy(out, finished.verifyData)
 
 	return nil
@@ -800,13 +805,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 	if c.config.VerifyPeerCertificate != nil {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
-			c.sendAlert(alertBadCertificate)
-			return err
-		}
-	}
-
-	if c.config.VerifyConnection != nil {
-		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
 			c.sendAlert(alertBadCertificate)
 			return err
 		}

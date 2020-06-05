@@ -2231,11 +2231,14 @@ top:
 			// Consider stealing timers from p2.
 			// This call to checkTimers is the only place where
 			// we hold a lock on a different P's timers.
-			// Lock contention can be a problem here, so avoid
-			// grabbing the lock if p2 is running and not marked
-			// for preemption. If p2 is running and not being
-			// preempted we assume it will handle its own timers.
-			if i > 2 && shouldStealTimers(p2) {
+			// Lock contention can be a problem here, so
+			// initially avoid grabbing the lock if p2 is running
+			// and is not marked for preemption. If p2 is running
+			// and not being preempted we assume it will handle its
+			// own timers.
+			// If we're still looking for work after checking all
+			// the P's, then go ahead and steal from an active P.
+			if i > 2 || (i > 1 && shouldStealTimers(p2)) {
 				tnow, w, ran := checkTimers(p2, now)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
@@ -2286,9 +2289,17 @@ stop:
 
 	// wasm only:
 	// If a callback returned and no other goroutine is awake,
-	// then pause execution until a callback was triggered.
-	if beforeIdle(delta) {
-		// At least one goroutine got woken.
+	// then wake event handler goroutine which pauses execution
+	// until a callback was triggered.
+	gp, otherReady := beforeIdle(delta)
+	if gp != nil {
+		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.enabled {
+			traceGoUnpark(gp, 0)
+		}
+		return gp, false
+	}
+	if otherReady {
 		goto top
 	}
 
