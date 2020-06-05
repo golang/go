@@ -87,7 +87,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
 
-	invalidptr: defaults to invalidptr=1, causing the garbage collector and stack
+	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
 	This should only be used as a temporary workaround to diagnose buggy code.
