@@ -72,6 +72,24 @@ func testForLoops() {
 			continue //@mark(cont4, "continue"),highlight(cont4, forDecl4, brk4, cont4)
 		}
 	}
+
+Outer:
+	for i := 0; i < 10; i++ { //@mark(forDecl5, "for"),highlight(forDecl5, forDecl5, brk5, brk6, brk8)
+		break //@mark(brk5, "break"),highlight(brk5, forDecl5, brk5, brk6, brk8)
+		for { //@mark(forDecl6, "for"),highlight(forDecl6, forDecl6, cont5)
+			if i == 1 {
+				break Outer //@mark(brk6, "break Outer"),highlight(brk6, forDecl5, brk5, brk6, brk8)
+			}
+			switch i { //@mark(switch1, "switch"),highlight(switch1)
+			case 5:
+				break //@mark(brk7, "break"),highlight(brk7)
+			case 6:
+				continue //@mark(cont5, "continue"),highlight(cont5, forDecl6, cont5)
+			case 7:
+				break Outer //@mark(brk8, "break Outer"),highlight(brk8, forDecl5, brk5, brk6, brk8)
+			}
+		}
+	}
 }
 
 func testReturn() bool { //@mark(func1, "func"),mark(bool1, "bool"),highlight(func1, func1, fullRet11, fullRet12),highlight(bool1, bool1, false1, bool2, true1)
