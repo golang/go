@@ -573,6 +573,15 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	}
 }
 
+// DiagnosticsFor returns the current diagnostics for the file. It is useful
+// after waiting on AnyDiagnosticAtCurrentVersion, when the desired diagnostic
+// is not simply described by DiagnosticAt.
+func (e *Env) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.state.diagnostics[name]
+}
+
 // Await waits for all expectations to simultaneously be met. It should only be
 // called from the main test goroutine.
 func (e *Env) Await(expectations ...Expectation) []interface{} {
