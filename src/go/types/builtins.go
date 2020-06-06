@@ -141,7 +141,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(x.typ.Under()); t := typ.(type) {
+		switch typ = implicitArrayDeref(optype(x.typ.Under())); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -329,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 		var src Type
-		switch t := y.typ.Under().(type) {
+		switch t := optype(y.typ.Under()).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
@@ -452,7 +452,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var valid func(t Type) bool
 		valid = func(t Type) bool {
 			var m int
-			switch t := t.Under().(type) {
+			switch t := optype(t.Under()).(type) {
 			case *Slice:
 				m = 2
 			case *Map, *Chan:
@@ -699,10 +699,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := x.TypeParam(); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
-		var resTypes []Type
+		var rtypes []Type
 		if !tp.Bound().is(func(x Type) bool {
 			if r := f(x); r != nil {
-				resTypes = append(resTypes, r)
+				rtypes = append(rtypes, r)
 				return true
 			}
 			return false
@@ -710,15 +710,11 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 			return nil
 		}
 
-		// TODO(gri) Would it be ok to return just the one type
-		//           if len(resType) == 1? What about top-level
-		//           uses of real() where the result is used to
-		//           define type and initialize a variable?
-
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		ptyp.bound = &Interface{types: resTypes, allMethods: markComplete, allTypes: NewSum(resTypes)}
+		tsum := NewSum(rtypes)
+		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
 
 		return ptyp
 	}

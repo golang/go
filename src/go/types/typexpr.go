@@ -145,7 +145,7 @@ func (check *Checker) varType(e ast.Expr) Type {
 		check.atEnd(func() {
 			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
-				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints")
+				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints (%s)", t.allTypes)
 			}
 		})
 	}
@@ -364,7 +364,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
 				} else {
-					switch u := T.Under().(type) {
+					switch u := optype(T.Under()).(type) {
 					case *Basic:
 						// unsafe.Pointer is treated like a regular pointer
 						if u.kind == UnsafePointer {
@@ -405,7 +405,15 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(e.Pos(), "=> %s // %s", T, goTypeName(T))
+			var under Type
+			if T != nil {
+				under = T.Under()
+			}
+			if T == under {
+				check.trace(e.Pos(), "=> %s // %s", T, goTypeName(T))
+			} else {
+				check.trace(e.Pos(), "=> %s (under = %s) // %s", T, under, goTypeName(T))
+			}
 		}()
 	}
 
@@ -781,9 +789,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// type constraints
-	ityp.types = check.collectTypeConstraints(iface.Pos(), ityp.types, types)
+	// TODO(gri) report error for multiple explicitly declared identical types
+	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), unpack(ityp.types), types))
 
-	if len(ityp.methods) == 0 && len(ityp.types) == 0 && len(ityp.embeddeds) == 0 {
+	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
 		// empty interface
 		ityp.allMethods = markComplete
 		return
@@ -872,9 +881,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	}
 
 	// collect types
-	// TODO(gri) report error for multiple explicitly declared identical types
-	var types []Type
-	types = append(types, ityp.types...)
+	allTypes := ityp.types
 
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
@@ -891,16 +898,55 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		for _, m := range etyp.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
-		if etyp.allTypes != nil {
-			types = append(types, unpack(etyp.allTypes)...)
-		}
+		allTypes = intersect(allTypes, etyp.allTypes)
 	}
 
 	if methods != nil {
 		sort.Sort(byUniqueMethodName(methods))
 		ityp.allMethods = methods
 	}
-	ityp.allTypes = NewSum(types)
+	ityp.allTypes = allTypes
+}
+
+// intersect computes the intersection of the types x and y.
+// Note: A incomming nil type stands for the top type. A top
+// type result is returned as nil.
+func intersect(x, y Type) (r Type) {
+	defer func() {
+		if r == theTop {
+			r = nil
+		}
+	}()
+
+	switch {
+	case x == theBottom || y == theBottom:
+		return theBottom
+	case x == nil || x == theTop:
+		return y
+	case y == nil || x == theTop:
+		return x
+	}
+
+	xtypes := unpack(x)
+	ytypes := unpack(y)
+	// Compute the list rtypes which contains only
+	// types that are in both xtypes and ytypes.
+	// Quadratic algorithm, but good enough for now.
+	// TODO(gri) fix this
+	var rtypes []Type
+	for _, x := range xtypes {
+		for _, y := range ytypes {
+			if Identical(x, y) {
+				rtypes = append(rtypes, x)
+				break
+			}
+		}
+	}
+
+	if rtypes == nil {
+		return theBottom
+	}
+	return NewSum(rtypes)
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.
@@ -1009,7 +1055,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			embeddedPos := pos
 			check.atEnd(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := t.Under().(type) {
+				switch t := optype(t.Under()).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before

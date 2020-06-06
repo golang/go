@@ -51,7 +51,7 @@ func (s sanitizer) typ(typ Type) Type {
 	s[typ] = typ
 
 	switch t := typ.(type) {
-	case nil, *Basic, *contractType:
+	case nil, *Basic, *contractType, *bottom, *top:
 		// nothing to do
 
 	case *Array:
@@ -79,7 +79,7 @@ func (s sanitizer) typ(typ Type) Type {
 
 	case *Interface:
 		s.funcList(t.methods)
-		s.typeList(t.types)
+		s.typ(t.types)
 		s.typeList(t.embeddeds)
 		s.funcList(t.allMethods)
 		s.typ(t.allTypes)

@@ -612,7 +612,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 		var xtyp *Interface
 		var strict bool
-		switch t := x.typ.Under().(type) {
+		switch t := optype(x.typ.Under()).(type) {
 		case *Interface:
 			xtyp = t
 		// Disabled for now. See comment in the implementation of type assertions (expr.go).
@@ -759,7 +759,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			typ := x.typ.Under()
+			typ := optype(x.typ.Under())
 			if _, ok := typ.(*Chan); ok && s.Value != nil {
 				// TODO(gri) this also needs to happen for channels in generic variables
 				check.softErrorf(s.Value.Pos(), "range over %s permits only one iteration variable", &x)

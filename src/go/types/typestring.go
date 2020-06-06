@@ -202,12 +202,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
-			if !empty && len(t.types) > 0 {
+			if !empty && t.types != nil {
 				buf.WriteString("; ")
 			}
-			if len(t.types) > 0 {
+			if t.types != nil {
 				buf.WriteString("type ")
-				writeTypeList(buf, t.types, qf, visited)
+				writeType(buf, t.types, qf, visited)
 				empty = false
 			}
 			if !empty && len(t.embeddeds) > 0 {
@@ -286,6 +286,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteByte('(')
 		writeTypeList(buf, t.targs, qf, visited)
 		buf.WriteByte(')')
+
+	case *bottom:
+		buf.WriteString("⊥")
+
+	case *top:
+		buf.WriteString("⊤")
 
 	default:
 		// For externally defined implementations of Type.

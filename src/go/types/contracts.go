@@ -75,7 +75,8 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 			switch nmethods {
 			case 0:
 				// type constraints
-				iface.types = check.collectTypeConstraints(pos, iface.types, c.Types)
+				// TODO(gri) this code is probably not correct anymore - but we will remove it soon
+				iface.types = NewSum(check.collectTypeConstraints(pos, unpack(iface.types), c.Types))
 
 			case 1:
 				// method constraint

@@ -29,13 +29,11 @@ func isGeneric(typ Type) bool {
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := typ.Under().(type) {
+	switch t := optype(typ.Under()).(type) {
 	case *Basic:
 		return t.info&what != 0
 	case *Sum:
 		return t.is(func(typ Type) bool { return is(typ, what) })
-	case *TypeParam:
-		return t.Bound().is(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
 }
@@ -86,7 +84,21 @@ func IsInterface(typ Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	switch t := T.Under().(type) {
+	// If T is a type parameter not constraint by any type
+	// list (i.e., it's underlying type is the top type),
+	// T is comparable if it has the == method. Otherwise,
+	// the underlying type "wins". For instance
+	//
+	//     interface{ comparable; type []byte }
+	//
+	// is not comparable because []byte is not comparable.
+	if t := T.TypeParam(); t != nil && optype(t) == theTop {
+		// If the magic method == exists, the type parameter is comparable.
+		_, m := lookupMethod(t.Bound().allMethods, nil, "==")
+		return m != nil
+	}
+
+	switch t := optype(T.Under()).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -105,9 +117,8 @@ func Comparable(T Type) bool {
 	case *Sum:
 		return t.is(Comparable)
 	case *TypeParam:
-		iface := t.Bound()
 		// If the magic method == exists, the type parameter is comparable.
-		_, m := lookupMethod(iface.allMethods, nil, "==")
+		_, m := lookupMethod(t.Bound().allMethods, nil, "==")
 		return m != nil
 	}
 	return false
@@ -115,7 +126,7 @@ func Comparable(T Type) bool {
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := typ.Under().(type) {
+	switch t := optype(typ.Under()).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
@@ -345,8 +356,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
 
-	// case *Instance:
+	// case *instance:
 	//	unreachable since types are expanded
+
+	case *bottom, *top:
+		// Either both types are theBottom, or both are theTop in which
+		// case the initial x == y check will have caught them. Otherwise
+		// they are not identical.
 
 	case nil:
 		// avoid a crash in case of nil type

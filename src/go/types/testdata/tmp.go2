@@ -5,3 +5,13 @@
 // This file is meant as "dumping ground" for debugging code.
 
 package p
+
+// This code should work but doesn't. Investigate.
+/*
+type C(type P interface{m()}) P
+
+func f(type T interface{m(); n()})() {
+	var x T
+	C(T)(x).m()
+}
+*/

@@ -545,7 +545,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	assert(isTyped(target))
 
 	// typed target
-	switch t := target.Under().(type) {
+	switch t := optype(target.Under()).(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			check.representable(x, t)
@@ -1130,7 +1130,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
-		switch utyp := base.Under().(type) {
+		switch utyp := optype(base.Under()).(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
@@ -1316,7 +1316,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Under().(type) {
+		switch typ := optype(x.typ.Under()).(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1423,7 +1423,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Under().(type) {
+		switch typ := optype(x.typ.Under()).(type) {
 		case *Basic:
 			if isString(typ) {
 				if e.Slice3 {
@@ -1526,7 +1526,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 		var xtyp *Interface
 		var strict bool
-		switch t := x.typ.Under().(type) {
+		switch t := optype(x.typ.Under()).(type) {
 		case *Interface:
 			xtyp = t
 		// Disabled for now. It is not clear what the right approach is

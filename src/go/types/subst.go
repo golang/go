@@ -224,7 +224,7 @@ func (subst *subster) typ(typ Type) Type {
 	case nil:
 		panic("nil typ")
 
-	case *Basic:
+	case *Basic, *bottom, *top:
 		// nothing to do
 
 	case *Array:
@@ -282,9 +282,12 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Interface:
 		methods, mcopied := subst.funcList(t.methods)
-		types, tcopied := subst.typeList(t.types)
+		types := t.types
+		if t.types != nil {
+			types = subst.typ(t.types)
+		}
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
-		if mcopied || tcopied || ecopied {
+		if mcopied || types != t.types || ecopied {
 			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
 			subst.check.completeInterface(token.NoPos, iface)

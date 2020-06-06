@@ -344,7 +344,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// enclosing type) are identical if they originate in the same declaration.
 		return x == y
 
-	// case *Instance:
+	// case *instance:
 	//	unreachable since types are expanded
 
 	case nil:

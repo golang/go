@@ -28,7 +28,8 @@ type Type interface {
 
 	// Converters
 	// A converter must only be called when a type is
-	// known to be fully set up.
+	// known to be fully set up. A converter returns
+	// a type's operational type (see comment for optype).
 	Basic() *Basic
 	Array() *Array
 	Slice() *Slice
@@ -323,15 +324,16 @@ type Sum struct {
 	aType
 }
 
-// NewSum returns a new Sum type consistent of the provided
-// types if there are more than one. Otherwise it returns
-// the provided (single) type, if any; or nil.
+// NewSum returns a new Sum type consisting of the provided
+// types if there are more than one. If there is exactly one
+// type, it returns that type. If the list of types is empty
+// the result is nil.
 func NewSum(types []Type) Type {
 	if len(types) == 0 {
 		return nil
 	}
 
-	// What should happen if types contains a um type?
+	// What should happen if types contains a sum type?
 	// Do we flatten the types list? For now we check
 	// and panic. This should not be possible for the
 	// current use case of type lists.
@@ -346,6 +348,7 @@ func NewSum(types []Type) Type {
 	if len(types) == 1 {
 		return types[0]
 	}
+	assert(len(types) > 1)
 	return &Sum{types: types}
 }
 
@@ -372,19 +375,12 @@ L:
 	return result
 }
 
-func (s *Sum) Len() int {
-	if s != nil {
-		return len(s.types)
-	}
-	return 0
-}
-
 // is reports whether all types in t satisfy pred.
-func (t *Sum) is(pred func(Type) bool) bool {
-	if t == nil {
+func (s *Sum) is(pred func(Type) bool) bool {
+	if s == nil {
 		return false
 	}
-	for _, t := range t.types {
+	for _, t := range s.types {
 		if !pred(t) {
 			return false
 		}
@@ -395,11 +391,11 @@ func (t *Sum) is(pred func(Type) bool) bool {
 // An Interface represents an interface type.
 type Interface struct {
 	methods   []*Func // ordered list of explicitly declared methods
-	types     []Type  // list of explicitly declared types (TODO(gri): make this a Type as well)
+	types     Type    // (possibly a Sum) type declared with a type list (TODO(gri) need better field name)
 	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
-	allTypes   Type    // type (possibly a Sum type) declared with or embedded in this interface; or nil (TODO(gri): need better field name)
+	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
 
 	obj Object // type or contract declaration defining this interface; or nil (for better error messages)
 
@@ -536,9 +532,10 @@ func (t *Interface) Empty() bool {
 }
 
 // empty reports whether interface t is empty without requiring the
-// interface to be complete. Should only be called by Interface.Empty.
+// interface to be complete. Should only be called by Interface.Empty
+// and itself.
 func empty(t *Interface, seen map[*Interface]bool) bool {
-	if len(t.methods) != 0 || len(t.types) != 0 {
+	if len(t.methods) != 0 || t.types != nil {
 		return false
 	}
 	for _, e := range t.embeddeds {
@@ -605,8 +602,7 @@ func (t *Interface) Complete() *Interface {
 		addMethod(m, true)
 	}
 
-	var types []Type
-	types = append(types, t.types...)
+	allTypes := t.types
 
 	for _, typ := range t.embeddeds {
 		typ := typ.Interface()
@@ -614,7 +610,7 @@ func (t *Interface) Complete() *Interface {
 		for _, m := range typ.allMethods {
 			addMethod(m, false)
 		}
-		types = append(types, typ.types...)
+		allTypes = intersect(allTypes, typ.types)
 	}
 
 	for i := 0; i < len(todo); i += 2 {
@@ -629,7 +625,7 @@ func (t *Interface) Complete() *Interface {
 		sort.Sort(byUniqueMethodName(methods))
 		t.allMethods = methods
 	}
-	t.allTypes = NewSum(types)
+	t.allTypes = allTypes
 
 	return t
 }
@@ -795,37 +791,37 @@ func (t *TypeParam) Bound() *Interface {
 	return iface
 }
 
-// Converter methods
-// Note the use of the special under method. See comments below.
-func (t *TypeParam) Basic() *Basic         { return t.under().Basic() }
-func (t *TypeParam) Array() *Array         { return t.under().Array() }
-func (t *TypeParam) Slice() *Slice         { return t.under().Slice() }
-func (t *TypeParam) Struct() *Struct       { return t.under().Struct() }
-func (t *TypeParam) Pointer() *Pointer     { return t.under().Pointer() }
-func (t *TypeParam) Tuple() *Tuple         { return t.under().Tuple() }
-func (t *TypeParam) Signature() *Signature { return t.under().Signature() }
-func (t *TypeParam) Sum() *Sum             { return t.under().Sum() }
-func (t *TypeParam) Interface() *Interface { return t.under().Interface() }
-func (t *TypeParam) Map() *Map             { return t.under().Map() }
-func (t *TypeParam) Chan() *Chan           { return t.under().Chan() }
-func (t *TypeParam) Named() *Named         { return t.under().Named() }
-
-// func (t *TypeParam) TypeParam() *TypeParam // declared below
-
-var bottom = &aType{}
-
-// under returns a bottom (unknwn) type rather than the type parameter
-// t itself, if we don't have any specific underlying type. This is
-// needed to avoid potential endless recursions in the converter methods
-// above.
-// TODO(gri) Perhaps a type parameter without definite underlying type
-// should return this bottom type rather than itself?
-func (t *TypeParam) under() Type {
-	if u := t.Under(); u != t {
-		return u
+// optype returns a type's operational type. Except for
+// type parameters, the operational type is the same
+// as the underlying type (as returned by Under). For
+// Type parameters, the operational type is determined
+// by the corresponding type bound's type list. The
+// result may be the bottom or top type.
+func optype(typ Type) Type {
+	if t := typ.TypeParam(); t != nil {
+		if u := t.Bound().allTypes; u != nil {
+			return u
+		}
+		return theTop
 	}
-	return bottom
+	return typ
 }
+
+// Converter methods
+func (t *TypeParam) Basic() *Basic         { return optype(t.Under()).Basic() }
+func (t *TypeParam) Array() *Array         { return optype(t.Under()).Array() }
+func (t *TypeParam) Slice() *Slice         { return optype(t.Under()).Slice() }
+func (t *TypeParam) Struct() *Struct       { return optype(t.Under()).Struct() }
+func (t *TypeParam) Pointer() *Pointer     { return optype(t.Under()).Pointer() }
+func (t *TypeParam) Tuple() *Tuple         { return optype(t.Under()).Tuple() }
+func (t *TypeParam) Signature() *Signature { return optype(t.Under()).Signature() }
+func (t *TypeParam) Sum() *Sum             { return optype(t.Under()).Sum() }
+func (t *TypeParam) Interface() *Interface { return optype(t.Under()).Interface() }
+func (t *TypeParam) Map() *Map             { return optype(t.Under()).Map() }
+func (t *TypeParam) Chan() *Chan           { return optype(t.Under()).Chan() }
+
+// func (t *TypeParam) Named() *Named         // named types are not permitted in type lists
+// func (t *TypeParam) TypeParam() *TypeParam // declared below
 
 // An instance represents an instantiated generic type syntactically
 // (without expanding the instantiation). Type instances appear only
@@ -891,6 +887,29 @@ var expandf func(Type) Type
 
 func init() { expandf = expand }
 
+// bottom represents the bottom of the type lattice.
+// It is the underlying type of a type parameter that
+// cannot be satisfied by any type, usually because
+// the intersection of type constraints left nothing).
+type bottom struct {
+	aType
+}
+
+// theBottom is the singleton bottom type.
+var theBottom = &bottom{}
+
+// top represents the top of the type lattice.
+// It is the underlying type of a type parameter that
+// can be satisfied by any type (ignoring methods),
+// usually because the type constraint has no type
+// list.
+type top struct {
+	aType
+}
+
+// theTop is the singleton top type.
+var theTop = &top{}
+
 // Type-specific implementations of type converters.
 func (t *Basic) Basic() *Basic             { return t }
 func (t *Array) Array() *Array             { return t }
@@ -905,7 +924,6 @@ func (t *Map) Map() *Map                   { return t }
 func (t *Chan) Chan() *Chan                { return t }
 func (t *Named) Named() *Named             { return t }
 func (t *TypeParam) TypeParam() *TypeParam { return t }
-func (t *instance) instance() *instance    { return t }
 
 // Type-specific implementations of Underlying.
 func (t *Basic) Underlying() Type     { return t }
@@ -922,6 +940,8 @@ func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
 func (t *TypeParam) Underlying() Type { return t.Under() }
 func (t *instance) Underlying() Type  { return t }
+func (t *bottom) Underlying() Type    { return t }
+func (t *top) Underlying() Type       { return t }
 
 // Type-specific implementations of Under.
 func (t *Basic) Under() Type     { return t }
@@ -937,20 +957,10 @@ func (t *Map) Under() Type       { return t }
 func (t *Chan) Under() Type      { return t }
 
 // see decl.go for implementation of Named.Under
-
-// The underlying type of a type parameter is itself
-// unless its bound defines an underlying type, in
-// which case it is that underlying type.
-// TODO(gri) Should the underlying type be a bottom (unknown) type instead?
-// Then we don't need to worry about endless recursion in converter methods
-// for TypeParams.
-func (t *TypeParam) Under() Type {
-	if u := t.Bound().allTypes; u != nil {
-		return u
-	}
-	return t
-}
-func (t *instance) Under() Type { return t.expand().Under() }
+func (t *TypeParam) Under() Type { return t }
+func (t *instance) Under() Type  { return t.expand().Under() }
+func (t *bottom) Under() Type    { return t }
+func (t *top) Under() Type       { return t }
 
 // Type-specific implementations of String.
 func (t *Basic) String() string     { return TypeString(t, nil) }
@@ -967,3 +977,5 @@ func (t *Chan) String() string      { return TypeString(t, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
 func (t *TypeParam) String() string { return TypeString(t, nil) }
 func (t *instance) String() string  { return TypeString(t, nil) }
+func (t *bottom) String() string    { return TypeString(t, nil) }
+func (t *top) String() string       { return TypeString(t, nil) }
