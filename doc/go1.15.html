@@ -417,6 +417,21 @@ TODO
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 191783 -->
+      Decoding a JSON array into a slice no longer reuses any existing slice elements,
+      following the rules that the package documentation already stated.
+    </p>
+
+    <p><!-- CL 199837 -->
+      Introduce an internal limit to the maximum depth of nesting when decoding.
+      This reduces the possibility that a deeply nested input could use large quantities
+      of stack memory, or even cause a "goroutine stack exceeds limit" panic.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
 <dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
   <dd>
     <p><!-- CL 203417 -->
