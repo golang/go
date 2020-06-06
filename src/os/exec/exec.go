@@ -181,6 +181,21 @@ func Command(name string, arg ...string) *Cmd {
 	return cmd
 }
 
+// We need to check whether `Chroot` has been set in syscall.SysProcAttr.
+// Since if the root of progress has changed, the error flag `lookPathErr`
+// become meaningless
+func (c *Cmd) checkRoot() (string, error) {
+	if c.SysProcAttr != nil && c.SysProcAttr.Chroot != "" {
+		fileName := filepath.Base(c.Path)
+		if lp, err := LookPath(fileName); err != nil {
+			return "", err
+		} else {
+			return lp, nil
+		}
+	}
+	return "", &Error{c.Path, ErrNotFound}
+}
+
 // CommandContext is like Command but includes a context.
 //
 // The provided context is used to kill the process (by calling
@@ -201,8 +216,12 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 // The output of String may vary across Go releases.
 func (c *Cmd) String() string {
 	if c.lookPathErr != nil {
+		if lp, err := c.checkRoot(); err != nil {
+			return strings.Join(c.Args, " ")
+		} else {
+			c.Path = lp
+		}
 		// failed to resolve path; report the original requested path (plus args)
-		return strings.Join(c.Args, " ")
 	}
 	// report the exact executable path (plus args)
 	b := new(strings.Builder)
@@ -375,9 +394,13 @@ func lookExtensions(path, dir string) (string, error) {
 // once the command exits.
 func (c *Cmd) Start() error {
 	if c.lookPathErr != nil {
-		c.closeDescriptors(c.closeAfterStart)
-		c.closeDescriptors(c.closeAfterWait)
-		return c.lookPathErr
+		if lp, err := c.checkRoot(); err != nil {
+			c.closeDescriptors(c.closeAfterStart)
+			c.closeDescriptors(c.closeAfterWait)
+			return c.lookPathErr
+		} else {
+			c.Path = lp
+		}
 	}
 	if runtime.GOOS == "windows" {
 		lp, err := lookExtensions(c.Path, c.Dir)
