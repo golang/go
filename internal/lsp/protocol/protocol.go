@@ -25,12 +25,56 @@ func ClientDispatcher(conn jsonrpc2.Conn) Client {
 	return &clientDispatcher{Conn: conn}
 }
 
+type clientDispatcher struct {
+	jsonrpc2.Conn
+}
+
 // ServerDispatcher returns a Server that dispatches LSP requests across the
 // given jsonrpc2 connection.
 func ServerDispatcher(conn jsonrpc2.Conn) Server {
 	return &serverDispatcher{Conn: conn}
 }
 
+type serverDispatcher struct {
+	jsonrpc2.Conn
+}
+
+func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
+	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		if ctx.Err() != nil {
+			ctx := xcontext.Detach(ctx)
+			return reply(ctx, nil, RequestCancelledError)
+		}
+		handled, err := clientDispatch(ctx, client, reply, req)
+		if handled || err != nil {
+			return err
+		}
+		return handler(ctx, reply, req)
+	}
+}
+
+func ServerHandler(server Server, handler jsonrpc2.Handler) jsonrpc2.Handler {
+	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		if ctx.Err() != nil {
+			ctx := xcontext.Detach(ctx)
+			return reply(ctx, nil, RequestCancelledError)
+		}
+		handled, err := serverDispatch(ctx, server, reply, req)
+		if handled || err != nil {
+			return err
+		}
+		//TODO: This code is wrong, it ignores handler and assumes non standard
+		// request handles everything
+		// non standard request should just be a layered handler.
+		var params interface{}
+		if err := json.Unmarshal(req.Params(), &params); err != nil {
+			return sendParseError(ctx, reply, err)
+		}
+		resp, err := server.NonstandardRequest(ctx, req.Method(), params)
+		return reply(ctx, resp, err)
+
+	}
+}
 func Handlers(handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return CancelHandler(
 		jsonrpc2.AsyncHandler(

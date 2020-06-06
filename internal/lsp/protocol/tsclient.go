@@ -13,7 +13,6 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/xcontext"
 )
 
 type Client interface {
@@ -31,105 +30,95 @@ type Client interface {
 	ApplyEdit(context.Context, *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResponse, error)
 }
 
-func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
-	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
-		if ctx.Err() != nil {
-			ctx := xcontext.Detach(ctx)
-			return reply(ctx, nil, RequestCancelledError)
+func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, r jsonrpc2.Request) (bool, error) {
+	switch r.Method() {
+	case "window/showMessage": // notif
+		var params ShowMessageParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
 		}
-		switch r.Method() {
-		case "window/showMessage": // notif
-			var params ShowMessageParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.ShowMessage(ctx, &params)
-			return reply(ctx, nil, err)
-		case "window/logMessage": // notif
-			var params LogMessageParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.LogMessage(ctx, &params)
-			return reply(ctx, nil, err)
-		case "telemetry/event": // notif
-			var params interface{}
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.Event(ctx, &params)
-			return reply(ctx, nil, err)
-		case "textDocument/publishDiagnostics": // notif
-			var params PublishDiagnosticsParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.PublishDiagnostics(ctx, &params)
-			return reply(ctx, nil, err)
-		case "$/progress": // notif
-			var params ProgressParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.Progress(ctx, &params)
-			return reply(ctx, nil, err)
-		case "workspace/workspaceFolders": // req
-			if len(r.Params()) > 0 {
-				return reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
-			}
-			resp, err := client.WorkspaceFolders(ctx)
-			return reply(ctx, resp, err)
-		case "workspace/configuration": // req
-			var params ParamConfiguration
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			resp, err := client.Configuration(ctx, &params)
-			return reply(ctx, resp, err)
-		case "window/workDoneProgress/create": // req
-			var params WorkDoneProgressCreateParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.WorkDoneProgressCreate(ctx, &params)
-			return reply(ctx, nil, err)
-		case "client/registerCapability": // req
-			var params RegistrationParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.RegisterCapability(ctx, &params)
-			return reply(ctx, nil, err)
-		case "client/unregisterCapability": // req
-			var params UnregistrationParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			err := client.UnregisterCapability(ctx, &params)
-			return reply(ctx, nil, err)
-		case "window/showMessageRequest": // req
-			var params ShowMessageRequestParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			resp, err := client.ShowMessageRequest(ctx, &params)
-			return reply(ctx, resp, err)
-		case "workspace/applyEdit": // req
-			var params ApplyWorkspaceEditParams
-			if err := json.Unmarshal(r.Params(), &params); err != nil {
-				return sendParseError(ctx, reply, err)
-			}
-			resp, err := client.ApplyEdit(ctx, &params)
-			return reply(ctx, resp, err)
-		default:
-			return handler(ctx, reply, r)
+		err := client.ShowMessage(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "window/logMessage": // notif
+		var params LogMessageParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.LogMessage(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "telemetry/event": // notif
+		var params interface{}
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.Event(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "textDocument/publishDiagnostics": // notif
+		var params PublishDiagnosticsParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.PublishDiagnostics(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "$/progress": // notif
+		var params ProgressParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.Progress(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "workspace/workspaceFolders": // req
+		if len(r.Params()) > 0 {
+			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+		}
+		resp, err := client.WorkspaceFolders(ctx)
+		return true, reply(ctx, resp, err)
+	case "workspace/configuration": // req
+		var params ParamConfiguration
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := client.Configuration(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "window/workDoneProgress/create": // req
+		var params WorkDoneProgressCreateParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.WorkDoneProgressCreate(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "client/registerCapability": // req
+		var params RegistrationParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.RegisterCapability(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "client/unregisterCapability": // req
+		var params UnregistrationParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		err := client.UnregisterCapability(ctx, &params)
+		return true, reply(ctx, nil, err)
+	case "window/showMessageRequest": // req
+		var params ShowMessageRequestParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := client.ShowMessageRequest(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "workspace/applyEdit": // req
+		var params ApplyWorkspaceEditParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := client.ApplyEdit(ctx, &params)
+		return true, reply(ctx, resp, err)
 
-		}
+	default:
+		return false, nil
 	}
-}
-
-type clientDispatcher struct {
-	jsonrpc2.Conn
 }
 
 func (s *clientDispatcher) ShowMessage(ctx context.Context, params *ShowMessageParams) error {

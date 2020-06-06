@@ -908,7 +908,7 @@ let server: side = {
 
 // commonly used output
 const notNil = `if len(r.Params()) > 0 {
-  return reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+  return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 }`;
 
 // Go code for notifications. Side is client or server, m is the request
@@ -924,13 +924,13 @@ function goNot(side: side, m: string) {
   if (a != '' && a != 'void') {
     case1 = `var params ${a}
     if err := json.Unmarshal(r.Params(), &params); err != nil {
-      return sendParseError(ctx, reply, err)
+      return true, sendParseError(ctx, reply, err)
     }
     err:= ${side.name}.${nm}(ctx, &params)
-    return reply(ctx, nil, err)`
+    return true, reply(ctx, nil, err)`
   } else {
     case1 = `err := ${side.name}.${nm}(ctx)
-    return reply(ctx, nil, err)`;
+    return true, reply(ctx, nil, err)`;
   }
   side.cases.push(`${caseHdr}\n${case1}`);
 
@@ -960,7 +960,7 @@ function goReq(side: side, m: string) {
     if (extraTypes.has('Param' + nm)) a = 'Param' + nm
     case1 = `var params ${a}
     if err := json.Unmarshal(r.Params(), &params); err != nil {
-      return sendParseError(ctx, reply, err)
+      return true, sendParseError(ctx, reply, err)
     }`;
   }
   const arg2 = a == '' ? '' : ', &params';
@@ -969,10 +969,10 @@ function goReq(side: side, m: string) {
   }`;
   if (b != '' && b != 'void') {
     case2 = `resp, err := ${side.name}.${nm}(ctx${arg2})
-    return reply(ctx, resp, err)`;
+    return true, reply(ctx, resp, err)`;
   } else {  // response is nil
     case2 = `err := ${side.name}.${nm}(ctx${arg2})
-    return reply(ctx, nil, err)`
+    return true, reply(ctx, nil, err)`
   }
 
   side.cases.push(`${caseHdr}\n${case1}\n${case2}`);
@@ -1075,30 +1075,20 @@ function output(side: side) {
           "fmt"
 
           "golang.org/x/tools/internal/jsonrpc2"
-          "golang.org/x/tools/internal/xcontext"
         )
         `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
   side.methods.forEach((v) => {f(v)});
   f('}\n');
-  f(`func ${a}Handler(${side.name} ${a}, handler jsonrpc2.Handler) jsonrpc2.Handler {
-        return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
-            if ctx.Err() != nil {
-              ctx := xcontext.Detach(ctx)
-              return reply(ctx, nil, RequestCancelledError)
-            }
-            switch r.Method() {`);
+  f(`func ${side.name}Dispatch(ctx context.Context, ${side.name} ${a}, reply jsonrpc2.Replier, r jsonrpc2.Request) (bool, error) {
+          switch r.Method() {`);
   side.cases.forEach((v) => {f(v)});
   f(`
-          }
+        default:
+          return false, nil
         }
       }`);
-  f(`
-        type ${side.name}Dispatcher struct {
-          jsonrpc2.Conn
-        }
-        `);
   side.calls.forEach((v) => {f(v)});
 }
 
@@ -1115,16 +1105,6 @@ function nonstandardRequests() {
       return result, nil
     }
   `)
-  client.cases.push(`default:
-    return handler(ctx, reply, r)`)
-  server.cases.push(`default:
-  var params interface{}
-  if err := json.Unmarshal(r.Params(), &params); err != nil {
-    return sendParseError(ctx, reply, err)
-  }
-  resp, err := server.NonstandardRequest(ctx, r.Method(), params)
-  return reply(ctx, resp, err)
-`)
 }
 
 // ----- remember it's a scripting language
