@@ -61,7 +61,7 @@ func debugCallCheck(pc uintptr) string {
 			"debugCall16384",
 			"debugCall32768",
 			"debugCall65536":
-			// These functions are whitelisted so that the debugger can initiate multiple function calls.
+			// These functions are allowlisted so that the debugger can initiate multiple function calls.
 			// See: https://golang.org/cl/161137/
 			return
 		}

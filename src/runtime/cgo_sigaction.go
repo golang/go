@@ -18,7 +18,7 @@ var _cgo_sigaction unsafe.Pointer
 //go:nosplit
 //go:nowritebarrierrec
 func sigaction(sig uint32, new, old *sigactiont) {
-	// The runtime package is explicitly blacklisted from sanitizer
+	// The runtime package is explicitly blocklisted from sanitizer
 	// instrumentation in racewalk.go, but we might be calling into instrumented C
 	// functions here — so we need the pointer parameters to be properly marked.
 	//
