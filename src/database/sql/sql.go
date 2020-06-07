@@ -1059,6 +1059,7 @@ func (db *DB) startCleanerLocked() {
 func (db *DB) connectionCleaner(d time.Duration) {
 	const minInterval = time.Second
 
+	d /= 2 // close conn as soon as possible, reduce the probability of hitting driver.ErrBadConn when obtain a new conn
 	if d < minInterval {
 		d = minInterval
 	}
@@ -1085,6 +1086,7 @@ func (db *DB) connectionCleaner(d time.Duration) {
 			c.Close()
 		}
 
+		d /= 2 // close conn as soon as possible, reduce the probability of hitting driver.ErrBadConn when obtain a new conn
 		if d < minInterval {
 			d = minInterval
 		}
