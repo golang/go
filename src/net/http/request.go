@@ -503,7 +503,7 @@ func valueOrDefault(value, def string) string {
 
 // NOTE: This is not intended to reflect the actual Go version being used.
 // It was changed at the time of Go 1.1 release because the former User-Agent
-// had ended up on a blacklist for some intrusion detection systems.
+// had ended up on a blocklist for some intrusion detection systems.
 // See https://codereview.appspot.com/7532043.
 const defaultUserAgent = "Go-http-client/1.1"
 

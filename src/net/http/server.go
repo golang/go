@@ -1698,8 +1698,8 @@ func (c *conn) closeWriteAndWait() {
 	time.Sleep(rstAvoidanceDelay)
 }
 
-// validNextProto reports whether the proto is not a blacklisted ALPN
-// protocol name. Empty and built-in protocol types are blacklisted
+// validNextProto reports whether the proto is not a blocklisted ALPN
+// protocol name. Empty and built-in protocol types are blocklisted
 // and can't be overridden with alternate implementations.
 func validNextProto(proto string) bool {
 	switch proto {
