@@ -97,7 +97,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 		if item == nil || err != nil {
 			return nil, nil
 		}
-		if err := s.goModCommand(ctx, protocol.URIFromSpanURI(modURI), "vendor"); err != nil {
+		if err := s.goModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
 			return nil, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),

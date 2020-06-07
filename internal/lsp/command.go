@@ -67,11 +67,11 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 
 		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
 		// so we combine them into one case for convenience.
-		verb := "tidy"
+		arg := "tidy"
 		if params.Command == source.CommandVendor {
-			verb = "vendor"
+			arg = "vendor"
 		}
-		err := s.goModCommand(ctx, uri, verb)
+		err := s.goModCommand(ctx, uri, "mod", []string{arg}...)
 		return nil, err
 	case source.CommandUpgradeDependency:
 		if len(params.Arguments) < 2 {
@@ -93,8 +93,8 @@ func (s *Server) goModCommand(ctx context.Context, uri protocol.DocumentURI, ver
 	snapshot := view.Snapshot()
 	cfg := snapshot.Config(ctx)
 	inv := gocommand.Invocation{
-		Verb:       "mod",
-		Args:       append([]string{verb}, args...),
+		Verb:       verb,
+		Args:       args,
 		Env:        cfg.Env,
 		WorkingDir: view.Folder().Filename(),
 	}
