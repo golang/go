@@ -1698,9 +1698,9 @@ func (c *conn) closeWriteAndWait() {
 	time.Sleep(rstAvoidanceDelay)
 }
 
-// validNextProto reports whether the proto is not a blocklisted ALPN
-// protocol name. Empty and built-in protocol types are blocklisted
-// and can't be overridden with alternate implementations.
+// validNextProto reports whether the proto is a valid ALPN protocol name.
+// Everything is valid except the empty string and built-in protocol types,
+// so that those can't be overridden with alternate implementations.
 func validNextProto(proto string) bool {
 	switch proto {
 	case "", "http/1.1", "http/1.0":
