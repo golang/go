@@ -2747,6 +2747,7 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AAESIMC, t)
 			oprangeset(ASHA1SU1, t)
 			oprangeset(ASHA256SU0, t)
+			oprangeset(ASHA512SU0, t)
 
 		case ASHA1C:
 			oprangeset(ASHA1P, t)
@@ -2754,9 +2755,12 @@ func buildop(ctxt *obj.Link) {
 
 		case ASHA256H:
 			oprangeset(ASHA256H2, t)
+			oprangeset(ASHA512H, t)
+			oprangeset(ASHA512H2, t)
 
 		case ASHA1SU0:
 			oprangeset(ASHA256SU1, t)
+			oprangeset(ASHA512SU1, t)
 
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
@@ -5390,6 +5394,18 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case ASHA256SU0:
 		return 0x5E<<24 | 2<<20 | 8<<16 | 2<<12 | 2<<10
+
+	case ASHA512H:
+		return 0xCE<<24 | 3<<21 | 8<<12
+
+	case ASHA512H2:
+		return 0xCE<<24 | 3<<21 | 8<<12 | 4<<8
+
+	case ASHA512SU1:
+		return 0xCE<<24 | 3<<21 | 8<<12 | 8<<8
+
+	case ASHA512SU0:
+		return 0xCE<<24 | 3<<22 | 8<<12
 
 	case AFCVTZSD:
 		return FPCVTI(1, 0, 1, 3, 0)
