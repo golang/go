@@ -38,13 +38,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	check.recordUse(e, obj)
 
-	// If we have a contract, don't bother type-checking it and avoid a
-	// possible cycle error in favor of the more informative error below.
-	if obj, _ := obj.(*Contract); obj != nil {
-		check.errorf(e.Pos(), "use of contract %s not in type parameter declaration", obj.name)
-		return
-	}
-
 	// Type-check the object.
 	// Only call Checker.objDecl if the object doesn't have a type yet
 	// (in which case we must actually determine it) or the object is a
@@ -105,9 +98,6 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 			return
 		}
 		x.mode = variable
-
-	case *Contract:
-		unreachable() // handled earlier
 
 	case *Func:
 		check.addDeclDep(obj)
@@ -1097,4 +1087,81 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field
+}
+
+func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
+	for _, texpr := range types {
+		if texpr == nil {
+			check.invalidAST(pos, "missing type constraint")
+			continue
+		}
+		typ := check.typ(texpr)
+		// A type constraint may be a predeclared type or a
+		// composite type composed only of predeclared types.
+		// TODO(gri) should we keep this restriction?
+		var why string
+		if !check.typeConstraint(typ, &why) {
+			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
+			continue
+		}
+		// add type
+		list = append(list, typ)
+	}
+	return list
+}
+
+// TODO(gri) does this simply check for the absence of defined types?
+//           (if so, should choose a better name)
+func (check *Checker) typeConstraint(typ Type, why *string) bool {
+	switch t := typ.(type) {
+	case *Basic:
+		// ok
+	case *Array:
+		return check.typeConstraint(t.elem, why)
+	case *Slice:
+		return check.typeConstraint(t.elem, why)
+	case *Struct:
+		for _, f := range t.fields {
+			if !check.typeConstraint(f.typ, why) {
+				return false
+			}
+		}
+	case *Pointer:
+		return check.typeConstraint(t.base, why)
+	case *Tuple:
+		if t == nil {
+			return true
+		}
+		for _, v := range t.vars {
+			if !check.typeConstraint(v.typ, why) {
+				return false
+			}
+		}
+	case *Signature:
+		if len(t.tparams) != 0 {
+			panic("type parameter in function type")
+		}
+		return (t.recv == nil || check.typeConstraint(t.recv.typ, why)) &&
+			check.typeConstraint(t.params, why) &&
+			check.typeConstraint(t.results, why)
+	case *Interface:
+		t.assertCompleteness()
+		for _, m := range t.allMethods {
+			if !check.typeConstraint(m.typ, why) {
+				return false
+			}
+		}
+	case *Map:
+		return check.typeConstraint(t.key, why) && check.typeConstraint(t.elem, why)
+	case *Chan:
+		return check.typeConstraint(t.elem, why)
+	case *Named:
+		*why = check.sprintf("%s is not a type literal", t)
+		return false
+	case *TypeParam:
+		// ok, e.g.: func f (type T interface { type T }) ()
+	default:
+		unreachable()
+	}
+	return true
 }

@@ -397,7 +397,7 @@ type Interface struct {
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
 
-	obj Object // type or contract declaration defining this interface; or nil (for better error messages)
+	obj Object // type declaration defining this interface; or nil (for better error messages)
 
 	aType
 }

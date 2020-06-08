@@ -17,13 +17,12 @@ import (
 
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
-	file  *Scope            // scope of file containing this declaration
-	lhs   []*Var            // lhs of n:1 variable declarations, or nil
-	vtyp  ast.Expr          // type, or nil (for const and var declarations only)
-	init  ast.Expr          // init/orig expression, or nil (for const and var declarations only)
-	tdecl *ast.TypeSpec     // type declaration, or nil
-	fdecl *ast.FuncDecl     // func declaration, or nil
-	cdecl *ast.ContractSpec // contract declaration, or nil
+	file  *Scope        // scope of file containing this declaration
+	lhs   []*Var        // lhs of n:1 variable declarations, or nil
+	vtyp  ast.Expr      // type, or nil (for const and var declarations only)
+	init  ast.Expr      // init/orig expression, or nil (for const and var declarations only)
+	tdecl *ast.TypeSpec // type declaration, or nil
+	fdecl *ast.FuncDecl // func declaration, or nil
 
 	// The deps field tracks initialization expression dependencies.
 	deps map[Object]bool // lazily initialized
@@ -395,10 +394,6 @@ func (check *Checker) collectObjects() {
 					case *ast.TypeSpec:
 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
-
-					case *ast.ContractSpec:
-						obj := NewContract(s.Name.Pos(), pkg, s.Name.Name)
-						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, cdecl: s})
 
 					default:
 						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)

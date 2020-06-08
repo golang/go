@@ -188,53 +188,8 @@ func DefPredeclaredTestFuncs() {
 	def(newBuiltin(_Trace))
 }
 
-func defPredeclaredComparableContract() {
-	// The "comparable" contract can be envisioned as defined like
-	//
-	// contract comparable(T) {
-	//         == (T) untyped bool
-	//         != (T) untyped bool
-	// }
-	//
-	// == and != cannot be user-declared but we can declare
-	// a magic method == and check for its presence when needed.
-	// (A simpler approach that simply looks for a magic type
-	// bound interface is problematic: comparable might be embedded,
-	// which in turn leads to the embedding of the magic type bound
-	// interface and then we cannot easily look for that interface
-	// anymore.)
-
-	// Define interface { ==() }. We don't care about the signature
-	// for == so leave it empty except for the receiver, which is
-	// set up later to match the usual interface method assumptions.
-	sig := new(Signature)
-	eql := NewFunc(token.NoPos, nil, "==", sig)
-	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
-
-	// The interface is parameterized with a single
-	// type parameter to match the comparable contract.
-	pname := NewTypeName(token.NoPos, nil, "T", nil)
-	pname.typ = &TypeParam{0, pname, 0, &emptyInterface, aType{}}
-
-	// The type bound interface needs a name so we can attach the
-	// type parameter and to match the usual set up of contracts.
-	iname := NewTypeName(token.NoPos, nil, "comparable_bound", nil)
-	named := NewNamed(iname, iface, nil)
-	named.tparams = []*TypeName{pname}
-	sig.recv = NewVar(token.NoPos, nil, "", named) // complete == signature
-
-	// set up the contract
-	obj := NewContract(token.NoPos, nil, "comparable")
-	obj.typ = new(contractType) // mark contract as fully set up
-	obj.color_ = black
-	obj.TParams = named.tparams
-	obj.Bounds = []*Named{named}
-
-	def(obj)
-}
-
-func defPredeclaredComparableInterface() {
-	// The "comparable" interface can be envisioned as defined like
+func defPredeclaredComparable() {
+	// The "comparable" interface can be imagined as defined like
 	//
 	// type comparable interface {
 	//         == () untyped bool
@@ -269,11 +224,7 @@ func init() {
 	defPredeclaredConsts()
 	defPredeclaredNil()
 	defPredeclaredFuncs()
-	if AcceptContracts {
-		defPredeclaredComparableContract()
-	} else {
-		defPredeclaredComparableInterface()
-	}
+	defPredeclaredComparable()
 
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)

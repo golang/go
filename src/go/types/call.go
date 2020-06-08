@@ -476,8 +476,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
 				case *TypeName:
 					why = check.sprintf("interface %s has no method %s", obj.name, sel)
-				case *Contract:
-					why = check.sprintf("contract %s has no method %s", obj.name, sel)
 				}
 			} else {
 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)

@@ -66,7 +66,7 @@ func new(type T)() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new(int)()
 
-func _(type T)(map[T /* ERROR invalid map key type */]int) // w/o contract we don't know if T is comparable
+func _(type T)(map[T /* ERROR invalid map key type */]int) // w/o constraint we don't know if T is comparable
 
 func f1(type T1)(struct{T1}) int
 var _ = f1(int)(struct{T1}{})
@@ -327,7 +327,7 @@ func (_ R2(X, Y)) m2(X) Y
 // approach is, and one can always work around by assigning the variable to
 // an interface first.
 
-// // ReadByte1 corresponds to the ReadByte example in the contracts draft design.
+// // ReadByte1 corresponds to the ReadByte example in the draft design.
 // func ReadByte1(type T io.Reader)(r T) (byte, error) {
 // 	if br, ok := r.(io.ByteReader); ok {
 // 		return br.ReadByte()

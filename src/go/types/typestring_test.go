@@ -108,13 +108,6 @@ var independentTestTypes = []testEntry{
 	dup("chan (<-chan int)"),
 	dup("chan<- func()"),
 	dup("<-chan []func() int"),
-
-	// TODO(gri) These are not recognized as contracts as long as "contract"
-	//           is not a keyword.
-	// contracts
-	// dup("contract(){}"),
-	// dup("contract(A){}"),
-	// dup("contract(A, B, C){}"),
 }
 
 // types that depend on other type declarations (src in TestTypes)

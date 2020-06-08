@@ -7,7 +7,7 @@ package linalg
 import "math"
 
 // Numeric is type bound that matches any numeric type.
-// It would likely be in a contracts package in the standard library.
+// It would likely be in a constraints package in the standard library.
 type Numeric interface {
 	type int, int8, int16, int32, int64
 	type uint, uint8, uint16, uint32, uint64, uintptr

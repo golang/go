@@ -100,12 +100,11 @@ var tests = [][]string{
 	{"testdata/issue28251.src"},
 	{"testdata/issue6977.src"},
 
-	// Go 2 tests (type parameters and contracts)
+	// Go 2 tests (type parameters)
 	{"testdata/tmp.go2"}, // used for ad-hoc tests - file contents transient
 	{"testdata/typeparams.go2"},
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},
-	// {"testdata/contracts.go2"}, // disabled for now
 	{"testdata/issues.go2"},
 	{"testdata/todos.go2"},
 
@@ -117,7 +116,6 @@ var tests = [][]string{
 	{"testdata/linalg.go2"},
 
 	// Go 2 prototype examples
-	// {"examples/contracts.go2"}, disabled for now
 	{"examples/functions.go2"},
 	{"examples/methods.go2"},
 	{"examples/types.go2"},

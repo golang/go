@@ -162,9 +162,7 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 
 	case *Signature:
 		assert(t.tparams == nil) // TODO(gri) is this correct?
-		// TODO(gri) Rethink check below: contract interfaces
-		// have methods where the receiver is a contract type
-		// parameter, by design.
+		// TODO(gri) Rethink check below.
 		//assert(t.recv == nil || !isParameterized(t.recv.typ))
 		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
 

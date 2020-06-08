@@ -8,52 +8,6 @@ package p
 
 import "io"
 
-// This used to crash with an assertion failure when
-// instantiating f(int, int). The assertion was checking
-// that the number of type parameters and arguments was
-// matching for the embedded contract anInt (rather, its
-// corresponding interface bound) but it really compared
-// the numbers for anInt and twoInt (which embedds anInt).
-// The fix simply uses the instantiated non-parameterized
-// underlying interface of atInt<K> rather than anInt<K>.
-/*
-contract anInt(T) {
-	T int
-}
-
-contract twoInt(K, _) {
-	anInt(K)
-}
-
-func f(type K, V twoInt)()
-
-func _ () {
-	f(int, int)()
-}
-*/
-
-// This is the original (simplified) program causing the same issue.
-/*
-contract onecomparable(T) {
-	T int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		string
-}
-
-contract twocomparable(K, V) {
-	comparable(K) // predeclared contract comparable
-	onecomparable(V)
-}
-
-func Equal(type K, V twocomparable)(m1, m2 map[K]V)
-
-func _() {
-	var m map[int]int
-	Equal(m, nil)
-}
-*/
-
 // Interfaces are always comparable (though the comparison may panic at runtime).
 func eql(type T comparable)(x, y T) bool {
 	return x == y
@@ -82,26 +36,10 @@ func _(type T C)(x *T) {
 	x.m()
 }
 
-// using an interface as bound
-// TODO(gri) this is now the same as above (no contracts anymore)
+// using an interface literal as bound
 func _(type T interface{ m() })(x *T) {
 	x.m()
 }
-
-// This is the original (simplified) program causing the same issue.
-/*
-type GraphP(type Node, Edge GP) struct {
-	nodes []*Node
-}
-
-contract GP(Node, Edge) {
-	Node Edges() []*Edge
-}
-
-func (g *GraphP(Node, Edge)) Edges(n *Node) []*Edge {
-	return n.Edges()
-}
-*/
 
 // In a generic function body all method calls will be pointer method calls.
 // If necessary, the function body will insert temporary variables, not seen
@@ -120,20 +58,6 @@ func _() {
 	f2(*T)()
 }
 
-// This is the original (simplified) program causing the same issue.
-/*
-func NewP(type Node, Edge GP)(nodes []*Node) *GraphP(Node, Edge) {
-	return &GraphP(Node, Edge){nodes: nodes}
-}
-
-type N struct{}
-func (n *N) Edges() []*E { return nil }
-type E struct{}
-func F() {
-	_ = NewP(N, E)(nil)
-}
-*/
-
 // When a type parameter is used as an argument to instantiate a parameterized
 // type with a type list constraint, all of the type argument's types in its
 // bound, but at least one (!), must be in the type list of the bound of the
@@ -145,9 +69,8 @@ func _(type P)() {
 }
 
 // This is the original (simplified) program causing the same issue.
-/*
-contract Unsigned(T) {
-	T uint
+type Unsigned interface {
+	type uint
 }
 
 type T2(type U Unsigned) struct {
@@ -158,15 +81,14 @@ func (u T2(U)) Add1() U {
     return u.s + 1
 }
 
-func NewT2(type U)() T2(U /- ERROR U has no type constraints -/ ) {
-    return T2(U /- ERROR U has no type constraints -/ ){}
+func NewT2(type U)() T2(U /* ERROR U has no type constraints */ ) {
+    return T2(U /* ERROR U has no type constraints */ ){}
 }
 
 func _() {
     u := NewT2(string)()
     _ = u.Add1()
 }
-*/
 
 // When we encounter an instantiated type such as Elem(T) we must
 // not "expand" the instantiation when the type to be instantiated
