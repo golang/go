@@ -102,8 +102,10 @@ func (d *deadcodePass) flood() {
 
 		isgotype := d.ldr.IsGoType(symIdx)
 		relocs := d.ldr.Relocs(symIdx)
+		var usedInIface bool
 
 		if isgotype {
+			usedInIface = d.ldr.AttrUsedInIface(symIdx)
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
 				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
@@ -126,7 +128,9 @@ func (d *deadcodePass) flood() {
 				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
 				}
-				methods = append(methods, methodref{src: symIdx, r: i})
+				if usedInIface {
+					methods = append(methods, methodref{src: symIdx, r: i})
+				}
 				i += 2
 				continue
 			}
@@ -136,7 +140,23 @@ func (d *deadcodePass) flood() {
 				// do nothing for now as we still load all type symbols.
 				continue
 			}
-			d.mark(r.Sym(), symIdx)
+			rs := r.Sym()
+			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
+				// If a type is converted to an interface, it is possible to obtain an
+				// interface with a "child" type of it using reflection (e.g. obtain an
+				// interface of T from []chan T). We need to traverse its "child" types
+				// with UsedInIface attribute set.
+				// When visiting the child type (chan T in the example above), it will
+				// have UsedInIface set, so it in turn will mark and (re)visit its children
+				// (e.g. T above).
+				// We unset the reachable bit here, so if the child type is already visited,
+				// it will be visited again.
+				// Note that a type symbol can be visited at most twice, one without
+				// UsedInIface and one with. So termination is still guaranteed.
+				d.ldr.SetAttrUsedInIface(rs, true)
+				d.ldr.SetAttrReachable(rs, false)
+			}
+			d.mark(rs, symIdx)
 		}
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
