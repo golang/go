@@ -9,6 +9,7 @@ package fillreturns
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/types"
@@ -47,9 +48,15 @@ var Analyzer = &analysis.Analyzer{
 var wrongReturnNumRegex = regexp.MustCompile(`wrong number of return values \(want (\d+), got (\d+)\)`)
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	info := pass.TypesInfo
+	if info == nil {
+		return nil, fmt.Errorf("nil TypeInfo")
+	}
+
 	errors := analysisinternal.GetTypeErrors(pass)
-	// Filter out the errors that are not relevant to this analyzer.
+outer:
 	for _, typeErr := range errors {
+		// Filter out the errors that are not relevant to this analyzer.
 		if !FixesError(typeErr.Msg) {
 			continue
 		}
@@ -84,76 +91,75 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Get the function that encloses the ReturnStmt.
 		var enclosingFunc *ast.FuncType
-	Outer:
 		for _, n := range path {
 			switch node := n.(type) {
 			case *ast.FuncLit:
 				enclosingFunc = node.Type
-				break Outer
 			case *ast.FuncDecl:
 				enclosingFunc = node.Type
-				break Outer
+			}
+			if enclosingFunc != nil {
+				break
 			}
 		}
 		if enclosingFunc == nil {
 			continue
 		}
-		numRetValues := len(ret.Results)
-		typeInfo := pass.TypesInfo
 
-		// skip if return value has a func call (whose multiple returns might be expanded)
+		// Skip any return statements that contain function calls with multiple return values.
 		for _, expr := range ret.Results {
 			e, ok := expr.(*ast.CallExpr)
 			if !ok {
 				continue
 			}
-			ident, ok := e.Fun.(*ast.Ident)
-			if !ok || ident.Obj == nil {
-				continue
-			}
-			fn, ok := ident.Obj.Decl.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-			if len(fn.Type.Results.List) != 1 {
-				continue
-			}
-			if typeInfo == nil {
-				continue
-			}
-			if _, ok := typeInfo.TypeOf(e).(*types.Tuple); ok {
-				continue
+			if tup, ok := info.TypeOf(e).(*types.Tuple); ok && tup.Len() > 1 {
+				continue outer
 			}
 		}
 
-		// Fill in the missing arguments with zero-values.
-		returnCount := 0
-		zvs := make([]ast.Expr, len(enclosingFunc.Results.List))
+		// Duplicate the return values to track which values have been matched.
+		remaining := make([]ast.Expr, len(ret.Results))
+		copy(remaining, ret.Results)
+
+		fixed := make([]ast.Expr, len(enclosingFunc.Results.List))
+
+		// For each value in the return function declaration, find the leftmost element
+		// in the return statement that has the desired type. If no such element exits,
+		// fill in the missing value with the appropriate "zero" value.
 		for i, result := range enclosingFunc.Results.List {
-			zv := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, typeInfo.TypeOf(result.Type))
-			if zv == nil {
-				return nil, nil
+			typ := info.TypeOf(result.Type)
+
+			var match ast.Expr
+			var idx int
+			for j, val := range remaining {
+				if !matchingTypes(info.TypeOf(val), typ) {
+					continue
+				}
+				match, idx = val, j
+				break
 			}
-			// We do not have any existing return values, fill in with zero-values.
-			if returnCount >= numRetValues {
-				zvs[i] = zv
-				continue
+
+			if match != nil {
+				fixed[i] = match
+				remaining = append(remaining[:idx], remaining[idx+1:]...)
+			} else {
+				zv := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, info.TypeOf(result.Type))
+				if zv == nil {
+					return nil, nil
+				}
+				fixed[i] = zv
 			}
-			// Compare the types to see if they are the same.
-			current := ret.Results[returnCount]
-			if equalTypes(typeInfo.TypeOf(current), typeInfo.TypeOf(result.Type)) {
-				zvs[i] = current
-				returnCount += 1
-				continue
-			}
-			zvs[i] = zv
 		}
+
+		// Append leftover return values to end of new return statement.
+		fixed = append(fixed, remaining...)
+
 		newRet := &ast.ReturnStmt{
 			Return:  ret.Pos(),
-			Results: zvs,
+			Results: fixed,
 		}
 
-		// Convert the new return statement ast to text.
+		// Convert the new return statement AST to text.
 		var newBuf bytes.Buffer
 		if err := format.Node(&newBuf, pass.Fset, newRet); err != nil {
 			return nil, err
@@ -176,17 +182,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func equalTypes(t1, t2 types.Type) bool {
-	if t1 == t2 || types.Identical(t1, t2) {
+func matchingTypes(want, got types.Type) bool {
+	if want == got || types.Identical(want, got) {
 		return true
 	}
 	// Code segment to help check for untyped equality from (golang/go#32146).
-	if rhs, ok := t1.(*types.Basic); ok && rhs.Info()&types.IsUntyped > 0 {
-		if lhs, ok := t2.Underlying().(*types.Basic); ok {
+	if rhs, ok := want.(*types.Basic); ok && rhs.Info()&types.IsUntyped > 0 {
+		if lhs, ok := got.Underlying().(*types.Basic); ok {
 			return rhs.Info()&types.IsConstType == lhs.Info()&types.IsConstType
 		}
 	}
-	return types.AssignableTo(t1, t2) || types.ConvertibleTo(t1, t2)
+	return types.AssignableTo(want, got) || types.ConvertibleTo(want, got)
 }
 
 func FixesError(msg string) bool {

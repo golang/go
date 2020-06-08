@@ -11,6 +11,7 @@ import (
 	"net/http"
 	. "net/http"
 	"net/url"
+	"strconv"
 )
 
 type T struct{}
@@ -39,9 +40,21 @@ func e() (T, error, *bool) {
 	return T{}, (z(http.ListenAndServe))("", nil), nil // want "wrong number of return values \\(want 3, got 1\\)"
 }
 
+func preserveLeft() (int, int, error) {
+	return 1, 0, errors.New("foo") // want "wrong number of return values \\(want 3, got 2\\)"
+}
+
+func matchValues() (int, error, string) {
+	return 3, errors.New("foo"), "" // want "wrong number of return values \\(want 3, got 2\\)"
+}
+
+func preventDataOverwrite() (int, string) {
+	return 0, "", errors.New("foo") // want "wrong number of return values \\(want 2, got 1\\)"
+}
+
 func closure() (string, error) {
 	_ = func() (int, error) {
-		return 0, errors.New("foo") // want "wrong number of return values \\(want 2, got 1\\)"
+		return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
 	}
 	return "", nil // want "wrong number of return values \\(want 2, got 0\\)"
 }
@@ -62,9 +75,9 @@ func m() (int, error) {
 	if 1 == 2 {
 		return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
 	} else if 1 == 3 {
-		return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
+		return 0, errors.New("foo") // want "wrong number of return values \\(want 2, got 1\\)"
 	} else {
-		return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
+		return 1, nil // want "wrong number of return values \\(want 2, got 1\\)"
 	}
 	return 0, nil // want "wrong number of return values \\(want 2, got 0\\)"
 }
@@ -77,4 +90,24 @@ func assignableTypes() (map[string]int, int) {
 	type X map[string]int
 	var x X
 	return x, 0 // want "wrong number of return values \\(want 2, got 1\\)"
+}
+
+func interfaceAndError() (I, int) {
+	return errors.New("foo"), 0 // want "wrong number of return values \\(want 2, got 1\\)"
+}
+
+func funcOneReturn() (string, error) {
+	return strconv.Itoa(1), nil // want "wrong number of return values \\(want 2, got 1\\)"
+}
+
+func funcMultipleReturn() (int, error, string) {
+	return strconv.Atoi("1")
+}
+
+func localFuncMultipleReturn() (string, int, error, string) {
+	return b()
+}
+
+func multipleUnused() (int, string, string, string) {
+	return 3, "", "", "", 4, 5 // want "wrong number of return values \\(want 4, got 3\\)"
 }
