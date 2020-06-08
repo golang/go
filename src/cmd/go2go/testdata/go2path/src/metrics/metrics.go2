@@ -30,6 +30,8 @@ func (m *Metric1(T)) Add(v T) {
 
 // Count returns the number of instances we've seen of v.
 func (m *Metric1(T)) Count(v T) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.m[v]
 }
 
@@ -61,6 +63,8 @@ func (m *Metric2(T1, T2)) Add(v1 T1, v2 T2) {
 
 // Count returns the number of instances we've seen of v1/v2.
 func (m *Metric2(T1, T2)) Count(v1 T1, v2 T2) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.m[key2(T1, T2){v1, v2}]
 }
 
@@ -97,6 +101,8 @@ func (m *Metric3(T1, T2, T3)) Add(v1 T1, v2 T2, v3 T3) {
 
 // Count returns the number of instances we've seen of v1/v2/v3.
 func (m *Metric3(T1, T2, T3)) Count(v1 T1, v2 T2, v3 T3) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.m[key3(T1, T2, T3){v1, v2, v3}]
 }
 
