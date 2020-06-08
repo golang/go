@@ -94,7 +94,7 @@ type modData struct {
 }
 
 func (mh *modHandle) String() string {
-	return mh.File().Identity().URI.Filename()
+	return mh.File().URI().Filename()
 }
 
 func (mh *modHandle) File() source.FileHandle {
@@ -104,7 +104,7 @@ func (mh *modHandle) File() source.FileHandle {
 func (mh *modHandle) Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, error) {
 	v := mh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, errors.Errorf("no parsed file for %s", mh.File().Identity().URI)
+		return nil, nil, errors.Errorf("no parsed file for %s", mh.File().URI())
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.err
@@ -113,7 +113,7 @@ func (mh *modHandle) Parse(ctx context.Context) (*modfile.File, *protocol.Column
 func (mh *modHandle) Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error) {
 	v := mh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().Identity().URI)
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().URI())
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.upgrades, data.err
@@ -122,14 +122,14 @@ func (mh *modHandle) Upgrades(ctx context.Context) (*modfile.File, *protocol.Col
 func (mh *modHandle) Why(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error) {
 	v := mh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().Identity().URI)
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().URI())
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.why, data.err
 }
 
 func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.ModHandle {
-	uri := fh.Identity().URI
+	uri := fh.URI()
 	if handle := s.getModHandle(uri); handle != nil {
 		return handle
 	}
@@ -137,7 +137,6 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 	realURI, tempURI := s.view.ModFiles()
 	folder := s.View().Folder().Filename()
 	cfg := s.Config(ctx)
-
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
@@ -148,7 +147,7 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		ctx, done := event.Start(ctx, "cache.ModHandle", tag.URI.Of(uri))
 		defer done()
 
-		contents, _, err := fh.Read(ctx)
+		contents, err := fh.Read()
 		if err != nil {
 			return &modData{
 				err: err,
@@ -275,7 +274,7 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 func (mh *modHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []source.Error, error) {
 	v := mh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().Identity().URI)
+		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().URI())
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.missingDeps, data.parseErrors, data.err
@@ -323,7 +322,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(realURI))
 		defer done()
 
-		realContents, _, err := realfh.Read(ctx)
+		realContents, err := realfh.Read()
 		if err != nil {
 			return &modData{
 				err: err,
@@ -480,7 +479,7 @@ func modRequireErrors(options source.Options, data *modData) ([]source.Error, er
 		}
 		// Handle unused dependencies.
 		if data.missingDeps[dep] == nil {
-			rng, err := rangeFromPositions(data.origfh.Identity().URI, data.origMapper, req.Syntax.Start, req.Syntax.End)
+			rng, err := rangeFromPositions(data.origfh.URI(), data.origMapper, req.Syntax.Start, req.Syntax.End)
 			if err != nil {
 				return nil, err
 			}
@@ -492,10 +491,10 @@ func modRequireErrors(options source.Options, data *modData) ([]source.Error, er
 				Category: ModTidyError,
 				Message:  fmt.Sprintf("%s is not used in this module.", dep),
 				Range:    rng,
-				URI:      data.origfh.Identity().URI,
+				URI:      data.origfh.URI(),
 				SuggestedFixes: []source.SuggestedFix{{
 					Title: fmt.Sprintf("Remove dependency: %s", dep),
-					Edits: map[span.URI][]protocol.TextEdit{data.origfh.Identity().URI: edits},
+					Edits: map[span.URI][]protocol.TextEdit{data.origfh.URI(): edits},
 				}},
 			})
 		}
@@ -505,7 +504,7 @@ func modRequireErrors(options source.Options, data *modData) ([]source.Error, er
 
 // modDirectnessErrors extracts errors when a dependency is labeled indirect when it should be direct and vice versa.
 func modDirectnessErrors(options source.Options, data *modData, req *modfile.Require) (source.Error, error) {
-	rng, err := rangeFromPositions(data.origfh.Identity().URI, data.origMapper, req.Syntax.Start, req.Syntax.End)
+	rng, err := rangeFromPositions(data.origfh.URI(), data.origMapper, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -515,7 +514,7 @@ func modDirectnessErrors(options source.Options, data *modData, req *modfile.Req
 			end := comments.Suffix[0].Start
 			end.LineRune += len(comments.Suffix[0].Token)
 			end.Byte += len([]byte(comments.Suffix[0].Token))
-			rng, err = rangeFromPositions(data.origfh.Identity().URI, data.origMapper, comments.Suffix[0].Start, end)
+			rng, err = rangeFromPositions(data.origfh.URI(), data.origMapper, comments.Suffix[0].Start, end)
 			if err != nil {
 				return source.Error{}, err
 			}
@@ -528,10 +527,10 @@ func modDirectnessErrors(options source.Options, data *modData, req *modfile.Req
 			Category: ModTidyError,
 			Message:  fmt.Sprintf("%s should be a direct dependency.", req.Mod.Path),
 			Range:    rng,
-			URI:      data.origfh.Identity().URI,
+			URI:      data.origfh.URI(),
 			SuggestedFixes: []source.SuggestedFix{{
 				Title: fmt.Sprintf("Make %s direct", req.Mod.Path),
-				Edits: map[span.URI][]protocol.TextEdit{data.origfh.Identity().URI: edits},
+				Edits: map[span.URI][]protocol.TextEdit{data.origfh.URI(): edits},
 			}},
 		}, nil
 	}
@@ -544,10 +543,10 @@ func modDirectnessErrors(options source.Options, data *modData, req *modfile.Req
 		Category: ModTidyError,
 		Message:  fmt.Sprintf("%s should be an indirect dependency.", req.Mod.Path),
 		Range:    rng,
-		URI:      data.origfh.Identity().URI,
+		URI:      data.origfh.URI(),
 		SuggestedFixes: []source.SuggestedFix{{
 			Title: fmt.Sprintf("Make %s indirect", req.Mod.Path),
-			Edits: map[span.URI][]protocol.TextEdit{data.origfh.Identity().URI: edits},
+			Edits: map[span.URI][]protocol.TextEdit{data.origfh.URI(): edits},
 		}},
 	}, nil
 }
@@ -576,7 +575,7 @@ func dropDependencyEdits(options source.Options, data *modData, req *modfile.Req
 	// Reset the *modfile.File back to before we dropped the dependency.
 	data.origParsedFile.AddNewRequire(req.Mod.Path, req.Mod.Version, req.Indirect)
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(data.origfh.Identity().URI, string(data.origMapper.Content), string(newContents))
+	diff := options.ComputeEdits(data.origfh.URI(), string(data.origMapper.Content), string(newContents))
 	edits, err := source.ToProtocolEdits(data.origMapper, diff)
 	if err != nil {
 		return nil, err
@@ -624,7 +623,7 @@ func changeDirectnessEdits(options source.Options, data *modData, req *modfile.R
 	}
 	data.origParsedFile.SetRequire(newReq)
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(data.origfh.Identity().URI, string(data.origMapper.Content), string(newContents))
+	diff := options.ComputeEdits(data.origfh.URI(), string(data.origMapper.Content), string(newContents))
 	edits, err := source.ToProtocolEdits(data.origMapper, diff)
 	if err != nil {
 		return nil, err

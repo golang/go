@@ -40,11 +40,11 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		snapshot, fh, ok, err := s.beginFileRequest(protocol.DocumentURI(uri), source.Go)
+		snapshot, fh, ok, err := s.beginFileRequest(ctx, protocol.DocumentURI(uri), source.Go)
 		if !ok {
 			return nil, err
 		}
-		dir := filepath.Dir(fh.Identity().URI.Filename())
+		dir := filepath.Dir(fh.URI().Filename())
 		go s.runTest(ctx, funcName, dir, snapshot)
 	case source.CommandGenerate:
 		dir, recursive, err := getGenerateRequest(params.Arguments)

@@ -491,7 +491,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		pkg:                       pkg,
 		snapshot:                  snapshot,
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		filename:                  fh.Identity().URI.Filename(),
+		filename:                  fh.URI().Filename(),
 		file:                      file,
 		path:                      path,
 		pos:                       pos,

@@ -188,12 +188,12 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	if snapshot == nil {
 		return errors.Errorf("no snapshot for %s", uri)
 	}
-	fh, err := snapshot.GetFile(uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}
 	// If a file has been closed and is not on disk, clear its diagnostics.
-	if _, _, err := fh.Read(ctx); err != nil {
+	if _, err := fh.Read(); err != nil {
 		return s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			URI:         protocol.URIFromSpanURI(uri),
 			Diagnostics: []protocol.Diagnostic{},
@@ -259,11 +259,11 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 				if !snapshot.IsSaved(uri) {
 					continue
 				}
-				fh, err := snapshot.GetFile(uri)
+				fh, err := snapshot.GetFile(ctx, uri)
 				if err != nil {
 					return nil, err
 				}
-				switch fh.Identity().Kind {
+				switch fh.Kind() {
 				case source.Mod:
 					newSnapshot, err := snapshot.View().Rebuild(ctx)
 					if err != nil {
@@ -312,7 +312,11 @@ func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protoc
 }
 
 func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) ([]byte, error) {
-	content, _, err := s.session.GetFile(uri).Read(ctx)
+	fh, err := s.session.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	content, err := fh.Read()
 	if err != nil {
 		return nil, fmt.Errorf("%w: file not found (%v)", jsonrpc2.ErrInternal, err)
 	}

@@ -27,7 +27,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(realURI))
 	defer done()
 
-	realfh, err := snapshot.GetFile(realURI)
+	realfh, err := snapshot.GetFile(ctx, realURI)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,15 +88,15 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 					Edit:        protocol.WorkspaceEdit{},
 				}
 				for uri, edits := range fix.Edits {
-					fh, err := snapshot.GetFile(uri)
+					fh, err := snapshot.GetFile(ctx, uri)
 					if err != nil {
 						return nil, err
 					}
 					action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
-							Version: fh.Identity().Version,
+							Version: fh.Version(),
 							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-								URI: protocol.URIFromSpanURI(fh.Identity().URI),
+								URI: protocol.URIFromSpanURI(fh.URI()),
 							},
 						},
 						Edits: edits,
@@ -120,7 +120,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 	ctx, done := event.Start(ctx, "mod.SuggestedGoFixes", tag.URI.Of(realURI))
 	defer done()
 
-	realfh, err := snapshot.GetFile(realURI)
+	realfh, err := snapshot.GetFile(ctx, realURI)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 		return nil, nil
 	}
 	// Get the contents of the go.mod file before we make any changes.
-	oldContents, _, err := realfh.Read(ctx)
+	oldContents, err := realfh.Read()
 	if err != nil {
 		return nil, err
 	}
@@ -156,16 +156,16 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 			return nil, err
 		}
 		// Calculate the edits to be made due to the change.
-		diff := snapshot.View().Options().ComputeEdits(realfh.Identity().URI, string(oldContents), string(newContents))
+		diff := snapshot.View().Options().ComputeEdits(realfh.URI(), string(oldContents), string(newContents))
 		edits, err := source.ToProtocolEdits(realMapper, diff)
 		if err != nil {
 			return nil, err
 		}
 		textDocumentEdits[dep] = protocol.TextDocumentEdit{
 			TextDocument: protocol.VersionedTextDocumentIdentifier{
-				Version: realfh.Identity().Version,
+				Version: realfh.Version(),
 				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.URIFromSpanURI(realfh.Identity().URI),
+					URI: protocol.URIFromSpanURI(realfh.URI()),
 				},
 			},
 			Edits: edits,

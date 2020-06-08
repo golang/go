@@ -123,9 +123,9 @@ func FillStruct(ctx context.Context, snapshot Snapshot, fh FileHandle, protoRng 
 				DocumentChanges: []protocol.TextDocumentEdit{
 					{
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
-							Version: fh.Identity().Version,
+							Version: fh.Version(),
 							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-								URI: protocol.URIFromSpanURI(fh.Identity().URI),
+								URI: protocol.URIFromSpanURI(fh.URI()),
 							},
 						},
 						Edits: []protocol.TextEdit{

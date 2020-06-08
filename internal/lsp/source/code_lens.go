@@ -26,7 +26,8 @@ var lensFuncs = map[string]lensFunc{
 
 // CodeLens computes code lens for Go source code.
 func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
-	f, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull).Parse(ctx)
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
+	f, _, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *a
 		return nil, err
 	}
 
-	if !strings.HasSuffix(fh.Identity().URI.Filename(), "_test.go") {
+	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
 		return nil, nil
 	}
 
@@ -74,7 +75,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *a
 				return nil, err
 			}
 
-			uri := fh.Identity().URI
+			uri := fh.URI()
 			codeLens = append(codeLens, protocol.CodeLens{
 				Range: rng,
 				Command: protocol.Command{
@@ -137,7 +138,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f
 			if err != nil {
 				return nil, err
 			}
-			dir := filepath.Dir(fh.Identity().URI.Filename())
+			dir := filepath.Dir(fh.URI().Filename())
 			return []protocol.CodeLens{
 				{
 					Range: rng,
@@ -183,7 +184,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f 
 			Command: protocol.Command{
 				Title:     "regenerate cgo definitions",
 				Command:   CommandRegenerateCgo,
-				Arguments: []interface{}{fh.Identity().URI},
+				Arguments: []interface{}{fh.URI()},
 			},
 		},
 	}, nil

@@ -37,7 +37,7 @@ type Snapshot interface {
 
 	// GetFile returns the FileHandle for a given URI, initializing it
 	// if it is not already part of the snapshot.
-	GetFile(uri span.URI) (FileHandle, error)
+	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 
 	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
@@ -181,9 +181,8 @@ type Session interface {
 	// Shutdown the session and all views it has created.
 	Shutdown(ctx context.Context)
 
-	// A FileSystem prefers the contents from overlays, and falls back to the
-	// content from the underlying cache if no overlay is present.
-	FileSystem
+	// GetFile returns a handle for the specified file.
+	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 
 	// DidModifyFile reports a file modification to the session.
 	// It returns the resulting snapshots, a guaranteed one per view.
@@ -253,20 +252,11 @@ const (
 // sharing between all consumers.
 // A cache may have many active sessions at any given time.
 type Cache interface {
-	// A FileSystem that reads file contents from external storage.
-	FileSystem
-
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
 	// ParseGoHandle returns a ParseGoHandle for the given file handle.
-	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
-}
-
-// FileSystem is the interface to something that provides file contents.
-type FileSystem interface {
-	// GetFile returns a handle for the specified file.
-	GetFile(uri span.URI) FileHandle
+	ParseGoHandle(ctx context.Context, fh FileHandle, mode ParseMode) ParseGoHandle
 }
 
 // ParseGoHandle represents a handle to the AST for a file.
@@ -336,18 +326,20 @@ const (
 	ParseFull
 )
 
-// FileHandle represents a handle to a specific version of a single file from
-// a specific file system.
+// FileHandle represents a handle to a specific version of a single file.
 type FileHandle interface {
-	// FileSystem returns the file system this handle was acquired from.
-	FileSystem() FileSystem
+	URI() span.URI
+	Kind() FileKind
+	Version() float64
 
-	// Identity returns the FileIdentity for the file.
+	// Identity returns a FileIdentity for the file, even if there was an error
+	// reading it.
+	// It is a fatal error to call Identity on a file that has not yet been read.
 	Identity() FileIdentity
 
-	// Read reads the contents of a file and returns it along with its hash value.
+	// Read reads the contents of a file.
 	// If the file is not available, returns a nil slice and an error.
-	Read(ctx context.Context) ([]byte, string, error)
+	Read() ([]byte, error)
 }
 
 // FileIdentity uniquely identifies a file at a version from a FileSystem.

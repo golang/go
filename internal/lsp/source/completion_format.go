@@ -216,7 +216,7 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 	uri := span.URIFromPath(c.filename)
 	var ph ParseGoHandle
 	for _, h := range c.pkg.CompiledGoFiles() {
-		if h.File().Identity().URI == uri {
+		if h.File().URI() == uri {
 			ph = h
 		}
 	}

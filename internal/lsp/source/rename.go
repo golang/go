@@ -88,7 +88,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		return nil, errors.Errorf("invalid identifier to rename: %q", newName)
 	}
 	if pkg == nil || pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", f.Identity().URI)
+		return nil, errors.Errorf("package for %s is ill typed", f.URI())
 	}
 	refs, err := references(ctx, s, qos, true)
 	if err != nil {
@@ -126,11 +126,11 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	for uri, edits := range changes {
 		// These edits should really be associated with FileHandles for maximal correctness.
 		// For now, this is good enough.
-		fh, err := s.GetFile(uri)
+		fh, err := s.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		data, _, err := fh.Read(ctx)
+		data, err := fh.Read()
 		if err != nil {
 			return nil, err
 		}

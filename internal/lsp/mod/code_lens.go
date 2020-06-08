@@ -29,7 +29,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(realURI))
 	defer done()
 
-	fh, err := snapshot.GetFile(realURI)
+	fh, err := snapshot.GetFile(ctx, realURI)
 	if err != nil {
 		return nil, err
 	}

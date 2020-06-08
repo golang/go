@@ -83,10 +83,10 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]*Diagnostic)
-	for _, fh := range pkg.CompiledGoFiles() {
-		clearReports(snapshot, reports, fh.File().Identity().URI)
+	for _, pgh := range pkg.CompiledGoFiles() {
+		clearReports(ctx, snapshot, reports, pgh.File().URI())
 		if len(missing) > 0 {
-			if err := missingModulesDiagnostics(ctx, snapshot, reports, missing, fh.File().Identity().URI); err != nil {
+			if err := missingModulesDiagnostics(ctx, snapshot, reports, missing, pgh.File().URI()); err != nil {
 				return nil, warn, err
 			}
 		}
@@ -99,13 +99,13 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		}
 		// If no file is associated with the error, pick an open file from the package.
 		if e.URI.Filename() == "" {
-			for _, ph := range pkg.CompiledGoFiles() {
-				if snapshot.IsOpen(ph.File().Identity().URI) {
-					e.URI = ph.File().Identity().URI
+			for _, pgh := range pkg.CompiledGoFiles() {
+				if snapshot.IsOpen(pgh.File().URI()) {
+					e.URI = pgh.File().URI()
 				}
 			}
 		}
-		clearReports(snapshot, reports, e.URI)
+		clearReports(ctx, snapshot, reports, e.URI)
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	hadDiagnostics, hadTypeErrors, err := diagnostics(ctx, snapshot, reports, pkg, len(ph.MissingDependencies()) > 0)
@@ -135,7 +135,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileIdentity, []*Diagnostic, error) {
-	fh, err := snapshot.GetFile(uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
@@ -205,7 +205,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		} else if len(set.typeErrors) > 0 {
 			hasTypeErrors = true
 		}
-		if err := addReports(snapshot, reports, uri, diags...); err != nil {
+		if err := addReports(ctx, snapshot, reports, uri, diags...); err != nil {
 			return false, false, err
 		}
 	}
@@ -216,11 +216,12 @@ func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports m
 	if snapshot.View().Ignore(uri) || len(missingModules) == 0 {
 		return nil
 	}
-	fh, err := snapshot.GetFile(uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}
-	file, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader).Parse(ctx)
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseHeader)
+	file, _, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return err
 	}
@@ -289,7 +290,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		if err := addReports(snapshot, reports, e.URI, &Diagnostic{
+		if err := addReports(ctx, snapshot, reports, e.URI, &Diagnostic{
 			Range:    e.Range,
 			Message:  e.Message,
 			Source:   e.Category,
@@ -303,7 +304,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 	return nil
 }
 
-func clearReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI) {
+func clearReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI) {
 	if snapshot.View().Ignore(uri) {
 		return
 	}
@@ -314,7 +315,7 @@ func clearReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri
 	reports[fh.Identity()] = []*Diagnostic{}
 }
 
-func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
+func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
 	if snapshot.View().Ignore(uri) {
 		return nil
 	}
@@ -322,8 +323,7 @@ func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri s
 	if fh == nil {
 		return nil
 	}
-	identity := fh.Identity()
-	existingDiagnostics, ok := reports[identity]
+	existingDiagnostics, ok := reports[fh.Identity()]
 	if !ok {
 		return fmt.Errorf("diagnostics for unexpected file %s", uri)
 	}
@@ -337,7 +337,7 @@ func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri s
 				if d1.Message != d2.Message {
 					continue
 				}
-				reports[identity][i].Tags = append(reports[identity][i].Tags, d1.Tags...)
+				reports[fh.Identity()][i].Tags = append(reports[fh.Identity()][i].Tags, d1.Tags...)
 			}
 			return nil
 		}

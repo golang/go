@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 
 	var docChanges []protocol.TextDocumentEdit
 	for uri, e := range edits {
-		fh, err := snapshot.GetFile(uri)
+		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
@@ -35,7 +35,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 }
 
 func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return nil, err
 	}

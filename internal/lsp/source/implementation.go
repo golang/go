@@ -285,7 +285,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 }
 
 func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, token.Pos, error) {
-	pgh, err := pkg.File(f.Identity().URI)
+	pgh, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, 0, err
 	}

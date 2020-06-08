@@ -94,13 +94,13 @@ type sentDiagnostics struct {
 }
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
-	switch fh.Identity().Kind {
+	switch fh.Kind() {
 	case source.Mod:
-		return mod.CodeLens(ctx, snapshot, fh.Identity().URI)
+		return mod.CodeLens(ctx, snapshot, fh.URI())
 	case source.Go:
 		return source.CodeLens(ctx, snapshot, fh)
 	}
@@ -112,17 +112,17 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 	paramMap := params.(map[string]interface{})
 	if method == "gopls/diagnoseFiles" {
 		for _, file := range paramMap["files"].([]interface{}) {
-			snapshot, fh, ok, err := s.beginFileRequest(protocol.DocumentURI(file.(string)), source.UnknownKind)
+			snapshot, fh, ok, err := s.beginFileRequest(ctx, protocol.DocumentURI(file.(string)), source.UnknownKind)
 			if !ok {
 				return nil, err
 			}
 
-			fileID, diagnostics, err := source.FileDiagnostics(ctx, snapshot, fh.Identity().URI)
+			fileID, diagnostics, err := source.FileDiagnostics(ctx, snapshot, fh.URI())
 			if err != nil {
 				return nil, err
 			}
 			if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         protocol.URIFromSpanURI(fh.Identity().URI),
+				URI:         protocol.URIFromSpanURI(fh.URI()),
 				Diagnostics: toProtocolDiagnostics(diagnostics),
 				Version:     fileID.Version,
 			}); err != nil {

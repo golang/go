@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Server) definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 }
 
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return nil, err
 	}

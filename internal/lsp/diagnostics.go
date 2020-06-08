@@ -115,8 +115,8 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			defer wg.Done()
 			// Only run analyses for packages with open files.
 			withAnalyses := alwaysAnalyze
-			for _, fh := range ph.CompiledGoFiles() {
-				if snapshot.IsOpen(fh.File().Identity().URI) {
+			for _, pgh := range ph.CompiledGoFiles() {
+				if snapshot.IsOpen(pgh.File().URI()) {
 					withAnalyses = true
 				}
 			}

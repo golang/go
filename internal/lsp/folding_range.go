@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Server) foldingRange(ctx context.Context, params *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return nil, err
 	}

@@ -251,9 +251,13 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 
 	// Get the FileHandle through the cache to avoid adding it to the snapshot
 	// and to get the file content from disk.
-	pgh := v.session.cache.ParseGoHandle(v.session.cache.GetFile(uri), source.ParseFull)
+	fh, err := v.session.cache.GetFile(ctx, uri)
+	if err != nil {
+		return err
+	}
+	pgh := v.session.cache.ParseGoHandle(ctx, fh, source.ParseFull)
 	fset := v.session.cache.fset
-	h := v.session.cache.store.Bind(pgh.File().Identity(), func(ctx context.Context) interface{} {
+	h := v.session.cache.store.Bind(fh.Identity(), func(ctx context.Context) interface{} {
 		data := &builtinPackageData{}
 		file, _, _, _, err := pgh.Parse(ctx)
 		if err != nil {
@@ -261,7 +265,7 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 			return data
 		}
 		data.pkg, data.err = ast.NewPackage(fset, map[string]*ast.File{
-			pgh.File().Identity().URI.Filename(): file,
+			pgh.File().URI().Filename(): file,
 		}, nil, nil)
 		return data
 	})
@@ -305,7 +309,11 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 
 	// In module mode, check if the mod file has changed.
 	if v.realMod != "" {
-		if mod := v.session.cache.GetFile(v.realMod); mod.Identity() != v.cachedModFileVersion {
+		mod, err := v.session.cache.GetFile(ctx, v.realMod)
+		if err != nil {
+			return err
+		}
+		if mod.Identity() != v.cachedModFileVersion {
 			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
 			v.cachedModFileVersion = mod.Identity()
 		}

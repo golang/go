@@ -13,11 +13,11 @@ import (
 )
 
 func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
-	switch fh.Identity().Kind {
+	switch fh.Kind() {
 	case source.Mod:
 		return mod.Hover(ctx, snapshot, fh, params.Position)
 	case source.Go:

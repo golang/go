@@ -18,16 +18,16 @@ import (
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
-	uri := fh.Identity().URI
+	uri := fh.URI()
 
 	// Determine the supported actions for this file kind.
-	supportedCodeActions, ok := snapshot.View().Options().SupportedCodeActions[fh.Identity().Kind]
+	supportedCodeActions, ok := snapshot.View().Options().SupportedCodeActions[fh.Kind()]
 	if !ok {
-		return nil, fmt.Errorf("no supported code actions for %v file kind", fh.Identity().Kind)
+		return nil, fmt.Errorf("no supported code actions for %v file kind", fh.Kind())
 	}
 
 	// The Only field of the context specifies which code actions the client wants.
@@ -46,7 +46,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	}
 
 	var codeActions []protocol.CodeAction
-	switch fh.Identity().Kind {
+	switch fh.Kind() {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
 			modFixes, err := mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)
@@ -62,7 +62,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				Command: &protocol.Command{
 					Title:     "Tidy",
 					Command:   "tidy",
-					Arguments: []interface{}{fh.Identity().URI},
+					Arguments: []interface{}{fh.URI()},
 				},
 			})
 		}
@@ -285,7 +285,7 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, fh source.File
 				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetFile(uri)
+				fh, err := snapshot.GetFile(ctx, uri)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -346,9 +346,9 @@ func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol
 	return []protocol.TextDocumentEdit{
 		{
 			TextDocument: protocol.VersionedTextDocumentIdentifier{
-				Version: fh.Identity().Version,
+				Version: fh.Version(),
 				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.URIFromSpanURI(fh.Identity().URI),
+					URI: protocol.URIFromSpanURI(fh.URI()),
 				},
 			},
 			Edits: edits,

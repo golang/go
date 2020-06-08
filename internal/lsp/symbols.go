@@ -17,13 +17,13 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	ctx, done := event.Start(ctx, "lsp.Server.documentSymbol")
 	defer done()
 
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	if !ok {
 		return []interface{}{}, err
 	}
 	docSymbols, err := source.DocumentSymbols(ctx, snapshot, fh)
 	if err != nil {
-		event.Error(ctx, "DocumentSymbols failed", err, tag.URI.Of(fh.Identity().URI))
+		event.Error(ctx, "DocumentSymbols failed", err, tag.URI.Of(fh.URI()))
 		return []interface{}{}, nil
 	}
 	// Convert the symbols to an interface array.

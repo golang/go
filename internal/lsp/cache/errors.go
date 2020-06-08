@@ -195,10 +195,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	if err != nil {
 		return span.Span{}, err
 	}
-	if err != nil {
-		return span.Span{}, err
-	}
-	data, _, err := ph.File().Read(ctx)
+	data, err := ph.File().Read()
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -221,7 +218,7 @@ func scannerErrorRange(fset *token.FileSet, pkg *pkg, posn token.Position) (span
 	}
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		return span.Span{}, errors.Errorf("no token.File for %s", ph.File().Identity().URI)
+		return span.Span{}, errors.Errorf("no token.File for %s", ph.File().URI())
 	}
 	pos := tok.Pos(posn.Offset)
 	return span.NewRange(fset, pos, pos).Span()

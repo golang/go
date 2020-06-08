@@ -46,8 +46,8 @@ type overlay struct {
 	saved bool
 }
 
-func (o *overlay) FileSystem() source.FileSystem {
-	return o.session
+func (o *overlay) Read() ([]byte, error) {
+	return o.text, nil
 }
 
 func (o *overlay) Identity() source.FileIdentity {
@@ -60,8 +60,16 @@ func (o *overlay) Identity() source.FileIdentity {
 	}
 }
 
-func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
-	return o.text, o.hash, nil
+func (o *overlay) Kind() source.FileKind {
+	return o.kind
+}
+
+func (o *overlay) URI() span.URI {
+	return o.uri
+}
+
+func (o *overlay) Version() float64 {
+	return o.version
 }
 
 func (o *overlay) Session() source.Session { return o.session }
@@ -329,7 +337,11 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if o, ok := overlays[c.URI]; ok {
 				views[view][c.URI] = o
 			} else {
-				views[view][c.URI] = s.cache.GetFile(c.URI)
+				fh, err := s.cache.GetFile(ctx, c.URI)
+				if err != nil {
+					return nil, err
+				}
+				views[view][c.URI] = fh
 			}
 		}
 	}
@@ -390,8 +402,12 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		var sameContentOnDisk bool
 		switch c.Action {
 		case source.Open:
-			_, h, err := s.cache.GetFile(c.URI).Read(ctx)
-			sameContentOnDisk = (err == nil && h == hash)
+			fh, err := s.cache.GetFile(ctx, c.URI)
+			if err != nil {
+				return nil, err
+			}
+			_, readErr := fh.Read()
+			sameContentOnDisk = (readErr == nil && fh.Identity().Identifier == hash)
 		case source.Save:
 			// Make sure the version and content (if present) is the same.
 			if o.version != c.Version {
@@ -424,13 +440,12 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 	return overlays, nil
 }
 
-// GetFile implements the source.FileSystem interface.
-func (s *Session) GetFile(uri span.URI) source.FileHandle {
+func (s *Session) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	if overlay := s.readOverlay(uri); overlay != nil {
-		return overlay
+		return overlay, nil
 	}
 	// Fall back to the cache-level file system.
-	return s.cache.GetFile(uri)
+	return s.cache.GetFile(ctx, uri)
 }
 
 func (s *Session) readOverlay(uri span.URI) *overlay {

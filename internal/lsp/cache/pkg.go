@@ -61,12 +61,12 @@ func (p *pkg) CompiledGoFiles() []source.ParseGoHandle {
 
 func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
 	for _, ph := range p.compiledGoFiles {
-		if ph.File().Identity().URI == uri {
+		if ph.File().URI() == uri {
 			return ph, nil
 		}
 	}
 	for _, ph := range p.goFiles {
-		if ph.File().Identity().URI == uri {
+		if ph.File().URI() == uri {
 			return ph, nil
 		}
 	}

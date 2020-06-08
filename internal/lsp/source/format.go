@@ -26,7 +26,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	ctx, done := event.Start(ctx, "source.Format")
 	defer done()
 
-	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
 	file, _, m, parseErrors, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
 	ctx, done := event.Start(ctx, "source.formatSource")
 	defer done()
 
-	data, _, err := fh.Read(ctx)
+	data, err := fh.Read()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	ctx, done := event.Start(ctx, "source.AllImportsFixes")
 	defer done()
 
-	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
 	if err := snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
@@ -92,10 +92,10 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 // computeImportEdits computes a set of edits that perform one or all of the
 // necessary import fixes.
 func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, options *imports.Options) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
-	filename := ph.File().Identity().URI.Filename()
+	filename := ph.File().URI().Filename()
 
 	// Build up basic information about the original file.
-	origData, _, err := ph.File().Read(ctx)
+	origData, err := ph.File().Read()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +130,7 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 }
 
 func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
-	origData, _, err := ph.File().Read(ctx)
+	origData, err := ph.File().Read()
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	if fixedData == nil || fixedData[len(fixedData)-1] != '\n' {
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
 	}
-	uri := ph.File().Identity().URI
+	uri := ph.File().URI()
 	edits := view.Options().ComputeEdits(uri, left, string(fixedData))
 	return ToProtocolEdits(origMapper, edits)
 }
@@ -215,11 +215,11 @@ func computeTextEdits(ctx context.Context, view View, fh FileHandle, m *protocol
 	ctx, done := event.Start(ctx, "source.computeTextEdits")
 	defer done()
 
-	data, _, err := fh.Read(ctx)
+	data, err := fh.Read()
 	if err != nil {
 		return nil, err
 	}
-	edits := view.Options().ComputeEdits(fh.Identity().URI, string(data), formatted)
+	edits := view.Options().ComputeEdits(fh.URI(), string(data), formatted)
 	return ToProtocolEdits(m, edits)
 }
 

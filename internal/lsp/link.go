@@ -25,11 +25,11 @@ import (
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) (links []protocol.DocumentLink, err error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
-	switch fh.Identity().Kind {
+	switch fh.Kind() {
 	case source.Mod:
 		links, err = modLinks(ctx, snapshot, fh)
 	case source.Go:
@@ -37,7 +37,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	}
 	// Don't return errors for document links.
 	if err != nil {
-		event.Error(ctx, "failed to compute document links", err, tag.URI.Of(fh.Identity().URI))
+		event.Error(ctx, "failed to compute document links", err, tag.URI.Of(fh.URI()))
 		return nil, nil
 	}
 	return links, nil
@@ -100,7 +100,8 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 	if err != nil {
 		return nil, err
 	}
-	file, _, m, _, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
+	pgh := view.Session().Cache().ParseGoHandle(ctx, fh, source.ParseFull)
+	file, _, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}

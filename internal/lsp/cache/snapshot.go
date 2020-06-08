@@ -161,16 +161,16 @@ func hashUnsavedOverlays(files map[span.URI]source.FileHandle) string {
 }
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
-	if fh.Identity().Kind != source.Go {
+	if fh.Kind() != source.Go {
 		panic("called PackageHandles on a non-Go FileHandle")
 	}
 
-	ctx = event.Label(ctx, tag.URI.Of(fh.Identity().URI))
+	ctx = event.Label(ctx, tag.URI.Of(fh.URI()))
 
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
-	ids := s.getIDsForURI(fh.Identity().URI)
+	ids := s.getIDsForURI(fh.URI())
 	reload := len(ids) == 0
 	for _, id := range ids {
 		// Reload package metadata if any of the metadata has missing
@@ -185,13 +185,13 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		// calls to packages.Load. Determine what we should do instead.
 	}
 	if reload {
-		if err := s.load(ctx, fileURI(fh.Identity().URI)); err != nil {
+		if err := s.load(ctx, fileURI(fh.URI())); err != nil {
 			return nil, err
 		}
 	}
 	// Get the list of IDs from the snapshot again, in case it has changed.
 	var phs []source.PackageHandle
-	for _, id := range s.getIDsForURI(fh.Identity().URI) {
+	for _, id := range s.getIDsForURI(fh.URI()) {
 		ph, err := s.packageHandle(ctx, id, source.ParseFull)
 		if err != nil {
 			return nil, err
@@ -522,7 +522,7 @@ func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
+func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	f, err := s.view.getFile(uri)
 	if err != nil {
 		return nil, err
@@ -531,10 +531,16 @@ func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.files[f.URI()]; !ok {
-		s.files[f.URI()] = s.view.session.cache.GetFile(uri)
+	if fh, ok := s.files[f.URI()]; ok {
+		return fh, nil
 	}
-	return s.files[f.URI()], nil
+
+	fh, err := s.view.session.cache.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	s.files[f.URI()] = fh
+	return fh, nil
 }
 
 func (s *snapshot) IsOpen(uri span.URI) bool {
@@ -644,7 +650,7 @@ func (s *snapshot) orphanedFileScopes() []interface{} {
 	scopeSet := make(map[span.URI]struct{})
 	for uri, fh := range s.files {
 		// Don't try to reload metadata for go.mod files.
-		if fh.Identity().Kind != source.Go {
+		if fh.Kind() != source.Go {
 			continue
 		}
 		// If the URI doesn't belong to this view, then it's not in a workspace
@@ -733,7 +739,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		if invalidateMetadata || fileWasSaved(originalFH, currentFH) {
 			result.modTidyHandle = nil
 		}
-		if currentFH.Identity().Kind == source.Mod {
+		if currentFH.Kind() == source.Mod {
 			// If the view's go.mod file's contents have changed, invalidate the metadata
 			// for all of the packages in the workspace.
 			if invalidateMetadata {
@@ -780,7 +786,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		}
 
 		// Handle the invalidated file; it may have new contents or not exist.
-		if _, _, err := currentFH.Read(ctx); os.IsNotExist(err) {
+		if _, err := currentFH.Read(); os.IsNotExist(err) {
 			delete(result.files, withoutURI)
 		} else {
 			result.files[withoutURI] = currentFH
@@ -858,20 +864,20 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 // determine if the file requires a metadata reload.
 func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, currentFH source.FileHandle) bool {
 	if originalFH == nil {
-		return currentFH.Identity().Kind == source.Go
+		return currentFH.Kind() == source.Go
 	}
 	// If the file hasn't changed, there's no need to reload.
 	if originalFH.Identity().String() == currentFH.Identity().String() {
 		return false
 	}
 	// If a go.mod file's contents have changed, always invalidate metadata.
-	if kind := originalFH.Identity().Kind; kind == source.Mod {
+	if kind := originalFH.Kind(); kind == source.Mod {
 		modfile, _ := s.view.ModFiles()
-		return originalFH.Identity().URI == modfile
+		return originalFH.URI() == modfile
 	}
 	// Get the original and current parsed files in order to check package name and imports.
-	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
-	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
+	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(ctx, originalFH, source.ParseHeader).Parse(ctx)
+	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(ctx, currentFH, source.ParseHeader).Parse(ctx)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}

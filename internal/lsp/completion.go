@@ -16,13 +16,13 @@ import (
 )
 
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
 	var candidates []source.CompletionItem
 	var surrounding *source.Selection
-	switch fh.Identity().Kind {
+	switch fh.Kind() {
 	case source.Go:
 		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position)
 	case source.Mod:

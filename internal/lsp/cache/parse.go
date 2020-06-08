@@ -50,11 +50,11 @@ type parseGoData struct {
 	err        error // any other errors
 }
 
-func (c *Cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
-	return c.parseGoHandle(fh, mode)
+func (c *Cache) ParseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
+	return c.parseGoHandle(ctx, fh, mode)
 }
 
-func (c *Cache) parseGoHandle(fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
+func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
 		mode: mode,
@@ -71,7 +71,7 @@ func (c *Cache) parseGoHandle(fh source.FileHandle, mode source.ParseMode) *pars
 }
 
 func (pgh *parseGoHandle) String() string {
-	return pgh.File().Identity().URI.Filename()
+	return pgh.File().URI().Filename()
 }
 
 func (pgh *parseGoHandle) File() source.FileHandle {
@@ -94,7 +94,7 @@ func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
 	v := pgh.handle.Get(ctx)
 	data, ok := v.(*parseGoData)
 	if !ok {
-		return nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
+		return nil, errors.Errorf("no parsed file for %s", pgh.File().URI())
 	}
 	return data, nil
 }
@@ -102,35 +102,29 @@ func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
 func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
 	v := pgh.handle.Cached()
 	if v == nil {
-		return nil, nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.Identity().URI)
+		return nil, nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.URI())
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.src, data.mapper, data.parseError, data.err
 }
 
-func hashParseKey(ph source.ParseGoHandle) string {
+func hashParseKeys(pghs []*parseGoHandle) string {
 	b := bytes.NewBuffer(nil)
-	b.WriteString(ph.File().Identity().String())
-	b.WriteString(string(rune(ph.Mode())))
-	return hashContents(b.Bytes())
-}
-
-func hashParseKeys(phs []*parseGoHandle) string {
-	b := bytes.NewBuffer(nil)
-	for _, ph := range phs {
-		b.WriteString(hashParseKey(ph))
+	for _, pgh := range pghs {
+		b.WriteString(pgh.file.Identity().String())
+		b.WriteByte(byte(pgh.Mode()))
 	}
 	return hashContents(b.Bytes())
 }
 
 func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
-	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.Identity().URI.Filename()))
+	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.URI().Filename()))
 	defer done()
 
-	if fh.Identity().Kind != source.Go {
-		return &parseGoData{err: errors.Errorf("cannot parse non-Go file %s", fh.Identity().URI)}
+	if fh.Kind() != source.Go {
+		return &parseGoData{err: errors.Errorf("cannot parse non-Go file %s", fh.URI())}
 	}
-	buf, _, err := fh.Read(ctx)
+	buf, err := fh.Read()
 	if err != nil {
 		return &parseGoData{err: err}
 	}
@@ -139,13 +133,13 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	if mode == source.ParseHeader {
 		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
-	file, parseError := parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
+	file, parseError := parser.ParseFile(fset, fh.URI().Filename(), buf, parserMode)
 	var tok *token.File
 	var fixed bool
 	if file != nil {
 		tok = fset.File(file.Pos())
 		if tok == nil {
-			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)}
+			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.URI(), parseError)}
 		}
 
 		// Fix any badly parsed parts of the AST.
@@ -154,7 +148,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		// Fix certain syntax errors that render the file unparseable.
 		newSrc := fixSrc(file, tok, buf)
 		if newSrc != nil {
-			newFile, _ := parser.ParseFile(fset, fh.Identity().URI.Filename(), newSrc, parserMode)
+			newFile, _ := parser.ParseFile(fset, fh.URI().Filename(), newSrc, parserMode)
 			if newFile != nil {
 				// Maintain the original parseError so we don't try formatting the doctored file.
 				file = newFile
@@ -174,12 +168,12 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		// the parse errors are the actual errors.
 		err := parseError
 		if err == nil {
-			err = errors.Errorf("no AST for %s", fh.Identity().URI)
+			err = errors.Errorf("no AST for %s", fh.URI())
 		}
 		return &parseGoData{parseError: parseError, err: err}
 	}
 	m := &protocol.ColumnMapper{
-		URI:       fh.Identity().URI,
+		URI:       fh.URI(),
 		Converter: span.NewTokenConverter(fset, tok),
 		Content:   buf,
 	}
