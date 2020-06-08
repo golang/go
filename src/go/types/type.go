@@ -362,12 +362,9 @@ func typeSet(list []Type) []Type {
 	// Quadratic algorithm, but probably good enough for now.
 	// TODO(gri) we need a fast quick type ID/hash for all types.
 	result := make([]Type, 0, len(list)) // assume types are unique
-L:
 	for _, t := range list {
-		for _, e := range result {
-			if Identical(t, e) {
-				continue L // t already in result
-			}
+		if contains(result, t) {
+			continue
 		}
 		result = append(result, t)
 	}

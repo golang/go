@@ -933,11 +933,8 @@ func intersect(x, y Type) (r Type) {
 	// TODO(gri) fix this
 	var rtypes []Type
 	for _, x := range xtypes {
-		for _, y := range ytypes {
-			if Identical(x, y) {
-				rtypes = append(rtypes, x)
-				break
-			}
+		if contains(ytypes, x) {
+			rtypes = append(rtypes, x)
 		}
 	}
 
@@ -1106,21 +1103,37 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 		}
 		typ := check.typ(texpr)
 		// A type constraint may be a predeclared type or a
-		// composite type composed only of predeclared types.
-		// TODO(gri) should we keep this restriction?
+		// composite type composed of only predeclared types.
 		var why string
 		if !check.typeConstraint(typ, &why) {
 			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
 			continue
 		}
-		// add type
+		// add type if not already in list
+		// Overall, this produces a quadratic algorithm,
+		// but probably good enough for now.
+		// TODO(gri) fix this
+		if contains(list, typ) {
+			check.errorf(texpr.Pos(), "duplicate type %s in type list", typ)
+			continue
+		}
 		list = append(list, typ)
 	}
 	return list
 }
 
-// TODO(gri) does this simply check for the absence of defined types?
-//           (if so, should choose a better name)
+// contains reports whether typ is in list
+func contains(list []Type, typ Type) bool {
+	for _, e := range list {
+		if Identical(typ, e) {
+			return true
+		}
+	}
+	return false
+}
+
+// typeConstraint checks that typ may be used in a type list.
+// For now this just checks for the absence of defined (*Named) types.
 func (check *Checker) typeConstraint(typ Type, why *string) bool {
 	switch t := typ.(type) {
 	case *Basic:
@@ -1165,7 +1178,7 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 	case *Chan:
 		return check.typeConstraint(t.elem, why)
 	case *Named:
-		*why = check.sprintf("%s is not a type literal", t)
+		*why = check.sprintf("contains defined type %s", t)
 		return false
 	case *TypeParam:
 		// ok, e.g.: func f (type T interface { type T }) ()
