@@ -634,15 +634,15 @@ func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
 	}
 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
 
-	// For the moment, allowlist DWARF subprogram DIEs for
+	// For the moment, allow DWARF subprogram DIEs for
 	// auto-generated wrapper functions. What seems to happen
 	// here is that we get different line numbers on formal
 	// params; I am guessing that the pos is being inherited
 	// from the spot where the wrapper is needed.
-	allowlist := strings.HasPrefix(name, "go.info.go.interface") ||
+	allowed := strings.HasPrefix(name, "go.info.go.interface") ||
 		strings.HasPrefix(name, "go.info.go.builtin") ||
 		strings.HasPrefix(name, "go.debuglines")
-	if !allowlist {
+	if !allowed {
 		l.strictDupMsgs++
 	}
 }

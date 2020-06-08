@@ -96,7 +96,7 @@ func TestFormats(t *testing.T) {
 			}
 
 			importPath := filepath.Join("cmd/compile", path)
-			if blocklistedPackages[filepath.ToSlash(importPath)] {
+			if ignoredPackages[filepath.ToSlash(importPath)] {
 				return filepath.SkipDir
 			}
 
@@ -344,8 +344,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
 	for index, file := range files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
-				// ignore blocklisted functions
-				if blocklistedFunctions[nodeString(call.Fun)] {
+				if ignoredFunctions[nodeString(call.Fun)] {
 					return true
 				}
 				// look for an arguments that might be a format string
@@ -354,7 +353,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
 						// make sure we have enough arguments
 						n := numFormatArgs(s)
 						if i+1+n > len(call.Args) {
-							t.Errorf("%s: not enough format args (blocklist %s?)", posString(call), nodeString(call.Fun))
+							t.Errorf("%s: not enough format args (ignore %s?)", posString(call), nodeString(call.Fun))
 							break // ignore this call
 						}
 						// assume last n arguments are to be formatted;
@@ -549,14 +548,14 @@ func formatReplace(in string, f func(i int, s string) string) string {
 	return string(append(buf, in[i0:]...))
 }
 
-// blocklistedPackages is the set of packages which can
+// ignoredPackages is the set of packages which can
 // be ignored.
-var blocklistedPackages = map[string]bool{}
+var ignoredPackages = map[string]bool{}
 
-// blocklistedFunctions is the set of functions which may have
+// ignoredFunctions is the set of functions which may have
 // format-like arguments but which don't do any formatting and
 // thus may be ignored.
-var blocklistedFunctions = map[string]bool{}
+var ignoredFunctions = map[string]bool{}
 
 func init() {
 	// verify that knownFormats entries are correctly formatted

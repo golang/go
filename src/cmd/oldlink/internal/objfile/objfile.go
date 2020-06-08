@@ -411,16 +411,16 @@ overwrite:
 			}
 			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
 
-			// For the moment, allowlist DWARF subprogram DIEs for
+			// For the moment, allow DWARF subprogram DIEs for
 			// auto-generated wrapper functions. What seems to happen
 			// here is that we get different line numbers on formal
 			// params; I am guessing that the pos is being inherited
 			// from the spot where the wrapper is needed.
-			allowlist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+			allowed := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
 				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
 				strings.HasPrefix(dup.Name, "go.debuglines"))
-			if !allowlist {
+			if !allowed {
 				r.strictDupMsgs++
 			}
 		}

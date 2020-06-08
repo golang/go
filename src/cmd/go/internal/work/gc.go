@@ -168,7 +168,7 @@ func gcBackendConcurrency(gcflags []string) int {
 CheckFlags:
 	for _, flag := range gcflags {
 		// Concurrent compilation is presumed incompatible with any gcflags,
-		// except for a small allowlist of commonly used flags.
+		// except for known commonly used flags.
 		// If the user knows better, they can manually add their own -c to the gcflags.
 		switch flag {
 		case "-N", "-l", "-S", "-B", "-C", "-I":
