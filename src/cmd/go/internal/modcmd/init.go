@@ -52,4 +52,5 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go mod init: module path must not contain '@'")
 	}
 	modload.InitMod() // does all the hard work
+	modload.WriteGoMod()
 }
