@@ -440,6 +440,7 @@ func (a Analyzer) Enabled(snapshot Snapshot) bool {
 // only the relevant fields of a *go/packages.Package.
 type Package interface {
 	ID() string
+	Name() string
 	PkgPath() string
 	CompiledGoFiles() []ParseGoHandle
 	File(uri span.URI) (ParseGoHandle, error)

@@ -817,7 +817,7 @@ func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expec
 
 func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.SymbolMatcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
 	t.Helper()
-	got, err := source.WorkspaceSymbols(r.ctx, matcher, []source.View{r.view}, query)
+	got, err := source.WorkspaceSymbols(r.ctx, matcher, source.PackageQualifiedSymbols, []source.View{r.view}, query)
 	if err != nil {
 		t.Fatal(err)
 	}

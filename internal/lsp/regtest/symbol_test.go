@@ -44,14 +44,14 @@ type myInterface interface { // interface
 	DoSomeCoolStuff() string // interface method
 }
 -- p/p.go --
-package main
+package p
 
 const Message = "Hello World." // constant
 `
 
 var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 	"main": {
-		Name: pString("mod.com.main"),
+		Name: pString("main.main"),
 		Kind: pKind(protocol.Function),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -64,7 +64,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"Message": {
-		Name: pString("mod.com/p.Message"),
+		Name: pString("p.Message"),
 		Kind: pKind(protocol.Constant),
 		Location: &expLocation{
 			Path: pString("p/p.go"),
@@ -77,7 +77,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"myvar": {
-		Name: pString("mod.com.myvar"),
+		Name: pString("main.myvar"),
 		Kind: pKind(protocol.Variable),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -90,7 +90,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"myType": {
-		Name: pString("mod.com.myType"),
+		Name: pString("main.myType"),
 		Kind: pKind(protocol.String),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -103,7 +103,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"Blahblah": {
-		Name: pString("mod.com.myType.Blahblah"),
+		Name: pString("main.myType.Blahblah"),
 		Kind: pKind(protocol.Method),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -116,11 +116,11 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"NewEncoder": {
-		Name: pString("encoding/json.NewEncoder"),
+		Name: pString("json.NewEncoder"),
 		Kind: pKind(protocol.Function),
 	},
 	"myStruct": {
-		Name: pString("mod.com.myStruct"),
+		Name: pString("main.myStruct"),
 		Kind: pKind(protocol.Struct),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -134,7 +134,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 	},
 	// TODO: not sure we should be returning struct fields
 	"myStructField": {
-		Name: pString("mod.com.myStruct.myStructField"),
+		Name: pString("main.myStruct.myStructField"),
 		Kind: pKind(protocol.Field),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -147,7 +147,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 		},
 	},
 	"myInterface": {
-		Name: pString("mod.com.myInterface"),
+		Name: pString("main.myInterface"),
 		Kind: pKind(protocol.Interface),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -161,7 +161,7 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 	},
 	// TODO: not sure we should be returning interface methods
 	"DoSomeCoolStuff": {
-		Name: pString("mod.com.myInterface.DoSomeCoolStuff"),
+		Name: pString("main.myInterface.DoSomeCoolStuff"),
 		Kind: pKind(protocol.Method),
 		Location: &expLocation{
 			Path: pString("main.go"),
@@ -180,7 +180,7 @@ var caseInsensitiveSymbolChecks = map[string]*expSymbolInformation{
 }
 
 var fuzzySymbolChecks = map[string]*expSymbolInformation{
-	"mod.Mn": caseSensitiveSymbolChecks["main"],
+	"Mn": caseSensitiveSymbolChecks["main"],
 }
 
 // TestSymbolPos tests that, at a basic level, we get the correct position
@@ -202,7 +202,7 @@ func checkChecks(t *testing.T, matcher string, checks map[string]*expSymbolInfor
 				t.Run(query, func(t *testing.T) {
 					res := env.Symbol(query)
 					if !exp.matchAgainst(res) {
-						t.Fatalf("failed to find a match against query %q for %v", query, exp)
+						t.Fatalf("failed to find a match against query %q for %v,\ngot: %v", query, exp, res)
 					}
 				})
 			}

@@ -18,6 +18,7 @@ import (
 type pkg struct {
 	// ID and package path have their own types to avoid being used interchangeably.
 	id              packageID
+	name            packageName
 	pkgPath         packagePath
 	mode            source.ParseMode
 	forTest         packagePath
@@ -32,11 +33,15 @@ type pkg struct {
 	typesSizes      types.Sizes
 }
 
-// Declare explicit types for package paths and IDs to ensure that we never use
-// an ID where a path belongs, and vice versa. If we confused the two, it would
-// result in confusing errors because package IDs often look like package paths.
-type packageID string
-type packagePath string
+// Declare explicit types for package paths, names, and IDs to ensure that we
+// never use an ID where a path belongs, and vice versa. If we confused these,
+// it would result in confusing errors because package IDs often look like
+// package paths.
+type (
+	packageID   string
+	packagePath string
+	packageName string
+)
 
 // Declare explicit types for files and directories to distinguish between the two.
 type fileURI span.URI
@@ -45,6 +50,10 @@ type viewLoadScope span.URI
 
 func (p *pkg) ID() string {
 	return string(p.id)
+}
+
+func (p *pkg) Name() string {
+	return string(p.name)
 }
 
 func (p *pkg) PkgPath() string {

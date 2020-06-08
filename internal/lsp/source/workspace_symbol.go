@@ -35,14 +35,14 @@ const maxSymbols = 100
 // with a different configured SymbolMatcher per View. Therefore we assume that
 // Session level configuration will define the SymbolMatcher to be used for the
 // WorkspaceSymbols method.
-func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, views []View, query string) ([]protocol.SymbolInformation, error) {
+func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, style SymbolStyle, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := event.Start(ctx, "source.WorkspaceSymbols")
 	defer done()
 	if query == "" {
 		return nil, nil
 	}
 
-	matcher := makeMatcher(matcherType, query)
+	queryMatcher := makeQueryMatcher(matcherType, query)
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
 outer:
@@ -53,6 +53,7 @@ outer:
 		}
 		for _, ph := range knownPkgs {
 			pkg, err := ph.Check(ctx)
+			symbolMatcher := makePackageSymbolMatcher(style, pkg, queryMatcher)
 			if err != nil {
 				return nil, err
 			}
@@ -65,7 +66,7 @@ outer:
 				if err != nil {
 					return nil, err
 				}
-				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), matcher, pkg.PkgPath()) {
+				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), symbolMatcher) {
 					mrng, err := posToMappedRange(view, pkg, si.node.Pos(), si.node.End())
 					if err != nil {
 						event.Error(ctx, "Error getting mapped range for node", err)
@@ -83,6 +84,7 @@ outer:
 							URI:   protocol.URIFromSpanURI(mrng.URI()),
 							Range: rng,
 						},
+						ContainerName: pkg.PkgPath(),
 					})
 					if len(symbols) > maxSymbols {
 						break outer
@@ -102,7 +104,7 @@ type symbolInformation struct {
 
 type matcherFunc func(string) bool
 
-func makeMatcher(m SymbolMatcher, query string) matcherFunc {
+func makeQueryMatcher(m SymbolMatcher, query string) matcherFunc {
 	switch m {
 	case SymbolFuzzy:
 		fm := fuzzy.NewMatcher(query)
@@ -121,7 +123,91 @@ func makeMatcher(m SymbolMatcher, query string) matcherFunc {
 	}
 }
 
-func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix string) []symbolInformation {
+// packageSymbolMatcher matches (possibly partially) qualified symbols within a
+// package scope.
+//
+// The given symbolizer controls how symbol names are extracted from the
+// package scope.
+type packageSymbolMatcher struct {
+	queryMatcher matcherFunc
+	pkg          Package
+	symbolize    symbolizer
+}
+
+// symbolMatch returns the package symbol for name that matches the underlying
+// query, or the empty string if no match is found.
+func (s packageSymbolMatcher) symbolMatch(name string) string {
+	return s.symbolize(name, s.pkg, s.queryMatcher)
+}
+
+func makePackageSymbolMatcher(style SymbolStyle, pkg Package, matcher matcherFunc) func(string) string {
+	var s symbolizer
+	switch style {
+	case DynamicSymbols:
+		s = dynamicSymbolMatch
+	case FullyQualifiedSymbols:
+		s = fullyQualifiedSymbolMatch
+	default:
+		s = packageSymbolMatch
+	}
+	return packageSymbolMatcher{queryMatcher: matcher, pkg: pkg, symbolize: s}.symbolMatch
+}
+
+// A symbolizer returns a qualified symbol match for the unqualified name
+// within pkg, if one exists, or the empty string if no match is found.
+type symbolizer func(name string, pkg Package, m matcherFunc) string
+
+func fullyQualifiedSymbolMatch(name string, pkg Package, matcher matcherFunc) string {
+	// TODO: this should probably include pkg.Name() as well.
+	fullyQualified := pkg.PkgPath() + "." + name
+	if matcher(fullyQualified) {
+		return fullyQualified
+	}
+	return ""
+}
+
+func dynamicSymbolMatch(name string, pkg Package, matcher matcherFunc) string {
+	pkgQualified := pkg.Name() + "." + name
+	if match := shortestMatch(pkgQualified, matcher); match != "" {
+		return match
+	}
+	fullyQualified := pkg.PkgPath() + "." + name
+	if match := shortestMatch(fullyQualified, matcher); match != "" {
+		return match
+	}
+	return ""
+}
+
+func packageSymbolMatch(name string, pkg Package, matcher matcherFunc) string {
+	qualified := pkg.Name() + "." + name
+	if matcher(qualified) {
+		return qualified
+	}
+	return ""
+}
+
+func shortestMatch(fullPath string, matcher func(string) bool) string {
+	pathParts := strings.Split(fullPath, "/")
+	dottedParts := strings.Split(pathParts[len(pathParts)-1], ".")
+	// First match the smallest package identifier.
+	if m := matchRight(dottedParts, ".", matcher); m != "" {
+		return m
+	}
+	// Then match the shortest subpath.
+	return matchRight(pathParts, "/", matcher)
+}
+
+func matchRight(parts []string, sep string, matcher func(string) bool) string {
+	for i := 0; i < len(parts); i++ {
+		path := strings.Join(parts[len(parts)-1-i:], sep)
+		if matcher(path) {
+			return path
+		}
+	}
+	return ""
+}
+
+func findSymbol(decls []ast.Decl, info *types.Info, symbolMatch func(string) string) []symbolInformation {
 	var result []symbolInformation
 	for _, decl := range decls {
 		switch decl := decl.(type) {
@@ -137,10 +223,9 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix 
 					fn = typ.Name + "." + fn
 				}
 			}
-			target := prefix + "." + fn
-			if matcher(target) {
+			if m := symbolMatch(fn); m != "" {
 				result = append(result, symbolInformation{
-					name: target,
+					name: m,
 					kind: kind,
 					node: decl.Name,
 				})
@@ -149,10 +234,10 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix 
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
-					target := prefix + "." + spec.Name.Name
-					if matcher(target) {
+					target := spec.Name.Name
+					if m := symbolMatch(target); m != "" {
 						result = append(result, symbolInformation{
-							name: target,
+							name: m,
 							kind: typeToKind(info.TypeOf(spec.Type)),
 							node: spec.Name,
 						})
@@ -160,7 +245,7 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix 
 					switch st := spec.Type.(type) {
 					case *ast.StructType:
 						for _, field := range st.Fields.List {
-							result = append(result, findFieldSymbol(field, protocol.Field, matcher, target)...)
+							result = append(result, findFieldSymbol(field, protocol.Field, symbolMatch, target)...)
 						}
 					case *ast.InterfaceType:
 						for _, field := range st.Methods.List {
@@ -168,19 +253,18 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix 
 							if len(field.Names) == 0 {
 								kind = protocol.Interface
 							}
-							result = append(result, findFieldSymbol(field, kind, matcher, target)...)
+							result = append(result, findFieldSymbol(field, kind, symbolMatch, target)...)
 						}
 					}
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						target := prefix + "." + name.Name
-						if matcher(target) {
+						if m := symbolMatch(name.Name); m != "" {
 							kind := protocol.Variable
 							if decl.Tok == token.CONST {
 								kind = protocol.Constant
 							}
 							result = append(result, symbolInformation{
-								name: target,
+								name: m,
 								kind: kind,
 								node: name,
 							})
@@ -220,15 +304,15 @@ func typeToKind(typ types.Type) protocol.SymbolKind {
 	return protocol.Variable
 }
 
-func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, matcher matcherFunc, prefix string) []symbolInformation {
+func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, symbolMatch func(string) string, prefix string) []symbolInformation {
 	var result []symbolInformation
 
 	if len(field.Names) == 0 {
 		name := types.ExprString(field.Type)
 		target := prefix + "." + name
-		if matcher(target) {
+		if m := symbolMatch(target); m != "" {
 			result = append(result, symbolInformation{
-				name: target,
+				name: m,
 				kind: kind,
 				node: field,
 			})
@@ -238,9 +322,9 @@ func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, matcher matcher
 
 	for _, name := range field.Names {
 		target := prefix + "." + name.Name
-		if matcher(target) {
+		if m := symbolMatch(target); m != "" {
 			result = append(result, symbolInformation{
-				name: target,
+				name: m,
 				kind: kind,
 				node: name,
 			})

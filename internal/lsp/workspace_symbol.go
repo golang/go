@@ -18,5 +18,6 @@ func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolPar
 
 	views := s.session.Views()
 	matcher := s.session.Options().SymbolMatcher
-	return source.WorkspaceSymbols(ctx, matcher, views, params.Query)
+	style := s.session.Options().SymbolStyle
+	return source.WorkspaceSymbols(ctx, matcher, style, views, params.Query)
 }

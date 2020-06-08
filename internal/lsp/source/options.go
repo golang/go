@@ -215,6 +215,10 @@ type UserOptions struct {
 	// SymbolMatcher specifies the type of matcher to use for symbol requests.
 	SymbolMatcher SymbolMatcher
 
+	// SymbolStyle specifies what style of symbols to return in symbol requests
+	// (package qualified, fully qualified, etc).
+	SymbolStyle SymbolStyle
+
 	// DeepCompletion allows completion to perform nested searches through
 	// possible candidates.
 	DeepCompletion bool
@@ -301,6 +305,14 @@ const (
 	SymbolFuzzy = SymbolMatcher(iota)
 	SymbolCaseInsensitive
 	SymbolCaseSensitive
+)
+
+type SymbolStyle int
+
+const (
+	PackageQualifiedSymbols = SymbolStyle(iota)
+	FullyQualifiedSymbols
+	DynamicSymbols
 )
 
 type HoverKind int
@@ -447,6 +459,20 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			o.SymbolMatcher = SymbolCaseSensitive
 		default:
 			o.SymbolMatcher = SymbolCaseInsensitive
+		}
+
+	case "symbolStyle":
+		style, ok := result.asString()
+		if !ok {
+			break
+		}
+		switch style {
+		case "full":
+			o.SymbolStyle = FullyQualifiedSymbols
+		case "dynamic":
+			o.SymbolStyle = DynamicSymbols
+		default:
+			o.SymbolStyle = PackageQualifiedSymbols
 		}
 
 	case "hoverKind":
