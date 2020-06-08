@@ -389,10 +389,53 @@ TODO
   </dd>
 </dl><!-- debug/pe -->
 
+<dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+  <dd>
+    <p><!-- CL 231417, CL 225460 -->
+      The <code>PrivateKey</code> and <code>PublicKey</code> types in the
+      <a href="/pkg/crypto/rsa"><code>crypto/rsa</code></a>,
+      <a href="/pkg/crypto/ecdsa"><code>crypto/ecdsa</code></a>, and
+      <a href="/pkg/crypto/ed25519"><code>crypto/ed25519</code></a> packages
+      now have an <code>Equal</code> method to compare keys for equivalence
+      or to make type-safe interfaces for public keys. The method signature
+      is compatible with
+      <a href="https://pkg.go.dev/github.com/google/go-cmp/cmp#Equal"><code>go-cmp</code>'s
+      definition of equality</a>.
+    </p>
+
+    <p><!-- CL 224937 -->
+      <a href="/pkg/crypto/#Hash"><code>Hash</code></a> now implements
+      <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
+  </dd>
+</dl><!-- crypto -->
+
+<dl id="crypto/ecdsa"><dt><a href="/pkg/crypto/ecdsa/">crypto/ecdsa</a></dt>
+  <dd>
+    <p><!-- CL 217940 -->
+      The new <a href="/pkg/crypto/ecdsa/#SignASN1"><code>SignASN1</code></a>
+      and <a href="/pkg/crypto/ecdsa/#VerifyASN1"><code>VerifyASN1</code></a>
+      functions allow generating and verifying ECDSA signatures in the standard
+      ASN.1 DER encoding.
+    </p>
+  </dd>
+</dl><!-- crypto/ecdsa -->
+
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 202819 -->
+      The new <a href="/pkg/crypto/elliptic/#MarshalCompressed"><code>MarshalCompressed</code></a>
+      and <a href="/pkg/crypto/elliptic/#UnmarshalCompressed"><code>UnmarshalCompressed</code></a>
+      functions allow encoding and decoding NIST elliptic curve points in compressed format.
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 226203 -->
-      VerifyPKCS1v15 now rejects invalid short signatures with missing leading zeroes.
+      <a href="/pkg/crypto/rsa/#VerifyPKCS1v15"><code>VerifyPKCS1v15</code></a>
+      now rejects invalid short signatures with missing leading zeroes, according to RFC 8017.
     </p>
   </dd>
 </dl><!-- crypto/rsa -->
@@ -476,6 +519,17 @@ TODO
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix/">crypto/x509/pkix</a></dt>
+  <dd>
+    <p><!-- CL 229864 -->
+      <a href="/pkg/crypto/x509/pkix/#Name.String"><code>Name.String</code></a>
+      now prints non-standard attributes from
+      <a href="/pkg/crypto/x509/pkix/#Name.Names"><code>Names</code></a> if
+      <a href="/pkg/crypto/x509/pkix/#Name.ExtraNames"><code>ExtraNames</code></a> is empty.
+    </p>
+  </dd>
+</dl><!-- crypto/x509/pkix -->
+
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
     <p><!-- CL 191783 -->
@@ -538,7 +592,8 @@ TODO
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
     <p><!-- CL 230397 -->
-      TODO: <a href="https://golang.org/cl/230397">https://golang.org/cl/230397</a>: add (*Int).FillBytes
+      The new <a href="/pkg/math/big/#Int.FillBytes"><code>Int.FillBytes</code></a>
+      method allows serializing to fixed-size pre-allocated byte slices.
     </p>
   </dd>
 </dl><!-- math/big -->
