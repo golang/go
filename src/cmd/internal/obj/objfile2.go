@@ -258,6 +258,10 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
 		flag |= goobj2.SymFlagGoType
 	}
+	flag2 := uint8(0)
+	if s.UsedInIface() {
+		flag2 |= goobj2.SymFlagUsedInIface
+	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
@@ -271,6 +275,7 @@ func (w *writer) Sym(s *LSym) {
 	o.SetABI(abi)
 	o.SetType(uint8(s.Type))
 	o.SetFlag(flag)
+	o.SetFlag2(flag2)
 	o.SetSiz(uint32(s.Size))
 	o.SetAlign(align)
 	o.Write(w.Writer)

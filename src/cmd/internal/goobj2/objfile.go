@@ -228,12 +228,13 @@ func (p *ImportedPkg) Write(w *Writer) {
 //    ABI   uint16
 //    Type  uint8
 //    Flag  uint8
+//    Flag2 uint8
 //    Siz   uint32
 //    Align uint32
 // }
 type Sym [SymSize]byte
 
-const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
+const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
 
 const SymABIstatic = ^uint16(0)
 
@@ -242,6 +243,7 @@ const (
 	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
 )
 
+// Sym.Flag
 const (
 	SymFlagDupok = 1 << iota
 	SymFlagLocal
@@ -253,6 +255,11 @@ const (
 	SymFlagTopFrame
 )
 
+// Sym.Flag2
+const (
+	SymFlagUsedInIface = 1 << iota
+)
+
 func (s *Sym) Name(r *Reader) string {
 	len := binary.LittleEndian.Uint32(s[:])
 	off := binary.LittleEndian.Uint32(s[4:])
@@ -262,8 +269,9 @@ func (s *Sym) Name(r *Reader) string {
 func (s *Sym) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
 func (s *Sym) Type() uint8   { return s[10] }
 func (s *Sym) Flag() uint8   { return s[11] }
-func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
-func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
+func (s *Sym) Flag2() uint8  { return s[12] }
+func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[13:]) }
+func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[17:]) }
 
 func (s *Sym) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
 func (s *Sym) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
@@ -273,6 +281,7 @@ func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -282,8 +291,9 @@ func (s *Sym) SetName(x string, w *Writer) {
 func (s *Sym) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
 func (s *Sym) SetType(x uint8)   { s[10] = x }
 func (s *Sym) SetFlag(x uint8)   { s[11] = x }
-func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
-func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
+func (s *Sym) SetFlag2(x uint8)  { s[12] = x }
+func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[13:], x) }
+func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[17:], x) }
 
 func (s *Sym) Write(w *Writer) { w.Bytes(s[:]) }
 

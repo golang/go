@@ -244,7 +244,8 @@ type Loader struct {
 	attrReachable        Bitmap // reachable symbols, indexed by global index
 	attrOnList           Bitmap // "on list" symbols, indexed by global index
 	attrLocal            Bitmap // "local" symbols, indexed by global index
-	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by glob idx
+	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by global idx
+	attrUsedInIface      Bitmap // "used in interface" symbols, indexed by global idx
 	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           Bitmap // shared symbols, indexed by ext sym index
@@ -765,6 +766,20 @@ func (l *Loader) SetAttrLocal(i Sym, v bool) {
 		l.attrLocal.Set(i)
 	} else {
 		l.attrLocal.Unset(i)
+	}
+}
+
+// AttrUsedInIface returns true for a type symbol that is used in
+// an interface.
+func (l *Loader) AttrUsedInIface(i Sym) bool {
+	return l.attrUsedInIface.Has(i)
+}
+
+func (l *Loader) SetAttrUsedInIface(i Sym, v bool) {
+	if v {
+		l.attrUsedInIface.Set(i)
+	} else {
+		l.attrUsedInIface.Unset(i)
 	}
 }
 
@@ -1665,6 +1680,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		l.attrOnList = growBitmap(reqLen, l.attrOnList)
 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
 		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
+		l.attrUsedInIface = growBitmap(reqLen, l.attrUsedInIface)
 	}
 	l.growExtAttrBitmaps()
 }
@@ -1983,6 +1999,9 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
 		}
+		if osym.UsedInIface() {
+			l.SetAttrUsedInIface(gi, true)
+		}
 		if strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[gi] = struct{}{}
 		}
@@ -2024,6 +2043,9 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		gi := r.syms[ndef+i]
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
+		}
+		if osym.UsedInIface() {
+			l.SetAttrUsedInIface(gi, true)
 		}
 		l.preprocess(arch, gi, name)
 	}
