@@ -338,7 +338,6 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 						Filename: goldFile,
 						Archive:  archive,
 					}
-					fmt.Printf("Trimmed : %s, goldfile: %s, ArchiveCount : %d\n", trimmed, goldFile, len(archive.Files))
 				} else if trimmed := strings.TrimSuffix(fragment, inFileSuffix); trimmed != fragment {
 					delete(m.Files, fragment)
 					m.Files[trimmed] = operation
