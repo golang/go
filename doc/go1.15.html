@@ -463,8 +463,27 @@ TODO
       Auto-generated session ticket keys are now automatically rotated every 24 hours,
       with a lifetime of 7 days, to limit their impact on forward secrecy.
     </p>
+
+    <p><!-- CL 231317 -->
+      Session ticket lifetimes in TLS 1.2 and earlier, where the session keys
+      are reused for resumed connections, are now limited to 7 days, also to
+      limit their impact on forward secrecy.
+    </p>
+
+    <p><!-- CL 231038 -->
+      The client-side downgrade protection checks specified in RFC 8446 are now
+      enforced. This has the potential to cause connection errors for clients
+      encountering middleboxes that behave like unauthorized downgrade attacks.
+    </p>
+
+    <p><!-- CL 208226 -->
+      <a href="/pkg/crypto/tls/#SignatureScheme"><code>SignatureScheme</code></a>,
+      <a href="/pkg/crypto/tls/#CurveID"><code>CurveID</code></a>, and
+      <a href="/pkg/crypto/tls/#ClientAuthType"><code>ClientAuthType</code></a>
+      now implement <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
   </dd>
-</dl>
+</dl><!-- crypto/tls -->
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
