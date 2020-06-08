@@ -148,6 +148,18 @@ func _(type T)(r R2(T, int), p *R2(string, T)) {
 	p.pm()
 }
 
+// An interface can (explicitly) declare at most one type list.
+// Only the first respective error is reported.
+type _ interface {
+	m0()
+	type int, string, bool
+	type /* ERROR multiple type lists */ float32, float64
+	m1()
+	m2()
+	type /* ERROR multiple type lists */ complex64, complex128
+	type /* ERROR multiple type lists */ bool
+}
+
 // Embedding of interfaces with type lists leads to interfaces
 // with type lists that are the intersection of the embedded
 // type lists.

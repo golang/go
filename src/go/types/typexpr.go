@@ -726,6 +726,7 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 }
 
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+	var tlist *ast.Ident // "type" name of first entry in a type list declaration
 	var types []ast.Expr
 	for _, f := range iface.Methods.List {
 		if len(f.Names) > 0 {
@@ -740,7 +741,14 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			}
 
 			if name.Name == "type" {
+				// Always collect all type list entries, even from
+				// different type lists, under the assumption that
+				// the author intended to include all types.
 				types = append(types, f.Type)
+				if tlist != nil && tlist != name {
+					check.errorf(name.Pos(), "cannot have multiple type lists in an interface")
+				}
+				tlist = name
 				continue
 			}
 
@@ -780,7 +788,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	// type constraints
 	// TODO(gri) report error for multiple explicitly declared identical types
-	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), unpack(ityp.types), types))
+	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
 
 	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
 		// empty interface
@@ -1089,7 +1097,8 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 	return nil // invalid embedded field
 }
 
-func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
+func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []Type {
+	var list []Type
 	for _, texpr := range types {
 		if texpr == nil {
 			check.invalidAST(pos, "missing type constraint")
