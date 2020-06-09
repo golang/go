@@ -1,0 +1,49 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	data "b"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{}
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{
+	foo: 0,
+} // want ""
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{
+	foo: 0,
+	bar: "",
+} // want ""
+
+var _ = twoArgStruct{
+	bar: "bar",
+}
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{
+	bar:   "",
+	basic: basicStruct{},
+} // want ""
+
+var _ = data.B{
+	ExportedInt: 0,
+} // want ""
