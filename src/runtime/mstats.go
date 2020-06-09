@@ -529,7 +529,7 @@ func updatememstats() {
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.
-	// Current number of alive object in the heap and amount of alive heap memory
+	// Current number of alive objects in the heap and amount of alive heap memory
 	// are calculated by scanning all spans.
 	// Total number of mallocs is calculated as number of frees plus number of alive objects.
 	// Similarly, total amount of allocated memory is calculated as amount of freed memory
