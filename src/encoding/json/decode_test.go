@@ -2419,7 +2419,7 @@ func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Test unmarshal to a map, with map key is a user defined type.
+// Test unmarshal to a map, where the map key is a user defined type.
 // See golang.org/issues/34437.
 func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	var p map[textUnmarshalerString]string
@@ -2428,6 +2428,35 @@ func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
 	}
 
 	if _, ok := p["foo"]; !ok {
-		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+		t.Errorf(`Key "foo" does not exist in map: %v`, p)
+	}
+}
+
+func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
+	// See golang.org/issues/38105.
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"开源":"12345开源"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if _, ok := p["开源"]; !ok {
+		t.Errorf(`Key "开源" does not exist in map: %v`, p)
+	}
+
+	// See golang.org/issues/38126.
+	type T struct {
+		F1 string `json:"F1,string"`
+	}
+	t1 := T{"aaa\tbbb"}
+
+	b, err := Marshal(t1)
+	if err != nil {
+		t.Fatalf("Marshal unexpected error: %v", err)
+	}
+	var t2 T
+	if err := Unmarshal(b, &t2); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	if t1 != t2 {
+		t.Errorf("Marshal and Unmarshal roundtrip mismatch: want %q got %q", t1, t2)
 	}
 }

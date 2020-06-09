@@ -977,25 +977,22 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Second pass - deallocate any phi inputs which are now dead.
+			// Second pass - deallocate all in-register phi inputs.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
 				}
 				a := v.Args[idx]
-				if !regValLiveSet.contains(a.ID) {
-					// Input is dead beyond the phi, deallocate
-					// anywhere else it might live.
-					s.freeRegs(s.values[a.ID].regs)
-				} else {
-					// Input is still live.
+				r := phiRegs[i]
+				if r == noRegister {
+					continue
+				}
+				if regValLiveSet.contains(a.ID) {
+					// Input value is still live (it is used by something other than Phi).
 					// Try to move it around before kicking out, if there is a free register.
 					// We generate a Copy in the predecessor block and record it. It will be
-					// deleted if never used.
-					r := phiRegs[i]
-					if r == noRegister {
-						continue
-					}
+					// deleted later if never used.
+					//
 					// Pick a free register. At this point some registers used in the predecessor
 					// block may have been deallocated. Those are the ones used for Phis. Exclude
 					// them (and they are not going to be helpful anyway).
@@ -1011,8 +1008,8 @@ func (s *regAllocState) regalloc(f *Func) {
 						s.assignReg(r2, a, c)
 						s.endRegs[p.ID] = append(s.endRegs[p.ID], endReg{r2, a, c})
 					}
-					s.freeReg(r)
 				}
+				s.freeReg(r)
 			}
 
 			// Copy phi ops into new schedule.
@@ -1851,6 +1848,11 @@ func (s *regAllocState) shuffle(stacklive [][]ID) {
 			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
 			e.process()
 		}
+	}
+
+	if s.f.pass.debug > regDebug {
+		fmt.Printf("post shuffle %s\n", s.f.Name)
+		fmt.Println(s.f.String())
 	}
 }
 

@@ -124,6 +124,11 @@ typedef struct {
 } Issue31891B;
 
 void callIssue31891(void);
+
+typedef struct {
+	int i;
+} Issue38408, *PIssue38408;
+
 */
 import "C"
 
@@ -552,3 +557,8 @@ func useIssue31891B(c *C.Issue31891B) {}
 func test31891(t *testing.T) {
 	C.callIssue31891()
 }
+
+// issue 38408
+// A typedef pointer can be used as the element type.
+// No runtime test; just make sure it compiles.
+var _ C.PIssue38408 = &C.Issue38408{i: 1}

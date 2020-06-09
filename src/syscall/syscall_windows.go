@@ -334,6 +334,26 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
+		if createmode == CREATE_ALWAYS {
+			// We have been asked to create a read-only file.
+			// If the file already exists, the semantics of
+			// the Unix open system call is to preserve the
+			// existing permissions. If we pass CREATE_ALWAYS
+			// and FILE_ATTRIBUTE_READONLY to CreateFile,
+			// and the file already exists, CreateFile will
+			// change the file permissions.
+			// Avoid that to preserve the Unix semantics.
+			h, e := CreateFile(pathp, access, sharemode, sa, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+			switch e {
+			case ERROR_FILE_NOT_FOUND, _ERROR_BAD_NETPATH, ERROR_PATH_NOT_FOUND:
+				// File does not exist. These are the same
+				// errors as Errno.Is checks for ErrNotExist.
+				// Carry on to create the file.
+			default:
+				// Success or some different error.
+				return h, e
+			}
+		}
 	}
 	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 	return h, e

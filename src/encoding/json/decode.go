@@ -1217,6 +1217,11 @@ func (d *decodeState) unquoteBytes(s []byte) (t []byte, ok bool) {
 	if r == -1 {
 		return s, true
 	}
+	// Only perform up to one safe unquote for each re-scanned string
+	// literal. In some edge cases, the decoder unquotes a literal a second
+	// time, even after another literal has been re-scanned. Thus, only the
+	// first unquote can safely use safeUnquote.
+	d.safeUnquote = 0
 
 	b := make([]byte, len(s)+2*utf8.UTFMax)
 	w := copy(b, s[0:r])
