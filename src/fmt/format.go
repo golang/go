@@ -300,16 +300,18 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
 		i--
 		buf[i] = '0'
 	}
-
-	if negative {
+	switch negative {
+	case true:
 		i--
 		buf[i] = '-'
-	} else if f.plus {
-		i--
-		buf[i] = '+'
-	} else if f.space {
-		i--
-		buf[i] = ' '
+	default:
+		if f.plus {
+			i--
+			buf[i] = '+'
+		} else if f.space {
+			i--
+			buf[i] = ' '
+		}
 	}
 
 	// Left padding with zeros has already been handled like precision earlier
