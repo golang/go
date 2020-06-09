@@ -8,9 +8,6 @@
 
 package p
 
-// Pointer designation for type parameters is currently ignored.
-func _(type *P /* ERROR ignored */ )() {}
-
 // Composite literals that require parentheses around their types.
 // Should investigate if it makes sense to be smarter when parsing
 // at the cost of more complex rules.

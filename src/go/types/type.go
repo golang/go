@@ -765,6 +765,7 @@ func (t *Named) AddMethod(m *Func) {
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
 	id    uint64    // unique id
+	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
@@ -772,9 +773,9 @@ type TypeParam struct {
 }
 
 // NewTypeParam returns a new TypeParam.
-func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{id: check.nextId, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -847,7 +848,7 @@ func (t *instance) Interface() *Interface { return t.Under().Interface() }
 func (t *instance) Map() *Map             { return t.Under().Map() }
 func (t *instance) Chan() *Chan           { return t.Under().Chan() }
 func (t *instance) Named() *Named         { return t.expand().Named() }
-func (t *instance) TypeParam() *TypeParam { return t.Under().TypeParam() }
+func (t *instance) TypeParam() *TypeParam { return t.expand().TypeParam() }
 
 // expand returns the instantiated (= expanded) type of t.
 // The result is either an instantiated *Named type, or

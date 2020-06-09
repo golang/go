@@ -82,8 +82,8 @@ func f3(type A, B, C)(A, struct{x B}, func(A, struct{x B}, *C)) int
 var _ = f3(int, rune, bool)(1, struct{x rune}{}, nil)
 
 // type parameters with pointer marking
-func _(type *P /* ERROR ignored */ , Q)()
-func _(type *P /* ERROR ignored */ )(x P)
+func _(type *P, Q)()
+func _(type *P)(x P)
 
 // indexing
 

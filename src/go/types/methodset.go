@@ -73,10 +73,13 @@ func NewMethodSet(T Type) *MethodSet {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and lookupFieldOrMethod should be kept in sync.
 
+	// TODO(gri) This code is out-of-sync with the lookup code at this point.
+	//           Need to update.
+
 	// method set up to the current depth, allocated lazily
 	var base methodSet
 
-	typ, isPtr := derefUnpack(T)
+	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface has no methods.
 	if isPtr && IsInterface(typ) {
@@ -141,7 +144,7 @@ func NewMethodSet(T Type) *MethodSet {
 					// this depth, f.Type appears multiple times at the next
 					// depth.
 					if f.embedded {
-						typ, isPtr := derefUnpack(f.typ)
+						typ, isPtr := deref(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and
 						// Interface types need to be considered).

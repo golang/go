@@ -135,26 +135,41 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		iface = check.subst(pos, iface, smap).(*Interface)
 
 		// targ must implement iface (methods)
-		//
-		// Assume targ is addressable, per the draft design: "In a generic function
-		// body all method calls will be pointer method calls. If necessary, the
-		// function body will insert temporary variables, not seen by the user, in
-		// order to get an addressable variable to use to call the method."
-		//
-		// TODO(gri) Instead of the addressable (= true) flag, could we encode the
-		// same information by making targ a pointer type (and then get rid of the
-		// need for that extra flag)?
-		if m, _ := check.missingMethod(targ, true, iface, true); m != nil {
-			// TODO(gri) needs to print updated name to avoid major confusion in error message!
-			//           (print warning for now)
-			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
-			if m.name == "==" {
-				// We don't want to report "missing method ==".
-				check.softErrorf(pos, "%s does not satisfy comparable", targ)
-			} else {
-				check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
+		// - check only if we have methods
+		check.completeInterface(token.NoPos, iface)
+		if len(iface.allMethods) > 0 {
+			// If the type argument is a type parameter itself, its pointer designation
+			// must match the pointer designation of the callee's type parameter.
+			// If the type argument is a pointer to a type parameter, the type argument's
+			// method set is empty.
+			// TODO(gri) is this what we want? (spec question)
+			if tparg := targ.TypeParam(); tparg != nil {
+				if tparg.ptr != tpar.ptr {
+					check.errorf(pos, "pointer designation mismatch")
+					break
+				}
+			} else if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
+				check.errorf(pos, "%s has no methods", targ)
+				break
 			}
-			break
+			// If a type parameter is marked as a pointer type, the type bound applies
+			// to a pointer of the type argument.
+			actual := targ
+			if tpar.ptr {
+				actual = NewPointer(targ)
+			}
+			if m, _ := check.missingMethod(actual, iface, true); m != nil {
+				// TODO(gri) needs to print updated name to avoid major confusion in error message!
+				//           (print warning for now)
+				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+				if m.name == "==" {
+					// We don't want to report "missing method ==".
+					check.softErrorf(pos, "%s does not satisfy comparable", targ)
+				} else {
+					check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
+				}
+				break
+			}
 		}
 
 		// targ's underlying type must also be one of the interface types listed, if any
@@ -182,7 +197,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
-		// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
 		if !iface.includes(targ.Under()) {
 			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
 			break

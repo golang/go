@@ -5,10 +5,9 @@ TODO (implementation issues)
 
 - report a better error when a type is not in a type list (investigate)
 - fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
+- fix printing of type parameter lists with pointer designations on type parameters
 - fix endless instantiation when printing: type T(type P) T(P)
 - better error message when we need parentheses around a parameterized function parameter type
-- revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
-- revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized?)
 - use []*TypeParam for tparams in subst? (unclear)
 - should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
@@ -20,8 +19,8 @@ KNOWN ISSUES
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
   example: type B(type P B(P)) interface{ m() } (need to delay all checking after seting up declarations)
-- Type-checking for type parameters with pointer designation is not implemented.
 - invoking a method of a parameterized embedded type doesn't work (cannot properly determine receiver yet)
+- pointer designation is incorrectly handled when checking type list constraint satisfaction
 
 ----------------------------------------------------------------------------------------------------
 OBSERVATIONS

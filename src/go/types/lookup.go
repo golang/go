@@ -84,16 +84,6 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 	typ, isPtr := deref(T)
 
-	// If we have a type parameter, ignore isPtr otherwise we would
-	// return immediately below since the type parameter bound is an
-	// interface. This is needed for methods on variables that are
-	// pointers to values of type parameter type.
-	// TODO(gri) Should this be done in derefUnpack?
-	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		typ = tpar.bound
-		isPtr = false
-	}
-
 	// *typ where typ is an interface has no methods.
 	if isPtr && IsInterface(typ) {
 		return
@@ -116,6 +106,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
+		var tpar *TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
@@ -148,10 +139,15 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					continue // we can't have a matching field or interface method
 				}
 
-				// continue with underlying type
+				// continue with underlying type, but only if it's not a type parameter
+				// TODO(gri) is this what we want to do for type parameters? (spec question)
 				typ = named.Under()
+				if typ.TypeParam() != nil {
+					continue
+				}
 			}
 
+			tpar = nil
 			switch t := typ.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
@@ -176,10 +172,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					// this depth, f.typ appears multiple times at the next
 					// depth.
 					if obj == nil && f.embedded {
-						// TODO(gri) investigate derefUnpack here (see
-						// comment in the beginning on unpacking type
-						// parameters).
-						typ, isPtr := derefUnpack(f.typ)
+						typ, isPtr := deref(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and
 						// Interface types need to be considered).
@@ -200,6 +193,18 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					obj = m
 					indirect = e.indirect
 				}
+
+			case *TypeParam:
+				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {
+					assert(m.typ != nil)
+					index = concat(e.index, i)
+					if obj != nil || e.multiples {
+						return nil, index, false // collision
+					}
+					tpar = t
+					obj = m
+					indirect = e.indirect
+				}
 			}
 		}
 
@@ -209,8 +214,12 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			//        contains m and the argument list can be assigned to the parameter
 			//        list of m. If x is addressable and &x's method set contains m, x.m()
 			//        is shorthand for (&x).m()".
-			if f, _ := obj.(*Func); f != nil && ptrRecv(f) && !indirect && !addressable {
-				return nil, nil, true // pointer/addressable receiver required
+			if f, _ := obj.(*Func); f != nil {
+				// determine if method has a pointer receiver
+				hasPtrRecv := tpar == nil && ptrRecv(f) || tpar != nil && tpar.ptr
+				if hasPtrRecv && !indirect && !addressable {
+					return nil, nil, true // pointer/addressable receiver required
+				}
 			}
 			return
 		}
@@ -278,7 +287,7 @@ func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, typ := (*Checker)(nil).missingMethod(V, false, T, static)
+	m, typ := (*Checker)(nil).missingMethod(V, T, static)
 	return m, typ != nil
 }
 
@@ -287,12 +296,11 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // The receiver may be nil if missingMethod is invoked through
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
-// If addressable is set, V is the type of an addressable variable.
 // If the type has the correctly named method, but with the wrong
 // signature, the existing method is returned as well.
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, static bool) (method, wrongType *Func) {
+func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
 	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
@@ -341,7 +349,7 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 	Vn := Vd.Named()
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
-		obj, _, _ := check.rawLookupFieldOrMethod(V, addressable, m.pkg, m.name)
+		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
 
 		// Check if *V implements this method of T.
 		if obj == nil {
@@ -414,7 +422,7 @@ func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, w
 	if T.Interface() != nil && !(strict || forceStrict) {
 		return
 	}
-	return check.missingMethod(T, false, V, false)
+	return check.missingMethod(T, V, false)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.
@@ -424,15 +432,6 @@ func deref(typ Type) (Type, bool) {
 		return p.base, true
 	}
 	return typ, false
-}
-
-// derefUnpack is like deref but it also unpacks type parameters.
-func derefUnpack(typ Type) (Type, bool) {
-	typ, ptr := deref(typ)
-	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		typ = tpar.bound
-	}
-	return typ, ptr
 }
 
 // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a

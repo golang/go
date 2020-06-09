@@ -679,14 +679,15 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
 	for _, name := range names {
+		var ptr bool
 		nstr := name.Name
 		if len(nstr) > 0 && nstr[0] == '*' {
+			ptr = true
 			nstr = nstr[1:]
-			check.errorf(name.Pos(), `pointer designation not yet supported ("*" is ignored)`)
 		}
 		tpar := NewTypeName(name.Pos(), check.pkg, nstr, nil)
-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+		check.NewTypeParam(ptr, tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+		check.declare(check.scope, name, tpar, check.scope.pos)      // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}
 

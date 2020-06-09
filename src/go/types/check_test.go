@@ -102,6 +102,7 @@ var tests = [][]string{
 
 	// Go 2 tests (type parameters)
 	{"testdata/tmp.go2"}, // used for ad-hoc tests - file contents transient
+	{"testdata/typeargs.go2"},
 	{"testdata/typeparams.go2"},
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},

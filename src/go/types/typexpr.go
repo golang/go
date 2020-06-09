@@ -237,7 +237,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	var recvTyp ast.Expr // rewritten receiver type; valid if != nil
 	if recvPar != nil && len(recvPar.List) > 0 {
-		// collect parameterized receiver type parameters, if any
+		// collect generic receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
@@ -247,7 +247,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			// Identify blank type parameters and substitute each with a unique new identifier named
 			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
 			// name.
-			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "!n" identifiers
+			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "n_" identifiers
 			for i, p := range rparams {
 				if p.Name == "_" {
 					new := *p
@@ -279,8 +279,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			// provide type parameter bounds
 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
 			if len(sig.rparams) == len(recvTParams) {
+				// We have a list of *TypeNames but we need a list of Types.
+				// While creating this list, also update type parameter pointer designation
+				// for each (*TypeParam) list entry, by copying the information from the
+				// receiver base type's type parameters.
 				list := make([]Type, len(sig.rparams))
 				for i, t := range sig.rparams {
+					t.typ.(*TypeParam).ptr = recvTParams[i].typ.(*TypeParam).ptr
 					list[i] = t.typ
 				}
 				for i, tname := range sig.rparams {
