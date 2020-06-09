@@ -1566,9 +1566,17 @@ func (p *Package) gccMachine() []string {
 	case "s390x":
 		return []string{"-m64"}
 	case "mips64", "mips64le":
-		return []string{"-mabi=64"}
+		if gomips64 == "hardfloat" {
+			return []string{"-mabi=64", "-mhard-float"}
+		} else if gomips64 == "softfloat" {
+			return []string{"-mabi=64", "-msoft-float"}
+		}
 	case "mips", "mipsle":
-		return []string{"-mabi=32"}
+		if gomips == "hardfloat" {
+			return []string{"-mabi=32", "-mfp32", "-mhard-float", "-mno-odd-spreg"}
+		} else if gomips == "softfloat" {
+			return []string{"-mabi=32", "-msoft-float"}
+		}
 	}
 	return nil
 }

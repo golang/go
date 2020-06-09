@@ -2599,9 +2599,19 @@ func (b *Builder) gccArchArgs() []string {
 	case "s390x":
 		return []string{"-m64", "-march=z196"}
 	case "mips64", "mips64le":
-		return []string{"-mabi=64"}
+		args := []string{"-mabi=64"}
+		if cfg.GOMIPS64 == "hardfloat" {
+			return append(args, "-mhard-float")
+		} else if cfg.GOMIPS64 == "softfloat" {
+			return append(args, "-msoft-float")
+		}
 	case "mips", "mipsle":
-		return []string{"-mabi=32", "-march=mips32"}
+		args := []string{"-mabi=32", "-march=mips32"}
+		if cfg.GOMIPS == "hardfloat" {
+			return append(args, "-mhard-float", "-mfp32", "-mno-odd-spreg")
+		} else if cfg.GOMIPS == "softfloat" {
+			return append(args, "-msoft-float")
+		}
 	case "ppc64":
 		if cfg.Goos == "aix" {
 			return []string{"-maix64"}
