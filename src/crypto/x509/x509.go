@@ -1620,10 +1620,10 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 	return false
 }
 
-// marshalSANs marshals a list of addresses into a the contents of an X.509
+// marshalSANs marshals a list of addresses into the contents of an X.509
 // SubjectAlternativeName extension.
 func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
-	var rawValues []asn1.RawValue
+	rawValues := make([]asn1.RawValue, 0, len(dnsNames)+len(emailAddresses)+len(ipAddresses)+len(uris))
 	for _, name := range dnsNames {
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
 	}
@@ -1684,7 +1684,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionExtendedKeyUsage
 
-		var oids []asn1.ObjectIdentifier
+		oids := make([]asn1.ObjectIdentifier, 0, len(template.ExtKeyUsage)+len(template.UnknownExtKeyUsage))
 		for _, u := range template.ExtKeyUsage {
 			if oid, ok := oidFromExtKeyUsage(u); ok {
 				oids = append(oids, oid)
@@ -1740,7 +1740,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 	if (len(template.OCSPServer) > 0 || len(template.IssuingCertificateURL) > 0) &&
 		!oidInExtensions(oidExtensionAuthorityInfoAccess, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionAuthorityInfoAccess
-		var aiaValues []authorityInfoAccess
+		aiaValues := make([]authorityInfoAccess, 0, len(template.OCSPServer)+len(template.IssuingCertificateURL))
 		for _, name := range template.OCSPServer {
 			aiaValues = append(aiaValues, authorityInfoAccess{
 				Method:   oidAuthorityInfoAccessOcsp,
@@ -1890,7 +1890,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 		!oidInExtensions(oidExtensionCRLDistributionPoints, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionCRLDistributionPoints
 
-		var crlDp []distributionPoint
+		crlDp := make([]distributionPoint, 0, len(template.CRLDistributionPoints))
 		for _, name := range template.CRLDistributionPoints {
 			dp := distributionPoint{
 				DistributionPoint: distributionPointName{
