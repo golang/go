@@ -46,7 +46,11 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
 
-	file, m, err := snapshot.ModHandle(ctx, fh).Parse(ctx)
+	mh, err := snapshot.ModHandle(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+	file, m, err := mh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ type Snapshot interface {
 
 	// ModHandle returns a ModHandle for the passed in go.mod file handle.
 	// This function can have no data if there is no modfile detected.
-	ModHandle(ctx context.Context, fh FileHandle) ModHandle
+	ModHandle(ctx context.Context, fh FileHandle) (ModHandle, error)
 
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.

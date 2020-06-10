@@ -128,12 +128,14 @@ func (mh *modHandle) Why(ctx context.Context) (*modfile.File, *protocol.ColumnMa
 	return data.origParsedFile, data.origMapper, data.why, data.err
 }
 
-func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.ModHandle {
+func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) (source.ModHandle, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
 	uri := fh.URI()
 	if handle := s.getModHandle(uri); handle != nil {
-		return handle
+		return handle, nil
 	}
-
 	realURI, tempURI := s.view.ModFiles()
 	folder := s.View().Folder().Filename()
 	cfg := s.Config(ctx)
@@ -202,7 +204,7 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		file:   fh,
 		cfg:    cfg,
 	}
-	return s.modHandles[uri]
+	return s.modHandles[uri], nil
 }
 
 func goModWhy(ctx context.Context, cfg *packages.Config, folder string, data *modData) error {

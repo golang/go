@@ -17,7 +17,6 @@ import (
 
 // FillStruct completes all of targeted struct's fields with their default values.
 func FillStruct(ctx context.Context, snapshot Snapshot, fh FileHandle, protoRng protocol.Range) ([]protocol.CodeAction, error) {
-
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for struct fill code action: %v", err)

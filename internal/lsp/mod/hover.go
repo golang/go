@@ -23,7 +23,11 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	ctx, done := event.Start(ctx, "mod.Hover")
 	defer done()
 
-	file, m, why, err := snapshot.ModHandle(ctx, fh).Why(ctx)
+	mh, err := snapshot.ModHandle(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+	file, m, why, err := mh.Why(ctx)
 	if err != nil {
 		return nil, err
 	}

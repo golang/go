@@ -12,7 +12,11 @@ func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle)
 	ctx, done := event.Start(ctx, "mod.Format")
 	defer done()
 
-	file, m, err := snapshot.ModHandle(ctx, fh).Parse(ctx)
+	mh, err := snapshot.ModHandle(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+	file, m, err := mh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
