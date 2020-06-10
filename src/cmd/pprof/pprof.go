@@ -50,9 +50,9 @@ func (f *fetcher) Fetch(src string, duration, timeout time.Duration) (*profile.P
 		// Could not recognize URL, let regular pprof attempt to fetch the profile (eg. from a file)
 		return nil, "", nil
 	}
-	fmt.Fprintln(os.Stderr, "Fetching profile over HTTP from", sourceURL)
+	fmt.Fprintln(os.Stdout, "Fetching profile over HTTP from", sourceURL)
 	if duration > 0 {
-		fmt.Fprintf(os.Stderr, "Please wait... (%v)\n", duration)
+		fmt.Fprintf(os.Stdout, "Please wait... (%v)\n", duration)
 	}
 	p, err := getProfile(sourceURL, timeout)
 	return p, sourceURL, err
