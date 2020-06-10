@@ -540,6 +540,35 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/x509/pkix -->
 
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145758 -->
+      The new <a href="/pkg/database/sql/#DB.SetConnMaxIdleTime"><code>DB.SetConnMaxIdleTime</code></a>
+      method allows removing a connection from the connection pool after
+      it has been idle for a period of time, without regard to the total
+      lifespan of the connection.  The <a href="/pkg/database/sql/#DBStats.MaxIdleTimeClosed"><code>DBStats.MaxIdleTimeClosed</code></a>
+      field shows the total number of connections closed due to
+      <code>DB.SetConnMaxIdleTime</code>.
+    </p>
+
+    <p><!-- CL 214317 -->
+      The new <a href="/pkg/database/sql/#Row.Err"><code>Row.Err</code></a> getter
+      allows checking for query errors without calling
+      <code>Row.Scan</code>.
+    </p>
+  </dd>
+</dl><!-- database/sql -->
+
+<dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver">database/sql/driver</a></dt>
+  <dd>
+    <p><!-- CL 174122 -->
+      The new <a href="/pkg/database/sql/driver/#Validator"><code>Validator</code></a>
+      interface may be implemented by <code>Conn</code> to allow drivers
+      to signal if a connection is valid or if it should be discarded.
+    </p>
+  </dd>
+</dl><!-- database/sql/driver -->
+
 <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p><!-- CL 222637 -->
