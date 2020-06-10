@@ -1172,7 +1172,14 @@ func expandFile(fname string) string {
 	return expandGoroot(fname)
 }
 
-func (d *dwctxt) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
+// writelines collects up and chains together the symbols needed to
+// form the DWARF line table for the specified compilation unit,
+// appends them to the list 'syms' and returns the updated list.
+// Additions will include an initial symbol containing the line table
+// header and prolog (with file table), then a series of
+// compiler-emitted line table symbols (one per live function), and
+// finally an epilog symbol containing an end-of-sequence operator.
+func (d *dwctxt) writelines(unit *sym.CompilationUnit, syms []loader.Sym) []loader.Sym {
 
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
 
@@ -1180,17 +1187,18 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	headerstart := int64(-1)
 	headerend := int64(-1)
 
+	ls := d.ldr.CreateExtSym("", 0)
+	syms = append(syms, ls)
+	d.ldr.SetAttrNotInSymbolTable(ls, true)
+	d.ldr.SetAttrReachable(ls, true)
 	lsu := d.ldr.MakeSymbolUpdater(ls)
-	newattr(unit.DWInfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, lsu.Size(), dwSym(ls))
-
-	internalExec := d.linkctxt.BuildMode == BuildModeExe && d.linkctxt.IsInternal()
-	addAddrPlus := loader.GenAddAddrPlusFunc(internalExec)
+	lsu.SetType(sym.SDWARFLINES)
+	newattr(unit.DWInfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, 0, dwSym(ls))
 
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
 	unitLengthOffset := lsu.Size()
 	d.createUnitLength(lsu, 0) // unit_length (*), filled in at end
-
 	unitstart = lsu.Size()
 	lsu.AddUint16(d.arch, 2) // dwarf version (appendix F) -- version 3 is incompatible w/ XCode 9.0's dsymutil, latest supported on OSX 10.12 as of 2018-05
 	headerLengthOffset := lsu.Size()
@@ -1245,35 +1253,30 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	lsu.AddUint8(0)
 	// terminate file_names.
 	headerend = lsu.Size()
+	unitlen := lsu.Size() - unitstart
 
 	// Output the state machine for each function remaining.
-	var lastAddr int64
 	for _, s := range unit.Textp {
 		fnSym := loader.Sym(s)
-
-		// Set the PC.
-		lsu.AddUint8(0)
-		dwarf.Uleb128put(d, lsDwsym, 1+int64(d.arch.PtrSize))
-		lsu.AddUint8(dwarf.DW_LNE_set_address)
-		addr := addAddrPlus(lsu, d.arch, fnSym, 0)
-		// Make sure the units are sorted.
-		if addr < lastAddr {
-			d.linkctxt.Errorf(fnSym, "address wasn't increasing %x < %x",
-				addr, lastAddr)
-		}
-		lastAddr = addr
-
-		// Output the line table.
-		// TODO: Now that we have all the debug information in separate
-		// symbols, it would make sense to use a rope, and concatenate them all
-		// together rather then the append() below. This would allow us to have
-		// the compiler emit the DW_LNE_set_address and a rope data structure
-		// to concat them all together in the output.
 		_, _, _, lines := d.ldr.GetFuncDwarfAuxSyms(fnSym)
+
+		// Chain the line symbol onto the list.
 		if lines != 0 {
-			lsu.AddBytes(d.ldr.Data(lines))
+			syms = append(syms, lines)
+			unitlen += int64(len(d.ldr.Data(lines)))
 		}
 	}
+
+	// NB: at some point if we have an end sequence op
+	// after each function (to enable reordering) generated
+	// in the compiler, we can get rid of this.
+	epilogsym := d.ldr.CreateExtSym("", 0)
+	syms = append(syms, epilogsym)
+	d.ldr.SetAttrNotInSymbolTable(epilogsym, true)
+	d.ldr.SetAttrReachable(epilogsym, true)
+	elsu := d.ldr.MakeSymbolUpdater(epilogsym)
+	elsu.SetType(sym.SDWARFLINES)
+	elsDwsym := dwSym(epilogsym)
 
 	// Issue 38192: the DWARF standard specifies that when you issue
 	// an end-sequence op, the PC value should be one past the last
@@ -1283,24 +1286,28 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	// table, which we don't want. The 1 + ptrsize amount is somewhat
 	// arbitrary, this is chosen to be consistent with the way LLVM
 	// emits its end sequence ops.
-	lsu.AddUint8(dwarf.DW_LNS_advance_pc)
-	dwarf.Uleb128put(d, lsDwsym, int64(1+d.arch.PtrSize))
+	elsu.AddUint8(dwarf.DW_LNS_advance_pc)
+	dwarf.Uleb128put(d, elsDwsym, int64(1+d.arch.PtrSize))
 
 	// Emit an end-sequence at the end of the unit.
-	lsu.AddUint8(0) // start extended opcode
-	dwarf.Uleb128put(d, lsDwsym, 1)
-	lsu.AddUint8(dwarf.DW_LNE_end_sequence)
+	elsu.AddUint8(0) // start extended opcode
+	dwarf.Uleb128put(d, elsDwsym, 1)
+	elsu.AddUint8(dwarf.DW_LNE_end_sequence)
+	unitlen += elsu.Size()
 
 	if d.linkctxt.HeadType == objabi.Haix {
-		saveDwsectCUSize(".debug_line", unit.Lib.Pkg, uint64(lsu.Size()-unitLengthOffset))
+		saveDwsectCUSize(".debug_line", unit.Lib.Pkg, uint64(unitlen))
 	}
+
 	if isDwarf64(d.linkctxt) {
-		lsu.SetUint(d.arch, unitLengthOffset+4, uint64(lsu.Size()-unitstart)) // +4 because of 0xFFFFFFFF
+		lsu.SetUint(d.arch, unitLengthOffset+4, uint64(unitlen)) // +4 because of 0xFFFFFFFF
 		lsu.SetUint(d.arch, headerLengthOffset, uint64(headerend-headerstart))
 	} else {
-		lsu.SetUint32(d.arch, unitLengthOffset, uint32(lsu.Size()-unitstart))
+		lsu.SetUint32(d.arch, unitLengthOffset, uint32(unitlen))
 		lsu.SetUint32(d.arch, headerLengthOffset, uint32(headerend-headerstart))
 	}
+
+	return syms
 }
 
 // writepcranges generates the DW_AT_ranges table for compilation unit cu.
@@ -1963,6 +1970,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	dlu.SetType(sym.SDWARFSECT)
 	d.ldr.SetAttrReachable(debugLine, true)
 	dwarfp = append(dwarfp, dwarfSecInfo{syms: []loader.Sym{debugLine}})
+	linesec := &dwarfp[len(dwarfp)-1]
 
 	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
 	dru := d.ldr.MakeSymbolUpdater(debugRanges)
@@ -1975,7 +1983,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		if u.DWInfo.Abbrev == dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
 			continue
 		}
-		d.writelines(u, debugLine)
+		linesec.syms = d.writelines(u, linesec.syms)
 		base := loader.Sym(u.Textp[0])
 		d.writepcranges(u, base, u.PCs, debugRanges)
 	}
