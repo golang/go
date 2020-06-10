@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	_ "unsafe" // for go:linkname
 )
 
 // An Importer provides the context for importing packages from source code.
@@ -133,7 +134,7 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 			// build.Context's VFS.
 			conf.FakeImportC = true
 		} else {
-			conf.UsesCgo = true
+			setUsesCgo(&conf)
 			file, err := p.cgo(bp)
 			if err != nil {
 				return nil, err
@@ -260,3 +261,6 @@ func (p *Importer) joinPath(elem ...string) string {
 	}
 	return filepath.Join(elem...)
 }
+
+//go:linkname setUsesCgo go/types.srcimporter_setUsesCgo
+func setUsesCgo(conf *types.Config)

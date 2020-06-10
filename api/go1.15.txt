@@ -114,7 +114,6 @@ pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX = 14
 pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX ideal-int
 pkg go/printer, const StdFormat = 16
 pkg go/printer, const StdFormat Mode
-pkg go/types, type Config struct, UsesCgo bool
 pkg math/big, method (*Int) FillBytes([]uint8) []uint8
 pkg net, method (*Resolver) LookupIP(context.Context, string, string) ([]IP, error)
 pkg net/url, method (*URL) EscapedFragment() string
