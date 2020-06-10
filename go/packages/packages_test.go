@@ -2923,7 +2923,7 @@ func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
 
 	exported.Config.Mode = packages.NeedFiles | packages.NeedCompiledGoFiles |
 		packages.NeedSyntax | packages.NeedDeps | packages.NeedTypes |
-		packages.TypecheckCgo
+		packages.LoadMode(packagesinternal.TypecheckCgo)
 
 	initial, err := packages.Load(exported.Config, "golang.org/fake/cgo")
 	if err != nil {

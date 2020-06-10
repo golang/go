@@ -123,7 +123,7 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 	}
 	// We want to type check cgo code if go/types supports it.
 	if typesinternal.SetUsesCgo(&types.Config{}) {
-		cfg.Mode |= packages.TypecheckCgo
+		cfg.Mode |= packages.LoadMode(packagesinternal.TypecheckCgo)
 	}
 	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
 

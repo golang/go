@@ -403,7 +403,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		}),
 	}
 	// We want to type check cgo code if go/types supports it.
-	// We passed TypecheckCgo to go/packages when we Loaded.
+	// We passed typecheckCgo to go/packages when we Loaded.
 	typesinternal.SetUsesCgo(cfg)
 
 	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)

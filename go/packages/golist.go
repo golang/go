@@ -543,7 +543,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			Module:          p.Module,
 		}
 
-		if (state.cfg.Mode&TypecheckCgo) != 0 && len(p.CgoFiles) != 0 {
+		if (state.cfg.Mode&typecheckCgo) != 0 && len(p.CgoFiles) != 0 {
 			if len(p.CompiledGoFiles) > len(p.GoFiles) {
 				// We need the cgo definitions, which are in the first
 				// CompiledGoFile after the non-cgo ones. This is a hack but there
