@@ -73,6 +73,8 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
+	// Debug paths are stored slash-separated, so convert to system-native.
+	srcPath = filepath.FromSlash(srcPath)
 	fi2, err := os.Stat(srcPath)
 	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" && strings.HasPrefix(srcPath, gorootFinal) {
 		if os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2)) {
@@ -88,12 +90,12 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "97" {
-		t.Fatalf("line number = %v; want 97", srcLineNo)
+	if srcLineNo != "99" {
+		t.Fatalf("line number = %v; want 99", srcLineNo)
 	}
 }
 
-// This is line 96. The test depends on that.
+// This is line 98. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
