@@ -196,7 +196,8 @@ function genTypes(node: ts.Node) {
   if (ts.isExpressionStatement(node) || ts.isFunctionDeclaration(node) ||
     ts.isImportDeclaration(node) || ts.isVariableStatement(node) ||
     ts.isExportDeclaration(node) || ts.isEmptyStatement(node) ||
-    node.kind == ts.SyntaxKind.EndOfFileToken) {
+    ts.isExportAssignment(node) || ts.isImportEqualsDeclaration(node) ||
+    ts.isBlock(node) || node.kind == ts.SyntaxKind.EndOfFileToken) {
     return;
   }
   if (ts.isInterfaceDeclaration(node)) {
@@ -214,7 +215,7 @@ function genTypes(node: ts.Node) {
         // and InitializeResult: [custom: string]: any;]
         return
       } else
-        throw new Error(`unexpected ${strKind(t)}`)
+        throw new Error(`217 unexpected ${strKind(t)}`)
     };
     v.members.forEach(f);
     if (mems.length == 0 && !v.heritageClauses &&
@@ -334,7 +335,7 @@ function genTypes(node: ts.Node) {
       throw new Error(`Class dup ${loc(c.me)} and ${loc(data.get(c.name).me)}`);
     data.set(c.name, c);
   } else {
-    throw new Error(`unexpected ${strKind(node)} ${loc(node)} `)
+    throw new Error(`338 unexpected ${strKind(node)} ${loc(node)} `)
   }
 }
 
@@ -347,8 +348,6 @@ function dataMerge(a: Data, b: Data): Data {
   }
   const ax = `(${a.statements.length},${a.properties.length})`
   const bx = `(${b.statements.length},${b.properties.length})`
-  // console.log(`397
-  // ${a.name}${ax}${bx}\n${a.me.getText()}\n${b.me.getText()}\n`)
   switch (a.name) {
     case 'InitializeError':
     case 'MessageType':
@@ -358,13 +357,14 @@ function dataMerge(a: Data, b: Data): Data {
       // want the Module
       return a.statements.length > 0 ? a : b;
     case 'CancellationToken':
+    case 'CancellationStrategy':
       // want the Interface
       return a.properties.length > 0 ? a : b;
     case 'TextDocumentContentChangeEvent':  // almost the same
       return a;
   }
   console.log(
-    `${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
+    `367 ${strKind(a.me)} ${strKind(b.me)} ${a.name} ${loc(a.me)} ${loc(b.me)}`)
   throw new Error(`Fix dataMerge for ${a.name}`)
 }
 
@@ -676,6 +676,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'BooleanKeyword') {  // usually want bool
         if (nm == 'codeActionProvider') return `interface{} ${help}`;
         if (nm == 'renameProvider') return `interface{} ${help}`;
+        if (nm == 'save') return `${goType(n.types[1], '680')} ${help}`;
         return `${goType(n.types[0], 'b')} ${help}`
       }
       if (b == 'ArrayType') return `${goType(n.types[1], 'c')} ${help}`;
@@ -687,7 +688,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       if (a == 'TypeLiteral' && nm == 'TextDocumentContentChangeEvent') {
         return `${goType(n.types[0], nm)}`
       }
-      throw new Error(`724 ${a} ${b} ${n.getText()} ${loc(n)}`);
+      throw new Error(`691 ${a} ${b} ${n.getText()} ${loc(n)}`);
     case 3:
       const aa = strKind(n.types[0])
       const bb = strKind(n.types[1])
@@ -726,7 +727,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
   // Result will be interface{} with a comment
   let isLiteral = true;
   let literal = 'string';
-  let res = `interface{ } /* `
+  let res = `interface{} /* `
   n.types.forEach((v: ts.TypeNode, i: number) => {
     // might get an interface inside:
     //  (Command | CodeAction)[] | null

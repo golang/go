@@ -2,8 +2,8 @@ package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 151b520c995ee3d76729b5c46258ab273d989726
-// last fetched Mon Mar 30 2020 21:01:17 GMT-0400 (Eastern Daylight Time)
+// commit: 1f688e2f65f3a6fc9ba395380cd7b059667a9ecf
+// last fetched Tue Jun 09 2020 11:22:02 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -36,6 +36,9 @@ type Server interface {
 	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange /*FoldingRange[] | null*/, error)
 	Declaration(context.Context, *DeclarationParams) (Declaration /*Declaration | DeclarationLink[] | null*/, error)
 	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange /*SelectionRange[] | null*/, error)
+	PrepareCallHierarchy(context.Context, *CallHierarchyPrepareParams) ([]CallHierarchyItem /*CallHierarchyItem[] | null*/, error)
+	IncomingCalls(context.Context, *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/, error)
+	OutgoingCalls(context.Context, *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/, error)
 	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
@@ -59,9 +62,6 @@ type Server interface {
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	PrepareRename(context.Context, *PrepareRenameParams) (*Range /*Range | { range: Range, placeholder: string } | null*/, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /*any | null*/, error)
-	PrepareCallHierarchy(context.Context, *CallHierarchyPrepareParams) ([]CallHierarchyItem /*CallHierarchyItem[] | null*/, error)
-	IncomingCalls(context.Context, *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/, error)
-	OutgoingCalls(context.Context, *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/, error)
 	SemanticTokens(context.Context, *SemanticTokensParams) (*SemanticTokens /*SemanticTokens | null*/, error)
 	SemanticTokensEdits(context.Context, *SemanticTokensEditsParams) (interface{} /* SemanticTokens | SemanticTokensEdits | nil*/, error)
 	SemanticTokensRange(context.Context, *SemanticTokensRangeParams) (*SemanticTokens /*SemanticTokens | null*/, error)
@@ -205,6 +205,27 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := server.SelectionRange(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "textDocument/prepareCallHierarchy": // req
+		var params CallHierarchyPrepareParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.PrepareCallHierarchy(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "callHierarchy/incomingCalls": // req
+		var params CallHierarchyIncomingCallsParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.IncomingCalls(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "callHierarchy/outgoingCalls": // req
+		var params CallHierarchyOutgoingCallsParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.OutgoingCalls(ctx, &params)
 		return true, reply(ctx, resp, err)
 	case "initialize": // req
 		var params ParamInitialize
@@ -366,27 +387,6 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		}
 		resp, err := server.ExecuteCommand(ctx, &params)
 		return true, reply(ctx, resp, err)
-	case "textDocument/prepareCallHierarchy": // req
-		var params CallHierarchyPrepareParams
-		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
-		}
-		resp, err := server.PrepareCallHierarchy(ctx, &params)
-		return true, reply(ctx, resp, err)
-	case "callHierarchy/incomingCalls": // req
-		var params CallHierarchyIncomingCallsParams
-		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
-		}
-		resp, err := server.IncomingCalls(ctx, &params)
-		return true, reply(ctx, resp, err)
-	case "callHierarchy/outgoingCalls": // req
-		var params CallHierarchyOutgoingCallsParams
-		if err := json.Unmarshal(r.Params(), &params); err != nil {
-			return true, sendParseError(ctx, reply, err)
-		}
-		resp, err := server.OutgoingCalls(ctx, &params)
-		return true, reply(ctx, resp, err)
 	case "textDocument/semanticTokens": // req
 		var params SemanticTokensParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -516,6 +516,30 @@ func (s *serverDispatcher) Declaration(ctx context.Context, params *DeclarationP
 func (s *serverDispatcher) SelectionRange(ctx context.Context, params *SelectionRangeParams) ([]SelectionRange /*SelectionRange[] | null*/, error) {
 	var result []SelectionRange /*SelectionRange[] | null*/
 	if err := Call(ctx, s.Conn, "textDocument/selectionRange", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) PrepareCallHierarchy(ctx context.Context, params *CallHierarchyPrepareParams) ([]CallHierarchyItem /*CallHierarchyItem[] | null*/, error) {
+	var result []CallHierarchyItem /*CallHierarchyItem[] | null*/
+	if err := Call(ctx, s.Conn, "textDocument/prepareCallHierarchy", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) IncomingCalls(ctx context.Context, params *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/, error) {
+	var result []CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/
+	if err := Call(ctx, s.Conn, "callHierarchy/incomingCalls", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) OutgoingCalls(ctx context.Context, params *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/, error) {
+	var result []CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/
+	if err := Call(ctx, s.Conn, "callHierarchy/outgoingCalls", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -696,30 +720,6 @@ func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRen
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{} /*any | null*/, error) {
 	var result interface{} /*any | null*/
 	if err := Call(ctx, s.Conn, "workspace/executeCommand", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) PrepareCallHierarchy(ctx context.Context, params *CallHierarchyPrepareParams) ([]CallHierarchyItem /*CallHierarchyItem[] | null*/, error) {
-	var result []CallHierarchyItem /*CallHierarchyItem[] | null*/
-	if err := Call(ctx, s.Conn, "textDocument/prepareCallHierarchy", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) IncomingCalls(ctx context.Context, params *CallHierarchyIncomingCallsParams) ([]CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/, error) {
-	var result []CallHierarchyIncomingCall /*CallHierarchyIncomingCall[] | null*/
-	if err := Call(ctx, s.Conn, "callHierarchy/incomingCalls", params, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (s *serverDispatcher) OutgoingCalls(ctx context.Context, params *CallHierarchyOutgoingCallsParams) ([]CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/, error) {
-	var result []CallHierarchyOutgoingCall /*CallHierarchyOutgoingCall[] | null*/
-	if err := Call(ctx, s.Conn, "callHierarchy/outgoingCalls", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

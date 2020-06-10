@@ -10,11 +10,11 @@ import * as ts from 'typescript';
 let dir = process.env['HOME'];
 const srcDir = '/vscode-languageserver-node'
 export const fnames = [
-  //`${dir}${srcDir}/protocol/src/protocol.ts`, // why isn't this main.ts?
-  `${dir}/${srcDir}/protocol/src/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
-  `${dir}${srcDir}/jsonrpc/src/main.ts`
+  `${dir}${srcDir}/protocol/src/common/protocol.ts`,
+  `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
+  `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = '151b520c995ee3d76729b5c46258ab273d989726'
+export const gitHash = '1f688e2f65f3a6fc9ba395380cd7b059667a9ecf'
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -66,10 +66,10 @@ export function computeHeader(pkgDoc: boolean): string {
     }
   }
   const a =
-      `// Package protocol contains data types and code for LSP jsonrpcs\n` +
-      `// generated automatically from vscode-languageserver-node\n` +
-      `// commit: ${gitHash}\n` +
-      `// last fetched ${lastDate}\n`
+    `// Package protocol contains data types and code for LSP jsonrpcs\n` +
+    `// generated automatically from vscode-languageserver-node\n` +
+    `// commit: ${gitHash}\n` +
+    `// last fetched ${lastDate}\n`
   const b = 'package protocol\n'
   const c = `\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n`
   if (pkgDoc) {
@@ -95,7 +95,7 @@ export function goName(s: string): string {
 // Generate JSON tag for a struct field
 export function JSON(n: ts.PropertySignature): string {
   const json = `\`json:"${n.name.getText()}${
-      n.questionToken != undefined ? ',omitempty' : ''}"\``;
+    n.questionToken != undefined ? ',omitempty' : ''}"\``;
   return json
 }
 
@@ -114,7 +114,7 @@ export function constName(nm: string, type: string): string {
   let ans = nm;
   if (pref.get(type)) ans = pref.get(type) + ans;
   if (suff.has(type)) ans = ans + suff.get(type)
-    return ans
+  return ans
 }
 
 // Find the comments associated with an AST node
@@ -193,7 +193,7 @@ export function loc(node: ts.Node): string {
   const n = fn.search(/-node./)
   fn = fn.substring(n + 6)
   return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-      y.character + 1})`
+    y.character + 1})`
 }
 // --- various string stuff
 
@@ -201,7 +201,7 @@ export function loc(node: ts.Node): string {
 // as part of printing the AST tree
 function kinds(n: ts.Node): string {
   let res = 'Seen ' + strKind(n);
-  function f(n: ts.Node): void{res += ' ' + strKind(n)};
+  function f(n: ts.Node): void {res += ' ' + strKind(n)};
   ts.forEachChild(n, f)
   return res
 }
