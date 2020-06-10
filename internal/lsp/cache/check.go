@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"path"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -23,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typesinternal"
 	errors "golang.org/x/xerrors"
 )
 
@@ -404,9 +404,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	}
 	// We want to type check cgo code if go/types supports it.
 	// We passed TypecheckCgo to go/packages when we Loaded.
-	if usescgo := reflect.ValueOf(cfg).Elem().FieldByName("UsesCgo"); usescgo.IsValid() {
-		usescgo.SetBool(true)
-	}
+	typesinternal.SetUsesCgo(cfg)
 
 	check := types.NewChecker(cfg, fset, pkg.types, pkg.typesInfo)
 

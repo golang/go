@@ -12,7 +12,6 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -24,6 +23,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typesinternal"
 	errors "golang.org/x/xerrors"
 )
 
@@ -122,7 +122,7 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 		Tests: true,
 	}
 	// We want to type check cgo code if go/types supports it.
-	if reflect.ValueOf(&types.Config{}).Elem().FieldByName("UsesCgo").IsValid() {
+	if typesinternal.SetUsesCgo(&types.Config{}) {
 		cfg.Mode |= packages.TypecheckCgo
 	}
 	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
