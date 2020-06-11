@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -234,6 +235,14 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Importer, flags []string, localImports bool, names ...string) (out []byte, err error) {
 	gofiles := names
 	if ft == go2Files {
+		defer func() {
+			if r := recover(); r != nil {
+				if err == nil {
+					err = fmt.Errorf("panic: %v", r)
+				}
+				fmt.Fprintf(os.Stderr, "%s", debug.Stack())
+			}
+		}()
 		tpkgs, err := go2go.RewriteFiles(importer, dir, names)
 		if err != nil {
 			// The error returned by RewriteFiles is similar
@@ -651,6 +660,14 @@ func (t *test) run() {
 	ft := go1Files
 	var importer *go2go.Importer
 	if strings.HasSuffix(t.gofile, ".go2") {
+		defer func() {
+			if r := recover(); r != nil {
+				if t.err == nil {
+					t.err = fmt.Errorf("panic: %v", r)
+				}
+				fmt.Fprintf(os.Stderr, "%s", debug.Stack())
+			}
+		}()
 		importer = go2go.NewImporter(t.dir)
 		go2Bytes, err := go2go.RewriteBuffer(importer, t.gofile, srcBytes)
 		if err != nil {
