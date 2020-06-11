@@ -45,8 +45,7 @@ TEXT _rt0_arm64_freebsd_lib(SB),NOSPLIT,$184
 
 	// Create a new thread to do the runtime initialization and return.
 	MOVD	_cgo_sys_thread_create(SB), R4
-	CMP	$0, R4
-	BEQ	nocgo
+	CBZ	R4, nocgo
 	MOVD	$_rt0_arm64_freebsd_lib_go(SB), R0
 	MOVD	$0, R1
 	SUB	$16, RSP	// reserve 16 bytes for sp-8 where fp may be saved.
