@@ -130,6 +130,7 @@ func (ts *testScript) setup() {
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
 		"GOROOT=" + testGOROOT,
+		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"TESTGO_GOROOT=" + testGOROOT,
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",

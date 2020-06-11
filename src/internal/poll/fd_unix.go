@@ -479,7 +479,7 @@ func DupCloseOnExec(fd int) (int, string, error) {
 	return dupCloseOnExecOld(fd)
 }
 
-// dupCloseOnExecUnixOld is the traditional way to dup an fd and
+// dupCloseOnExecOld is the traditional way to dup an fd and
 // set its O_CLOEXEC bit, using two system calls.
 func dupCloseOnExecOld(fd int) (int, string, error) {
 	syscall.ForkLock.RLock()

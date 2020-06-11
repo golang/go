@@ -2129,16 +2129,13 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		authorityKeyId = parent.SubjectKeyId
 	}
 
-	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
-	pki := publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey}
 	subjectKeyId := template.SubjectKeyId
 	if len(subjectKeyId) == 0 && template.IsCA {
-		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2
-		b, err := asn1.Marshal(pki)
-		if err != nil {
-			return nil, err
-		}
-		h := sha1.Sum(b)
+		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
+		//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+		//   value of the BIT STRING subjectPublicKey (excluding the tag,
+		//   length, and number of unused bits).
+		h := sha1.Sum(publicKeyBytes)
 		subjectKeyId = h[:]
 	}
 
@@ -2147,6 +2144,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
+	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
 	c := tbsCertificate{
 		Version:            2,
 		SerialNumber:       template.SerialNumber,
@@ -2154,7 +2152,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
-		PublicKey:          pki,
+		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
 		Extensions:         extensions,
 	}
 

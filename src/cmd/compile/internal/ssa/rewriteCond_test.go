@@ -7,24 +7,26 @@ package ssa
 import (
 	"math"
 	"math/rand"
-	"runtime"
 	"testing"
 )
 
 var (
-	x64   int64 = math.MaxInt64 - 2
-	x64b  int64 = math.MaxInt64 - 2
-	x64c  int64 = math.MaxInt64 - 2
-	y64   int64 = math.MinInt64 + 1
-	x32   int32 = math.MaxInt32 - 2
-	x32b  int32 = math.MaxInt32 - 2
-	y32   int32 = math.MinInt32 + 1
-	one64 int64 = 1
-	one32 int32 = 1
-	v64   int64 = 11 // ensure it's not 2**n +/- 1
-	v64_n int64 = -11
-	v32   int32 = 11
-	v32_n int32 = -11
+	x64   int64  = math.MaxInt64 - 2
+	x64b  int64  = math.MaxInt64 - 2
+	x64c  int64  = math.MaxInt64 - 2
+	y64   int64  = math.MinInt64 + 1
+	x32   int32  = math.MaxInt32 - 2
+	x32b  int32  = math.MaxInt32 - 2
+	x32c  int32  = math.MaxInt32 - 2
+	y32   int32  = math.MinInt32 + 1
+	one64 int64  = 1
+	one32 int32  = 1
+	v64   int64  = 11 // ensure it's not 2**n +/- 1
+	v64_n int64  = -11
+	v32   int32  = 11
+	v32_n int32  = -11
+	uv32  uint32 = 19
+	uz    uint8  = 1 // for lowering to SLL/SRL/SRA
 )
 
 var crTests = []struct {
@@ -39,6 +41,8 @@ var crTests = []struct {
 	{"MAddVar32", testMAddVar32},
 	{"MSubVar64", testMSubVar64},
 	{"MSubVar32", testMSubVar32},
+	{"AddShift32", testAddShift32},
+	{"SubShift32", testSubShift32},
 }
 
 var crBenches = []struct {
@@ -58,9 +62,6 @@ var crBenches = []struct {
 // and machine code sequences are covered.
 // It's for arm64 initially, please see https://github.com/golang/go/issues/38740
 func TestCondRewrite(t *testing.T) {
-	if runtime.GOARCH == "arm" {
-		t.Skip("fix on arm expected!")
-	}
 	for _, test := range crTests {
 		t.Run(test.name, test.tf)
 	}
@@ -405,6 +406,66 @@ func testMSubVar32(t *testing.T) {
 	if x32-x32b*one32 >= 0 {
 	} else {
 		t.Errorf("'%#x - %#x*1 >= 0' failed", x32, x32b)
+	}
+}
+
+// 32-bit ADDshift, pick up 1~2 scenarios randomly for each condition
+func testAddShift32(t *testing.T) {
+	if x32+v32<<1 < 0 {
+	} else {
+		t.Errorf("'%#x + %#x<<%#x < 0' failed", x32, v32, 1)
+	}
+
+	if x32+v32>>1 <= 0 {
+	} else {
+		t.Errorf("'%#x + %#x>>%#x <= 0' failed", x32, v32, 1)
+	}
+
+	if x32+int32(uv32>>1) > 0 {
+		t.Errorf("'%#x + int32(%#x>>%#x) > 0' failed", x32, uv32, 1)
+	}
+
+	if x32+v32<<uz >= 0 {
+		t.Errorf("'%#x + %#x<<%#x >= 0' failed", x32, v32, uz)
+	}
+
+	if x32+v32>>uz > 0 {
+		t.Errorf("'%#x + %#x>>%#x > 0' failed", x32, v32, uz)
+	}
+
+	if x32+int32(uv32>>uz) < 0 {
+	} else {
+		t.Errorf("'%#x + int32(%#x>>%#x) < 0' failed", x32, uv32, uz)
+	}
+}
+
+// 32-bit SUBshift, pick up 1~2 scenarios randomly for each condition
+func testSubShift32(t *testing.T) {
+	if y32-v32<<1 > 0 {
+	} else {
+		t.Errorf("'%#x - %#x<<%#x > 0' failed", y32, v32, 1)
+	}
+
+	if y32-v32>>1 < 0 {
+		t.Errorf("'%#x - %#x>>%#x < 0' failed", y32, v32, 1)
+	}
+
+	if y32-int32(uv32>>1) >= 0 {
+	} else {
+		t.Errorf("'%#x - int32(%#x>>%#x) >= 0' failed", y32, uv32, 1)
+	}
+
+	if y32-v32<<uz < 0 {
+		t.Errorf("'%#x - %#x<<%#x < 0' failed", y32, v32, uz)
+	}
+
+	if y32-v32>>uz >= 0 {
+	} else {
+		t.Errorf("'%#x - %#x>>%#x >= 0' failed", y32, v32, uz)
+	}
+
+	if y32-int32(uv32>>uz) <= 0 {
+		t.Errorf("'%#x - int32(%#x>>%#x) <= 0' failed", y32, uv32, uz)
 	}
 }
 

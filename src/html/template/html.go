@@ -240,8 +240,7 @@ func htmlNameFilter(args ...interface{}) string {
 	}
 	s = strings.ToLower(s)
 	if t := attrType(s); t != contentTypePlain {
-		// TODO: Split attr and element name part filters so we can whitelist
-		// attributes.
+		// TODO: Split attr and element name part filters so we can recognize known attributes.
 		return filterFailsafe
 	}
 	for _, r := range s {

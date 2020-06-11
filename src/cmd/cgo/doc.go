@@ -990,7 +990,7 @@ produces a file named a.out, even if cmd/link does so by invoking the host
 linker in external linking mode.
 
 By default, cmd/link will decide the linking mode as follows: if the only
-packages using cgo are those on a whitelist of standard library
+packages using cgo are those on a list of known standard library
 packages (net, os/user, runtime/cgo), cmd/link will use internal linking
 mode. Otherwise, there are non-standard cgo packages involved, and cmd/link
 will use external linking mode. The first rule means that a build of
