@@ -367,15 +367,13 @@ type Options struct {
 	Drawer draw.Drawer
 }
 
-// EncodeAll writes the images in g to w in GIF format with the
-// given loop count and delay between frames.
-func EncodeAll(w io.Writer, g *GIF) error {
+func encodeAllInit(g *GIF) (*encoder, error) {
 	if len(g.Image) == 0 {
-		return errors.New("gif: must provide at least one image")
+		return nil, errors.New("gif: must provide at least one image")
 	}
 
 	if len(g.Image) != len(g.Delay) {
-		return errors.New("gif: mismatched image and delay lengths")
+		return nil, errors.New("gif: mismatched image and delay lengths")
 	}
 
 	e := encoder{g: *g}
@@ -383,7 +381,7 @@ func EncodeAll(w io.Writer, g *GIF) error {
 	// in Go 1.5. Valid Go 1.4 code, such as when the Disposal field is omitted
 	// in a GIF struct literal, should still produce valid GIFs.
 	if e.g.Disposal != nil && len(e.g.Image) != len(e.g.Disposal) {
-		return errors.New("gif: mismatched image and disposal lengths")
+		return nil, errors.New("gif: mismatched image and disposal lengths")
 	}
 	if e.g.Config == (image.Config{}) {
 		p := g.Image[0].Bounds().Max
@@ -391,8 +389,19 @@ func EncodeAll(w io.Writer, g *GIF) error {
 		e.g.Config.Height = p.Y
 	} else if e.g.Config.ColorModel != nil {
 		if _, ok := e.g.Config.ColorModel.(color.Palette); !ok {
-			return errors.New("gif: GIF color model must be a color.Palette")
+			return nil, errors.New("gif: GIF color model must be a color.Palette")
 		}
+	}
+
+	return &e, nil
+}
+
+// EncodeAll writes the images in g to w in GIF format with the
+// given loop count and delay between frames.
+func EncodeAll(w io.Writer, g *GIF) error {
+	e, err := encodeAllInit(g)
+	if err != nil {
+		return err
 	}
 
 	if ww, ok := w.(writer); ok {
@@ -412,6 +421,73 @@ func EncodeAll(w io.Writer, g *GIF) error {
 	e.writeByte(sTrailer)
 	e.flush()
 	return e.err
+}
+
+// EncodeAllMultithreaded writes the images in g to w in GIF format with the
+// given loop count and delay between frames.
+// Note that this does use more RAM than EncodeAll since to be multi-threaded, it has to queue writes in memory.
+func EncodeAllMultithreaded(w io.Writer, g *GIF) error {
+	baseFile, err := encodeAllInit(g)
+	if err != nil {
+		return err
+	}
+
+	createEncoder := func() (*encoder, *bytes.Buffer) {
+		e := &encoder{g: baseFile.g}
+		buf := &bytes.Buffer{}
+		e.w = bufio.NewWriter(buf)
+		return e, buf
+	}
+
+	if ww, ok := w.(writer); ok {
+		baseFile.w = ww
+	} else {
+		baseFile.w = bufio.NewWriter(w)
+	}
+
+	baseFile.writeHeader()
+
+	type bufOrError struct {
+		buf *bytes.Buffer
+		err error
+	}
+
+	channels := make([]chan *bufOrError, len(g.Image))
+
+	for i, pm := range g.Image {
+		disposal := uint8(0)
+		if g.Disposal != nil {
+			disposal = g.Disposal[i]
+		}
+		c := make(chan *bufOrError)
+		channels[i] = c
+		go func(x *image.Paletted, index int) {
+			e, buf := createEncoder()
+			e.writeImageBlock(x, g.Delay[index], disposal)
+			if e.err != nil {
+				c <- &bufOrError{err: e.err}
+				return
+			}
+			c <- &bufOrError{buf: buf}
+		}(pm, i)
+	}
+
+	for _, channel := range channels {
+		errbuf := <-channel
+		if errbuf.err != nil {
+			return errbuf.err
+		}
+		buf := errbuf.buf
+		_, err := buf.WriteTo(baseFile.w)
+		if err != nil {
+			return err
+		}
+		close(channel)
+	}
+
+	baseFile.writeByte(sTrailer)
+	baseFile.flush()
+	return baseFile.err
 }
 
 // Encode writes the Image m to w in GIF format.

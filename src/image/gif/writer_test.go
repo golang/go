@@ -706,3 +706,83 @@ func BenchmarkQuantizedEncode(b *testing.B) {
 		Encode(ioutil.Discard, img, nil)
 	}
 }
+
+func BenchmarkEncodeAll(b *testing.B) {
+	bo := image.Rect(0, 0, 640, 480)
+	rnd := rand.New(rand.NewSource(123))
+
+	// Restrict to a 256-color paletted image to avoid quantization path.
+	palette := make(color.Palette, 256)
+	for i := range palette {
+		palette[i] = color.RGBA{
+			uint8(rnd.Intn(256)),
+			uint8(rnd.Intn(256)),
+			uint8(rnd.Intn(256)),
+			255,
+		}
+	}
+	g := GIF{}
+	g.Delay = make([]int, 10000)
+	g.Image = make([]*image.Paletted, 10000)
+	channel := make(chan *image.Paletted)
+	for range g.Image {
+		go func() {
+			img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
+			for y := bo.Min.Y; y < bo.Max.Y; y++ {
+				for x := bo.Min.X; x < bo.Max.X; x++ {
+					img.Set(x, y, palette[10])
+				}
+			}
+			channel <- img
+		}()
+	}
+	for i := range g.Image {
+		g.Image[i] = <-channel
+	}
+
+	b.SetBytes(640 * 480 * 4)
+	b.ReportAllocs()
+	b.ResetTimer()
+	buf := bytes.Buffer{}
+	EncodeAll(&buf, &g)
+}
+
+func BenchmarkEncodeAllMultithreaded(b *testing.B) {
+	bo := image.Rect(0, 0, 640, 480)
+	rnd := rand.New(rand.NewSource(123))
+
+	// Restrict to a 256-color paletted image to avoid quantization path.
+	palette := make(color.Palette, 256)
+	for i := range palette {
+		palette[i] = color.RGBA{
+			uint8(rnd.Intn(256)),
+			uint8(rnd.Intn(256)),
+			uint8(rnd.Intn(256)),
+			255,
+		}
+	}
+	g := GIF{}
+	g.Delay = make([]int, 10000)
+	g.Image = make([]*image.Paletted, 10000)
+	channel := make(chan *image.Paletted)
+	for range g.Image {
+		go func() {
+			img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
+			for y := bo.Min.Y; y < bo.Max.Y; y++ {
+				for x := bo.Min.X; x < bo.Max.X; x++ {
+					img.Set(x, y, palette[10])
+				}
+			}
+			channel <- img
+		}()
+	}
+	for i := range g.Image {
+		g.Image[i] = <-channel
+	}
+
+	b.SetBytes(640 * 480 * 4)
+	b.ReportAllocs()
+	b.ResetTimer()
+	buf := bytes.Buffer{}
+	EncodeAllMultithreaded(&buf, &g)
+}
