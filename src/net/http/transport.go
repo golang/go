@@ -511,6 +511,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
+	origReq := req
 	req = setupRewindBody(req)
 
 	if altRT := t.alternateRoundTripper(req); altRT != nil {
@@ -572,6 +573,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 			resp, err = pconn.roundTrip(treq)
 		}
 		if err == nil {
+			resp.Request = origReq
 			return resp, nil
 		}
 
