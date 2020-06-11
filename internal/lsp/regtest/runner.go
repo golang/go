@@ -248,7 +248,7 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "")
 		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
-		r.ts = servertest.NewTCPServer(context.Background(), ss, nil)
+		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	}
 	return r.ts
 }
