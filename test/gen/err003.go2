@@ -1,0 +1,29 @@
+// errorcheck
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Setter interface {
+	Set(string)
+}
+
+func FromStrings(type T Setter)(s []string) []T {
+	result := make([]T, len(s))
+	for i, v := range s {
+		result[i].Set(v)
+	}
+	return result
+}
+
+type Settable int
+
+func (p *Settable) Set(s string) {
+	*p = 0
+}
+
+func F() {
+	FromStrings(Settable)([]string{"1"}) // ERROR "Settable does not satisfy Setter.*method Set"
+}
