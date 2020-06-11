@@ -51,11 +51,11 @@ func fuse(f *Func, typ fuseType) {
 
 // fuseBlockIf handles the following cases where s0 and s1 are empty blocks.
 //
-//   b        b        b      b
-//  / \      | \      / |    | |
-// s0  s1    |  s1   s0 |    | |
-//  \ /      | /      \ |    | |
-//   ss      ss        ss     ss
+//       b        b           b       b
+//    \ / \ /    | \  /    \ / |     | |
+//     s0  s1    |  s1      s0 |     | |
+//      \ /      | /         \ |     | |
+//       ss      ss           ss      ss
 //
 // If all Phi ops in ss have identical variables for slots corresponding to
 // s0, s1 and b then the branch can be dropped.
@@ -69,11 +69,11 @@ func fuseBlockIf(b *Block) bool {
 	if b.Kind != BlockIf {
 		return false
 	}
-
+	// It doesn't matter how much Preds does s0 or s1 have.
 	var ss0, ss1 *Block
 	s0 := b.Succs[0].b
 	i0 := b.Succs[0].i
-	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || !isEmpty(s0) {
+	if s0.Kind != BlockPlain || !isEmpty(s0) {
 		s0, ss0 = b, s0
 	} else {
 		ss0 = s0.Succs[0].b
@@ -81,15 +81,25 @@ func fuseBlockIf(b *Block) bool {
 	}
 	s1 := b.Succs[1].b
 	i1 := b.Succs[1].i
-	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || !isEmpty(s1) {
+	if s1.Kind != BlockPlain || !isEmpty(s1) {
 		s1, ss1 = b, s1
 	} else {
 		ss1 = s1.Succs[0].b
 		i1 = s1.Succs[0].i
 	}
-
 	if ss0 != ss1 {
-		return false
+		if s0.Kind == BlockPlain && isEmpty(s0) && s1.Kind == BlockPlain && isEmpty(s1) {
+			// Two special cases where both s0, s1 and ss are empty blocks.
+			if s0 == ss1 {
+				s0, ss0 = b, ss1
+			} else if ss0 == s1 {
+				s1, ss1 = b, ss0
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
 	}
 	ss := ss0
 
@@ -102,48 +112,45 @@ func fuseBlockIf(b *Block) bool {
 		}
 	}
 
-	// Now we have two of following b->ss, b->s0->ss and b->s1->ss,
-	// with s0 and s1 empty if exist.
-	// We can replace it with b->ss without if all OpPhis in ss
-	// have identical predecessors (verified above).
-	// No critical edge is introduced because b will have one successor.
-	if s0 != b && s1 != b {
-		// Replace edge b->s0->ss with b->ss.
-		// We need to keep a slot for Phis corresponding to b.
-		b.Succs[0] = Edge{ss, i0}
-		ss.Preds[i0] = Edge{b, 0}
-		b.removeEdge(1)
-		s1.removeEdge(0)
-	} else if s0 != b {
-		b.removeEdge(0)
+	// We do not need to redirect the Preds of s0 and s1 to ss,
+	// the following optimization will do this.
+	b.removeEdge(0)
+	if s0 != b && len(s0.Preds) == 0 {
 		s0.removeEdge(0)
-	} else if s1 != b {
-		b.removeEdge(1)
-		s1.removeEdge(0)
-	} else {
-		b.removeEdge(1)
+		// Move any (dead) values in s0 to b,
+		// where they will be eliminated by the next deadcode pass.
+		for _, v := range s0.Values {
+			v.Block = b
+		}
+		b.Values = append(b.Values, s0.Values...)
+		// Clear s0.
+		s0.Kind = BlockInvalid
+		s0.Values = nil
+		s0.Succs = nil
+		s0.Preds = nil
 	}
+
 	b.Kind = BlockPlain
 	b.Likely = BranchUnknown
 	b.ResetControls()
-
-	// Trash the empty blocks s0 and s1.
-	blocks := [...]*Block{s0, s1}
-	for _, s := range &blocks {
-		if s == b {
-			continue
+	// The values in b may be dead codes, and clearing them in time may
+	// obtain new optimization opportunities.
+	// First put dead values that can be deleted into a slice walkValues.
+	// Then put their arguments in walkValues before resetting the dead values
+	// in walkValues, because the arguments may also become dead values.
+	walkValues := []*Value{}
+	for _, v := range b.Values {
+		if v.Uses == 0 && v.removeable() {
+			walkValues = append(walkValues, v)
 		}
-		// Move any (dead) values in s0 or s1 to b,
-		// where they will be eliminated by the next deadcode pass.
-		for _, v := range s.Values {
-			v.Block = b
+	}
+	for len(walkValues) != 0 {
+		v := walkValues[len(walkValues)-1]
+		walkValues = walkValues[:len(walkValues)-1]
+		if v.Uses == 0 && v.removeable() {
+			walkValues = append(walkValues, v.Args...)
+			v.reset(OpInvalid)
 		}
-		b.Values = append(b.Values, s.Values...)
-		// Clear s.
-		s.Kind = BlockInvalid
-		s.Values = nil
-		s.Succs = nil
-		s.Preds = nil
 	}
 	return true
 }
