@@ -93,9 +93,10 @@ type instantiation struct {
 
 // A typeInstantiation is a single instantiation of a type.
 type typeInstantiation struct {
-	types []types.Type
-	decl  *ast.Ident
-	typ   types.Type
+	types      []types.Type
+	decl       *ast.Ident
+	typ        types.Type
+	inProgress bool
 }
 
 // rewrite rewrites the contents of one file.
@@ -530,12 +531,12 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Type)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
+		t.translateExpr(&e.Fun)
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
 			t.translateFunctionInstantiation(pe)
 		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && len(ntyp.TParams()) > 0 && len(ntyp.TArgs()) == 0 {
 			t.translateTypeInstantiation(pe)
 		}
-		t.translateExpr(&e.Fun)
 	case *ast.StarExpr:
 		t.translateExpr(&e.X)
 	case *ast.UnaryExpr:
@@ -633,6 +634,9 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
 	qid := t.instantiatedIdent(call)
 	argList, typeList, typeArgs := t.instantiationTypes(call)
+	if t.err != nil {
+		return
+	}
 
 	var instIdent *ast.Ident
 	key := qid.String()
@@ -678,26 +682,57 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 		panic("no type arguments for type")
 	}
 
+	var seen *typeInstantiation
 	instantiations := t.typeInstantiations[typ]
 	for _, inst := range instantiations {
 		if t.sameTypes(typeList, inst.types) {
+			if inst.inProgress {
+				panic(fmt.Sprintf("%s: circular type instantiation", t.fset.Position((*pe).Pos())))
+			}
+			if inst.decl == nil {
+				// This can happen if we've instantiated
+				// the type in instantiateType.
+				seen = inst
+				break
+			}
 			*pe = inst.decl
 			return
 		}
 	}
 
-	instIdent, instType, err := t.instantiateTypeDecl(qid, typ, argList, typeList)
+	name, err := t.instantiatedName(qid, typeList)
+	if err != nil {
+		t.err = err
+		return
+	}
+	instIdent := ast.NewIdent(name)
+
+	if seen != nil {
+		seen.decl = instIdent
+		seen.inProgress = true
+	} else {
+		seen = &typeInstantiation{
+			types:      typeList,
+			decl:       instIdent,
+			typ:        nil,
+			inProgress: true,
+		}
+		t.typeInstantiations[typ] = append(instantiations, seen)
+	}
+
+	defer func() {
+		seen.inProgress = false
+	}()
+
+	instType, err := t.instantiateTypeDecl(qid, typ, argList, typeList, instIdent)
 	if err != nil {
 		t.err = err
 		return
 	}
 
-	n := &typeInstantiation{
-		types: typeList,
-		decl:  instIdent,
-		typ:   instType,
+	if seen.typ == nil {
+		seen.typ = instType
 	}
-	t.typeInstantiations[typ] = append(instantiations, n)
 
 	*pe = instIdent
 }
@@ -744,35 +779,104 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		}
 		typeArgs = true
 	} else {
-		for _, typ := range inferred.Targs {
-			arg := ast.NewIdent(typ.String())
-			if named, ok := typ.(*types.Named); ok {
-				if len(named.TArgs()) > 0 {
-					var narg *ast.Ident
-					typ, narg = t.lookupInstantiatedType(named)
-					if narg != nil {
-						arg = ast.NewIdent(narg.Name)
-					}
-				}
-				if named.Obj().Pkg() == t.tpkg {
-					fields := strings.Split(arg.Name, ".")
-					if len(fields) > 1 {
-						arg = ast.NewIdent(fields[1])
-					}
-				}
-			}
-			typeList = append(typeList, typ)
-			argList = append(argList, arg)
-			t.setType(arg, typ)
-		}
+		typeList, argList = t.typeListToASTList(inferred.Targs)
 	}
 
+	typeList = t.resolveTypes(typeList)
 	return
 }
 
 // lookupInstantiatedType looks for an existing instantiation of an
 // instantiated type.
 func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.Ident) {
+	copyType := func(typ *types.Named, newName string) types.Type {
+		nm := typ.NumMethods()
+		methods := make([]*types.Func, 0, nm)
+		for i := 0; i < nm; i++ {
+			methods = append(methods, typ.Method(i))
+		}
+		obj := typ.Obj()
+		obj = types.NewTypeName(obj.Pos(), obj.Pkg(), newName, nil)
+		nt := types.NewNamed(obj, typ.Underlying(), methods)
+		nt.SetTArgs(typ.TArgs())
+		return nt
+	}
+
+	ntype := t.typeWithoutArgs(typ)
+	targs := t.resolveTypes(typ.TArgs())
+	instantiations := t.typeInstantiations[ntype]
+	var seen *typeInstantiation
+	for _, inst := range instantiations {
+		if t.sameTypes(targs, inst.types) {
+			if inst.inProgress {
+				panic(fmt.Sprintf("instantiation for %v in progress", typ))
+			}
+			if inst.decl == nil {
+				// This can happen if we've instantiated
+				// the type in instantiateType.
+				seen = inst
+				break
+			}
+			if inst.typ == nil {
+				panic(fmt.Sprintf("no type for instantiation entry for %v", typ))
+			}
+			if instNamed, ok := inst.typ.(*types.Named); ok {
+				return copyType(instNamed, inst.decl.Name), inst.decl
+			}
+			return inst.typ, inst.decl
+		}
+	}
+
+	typeList, argList := t.typeListToASTList(targs)
+
+	qid := qualifiedIdent{ident: ast.NewIdent(typ.Obj().Name())}
+	if typPkg := typ.Obj().Pkg(); typPkg != t.tpkg {
+		qid.pkg = typPkg
+	}
+
+	name, err := t.instantiatedName(qid, typeList)
+	if err != nil {
+		t.err = err
+		return nil, nil
+	}
+	instIdent := ast.NewIdent(name)
+
+	if seen != nil {
+		seen.decl = instIdent
+		seen.inProgress = true
+	} else {
+		seen = &typeInstantiation{
+			types:      targs,
+			decl:       instIdent,
+			typ:        nil,
+			inProgress: true,
+		}
+		t.typeInstantiations[ntype] = append(instantiations, seen)
+	}
+
+	defer func() {
+		seen.inProgress = false
+	}()
+
+	instType, err := t.instantiateTypeDecl(qid, typ, argList, typeList, instIdent)
+	if err != nil {
+		t.err = err
+		return nil, nil
+	}
+
+	if seen.typ == nil {
+		seen.typ = instType
+	}
+
+	if instNamed, ok := instType.(*types.Named); ok {
+		return copyType(instNamed, instIdent.Name), instIdent
+	}
+	return instType, instIdent
+}
+
+// typeWithoutArgs takes a named type with arguments and returns the
+// same type without arguments.
+func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 	name := typ.Obj().Name()
 	fields := strings.Split(name, ".")
 	if len(fields) > 2 {
@@ -787,26 +891,39 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 	if nobj == nil {
 		panic(fmt.Sprintf("can't find %q in scope of package %q", name, tpkg.Name()))
 	}
+	return nobj.Type().(*types.Named)
+}
 
-	targs := typ.TArgs()
-	instantiations := t.typeInstantiations[nobj.Type()]
-	for _, inst := range instantiations {
-		if t.sameTypes(targs, inst.types) {
-			newName := inst.decl.Name
-			nm := typ.NumMethods()
-			methods := make([]*types.Func, 0, nm)
-			for i := 0; i < nm; i++ {
-				methods = append(methods, typ.Method(i))
+// typeListToASTList returns an AST list for a type list,
+// as well as an updated type list.
+func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
+	newTypeList := make([]types.Type, 0, len(typeList))
+	argList := make([]ast.Expr, 0, len(typeList))
+	for _, typ := range typeList {
+		arg := ast.NewIdent(typ.String())
+		if named, ok := typ.(*types.Named); ok {
+			if len(named.TArgs()) > 0 {
+				var narg *ast.Ident
+				typ, narg = t.lookupInstantiatedType(named)
+				if t.err != nil {
+					return nil, nil
+				}
+				if narg != nil {
+					arg = ast.NewIdent(narg.Name)
+				}
 			}
-			obj := typ.Obj()
-			obj = types.NewTypeName(obj.Pos(), obj.Pkg(), newName, nil)
-			nt := types.NewNamed(obj, typ.Underlying(), methods)
-			nt.SetTArgs(targs)
-			return nt, inst.decl
+			if named.Obj().Pkg() == t.tpkg {
+				fields := strings.Split(arg.Name, ".")
+				if len(fields) > 1 {
+					arg = ast.NewIdent(fields[1])
+				}
+			}
 		}
+		newTypeList = append(newTypeList, typ)
+		argList = append(argList, arg)
+		t.setType(arg, typ)
 	}
-
-	panic(fmt.Sprintf("did not find instantiation for %v %v\n", typ, typ.Underlying()))
+	return newTypeList, argList
 }
 
 // sameTypes reports whether two type slices are the same.

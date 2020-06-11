@@ -134,27 +134,23 @@ func (t *translator) findFuncDecl(qid qualifiedIdent) (*ast.FuncDecl, error) {
 // It returns nil if the ID is not found.
 func (t *translator) findTypesObject(qid qualifiedIdent) types.Object {
 	if qid.pkg == nil {
-		return t.importer.info.Uses[qid.ident]
+		if obj := t.importer.info.ObjectOf(qid.ident); obj != nil {
+			return obj
+		}
+		return t.tpkg.Scope().Lookup(qid.ident.Name)
 	} else {
 		return qid.pkg.Scope().Lookup(qid.ident.Name)
 	}
 }
 
 // instantiateType creates a new instantiation of a type.
-func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
-	name, err := t.instantiatedName(qid, typeTypes)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, astTypes []ast.Expr, typeTypes []types.Type, instIdent *ast.Ident) (types.Type, error) {
 	spec, err := t.findTypeSpec(qid)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ta := typeArgsFromFields(t, astTypes, typeTypes, spec.TParams.List)
-
-	instIdent := ast.NewIdent(name)
 
 	newSpec := &ast.TypeSpec{
 		Doc:     spec.Doc,
@@ -181,7 +177,7 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 			panic(fmt.Sprintf("no AST for method %v", method))
 		}
 		rtyp := mast.Recv.List[0].Type
-		newRtype := ast.Expr(ast.NewIdent(name))
+		newRtype := ast.Expr(ast.NewIdent(instIdent.Name))
 		if p, ok := rtyp.(*ast.StarExpr); ok {
 			rtyp = p.X
 			newRtype = &ast.StarExpr{
@@ -213,7 +209,7 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 		t.newDecls = append(t.newDecls, newDecl)
 	}
 
-	return instIdent, instType, nil
+	return instType, nil
 }
 
 // findTypeSpec looks for the TypeSpec for qid.

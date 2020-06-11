@@ -13,8 +13,8 @@ import (
 // lookupType returns the types.Type for an AST expression.
 // Returns nil if the type is not known.
 func (t *translator) lookupType(e ast.Expr) types.Type {
-	if typ, ok := t.importer.info.Types[e]; ok {
-		return typ.Type
+	if typ := t.importer.info.TypeOf(e); typ != nil {
+		return typ
 	}
 	if typ, ok := t.types[e]; ok {
 		return typ
@@ -43,20 +43,32 @@ func (t *translator) setType(e ast.Expr, nt types.Type) {
 
 // instantiateType instantiates typ using ta.
 func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
+	var inProgress *typeInstantiation
 	if insts, ok := t.typeInstantiations[typ]; ok {
 		for _, inst := range insts {
 			if t.sameTypes(ta.types, inst.types) {
+				if inst.typ == nil {
+					inProgress = inst
+					break
+				}
 				return inst.typ
 			}
 		}
 	}
 
 	ityp := t.doInstantiateType(ta, typ)
-	typinst := &typeInstantiation{
-		types: ta.types,
-		typ:   ityp,
+	if inProgress != nil {
+		if inProgress.typ == nil {
+			inProgress.typ = ityp
+		}
+	} else {
+		typinst := &typeInstantiation{
+			types: ta.types,
+			typ:   ityp,
+		}
+		t.typeInstantiations[typ] = append(t.typeInstantiations[typ], typinst)
 	}
-	t.typeInstantiations[typ] = append(t.typeInstantiations[typ], typinst)
+
 	return ityp
 }
 
@@ -229,4 +241,32 @@ func (t *translator) instantiateTypeTuple(ta *typeArgs, tuple *types.Tuple) *typ
 		vars[i] = types.NewVar(v.Pos(), v.Pkg(), v.Name(), instTypes[i])
 	}
 	return types.NewTuple(vars...)
+}
+
+// resolveType resolves an instantiated type into its underlying type.
+func (t *translator) resolveType(typ types.Type) types.Type {
+	named, ok := typ.(*types.Named)
+	if !ok || len(named.TArgs()) == 0 {
+		return typ
+	}
+	ta := newTypeArgs(named.TArgs())
+	named = t.typeWithoutArgs(named)
+	return t.instantiateType(ta, named)
+}
+
+// resolveTypes resolves a list of types into their underlying types.
+func (t *translator) resolveTypes(typeList []types.Type) []types.Type {
+	ntl := make([]types.Type, len(typeList))
+	changed := false
+	for i, typ := range typeList {
+		ntyp := t.resolveType(typ)
+		if ntyp != typ {
+			changed = true
+		}
+		ntl[i] = ntyp
+	}
+	if !changed {
+		return typeList
+	}
+	return ntl
 }
