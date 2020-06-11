@@ -554,13 +554,13 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.X)
 		t.translateExpr(&e.Type)
 	case *ast.CallExpr:
-		t.translateExprList(e.Args)
-		t.translateExpr(&e.Fun)
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
 			t.translateFunctionInstantiation(pe)
 		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && len(ntyp.TParams()) > 0 && len(ntyp.TArgs()) == 0 {
 			t.translateTypeInstantiation(pe)
 		}
+		t.translateExprList(e.Args)
+		t.translateExpr(&e.Fun)
 	case *ast.StarExpr:
 		t.translateExpr(&e.X)
 	case *ast.UnaryExpr:
@@ -806,7 +806,6 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		typeList, argList = t.typeListToASTList(inferred.Targs)
 	}
 
-	typeList = t.resolveTypes(typeList)
 	return
 }
 
@@ -827,7 +826,7 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 	}
 
 	ntype := t.typeWithoutArgs(typ)
-	targs := t.resolveTypes(typ.TArgs())
+	targs := typ.TArgs()
 	instantiations := t.typeInstantiations[ntype]
 	var seen *typeInstantiation
 	for _, inst := range instantiations {
@@ -921,14 +920,13 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 // typeListToASTList returns an AST list for a type list,
 // as well as an updated type list.
 func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
-	newTypeList := make([]types.Type, 0, len(typeList))
 	argList := make([]ast.Expr, 0, len(typeList))
 	for _, typ := range typeList {
 		arg := ast.NewIdent(typ.String())
 		if named, ok := typ.(*types.Named); ok {
 			if len(named.TArgs()) > 0 {
 				var narg *ast.Ident
-				typ, narg = t.lookupInstantiatedType(named)
+				_, narg = t.lookupInstantiatedType(named)
 				if t.err != nil {
 					return nil, nil
 				}
@@ -943,11 +941,10 @@ func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []a
 				}
 			}
 		}
-		newTypeList = append(newTypeList, typ)
 		argList = append(argList, arg)
 		t.setType(arg, typ)
 	}
-	return newTypeList, argList
+	return typeList, argList
 }
 
 // sameTypes reports whether two type slices are the same.
@@ -956,7 +953,35 @@ func (t *translator) sameTypes(a, b []types.Type) bool {
 		return false
 	}
 	for i, x := range a {
-		if !types.Identical(x, b[i]) {
+		if !t.sameType(x, b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// sameType reports whether two types are the same.
+// We have to check type arguments ourselves.
+func (t *translator) sameType(a, b types.Type) bool {
+	if types.Identical(a, b) {
+		return true
+	}
+	an, ok := a.(*types.Named)
+	if !ok {
+		return false
+	}
+	bn, ok := b.(*types.Named)
+	if !ok {
+		return false
+	}
+	if an.Obj().Name() != bn.Obj().Name() {
+		return false
+	}
+	if len(an.TArgs()) == 0 || len(an.TArgs()) != len(bn.TArgs()) {
+		return false
+	}
+	for i, typ := range an.TArgs() {
+		if !t.sameType(typ, bn.TArgs()[i]) {
 			return false
 		}
 	}

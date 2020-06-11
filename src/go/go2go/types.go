@@ -242,31 +242,3 @@ func (t *translator) instantiateTypeTuple(ta *typeArgs, tuple *types.Tuple) *typ
 	}
 	return types.NewTuple(vars...)
 }
-
-// resolveType resolves an instantiated type into its underlying type.
-func (t *translator) resolveType(typ types.Type) types.Type {
-	named, ok := typ.(*types.Named)
-	if !ok || len(named.TArgs()) == 0 {
-		return typ
-	}
-	ta := newTypeArgs(named.TArgs())
-	named = t.typeWithoutArgs(named)
-	return t.instantiateType(ta, named)
-}
-
-// resolveTypes resolves a list of types into their underlying types.
-func (t *translator) resolveTypes(typeList []types.Type) []types.Type {
-	ntl := make([]types.Type, len(typeList))
-	changed := false
-	for i, typ := range typeList {
-		ntyp := t.resolveType(typ)
-		if ntyp != typ {
-			changed = true
-		}
-		ntl[i] = ntyp
-	}
-	if !changed {
-		return typeList
-	}
-	return ntl
-}
