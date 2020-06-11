@@ -6,7 +6,9 @@ package jsonrpc2
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -105,7 +107,9 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 		case err := <-doneListening:
 			return err
 		case err := <-closedConns:
-			event.Error(ctx, "closed a connection", err)
+			if !isClosingError(err) {
+				event.Error(ctx, "closed a connection", err)
+			}
 			activeConns--
 			if activeConns == 0 {
 				connTimer.Reset(idleTimeout)
@@ -116,4 +120,20 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 			return ctx.Err()
 		}
 	}
+}
+
+// isClosingError reports if the error occurs normally during the process of
+// closing a network connection. It uses imperfect heuristics that err on the
+// side of false negatives, and should not be used for anything critical.
+func isClosingError(err error) bool {
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	// Per https://github.com/golang/go/issues/4373, this error string should not
+	// change. This is not ideal, but since the worst that could happen here is
+	// some superfluous logging, it is acceptable.
+	if err.Error() == "use of closed network connection" {
+		return true
+	}
+	return false
 }
