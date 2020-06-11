@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -69,11 +68,9 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		// Check to see if the -modfile flag is available, this is basically a check
 		// to see if the go version >= 1.14. Otherwise, the modfile specific tests
 		// will always fail if this flag is not available.
-		for _, flag := range view.Snapshot().Config(ctx).BuildFlags {
-			if strings.Contains(flag, "-modfile=") {
-				datum.ModfileFlagAvailable = true
-				break
-			}
+		if _, tmp := view.ModFiles(); tmp != "" {
+			datum.ModfileFlagAvailable = true
+			break
 		}
 		var modifications []source.FileModification
 		for filename, content := range datum.Config.Overlay {

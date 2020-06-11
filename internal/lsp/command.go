@@ -7,15 +7,11 @@ package lsp
 import (
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -40,12 +36,11 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		snapshot, fh, ok, err := s.beginFileRequest(ctx, protocol.DocumentURI(uri), source.Go)
-		if !ok {
+		view, err := s.session.ViewOf(uri)
+		if err != nil {
 			return nil, err
 		}
-		dir := filepath.Dir(fh.URI().Filename())
-		go s.runTest(ctx, funcName, dir, snapshot)
+		go s.runTest(ctx, view.Snapshot(), funcName)
 	case source.CommandGenerate:
 		dir, recursive, err := getGenerateRequest(params.Arguments)
 		if err != nil {
@@ -90,44 +85,26 @@ func (s *Server) goModCommand(ctx context.Context, uri protocol.DocumentURI, ver
 	if err != nil {
 		return err
 	}
-	snapshot := view.Snapshot()
-	cfg := snapshot.Config(ctx)
-	inv := gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		Env:        cfg.Env,
-		WorkingDir: view.Folder().Filename(),
-	}
-	gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
-	_, err = gocmdRunner.Run(ctx, inv)
+	_, err = view.Snapshot().RunGoCommand(ctx, verb, args)
 	return err
 }
 
-func (s *Server) runTest(ctx context.Context, funcName string, dir string, snapshot source.Snapshot) error {
+func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, funcName string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	er := &eventWriter{ctx: ctx, operation: "test"}
+	ew := &eventWriter{ctx: ctx, operation: "test"}
 	wc := s.newProgressWriter(ctx, "test", "running "+funcName, cancel)
 	defer wc.Close()
 
 	messageType := protocol.Info
 	message := "test passed"
-	stderr := io.MultiWriter(er, wc)
+	stderr := io.MultiWriter(ew, wc)
 
-	cfg := snapshot.Config(ctx)
-	inv := gocommand.Invocation{
-		Verb:       "test",
-		Args:       []string{"-run", funcName, dir},
-		Env:        cfg.Env,
-		WorkingDir: dir,
-	}
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	if err := runner.RunPiped(ctx, inv, er, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, "test", []string{"-run", funcName}, ew, stderr); err != nil {
 		if errors.Is(err, context.Canceled) {
-			return nil
+			return err
 		}
-		event.Error(ctx, "test: command error", err, tag.Directory.Of(dir))
 		messageType = protocol.Error
 		message = "test failed"
 	}
@@ -137,22 +114,19 @@ func (s *Server) runTest(ctx context.Context, funcName string, dir string, snaps
 	})
 }
 
-func getRunTestArguments(args []interface{}) (string, string, error) {
+func getRunTestArguments(args []interface{}) (string, span.URI, error) {
 	if len(args) != 2 {
 		return "", "", errors.Errorf("expected one test func name and one file path, got %v", args)
 	}
-
 	funcName, ok := args[0].(string)
 	if !ok {
 		return "", "", errors.Errorf("expected func name to be a string, got %T", args[0])
 	}
-
-	file, ok := args[1].(string)
+	filename, ok := args[1].(string)
 	if !ok {
 		return "", "", errors.Errorf("expected file to be a string, got %T", args[1])
 	}
-
-	return funcName, file, nil
+	return funcName, span.URIFromPath(filename), nil
 }
 
 func getGenerateRequest(args []interface{}) (string, bool, error) {

@@ -5,6 +5,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -28,9 +29,6 @@ type Snapshot interface {
 	// View returns the View associated with this snapshot.
 	View() View
 
-	// Config returns the configuration for the view.
-	Config(ctx context.Context) *packages.Config
-
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
 	FindFile(uri span.URI) FileHandle
@@ -47,6 +45,13 @@ type Snapshot interface {
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Error, error)
+
+	// RunGoCommandPiped runs the given `go` command in the view, using the
+	// provided stdout and stderr.
+	RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error
+
+	// RunGoCommand runs the given `go` command in the view.
+	RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error)
 
 	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
 	// This function can have no data or error if there is no modfile detected.
@@ -110,7 +115,8 @@ type View interface {
 	// Folder returns the root folder for this view.
 	Folder() span.URI
 
-	// ModFiles returns the URIs of the go.mod files attached to the view associated with this snapshot.
+	// ModFiles returns the URIs of the go.mod files attached to the view
+	// associated with this snapshot.
 	ModFiles() (span.URI, span.URI)
 
 	// BuiltinPackage returns the go/ast.Object for the given name in the builtin package.

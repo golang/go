@@ -9,10 +9,8 @@ import (
 	"io"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -40,15 +38,7 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) er
 		return err
 	}
 	snapshot := view.Snapshot()
-	cfg := snapshot.Config(ctx)
-	inv := gocommand.Invocation{
-		Verb:       "generate",
-		Args:       args,
-		Env:        cfg.Env,
-		WorkingDir: dir,
-	}
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	if err := runner.RunPiped(ctx, inv, er, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, "generate", args, er, stderr); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}

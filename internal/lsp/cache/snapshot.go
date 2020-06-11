@@ -5,11 +5,13 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,6 +21,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/packagesinternal"
@@ -91,7 +94,7 @@ func (s *snapshot) View() source.View {
 
 // Config returns the configuration used for the snapshot's interaction with the
 // go/packages API.
-func (s *snapshot) Config(ctx context.Context) *packages.Config {
+func (s *snapshot) config(ctx context.Context) *packages.Config {
 	s.view.optionsMu.Lock()
 	env, buildFlags := s.view.envLocked()
 	verboseOutput := s.view.options.VerboseOutput
@@ -128,6 +131,32 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
 
 	return cfg
+}
+
+func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
+	cfg := s.config(ctx)
+	inv := gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		Env:        cfg.Env,
+		BuildFlags: cfg.BuildFlags,
+		WorkingDir: s.view.folder.Filename(),
+	}
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	return runner.Run(ctx, inv)
+}
+
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
+	cfg := s.config(ctx)
+	inv := gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		Env:        cfg.Env,
+		BuildFlags: cfg.BuildFlags,
+		WorkingDir: s.view.folder.Filename(),
+	}
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	return runner.RunPiped(ctx, inv, stdout, stderr)
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {

@@ -417,6 +417,8 @@ func (v *View) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	return processEnv, nil
 }
 
+// envLocked returns the environment and build flags for the current view.
+// It assumes that the caller is holding the view's optionsMu.
 func (v *View) envLocked() ([]string, []string) {
 	// We want to run the go commands with the -modfile flag if the version of go
 	// that we are using supports it.

@@ -83,7 +83,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
-	cfg := s.Config(ctx)
+	cfg := s.config(ctx)
 	pkgs, err := packages.Load(cfg, query...)
 
 	// If the context was canceled, return early. Otherwise, we might be

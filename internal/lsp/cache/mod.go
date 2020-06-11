@@ -138,7 +138,8 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) (source.
 	}
 	realURI, tempURI := s.view.ModFiles()
 	folder := s.View().Folder().Filename()
-	cfg := s.Config(ctx)
+	cfg := s.config(ctx)
+
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
@@ -288,7 +289,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	}
 
 	realURI, tempURI := s.view.ModFiles()
-	cfg := s.Config(ctx)
+	cfg := s.config(ctx)
 	options := s.View().Options()
 	folder := s.View().Folder().Filename()
 	gocmdRunner := s.view.gocmdRunner
