@@ -420,6 +420,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    UXTBW R2, R6                               // 461c0053
    UXTHW R7, R20                              // f43c0053
    VCNT V0.B8, V0.B8                          // 0058200e
+   VCNT V0.B16, V0.B16                        // 0058204e
    WFE                                        // 5f2003d5
    WFI                                        // 7f2003d5
    YIELD                                      // 3f2003d5

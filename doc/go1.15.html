@@ -55,6 +55,13 @@ Do not send CLs removing the interior tags from such phrases.
   on Windows.
 </p>
 
+<p><!-- CL 227003 -->
+  The <code>-race</code> and <code>-msan</code> flags now always
+  enable <code>-d=checkptr</code>, which checks uses
+  of <code>unsafe.Pointer</code>. This was previously the case on all
+  OSes except Windows.
+</p>
+
 <p><!-- CL 211139 -->
   Go-built DLLs no longer cause the process to exit when it receives a
   signal (such as Ctrl-C at a terminal).
@@ -211,10 +218,24 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p><!-- CL 232862 -->
-  Go now retries system calls that return <code>EINTR</code>. This
-  became more common in Go 1.14 with the addition of asynchronous
-  preemption, but is now handled transparently.
+<p><!-- CL 221779 -->
+  If <code>panic</code> is invoked with a value whose type is derived from any
+  of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
+  <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
+  <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
+  then the value will be printed, instead of just its address.
+  Previously, this was only true for values of exactly these types.
+</p>
+
+<p><!-- CL 228900 -->
+  On a Unix system, if the <code>kill</code> command
+  or <code>kill</code> system call is used to send
+  a <code>SIGSEGV</code>, <code>SIGBUS</code>,
+  or <code>SIGFPE</code> signal to a Go program, and if the signal
+  is not being handled via
+  <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
+  the Go program will now reliably crash with a stack trace.
+  In earlier releases the behavior was unpredictable.
 </p>
 
 <p><!-- CL 221182, CL 229998 -->
@@ -222,8 +243,14 @@ Do not send CLs removing the interior tags from such phrases.
   counts, and has lower worst-case latency.
 </p>
 
-<p>
-TODO
+<p><!-- CL 216401 -->
+  Converting a small integer value into an interface value no longer
+  causes allocation.
+</p>
+
+<p><!-- CL 216818 -->
+  Non-blocking receives on closed channels now perform as well as
+  non-blocking receives on open channels.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -245,12 +272,34 @@ TODO
   aggressively eliminating unused type metadata.
 </p>
 
+<p><!-- CL 219357, CL 231600 -->
+  The toolchain now mitigates
+  <a href="https://www.intel.com/content/www/us/en/support/articles/000055650/processors.html">Intel
+  CPU erratum SKX102</a> on <code>GOARCH=amd64</code> by aligning
+  functions to 32 byte boundaries and padding jump instructions. While
+  this padding increases binary sizes, this is more than made up for
+  by the binary size improvements mentioned above.
+</p>
+
 <p><!-- CL 222661 -->
   Go 1.15 adds a <code>-spectre</code> flag to both the
   compiler and the assembler, to allow enabling Spectre mitigations.
   These should almost never be needed and are provided mainly as a
   “defense in depth” mechanism.
   See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
+</p>
+
+<p><!-- CL 228578 -->
+  The compiler now rejects <code>//go:</code> compiler directives that
+  have no meaning for the declaration they are applied to with a
+  "misplaced compiler directive" error. Such misapplied directives
+  were broken before, but were silently ignored by the compiler.
+</p>
+
+<p><!-- CL 206658, CL 205066 -->
+  The compiler's <code>-json</code> optimization logging now reports
+  large (>= 128 byte) copies and includes explanations of escape
+  analysis decisions.
 </p>
 
 <h2 id="linker">Linker</h2>
@@ -283,6 +332,14 @@ TODO
   improvements expected in future releases.
 </p>
 
+<h2 id="objdump">Objdump</h2>
+
+<p><!-- CL 225459 -->
+  The <a href="/cmd/objdump/">objdump</a> tool now supports
+  disassembling in GNU assembler syntax with the <code>-gnu</code>
+  flag.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="time/tzdata">New embedded tzdata package</h3>
@@ -297,10 +354,6 @@ TODO
   You can also embed the timezone database by building
   with <code>-tags timetzdata</code>.
   Either approach increases the size of the program by about 800 KB.
-</p>
-
-<p>
-TODO
 </p>
 
 <h3 id="cgo">Cgo</h3>
@@ -321,10 +374,6 @@ TODO
   in mind.
 </p>
 
-<p>
-TODO
-</p>
-
 <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
     <p><!-- CL 222637 -->
@@ -336,10 +385,53 @@ TODO
   </dd>
 </dl><!-- debug/pe -->
 
+<dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+  <dd>
+    <p><!-- CL 231417, CL 225460 -->
+      The <code>PrivateKey</code> and <code>PublicKey</code> types in the
+      <a href="/pkg/crypto/rsa"><code>crypto/rsa</code></a>,
+      <a href="/pkg/crypto/ecdsa"><code>crypto/ecdsa</code></a>, and
+      <a href="/pkg/crypto/ed25519"><code>crypto/ed25519</code></a> packages
+      now have an <code>Equal</code> method to compare keys for equivalence
+      or to make type-safe interfaces for public keys. The method signature
+      is compatible with
+      <a href="https://pkg.go.dev/github.com/google/go-cmp/cmp#Equal"><code>go-cmp</code>'s
+      definition of equality</a>.
+    </p>
+
+    <p><!-- CL 224937 -->
+      <a href="/pkg/crypto/#Hash"><code>Hash</code></a> now implements
+      <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
+  </dd>
+</dl><!-- crypto -->
+
+<dl id="crypto/ecdsa"><dt><a href="/pkg/crypto/ecdsa/">crypto/ecdsa</a></dt>
+  <dd>
+    <p><!-- CL 217940 -->
+      The new <a href="/pkg/crypto/ecdsa/#SignASN1"><code>SignASN1</code></a>
+      and <a href="/pkg/crypto/ecdsa/#VerifyASN1"><code>VerifyASN1</code></a>
+      functions allow generating and verifying ECDSA signatures in the standard
+      ASN.1 DER encoding.
+    </p>
+  </dd>
+</dl><!-- crypto/ecdsa -->
+
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 202819 -->
+      The new <a href="/pkg/crypto/elliptic/#MarshalCompressed"><code>MarshalCompressed</code></a>
+      and <a href="/pkg/crypto/elliptic/#UnmarshalCompressed"><code>UnmarshalCompressed</code></a>
+      functions allow encoding and decoding NIST elliptic curve points in compressed format.
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 226203 -->
-      VerifyPKCS1v15 now rejects invalid short signatures with missing leading zeroes.
+      <a href="/pkg/crypto/rsa/#VerifyPKCS1v15"><code>VerifyPKCS1v15</code></a>
+      now rejects invalid short signatures with missing leading zeroes, according to RFC 8017.
     </p>
   </dd>
 </dl><!-- crypto/rsa -->
@@ -353,21 +445,137 @@ TODO
       <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
       method permits using a context to both connect and handshake with a TLS server.
     </p>
+
+    <p><!-- CL 229122 -->
+      The new
+      <a href="/pkg/crypto/tls/#Config.VerifyConnection"><code>VerifyConnection</code></a>
+      callback on the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type
+      allows custom verification logic for every connection. It has access to the
+      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      which includes peer certificates, SCTs, and stapled OCSP responses.
+    </p>
+
+    <p><!-- CL 230679 -->
+      Auto-generated session ticket keys are now automatically rotated every 24 hours,
+      with a lifetime of 7 days, to limit their impact on forward secrecy.
+    </p>
+
+    <p><!-- CL 231317 -->
+      Session ticket lifetimes in TLS 1.2 and earlier, where the session keys
+      are reused for resumed connections, are now limited to 7 days, also to
+      limit their impact on forward secrecy.
+    </p>
+
+    <p><!-- CL 231038 -->
+      The client-side downgrade protection checks specified in RFC 8446 are now
+      enforced. This has the potential to cause connection errors for clients
+      encountering middleboxes that behave like unauthorized downgrade attacks.
+    </p>
+
+    <p><!-- CL 208226 -->
+      <a href="/pkg/crypto/tls/#SignatureScheme"><code>SignatureScheme</code></a>,
+      <a href="/pkg/crypto/tls/#CurveID"><code>CurveID</code></a>, and
+      <a href="/pkg/crypto/tls/#ClientAuthType"><code>ClientAuthType</code></a>
+      now implement <a href="/pkg/fmt/#Stringer"><code>fmt.Stringer</code></a>.
+    </p>
+
+    <p><!-- CL 236737 -->
+      The <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+      fields <code>OCSPResponse</code> and <code>SignedCertificateTimestamps</code>
+      are now repopulated on client-side resumed connections.
+    </p>
   </dd>
-</dl>
+</dl><!-- crypto/tls -->
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
+    <p><!-- CL 231378, CL 231380, CL 231381 -->
+      If either the name on the certificate or the name being verified (with
+      <a href="/pkg/crypto/x509/#VerifyOptions.DNSName"><code>VerifyOptions.DNSName</code></a>
+      or <a href="/pkg/crypto/x509/#Certificate.VerifyHostname"><code>VerifyHostname</code></a>)
+      are invalid, they will now be compared case-insensitively without further
+      processing (without honoring wildcards or stripping trailing dots).
+      Invalid names include those with any characters other than letters,
+      digits, hyphens and underscores, those with empty labels, and names on
+      certificates with trailing dots.
+    </p>
+
+    <p><!-- CL 231379 -->
+      The deprecated, legacy behavior of treating the <code>CommonName</code>
+      field as a hostname when no Subject Alternative Names are present is now
+      disabled by default. It can be temporarily re-enabled by adding the value
+      <code>x509ignoreCN=0</code> to the <code>GODEBUG</code> environment
+      variable. If the <code>CommonName</code> is an invalid hostname, it's
+      always ignored.
+    </p>
+
+    <p><!-- CL 217298 -->
+      The new <a href="/pkg/crypto/x509/#CreateRevocationList"><code>CreateRevocationList</code></a>
+      function and <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a> type
+      allow creating RFC 5280-compliant X.509 v2 Certificate Revocation Lists.
+    </p>
+
+    <p><!-- CL 227098 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now automatically generates the <code>SubjectKeyId</code> if the template
+      is a CA and doesn't explicitly specify one.
+    </p>
+
+    <p><!-- CL 228777 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now returns an error if the template specifies <code>MaxPathLen</code> but is not a CA.
+    </p>
+
     <p><!-- CL 205237 -->
-      TODO: <a href="https://golang.org/cl/205237">https://golang.org/cl/205237</a>: load roots from colon separated SSL_CERT_DIR in loadSystemRoots
+      On Unix systems other than macOS, the <code>SSL_CERT_DIR</code>
+      environment variable can now be a colon-separated list.
+    </p>
+
+    <p><!-- CL 227037 -->
+      On macOS, binaries are now always linked against
+      <code>Security.framework</code> to extract the system trust roots,
+      regardless of whether cgo is available. The resulting behavior should be
+      more consistent with the OS verifier.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
 
+<dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix/">crypto/x509/pkix</a></dt>
+  <dd>
+    <p><!-- CL 229864 -->
+      <a href="/pkg/crypto/x509/pkix/#Name.String"><code>Name.String</code></a>
+      now prints non-standard attributes from
+      <a href="/pkg/crypto/x509/pkix/#Name.Names"><code>Names</code></a> if
+      <a href="/pkg/crypto/x509/pkix/#Name.ExtraNames"><code>ExtraNames</code></a> is empty.
+    </p>
+  </dd>
+</dl><!-- crypto/x509/pkix -->
+
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 191783 -->
+      Decoding a JSON array into a slice no longer reuses any existing slice elements,
+      following the rules that the package documentation already stated.
+    </p>
+
+    <p><!-- CL 199837 -->
+      Introduce an internal limit to the maximum depth of nesting when decoding.
+      This reduces the possibility that a deeply nested input could use large quantities
+      of stack memory, or even cause a "goroutine stack exceeds limit" panic.
+    </p>
+  </dd>
+</dl><!-- encoding/json -->
+
 <dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
   <dd>
     <p><!-- CL 203417 -->
-      TODO: <a href="https://golang.org/cl/203417">https://golang.org/cl/203417</a>: fix reserved namespace check to be case-insensitive
+      The encoder has always taken care to avoid using namespace prefixes beginning with
+      <code>xml</code>,
+      which are reserved by the XML specification.
+      Now, following the specification more closely,
+      that check is case-insensitive, so that prefixes beginning with
+      <code>XML</code>, <code>XmL</code>,
+      and so on are also avoided.
     </p>
   </dd>
 </dl><!-- encoding/xml -->
@@ -390,7 +598,8 @@ TODO
 <dl id="fmt"><dt><a href="/pkg/fmt/">fmt</a></dt>
   <dd>
     <p><!-- CL 215001 -->
-      TODO: <a href="https://golang.org/cl/215001">https://golang.org/cl/215001</a>: do not remove trailing zeros for %g and %G with #(sharp) flag
+      The printing verbs <code>%#g</code> and <code>%#G</code> now preserve
+      trailing zeros for floating-point values.
     </p>
   </dd>
 </dl><!-- fmt -->
@@ -410,7 +619,8 @@ TODO
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
     <p><!-- CL 230397 -->
-      TODO: <a href="https://golang.org/cl/230397">https://golang.org/cl/230397</a>: add (*Int).FillBytes
+      The new <a href="/pkg/math/big/#Int.FillBytes"><code>Int.FillBytes</code></a>
+      method allows serializing to fixed-size pre-allocated byte slices.
     </p>
   </dd>
 </dl><!-- math/big -->
@@ -441,8 +651,10 @@ TODO
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
-    <p><!-- CL 231418 -->
-      TODO: <a href="https://golang.org/cl/231418">https://golang.org/cl/231418</a>: only support &#34;chunked&#34; in inbound Transfer-Encoding headers
+    <p><!-- CL 231418, CL 231419 -->
+      Parsing is now stricter as a hardening measure against request smuggling attacks:
+      non-ASCII white space is no longer trimmed like SP and HTAB, and support for the
+      "<code>identity</code>" <code>Transfer-Encoding</code> was dropped.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -457,7 +669,9 @@ TODO
     </p>
 
     <p><!-- CL 224897 -->
-      TODO: <a href="https://golang.org/cl/224897">https://golang.org/cl/224897</a>: make Switching Protocol requests (e.g. Websockets) cancelable
+      When a Switching Protocol (like WebSocket) request handled by
+      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
+      is canceled, the backend connection is now correctly closed.
     </p>
   </dd>
 </dl>
@@ -506,6 +720,14 @@ TODO
       which <code>Timeout</code> returns <code>true</code> although a
       deadline has not been exceeded.
     </p>
+
+    <p><!-- CL 232862 -->
+      Packages <code>os</code> and <code>net</code> now automatically
+      retry system calls that fail with <code>EINTR</code>. Previously
+      this led to spurious failures, which became more common in Go
+      1.14 with the addition of asynchronous preemption. Now this is
+      handled transparently.
+    </p>
   </dd>
 </dl>
 
@@ -525,7 +747,7 @@ TODO
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 228902 -->
-      Package reflect now disallows accessing methods of all
+      Package <code>reflect</code> now disallows accessing methods of all
       non-exported fields, whereas previously it allowed accessing
       those of non-exported, embedded fields. Code that relies on the
       previous behavior should be updated to instead access the
@@ -546,42 +768,12 @@ TODO
 
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
-    <p><!-- CL 221779 -->
-      If <code>panic</code> is invoked with a value whose type is derived from any
-      of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
-      <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
-      <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
-      then the value will be printed, instead of just its address.
-      Previously, this was only true for values of exactly these types.
-    </p>
-
-    <p><!-- CL -->
-      On a Unix system, if the <code>kill</code> command
-      or <code>kill</code> system call is used to send
-      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
-      or <code>SIGFPE</code> signal to a Go program, and if the signal
-      is not being handled via
-      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
-      the Go program will now reliably crash with a stack trace.
-      In earlier releases the behavior was unpredictable.
-    </p>
-
     <p><!-- CL 216557 -->
       Several functions, including
       <a href="/pkg/runtime/#ReadMemStats"><code>ReadMemStats</code></a>
       and
       <a href="/pkg/runtime/#GoroutineProfile"><code>GoroutineProfile</code></a>,
       no longer block if a garbage collection is in progress.
-    </p>
-
-    <p><!-- CL 216401 -->
-      Converting small integer values into an interface value no
-      longer causes allocation.
-    </p>
-
-    <p><!-- CL 216818 -->
-      Non-blocking receives on closed channels now perform as well as
-      non-blocking receives on open channels.
     </p>
   </dd>
 </dl>

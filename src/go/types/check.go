@@ -248,10 +248,10 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
-var errBadCgo = errors.New("cannot use FakeImportC and UsesCgo together")
+var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
-	if check.conf.FakeImportC && check.conf.UsesCgo {
+	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
 
