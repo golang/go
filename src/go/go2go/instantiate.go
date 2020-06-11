@@ -135,7 +135,11 @@ func (t *translator) findFuncDecl(qid qualifiedIdent) (*ast.FuncDecl, error) {
 func (t *translator) findTypesObject(qid qualifiedIdent) types.Object {
 	if qid.pkg == nil {
 		if obj := t.importer.info.ObjectOf(qid.ident); obj != nil {
-			return obj
+			// Ignore an embedded struct field.
+			// We want the type, not the field.
+			if _, ok := obj.(*types.Var); !ok {
+				return obj
+			}
 		}
 		return t.tpkg.Scope().Lookup(qid.ident.Name)
 	} else {

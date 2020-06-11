@@ -518,6 +518,30 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.X)
 	case *ast.SelectorExpr:
 		t.translateExpr(&e.X)
+
+		// Handle references to instantiated embedded fields.
+		// We have to rewrite the name to the name used in
+		// the translated struct definition.
+		obj := t.importer.info.ObjectOf(e.Sel)
+		if obj == nil {
+			break
+		}
+		f, ok := obj.(*types.Var)
+		if !ok || !f.Embedded() {
+			break
+		}
+		named, ok := f.Type().(*types.Named)
+		if !ok || len(named.TArgs()) == 0 {
+			break
+		}
+		if obj.Name() != named.Obj().Name() {
+			break
+		}
+		_, id := t.lookupInstantiatedType(named)
+		*pe = &ast.SelectorExpr{
+			X:   e.X,
+			Sel: id,
+		}
 	case *ast.IndexExpr:
 		t.translateExpr(&e.X)
 		t.translateExpr(&e.Index)
