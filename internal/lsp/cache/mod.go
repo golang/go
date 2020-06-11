@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -128,102 +128,98 @@ func (mh *modHandle) Why(ctx context.Context) (*modfile.File, *protocol.ColumnMa
 	return data.origParsedFile, data.origMapper, data.why, data.err
 }
 
-func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) (source.ModHandle, error) {
+func (s *snapshot) ModHandle(ctx context.Context, modFH source.FileHandle) (source.ModHandle, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	uri := fh.URI()
-	if handle := s.getModHandle(uri); handle != nil {
+	var sumFH source.FileHandle
+	if s.view.sumURI != "" {
+		var err error
+		sumFH, err = s.GetFile(ctx, s.view.sumURI)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var (
+		cfg    = s.config(ctx)
+		modURI = s.view.modURI
+		tmpMod = s.view.tmpMod
+	)
+	if handle := s.getModHandle(modFH.URI()); handle != nil {
 		return handle, nil
 	}
-	realURI, tempURI := s.view.ModFiles()
-	folder := s.View().Folder().Filename()
-	cfg := s.config(ctx)
-
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
-		gomod:     fh.Identity().String(),
-		view:      folder,
+		gomod:     modFH.Identity().String(),
+		view:      s.view.folder.Filename(),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModHandle", tag.URI.Of(uri))
+		ctx, done := event.Start(ctx, "cache.ModHandle", tag.URI.Of(modFH.URI()))
 		defer done()
 
-		contents, err := fh.Read()
+		contents, err := modFH.Read()
 		if err != nil {
 			return &modData{
 				err: err,
 			}
 		}
-		parsedFile, err := modfile.Parse(uri.Filename(), contents, nil)
+		parsedFile, err := modfile.Parse(modFH.URI().Filename(), contents, nil)
 		if err != nil {
 			return &modData{
 				err: err,
 			}
 		}
 		data := &modData{
-			origfh:         fh,
+			origfh:         modFH,
 			origParsedFile: parsedFile,
 			origMapper: &protocol.ColumnMapper{
-				URI:       uri,
-				Converter: span.NewContentConverter(uri.Filename(), contents),
+				URI:       modFH.URI(),
+				Converter: span.NewContentConverter(modFH.URI().Filename(), contents),
 				Content:   contents,
 			},
 		}
-		// If the go.mod file is not the view's go.mod file, then we just want to parse.
-		if uri != realURI {
+
+		// If this go.mod file is not the view's go.mod file, or if the
+		// -modfile flag is not supported, then we just want to parse.
+		if modFH.URI() != modURI {
 			return data
 		}
 
-		// If we have a tempModfile, copy the real go.mod file content into the temp go.mod file.
-		if tempURI != "" {
-			if err := ioutil.WriteFile(tempURI.Filename(), contents, os.ModePerm); err != nil {
-				return &modData{
-					err: err,
-				}
-			}
-		}
 		// Only get dependency upgrades if the go.mod file is the same as the view's.
-		if err := dependencyUpgrades(ctx, cfg, folder, data); err != nil {
-			return &modData{
-				err: err,
-			}
+		if err := dependencyUpgrades(ctx, cfg, modFH, sumFH, tmpMod, data); err != nil {
+			return &modData{err: err}
 		}
 		// Only run "go mod why" if the go.mod file is the same as the view's.
-		if err := goModWhy(ctx, cfg, folder, data); err != nil {
-			return &modData{
-				err: err,
-			}
+		if err := goModWhy(ctx, cfg, modFH, sumFH, tmpMod, data); err != nil {
+			return &modData{err: err}
 		}
 		return data
 	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.modHandles[uri] = &modHandle{
+	s.modHandles[modFH.URI()] = &modHandle{
 		handle: h,
-		file:   fh,
+		file:   modFH,
 		cfg:    cfg,
 	}
-	return s.modHandles[uri], nil
+	return s.modHandles[modFH.URI()], nil
 }
 
-func goModWhy(ctx context.Context, cfg *packages.Config, folder string, data *modData) error {
+func goModWhy(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, tmpMod bool, data *modData) error {
 	if len(data.origParsedFile.Require) == 0 {
 		return nil
 	}
-	// Run "go mod why" on all the dependencies to get information about the usages.
-	inv := gocommand.Invocation{
-		Verb:       "mod",
-		Args:       []string{"why", "-m"},
-		BuildFlags: cfg.BuildFlags,
-		Env:        cfg.Env,
-		WorkingDir: folder,
-	}
+	// Run "go mod why" on all the dependencies.
+	args := []string{"why", "-m"}
 	for _, req := range data.origParsedFile.Require {
-		inv.Args = append(inv.Args, req.Mod.Path)
+		args = append(args, req.Mod.Path)
 	}
-	stdout, err := packagesinternal.GetGoCmdRunner(cfg).Run(ctx, inv)
+	// If the -modfile flag is disabled, don't pass in a go.mod URI.
+	if !tmpMod {
+		modFH = nil
+	}
+	_, stdout, err := runGoCommand(ctx, cfg, modFH, sumFH, "mod", args)
 	if err != nil {
 		return err
 	}
@@ -238,20 +234,23 @@ func goModWhy(ctx context.Context, cfg *packages.Config, folder string, data *mo
 	return nil
 }
 
-func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string, data *modData) error {
+func dependencyUpgrades(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, tmpMod bool, data *modData) error {
 	if len(data.origParsedFile.Require) == 0 {
 		return nil
 	}
 	// Run "go list -mod readonly -u -m all" to be able to see which deps can be
 	// upgraded without modifying mod file.
-	inv := gocommand.Invocation{
-		Verb:       "list",
-		Args:       []string{"-mod", "readonly", "-u", "-m", "all"},
-		BuildFlags: cfg.BuildFlags,
-		Env:        cfg.Env,
-		WorkingDir: folder,
+	args := []string{"-u", "-m", "all"}
+	if !tmpMod || containsVendor(modFH.URI()) {
+		// Use -mod=readonly if the module contains a vendor directory
+		// (see golang/go#38711).
+		args = append([]string{"-mod", "readonly"}, args...)
 	}
-	stdout, err := packagesinternal.GetGoCmdRunner(cfg).Run(ctx, inv)
+	// If the -modfile flag is disabled, don't pass in a go.mod URI.
+	if !tmpMod {
+		modFH = nil
+	}
+	_, stdout, err := runGoCommand(ctx, cfg, modFH, sumFH, "list", args)
 	if err != nil {
 		return err
 	}
@@ -274,26 +273,37 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 	return nil
 }
 
+// containsVendor reports whether the module has a vendor folder.
+func containsVendor(modURI span.URI) bool {
+	dir := filepath.Dir(modURI.Filename())
+	f, err := os.Stat(filepath.Join(dir, "vendor"))
+	if err != nil {
+		return false
+	}
+	return f.IsDir()
+}
+
 func (mh *modHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []source.Error, error) {
 	v := mh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().URI())
+		return nil, nil, nil, nil, errors.Errorf("no tidied file for %s", mh.File().URI())
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.missingDeps, data.parseErrors, data.err
 }
 
-func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) (source.ModTidyHandle, error) {
+func (s *snapshot) ModTidyHandle(ctx context.Context, modFH source.FileHandle) (source.ModTidyHandle, error) {
 	if handle := s.getModTidyHandle(); handle != nil {
 		return handle, nil
 	}
-
-	realURI, tempURI := s.view.ModFiles()
-	cfg := s.config(ctx)
-	options := s.View().Options()
-	folder := s.View().Folder().Filename()
-	gocmdRunner := s.view.gocmdRunner
-
+	var sumFH source.FileHandle
+	if s.view.sumURI != "" {
+		var err error
+		sumFH, err = s.GetFile(ctx, s.view.sumURI)
+		if err != nil {
+			return nil, err
+		}
+	}
 	wsPackages, err := s.WorkspacePackages(ctx)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -305,94 +315,86 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	if err != nil {
 		return nil, err
 	}
+
 	s.mu.Lock()
 	overlayHash := hashUnsavedOverlays(s.files)
 	s.mu.Unlock()
+
+	var (
+		options = s.View().Options()
+		folder  = s.View().Folder()
+		modURI  = s.view.modURI
+		tmpMod  = s.view.tmpMod
+	)
+
+	cfg := s.config(ctx)
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
-		view:            folder,
+		view:            folder.Filename(),
 		imports:         imports,
 		unsavedOverlays: overlayHash,
-		gomod:           realfh.Identity().Identifier,
+		gomod:           modFH.Identity().String(),
 		cfg:             hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		// Check the case when the tempModfile flag is turned off.
-		if realURI == "" || tempURI == "" {
+		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(modURI))
+		defer done()
+
+		// Do nothing if the -modfile flag is disabled or if the given go.mod
+		// is outside of our view.
+		if modURI != modFH.URI() || !tmpMod {
 			return &modData{}
 		}
 
-		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(realURI))
-		defer done()
-
-		realContents, err := realfh.Read()
+		contents, err := modFH.Read()
 		if err != nil {
-			return &modData{
-				err: err,
-			}
+			return &modData{err: err}
 		}
 		realMapper := &protocol.ColumnMapper{
-			URI:       realURI,
-			Converter: span.NewContentConverter(realURI.Filename(), realContents),
-			Content:   realContents,
+			URI:       modURI,
+			Converter: span.NewContentConverter(modURI.Filename(), contents),
+			Content:   contents,
 		}
-		origParsedFile, err := modfile.Parse(realURI.Filename(), realContents, nil)
+		origParsedFile, err := modfile.Parse(modURI.Filename(), contents, nil)
 		if err != nil {
-			if parseErr, err := extractModParseErrors(ctx, realURI, realMapper, err, realContents); err == nil {
-				return &modData{
-					parseErrors: []source.Error{parseErr},
-				}
+			if parseErr, err := extractModParseErrors(ctx, modURI, realMapper, err, contents); err == nil {
+				return &modData{parseErrors: []source.Error{parseErr}}
 			}
-			return &modData{
-				err: err,
-			}
+			return &modData{err: err}
 		}
-
-		// Copy the real go.mod file content into the temp go.mod file.
-		if err := ioutil.WriteFile(tempURI.Filename(), realContents, os.ModePerm); err != nil {
-			return &modData{
-				err: err,
-			}
-		}
-
-		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
-		inv := gocommand.Invocation{
-			Verb:       "mod",
-			Args:       []string{"tidy"},
-			BuildFlags: cfg.BuildFlags,
-			Env:        cfg.Env,
-			WorkingDir: folder,
-		}
-		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
-			return &modData{
-				err: err,
-			}
-		}
-
-		// Go directly to disk to get the temporary mod file, since it is always on disk.
-		tempContents, err := ioutil.ReadFile(tempURI.Filename())
+		tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, modFH, sumFH, "mod", []string{"tidy"})
 		if err != nil {
-			return &modData{
-				err: err,
-			}
+			return &modData{err: err}
 		}
-		idealParsedFile, err := modfile.Parse(tempURI.Filename(), tempContents, nil)
+		// Keep the temporary go.mod file around long enough to parse it.
+		defer cleanup()
+
+		if _, err := packagesinternal.GetGoCmdRunner(cfg).Run(ctx, *inv); err != nil {
+			return &modData{err: err}
+		}
+		// Go directly to disk to get the temporary mod file, since it is
+		// always on disk.
+		tempContents, err := ioutil.ReadFile(tmpURI.Filename())
 		if err != nil {
-			// We do not need to worry about the temporary file's parse errors since it has been "tidied".
-			return &modData{
-				err: err,
-			}
+			return &modData{err: err}
+		}
+		idealParsedFile, err := modfile.Parse(tmpURI.Filename(), tempContents, nil)
+		if err != nil {
+			// We do not need to worry about the temporary file's parse errors
+			// since it has been "tidied".
+			return &modData{err: err}
 		}
 
 		data := &modData{
-			origfh:          realfh,
+			origfh:          modFH,
 			origParsedFile:  origParsedFile,
 			origMapper:      realMapper,
 			idealParsedFile: idealParsedFile,
 			unusedDeps:      make(map[string]*modfile.Require, len(origParsedFile.Require)),
 			missingDeps:     make(map[string]*modfile.Require, len(idealParsedFile.Require)),
 		}
-		// Get the dependencies that are different between the original and ideal mod files.
+		// Get the dependencies that are different between the original and
+		// ideal go.mod files.
 		for _, req := range origParsedFile.Require {
 			data.unusedDeps[req.Mod.Path] = req
 		}
@@ -417,7 +419,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	defer s.mu.Unlock()
 	s.modTidyHandle = &modHandle{
 		handle: h,
-		file:   realfh,
+		file:   modFH,
 		cfg:    cfg,
 	}
 	return s.modTidyHandle, nil

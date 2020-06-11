@@ -18,18 +18,14 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if !snapshot.View().Options().EnabledCodeLens[source.CommandUpgradeDependency] {
 		return nil, nil
 	}
-	realURI, _ := snapshot.View().ModFiles()
-	if realURI == "" {
-		return nil, nil
-	}
-	// Only get code lens on the go.mod for the view.
-	if uri != realURI {
-		return nil, nil
-	}
-	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(realURI))
+	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(uri))
 	defer done()
 
-	fh, err := snapshot.GetFile(ctx, realURI)
+	// Don't show go.mod code lenses in module mode.
+	if snapshot.View().ModFile() == "" {
+		return nil, nil
+	}
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

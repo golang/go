@@ -58,6 +58,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		defer view.Shutdown(ctx)
 
 		// Enable type error analyses for tests.
@@ -65,13 +66,9 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		tests.EnableAllAnalyzers(snapshot, &options)
 		view.SetOptions(ctx, options)
 
-		// Check to see if the -modfile flag is available, this is basically a check
-		// to see if the go version >= 1.14. Otherwise, the modfile specific tests
-		// will always fail if this flag is not available.
-		if _, tmp := view.ModFiles(); tmp != "" {
-			datum.ModfileFlagAvailable = true
-			break
-		}
+		// Only run the -modfile specific tests in module mode with Go 1.14 or above.
+		datum.ModfileFlagAvailable = view.ModFile() != "" && testenv.Go1Point() >= 14
+
 		var modifications []source.FileModification
 		for filename, content := range datum.Config.Overlay {
 			kind := source.DetectLanguage("", filename)
@@ -431,7 +428,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 			return []byte(got), nil
 		}))
 		if want != got {
-			t.Errorf("suggested fixes failed for %s: %s", u.Filename(), tests.Diff(want, got))
+			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), tests.Diff(want, got))
 		}
 	}
 }

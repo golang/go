@@ -253,7 +253,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		// If a modification comes in for the view's go.mod file and the view
 		// was never properly initialized, or the view does not have
 		// a go.mod file, try to recreate the associated view.
-		if modfile, _ := snapshot.View().ModFiles(); modfile == "" {
+		if modfile := snapshot.View().ModFile(); modfile == "" {
 			for _, uri := range uris {
 				// Don't rebuild the view until the go.mod is on disk.
 				if !snapshot.IsSaved(uri) {

@@ -15,9 +15,10 @@ import (
 )
 
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
-	realURI, _ := snapshot.View().ModFiles()
+	uri := snapshot.View().ModFile()
+
 	// Only get hover information on the go.mod for the view.
-	if realURI == "" || fh.URI() != realURI {
+	if uri == "" || fh.URI() != uri {
 		return nil, nil
 	}
 	ctx, done := event.Start(ctx, "mod.Hover")

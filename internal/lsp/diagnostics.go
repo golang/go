@@ -72,7 +72,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	if len(reports) > 1 {
 		panic("unexpected reports from mod.Diagnostics")
 	}
-	modURI, _ := snapshot.View().ModFiles()
+	modURI := snapshot.View().ModFile()
 	for id, diags := range reports {
 		if id.URI != modURI {
 			panic("unexpected reports from mod.Diagnostics")

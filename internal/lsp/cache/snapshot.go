@@ -92,7 +92,7 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
-// Config returns the configuration used for the snapshot's interaction with the
+// config returns the configuration used for the snapshot's interaction with the
 // go/packages API.
 func (s *snapshot) config(ctx context.Context) *packages.Config {
 	s.view.optionsMu.Lock()
@@ -135,28 +135,83 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 
 func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
 	cfg := s.config(ctx)
-	inv := gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		Env:        cfg.Env,
-		BuildFlags: cfg.BuildFlags,
-		WorkingDir: s.view.folder.Filename(),
+	var modFH, sumFH source.FileHandle
+	if s.view.tmpMod {
+		var err error
+		modFH, err = s.GetFile(ctx, s.view.modURI)
+		if err != nil {
+			return nil, err
+		}
+		if s.view.sumURI != "" {
+			sumFH, err = s.GetFile(ctx, s.view.sumURI)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	return runner.Run(ctx, inv)
+	_, stdout, err := runGoCommand(ctx, cfg, modFH, sumFH, verb, args)
+	return stdout, err
 }
 
 func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
 	cfg := s.config(ctx)
-	inv := gocommand.Invocation{
+	var modFH, sumFH source.FileHandle
+	if s.view.tmpMod {
+		var err error
+		modFH, err = s.GetFile(ctx, s.view.modURI)
+		if err != nil {
+			return err
+		}
+		if s.view.sumURI != "" {
+			sumFH, err = s.GetFile(ctx, s.view.sumURI)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	_, inv, cleanup, err := goCommandInvocation(ctx, cfg, modFH, sumFH, verb, args)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	return runner.RunPiped(ctx, *inv, stdout, stderr)
+}
+
+// runGoCommand runs the given go command with the given config.
+// The given go.mod file is used to construct the temporary go.mod file, which
+// is then passed to the go command via the BuildFlags.
+// It assumes that modURI is only provided when the -modfile flag is enabled.
+func runGoCommand(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, verb string, args []string) (span.URI, *bytes.Buffer, error) {
+	tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, modFH, sumFH, verb, args)
+	if err != nil {
+		return "", nil, err
+	}
+	defer cleanup()
+
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	stdout, err := runner.Run(ctx, *inv)
+	return tmpURI, stdout, err
+}
+
+// Assumes that modURI is only provided when the -modfile flag is enabled.
+func goCommandInvocation(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, verb string, args []string) (tmpURI span.URI, inv *gocommand.Invocation, cleanup func(), err error) {
+	cleanup = func() {} // fallback
+	if modFH != nil {
+		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+	}
+	return tmpURI, &gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		Env:        cfg.Env,
 		BuildFlags: cfg.BuildFlags,
-		WorkingDir: s.view.folder.Filename(),
-	}
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	return runner.RunPiped(ctx, inv, stdout, stderr)
+		WorkingDir: cfg.Dir,
+	}, cleanup, nil
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {
@@ -913,8 +968,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 	}
 	// If a go.mod file's contents have changed, always invalidate metadata.
 	if kind := originalFH.Kind(); kind == source.Mod {
-		modfile, _ := s.view.ModFiles()
-		return originalFH.URI() == modfile
+		return originalFH.URI() == s.view.modURI
 	}
 	// Get the original and current parsed files in order to check package name and imports.
 	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(ctx, originalFH, source.ParseHeader).Parse(ctx)

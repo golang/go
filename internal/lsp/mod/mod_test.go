@@ -22,6 +22,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestModfileRemainsUnchanged(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
 	ctx := tests.Context(t)
 	cache := cache.New(ctx, nil)
 	session := cache.NewSession(ctx)
@@ -41,12 +43,8 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, snapshot, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), options)
-	if err != nil {
+	if _, _, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), options); err != nil {
 		t.Fatal(err)
-	}
-	if _, t := snapshot.View().ModFiles(); t == "" {
-		return
 	}
 	after, err := ioutil.ReadFile(filepath.Join(folder, "go.mod"))
 	if err != nil {

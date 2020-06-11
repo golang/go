@@ -17,21 +17,15 @@ import (
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, map[string]*modfile.Require, error) {
-	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
-	realURI, tempURI := snapshot.View().ModFiles()
-
-	// Check the case when the tempModfile flag is turned off.
-	if realURI == "" || tempURI == "" {
-		return nil, nil, nil
-	}
-	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(realURI))
+	uri := snapshot.View().ModFile()
+	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(uri))
 	defer done()
 
-	realfh, err := snapshot.GetFile(ctx, realURI)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, nil, err
 	}
-	mth, err := snapshot.ModTidyHandle(ctx, realfh)
+	mth, err := snapshot.ModTidyHandle(ctx, fh)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -40,7 +34,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		return nil, nil, err
 	}
 	reports := map[source.FileIdentity][]*source.Diagnostic{
-		realfh.Identity(): {},
+		fh.Identity(): {},
 	}
 	for _, e := range parseErrors {
 		diag := &source.Diagnostic{
@@ -53,7 +47,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		} else {
 			diag.Severity = protocol.SeverityWarning
 		}
-		reports[realfh.Identity()] = append(reports[realfh.Identity()], diag)
+		reports[fh.Identity()] = append(reports[fh.Identity()], diag)
 	}
 	return reports, missingDeps, nil
 }
@@ -110,17 +104,14 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 }
 
 func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string]protocol.TextDocumentEdit, error) {
-	// TODO(rstambler): Support diagnostics for go.mod files even when the
-	// -modfile flag is turned off.
-	realURI, tempURI := snapshot.View().ModFiles()
-	if realURI == "" || tempURI == "" {
+	uri := snapshot.View().ModFile()
+	if uri == "" {
 		return nil, nil
 	}
-
-	ctx, done := event.Start(ctx, "mod.SuggestedGoFixes", tag.URI.Of(realURI))
+	ctx, done := event.Start(ctx, "mod.SuggestedGoFixes", tag.URI.Of(uri))
 	defer done()
 
-	realfh, err := snapshot.GetFile(ctx, realURI)
+	realfh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
