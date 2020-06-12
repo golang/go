@@ -375,6 +375,20 @@ Do not send CLs removing the interior tags from such phrases.
   in mind.
 </p>
 
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+  <dd>
+    <p><!-- CL 225357, CL 225557 -->
+      When a <a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> is
+      used with an invalid
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that
+      incorrectly returns a negative number from <code>Read</code>,
+      the <code>Scanner</code> will no longer panic, but will instead
+      return the new error
+      <a href="/pkg/bufio/#ErrBadReadCount"><code>ErrBadReadCount</code></a>.
+    </p>
+  </dd>
+</dl><!-- bufio -->
+
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>
     <p><!-- CL 231417, CL 225460 -->
