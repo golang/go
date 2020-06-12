@@ -14,6 +14,7 @@ import (
 	"image/color/palette"
 	"image/draw"
 	"io"
+	"sync"
 )
 
 // Graphic control extension fields.
@@ -238,8 +239,28 @@ func (e *encoder) colorTablesMatch(localLen, transparentIndex int) bool {
 	return bytes.Equal(e.globalColorTable[:localSize], e.localColorTable[:localSize])
 }
 
-func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) {
+type anotherGoroutineFailed struct{}
+
+func (anotherGoroutineFailed) Error() string { return "" }
+
+func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte, fail *bool, failLock *sync.RWMutex) {
 	if e.err != nil {
+		return
+	}
+
+	// Check if another goroutine failed.
+	failed := func() bool {
+		if failLock == nil {
+			return false
+		}
+		failLock.RLock()
+		f := *fail
+		failLock.RUnlock()
+		return f
+	}
+
+	if failed() {
+		e.err = &anotherGoroutineFailed{}
 		return
 	}
 
@@ -297,6 +318,11 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 	writeUint16(e.buf[7:9], uint16(b.Dy()))
 	e.write(e.buf[:9])
 
+	if failed() {
+		e.err = &anotherGoroutineFailed{}
+		return
+	}
+
 	// To determine whether or not this frame's palette is the same as the
 	// global palette, we can check a couple things. First, do they actually
 	// point to the same []color.Color? If so, they are equal so long as the
@@ -341,6 +367,11 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte) 
 		}
 	} else {
 		for i, y := 0, b.Min.Y; y < b.Max.Y; i, y = i+pm.Stride, y+1 {
+			if failed() {
+				e.err = &anotherGoroutineFailed{}
+				lzww.Close()
+				return
+			}
 			_, e.err = lzww.Write(pm.Pix[i : i+dx])
 			if e.err != nil {
 				lzww.Close()
@@ -416,7 +447,7 @@ func EncodeAll(w io.Writer, g *GIF) error {
 		if g.Disposal != nil {
 			disposal = g.Disposal[i]
 		}
-		e.writeImageBlock(pm, g.Delay[i], disposal)
+		e.writeImageBlock(pm, g.Delay[i], disposal, nil, nil)
 	}
 	e.writeByte(sTrailer)
 	e.flush()
@@ -454,6 +485,10 @@ func EncodeAllMultithreaded(w io.Writer, g *GIF) error {
 
 	channels := make([]chan *bufOrError, len(g.Image))
 
+	// Defines if there has been a fail.
+	fail := false
+	failLock := &sync.RWMutex{}
+
 	for i, pm := range g.Image {
 		disposal := uint8(0)
 		if g.Disposal != nil {
@@ -463,9 +498,18 @@ func EncodeAllMultithreaded(w io.Writer, g *GIF) error {
 		channels[i] = c
 		go func(x *image.Paletted, index int) {
 			e, buf := createEncoder()
-			e.writeImageBlock(x, g.Delay[index], disposal)
-			if e.err != nil {
-				c <- &bufOrError{err: e.err}
+			e.writeImageBlock(x, g.Delay[index], disposal, &fail, failLock)
+			err := e.err
+			if err != nil {
+				_, ok := err.(*anotherGoroutineFailed)
+				if ok {
+					c <- nil
+				} else {
+					failLock.Lock()
+					fail = true
+					failLock.Unlock()
+					c <- &bufOrError{err: err}
+				}
 				return
 			}
 			c <- &bufOrError{buf: buf}
@@ -474,6 +518,10 @@ func EncodeAllMultithreaded(w io.Writer, g *GIF) error {
 
 	for _, channel := range channels {
 		errbuf := <-channel
+		close(channel)
+		if errbuf == nil {
+			continue
+		}
 		if errbuf.err != nil {
 			return errbuf.err
 		}
@@ -482,7 +530,6 @@ func EncodeAllMultithreaded(w io.Writer, g *GIF) error {
 		if err != nil {
 			return err
 		}
-		close(channel)
 	}
 
 	baseFile.writeByte(sTrailer)
