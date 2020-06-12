@@ -20,13 +20,14 @@ func TestRead(t *testing.T) {
 		Error  error
 
 		// These fields are copied into the Reader
-		Comma              rune
-		Comment            rune
-		UseFieldsPerRecord bool // false (default) means FieldsPerRecord is -1
-		FieldsPerRecord    int
-		LazyQuotes         bool
-		TrimLeadingSpace   bool
-		ReuseRecord        bool
+		Comma               rune
+		Comment             rune
+		UseFieldsPerRecord  bool // false (default) means FieldsPerRecord is -1
+		FieldsPerRecord     int
+		LazyQuotes          bool
+		TrimLeadingSpace    bool
+		ReuseRecord         bool
+		InterpretBlankLines bool
 	}{{
 		Name:   "Simple",
 		Input:  "a,b,c\n",
@@ -78,6 +79,25 @@ field"`,
 			{"a", "b", "c"},
 			{"d", "e", "f"},
 		},
+	}, {
+		Name:  "BlankLineInterpreted",
+		Input: "a,b,c\n\nd,e,f\n\n",
+		Output: [][]string{
+			{"a", "b", "c"},
+			{""},
+			{"d", "e", "f"},
+			{""},
+		},
+		InterpretBlankLines: true,
+	}, {
+		Name:   "BlankLineSingleColumn",
+		Input:  "a\nb\n\nd",
+		Output: [][]string{{"a"}, {"b"}, {"d"}},
+	}, {
+		Name:                "BlankLineInterpretedSingleColumn",
+		Input:               "a\nb\n\nd",
+		Output:              [][]string{{"a"}, {"b"}, {""}, {"d"}},
+		InterpretBlankLines: true,
 	}, {
 		Name:  "BlankLineFieldCount",
 		Input: "a,b,c\n\nd,e,f\n\n",
@@ -400,6 +420,7 @@ x,,,
 			r.LazyQuotes = tt.LazyQuotes
 			r.TrimLeadingSpace = tt.TrimLeadingSpace
 			r.ReuseRecord = tt.ReuseRecord
+			r.InterpretBlankLines = tt.InterpretBlankLines
 
 			out, err := r.ReadAll()
 			if !reflect.DeepEqual(err, tt.Error) {
