@@ -37,7 +37,6 @@ func (ctxt *Link) typelink() {
 
 	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
 	tl.SetType(sym.STYPELINK)
-	ldr.SetAttrReachable(tl.Sym(), true)
 	ldr.SetAttrLocal(tl.Sym(), true)
 	tl.SetSize(int64(4 * len(typelinks)))
 	tl.Grow(tl.Size())

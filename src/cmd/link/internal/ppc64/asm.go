@@ -749,7 +749,6 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 
 		toctramp := ldr.CreateSymForUpdate("TOC."+ldr.SymName(tramp.Sym()), 0)
 		toctramp.SetType(sym.SXCOFFTOC)
-		toctramp.SetReachable(true)
 		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
 
 		r := loader.Reloc{
@@ -1027,8 +1026,7 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 
 // Generate the glink resolver stub if necessary and return the .glink section
 func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilder {
-	gs := ldr.LookupOrCreateSym(".glink", 0)
-	glink := ldr.MakeSymbolUpdater(gs)
+	glink := ldr.CreateSymForUpdate(".glink", 0)
 	if glink.Size() != 0 {
 		return glink
 	}

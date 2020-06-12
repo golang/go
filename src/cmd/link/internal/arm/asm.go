@@ -387,6 +387,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				oName := ldr.SymName(rs)
 				name := oName + fmt.Sprintf("%+d-tramp%d", offset, i)
 				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				ldr.SetAttrReachable(tramp, true)
 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue

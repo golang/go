@@ -54,7 +54,9 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
 // returns a CreateSymForUpdate for update. If the symbol already
 // exists, it will update in-place.
 func (l *Loader) CreateSymForUpdate(name string, version int) *SymbolBuilder {
-	return l.MakeSymbolUpdater(l.LookupOrCreateSym(name, version))
+	s := l.LookupOrCreateSym(name, version)
+	l.SetAttrReachable(s, true)
+	return l.MakeSymbolUpdater(s)
 }
 
 // Getters for properties of the symbol we're working on.
@@ -105,7 +107,6 @@ func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
 func (sb *SymbolBuilder) SetSect(sect *sym.Section) { sb.l.SetSymSect(sb.symIdx, sect) }
 
 func (sb *SymbolBuilder) AddBytes(data []byte) {
-	sb.setReachable()
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
 	}
@@ -248,7 +249,6 @@ func (sb *SymbolBuilder) AddUint8(v uint8) int64 {
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
 	}
-	sb.setReachable()
 	sb.size++
 	sb.data = append(sb.data, v)
 	return off
@@ -256,7 +256,6 @@ func (sb *SymbolBuilder) AddUint8(v uint8) int64 {
 
 func (sb *SymbolBuilder) AddUintXX(arch *sys.Arch, v uint64, wid int) int64 {
 	off := sb.size
-	sb.setReachable()
 	sb.setUintXX(arch, off, v, int64(wid))
 	return off
 }
@@ -301,22 +300,18 @@ func (sb *SymbolBuilder) AddUint(arch *sys.Arch, v uint64) int64 {
 }
 
 func (sb *SymbolBuilder) SetUint8(arch *sys.Arch, r int64, v uint8) int64 {
-	sb.setReachable()
 	return sb.setUintXX(arch, r, uint64(v), 1)
 }
 
 func (sb *SymbolBuilder) SetUint16(arch *sys.Arch, r int64, v uint16) int64 {
-	sb.setReachable()
 	return sb.setUintXX(arch, r, uint64(v), 2)
 }
 
 func (sb *SymbolBuilder) SetUint32(arch *sys.Arch, r int64, v uint32) int64 {
-	sb.setReachable()
 	return sb.setUintXX(arch, r, uint64(v), 4)
 }
 
 func (sb *SymbolBuilder) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
-	sb.setReachable()
 	return sb.setUintXX(arch, r, v, int64(arch.PtrSize))
 }
 
@@ -324,7 +319,6 @@ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int
 	if sb.Type() == 0 {
 		sb.SetType(sym.SDATA)
 	}
-	sb.setReachable()
 	if off+int64(arch.PtrSize) > sb.size {
 		sb.size = off + int64(arch.PtrSize)
 		sb.Grow(sb.size)
@@ -344,7 +338,6 @@ func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
 }
 
 func (sb *SymbolBuilder) Addstring(str string) int64 {
-	sb.setReachable()
 	if sb.kind == 0 {
 		sb.kind = sym.SNOPTRDATA
 	}
@@ -382,17 +375,14 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
 // Add a symbol reference (relocation) with given type, addend, and size
 // (the most generic form).
 func (sb *SymbolBuilder) AddSymRef(arch *sys.Arch, tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, add, typ, rsize)
 }
 
 func (sb *SymbolBuilder) AddAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, add, objabi.R_ADDR, arch.PtrSize)
 }
 
 func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, add, objabi.R_ADDR, 4)
 }
 
@@ -401,17 +391,14 @@ func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
 }
 
 func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, add, objabi.R_PCREL, 4)
 }
 
 func (sb *SymbolBuilder) AddCURelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, add, objabi.R_ADDRCUOFF, arch.PtrSize)
 }
 
 func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
-	sb.setReachable()
 	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
 }
 
