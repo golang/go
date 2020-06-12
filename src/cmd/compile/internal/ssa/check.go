@@ -165,6 +165,18 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
+			case auxCallOff:
+				canHaveAuxInt = true
+				fallthrough
+			case auxCall:
+				if ac, ok := v.Aux.(*AuxCall); ok {
+					if v.Op == OpStaticCall && ac.Fn == nil {
+						f.Fatalf("value %v has *AuxCall with nil Fn", v)
+					}
+				} else {
+					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
+				}
+				canHaveAux = true
 			case auxSym, auxTyp:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:

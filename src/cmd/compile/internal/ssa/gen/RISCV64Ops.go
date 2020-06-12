@@ -224,9 +224,9 @@ func init() {
 		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
 
 		// Calls
-		{name: "CALLstatic", argLength: 1, reg: call, aux: "SymOff", call: true, symEffect: "None"}, // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "Int64", call: true},             // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: callInter, aux: "Int64", call: true},                 // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: call, aux: "CallOff", call: true},       // call static function aux.(*gc.Sym). arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: callClosure, aux: "Int64", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: callInter, aux: "Int64", call: true},     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// Generic moves and zeros
 

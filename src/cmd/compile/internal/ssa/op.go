@@ -67,6 +67,17 @@ type regInfo struct {
 
 type auxType int8
 
+type AuxCall struct {
+	Fn *obj.LSym
+}
+
+func (a *AuxCall) String() string {
+	if a.Fn == nil {
+		return "AuxCall(nil)"
+	}
+	return fmt.Sprintf("AuxCall(%v)", a.Fn)
+}
+
 const (
 	auxNone         auxType = iota
 	auxBool                 // auxInt is 0/1 for false/true
@@ -85,6 +96,8 @@ const (
 	auxTyp                  // aux is a type
 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
 	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+	auxCall                 // aux is a *ssa.AuxCall
+	auxCallOff              // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
 
 	// architecture specific aux types
 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
