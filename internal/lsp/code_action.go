@@ -11,10 +11,12 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
@@ -111,13 +113,19 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				})
 			}
 		}
-		// Check for context cancellation before processing analysis fixes.
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		// Retrieve any necessary analysis fixes or edits.
+		phs, err := snapshot.PackageHandles(ctx, fh)
+		if err != nil {
+			return nil, err
+		}
+		ph, err := source.WidestPackageHandle(phs)
+		if err != nil {
+			return nil, err
+		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, fh, diagnostics)
+			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, ph, diagnostics)
 			if err != nil {
 				return nil, err
 			}
@@ -143,11 +151,17 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				})
 			}
 		}
-		fillActions, err := source.FillStruct(ctx, snapshot, fh, params.Range)
-		if err != nil {
-			return nil, err
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
-		codeActions = append(codeActions, fillActions...)
+		// Add any suggestions that do not necessarily fix any diagnostics.
+		if wanted[protocol.RefactorRewrite] {
+			fixes, err := convenienceFixes(ctx, snapshot, ph, uri, params.Range)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, fixes...)
+		}
 	default:
 		// Unsupported file kind for a code action.
 		return nil, nil
@@ -254,7 +268,7 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func analysisFixes(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, []protocol.TextDocumentEdit, error) {
+func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, []protocol.TextDocumentEdit, error) {
 	if len(diagnostics) == 0 {
 		return nil, nil, nil
 	}
@@ -262,16 +276,6 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, fh source.File
 	var codeActions []protocol.CodeAction
 	var sourceFixAllEdits []protocol.TextDocumentEdit
 
-	phs, err := snapshot.PackageHandles(ctx, fh)
-	if err != nil {
-		return nil, nil, err
-	}
-	// We get the package that source.Diagnostics would've used. This is hack.
-	// TODO(golang/go#32443): The correct solution will be to cache diagnostics per-file per-snapshot.
-	ph, err := source.WidestPackageHandle(phs)
-	if err != nil {
-		return nil, nil, err
-	}
 	for _, diag := range diagnostics {
 		srcErr, analyzer, ok := findSourceError(ctx, snapshot, ph.ID(), diag)
 		if !ok {
@@ -340,6 +344,45 @@ func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string
 		return err, *analyzer, true
 	}
 	return nil, source.Analyzer{}, false
+}
+
+func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+	var analyzers []*analysis.Analyzer
+	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
+		analyzers = append(analyzers, a.Analyzer)
+	}
+	diagnostics, err := snapshot.Analyze(ctx, ph.ID(), analyzers...)
+	if err != nil {
+		return nil, err
+	}
+	var codeActions []protocol.CodeAction
+	for _, d := range diagnostics {
+		// For now, only show diagnostics for matching lines. Maybe we should
+		// alter this behavior in the future, depending on the user experience.
+		if d.URI != uri {
+			continue
+		}
+		if d.Range.Start.Line != rng.Start.Line {
+			continue
+		}
+		for _, fix := range d.SuggestedFixes {
+			action := protocol.CodeAction{
+				Title: fix.Title,
+				Kind:  protocol.RefactorRewrite,
+				Edit:  protocol.WorkspaceEdit{},
+			}
+			for uri, edits := range fix.Edits {
+				fh, err := snapshot.GetFile(ctx, uri)
+				if err != nil {
+					return nil, err
+				}
+				docChanges := documentChanges(fh, edits)
+				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, docChanges...)
+			}
+			codeActions = append(codeActions, action)
+		}
+	}
+	return codeActions, nil
 }
 
 func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {

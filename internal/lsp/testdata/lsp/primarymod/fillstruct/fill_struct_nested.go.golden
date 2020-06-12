@@ -1,4 +1,4 @@
--- fill_struct_nested_13_20 --
+-- suggestedfix_fill_struct_nested_13_20 --
 package fillstruct
 
 type StructB struct {
@@ -12,8 +12,8 @@ type StructC struct {
 func nested() {
 	c := StructB{
 		StructC: StructC{
-			unexportedInt: 0,
-		}, //@refactorrewrite("}", "Fill struct")
+unexportedInt : 0,
+}, //@suggestedfix("}", "refactor.rewrite")
 	}
 }
 

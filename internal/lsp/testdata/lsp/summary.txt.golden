@@ -11,7 +11,7 @@ DiagnosticsCount = 44
 FoldingRangesCount = 2
 FormatCount = 6
 ImportCount = 8
-SuggestedFixCount = 6
+SuggestedFixCount = 12
 DefinitionsCount = 53
 TypeDefinitionsCount = 2
 HighlightsCount = 60
@@ -25,5 +25,4 @@ CaseSensitiveWorkspaceSymbolsCount = 2
 SignaturesCount = 32
 LinksCount = 8
 ImplementationsCount = 14
-RefactorRewriteCount = 5
 

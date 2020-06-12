@@ -664,7 +664,7 @@ func defaultAnalyzers() map[string]Analyzer {
 		unsafeptr.Analyzer.Name:    {Analyzer: unsafeptr.Analyzer, enabled: true},
 		unusedresult.Analyzer.Name: {Analyzer: unusedresult.Analyzer, enabled: true},
 
-		// Non-vet analyzers
+		// Non-vet analyzers:
 		deepequalerrors.Analyzer.Name:  {Analyzer: deepequalerrors.Analyzer, enabled: true},
 		sortslice.Analyzer.Name:        {Analyzer: sortslice.Analyzer, enabled: true},
 		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, enabled: true},

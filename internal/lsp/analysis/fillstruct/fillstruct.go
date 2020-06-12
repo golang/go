@@ -8,6 +8,7 @@ package fillstruct
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/types"
@@ -53,12 +54,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		expr := n.(*ast.CompositeLit)
-
 		// TODO: Handle partially-filled structs as well.
 		if len(expr.Elts) != 0 {
 			return
 		}
-
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= expr.Pos() && expr.Pos() <= f.End() {
@@ -85,61 +84,62 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		typ = typ.Underlying()
 
-		if typ == nil {
+		obj, ok := typ.(*types.Struct)
+		if !ok {
+			return
+		}
+		fieldCount := obj.NumFields()
+		if fieldCount == 0 {
+			return
+		}
+		var fieldSourceCode strings.Builder
+		for i := 0; i < fieldCount; i++ {
+			field := obj.Field(i)
+			// Ignore fields that are not accessible in the current package.
+			if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
+				continue
+			}
+
+			label := field.Name()
+			value := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, field.Type())
+			if value == nil {
+				continue
+			}
+			var valBuf bytes.Buffer
+			if err := format.Node(&valBuf, pass.Fset, value); err != nil {
+				return
+			}
+			fieldSourceCode.WriteString("\n")
+			fieldSourceCode.WriteString(label)
+			fieldSourceCode.WriteString(" : ")
+			fieldSourceCode.WriteString(valBuf.String())
+			fieldSourceCode.WriteString(",")
+		}
+
+		if fieldSourceCode.Len() == 0 {
 			return
 		}
 
-		switch obj := typ.(type) {
-		case *types.Struct:
-			fieldCount := obj.NumFields()
-			if fieldCount == 0 {
-				return
-			}
-			var fieldSourceCode strings.Builder
-			for i := 0; i < fieldCount; i++ {
-				field := obj.Field(i)
-				// Ignore fields that are not accessible in the current package.
-				if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
-					continue
-				}
+		fieldSourceCode.WriteString("\n")
 
-				label := field.Name()
-				value := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, field.Type())
-				if value == nil {
-					continue
-				}
-				var valBuf bytes.Buffer
-				if err := format.Node(&valBuf, pass.Fset, value); err != nil {
-					return
-				}
-				fieldSourceCode.WriteString("\n")
-				fieldSourceCode.WriteString(label)
-				fieldSourceCode.WriteString(" : ")
-				fieldSourceCode.WriteString(valBuf.String())
-				fieldSourceCode.WriteString(",")
-			}
+		buf := []byte(fieldSourceCode.String())
 
-			if fieldSourceCode.Len() == 0 {
-				return
-			}
-
-			fieldSourceCode.WriteString("\n")
-
-			buf := []byte(fieldSourceCode.String())
-
-			pass.Report(analysis.Diagnostic{
-				Pos: expr.Lbrace,
-				End: expr.Rbrace,
-				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: "Fill struct with empty values",
-					TextEdits: []analysis.TextEdit{{
-						Pos:     expr.Lbrace + 1,
-						End:     expr.Rbrace,
-						NewText: buf,
-					}},
-				}},
-			})
+		msg := "Fill struct with default values"
+		if name, ok := expr.Type.(*ast.Ident); ok {
+			msg = fmt.Sprintf("Fill %s with default values", name)
 		}
+		pass.Report(analysis.Diagnostic{
+			Pos: expr.Lbrace,
+			End: expr.Rbrace,
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message: msg,
+				TextEdits: []analysis.TextEdit{{
+					Pos:     expr.Lbrace + 1,
+					End:     expr.Rbrace,
+					NewText: buf,
+				}},
+			}},
+		})
 	})
 	return nil, nil
 }

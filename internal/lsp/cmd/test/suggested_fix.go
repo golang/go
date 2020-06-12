@@ -16,12 +16,17 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	uri := spn.URI()
 	filename := uri.Filename()
 	args := []string{"fix", "-a", fmt.Sprintf("%s", spn)}
+	for _, kind := range actionKinds {
+		if kind == "refactor.rewrite" {
+			t.Skip("refactor.rewrite is not yet supported on the command line")
+		}
+	}
 	args = append(args, actionKinds...)
 	got, _ := r.NormalizeGoplsCmd(t, args...)
 	want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		t.Errorf("suggested fixes failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
+		t.Errorf("suggested fixes failed for %s: %s", filename, tests.Diff(want, got))
 	}
 }

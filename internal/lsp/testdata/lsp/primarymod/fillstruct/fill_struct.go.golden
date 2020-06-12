@@ -1,4 +1,4 @@
--- fill_struct_20_15 --
+-- suggestedfix_fill_struct_20_15 --
 package fillstruct
 
 type StructA struct {
@@ -19,17 +19,17 @@ type StructA3 struct {
 
 func fill() {
 	a := StructA{
-		unexportedIntField: 0,
-		ExportedIntField:   0,
-		MapA:               nil,
-		Array:              nil,
-		StructB:            StructB{},
-	}  //@refactorrewrite("}", "Fill struct")
-	b := StructA2{} //@refactorrewrite("}", "Fill struct")
-	c := StructA3{} //@refactorrewrite("}", "Fill struct")
+unexportedIntField : 0,
+ExportedIntField : 0,
+MapA : nil,
+Array : nil,
+StructB : StructB{},
+}  //@suggestedfix("}", "refactor.rewrite")
+	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
+	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
 }
 
--- fill_struct_21_16 --
+-- suggestedfix_fill_struct_21_16 --
 package fillstruct
 
 type StructA struct {
@@ -49,14 +49,14 @@ type StructA3 struct {
 }
 
 func fill() {
-	a := StructA{}  //@refactorrewrite("}", "Fill struct")
+	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{
-		B: nil,
-	} //@refactorrewrite("}", "Fill struct")
-	c := StructA3{} //@refactorrewrite("}", "Fill struct")
+B : nil,
+} //@suggestedfix("}", "refactor.rewrite")
+	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
 }
 
--- fill_struct_22_16 --
+-- suggestedfix_fill_struct_22_16 --
 package fillstruct
 
 type StructA struct {
@@ -76,10 +76,10 @@ type StructA3 struct {
 }
 
 func fill() {
-	a := StructA{}  //@refactorrewrite("}", "Fill struct")
-	b := StructA2{} //@refactorrewrite("}", "Fill struct")
+	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
+	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{
-		B: StructB{},
-	} //@refactorrewrite("}", "Fill struct")
+B : StructB{},
+} //@suggestedfix("}", "refactor.rewrite")
 }
 

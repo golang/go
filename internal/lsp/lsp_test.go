@@ -370,48 +370,6 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) RefactorRewrite(t *testing.T, spn span.Span, title string) {
-	uri := spn.URI()
-	m, err := r.data.Mapper(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rng, err := m.Range(spn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-		Range: rng,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range actions {
-		// There may be more code actions available at spn (Span),
-		// we only need the one specified in the title
-		if action.Kind != protocol.RefactorRewrite || action.Title != title {
-			continue
-		}
-		res, err := applyWorkspaceEdits(r, action.Edit)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for u, got := range res {
-			fixed := string(r.data.Golden(tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
-				return []byte(got), nil
-			}))
-			if fixed != got {
-				t.Errorf("%s failed for %s, expected:\n%#v\ngot:\n%#v", title, u.Filename(), fixed, got)
-			}
-		}
-		return
-	}
-	t.Fatalf("expected code action %q, but got none", title)
-}
-
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)
@@ -435,18 +393,15 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 			r.diagnostics[key.id.URI] = diags
 		}
 	}
-	var diag *source.Diagnostic
+	var diagnostics []protocol.Diagnostic
 	for _, d := range r.diagnostics[uri] {
 		// Compare the start positions rather than the entire range because
 		// some diagnostics have a range with the same start and end position (8:1-8:1).
 		// The current marker functionality prevents us from having a range of 0 length.
 		if protocol.ComparePosition(d.Range.Start, rng.Start) == 0 {
-			diag = d
+			diagnostics = append(diagnostics, toProtocolDiagnostics([]*source.Diagnostic{d})...)
 			break
 		}
-	}
-	if diag == nil {
-		t.Fatalf("could not get any suggested fixes for %v", spn)
 	}
 	codeActionKinds := []protocol.CodeActionKind{}
 	for _, k := range actionKinds {
@@ -456,28 +411,30 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
+		Range: rng,
 		Context: protocol.CodeActionContext{
 			Only:        codeActionKinds,
-			Diagnostics: toProtocolDiagnostics([]*source.Diagnostic{diag}),
+			Diagnostics: diagnostics,
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// TODO: This test should probably be able to handle multiple code actions.
-	if len(actions) == 0 {
-		t.Fatal("no code actions returned")
+	// Hack: We assume that we only get one code action per range.
+	// TODO(rstambler): Support multiple code actions per test.
+	if len(actions) == 0 || len(actions) > 1 {
+		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
 	}
 	res, err := applyWorkspaceEdits(r, actions[0].Edit)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for u, got := range res {
-		fixed := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
 			return []byte(got), nil
 		}))
-		if fixed != got {
-			t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", u.Filename(), fixed, got)
+		if want != got {
+			t.Errorf("suggested fixes failed for %s: %s", u.Filename(), tests.Diff(want, got))
 		}
 	}
 }

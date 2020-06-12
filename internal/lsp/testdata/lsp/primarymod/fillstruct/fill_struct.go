@@ -17,7 +17,7 @@ type StructA3 struct {
 }
 
 func fill() {
-	a := StructA{}  //@refactorrewrite("}", "Fill struct")
-	b := StructA2{} //@refactorrewrite("}", "Fill struct")
-	c := StructA3{} //@refactorrewrite("}", "Fill struct")
+	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
+	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
+	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
 }

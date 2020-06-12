@@ -130,10 +130,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		return nil, warn, ctx.Err()
 	}
 	// If we don't have any list or parse errors, run analyses.
-	analyzers := snapshot.View().Options().DefaultAnalyzers
-	if hadTypeErrors {
-		analyzers = snapshot.View().Options().TypeErrorAnalyzers
-	}
+	analyzers := pickAnalyzers(snapshot, hadTypeErrors)
 	if err := analyses(ctx, snapshot, reports, ph, analyzers); err != nil {
 		event.Error(ctx, "analyses failed", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
 		if ctx.Err() != nil {
@@ -159,6 +156,26 @@ func ignoreFile(path string) bool {
 		}
 	}
 	return false
+}
+
+func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) map[string]Analyzer {
+	analyzers := make(map[string]Analyzer)
+
+	// Always run convenience analyzers.
+	for k, v := range snapshot.View().Options().ConvenienceAnalyzers {
+		analyzers[k] = v
+	}
+	// If we had type errors, only run type error analyzers.
+	if hadTypeErrors {
+		for k, v := range snapshot.View().Options().TypeErrorAnalyzers {
+			analyzers[k] = v
+		}
+		return analyzers
+	}
+	for k, v := range snapshot.View().Options().DefaultAnalyzers {
+		analyzers[k] = v
+	}
+	return analyzers
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileIdentity, []*Diagnostic, error) {
@@ -310,6 +327,13 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 
 	// Report diagnostics and errors from root analyzers.
 	for _, e := range analysisErrors {
+		// If the diagnostic comes from a "convenience" analyzer, it is not
+		// meant to provide diagnostics, but rather only suggested fixes.
+		// Skip these types of errors in diagnostics; we will use their
+		// suggested fixes when providing code actions.
+		if isConvenienceAnalyzer(e.Category) {
+			continue
+		}
 		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
 		// If we are deleting code as part of all of our suggested fixes, assume that this is dead code.
 		// TODO(golang/go#34508): Return these codes from the diagnostics themselves.
@@ -392,6 +416,15 @@ func hasUndeclaredErrors(pkg Package) bool {
 			continue
 		}
 		if strings.Contains(err.Message, "undeclared name:") {
+			return true
+		}
+	}
+	return false
+}
+
+func isConvenienceAnalyzer(category string) bool {
+	for _, a := range DefaultOptions().ConvenienceAnalyzers {
+		if category == a.Analyzer.Name {
 			return true
 		}
 	}

@@ -10,6 +10,6 @@ type StructC struct {
 
 func nested() {
 	c := StructB{
-		StructC: StructC{}, //@refactorrewrite("}", "Fill struct")
+		StructC: StructC{}, //@suggestedfix("}", "refactor.rewrite")
 	}
 }
