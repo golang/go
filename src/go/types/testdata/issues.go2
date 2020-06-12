@@ -181,13 +181,13 @@ func at(type T interface{ type []E }, E interface{})(x T, i int) E {
 }
 
 // A generic type inside a function acts like a named type. Its underlying
-// type is defined by the type list in the tybe bound, if any.
+// type is itself, its "operational type" is defined by the type list in
+// the tybe bound, if any.
 func _(type T interface{type int})(x T) {
 	type myint int
-	var _ int = x
+	var _ int = int(x)
 	var _ T = 42
-	var _ T = int(42)
-	var _ T = myint(42)
+	var _ T = T(myint(42))
 }
 
 // Indexing a generic type with an array type bound checks length.
