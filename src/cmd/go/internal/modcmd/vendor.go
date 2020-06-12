@@ -6,6 +6,7 @@ package modcmd
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -43,7 +44,7 @@ func init() {
 	work.AddModCommonFlags(cmdVendor)
 }
 
-func runVendor(cmd *base.Command, args []string) {
+func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go mod vendor: vendor takes no arguments")
 	}

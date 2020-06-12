@@ -8,6 +8,7 @@ package list
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -309,7 +310,7 @@ var (
 
 var nl = []byte{'\n'}
 
-func runList(cmd *base.Command, args []string) {
+func runList(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)

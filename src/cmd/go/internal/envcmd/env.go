@@ -6,6 +6,7 @@
 package envcmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -186,7 +187,7 @@ func argKey(arg string) string {
 	return arg[:i]
 }
 
-func runEnv(cmd *base.Command, args []string) {
+func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	if *envJson && *envU {
 		base.Fatalf("go env: cannot use -json with -u")
 	}

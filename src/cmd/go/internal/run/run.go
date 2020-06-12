@@ -6,6 +6,7 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -57,7 +58,7 @@ func printStderr(args ...interface{}) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 
-func runRun(cmd *base.Command, args []string) {
+func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit()
 	var b work.Builder
 	b.Init()

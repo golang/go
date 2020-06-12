@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"context"
 	"path/filepath"
 )
 
@@ -48,7 +49,7 @@ See also: go fmt, go fix.
 	`,
 }
 
-func runVet(cmd *base.Command, args []string) {
+func runVet(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	vetFlags, pkgArgs := vetFlags(args)

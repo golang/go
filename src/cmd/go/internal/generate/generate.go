@@ -8,6 +8,7 @@ package generate
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -160,7 +161,7 @@ func init() {
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
-func runGenerate(cmd *base.Command, args []string) {
+func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 	load.IgnoreImports = true
 
 	if generateRunFlag != "" {

@@ -5,6 +5,7 @@
 package work
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/build"
@@ -344,7 +345,7 @@ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 var runtimeVersion = runtime.Version()
 
-func runBuild(cmd *base.Command, args []string) {
+func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	BuildInit()
 	var b Builder
 	b.Init()
@@ -515,7 +516,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 	return "lib" + libname + ".so", nil
 }
 
-func runInstall(cmd *base.Command, args []string) {
+func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	BuildInit()
 	InstallPackages(args, load.PackagesForBuild(args))
 }
