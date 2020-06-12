@@ -1173,12 +1173,12 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 	}
 
 	sb := ldr.MakeSymbolUpdater(s)
+	sb.SetReachable(true)
 	sb.SetType(sym.SXCOFFTOC)
 
 	// Create new dynamic symbol
 	extsym := ldr.CreateSymForUpdate(ldr.SymExtname(s), 0)
 	extsym.SetType(sym.SDYNIMPORT)
-	extsym.SetReachable(true)
 	extsym.SetDynimplib(ldr.SymDynimplib(s))
 	extsym.SetExtname(ldr.SymExtname(s))
 	extsym.SetDynimpvers(ldr.SymDynimpvers(s))
@@ -1279,7 +1279,6 @@ func (ctxt *Link) doxcoff() {
 	// TOC
 	toc := ldr.CreateSymForUpdate("TOC", 0)
 	toc.SetType(sym.SXCOFFTOC)
-	toc.SetReachable(true)
 	toc.SetVisibilityHidden(true)
 
 	// Add entry point to .loader symbols.
@@ -1330,6 +1329,7 @@ func (ctxt *Link) doxcoff() {
 				ldr.SetSymExtname(s, "."+name)
 
 				desc := ldr.MakeSymbolUpdater(ldr.CreateExtSym(name, 0))
+				desc.SetReachable(true)
 				desc.SetType(sym.SNOPTRDATA)
 				desc.AddAddr(ctxt.Arch, s)
 				desc.AddAddr(ctxt.Arch, toc.Sym())

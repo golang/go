@@ -2381,7 +2381,6 @@ func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
 	s := ldr.CreateSymForUpdate(p, 0)
 	s.SetType(t)
 	s.SetValue(v)
-	s.SetReachable(true)
 	s.SetSpecial(true)
 	s.SetLocal(true)
 }

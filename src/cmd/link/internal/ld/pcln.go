@@ -585,11 +585,9 @@ const (
 // a given text symbols is a container (outer sym).
 func (ctxt *Link) findfunctab(container loader.Bitmap) {
 	ldr := ctxt.loader
-	tsym := ldr.LookupOrCreateSym("runtime.findfunctab", 0)
-	t := ldr.MakeSymbolUpdater(tsym)
+	t := ldr.CreateSymForUpdate("runtime.findfunctab", 0)
 	t.SetType(sym.SRODATA)
-	ldr.SetAttrReachable(tsym, true)
-	ldr.SetAttrLocal(tsym, true)
+	ldr.SetAttrLocal(t.Sym(), true)
 
 	// find min and max address
 	min := ldr.SymValue(ctxt.Textp[0])

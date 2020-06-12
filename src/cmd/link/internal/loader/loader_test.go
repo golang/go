@@ -210,11 +210,6 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	if 0 != es1val {
 		t.Errorf("expected IsReflectMethod(es1) value of 0, got %v", irm)
 	}
-
-	// Writing data to a materialized symbol should mark it reachable.
-	if !sb1.Reachable() || !sb2.Reachable() {
-		t.Fatalf("written-to materialized symbols should be reachable")
-	}
 }
 
 func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
@@ -346,9 +341,6 @@ func TestAddDataMethods(t *testing.T) {
 		if bytes.Compare(ldr.Data(mi), tp.expData) != 0 {
 			t.Errorf("testing Loader.%s: expected data %v got %v",
 				tp.which, tp.expData, ldr.Data(mi))
-		}
-		if !ldr.AttrReachable(mi) {
-			t.Fatalf("testing Loader.%s: sym updated should be reachable", tp.which)
 		}
 		relocs := ldr.Relocs(mi)
 		if !sameRelocSlice(&relocs, tp.expRel) {

@@ -1006,13 +1006,11 @@ func Peinit(ctxt *Link) {
 	if ctxt.LinkMode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
 		for _, name := range [2]string{"__image_base__", "_image_base__"} {
-			s := ctxt.loader.LookupOrCreateSym(name, 0)
-			sb := ctxt.loader.MakeSymbolUpdater(s)
+			sb := ctxt.loader.CreateSymForUpdate(name, 0)
 			sb.SetType(sym.SDATA)
 			sb.SetValue(PEBASE)
-			ctxt.loader.SetAttrReachable(s, true)
-			ctxt.loader.SetAttrSpecial(s, true)
-			ctxt.loader.SetAttrLocal(s, true)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+			ctxt.loader.SetAttrLocal(sb.Sym(), true)
 		}
 	}
 
@@ -1110,14 +1108,12 @@ func initdynimport(ctxt *Link) *Dll {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := ldr.CreateSymForUpdate(dynName, 0)
-				dynSym.SetReachable(true)
 				dynSym.SetType(sym.SHOSTOBJ)
 				sb.AddReloc(loader.Reloc{Sym: dynSym.Sym(), Type: objabi.R_ADDR, Off: 0, Size: uint8(ctxt.Arch.PtrSize)})
 			}
 		}
 	} else {
 		dynamic := ldr.CreateSymForUpdate(".windynamic", 0)
-		dynamic.SetReachable(true)
 		dynamic.SetType(sym.SWINDOWS)
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {

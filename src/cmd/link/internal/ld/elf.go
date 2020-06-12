@@ -1036,7 +1036,6 @@ func elfdynhash(ctxt *Link) {
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(".hash", 0)
 	s.SetType(sym.SELFROSECT)
-	s.SetReachable(true)
 
 	i := nsym
 	nbucket := 1
@@ -1434,7 +1433,6 @@ func elfEmitReloc(ctxt *Link) {
 func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(sectionName, 0)
-	s.SetReachable(true)
 	s.SetType(sym.SELFROSECT)
 	// namesz
 	s.AddUint32(ctxt.Arch, uint32(len(ELF_NOTE_GO_NAME)))
@@ -1463,7 +1461,6 @@ func (ctxt *Link) doelf() {
 	shstrtab := ldr.CreateSymForUpdate(".shstrtab", 0)
 
 	shstrtab.SetType(sym.SELFROSECT)
-	shstrtab.SetReachable(true)
 
 	shstrtab.Addstring("")
 	shstrtab.Addstring(".text")
@@ -1577,7 +1574,6 @@ func (ctxt *Link) doelf() {
 		dynsym := ldr.CreateSymForUpdate(".dynsym", 0)
 
 		dynsym.SetType(sym.SELFROSECT)
-		dynsym.SetReachable(true)
 		if elf64 {
 			dynsym.SetSize(dynsym.Size() + ELF64SYMSIZE)
 		} else {
@@ -1588,39 +1584,32 @@ func (ctxt *Link) doelf() {
 		dynstr := ldr.CreateSymForUpdate(".dynstr", 0)
 
 		dynstr.SetType(sym.SELFROSECT)
-		dynstr.SetReachable(true)
 		if dynstr.Size() == 0 {
 			dynstr.Addstring("")
 		}
 
 		/* relocation table */
 		s := ldr.CreateSymForUpdate(elfRelType, 0)
-		s.SetReachable(true)
 		s.SetType(sym.SELFROSECT)
 
 		/* global offset table */
 		got := ldr.CreateSymForUpdate(".got", 0)
-		got.SetReachable(true)
 		got.SetType(sym.SELFGOT) // writable
 
 		/* ppc64 glink resolver */
 		if ctxt.IsPPC64() {
 			s := ldr.CreateSymForUpdate(".glink", 0)
-			s.SetReachable(true)
 			s.SetType(sym.SELFRXSECT)
 		}
 
 		/* hash */
 		hash := ldr.CreateSymForUpdate(".hash", 0)
-		hash.SetReachable(true)
 		hash.SetType(sym.SELFROSECT)
 
 		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
-		gotplt.SetReachable(true)
 		gotplt.SetType(sym.SELFSECT) // writable
 
 		plt := ldr.CreateSymForUpdate(".plt", 0)
-		plt.SetReachable(true)
 		if ctxt.IsPPC64() {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
@@ -1630,20 +1619,16 @@ func (ctxt *Link) doelf() {
 		}
 
 		s = ldr.CreateSymForUpdate(elfRelType+".plt", 0)
-		s.SetReachable(true)
 		s.SetType(sym.SELFROSECT)
 
 		s = ldr.CreateSymForUpdate(".gnu.version", 0)
-		s.SetReachable(true)
 		s.SetType(sym.SELFROSECT)
 
 		s = ldr.CreateSymForUpdate(".gnu.version_r", 0)
-		s.SetReachable(true)
 		s.SetType(sym.SELFROSECT)
 
 		/* define dynamic elf table */
 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
-		dynamic.SetReachable(true)
 		dynamic.SetType(sym.SELFSECT) // writable
 
 		if ctxt.IsS390X() {

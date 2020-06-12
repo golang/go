@@ -740,15 +740,14 @@ func (ctxt *Link) windynrelocsyms() {
 		return
 	}
 
-	rel := ctxt.loader.LookupOrCreateSym(".rel", 0)
-	relu := ctxt.loader.MakeSymbolUpdater(rel)
-	relu.SetType(sym.STEXT)
+	rel := ctxt.loader.CreateSymForUpdate(".rel", 0)
+	rel.SetType(sym.STEXT)
 
 	for _, s := range ctxt.Textp {
-		windynrelocsym(ctxt, relu, s)
+		windynrelocsym(ctxt, rel, s)
 	}
 
-	ctxt.Textp = append(ctxt.Textp, rel)
+	ctxt.Textp = append(ctxt.Textp, rel.Sym())
 }
 
 func dynrelocsym(ctxt *Link, s loader.Sym) {
@@ -1042,9 +1041,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 	}
 
 	p := fmt.Sprintf("%s.str", name)
-	sp := l.LookupOrCreateSym(p, 0)
-	sbld := l.MakeSymbolUpdater(sp)
-
+	sbld := l.CreateSymForUpdate(p, 0)
 	sbld.Addstring(value)
 	sbld.SetType(sym.SRODATA)
 
@@ -1052,7 +1049,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 	bld.SetData(make([]byte, 0, arch.PtrSize*2))
 	bld.SetReadOnly(false)
 	bld.SetRelocs(nil)
-	bld.AddAddrPlus(arch, sp, 0)
+	bld.AddAddrPlus(arch, sbld.Sym(), 0)
 	bld.AddUint(arch, uint64(len(value)))
 }
 
@@ -1069,7 +1066,6 @@ func addgostring(ctxt *Link, ldr *loader.Loader, s *loader.SymbolBuilder, symnam
 	if sdata.Type() != sym.Sxxx {
 		ctxt.Errorf(s.Sym(), "duplicate symname in addgostring: %s", symname)
 	}
-	sdata.SetReachable(true)
 	sdata.SetLocal(true)
 	sdata.SetType(sym.SRODATA)
 	sdata.SetSize(int64(len(str)))
@@ -1126,8 +1122,7 @@ type GCProg struct {
 
 func (p *GCProg) Init(ctxt *Link, name string) {
 	p.ctxt = ctxt
-	symIdx := ctxt.loader.LookupOrCreateSym(name, 0)
-	p.sym = ctxt.loader.MakeSymbolUpdater(symIdx)
+	p.sym = ctxt.loader.CreateSymForUpdate(name, 0)
 	p.w.Init(p.writeByte())
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
@@ -2059,7 +2054,6 @@ func (ctxt *Link) textbuildid() {
 
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate("go.buildid", 0)
-	s.SetReachable(true)
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
@@ -2083,7 +2077,6 @@ func (ctxt *Link) buildinfo() {
 
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
-	s.SetReachable(true)
 	// On AIX, .go.buildinfo must be in the symbol table as
 	// it has relocations.
 	s.SetNotInSymbolTable(!ctxt.IsAIX())
@@ -2231,7 +2224,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 
 		// Create a symbol for the start of the secondary text sections
 		ntext := ldr.CreateSymForUpdate(fmt.Sprintf("runtime.text.%d", n), 0)
-		ntext.SetReachable(true)
 		ntext.SetSect(sect)
 		if ctxt.IsAIX() {
 			// runtime.text.X must be a real symbol on AIX.

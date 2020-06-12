@@ -216,11 +216,10 @@ func (dsi *dwarfSecInfo) subSyms() []loader.Sym {
 var dwarfp []dwarfSecInfo
 
 func (d *dwctxt) writeabbrev() dwarfSecInfo {
-	abrvs := d.ldr.LookupOrCreateSym(".debug_abbrev", 0)
-	u := d.ldr.MakeSymbolUpdater(abrvs)
-	u.SetType(sym.SDWARFSECT)
-	u.AddBytes(dwarf.GetAbbrev())
-	return dwarfSecInfo{syms: []loader.Sym{abrvs}}
+	abrvs := d.ldr.CreateSymForUpdate(".debug_abbrev", 0)
+	abrvs.SetType(sym.SDWARFSECT)
+	abrvs.AddBytes(dwarf.GetAbbrev())
+	return dwarfSecInfo{syms: []loader.Sym{abrvs.Sym()}}
 }
 
 var dwtypes dwarf.DWDie
@@ -1624,13 +1623,12 @@ func (d *dwctxt) writegdbscript() dwarfSecInfo {
 		return dwarfSecInfo{}
 	}
 
-	gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
-	u := d.ldr.MakeSymbolUpdater(gs)
-	u.SetType(sym.SDWARFSECT)
+	gs := d.ldr.CreateSymForUpdate(".debug_gdb_scripts", 0)
+	gs.SetType(sym.SDWARFSECT)
 
-	u.AddUint8(1) // magic 1 byte?
-	u.Addstring(gdbscript)
-	return dwarfSecInfo{syms: []loader.Sym{gs}}
+	gs.AddUint8(1) // magic 1 byte?
+	gs.Addstring(gdbscript)
+	return dwarfSecInfo{syms: []loader.Sym{gs.Sym()}}
 }
 
 // FIXME: might be worth looking replacing this map with a function
@@ -1969,17 +1967,13 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
 
 	// Create .debug_line and .debug_ranges section symbols
-	debugLine := d.ldr.LookupOrCreateSym(".debug_line", 0)
-	dlu := d.ldr.MakeSymbolUpdater(debugLine)
-	dlu.SetType(sym.SDWARFSECT)
-	d.ldr.SetAttrReachable(debugLine, true)
-	dwarfp = append(dwarfp, dwarfSecInfo{syms: []loader.Sym{debugLine}})
+	debugLine := d.ldr.CreateSymForUpdate(".debug_line", 0)
+	debugLine.SetType(sym.SDWARFSECT)
+	dwarfp = append(dwarfp, dwarfSecInfo{syms: []loader.Sym{debugLine.Sym()}})
 	linesec := &dwarfp[len(dwarfp)-1]
 
-	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
-	dru := d.ldr.MakeSymbolUpdater(debugRanges)
-	dru.SetType(sym.SDWARFRANGE)
-	d.ldr.SetAttrReachable(debugRanges, true)
+	debugRanges := d.ldr.CreateSymForUpdate(".debug_ranges", 0)
+	debugRanges.SetType(sym.SDWARFRANGE)
 
 	// Write per-package line and range tables and start their CU DIEs.
 	for _, u := range d.linkctxt.compUnits {
@@ -1989,7 +1983,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		}
 		linesec.syms = d.writelines(u, linesec.syms)
 		base := loader.Sym(u.Textp[0])
-		d.writepcranges(u, base, u.PCs, debugRanges)
+		d.writepcranges(u, base, u.PCs, debugRanges.Sym())
 	}
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
@@ -1998,12 +1992,12 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	reversetree(&dwtypes.Child)
 	movetomodule(d.linkctxt, &dwtypes)
 
-	infoSym := d.ldr.LookupOrCreateSym(".debug_info", 0)
+	infoSym := d.ldr.CreateSymForUpdate(".debug_info", 0)
 
-	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), infoSym)
+	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), infoSym.Sym())
 
-	frameSym := d.ldr.LookupOrCreateSym(".debug_frame", 0)
-	frameSec := d.writeframes(frameSym)
+	frameSym := d.ldr.CreateSymForUpdate(".debug_frame", 0)
+	frameSec := d.writeframes(frameSym.Sym())
 
 	dwarfp = append(dwarfp, frameSec)
 	gdbScriptSec := d.writegdbscript()
@@ -2011,14 +2005,13 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		dwarfp = append(dwarfp, gdbScriptSec)
 	}
 	dwarfp = append(dwarfp, infoSec)
-	locSym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
-	d.ldr.SetAttrReachable(locSym, true)
-	locSec := d.collectlocs(locSym)
+	locSym := d.ldr.CreateSymForUpdate(".debug_loc", 0)
+	locSec := d.collectlocs(locSym.Sym())
 	if locSec.secSym() != 0 {
 		dwarfp = append(dwarfp, locSec)
 	}
 
-	rsyms := []loader.Sym{debugRanges}
+	rsyms := []loader.Sym{debugRanges.Sym()}
 	for _, unit := range d.linkctxt.compUnits {
 		for _, s := range unit.RangeSyms {
 			rsyms = append(rsyms, loader.Sym(s))
@@ -2145,7 +2138,6 @@ func dwarfcompress(ctxt *Link) {
 			sect.Align = 1
 			sect.Length = uint64(len(z.compressed))
 			newSym := ldr.CreateSymForUpdate(compressedSegName, 0)
-			newSym.SetReachable(true)
 			newSym.SetData(z.compressed)
 			newSym.SetSize(int64(len(z.compressed)))
 			ldr.SetSymSect(newSym.Sym(), sect)

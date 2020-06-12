@@ -345,7 +345,6 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 	ldr := ctxt.loader
 	t := ldr.CreateSymForUpdate("runtime.textsectionmap", 0)
 	t.SetType(sym.SRODATA)
-	t.SetReachable(true)
 	nsections := int64(0)
 
 	for _, sect := range Segtext.Sections {
@@ -434,13 +433,11 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	s := ldr.CreateSymForUpdate("runtime.gcdata", 0)
 	s.SetType(sym.SRODATA)
 	s.SetSize(0)
-	s.SetReachable(true)
 	ctxt.xdefine("runtime.egcdata", sym.SRODATA, 0)
 
 	s = ldr.CreateSymForUpdate("runtime.gcbss", 0)
 	s.SetType(sym.SRODATA)
 	s.SetSize(0)
-	s.SetReachable(true)
 	ctxt.xdefine("runtime.egcbss", sym.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
@@ -450,19 +447,16 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			s = ldr.CreateSymForUpdate("type.*", 0)
 			s.SetType(sym.STYPE)
 			s.SetSize(0)
-			s.SetReachable(true)
 			symtype = s.Sym()
 
 			s = ldr.CreateSymForUpdate("typerel.*", 0)
 			s.SetType(sym.STYPERELRO)
 			s.SetSize(0)
-			s.SetReachable(true)
 			symtyperel = s.Sym()
 		} else {
 			s = ldr.CreateSymForUpdate("type.*", 0)
 			s.SetType(sym.STYPE)
 			s.SetSize(0)
-			s.SetReachable(true)
 			symtype = s.Sym()
 			symtyperel = s.Sym()
 		}
@@ -473,7 +467,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 		s.SetType(t)
 		s.SetSize(0)
 		s.SetLocal(true)
-		s.SetReachable(true)
 		return s.Sym()
 	}
 	var (
@@ -497,7 +490,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
 	symt.SetType(sym.SSYMTAB)
 	symt.SetSize(0)
-	symt.SetReachable(true)
 	symt.SetLocal(true)
 
 	nitablinks := 0
@@ -580,7 +572,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 
 	if ctxt.BuildMode == BuildModeShared {
 		abihashgostr := ldr.CreateSymForUpdate("go.link.abihash."+filepath.Base(*flagOutfile), 0)
-		abihashgostr.SetReachable(true)
 		abihashgostr.SetType(sym.SRODATA)
 		hashsym := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
@@ -589,12 +580,10 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
 		for _, l := range ctxt.Library {
 			s := ldr.CreateSymForUpdate("go.link.pkghashbytes."+l.Pkg, 0)
-			s.SetReachable(true)
 			s.SetType(sym.SRODATA)
 			s.SetSize(int64(len(l.Fingerprint)))
 			s.SetData(l.Fingerprint[:])
 			str := ldr.CreateSymForUpdate("go.link.pkghash."+l.Pkg, 0)
-			str.SetReachable(true)
 			str.SetType(sym.SRODATA)
 			str.AddAddr(ctxt.Arch, s.Sym())
 			str.AddUint(ctxt.Arch, uint64(len(l.Fingerprint)))
@@ -690,7 +679,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 		addgostring(ctxt, ldr, moduledata, "go.link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
 
 		pkghashes := ldr.CreateSymForUpdate("go.link.pkghashes", 0)
-		pkghashes.SetReachable(true)
 		pkghashes.SetLocal(true)
 		pkghashes.SetType(sym.SRODATA)
 
@@ -724,7 +712,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 		addgostring(ctxt, ldr, moduledata, "go.link.thismodulename", thismodulename)
 
 		modulehashes := ldr.CreateSymForUpdate("go.link.abihashes", 0)
-		modulehashes.SetReachable(true)
 		modulehashes.SetLocal(true)
 		modulehashes.SetType(sym.SRODATA)
 
