@@ -311,7 +311,16 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 func (t *translator) translate(file *ast.File) {
 	declsToDo := file.Decls
 	file.Decls = nil
+	c := 0
 	for len(declsToDo) > 0 {
+		if c > 50 {
+			var sb strings.Builder
+			printer.Fprint(&sb, t.fset, declsToDo[0])
+			t.err = fmt.Errorf("looping while expanding %v", &sb)
+			return
+		}
+		c++
+
 		newDecls := make([]ast.Decl, 0, len(declsToDo))
 		for i, decl := range declsToDo {
 			switch decl := decl.(type) {
