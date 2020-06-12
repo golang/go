@@ -15,7 +15,7 @@ import "go/token"
 func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
 	assert(params.Len() == len(args))
 
-	u := check.unifier()
+	u := check.newUnifier(false)
 	u.x.init(tparams)
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {

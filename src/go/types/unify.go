@@ -16,13 +16,18 @@ import (
 // A uninifier is created by calling Checker.unifier.
 type unifier struct {
 	check *Checker
+	exact bool
 	x, y  typeDesc // x and y must initialized via typeDesc.init
 	types []Type   // inferred types, shared by x and y
 }
 
-// unifier returns a new unifier.
-func (check *Checker) unifier() *unifier {
-	u := &unifier{check: check}
+// newUnifier returns a new unifier.
+// If exact is set, unification requires unified types to match
+// exactly. If exact is not set, a named type's underlying type
+// is considered if unification would fail otherwise, and the
+// direction of channels is ignored.
+func (check *Checker) newUnifier(exact bool) *unifier {
+	u := &unifier{check: check, exact: exact}
 	u.x.uplink = u
 	u.y.uplink = u
 	return u
@@ -68,12 +73,12 @@ func (d *typeDesc) set(i int, typ Type) {
 	d.indices[i] = len(u.types)
 }
 
-// If typ is a type parameter in tparams, index returns the
-// corresponding tparams index. Otherwise, the result is < 0.
-func (u *unifier) index(tparams []*TypeName, typ Type) int {
+// If typ is a type parameter in d.tparams, index returns the
+// corresponding d.tparams index. Otherwise, the result is < 0.
+func (d *typeDesc) index(typ Type) int {
 	if t, ok := typ.(*TypeParam); ok {
 		// typ is a type parameter; check that it belongs to the (enclosing) type
-		if i := t.index; i < len(tparams) && tparams[i].typ == t {
+		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
 			return i
 		}
 	}
@@ -89,9 +94,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	x = expand(x)
 	y = expand(y)
 
+	if !u.exact {
+		// If exact unification is known to fail because we attempt to
+		// match a type name against an unnamed type literal, consider
+		// the underlying type of the named type.
+		// (Subtle: We use isNamed to include any type with a name (incl.
+		// basic types and type parameters. We use Named() because we only
+		// want *Named types.)
+		switch {
+		case !isNamed(x) && y != nil && y.Named() != nil:
+			return u.nify(x, y.Under(), p)
+		case x != nil && x.Named() != nil && !isNamed(y):
+			return u.nify(x.Under(), y, p)
+		}
+	}
+
 	//u.check.dump("### u.nify(%s, %s)", x, y)
-	i := u.index(u.x.tparams, x)
-	j := u.index(u.y.tparams, y)
+	i := u.x.index(x)
+	j := u.y.index(y)
 	switch {
 	case i >= 0 && j >= 0:
 		//u.check.dump("### i = %d, j = %d", i, j)
@@ -313,9 +333,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types.
-		// For type unification, channel direction is ignored.
 		if y, ok := y.(*Chan); ok {
-			return u.nify(x.elem, y.elem, p)
+			return (!u.exact || x.dir == y.dir) && u.nify(x.elem, y.elem, p)
 		}
 
 	case *Named:
@@ -341,7 +360,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 
 	case *TypeParam:
 		// Two type parameters (which are not part of the type parameters of the
-		// enclosing type) are identical if they originate in the same declaration.
+		// enclosing type as those are handled in the beginning of this function)
+		// are identical if they originate in the same declaration.
 		return x == y
 
 	// case *instance:

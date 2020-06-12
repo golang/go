@@ -161,3 +161,44 @@ func _() {
 	ffsend(recv /* ERROR cannot use */ )
 	ffsend(send)
 }
+
+// When inferring elements of unnamed composite parameter types,
+// if the arguments are defined types, use their underlying types.
+// Even though the matching types are not exactly structurally the
+// same (one is a type literal, the other a named type), because
+// assignment is permitted, parameter passing is permitted as well,
+// so type inference should be able to handle these cases well.
+
+func g1(type T)([]T)
+func g2(type T)([]T, T)
+func g3(type T)(*T, ...T)
+
+func _() {
+	type intSlize []int
+	g1([]int{})
+	g1(intSlize{})
+	g2(nil, 0)
+
+	type myString string
+	var s1 string
+	g3(nil, "1", myString("2"), "3")
+	g3(&s1, "1", myString /* ERROR does not match */ ("2"), "3")
+
+	type myStruct struct{x int}
+	var s2 myStruct
+	g3(nil, struct{x int}{}, myStruct{})
+	g3(&s2, struct{x int}{}, myStruct{})
+	g3(nil, myStruct{}, struct{x int}{})
+	g3(&s2, myStruct{}, struct{x int}{})
+}
+
+// Here's a realistic example.
+
+func append(type T)(s []T, t ...T) []T
+
+func _() {
+	var f func()
+	type Funcs []func()
+	var funcs Funcs
+	_ = append(funcs, f)
+}

@@ -241,11 +241,26 @@ func NewTuple(x ...*Var) *Tuple {
 	return nil
 }
 
-// We cannot rely on the embedded Basic() method because (*Tuple)(nil)
-// is a valid *Tuple value but (*Tuple)(nil).Basic() would panic without
-// this implementation.
-// TODO(gri) It seems that at the moment we only need this converter.
-func (*Tuple) Basic() *Basic { return nil }
+// We cannot rely on the embedded X() *X methods because (*Tuple)(nil)
+// is a valid *Tuple value but (*Tuple)(nil).X() would panic without
+// these implementations. At the moment we only need X = Basic, Named,
+// but add all because missing one leads to very confusing bugs.
+// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+//           it's too subtle and causes problems.
+func (*Tuple) Basic() *Basic     { return nil }
+func (*Tuple) Array() *Array     { return nil }
+func (*Tuple) Slice() *Slice     { return nil }
+func (*Tuple) Struct() *Struct   { return nil }
+func (*Tuple) Pointer() *Pointer { return nil }
+
+// func (*Tuple) Tuple() *Tuple      // implemented below
+func (*Tuple) Signature() *Signature { return nil }
+func (*Tuple) Sum() *Sum             { return nil }
+func (*Tuple) Interface() *Interface { return nil }
+func (*Tuple) Map() *Map             { return nil }
+func (*Tuple) Chan() *Chan           { return nil }
+func (*Tuple) Named() *Named         { return nil }
+func (*Tuple) TypeParam() *TypeParam { return nil }
 
 // Len returns the number variables of tuple t.
 func (t *Tuple) Len() int {
