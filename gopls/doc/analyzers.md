@@ -71,7 +71,7 @@ or slice to C, either directly, or via a pointer, array, or struct.
 
 Default value: `true`.
 
-### **composite**
+### **composites**
 
 check for unkeyed composite literals
 
