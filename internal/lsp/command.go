@@ -103,15 +103,7 @@ func (s *Server) goModCommand(ctx context.Context, uri protocol.DocumentURI, ver
 	return err
 }
 
-func (s *Server) runTest(ctx context.Context, funcName string, dir string, snapshot source.Snapshot) {
-	args := []string{"-run", funcName, dir}
-	inv := gocommand.Invocation{
-		Verb:       "test",
-		Args:       args,
-		Env:        snapshot.Config(ctx).Env,
-		WorkingDir: dir,
-	}
-
+func (s *Server) runTest(ctx context.Context, funcName string, dir string, snapshot source.Snapshot) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -122,15 +114,24 @@ func (s *Server) runTest(ctx context.Context, funcName string, dir string, snaps
 	messageType := protocol.Info
 	message := "test passed"
 	stderr := io.MultiWriter(er, wc)
-	if err := inv.RunPiped(ctx, er, stderr); err != nil {
-		event.Error(ctx, "test: command error", err, tag.Directory.Of(dir))
-		if !errors.Is(err, context.Canceled) {
-			messageType = protocol.Error
-			message = "test failed"
-		}
-	}
 
-	s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+	cfg := snapshot.Config(ctx)
+	inv := gocommand.Invocation{
+		Verb:       "test",
+		Args:       []string{"-run", funcName, dir},
+		Env:        cfg.Env,
+		WorkingDir: dir,
+	}
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	if err := runner.RunPiped(ctx, inv, er, stderr); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		event.Error(ctx, "test: command error", err, tag.Directory.Of(dir))
+		messageType = protocol.Error
+		message = "test failed"
+	}
+	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 		Type:    messageType,
 		Message: message,
 	})

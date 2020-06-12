@@ -12,14 +12,16 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/xerrors"
+	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // GenerateWorkDoneTitle is the title used in progress reporting for go
 // generate commands. It is exported for testing purposes.
 const GenerateWorkDoneTitle = "generate"
 
-func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
+func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -30,23 +32,33 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	if recursive {
 		args = append(args, "./...")
 	}
-	inv := &gocommand.Invocation{
+
+	stderr := io.MultiWriter(er, wc)
+	uri := span.URIFromPath(dir)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return err
+	}
+	snapshot := view.Snapshot()
+	cfg := snapshot.Config(ctx)
+	inv := gocommand.Invocation{
 		Verb:       "generate",
 		Args:       args,
-		Env:        s.session.Options().Env,
+		Env:        cfg.Env,
 		WorkingDir: dir,
 	}
-	stderr := io.MultiWriter(er, wc)
-	err := inv.RunPiped(ctx, er, stderr)
-	if err != nil {
-		event.Error(ctx, "generate: command error", err, tag.Directory.Of(dir))
-		if !xerrors.Is(err, context.Canceled) {
-			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: "go generate exited with an error, check gopls logs",
-			})
+	runner := packagesinternal.GetGoCmdRunner(cfg)
+	if err := runner.RunPiped(ctx, inv, er, stderr); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
 		}
+		event.Error(ctx, "generate: command error", err, tag.Directory.Of(dir))
+		return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: "go generate exited with an error, check gopls logs",
+		})
 	}
+	return nil
 }
 
 // eventWriter writes every incoming []byte to
