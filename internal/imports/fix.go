@@ -1325,7 +1325,10 @@ func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, incl
 		fullFile := filepath.Join(dir, fi.Name())
 		f, err := parser.ParseFile(fset, fullFile, nil, 0)
 		if err != nil {
-			return "", nil, fmt.Errorf("parsing %s: %v", fullFile, err)
+			if env.Logf != nil {
+				env.Logf("error parsing %v: %v", fullFile, err)
+			}
+			continue
 		}
 		if f.Name.Name == "documentation" {
 			// Special case from go/build.ImportDir, not
