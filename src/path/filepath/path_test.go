@@ -532,6 +532,43 @@ func touch(t *testing.T, name string) {
 	}
 }
 
+func TestWalkSkipDirOnReadDirNames(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	if err := os.MkdirAll(filepath.Join(td, "skip"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(td, "skip/foo1"))
+	touch(t, filepath.Join(td, "skip/foo2"))
+	touch(t, filepath.Join(td, "skip/foo3"))
+	touch(t, filepath.Join(td, "skip/foo4"))
+	touch(t, filepath.Join(td, "skip/foo5"))
+
+	walker := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && info.Name() == "skip" {
+			return filepath.SkipDir
+		}
+		return nil
+	}
+
+	allocs := testing.AllocsPerRun(100, func() {
+		err = filepath.Walk(td, walker)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs > 20 {
+		t.Errorf("SkipDir should not readDirNames on the dir especilly the dir has large number of files.")
+	}
+}
+
 func TestWalkSkipDirOnFile(t *testing.T) {
 	td, err := ioutil.TempDir("", "walktest")
 	if err != nil {
