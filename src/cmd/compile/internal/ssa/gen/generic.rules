@@ -1933,30 +1933,30 @@
 // recognize runtime.newobject and don't Zero/Nilcheck it
 (Zero (Load (OffPtr [c] (SP)) mem) mem)
 	&& mem.Op == OpStaticCall
-	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& isSameCall(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	=> mem
 (Store (Load (OffPtr [c] (SP)) mem) x mem)
 	&& isConstZero(x)
 	&& mem.Op == OpStaticCall
-	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& isSameCall(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	=> mem
 (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
 	&& isConstZero(x)
 	&& mem.Op == OpStaticCall
-	&& isSameSym(mem.Aux, "runtime.newobject")
+	&& isSameCall(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	=> mem
 // nil checks just need to rewrite to something useless.
 // they will be deadcode eliminated soon afterwards.
 (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	&& symNamed(sym, "runtime.newobject")
+	&& isSameCall(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	&& symNamed(sym, "runtime.newobject")
+	&& isSameCall(sym, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
@@ -2010,7 +2010,7 @@
 // See the comment in op Move in genericOps.go for discussion of the type.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
 	&& sz >= 0
-	&& symNamed(sym, "runtime.memmove")
+	&& isSameCall(sym, "runtime.memmove")
 	&& t.IsPtr() // avoids TUINTPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst, src, int64(sz), config)

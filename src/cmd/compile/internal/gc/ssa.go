@@ -805,6 +805,11 @@ func (s *state) newValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.
 	return s.curBlock.NewValue2(s.peekPos(), op, t, arg0, arg1)
 }
 
+// newValue2A adds a new value with two arguments and an aux value to the current block.
+func (s *state) newValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
+}
+
 // newValue2Apos adds a new value with two arguments and an aux value to the current block.
 // isStmt determines whether the created values may be a statement or not
 // (i.e., false means never, yes means maybe).
@@ -4297,10 +4302,10 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[TUINTPTR], v)
-			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, v, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, v, s.mem())
 		} else {
 			// Do a static call if the original call was a static function or method
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn.Sym.Linksym(), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn.Sym.Linksym()}, s.mem())
 		}
 		call.AuxInt = stksize
 		s.vars[&memVar] = call
@@ -4432,7 +4437,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Call runtime.deferprocStack with pointer to _defer record.
 		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
 		s.store(types.Types[TUINTPTR], arg0, addr)
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferprocStack, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferprocStack}, s.mem())
 		if stksize < int64(Widthptr) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
@@ -4477,9 +4482,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// call target
 		switch {
 		case k == callDefer:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferproc}, s.mem())
 		case k == callGo:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: newproc}, s.mem())
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4487,11 +4492,11 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
-			call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, closure, s.mem())
 		case codeptr != nil:
-			call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
+			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, nil, codeptr, s.mem())
 		case sym != nil:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, sym.Linksym(), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: sym.Linksym()}, s.mem())
 		default:
 			s.Fatalf("bad call type %v %v", n.Op, n)
 		}
@@ -4924,7 +4929,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	off = Rnd(off, int64(Widthreg))
 
 	// Issue call
-	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, fn, s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn}, s.mem())
 	s.vars[&memVar] = call
 
 	if !returns {
@@ -6355,6 +6360,9 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	}
 	// Add symbol's offset from its base register.
 	switch n := v.Aux.(type) {
+	case *ssa.AuxCall:
+		a.Name = obj.NAME_EXTERN
+		a.Sym = n.Fn
 	case *obj.LSym:
 		a.Name = obj.NAME_EXTERN
 		a.Sym = n
@@ -6541,10 +6549,10 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
 	} else {
 		p.Pos = v.Pos.WithNotStmt()
 	}
-	if sym, ok := v.Aux.(*obj.LSym); ok {
+	if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = sym
+		p.To.Sym = sym.Fn
 	} else {
 		// TODO(mdempsky): Can these differences be eliminated?
 		switch thearch.LinkArch.Family {
@@ -6567,12 +6575,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 	idx := s.livenessMap.Get(v)
 	if !idx.StackMapValid() {
 		// See Liveness.hasStackMap.
-		if sym, _ := v.Aux.(*obj.LSym); !(sym == typedmemclr || sym == typedmemmove) {
+		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
 			Fatalf("missing stack map index for %v", v.LongString())
 		}
 	}
 
-	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
+	call, ok := v.Aux.(*ssa.AuxCall)
+
+	if ok && call.Fn == Deferreturn {
 		// Deferred calls will appear to be returning to
 		// the CALL deferreturn(SB) that we are about to emit.
 		// However, the stack trace code will show the line
@@ -6584,11 +6594,11 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		thearch.Ginsnopdefer(s.pp)
 	}
 
-	if sym, ok := v.Aux.(*obj.LSym); ok {
+	if ok {
 		// Record call graph information for nowritebarrierrec
 		// analysis.
 		if nowritebarrierrecCheck != nil {
-			nowritebarrierrecCheck.recordCall(s.pp.curfn, sym, v.Pos)
+			nowritebarrierrecCheck.recordCall(s.pp.curfn, call.Fn, v.Pos)
 		}
 	}
 
