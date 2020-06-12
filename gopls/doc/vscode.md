@@ -63,7 +63,7 @@ build tags will not be picked from `go.buildTags` configuration section, instead
 ```
 
 
-[VSCode-Go]: https://github.com/microsoft/vscode-go
+[VSCode-Go]: https://github.com/golang/vscode-go
 
 # VSCode Remote Development with gopls
 
