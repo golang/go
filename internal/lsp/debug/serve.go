@@ -684,8 +684,6 @@ var debugTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Cache {{.ID}}{{end}}
 {{define "body"}}
-<h2>Sessions</h2>
-<ul>{{range .Sessions}}<li>{{template "sessionlink" .ID}}</li>{{end}}</ul>
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
 {{end}}
