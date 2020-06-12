@@ -8,6 +8,7 @@ package modcmd
 
 import (
 	"bufio"
+	"context"
 	"os"
 	"sort"
 
@@ -36,7 +37,7 @@ func init() {
 	work.AddModCommonFlags(cmdGraph)
 }
 
-func runGraph(cmd *base.Command, args []string) {
+func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod graph: graph takes no arguments")
 	}

@@ -12,6 +12,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"context"
 
 	"golang.org/x/mod/module"
 )
@@ -37,7 +38,7 @@ func init() {
 	work.AddModCommonFlags(cmdTidy)
 }
 
-func runTidy(cmd *base.Command, args []string) {
+func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod tidy: no arguments allowed")
 	}

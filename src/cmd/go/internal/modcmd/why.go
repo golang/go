@@ -5,6 +5,7 @@
 package modcmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,7 @@ func init() {
 	work.AddModCommonFlags(cmdWhy)
 }
 
-func runWhy(cmd *base.Command, args []string) {
+func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	loadALL := modload.LoadALL
 	if *whyVendor {
 		loadALL = modload.LoadVendor

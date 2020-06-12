@@ -11,6 +11,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
+	"context"
 	"fmt"
 	"os"
 )
@@ -31,7 +32,7 @@ See also: go fmt, go vet.
 	`,
 }
 
-func runFix(cmd *base.Command, args []string) {
+func runFix(ctx context.Context, cmd *base.Command, args []string) {
 	printed := false
 	for _, pkg := range load.Packages(args) {
 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {

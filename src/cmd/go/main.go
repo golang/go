@@ -191,8 +191,7 @@ BigCmdLoop:
 			}
 			ctx := maybeStartTrace(context.Background())
 			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
-			_ = ctx
-			cmd.Run(cmd, args)
+			cmd.Run(ctx, cmd, args)
 			span.Done()
 			base.Exit()
 			return

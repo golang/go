@@ -6,6 +6,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -565,7 +566,7 @@ var defaultVetFlags = []string{
 	// "-unusedresult",
 }
 
-func runTest(cmd *base.Command, args []string) {
+func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	pkgArgs, testArgs = testFlags(args)

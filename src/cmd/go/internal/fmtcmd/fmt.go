@@ -6,6 +6,7 @@
 package fmtcmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -48,7 +49,7 @@ See also: go fix, go vet.
 	`,
 }
 
-func runFmt(cmd *base.Command, args []string) {
+func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 	printed := false
 	gofmt := gofmtPath()
 	procs := runtime.GOMAXPROCS(0)

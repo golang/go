@@ -5,6 +5,7 @@
 package modcmd
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
@@ -78,7 +79,7 @@ type moduleJSON struct {
 	GoModSum string `json:",omitempty"`
 }
 
-func runDownload(cmd *base.Command, args []string) {
+func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Check whether modules are enabled and whether we're in a module.
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
