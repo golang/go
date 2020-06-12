@@ -308,10 +308,12 @@ func (s *Server) shutdown(ctx context.Context) error {
 func (s *Server) exit(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
-	//TODO: would be nice to have a better way to find the conn close method
+
+	// TODO: We need a better way to find the conn close method.
 	s.client.(io.Closer).Close()
+
 	if s.state != serverShutDown {
-		//TODO: we shoud be able to do better than this
+		// TODO: We should be able to do better than this.
 		os.Exit(1)
 	}
 	// we don't terminate the process on a normal exit, we just allow it to

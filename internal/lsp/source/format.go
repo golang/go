@@ -56,7 +56,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 }
 
 func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
-	ctx, done := event.Start(ctx, "source.formatSource")
+	_, done := event.Start(ctx, "source.formatSource")
 	defer done()
 
 	data, err := fh.Read()
@@ -212,7 +212,7 @@ func importPrefix(src []byte) string {
 }
 
 func computeTextEdits(ctx context.Context, view View, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
-	ctx, done := event.Start(ctx, "source.computeTextEdits")
+	_, done := event.Start(ctx, "source.computeTextEdits")
 	defer done()
 
 	data, err := fh.Read()

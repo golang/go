@@ -159,7 +159,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// Initialize the view without blocking.
-	go v.initialize(xcontext.Detach(ctx), v.snapshot)
+	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
+	v.initCancel = initCancel
+	go v.initialize(initCtx, v.snapshot)
 	return v, v.snapshot, nil
 }
 

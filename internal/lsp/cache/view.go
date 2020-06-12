@@ -87,6 +87,7 @@ type View struct {
 	// If we failed to load, we don't re-try to avoid too many go/packages calls.
 	initializeOnce sync.Once
 	initialized    chan struct{}
+	initCancel     context.CancelFunc
 
 	// initializedErr needs no mutex, since any access to it happens after it
 	// has been set.
@@ -525,7 +526,9 @@ func (v *View) Shutdown(ctx context.Context) {
 }
 
 func (v *View) shutdown(ctx context.Context) {
-	// TODO: Cancel the view's initialization.
+	// Cancel the initial workspace load if it is still running.
+	v.initCancel()
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.cancel != nil {
@@ -561,6 +564,9 @@ func (v *View) initialize(ctx context.Context, s *snapshot) {
 		defer close(v.initialized)
 
 		if err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			v.initializedErr = err
 			event.Error(ctx, "initial workspace load failed", err)
 		}

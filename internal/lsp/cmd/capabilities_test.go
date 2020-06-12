@@ -143,6 +143,12 @@ func TestCapabilities(t *testing.T) {
 			t.Errorf("textEdit is not a *protocol.TextEdit, instead it is %T", textEdit)
 		}
 	}
+	if err := c.Server.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Server.Exit(ctx); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func validateCapabilities(result *protocol.InitializeResult) error {

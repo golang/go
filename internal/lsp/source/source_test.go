@@ -56,6 +56,8 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer view.Shutdown(ctx)
+
 		// Enable type error analyses for tests.
 		// TODO(golang/go#38212): Delete this once they are enabled by default.
 		tests.EnableAllAnalyzers(snapshot, &options)

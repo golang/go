@@ -496,3 +496,8 @@ func (c *connection) terminate(ctx context.Context) {
 	//TODO: right now calling exit terminates the process, we should rethink that
 	//server.Exit(ctx)
 }
+
+// Implement io.Closer.
+func (c *cmdClient) Close() error {
+	return nil
+}
