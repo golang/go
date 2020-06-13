@@ -60,7 +60,10 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			check.indent--
 			var under Type
 			if res != nil {
-				under = res.Under()
+				// Calling Under() here may lead to endless instantiations.
+				// Test case: type T(type P) T(P)
+				// TODO(gri) investigate if that's a bug or to be expected.
+				under = res.Underlying()
 			}
 			check.trace(pos, "=> %s (under = %s)", res, under)
 		}()

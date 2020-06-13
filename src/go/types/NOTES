@@ -4,9 +4,6 @@ This file serves as a notebook/implementation log.
 TODO (implementation issues)
 
 - report a better error when a type is not in a type list (investigate)
-- fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
-- fix printing of type parameter lists with pointer designations on type parameters
-- fix endless instantiation when printing: type T(type P) T(P)
 - better error message when we need parentheses around a parameterized function parameter type
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized?)
 - use []*TypeParam for tparams in subst? (unclear)

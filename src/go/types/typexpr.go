@@ -402,7 +402,11 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 			check.indent--
 			var under Type
 			if T != nil {
-				under = T.Under()
+				// Calling Under() here may lead to endless instantiations.
+				// Test case: type T(type P) *T(P)
+				// TODO(gri) investigate if that's a bug or to be expected
+				// (see also analogous comment in Checker.instantiate).
+				under = T.Underlying()
 			}
 			if T == under {
 				check.trace(e.Pos(), "=> %s // %s", T, goTypeName(T))
