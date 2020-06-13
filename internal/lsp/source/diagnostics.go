@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -42,6 +43,14 @@ type RelatedInformation struct {
 }
 
 func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missingModules map[string]*modfile.Require, withAnalysis bool) (map[FileIdentity][]*Diagnostic, bool, error) {
+	onlyIgnoredFiles := true
+	for _, pgh := range ph.CompiledGoFiles() {
+		onlyIgnoredFiles = onlyIgnoredFiles && ignoreFile(pgh.File().URI().Filename())
+	}
+	if onlyIgnoredFiles {
+		return nil, false, nil
+	}
+
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
 	var warn bool
@@ -132,6 +141,24 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		}
 	}
 	return reports, warn, nil
+}
+
+// ignoreFile is an approximation of go list's exclusion rules. go help list:
+// 		Directory and file names that begin with "." or "_" are ignored
+// 		by the go tool, as are directories named "testdata".
+// Those rules only apply if the directory in question is beneath GOPATH
+// or the module root, but we don't really have that information, so we just
+// hope that nobody's messing with us.
+func ignoreFile(path string) bool {
+	for _, component := range strings.Split(path, string(filepath.Separator)) {
+		if len(component) == 0 {
+			continue
+		}
+		if component[0] == '.' || component[0] == '_' || component == "testdata" {
+			return true
+		}
+	}
+	return false
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileIdentity, []*Diagnostic, error) {

@@ -803,3 +803,24 @@ func TestHello(t *testing.T) {
 		)
 	})
 }
+
+func TestIgnoredFiles(t *testing.T) {
+	const ws = `
+-- go.mod --
+module mod.com
+
+go 1.15
+-- _foo/x.go --
+package x
+
+var _ = foo.Bar
+`
+	runner.Run(t, ws, func(t *testing.T, env *Env) {
+		env.OpenFile("_foo/x.go")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				NoDiagnostics("_foo/x.go"),
+			))
+	})
+}
