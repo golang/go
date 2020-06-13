@@ -360,6 +360,13 @@
 (Zero [4] ptr mem) => (MOVWstore ptr (MOVWconst) mem)
 (Zero [8] ptr mem) => (MOVDstore ptr (MOVDconst) mem)
 
+// Medium zeroing uses a Duff's device
+// 8 and 128 are magic constants, see runtime/mkduff.go
+(Zero [s] {t} ptr mem)
+	&& s%8 == 0 && s >= 16 && s <= 8*128
+	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
+	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+
 // Generic zeroing uses a loop
 (Zero [s] {t} ptr mem) =>
 	(LoweredZero [t.Alignment()]
@@ -394,6 +401,13 @@
 (Move [2] dst src mem) => (MOVHstore dst (MOVHload src mem) mem)
 (Move [4] dst src mem) => (MOVWstore dst (MOVWload src mem) mem)
 (Move [8] dst src mem) => (MOVDstore dst (MOVDload src mem) mem)
+
+// Medium move uses a Duff's device
+// 16 and 128 are magic constants, see runtime/mkduff.go
+(Move [s] {t} dst src mem)
+	&& s%8 == 0 && s >= 16 && s <= 8*128 && t.Alignment()%8 == 0
+	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
 
 // Generic move uses a loop
 (Move [s] {t} dst src mem) && (s <= 16 || logLargeCopy(v, s)) =>
