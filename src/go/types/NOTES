@@ -37,6 +37,14 @@ OBSERVATIONS
   or composite literals. We could disallow parentheses around types in parameter lists only, but that
   seems quite a bit less elegant.
 
+- 6/13/2020: When comparing against the type list of an interface (to see if the interface is satisfied),
+  we must either recompute the underlying types of the type list entries after the interface was instantiated,
+  or we must compute the underlying type of each entry before comparing. (A type list may contain type
+  parameters which may be substituted with defined types when the interface is instantiated.) With the
+  latter approach (which is what's implemented now), we could relax some of the constraints that we have
+  on type lists entries: We could allow any type and just say that for interface satisfaction we always
+  look at the underlying types.
+
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
 

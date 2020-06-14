@@ -570,11 +570,21 @@ func empty(t *Interface, seen map[*Interface]bool) bool {
 	return true
 }
 
-// includes reports whether the interface t includes the type typ.
+// includes reports whether the interface t includes the type typ
+// by checking typ against the _underlying_ type of each if the
+// types in its typelist.
+// Note: Even though the type list is constructed to only contain
+// underlying types, it may also contain type parameters (whose
+// underlying types are themselves). After instantiation of the
+// interface, those type parameters may be replaced with defined
+// types, but we still want the underlying types of those (was bug).
+// Alternatively, we could recompute the underlying types once,
+// after instantiation.
+// TODO(gri) investigate the best approach.
 func (t *Interface) includes(typ Type) bool {
 	if t.allTypes != nil {
 		for _, t := range unpack(t.allTypes) {
-			if Identical(t, typ) {
+			if Identical(t.Under(), typ) {
 				return true
 			}
 		}

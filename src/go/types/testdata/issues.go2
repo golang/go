@@ -7,6 +7,7 @@
 package p
 
 import "io"
+import "context"
 
 // Interfaces are always comparable (though the comparison may panic at runtime).
 func eql(type T comparable)(x, y T) bool {
@@ -213,3 +214,18 @@ func _(type T interface{ type func() })(f T) {
 	f()
 	go f()
 }
+
+// We must compare against the underlying type of type list entries
+// when checking if a constraint is satisfied by a type. The under-
+// lying type of each type list entry must be computed after the
+// interface has been instantiated as its typelist may contain a
+// type parameter that was substituted with a defined type.
+// Test case from an (originally) failing example.
+
+type sliceOf(type E) interface{ type []E }
+
+func append(type T interface{}, S sliceOf(T), T2 interface{ type T })(s S, t ...T2) S
+
+var f           func()
+var cancelSlice []context.CancelFunc
+var _ = append(context.CancelFunc, []context.CancelFunc, context.CancelFunc)(cancelSlice, f)
