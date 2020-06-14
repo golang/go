@@ -1,0 +1,11 @@
+env GOARCH=xtensa
+env GOOS=linux
+! go build -compiler=gccgo issue24398/main.go
+stderr 'executable file not found in'
+
+
+-- issue24398/main.go --
+package main
+
+func main() {
+}
