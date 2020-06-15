@@ -79,15 +79,13 @@ release.
 <h2 id="Source_code">Source code</h2>
 
 <p>
-If you cannot use a release, or prefer to build gccgo for
-yourself,
-the gccgo source code is accessible via Subversion. The
-GCC web site
-has <a href="https://gcc.gnu.org/svn.html">instructions for getting the
-GCC source code</a>. The gccgo source code is included. As a
-convenience, a stable version of the Go support is available in
-a branch of the main GCC code
-repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
+If you cannot use a release, or prefer to build gccgo for yourself, the
+gccgo source code is accessible via Git. The GCC web site has
+<a href="https://gcc.gnu.org/git.html">instructions for getting the GCC
+source code</a>. The gccgo source code is included. As a convenience, a
+stable version of the Go support is available in the
+<code>devel/gccgo</code> branch of the main GCC code repository:
+<code>git://gcc.gnu.org/git/gcc.git</code>.
 This branch is periodically updated with stable Go compiler sources.
 </p>
 
@@ -176,7 +174,7 @@ described above):
 </p>
 
 <pre>
-svn checkout svn://gcc.gnu.org/svn/gcc/branches/gccgo gccgo
+git clone --branch devel/gccgo git://gcc.gnu.org/git/gcc.git gccgo
 mkdir objdir
 cd objdir
 ../gccgo/configure --prefix=/opt/gccgo --enable-languages=c,c++,go --with-ld=/opt/gold/bin/ld
