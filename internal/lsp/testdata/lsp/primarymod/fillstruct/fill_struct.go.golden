@@ -19,11 +19,11 @@ type StructA3 struct {
 
 func fill() {
 	a := StructA{
-unexportedIntField : 0,
-ExportedIntField : 0,
-MapA : nil,
-Array : nil,
-StructB : StructB{},
+	unexportedIntField: 0,
+	ExportedIntField:   0,
+	MapA:               nil,
+	Array:              nil,
+	StructB:            StructB{},
 }  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
@@ -51,7 +51,7 @@ type StructA3 struct {
 func fill() {
 	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{
-B : nil,
+	B: nil,
 } //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
 }
@@ -79,7 +79,7 @@ func fill() {
 	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{
-B : StructB{},
+	B: StructB{},
 } //@suggestedfix("}", "refactor.rewrite")
 }
 

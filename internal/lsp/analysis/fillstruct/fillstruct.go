@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
+	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,7 +23,7 @@ import (
 const Doc = `suggested input for incomplete struct initializations
 
 This analyzer provides the appropriate zero values for all
-uninitialized fields of a struct. For example, given the following struct:
+uninitialized fields of an empty struct. For example, given the following struct:
 	type Foo struct {
 		ID   int64
 		Name string
@@ -54,10 +54,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		expr := n.(*ast.CompositeLit)
+
 		// TODO: Handle partially-filled structs as well.
 		if len(expr.Elts) != 0 {
 			return
 		}
+
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= expr.Pos() && expr.Pos() <= f.End() {
@@ -89,10 +91,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		fieldCount := obj.NumFields()
-		if fieldCount == 0 {
+		// Skip any struct that is already populated or that has no fields.
+		if fieldCount == 0 || fieldCount == len(expr.Elts) {
 			return
 		}
-		var fieldSourceCode strings.Builder
+
+		// Don't mutate the existing token.File. Instead, create a copy that we can use to modify
+		// position information.
+		original := pass.Fset.File(expr.Lbrace)
+		fset := token.NewFileSet()
+		tok := fset.AddFile(original.Name(), -1, original.Size())
+
+		pos := token.Pos(1)
+		var elts []ast.Expr
 		for i := 0; i < fieldCount; i++ {
 			field := obj.Field(i)
 			// Ignore fields that are not accessible in the current package.
@@ -100,46 +111,64 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 
-			label := field.Name()
 			value := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, field.Type())
 			if value == nil {
 				continue
 			}
-			var valBuf bytes.Buffer
-			if err := format.Node(&valBuf, pass.Fset, value); err != nil {
-				return
+			pos = nextLinePos(tok, pos)
+			kv := &ast.KeyValueExpr{
+				Key: &ast.Ident{
+					NamePos: pos,
+					Name:    field.Name(),
+				},
+				Colon: pos,
+				Value: value, // 'value' has no position. fomat.Node corrects for AST nodes with no position.
 			}
-			fieldSourceCode.WriteString("\n")
-			fieldSourceCode.WriteString(label)
-			fieldSourceCode.WriteString(" : ")
-			fieldSourceCode.WriteString(valBuf.String())
-			fieldSourceCode.WriteString(",")
+			elts = append(elts, kv)
 		}
 
-		if fieldSourceCode.Len() == 0 {
+		// If all of the struct's fields are unexported, we have nothing to do.
+		if len(elts) == 0 {
 			return
 		}
 
-		fieldSourceCode.WriteString("\n")
+		cl := ast.CompositeLit{
+			Type:   expr.Type, // Don't adjust the expr.Type's position.
+			Lbrace: token.Pos(1),
+			Elts:   elts,
+			Rbrace: nextLinePos(tok, elts[len(elts)-1].Pos()),
+		}
 
-		buf := []byte(fieldSourceCode.String())
+		var buf bytes.Buffer
+		if err := format.Node(&buf, fset, &cl); err != nil {
+			return
+		}
 
 		msg := "Fill struct with default values"
 		if name, ok := expr.Type.(*ast.Ident); ok {
 			msg = fmt.Sprintf("Fill %s with default values", name)
 		}
+
 		pass.Report(analysis.Diagnostic{
 			Pos: expr.Lbrace,
 			End: expr.Rbrace,
 			SuggestedFixes: []analysis.SuggestedFix{{
 				Message: msg,
 				TextEdits: []analysis.TextEdit{{
-					Pos:     expr.Lbrace + 1,
-					End:     expr.Rbrace,
-					NewText: buf,
+					Pos:     expr.Pos(),
+					End:     expr.End(),
+					NewText: buf.Bytes(),
 				}},
 			}},
 		})
 	})
 	return nil, nil
+}
+
+func nextLinePos(tok *token.File, pos token.Pos) token.Pos {
+	line := tok.Line(pos)
+	if line+1 > tok.LineCount() {
+		tok.AddLine(tok.Offset(pos) + 1)
+	}
+	return tok.LineStart(line + 1)
 }
