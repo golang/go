@@ -581,6 +581,7 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Key)
 		t.translateExpr(&e.Value)
 	case *ast.ArrayType:
+		t.translateExpr(&e.Len)
 		t.translateExpr(&e.Elt)
 	case *ast.StructType:
 		t.translateFieldList(e.Fields)
@@ -931,7 +932,7 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
 	argList := make([]ast.Expr, 0, len(typeList))
 	for _, typ := range typeList {
-		arg := ast.NewIdent(typ.String())
+		arg := ast.NewIdent(types.TypeString(typ, types.RelativeTo(t.tpkg)))
 		if named, ok := typ.(*types.Named); ok {
 			if len(named.TArgs()) > 0 {
 				var narg *ast.Ident
@@ -941,12 +942,6 @@ func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []a
 				}
 				if narg != nil {
 					arg = ast.NewIdent(narg.Name)
-				}
-			}
-			if named.Obj().Pkg() == t.tpkg {
-				fields := strings.Split(arg.Name, ".")
-				if len(fields) > 1 {
-					arg = ast.NewIdent(fields[1])
 				}
 			}
 		}
