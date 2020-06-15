@@ -1783,7 +1783,7 @@ func asmbElf(ctxt *Link) {
 	var symo int64
 	if !*FlagS {
 		symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
-		symo = Rnd(symo, int64(*FlagRound))
+		symo = Rnd(symo, int64(ctxt.Arch.PtrSize))
 		ctxt.Out.SeekSet(symo)
 		asmElfSym(ctxt)
 		ctxt.Out.Write(Elfstrdat)
