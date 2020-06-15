@@ -760,7 +760,7 @@ func devirt(v *Value, sym Sym, offset int64) *AuxCall {
 	if lsym == nil {
 		return nil
 	}
-	return &AuxCall{Fn: lsym}
+	return StaticAuxCall(lsym)
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.

@@ -4302,10 +4302,10 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[TUINTPTR], v)
-			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, v, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, v, s.mem())
 		} else {
 			// Do a static call if the original call was a static function or method
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn.Sym.Linksym()}, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym()), s.mem())
 		}
 		call.AuxInt = stksize
 		s.vars[&memVar] = call
@@ -4437,7 +4437,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Call runtime.deferprocStack with pointer to _defer record.
 		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
 		s.store(types.Types[TUINTPTR], arg0, addr)
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferprocStack}, s.mem())
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack), s.mem())
 		if stksize < int64(Widthptr) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
@@ -4482,9 +4482,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// call target
 		switch {
 		case k == callDefer:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: deferproc}, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc), s.mem())
 		case k == callGo:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: newproc}, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc), s.mem())
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4492,11 +4492,11 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
-			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, nil, codeptr, closure, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, closure, s.mem())
 		case codeptr != nil:
-			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, nil, codeptr, s.mem())
+			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(), codeptr, s.mem())
 		case sym != nil:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: sym.Linksym()}, s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym()), s.mem())
 		default:
 			s.Fatalf("bad call type %v %v", n.Op, n)
 		}
@@ -4929,7 +4929,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	off = Rnd(off, int64(Widthreg))
 
 	// Issue call
-	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, &ssa.AuxCall{Fn: fn}, s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn), s.mem())
 	s.vars[&memVar] = call
 
 	if !returns {

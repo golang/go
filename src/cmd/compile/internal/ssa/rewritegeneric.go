@@ -8483,7 +8483,7 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 	// cond: devirt(v, itab, off) != nil
 	// result: (StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
 	for {
-		argsize := auxIntToInt64(v.AuxInt)
+		argsize := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpLoad {
 			break
 		}

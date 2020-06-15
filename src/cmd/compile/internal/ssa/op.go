@@ -78,6 +78,21 @@ func (a *AuxCall) String() string {
 	return fmt.Sprintf("AuxCall(%v)", a.Fn)
 }
 
+// StaticAuxCall returns an AuxCall for a static call.
+func StaticAuxCall(sym *obj.LSym) *AuxCall {
+	return &AuxCall{Fn: sym}
+}
+
+// InterfaceAuxCall returns an AuxCall for an interface call.
+func InterfaceAuxCall() *AuxCall {
+	return &AuxCall{}
+}
+
+// ClosureAuxCall returns an AuxCall for a closure call.
+func ClosureAuxCall() *AuxCall {
+	return &AuxCall{}
+}
+
 const (
 	auxNone         auxType = iota
 	auxBool                 // auxInt is 0/1 for false/true
