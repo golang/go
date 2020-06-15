@@ -63,6 +63,26 @@ func IncomparableField(t *types.Type) *types.Field {
 	return nil
 }
 
+// EqCanPanic reports whether == on type t could panic (has an interface somewhere).
+// t must be comparable.
+func EqCanPanic(t *types.Type) bool {
+	switch t.Etype {
+	default:
+		return false
+	case TINTER:
+		return true
+	case TARRAY:
+		return EqCanPanic(t.Elem())
+	case TSTRUCT:
+		for _, f := range t.FieldSlice() {
+			if !f.Sym.IsBlank() && EqCanPanic(f.Type) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // algtype is like algtype1, except it returns the fixed-width AMEMxx variants
 // instead of the general AMEM kind when possible.
 func algtype(t *types.Type) AlgKind {
@@ -624,14 +644,19 @@ func geneq(t *types.Type) *obj.LSym {
 
 	case TSTRUCT:
 		// Build a list of conditions to satisfy.
-		// Track their order so that we can preserve aspects of that order.
+		// The conditions are a list-of-lists. Conditions are reorderable
+		// within each inner list. The outer lists must be evaluated in order.
+		// Even within each inner list, track their order so that we can preserve
+		// aspects of that order. (TODO: latter part needed?)
 		type nodeIdx struct {
 			n   *Node
 			idx int
 		}
-		var conds []nodeIdx
+		var conds [][]nodeIdx
+		conds = append(conds, []nodeIdx{})
 		and := func(n *Node) {
-			conds = append(conds, nodeIdx{n: n, idx: len(conds)})
+			i := len(conds) - 1
+			conds[i] = append(conds[i], nodeIdx{n: n, idx: len(conds[i])})
 		}
 
 		// Walk the struct using memequal for runs of AMEM
@@ -647,6 +672,10 @@ func geneq(t *types.Type) *obj.LSym {
 
 			// Compare non-memory fields with field equality.
 			if !IsRegularMemory(f.Type) {
+				if EqCanPanic(f.Type) {
+					// Enforce ordering by starting a new set of reorderable conditions.
+					conds = append(conds, []nodeIdx{})
+				}
 				p := nodSym(OXDOT, np, f.Sym)
 				q := nodSym(OXDOT, nq, f.Sym)
 				switch {
@@ -656,6 +685,10 @@ func geneq(t *types.Type) *obj.LSym {
 					and(eqmem)
 				default:
 					and(nod(OEQ, p, q))
+				}
+				if EqCanPanic(f.Type) {
+					// Also enforce ordering after something that can panic.
+					conds = append(conds, []nodeIdx{})
 				}
 				i++
 				continue
@@ -680,20 +713,24 @@ func geneq(t *types.Type) *obj.LSym {
 
 		// Sort conditions to put runtime calls last.
 		// Preserve the rest of the ordering.
-		sort.SliceStable(conds, func(i, j int) bool {
-			x, y := conds[i], conds[j]
-			if (x.n.Op != OCALL) == (y.n.Op != OCALL) {
-				return x.idx < y.idx
-			}
-			return x.n.Op != OCALL
-		})
+		var flatConds []nodeIdx
+		for _, c := range conds {
+			sort.SliceStable(c, func(i, j int) bool {
+				x, y := c[i], c[j]
+				if (x.n.Op != OCALL) == (y.n.Op != OCALL) {
+					return x.idx < y.idx
+				}
+				return x.n.Op != OCALL
+			})
+			flatConds = append(flatConds, c...)
+		}
 
 		var cond *Node
-		if len(conds) == 0 {
+		if len(flatConds) == 0 {
 			cond = nodbool(true)
 		} else {
-			cond = conds[0].n
-			for _, c := range conds[1:] {
+			cond = flatConds[0].n
+			for _, c := range flatConds[1:] {
 				cond = nod(OANDAND, cond, c.n)
 			}
 		}
