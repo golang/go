@@ -1283,11 +1283,7 @@ const (
 	OpARMLoweredPanicExtendA
 	OpARMLoweredPanicExtendB
 	OpARMLoweredPanicExtendC
-	OpARMFlagEQ
-	OpARMFlagLT_ULT
-	OpARMFlagLT_UGT
-	OpARMFlagGT_UGT
-	OpARMFlagGT_ULT
+	OpARMFlagConstant
 	OpARMInvertFlags
 	OpARMLoweredWB
 
@@ -16911,29 +16907,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "FlagEQ",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
+		name:    "FlagConstant",
+		auxType: auxFlagConstant,
+		argLen:  0,
+		reg:     regInfo{},
 	},
 	{
 		name:   "InvertFlags",
