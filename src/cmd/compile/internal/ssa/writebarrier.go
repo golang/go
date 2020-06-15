@@ -523,7 +523,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, &AuxCall{fn}, mem)
+	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn), mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
 	return mem
 }
