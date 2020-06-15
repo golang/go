@@ -49,16 +49,15 @@ func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
 // It implements io.WriteCloser; the caller writes test output in,
 // and the converter writes JSON output to w.
 type converter struct {
-	w         io.Writer       // JSON output stream
-	pkg       string          // package to name in events
-	mode      Mode            // mode bits
-	start     time.Time       // time converter started
-	testName  string          // name of current test, for output attribution
-	testNames map[string]bool // names of all tests, for log output attribution
-	report    []*event        // pending test result reports (nested for subtests)
-	result    string          // overall test result if seen
-	input     lineBuffer      // input buffer
-	output    lineBuffer      // output buffer
+	w        io.Writer  // JSON output stream
+	pkg      string     // package to name in events
+	mode     Mode       // mode bits
+	start    time.Time  // time converter started
+	testName string     // name of current test, for output attribution
+	report   []*event   // pending test result reports (nested for subtests)
+	result   string     // overall test result if seen
+	input    lineBuffer // input buffer
+	output   lineBuffer // output buffer
 }
 
 // inBuffer and outBuffer are the input and output buffer sizes.
@@ -118,7 +117,6 @@ func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
 			line: c.writeOutputEvent,
 			part: c.writeOutputEvent,
 		},
-		testNames: make(map[string]bool),
 	}
 	return c
 }
@@ -152,8 +150,6 @@ var (
 		[]byte("--- SKIP: "),
 		[]byte("--- BENCH: "),
 	}
-
-	testNamePrefix = "Test"
 
 	fourSpace = []byte("    ")
 
@@ -216,19 +212,7 @@ func (c *converter) handleInputLine(line []byte) {
 	}
 
 	if !ok {
-		// Not a special test output line, but it may be the beginning
-		// of decorated test log output.
-		dedent := bytes.TrimSpace(origLine)
-		if bytes.HasPrefix(dedent, []byte(testNamePrefix)) {
-			end := bytes.Index(dedent, []byte(":"))
-			if end > 0 {
-				name := string(dedent[:end])
-				if c.testNames[name] {
-					c.testName = name
-				}
-			}
-		}
-
+		// Not a special test output line.
 		c.output.write(origLine)
 		return
 	}
@@ -268,7 +252,6 @@ func (c *converter) handleInputLine(line []byte) {
 		c.flushReport(indent)
 		e.Test = name
 		c.testName = name
-		c.testNames[name] = true
 		c.report = append(c.report, e)
 		c.output.write(origLine)
 		return
@@ -277,7 +260,6 @@ func (c *converter) handleInputLine(line []byte) {
 	// Finish any pending PASS/FAIL reports.
 	c.flushReport(0)
 	c.testName = name
-	c.testNames[name] = true
 
 	if action == "pause" {
 		// For a pause, we want to write the pause notification before
