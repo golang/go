@@ -46,7 +46,8 @@ type Cookie struct {
 type SameSite int
 
 const (
-	SameSiteDefaultMode SameSite = iota + 1
+	SameSiteUnsetMode SameSite = iota
+	SameSiteDefaultMode
 	SameSiteLaxMode
 	SameSiteStrictMode
 	SameSiteNoneMode
@@ -219,6 +220,7 @@ func (c *Cookie) String() string {
 		b.WriteString("; Secure")
 	}
 	switch c.SameSite {
+	case SameSiteUnsetMode:
 	case SameSiteDefaultMode:
 		b.WriteString("; SameSite")
 	case SameSiteNoneMode:

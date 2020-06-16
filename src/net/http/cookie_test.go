@@ -81,6 +81,10 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-15", Value: "samesite-none", SameSite: SameSiteNoneMode},
 		"cookie-15=samesite-none; SameSite=None",
 	},
+	{
+		&Cookie{Name: "cookie-16", Value: "samesite-unset", SameSite: SameSiteUnsetMode},
+		"cookie-16=samesite-unset",
+	},
 	// The "special" cookies have values containing commas or spaces which
 	// are disallowed by RFC 6265 but are common in the wild.
 	{
