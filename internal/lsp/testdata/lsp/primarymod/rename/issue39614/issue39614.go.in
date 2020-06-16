@@ -1,0 +1,8 @@
+package issue39614
+
+func fn() {
+	var foo bool //@rename("foo","bar")
+	make(map[string]bool
+	if true {
+	}
+}

@@ -1,0 +1,10 @@
+-- bar-rename --
+package issue39614
+
+func fn() {
+	var bar bool //@rename("foo","bar")
+	make(map[string]bool
+	if true {
+	}
+}
+

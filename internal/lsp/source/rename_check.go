@@ -315,7 +315,10 @@ func forEachLexicalRef(pkg Package, obj types.Object, fn func(id *ast.Ident, blo
 		case *ast.CompositeLit:
 			// Handle recursion ourselves for struct literals
 			// so we don't visit field identifiers.
-			tv := pkg.GetTypesInfo().Types[n]
+			tv, ok := pkg.GetTypesInfo().Types[n]
+			if !ok {
+				return visit(nil) // pop stack, don't descend
+			}
 			if _, ok := deref(tv.Type).Underlying().(*types.Struct); ok {
 				if n.Type != nil {
 					ast.Inspect(n.Type, visit)
