@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -53,16 +54,14 @@ func (s *TCPServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	if err != nil {
 		panic(fmt.Sprintf("servertest: failed to connect to test instance: %v", err))
 	}
-	s.cls.add(func() {
-		netConn.Close()
-	})
-	return jsonrpc2.NewConn(s.framer(netConn))
+	conn := jsonrpc2.NewConn(s.framer(netConn))
+	s.cls.add(conn.Close)
+	return conn
 }
 
-// Close closes all connected pipes.
+// Close closes all server connections.
 func (s *TCPServer) Close() error {
-	s.cls.closeAll()
-	return nil
+	return s.cls.Close()
 }
 
 // PipeServer is a test server that handles connections over io.Pipes.
@@ -83,22 +82,20 @@ func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer, framer jso
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
 func (s *PipeServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	sPipe, cPipe := net.Pipe()
-	s.cls.add(func() {
-		sPipe.Close()
-		cPipe.Close()
-	})
 	serverStream := s.framer(sPipe)
 	serverConn := jsonrpc2.NewConn(serverStream)
+	s.cls.add(serverConn.Close)
 	go s.server.ServeStream(ctx, serverConn)
 
 	clientStream := s.framer(cPipe)
-	return jsonrpc2.NewConn(clientStream)
+	clientConn := jsonrpc2.NewConn(clientStream)
+	s.cls.add(clientConn.Close)
+	return clientConn
 }
 
 // Close closes all connected pipes.
 func (s *PipeServer) Close() error {
-	s.cls.closeAll()
-	return nil
+	return s.cls.Close()
 }
 
 // closerList tracks closers to run when a testserver is closed.  This is a
@@ -106,19 +103,26 @@ func (s *PipeServer) Close() error {
 // connection.
 type closerList struct {
 	mu      sync.Mutex
-	closers []func()
+	closers []func() error
 }
 
-func (l *closerList) add(closer func()) {
+func (l *closerList) add(closer func() error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.closers = append(l.closers, closer)
 }
 
-func (l *closerList) closeAll() {
+func (l *closerList) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	var errmsgs []string
 	for _, closer := range l.closers {
-		closer()
+		if err := closer(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
 	}
+	if len(errmsgs) > 0 {
+		return fmt.Errorf("closing errors:\n%s", strings.Join(errmsgs, "\n"))
+	}
+	return nil
 }
