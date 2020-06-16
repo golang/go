@@ -24,9 +24,7 @@ import (
 // them if it sees a concurrency error.
 type Runner struct {
 	// LoadMu guards packages.Load calls and associated state.
-	loadMu sync.Mutex
-	// locked is true when we hold the mutex and have incremented.
-	locked         bool
+	loadMu         sync.Mutex
 	serializeLoads int
 }
 
@@ -57,10 +55,8 @@ func (runner *Runner) RunRaw(ctx context.Context, inv Invocation) (*bytes.Buffer
 func (runner *Runner) runPiped(ctx context.Context, inv Invocation, stdout, stderr io.Writer) (error, error) {
 	runner.loadMu.Lock()
 	runner.serializeLoads++
-	runner.locked = true
 
 	defer func() {
-		runner.locked = false
 		runner.serializeLoads--
 		runner.loadMu.Unlock()
 	}()
@@ -75,15 +71,16 @@ func (runner *Runner) runRaw(ctx context.Context, inv Invocation) (*bytes.Buffer
 	// badly we never recover. To avoid that, once we've seen one concurrency
 	// error, start serializing everything until the backlog has cleared out.
 	runner.loadMu.Lock()
+	var locked bool // If true, we hold the mutex and have incremented.
 	if runner.serializeLoads == 0 {
 		runner.loadMu.Unlock()
 	} else {
-		runner.locked = true
+		locked = true
 		runner.serializeLoads++
 	}
 	defer func() {
-		if runner.locked {
-			runner.locked = false
+		if locked {
+			locked = false
 			runner.serializeLoads--
 			runner.loadMu.Unlock()
 		}
@@ -96,10 +93,9 @@ func (runner *Runner) runRaw(ctx context.Context, inv Invocation) (*bytes.Buffer
 			return stdout, stderr, friendlyErr, err
 		}
 		event.Error(ctx, "Load concurrency error, will retry serially", err)
-		if !runner.locked {
+		if !locked {
 			runner.loadMu.Lock()
 			runner.serializeLoads++
-			runner.locked = true
 		}
 	}
 }
