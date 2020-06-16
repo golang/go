@@ -1113,8 +1113,9 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 		typ := check.typ(texpr)
 		// A type constraint may be a predeclared type or a
 		// composite type composed of only predeclared types.
+		const restricted = false
 		var why string
-		if !check.typeConstraint(typ, &why) {
+		if restricted && !check.typeConstraint(typ, &why) {
 			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
 			continue
 		}

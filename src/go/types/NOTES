@@ -174,3 +174,7 @@ DESIGN/IMPLEMENTATION
   type. This approach appears to complete the picture about the nature of type parameters.
 
 - 6/7/2020: Removed support for contracts to match the latest design draft.
+
+- 6/15/2020: Disabled check that types in type lists must only contain basic types or composite types
+  composed of basic types. It is not needed since we always must recompute the underlying types
+  after a (possible) instantiation anyway (see observation from 6/3/2020).
