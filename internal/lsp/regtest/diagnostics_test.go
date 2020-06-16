@@ -734,8 +734,6 @@ func _() {
 // This test tries to replicate the workflow of a user creating a new x test.
 // It also tests golang/go#39315.
 func TestManuallyCreatingXTest(t *testing.T) {
-	t.Skipf("See golang/go#39315")
-
 	// Only for 1.15 because of golang/go#37971.
 	testenv.NeedsGo1Point(t, 15)
 

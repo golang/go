@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
@@ -129,12 +130,13 @@ func TestOverlayChangesTestPackage(t *testing.T) {
 func TestOverlayXTests(t *testing.T) {
 	packagestest.TestAll(t, testOverlayXTests)
 }
+
+// This test checks the behavior of go/packages.Load with an overlaid
+// x test. The source of truth is the go/packages.Load results for the
+// exact same package, just on-disk.
 func testOverlayXTests(t *testing.T, exporter packagestest.Exporter) {
-	exported := packagestest.Export(t, exporter, []packagestest.Module{{
-		Name: "golang.org/fake",
-		Files: map[string]interface{}{
-			"a/a.go": `package a; const C = "C"; func Hello() {}`,
-			"a/a_test.go": `package a
+	const aFile = `package a; const C = "C"; func Hello() {}`
+	const aTestVariant = `package a
 
 import "testing"
 
@@ -142,11 +144,8 @@ const TestC = "test" + C
 
 func TestHello(){
 	Hello()
-}`,
-			"a/a_x_test.go": "",
-		},
-		Overlay: map[string][]byte{
-			"a/a_x_test.go": []byte(`package a_test
+}`
+	const aXTest = `package a_test
 
 import (
 	"testing"
@@ -158,24 +157,50 @@ const xTestC = "x" + a.C
 
 func TestHello(t *testing.T) {
 	a.Hello()
-}
-`),
+}`
+
+	// First, get the source of truth by loading the package, all on disk.
+	onDisk := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go":        aFile,
+			"a/a_test.go":   aTestVariant,
+			"a/a_x_test.go": aXTest,
+		},
+	}})
+	defer onDisk.Cleanup()
+
+	onDisk.Config.Mode = commonMode
+	onDisk.Config.Tests = true
+	onDisk.Config.Mode = packages.LoadTypes
+	initial, err := packages.Load(onDisk.Config, fmt.Sprintf("file=%s", onDisk.File("golang.org/fake", "a/a_x_test.go")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPkg := initial[0]
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go":        aFile,
+			"a/a_test.go":   aTestVariant,
+			"a/a_x_test.go": ``, // empty x test on disk
+		},
+		Overlay: map[string][]byte{
+			"a/a_x_test.go": []byte(aXTest),
 		},
 	}})
 	defer exported.Cleanup()
 
-	exported.Config.Mode = commonMode
-	exported.Config.Tests = true
-	exported.Config.Mode = packages.LoadTypes
-
-	initial, err := packages.Load(exported.Config, fmt.Sprintf("file=%s", exported.File("golang.org/fake", "a/a_x_test.go")))
-	if err != nil {
-		t.Fatal(err)
-	}
 	if len(initial) != 1 {
 		t.Fatalf("expected 1 package, got %d", len(initial))
 	}
-	xTestC := constant(initial[0], "xTestC")
+	// Confirm that the overlaid package is identical to the on-disk version.
+	pkg := initial[0]
+	if !reflect.DeepEqual(wantPkg, pkg) {
+		t.Fatalf("mismatched packages: want %#v, got %#v", wantPkg, pkg)
+	}
+	xTestC := constant(pkg, "xTestC")
 	if xTestC == nil {
 		t.Fatalf("no value for xTestC")
 	}
@@ -185,7 +210,6 @@ func TestHello(t *testing.T) {
 	if want := `"xC"`; got != want {
 		t.Errorf("got: %q, want %q", got, want)
 	}
-
 }
 
 func checkPkg(t *testing.T, p *packages.Package, id, name string, syntax int) bool {

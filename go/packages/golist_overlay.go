@@ -113,13 +113,19 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 			if !ok {
 				break
 			}
+			var forTest string // only set for x tests
 			isXTest := strings.HasSuffix(pkgName, "_test")
 			if isXTest {
+				forTest = pkgPath
 				pkgPath += "_test"
 			}
 			id := pkgPath
-			if isTestFile && !isXTest {
-				id = fmt.Sprintf("%s [%s.test]", pkgPath, pkgPath)
+			if isTestFile {
+				if isXTest {
+					id = fmt.Sprintf("%s [%s.test]", pkgPath, forTest)
+				} else {
+					id = fmt.Sprintf("%s [%s.test]", pkgPath, pkgPath)
+				}
 			}
 			// Try to reclaim a package with the same ID, if it exists in the response.
 			for _, p := range response.dr.Packages {
@@ -148,7 +154,9 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 						pkg.Imports[k] = &Package{ID: v.ID}
 					}
 				}
-				// TODO(rstambler): Handle forTest for x_tests.
+				if isXTest {
+					pkg.forTest = forTest
+				}
 			}
 		}
 		if !fileExists {

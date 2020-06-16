@@ -1560,6 +1560,7 @@ func testContainsOverlayXTest(t *testing.T, exporter packagestest.Exporter) {
 			"c/c.go": `package c`,
 		}}})
 	defer exported.Cleanup()
+
 	bOverlayXTestFile := filepath.Join(filepath.Dir(exported.File("golang.org/fake", "b/b.go")), "b_overlay_x_test.go")
 	exported.Config.Mode = packages.NeedName | packages.NeedFiles | packages.NeedImports
 	exported.Config.Overlay = map[string][]byte{bOverlayXTestFile: []byte(`package b_test; import "golang.org/fake/b"`)}
@@ -1571,15 +1572,14 @@ func testContainsOverlayXTest(t *testing.T, exporter packagestest.Exporter) {
 	graph, _ := importGraph(initial)
 	wantGraph := `
   golang.org/fake/b
-* golang.org/fake/b_test
+* golang.org/fake/b_test [golang.org/fake/b.test]
   golang.org/fake/c
   golang.org/fake/b -> golang.org/fake/c
-  golang.org/fake/b_test -> golang.org/fake/b
+  golang.org/fake/b_test [golang.org/fake/b.test] -> golang.org/fake/b
 `[1:]
 	if graph != wantGraph {
 		t.Errorf("wrong import graph: got <<%s>>, want <<%s>>", graph, wantGraph)
 	}
-
 }
 
 // This test ensures that the effective GOARCH variable in the
