@@ -369,25 +369,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
-			dep := deps[packagePath(pkgPath)]
-			if dep == nil {
-				// We may be in GOPATH mode, in which case we need to check vendor dirs.
-				searchDir := path.Dir(pkg.PkgPath())
-				for {
-					vdir := packagePath(path.Join(searchDir, "vendor", pkgPath))
-					if vdep := deps[vdir]; vdep != nil {
-						dep = vdep
-						break
-					}
-
-					// Search until Dir doesn't take us anywhere new, e.g. "." or "/".
-					next := path.Dir(searchDir)
-					if searchDir == next {
-						break
-					}
-					searchDir = next
-				}
-			}
+			dep := resolveImportPath(pkgPath, pkg, deps)
 			if dep == nil {
 				return nil, errors.Errorf("no package for import %s", pkgPath)
 			}
@@ -431,6 +413,41 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		}
 	}
 	return pkg, nil
+}
+
+// resolveImportPath resolves an import path in pkg to a package from deps.
+// It should produce the same results as resolveImportPath:
+// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/load/pkg.go;drc=641918ee09cb44d282a30ee8b66f99a0b63eaef9;l=990.
+func resolveImportPath(importPath string, pkg *pkg, deps map[packagePath]*packageHandle) *packageHandle {
+	if dep := deps[packagePath(importPath)]; dep != nil {
+		return dep
+	}
+	// We may be in GOPATH mode, in which case we need to check vendor dirs.
+	searchDir := path.Dir(pkg.PkgPath())
+	for {
+		vdir := packagePath(path.Join(searchDir, "vendor", importPath))
+		if vdep := deps[vdir]; vdep != nil {
+			return vdep
+		}
+
+		// Search until Dir doesn't take us anywhere new, e.g. "." or "/".
+		next := path.Dir(searchDir)
+		if searchDir == next {
+			break
+		}
+		searchDir = next
+	}
+
+	// Vendor didn't work. Let's try minimal module compatibility mode.
+	// In MMC, the packagePath is the canonical (.../vN/...) path, which
+	// is hard to calculate. But the go command has already resolved the ID
+	// to the non-versioned path, and we can take advantage of that.
+	for _, dep := range deps {
+		if dep.ID() == importPath {
+			return dep
+		}
+	}
+	return nil
 }
 
 func isValidImport(pkgPath, importPkgPath packagePath) bool {
