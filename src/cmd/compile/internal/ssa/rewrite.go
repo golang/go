@@ -1011,52 +1011,42 @@ func arm64Invert(op Op) Op {
 func ccARM64Eval(cc interface{}, flags *Value) int {
 	op := cc.(Op)
 	fop := flags.Op
-	switch fop {
-	case OpARM64InvertFlags:
+	if fop == OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
-	case OpARM64FlagEQ:
-		switch op {
-		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
-			OpARM64GreaterEqualU, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagLT_ULT:
-		switch op {
-		case OpARM64LessThan, OpARM64LessThanU,
-			OpARM64LessEqual, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagLT_UGT:
-		switch op {
-		case OpARM64LessThan, OpARM64GreaterThanU,
-			OpARM64LessEqual, OpARM64GreaterEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagGT_ULT:
-		switch op {
-		case OpARM64GreaterThan, OpARM64LessThanU,
-			OpARM64GreaterEqual, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagGT_UGT:
-		switch op {
-		case OpARM64GreaterThan, OpARM64GreaterThanU,
-			OpARM64GreaterEqual, OpARM64GreaterEqualU:
-			return 1
-		default:
-			return -1
-		}
-	default:
+	}
+	if fop != OpARM64FlagConstant {
 		return 0
 	}
+	fc := flagConstant(flags.AuxInt)
+	b2i := func(b bool) int {
+		if b {
+			return 1
+		}
+		return -1
+	}
+	switch op {
+	case OpARM64Equal:
+		return b2i(fc.eq())
+	case OpARM64NotEqual:
+		return b2i(fc.ne())
+	case OpARM64LessThan:
+		return b2i(fc.lt())
+	case OpARM64LessThanU:
+		return b2i(fc.ult())
+	case OpARM64GreaterThan:
+		return b2i(fc.gt())
+	case OpARM64GreaterThanU:
+		return b2i(fc.ugt())
+	case OpARM64LessEqual:
+		return b2i(fc.le())
+	case OpARM64LessEqualU:
+		return b2i(fc.ule())
+	case OpARM64GreaterEqual:
+		return b2i(fc.ge())
+	case OpARM64GreaterEqualU:
+		return b2i(fc.uge())
+	}
+	return 0
 }
 
 // logRule logs the use of the rule s. This will only be enabled if

@@ -1554,11 +1554,7 @@ const (
 	OpARM64LoweredGetClosurePtr
 	OpARM64LoweredGetCallerSP
 	OpARM64LoweredGetCallerPC
-	OpARM64FlagEQ
-	OpARM64FlagLT_ULT
-	OpARM64FlagLT_UGT
-	OpARM64FlagGT_UGT
-	OpARM64FlagGT_ULT
+	OpARM64FlagConstant
 	OpARM64InvertFlags
 	OpARM64LDAR
 	OpARM64LDARB
@@ -20498,29 +20494,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "FlagEQ",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
+		name:    "FlagConstant",
+		auxType: auxFlagConstant,
+		argLen:  0,
+		reg:     regInfo{},
 	},
 	{
 		name:   "InvertFlags",
