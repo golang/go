@@ -9,7 +9,7 @@ usual](https://golang.org/doc/install/source).
 You can then use the new `go2go` tool.
 Write your generic code in a file with the extension `.go2` instead of
 `.go`.
-Run it using `go tool g2go run x.go2`.
+Run it using `go tool go2go run x.go2`.
 There are some sample packages in `cmd/go2go/testdata/go2path/src`.
 You can see the full documentation for the tool by running `go doc
 cmd/go2go`.
