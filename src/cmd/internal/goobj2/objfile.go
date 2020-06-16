@@ -139,7 +139,7 @@ func (fp FingerprintType) IsZero() bool { return fp == FingerprintType{} }
 // Package Index.
 const (
 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
-	PkgIdxBuiltin                      // Predefined symbols // TODO: not used for now, we could use it for compiler-generated symbols like runtime.newobject
+	PkgIdxBuiltin                      // Predefined runtime symbols (ex: runtime.newobject)
 	PkgIdxSelf                         // Symbols defined in the current package
 	PkgIdxInvalid = 0
 	// The index of other referenced packages starts from 1.
