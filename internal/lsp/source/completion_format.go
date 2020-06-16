@@ -195,7 +195,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if err != nil {
 		return item, nil
 	}
-	hover, err := ident.Hover(ctx)
+	hover, err := HoverIdentifier(ctx, ident)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil

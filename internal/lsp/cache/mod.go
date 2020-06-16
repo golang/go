@@ -200,7 +200,7 @@ func goModWhy(ctx context.Context, cfg *packages.Config, modFH, sumFH source.Fil
 		return err
 	}
 	whyList := strings.Split(stdout.String(), "\n\n")
-	if len(whyList) <= 1 || len(whyList) != len(data.parsed.Require) {
+	if len(whyList) != len(data.parsed.Require) {
 		return nil
 	}
 	data.why = make(map[string]string, len(data.parsed.Require))

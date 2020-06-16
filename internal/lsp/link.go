@@ -56,6 +56,10 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	}
 	var links []protocol.DocumentLink
 	for _, req := range file.Require {
+		// See golang/go#36998: don't link to modules matching GOPRIVATE.
+		if snapshot.View().IsGoPrivatePath(req.Mod.Path) {
+			continue
+		}
 		dep := []byte(req.Mod.Path)
 		s, e := req.Syntax.Start.Byte, req.Syntax.End.Byte
 		i := bytes.Index(m.Content[s:e], dep)
@@ -130,6 +134,10 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 		// For import specs, provide a link to a documentation website, like https://pkg.go.dev.
 		target, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
+			continue
+		}
+		// See golang/go#36998: don't link to modules matching GOPRIVATE.
+		if view.IsGoPrivatePath(target) {
 			continue
 		}
 		if mod, version, ok := moduleAtVersion(ctx, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {

@@ -164,6 +164,15 @@ func (e *Env) Hover(name string, pos fake.Pos) (*protocol.MarkupContent, fake.Po
 	return c, p
 }
 
+func (e *Env) DocumentLink(name string) []protocol.DocumentLink {
+	e.T.Helper()
+	links, err := e.Editor.DocumentLink(e.Ctx, name)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return links
+}
+
 func checkIsFatal(t *testing.T, err error) {
 	t.Helper()
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {

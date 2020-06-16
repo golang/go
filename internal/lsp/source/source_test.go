@@ -489,11 +489,11 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	h, err := ident.Hover(r.ctx)
+	h, err := source.HoverIdentifier(r.ctx, ident)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	hover, err := source.FormatHover(h, r.view.Options(), false)
+	hover, err := source.FormatHover(h, r.view.Options())
 	if err != nil {
 		t.Fatal(err)
 	}

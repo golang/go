@@ -760,3 +760,12 @@ func (e *Editor) Hover(ctx context.Context, path string, pos Pos) (*protocol.Mar
 	}
 	return &resp.Contents, fromProtocolPosition(resp.Range.Start), nil
 }
+
+func (e *Editor) DocumentLink(ctx context.Context, path string) ([]protocol.DocumentLink, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	params := &protocol.DocumentLinkParams{}
+	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	return e.Server.DocumentLink(ctx, params)
+}

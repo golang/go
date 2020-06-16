@@ -26,20 +26,20 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 
 	mh, err := snapshot.ModHandle(ctx, fh)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
 	file, m, why, err := mh.Why(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("running go mod why: %w", err)
 	}
 	// Get the position of the cursor.
 	spn, err := m.PointSpan(position)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
 	hoverRng, err := spn.Range(m.Converter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("computing hover range: %w", err)
 	}
 
 	var req *modfile.Require
@@ -85,7 +85,8 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		return nil, err
 	}
 	options := snapshot.View().Options()
-	explanation = formatExplanation(explanation, req, options)
+	isPrivate := snapshot.View().IsGoPrivatePath(req.Mod.Path)
+	explanation = formatExplanation(explanation, req, options, isPrivate)
 	return &protocol.Hover{
 		Contents: protocol.MarkupContent{
 			Kind:  options.PreferredContentFormat,
@@ -95,7 +96,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}, nil
 }
 
-func formatExplanation(text string, req *modfile.Require, options source.Options) string {
+func formatExplanation(text string, req *modfile.Require, options source.Options, isPrivate bool) string {
 	text = strings.TrimSuffix(text, "\n")
 	splt := strings.Split(text, "\n")
 	length := len(splt)
@@ -117,16 +118,17 @@ func formatExplanation(text string, req *modfile.Require, options source.Options
 		return b.String()
 	}
 
-	imp := splt[length-1]
-	target := imp
-	if strings.ToLower(options.LinkTarget) == "pkg.go.dev" {
-		target = strings.Replace(target, req.Mod.Path, req.Mod.String(), 1)
+	imp := splt[length-1] // import path
+	reference := imp
+	// See golang/go#36998: don't link to modules matching GOPRIVATE.
+	if !isPrivate && options.PreferredContentFormat == protocol.Markdown {
+		target := imp
+		if strings.ToLower(options.LinkTarget) == "pkg.go.dev" {
+			target = strings.Replace(target, req.Mod.Path, req.Mod.String(), 1)
+		}
+		reference = fmt.Sprintf("[%s](https://%s/%s)", imp, options.LinkTarget, target)
 	}
-	target = fmt.Sprintf("https://%s/%s", options.LinkTarget, target)
-
-	b.WriteString("This module is necessary because ")
-	msg := fmt.Sprintf("[%s](%s) is imported in", imp, target)
-	b.WriteString(msg)
+	b.WriteString("This module is necessary because " + reference + " is imported in")
 
 	// If the explanation is 3 lines, then it is of the form:
 	// # golang.org/x/tools
