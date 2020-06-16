@@ -747,7 +747,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 	// If an ID is present in the map, invalidate its types.
 	// If an ID's value is true, invalidate its metadata too.
 	transitiveIDs := make(map[packageID]bool)
-
 	for withoutURI, currentFH := range withoutURIs {
 		directIDs := map[packageID]struct{}{}
 
@@ -847,25 +846,38 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 	}
 	// Copy the URI to package ID mappings, skipping only those URIs whose
 	// metadata will be reloaded in future calls to load.
-outer:
+copyIDs:
 	for k, ids := range s.ids {
 		for _, id := range ids {
 			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
-				continue outer
+				continue copyIDs
 			}
 		}
 		result.ids[k] = ids
 	}
 	// Copy the set of initally loaded packages.
 	for id, pkgPath := range s.workspacePackages {
-		// TODO(rstambler): For now, we only invalidate "command-line-arguments"
-		// from workspace packages, but in general, we need to handle deletion
-		// of a package.
 		if id == "command-line-arguments" {
 			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
 				continue
 			}
 		}
+
+		// If all the files we know about in a package have been deleted,
+		// the package is gone and we should no longer try to load it.
+		if m := s.metadata[id]; m != nil {
+			hasFiles := false
+			for _, uri := range s.metadata[id].goFiles {
+				if _, ok := result.files[uri]; ok {
+					hasFiles = true
+					break
+				}
+			}
+			if !hasFiles {
+				continue
+			}
+		}
+
 		result.workspacePackages[id] = pkgPath
 	}
 	// Don't bother copying the importedBy graph,

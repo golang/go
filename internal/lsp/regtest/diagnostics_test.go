@@ -131,7 +131,7 @@ func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 	runner.Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
-		env.RemoveFileFromWorkspace("b.go")
+		env.RemoveWorkspaceFile("b.go")
 
 		env.Await(EmptyDiagnostics("a.go"), EmptyDiagnostics("b.go"))
 	})
@@ -206,7 +206,7 @@ func TestRmTest38878Close(t *testing.T) {
 		env.OpenFile("a_test.go")
 		env.Await(DiagnosticAt("a_test.go", 5, 3))
 		env.CloseBuffer("a_test.go")
-		env.RemoveFileFromWorkspace("a_test.go")
+		env.RemoveWorkspaceFile("a_test.go")
 		// diagnostics go away
 		env.Await(EmptyDiagnostics("a_test.go"))
 	})
@@ -820,5 +820,45 @@ var _ = foo.Bar
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
 				NoDiagnostics("_foo/x.go"),
 			))
+	})
+}
+
+// Partially reproduces golang/go#38977, moving a file between packages.
+// It also gets hit by some go command bug fixed in 1.15, but we don't
+// care about that so much here.
+func TestDeletePackage(t *testing.T) {
+	const ws = `
+-- go.mod --
+module mod.com
+
+go 1.15
+-- a/a.go --
+package a
+
+const A = 1
+
+-- b/b.go --
+package b
+
+import "mod.com/a"
+
+const B = a.A
+
+-- c/c.go --
+package c
+
+import "mod.com/a"
+
+const C = a.A
+`
+	runner.Run(t, ws, func(t *testing.T, env *Env) {
+		env.OpenFile("b/b.go")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+		// Delete c/c.go, the only file in package c.
+		env.RemoveWorkspaceFile("c/c.go")
+
+		// We should still get diagnostics for files that exist.
+		env.RegexpReplace("b/b.go", `a.A`, "a.Nonexistant")
+		env.Await(env.DiagnosticAtRegexp("b/b.go", `Nonexistant`))
 	})
 }

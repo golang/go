@@ -14,9 +14,9 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-// RemoveFileFromWorkspace deletes a file on disk but does nothing in the
+// RemoveWorkspaceFile deletes a file on disk but does nothing in the
 // editor. It calls t.Fatal on any error.
-func (e *Env) RemoveFileFromWorkspace(name string) {
+func (e *Env) RemoveWorkspaceFile(name string) {
 	e.T.Helper()
 	if err := e.Sandbox.Workdir.RemoveFile(e.Ctx, name); err != nil {
 		e.T.Fatal(err)
@@ -32,6 +32,15 @@ func (e *Env) ReadWorkspaceFile(name string) string {
 		e.T.Fatal(err)
 	}
 	return content
+}
+
+// RemoveFileFromWorkspace deletes a file on disk but does nothing in the
+// editor. It calls t.Fatal on any error.
+func (e *Env) WriteWorkspaceFile(name, content string) {
+	e.T.Helper()
+	if err := e.Sandbox.Workdir.WriteFile(e.Ctx, name, content); err != nil {
+		e.T.Fatal(err)
+	}
 }
 
 // OpenFile opens a file in the editor, calling t.Fatal on any error.
