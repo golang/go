@@ -900,7 +900,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 		var key, val Type
 		var msg string
 		typ.is(func(t Type) bool {
-			k, v, m := rangeKeyVal(t, wantKey, wantVal)
+			k, v, m := rangeKeyVal(t.Under(), wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m
 				return false

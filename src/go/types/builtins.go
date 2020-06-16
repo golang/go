@@ -177,7 +177,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		case *Sum:
 			if t.is(func(t Type) bool {
-				switch t.(type) {
+				switch t := t.Under().(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true

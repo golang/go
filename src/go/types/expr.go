@@ -1369,7 +1369,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			var elem Type
 			if typ.is(func(t Type) bool {
 				var e Type
-				switch t := t.(type) {
+				switch t := t.Under().(type) {
 				case *Basic:
 					if isString(t) {
 						e = universeByte
