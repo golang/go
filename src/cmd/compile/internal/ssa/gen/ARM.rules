@@ -615,10 +615,10 @@
 (TEQconst (MOVWconst [x]) [y]) => (FlagConstant [logicFlags32(x^y)])
 
 // other known comparisons
-(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags32(0,1)])
-(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags32(0,1)])
-(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [subFlags32(0,1)])
-(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [subFlags32(0,1)])
+(CMPconst (MOVBUreg _) [c]) && 0xff < c => (FlagConstant [subFlags32(0, 1)])
+(CMPconst (MOVHUreg _) [c]) && 0xffff < c => (FlagConstant [subFlags32(0, 1)])
+(CMPconst (ANDconst _ [m]) [n]) && 0 <= m && m < n => (FlagConstant [subFlags32(0, 1)])
+(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) => (FlagConstant [subFlags32(0, 1)])
 
 // absorb flag constants into branches
 (EQ (FlagConstant [fc]) yes no) &&  fc.eq() => (First yes no)
