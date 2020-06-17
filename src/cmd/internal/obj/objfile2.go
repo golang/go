@@ -208,6 +208,11 @@ func (w *writer) StringTable() {
 		if w.pkgpath != "" {
 			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
 		}
+		// Don't put names of builtins into the string table (to save
+		// space).
+		if s.PkgIdx == goobj2.PkgIdxBuiltin {
+			return
+		}
 		w.AddString(s.Name)
 	})
 	w.ctxt.traverseSyms(traverseDefs, func(s *LSym) {
