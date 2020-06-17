@@ -67,7 +67,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	pkgs := load.PackagesForBuild(pkgArgs)
+	pkgs := load.PackagesForBuild(ctx, pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to vet")
 	}
@@ -93,5 +93,5 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, pxtest))
 		}
 	}
-	b.Do(root)
+	b.Do(ctx, root)
 }

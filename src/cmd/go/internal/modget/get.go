@@ -715,8 +715,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 	work.BuildInit()
-	pkgs := load.PackagesForBuild(pkgPatterns)
-	work.InstallPackages(pkgPatterns, pkgs)
+	pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+	work.InstallPackages(ctx, pkgPatterns, pkgs)
 }
 
 // runQueries looks up modules at target versions in parallel. Results will be

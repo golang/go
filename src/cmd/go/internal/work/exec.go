@@ -8,6 +8,7 @@ package work
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -54,7 +56,10 @@ func actionList(root *Action) []*Action {
 }
 
 // do runs the action graph rooted at root.
-func (b *Builder) Do(root *Action) {
+func (b *Builder) Do(ctx context.Context, root *Action) {
+	ctx, span := trace.StartSpan(ctx, "exec.Builder.Do ("+root.Mode+" "+root.Target+")")
+	defer span.Done()
+
 	if !b.IsCmdList {
 		// If we're doing real work, take time at the end to trim the cache.
 		c := cache.Default()

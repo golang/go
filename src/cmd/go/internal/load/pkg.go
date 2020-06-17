@@ -7,6 +7,7 @@ package load
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 var (
@@ -2123,9 +2125,9 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // to load dependencies of a named package, the named
 // package is still returned, with p.Incomplete = true
 // and details in p.DepsErrors.
-func Packages(args []string) []*Package {
+func Packages(ctx context.Context, args []string) []*Package {
 	var pkgs []*Package
-	for _, pkg := range PackagesAndErrors(args) {
+	for _, pkg := range PackagesAndErrors(ctx, args) {
 		if pkg.Error != nil {
 			base.Errorf("%v", pkg.Error)
 			continue
@@ -2139,7 +2141,10 @@ func Packages(args []string) []*Package {
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
-func PackagesAndErrors(patterns []string) []*Package {
+func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
+	defer span.Done()
+
 	for _, p := range patterns {
 		// Listing is only supported with all patterns referring to either:
 		// - Files that are part of the same directory.
@@ -2233,8 +2238,8 @@ func ImportPaths(args []string) []*search.Match {
 // PackagesForBuild is like Packages but exits
 // if any of the packages or their dependencies have errors
 // (cannot be built).
-func PackagesForBuild(args []string) []*Package {
-	pkgs := PackagesAndErrors(args)
+func PackagesForBuild(ctx context.Context, args []string) []*Package {
+	pkgs := PackagesAndErrors(ctx, args)
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {

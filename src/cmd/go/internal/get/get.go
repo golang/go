@@ -172,7 +172,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	pkgs := load.PackagesForBuild(args)
+	pkgs := load.PackagesForBuild(ctx, args)
 
 	// Phase 3. Install.
 	if *getD {
@@ -182,7 +182,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 
-	work.InstallPackages(args, pkgs)
+	work.InstallPackages(ctx, args, pkgs)
 }
 
 // downloadPaths prepares the list of paths to pass to download.
