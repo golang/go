@@ -90,6 +90,8 @@ func highlightPath(pkg Package, path []ast.Node) (map[posRange]struct{}, error) 
 		highlightIdentifiers(pkg, path, result)
 	case *ast.ForStmt, *ast.RangeStmt:
 		highlightLoopControlFlow(path, result)
+	case *ast.SwitchStmt:
+		highlightSwitchFlow(path, result)
 	case *ast.BranchStmt:
 		// BREAK can exit a loop, switch or select, while CONTINUE exit a loop so
 		// these need to be handled separately. They can also be embedded in any
@@ -235,8 +237,11 @@ func highlightUnlabeledBreakFlow(path []ast.Node, result map[posRange]struct{}) 
 		case *ast.ForStmt, *ast.RangeStmt:
 			highlightLoopControlFlow(path, result)
 			return // only highlight the innermost statement
-		case *ast.SelectStmt, *ast.SwitchStmt:
-			// TODO: add highlight when breaking a select or switch.
+		case *ast.SwitchStmt:
+			highlightSwitchFlow(path, result)
+			return
+		case *ast.SelectStmt:
+			// TODO: add highlight when breaking a select.
 			return
 		}
 	}
@@ -254,19 +259,21 @@ func highlightLabeledFlow(node *ast.BranchStmt, result map[posRange]struct{}) {
 	switch label.Stmt.(type) {
 	case *ast.ForStmt, *ast.RangeStmt:
 		highlightLoopControlFlow([]ast.Node{label.Stmt, label}, result)
+	case *ast.SwitchStmt:
+		highlightSwitchFlow([]ast.Node{label.Stmt, label}, result)
 	}
 }
 
-func highlightLoopControlFlow(path []ast.Node, result map[posRange]struct{}) {
-	labelFor := func(path []ast.Node) *ast.Ident {
-		if len(path) > 1 {
-			if n, ok := path[1].(*ast.LabeledStmt); ok {
-				return n.Label
-			}
+func labelFor(path []ast.Node) *ast.Ident {
+	if len(path) > 1 {
+		if n, ok := path[1].(*ast.LabeledStmt); ok {
+			return n.Label
 		}
-		return nil
 	}
+	return nil
+}
 
+func highlightLoopControlFlow(path []ast.Node, result map[posRange]struct{}) {
 	var loop ast.Node
 	var loopLabel *ast.Ident
 	stmtLabel := labelFor(path)
@@ -340,6 +347,74 @@ Outer:
 		if b.Label != nil && labelDecl(b.Label) == loopLabel {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}
+		return true
+	})
+}
+
+func highlightSwitchFlow(path []ast.Node, result map[posRange]struct{}) {
+	var switchNode ast.Node
+	var switchNodeLabel *ast.Ident
+	stmtLabel := labelFor(path)
+Outer:
+	// Reverse walk the path till we get to the switch statement.
+	for i := range path {
+		switch n := path[i].(type) {
+		case *ast.SwitchStmt:
+			switchNodeLabel = labelFor(path[i:])
+			if stmtLabel == nil || switchNodeLabel == stmtLabel {
+				switchNode = n
+				break Outer
+			}
+		}
+	}
+	// Cursor is not in a switch statement
+	if switchNode == nil {
+		return
+	}
+
+	// Add the switch statement.
+	rng := posRange{
+		start: switchNode.Pos(),
+		end:   switchNode.Pos() + token.Pos(len("switch")),
+	}
+	result[rng] = struct{}{}
+
+	// Traverse AST to find break statements within the same switch.
+	ast.Inspect(switchNode, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.SwitchStmt:
+			return switchNode == n
+		case *ast.ForStmt, *ast.RangeStmt, *ast.SelectStmt:
+			return false
+		}
+
+		b, ok := n.(*ast.BranchStmt)
+		if !ok || b.Tok != token.BREAK {
+			return true
+		}
+
+		if b.Label == nil || labelDecl(b.Label) == switchNodeLabel {
+			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
+		}
+		return true
+	})
+
+	// We don't need to check other switches if we aren't looking for labeled statements.
+	if switchNodeLabel == nil {
+		return
+	}
+
+	// Find labeled break statements in any switch
+	ast.Inspect(switchNode, func(n ast.Node) bool {
+		b, ok := n.(*ast.BranchStmt)
+		if !ok || b.Tok != token.BREAK {
+			return true
+		}
+
+		if b.Label != nil && labelDecl(b.Label) == switchNodeLabel {
+			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
+		}
+
 		return true
 	})
 }
