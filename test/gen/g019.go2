@@ -1,0 +1,24 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 39662.
+package p
+
+type S1 struct{}
+func (*S1) M() {}
+
+type S2 struct{}
+func (S2) M() {}
+
+func F1(type T interface{ M() })(t T) {
+	_ = T.M
+}
+
+func F2() {
+	F1(&S1{})
+	F1(S2{})
+	F1(&S2{})
+}

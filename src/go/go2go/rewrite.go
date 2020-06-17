@@ -979,7 +979,8 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
 	argList := make([]ast.Expr, 0, len(typeList))
 	for _, typ := range typeList {
-		arg := ast.NewIdent(types.TypeString(typ, types.RelativeTo(t.tpkg)))
+		str := types.TypeString(typ, types.RelativeTo(t.tpkg))
+		arg := ast.NewIdent("(" + str + ")")
 		if named, ok := typ.(*types.Named); ok {
 			if len(named.TArgs()) > 0 {
 				var narg *ast.Ident
