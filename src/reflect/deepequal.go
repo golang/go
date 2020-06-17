@@ -45,8 +45,20 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	}
 
 	if hard(v1, v2) {
-		addr1 := v1.ptr
-		addr2 := v2.ptr
+		// For a Ptr or Map value, we need to check flagIndir,
+		// which we do by calling the pointer method.
+		// For Slice or Interface, flagIndir is always set,
+		// and using v.ptr suffices.
+		ptrval := func(v Value) unsafe.Pointer {
+			switch v.Kind() {
+			case Ptr, Map:
+				return v.pointer()
+			default:
+				return v.ptr
+			}
+		}
+		addr1 := ptrval(v1)
+		addr2 := ptrval(v2)
 		if uintptr(addr1) > uintptr(addr2) {
 			// Canonicalize order to reduce number of entries in visited.
 			// Assumes non-moving garbage collector.
