@@ -449,9 +449,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	load.IgnoreImports = *listFind
 	var pkgs []*load.Package
 	if *listE {
-		pkgs = load.PackagesAndErrors(args)
+		pkgs = load.PackagesAndErrors(ctx, args)
 	} else {
-		pkgs = load.Packages(args)
+		pkgs = load.Packages(ctx, args)
 		base.ExitIfErrors()
 	}
 
@@ -539,7 +539,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
 		}
-		b.Do(a)
+		b.Do(ctx, a)
 	}
 
 	for _, p := range pkgs {
