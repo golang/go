@@ -14,6 +14,10 @@ There are some sample packages in `cmd/go2go/testdata/go2path/src`.
 You can see the full documentation for the tool by running `go doc
 cmd/go2go`.
 
+The `go2go` tool will look for `.go2` files using the environment variable `GO2PATH`.
+You can find some useful packages that you might want to experiment with by
+setting `GO2PATH=$GOROOT/src/cmd/go2go/testdata/go2path`.
+
 If you find bugs in the updated type checker or in the translation
 tool, they should be filed in the [standard Go issue
 tracker](https://golang.org/issue).
