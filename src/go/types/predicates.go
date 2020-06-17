@@ -52,6 +52,9 @@ func isString(typ Type) bool   { return is(typ, IsString) }
 // Use isIntegerOrFloat instead.
 func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
 
+// isNumericOrString is the equivalent of isIntegerOrFloat for isNumeric(typ) || isString(typ).
+func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
+
 // isTyped reports whether typ is typed; i.e., not an untyped
 // constant or boolean. isTyped may be called with types that
 // are not fully set up.

@@ -790,7 +790,7 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 }
 
 var binaryOpPredicates = opPredicates{
-	token.ADD: func(typ Type) bool { return isNumeric(typ) || isString(typ) },
+	token.ADD: isNumericOrString,
 	token.SUB: isNumeric,
 	token.MUL: isNumeric,
 	token.QUO: isNumeric,

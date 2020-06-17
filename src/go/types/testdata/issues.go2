@@ -170,6 +170,22 @@ func _() {
 	convert(int, uint)(5)
 }
 
+// When testing binary operators, for +, the operand types must either be
+// both numeric, or both strings. The implementation had the same problem
+// with this check as the conversion issue above (issue #39623).
+
+func issue39623(type T interface{type int, string})(x, y T) T {
+	return x + y
+}
+
+// Simplified, from https://go2goplay.golang.org/p/efS6x6s-9NI:
+func Sum(type T interface{type int, string})(s []T) (sum T) {
+	for _, v := range s {
+		sum += v
+	}
+	return
+}
+
 // Assignability of an unnamed pointer type to a type parameter that
 // has a matching underlying type.
 func _(type T interface{}, PT interface{type *T}) (x T) PT {
