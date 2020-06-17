@@ -52,7 +52,7 @@ func isTranslatableType(s ast.Spec, info *types.Info) bool {
 	if isParameterizedTypeDecl(s) {
 		return false
 	}
-	if isTypeBound(s) {
+	if isTypeBound(s, info) {
 		return false
 	}
 	if embedsComparable(s, info) {
@@ -67,19 +67,16 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 	return ts.TParams != nil
 }
 
-// isTypeBound reports whether s is an interface type that must be a
-// type bound.
-func isTypeBound(s ast.Spec) bool {
-	ts := s.(*ast.TypeSpec)
-	it, ok := ts.Type.(*ast.InterfaceType)
-	if !ok {
+// isTypeBound reports whether s is an interface type that includes a
+// type bound or that embeds an interface that must be a type bound.
+func isTypeBound(s ast.Spec, info *types.Info) bool {
+	typ := info.TypeOf(s.(*ast.TypeSpec).Type)
+	if typ == nil {
 		return false
 	}
-	for _, m := range it.Methods.List {
-		for _, n := range m.Names {
-			if n.Name == "type" {
-				return true
-			}
+	if iface, ok := typ.Underlying().(*types.Interface); ok {
+		if iface.HasTypeList() {
+			return true
 		}
 	}
 	return false

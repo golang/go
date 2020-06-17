@@ -570,6 +570,12 @@ func empty(t *Interface, seen map[*Interface]bool) bool {
 	return true
 }
 
+// HasTypeList reports whether the interface has a type list,
+// possibly from an embedded type.
+func (t *Interface) HasTypeList() bool {
+	return t.allTypes != nil
+}
+
 // includes reports whether the interface t includes the type typ
 // by checking typ against the _underlying_ type of each if the
 // types in its typelist.

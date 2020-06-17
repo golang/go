@@ -15,3 +15,13 @@ type I2 interface {
 }
 
 type I3 I2
+
+type I4 interface {
+	type int
+}
+
+type I5 interface {
+	I4
+}
+
+type I6 I5
