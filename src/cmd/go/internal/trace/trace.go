@@ -34,20 +34,33 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 	if !ok {
 		return ctx, nil
 	}
-	childSpan := &Span{t: tc.t, name: name, start: time.Now()}
+	childSpan := &Span{t: tc.t, name: name, tid: tc.tid, start: time.Now()}
 	tc.t.writeEvent(&traceviewer.Event{
 		Name:  childSpan.name,
 		Time:  float64(childSpan.start.UnixNano()) / float64(time.Microsecond),
+		TID:   childSpan.tid,
 		Phase: "B",
 	})
-	ctx = context.WithValue(ctx, traceKey{}, traceContext{tc.t})
+	ctx = context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.tid})
 	return ctx, childSpan
+}
+
+// Goroutine associates the context with a new Thread ID. The Chrome trace viewer associates each
+// trace event with a thread, and doesn't expect events with the same thread id to happen at the
+// same time.
+func Goroutine(ctx context.Context) context.Context {
+	tc, ok := getTraceContext(ctx)
+	if !ok {
+		return ctx
+	}
+	return context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.t.getNextTID()})
 }
 
 type Span struct {
 	t *tracer
 
 	name  string
+	tid   uint64
 	start time.Time
 	end   time.Time
 }
@@ -60,12 +73,15 @@ func (s *Span) Done() {
 	s.t.writeEvent(&traceviewer.Event{
 		Name:  s.name,
 		Time:  float64(s.end.UnixNano()) / float64(time.Microsecond),
+		TID:   s.tid,
 		Phase: "E",
 	})
 }
 
 type tracer struct {
 	file chan traceFile // 1-buffered
+
+	nextTID uint64
 }
 
 func (t *tracer) writeEvent(ev *traceviewer.Event) error {
@@ -103,12 +119,17 @@ func (t *tracer) Close() error {
 	return firstErr
 }
 
+func (t *tracer) getNextTID() uint64 {
+	return atomic.AddUint64(&t.nextTID, 1)
+}
+
 // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in
 // other packages.
 type traceKey struct{}
 
 type traceContext struct {
-	t *tracer
+	t   *tracer
+	tid uint64
 }
 
 // Start starts a trace which writes to the given file.
