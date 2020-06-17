@@ -1,0 +1,23 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 39653.
+package p
+
+type E struct{}
+
+type N(type T) struct {
+	i int
+	n T
+}
+
+func F1(type T)(i int, n T) N(T) {
+	return N(T){i: i, n: n}
+}
+
+func F2() {
+	F1(1, F1(2, F1(3, E{})))
+}

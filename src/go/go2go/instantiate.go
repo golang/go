@@ -169,7 +169,7 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 	}
 	t.newDecls = append(t.newDecls, newDecl)
 
-	instType := t.instantiateType(ta, typ.Underlying())
+	instType := t.instantiateType(ta, typ)
 
 	t.setType(instIdent, instType)
 

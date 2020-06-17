@@ -44,15 +44,17 @@ func (t *translator) setType(e ast.Expr, nt types.Type) {
 // instantiateType instantiates typ using ta.
 func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 	var inProgress *typeInstantiation
-	if insts, ok := t.typeInstantiations[typ]; ok {
-		for _, inst := range insts {
-			if t.sameTypes(ta.types, inst.types) {
-				if inst.typ == nil {
-					inProgress = inst
-					break
-				}
-				return inst.typ
+	key := typ
+	if named, ok := typ.(*types.Named); ok {
+		key = t.typeWithoutArgs(named)
+	}
+	for _, inst := range t.typeInstantiations[key] {
+		if t.sameTypes(ta.types, inst.types) {
+			if inst.typ == nil {
+				inProgress = inst
+				break
 			}
+			return inst.typ
 		}
 	}
 
@@ -60,13 +62,15 @@ func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 	if inProgress != nil {
 		if inProgress.typ == nil {
 			inProgress.typ = ityp
+		} else {
+			ityp = inProgress.typ
 		}
 	} else {
 		typinst := &typeInstantiation{
 			types: ta.types,
 			typ:   ityp,
 		}
-		t.typeInstantiations[typ] = append(t.typeInstantiations[typ], typinst)
+		t.typeInstantiations[key] = append(t.typeInstantiations[key], typinst)
 	}
 
 	return ityp

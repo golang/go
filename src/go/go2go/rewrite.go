@@ -764,8 +764,8 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 	}
 
 	var seen *typeInstantiation
-	instantiations := t.typeInstantiations[typ]
-	for _, inst := range instantiations {
+	key := t.typeWithoutArgs(typ)
+	for _, inst := range t.typeInstantiations[key] {
 		if t.sameTypes(typeList, inst.types) {
 			if inst.inProgress {
 				panic(fmt.Sprintf("%s: circular type instantiation", t.fset.Position((*pe).Pos())))
@@ -798,7 +798,7 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 			typ:        nil,
 			inProgress: true,
 		}
-		t.typeInstantiations[typ] = append(instantiations, seen)
+		t.typeInstantiations[key] = append(t.typeInstantiations[key], seen)
 	}
 
 	defer func() {
@@ -882,11 +882,10 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 		return nt
 	}
 
-	ntype := t.typeWithoutArgs(typ)
 	targs := typ.TArgs()
-	instantiations := t.typeInstantiations[ntype]
+	key := t.typeWithoutArgs(typ)
 	var seen *typeInstantiation
-	for _, inst := range instantiations {
+	for _, inst := range t.typeInstantiations[key] {
 		if t.sameTypes(targs, inst.types) {
 			if inst.inProgress {
 				panic(fmt.Sprintf("instantiation for %v in progress", typ))
@@ -931,7 +930,7 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 			typ:        nil,
 			inProgress: true,
 		}
-		t.typeInstantiations[ntype] = append(instantiations, seen)
+		t.typeInstantiations[key] = append(t.typeInstantiations[key], seen)
 	}
 
 	defer func() {
@@ -946,6 +945,8 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 
 	if seen.typ == nil {
 		seen.typ = instType
+	} else {
+		instType = seen.typ
 	}
 
 	if instNamed, ok := instType.(*types.Named); ok {
