@@ -71,7 +71,7 @@ type snapshot struct {
 
 	// modTidyHandle is the saved modTidyHandle for this snapshot, it is attached to the
 	// snapshot so we can reuse it without having to call "go mod tidy" everytime.
-	modTidyHandle *modHandle
+	modTidyHandle *modTidyHandle
 }
 
 type packageKey struct {
@@ -345,7 +345,7 @@ func (s *snapshot) getModHandle(uri span.URI) *modHandle {
 	return s.modHandles[uri]
 }
 
-func (s *snapshot) getModTidyHandle() *modHandle {
+func (s *snapshot) getModTidyHandle() *modTidyHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.modTidyHandle
