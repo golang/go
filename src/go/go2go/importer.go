@@ -28,6 +28,9 @@ import (
 // Imported Go2 packages are rewritten to normal Go packages.
 // This type also tracks references across imported packages.
 type Importer struct {
+	// The default importer, for Go1 packages.
+	defaultImporter types.ImporterFrom
+
 	// Temporary directory used to rewrite packages.
 	tmpdir string
 
@@ -63,18 +66,16 @@ func NewImporter(tmpdir string) *Importer {
 		Uses:     make(map[*ast.Ident]types.Object),
 	}
 	return &Importer{
-		tmpdir:       tmpdir,
-		info:         info,
-		translated:   make(map[string]string),
-		packages:     make(map[string]*types.Package),
-		imports:      make(map[string][]string),
-		idToFunc:     make(map[types.Object]*ast.FuncDecl),
-		idToTypeSpec: make(map[types.Object]*ast.TypeSpec),
+		defaultImporter: importer.Default().(types.ImporterFrom),
+		tmpdir:          tmpdir,
+		info:            info,
+		translated:      make(map[string]string),
+		packages:        make(map[string]*types.Package),
+		imports:         make(map[string][]string),
+		idToFunc:        make(map[types.Object]*ast.FuncDecl),
+		idToTypeSpec:    make(map[types.Object]*ast.TypeSpec),
 	}
 }
-
-// defaultImporter is the default Go 1 Importer.
-var defaultImporter = importer.Default().(types.ImporterFrom)
 
 // Import should never be called. This is the old API; current code
 // uses ImportFrom. This method still needs to be defined in order
@@ -200,7 +201,7 @@ func (imp *Importer) findFromPath(gopath, dir string) string {
 // and otherwise use go/types.
 func (imp *Importer) importGo1Package(importPath, dir string, mode types.ImportMode, pdir string, gofiles []string) (*types.Package, error) {
 	if goroot.IsStandardPackage(runtime.GOROOT(), "gc", importPath) {
-		return defaultImporter.ImportFrom(importPath, dir, mode)
+		return imp.defaultImporter.ImportFrom(importPath, dir, mode)
 	}
 
 	if len(gofiles) == 0 {
