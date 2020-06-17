@@ -45,10 +45,10 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 	return ctx, childSpan
 }
 
-// Goroutine associates the context with a new Thread ID. The Chrome trace viewer associates each
+// StartGoroutine associates the context with a new Thread ID. The Chrome trace viewer associates each
 // trace event with a thread, and doesn't expect events with the same thread id to happen at the
 // same time.
-func Goroutine(ctx context.Context) context.Context {
+func StartGoroutine(ctx context.Context) context.Context {
 	tc, ok := getTraceContext(ctx)
 	if !ok {
 		return ctx
