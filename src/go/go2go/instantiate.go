@@ -766,13 +766,53 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Elt:    elt,
 		}
 	case *ast.StructType:
-		fields := t.instantiateFieldList(ta, e.Fields)
-		if fields == e.Fields {
+		fields := e.Fields.List
+		newFields := make([]*ast.Field, 0, len(fields))
+		changed := false
+		for _, f := range fields {
+			newFields = append(newFields, f)
+			if len(f.Names) > 0 {
+				continue
+			}
+			id, ok := f.Type.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			typ := t.lookupType(id)
+			if typ == nil {
+				continue
+			}
+			typeParam, ok := typ.(*types.TypeParam)
+			if !ok {
+				continue
+			}
+			instType := t.instantiateType(ta, typeParam)
+			str := types.TypeString(instType, types.RelativeTo(t.tpkg))
+			newField := &ast.Field{
+				Doc:     f.Doc,
+				Names:   []*ast.Ident{id},
+				Type:    ast.NewIdent(str),
+				Tag:     f.Tag,
+				Comment: f.Comment,
+			}
+			newFields[len(newFields)-1] = newField
+			changed = true
+		}
+		fl := e.Fields
+		if changed {
+			fl = &ast.FieldList{
+				Opening: fl.Opening,
+				List:    newFields,
+				Closing: fl.Closing,
+			}
+		}
+		newFl := t.instantiateFieldList(ta, fl)
+		if !changed && newFl == fl {
 			return e
 		}
 		r = &ast.StructType{
 			Struct:     e.Struct,
-			Fields:     fields,
+			Fields:     newFl,
 			Incomplete: e.Incomplete,
 		}
 	case *ast.FuncType:
