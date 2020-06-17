@@ -755,6 +755,27 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
 
 			Policies:                []OID{mustNewOIDFromInts([]uint64{1, 2, 3, math.MaxUint32, math.MaxUint64})},
+			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			PermittedDirNames:       []pkix.RDNSequence{
+				pkix.Name{
+					Organization: []string{"Σ Acme Co"},
+					Country:      []string{"US"},
+				}.ToRDNSequence(),
+				pkix.Name{
+					Organization: []string{"Σ Acme2 Co"},
+					Country:      []string{"US"},
+				}.ToRDNSequence(),
+			},
+			ExcludedDirNames:       []pkix.RDNSequence{
+				pkix.Name{
+					Organization: []string{"Σ Evil Co"},
+					Country:      []string{"US"},
+				}.ToRDNSequence(),
+				pkix.Name{
+					Organization: []string{"Σ Evil2 Co"},
+					Country:      []string{"US"},
+				}.ToRDNSequence(),
+			},
 			PermittedDNSDomains:     []string{".example.com", "example.com"},
 			ExcludedDNSDomains:      []string{"bar.example.com"},
 			PermittedIPRanges:       []*net.IPNet{parseCIDR("192.168.1.1/16"), parseCIDR("1.2.3.4/8")},
@@ -794,6 +815,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if len(cert.Policies) != 1 || !cert.Policies[0].Equal(template.Policies[0]) {
 			t.Errorf("%s: failed to parse policy identifiers: got:%#v want:%#v", test.name, cert.PolicyIdentifiers, template.Policies)
+		}
+
+		if len(cert.PermittedDirNames) != 2 || cert.PermittedDirNames[0].String() != "O=Σ Acme Co,C=US" || cert.PermittedDirNames[1].String() != "O=Σ Acme2 Co,C=US" {
+			t.Errorf("%s: failed to parse name constraints: %#v", test.name, cert.PermittedDirNames)
+		}
+
+		if len(cert.ExcludedDirNames) != 2 || cert.ExcludedDirNames[0].String() != "O=Σ Evil Co,C=US" || cert.ExcludedDirNames[1].String() != "O=Σ Evil2 Co,C=US" {
+			t.Errorf("%s: failed to parse name constraints: %#v", test.name, cert.ExcludedDirNames)
 		}
 
 		if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
