@@ -49,7 +49,21 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
 // isParameterizedTypeDecl reports whether s is a parameterized type.
 func isParameterizedTypeDecl(s ast.Spec) bool {
 	ts := s.(*ast.TypeSpec)
-	return ts.TParams != nil
+	if ts.TParams != nil {
+		return true
+	}
+	if iface, ok := ts.Type.(*ast.InterfaceType); ok {
+		for _, method := range iface.Methods.List {
+			if len(method.Names) == 0 {
+				if id, ok := method.Type.(*ast.Ident); ok {
+					if id.Name == "comparable" {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // isTypeBound reports whether s is an interface type that must be a
