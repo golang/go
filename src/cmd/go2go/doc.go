@@ -36,7 +36,8 @@
 // Because this tool generates Go files, and because instantiated types
 // and functions need to refer to the types with which they are instantiated,
 // using function-local types as type arguments is not supported.
-// This is a deficiency of the tool, it will not be a deficiency in
+// Similarly, function-local parameterized types do not work.
+// These are deficiencies of the tool, they will work as expected in
 // any complete implementation.
 //
 // Because this tool generates Go files, and because it generates type
