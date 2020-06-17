@@ -136,6 +136,10 @@ func (check *Checker) varType(e ast.Expr) Type {
 			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
 				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints (%s)", t.allTypes)
+				return
+			}
+			if isComparableInterface(t) {
+				check.softErrorf(e.Pos(), "interface type for variable cannot be (or embed) comparable")
 			}
 		})
 	}

@@ -249,7 +249,7 @@ func _(type A, B Adder, C Adder(A))() {
 }
 
 // The type of variables (incl. parameters and return values) cannot
-// be an interface with type constraints.
+// be an interface with type constraints or be/embed comparable.
 type I interface {
 	type int
 }
@@ -265,4 +265,18 @@ func _() I /* ERROR cannot contain type constraints */
 
 func _() {
 	var _ I /* ERROR cannot contain type constraints */
+}
+
+type C interface {
+	comparable
+}
+
+var _ comparable /* ERROR comparable */
+var _ C /* ERROR comparable */
+
+func _(_ comparable /* ERROR comparable */ , _ C /* ERROR comparable */ )
+
+func _() {
+	var _ comparable /* ERROR comparable */
+	var _ C /* ERROR comparable */
 }
