@@ -959,6 +959,9 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 // typeWithoutArgs takes a named type with arguments and returns the
 // same type without arguments.
 func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
+	if len(typ.TArgs()) == 0 {
+		return typ
+	}
 	name := typ.Obj().Name()
 	fields := strings.Split(name, ".")
 	if len(fields) > 2 {
@@ -969,6 +972,9 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 	}
 
 	tpkg := typ.Obj().Pkg()
+	if tpkg == nil {
+		panic(fmt.Sprintf("can't find package for %s", name))
+	}
 	nobj := tpkg.Scope().Lookup(name)
 	if nobj == nil {
 		panic(fmt.Sprintf("can't find %q in scope of package %q", name, tpkg.Name()))
