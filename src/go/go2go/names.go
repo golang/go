@@ -33,8 +33,9 @@ var nameCodes = map[rune]int{
 	'.':       10,
 	'<':       11,
 	'-':       12,
-	nameSep:   13,
-	nameIntro: 14,
+	'/':       13,
+	nameSep:   14,
+	nameIntro: 15,
 }
 
 // instantiatedName returns the name of a newly instantiated function.
