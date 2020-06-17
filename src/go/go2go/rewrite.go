@@ -46,24 +46,25 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
 	return false
 }
 
+// isTranslatableType reports whether a type spec can be translated to Go1.
+// This is false if the type spec relies on any features that use generics.
+func isTranslatableType(s ast.Spec, info *types.Info) bool {
+	if isParameterizedTypeDecl(s) {
+		return false
+	}
+	if isTypeBound(s) {
+		return false
+	}
+	if embedsComparable(s, info) {
+		return false
+	}
+	return true
+}
+
 // isParameterizedTypeDecl reports whether s is a parameterized type.
 func isParameterizedTypeDecl(s ast.Spec) bool {
 	ts := s.(*ast.TypeSpec)
-	if ts.TParams != nil {
-		return true
-	}
-	if iface, ok := ts.Type.(*ast.InterfaceType); ok {
-		for _, method := range iface.Methods.List {
-			if len(method.Names) == 0 {
-				if id, ok := method.Type.(*ast.Ident); ok {
-					if id.Name == "comparable" {
-						return true
-					}
-				}
-			}
-		}
-	}
-	return false
+	return ts.TParams != nil
 }
 
 // isTypeBound reports whether s is an interface type that must be a
@@ -79,6 +80,41 @@ func isTypeBound(s ast.Spec) bool {
 			if n.Name == "type" {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// embedsComparable reports whether s is an interface type that embeds
+// the predeclared type "comparable", directly or indirectly.
+func embedsComparable(s ast.Spec, info *types.Info) bool {
+	typ := info.TypeOf(s.(*ast.TypeSpec).Type)
+	return typeEmbedsComparable(typ)
+}
+
+// typeEmbedsComparable reports whether typ is an interface type
+// that embeds the predeclared type "comparable", directly or indirectly.
+// This is like embedsComparable, but for a types.Type.
+func typeEmbedsComparable(typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
+	iface, ok := typ.Underlying().(*types.Interface)
+	if !ok {
+		return false
+	}
+	n := iface.NumEmbeddeds()
+	if n == 0 {
+		return false
+	}
+	comparable := types.Universe.Lookup("comparable")
+	for i := 0; i < n; i++ {
+		et := iface.EmbeddedType(i)
+		if named, ok := et.(*types.Named); ok && named.Obj() == comparable {
+			return true
+		}
+		if typeEmbedsComparable(et) {
+			return true
 		}
 	}
 	return false
@@ -348,7 +384,7 @@ func (t *translator) translate(file *ast.File) {
 				case token.TYPE:
 					newSpecs := make([]ast.Spec, 0, len(decl.Specs))
 					for j := range decl.Specs {
-						if !isParameterizedTypeDecl(decl.Specs[j]) && !isTypeBound(decl.Specs[j]) {
+						if isTranslatableType(decl.Specs[j], t.importer.info) {
 							t.translateTypeSpec(&decl.Specs[j])
 							newSpecs = append(newSpecs, decl.Specs[j])
 						}

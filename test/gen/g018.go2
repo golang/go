@@ -6,6 +6,12 @@
 
 package p
 
-type _ interface {
+type I1 interface {
 	comparable
 }
+
+type I2 interface {
+	I1
+}
+
+type I3 I2
