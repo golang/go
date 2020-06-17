@@ -416,7 +416,8 @@ func (t *translator) translate(file *ast.File) {
 func (t *translator) translateTypeSpec(ps *ast.Spec) {
 	ts := (*ps).(*ast.TypeSpec)
 	if ts.TParams != nil {
-		panic("parameterized type")
+		t.err = fmt.Errorf("%s: go2go tool does not support parameterized type here", t.fset.Position((*ps).Pos()))
+		return
 	}
 	t.translateExpr(&ts.Type)
 }
