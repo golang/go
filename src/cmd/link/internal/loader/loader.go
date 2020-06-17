@@ -1980,6 +1980,7 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 	}
 	l.growAttrBitmaps(len(l.objSyms) + int(end-start))
 	needNameExpansion := r.NeedNameExpansion()
+	loadingRuntimePkg := r.unit.Lib.Pkg == "runtime"
 	for i := start; i < end; i++ {
 		osym := r.Sym(i)
 		name := osym.Name(r.Reader)
@@ -2005,7 +2006,8 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		if strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[gi] = struct{}{}
 		}
-		if strings.HasPrefix(name, "runtime.") {
+		if strings.HasPrefix(name, "runtime.") ||
+			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
 			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi

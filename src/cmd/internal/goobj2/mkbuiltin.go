@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var stdout = flag.Bool("stdout", false, "write to stdout instead of builtinlist.go")
@@ -98,9 +99,15 @@ func mkbuiltin(w io.Writer) {
 
 	// The list above only contains ones that are used by the frontend.
 	// The backend may create more references of builtin functions.
+	// We also want to include predefined types.
 	// Add them.
-	for _, b := range extra {
-		name := pkg + "." + b.name
+	extras := append(fextras[:], enumerateBasicTypes()...)
+	for _, b := range extras {
+		prefix := ""
+		if !strings.HasPrefix(b.name, "type.") {
+			prefix = pkg + "."
+		}
+		name := prefix + b.name
 		if decls[name] {
 			log.Fatalf("%q already added -- mkbuiltin.go out of sync?", name)
 		}
@@ -109,10 +116,31 @@ func mkbuiltin(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-var extra = [...]struct {
+// addBasicTypes returns the symbol names for basic types that are
+// defined in the runtime and referenced in other packages.
+// Needs to be kept in sync with reflect.go:dumpbasictypes() and
+// reflect.go:dtypesym() in the compiler.
+func enumerateBasicTypes() []extra {
+	names := [...]string{
+		"int8", "uint8", "int16", "uint16",
+		"int32", "uint32", "int64", "uint64",
+		"float32", "float64", "complex64", "complex128",
+		"unsafe.Pointer", "uintptr", "bool", "string", "error",
+		"func(error) string"}
+	result := []extra{}
+	for _, n := range names {
+		result = append(result, extra{"type." + n, 0})
+		result = append(result, extra{"type.*" + n, 0})
+	}
+	return result
+}
+
+type extra struct {
 	name string
 	abi  int
-}{
+}
+
+var fextras = [...]extra{
 	// compiler frontend inserted calls (sysfunc)
 	{"deferproc", 1},
 	{"deferprocStack", 1},
