@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"container/heap"
+	"context"
 	"debug/elf"
 	"encoding/json"
 	"fmt"
@@ -63,13 +64,13 @@ type Builder struct {
 
 // An Action represents a single action in the action graph.
 type Action struct {
-	Mode       string                        // description of action operation
-	Package    *load.Package                 // the package this action works on
-	Deps       []*Action                     // actions that must happen before this one
-	Func       func(*Builder, *Action) error // the action itself (nil = no-op)
-	IgnoreFail bool                          // whether to run f even if dependencies fail
-	TestOutput *bytes.Buffer                 // test output buffer
-	Args       []string                      // additional args for runProgram
+	Mode       string                                         // description of action operation
+	Package    *load.Package                                  // the package this action works on
+	Deps       []*Action                                      // actions that must happen before this one
+	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
+	IgnoreFail bool                                           // whether to run f even if dependencies fail
+	TestOutput *bytes.Buffer                                  // test output buffer
+	Args       []string                                       // additional args for runProgram
 
 	triggers []*Action // inverse of deps
 

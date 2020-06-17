@@ -146,7 +146,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
-func buildRunProgram(b *work.Builder, a *work.Action) error {
+func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "%s", strings.Join(cmdline, " "))
