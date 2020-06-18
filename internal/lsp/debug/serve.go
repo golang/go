@@ -5,6 +5,7 @@
 package debug
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"fmt"
@@ -410,36 +411,61 @@ func (i *Instance) MonitorMemory(ctx context.Context) {
 			if mem.HeapAlloc < nextThresholdGiB*1<<30 {
 				continue
 			}
-			i.writeMemoryDebug(nextThresholdGiB)
+			if err := i.writeMemoryDebug(nextThresholdGiB, true); err != nil {
+				event.Error(ctx, "writing memory debug info", err)
+			}
+			if err := i.writeMemoryDebug(nextThresholdGiB, false); err != nil {
+				event.Error(ctx, "writing memory debug info", err)
+			}
 			event.Log(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
 			nextThresholdGiB++
 		}
 	}()
 }
 
-func (i *Instance) writeMemoryDebug(threshold uint64) error {
-	fname := func(t string) string {
-		return fmt.Sprintf("gopls.%d-%dGiB-%s", os.Getpid(), threshold, t)
+func (i *Instance) writeMemoryDebug(threshold uint64, withNames bool) error {
+	suffix := "withnames"
+	if !withNames {
+		suffix = "nonames"
 	}
 
-	f, err := os.Create(filepath.Join(os.TempDir(), fname("heap.pb.gz")))
+	filename := fmt.Sprintf("gopls.%d-%dGiB-%s.zip", os.Getpid(), threshold, suffix)
+	zipf, err := os.OpenFile(filepath.Join(os.TempDir(), filename), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	zipw := zip.NewWriter(zipf)
+
+	f, err := zipw.Create("heap.pb.gz")
+	if err != nil {
+		return err
+	}
 	if err := rpprof.Lookup("heap").WriteTo(f, 0); err != nil {
 		return err
 	}
 
-	f, err = os.Create(filepath.Join(os.TempDir(), fname("goroutines.txt")))
+	f, err = zipw.Create("goroutines.txt")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	if err := rpprof.Lookup("goroutine").WriteTo(f, 1); err != nil {
 		return err
 	}
-	return nil
+
+	for _, cache := range i.State.Caches() {
+		cf, err := zipw.Create(fmt.Sprintf("cache-%v.html", cache.ID()))
+		if err != nil {
+			return err
+		}
+		if _, err := cf.Write([]byte(cache.PackageStats(withNames))); err != nil {
+			return err
+		}
+	}
+
+	if err := zipw.Close(); err != nil {
+		return err
+	}
+	return zipf.Close()
 }
 
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
@@ -687,7 +713,7 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
 <h2>Per-package usage - not accurate, for guidance only</h2>
-{{.PackageStats}}
+{{.PackageStats true}}
 {{end}}
 `))
 

@@ -170,7 +170,7 @@ type packageStat struct {
 	total     int64
 }
 
-func (c *Cache) PackageStats() template.HTML {
+func (c *Cache) PackageStats(withNames bool) template.HTML {
 	var packageStats []packageStat
 	c.store.DebugOnlyIterate(func(k, v interface{}) {
 		switch k.(type) {
@@ -208,7 +208,11 @@ func (c *Cache) PackageStats() template.HTML {
 	}
 	var printedCost int64
 	for _, stat := range packageStats {
-		html += fmt.Sprintf("<tr><td>%v (%v)</td><td>%v = %v + %v + %v + %v</td></tr>\n", stat.id, stat.mode,
+		name := stat.id
+		if !withNames {
+			name = "-"
+		}
+		html += fmt.Sprintf("<tr><td>%v (%v)</td><td>%v = %v + %v + %v + %v</td></tr>\n", name, stat.mode,
 			human(stat.total), human(stat.file), human(stat.ast), human(stat.types), human(stat.typesInfo))
 		printedCost += stat.total
 		if float64(printedCost) > float64(totalCost)*.9 {
