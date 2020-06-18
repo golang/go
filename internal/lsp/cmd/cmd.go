@@ -224,6 +224,15 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	}
 }
 
+// CloseTestConnections terminates shared connections used in command tests. It
+// should only be called from tests.
+func CloseTestConnections(ctx context.Context) {
+	for _, c := range internalConnections {
+		c.Shutdown(ctx)
+		c.Exit(ctx)
+	}
+}
+
 func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
 	connection := newConnection(app)
 	conn, err := net.Dial("tcp", remote)

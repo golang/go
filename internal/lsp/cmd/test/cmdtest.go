@@ -61,6 +61,7 @@ func TestCommandLine(testdata string, options func(*source.Options)) func(*testi
 				tests.Run(t, NewRunner(exporter, datum, ctx, ts.Addr, options), datum)
 			})
 		}
+		cmd.CloseTestConnections(ctx)
 	}
 }
 
