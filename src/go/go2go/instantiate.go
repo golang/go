@@ -169,7 +169,14 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 	}
 	t.newDecls = append(t.newDecls, newDecl)
 
-	instType := t.instantiateType(ta, typ)
+	// If typ already has type arguments, then they should be correct.
+	// If it doesn't, we want to use typeTypes.
+	typeWithTargs := typ
+	if len(typ.TArgs()) == 0 {
+		typeWithTargs = t.updateTArgs(typ, typeTypes)
+	}
+
+	instType := t.instantiateType(ta, typeWithTargs)
 
 	t.setType(instIdent, instType)
 

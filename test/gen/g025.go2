@@ -1,0 +1,29 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 39692
+package p
+
+type S1(type T1, T2) struct {
+	f1 T1
+	f2 T2
+}
+
+type S2(type T1, T2) struct {
+	f1 T1
+	f2 T2
+}
+
+func F1(type T)(v T) T {
+	return v
+}
+
+func F() {
+	_ = S2(int, S1(S1(int, int), S1(int, int))){
+		f1: 0,
+		f2: S1(S1(int, int), S1(int, int)){},
+	}
+}

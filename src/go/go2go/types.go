@@ -198,16 +198,7 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			targs = newTargs
 		}
 		if targsChanged {
-			nm := typ.NumMethods()
-			methods := make([]*types.Func, 0, nm)
-			for i := 0; i < nm; i++ {
-				methods = append(methods, typ.Method(i))
-			}
-			obj := typ.Obj()
-			obj = types.NewTypeName(obj.Pos(), obj.Pkg(), obj.Name(), nil)
-			nt := types.NewNamed(obj, typ.Underlying(), methods)
-			nt.SetTArgs(targs)
-			return nt
+			return t.updateTArgs(typ, targs)
 		}
 		return typ
 	case *types.TypeParam:
@@ -218,6 +209,20 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
 	}
+}
+
+// setTargs returns a new named type with updated type arguments.
+func (t *translator) updateTArgs(typ *types.Named, targs []types.Type) *types.Named {
+	nm := typ.NumMethods()
+	methods := make([]*types.Func, 0, nm)
+	for i := 0; i < nm; i++ {
+		methods = append(methods, typ.Method(i))
+	}
+	obj := typ.Obj()
+	obj = types.NewTypeName(obj.Pos(), obj.Pkg(), obj.Name(), nil)
+	nt := types.NewNamed(obj, typ.Underlying(), methods)
+	nt.SetTArgs(targs)
+	return nt
 }
 
 // instantiateTypeTuple instantiates a types.Tuple.
