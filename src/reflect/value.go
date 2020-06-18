@@ -574,6 +574,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 			// Convert v to type typ if v is assignable to a variable
 			// of type t in the language spec.
 			// See issue 28761.
+			if typ.Kind() == Interface {
+				// We must clear the destination before calling assignTo,
+				// in case assignTo writes (with memory barriers) to the
+				// target location used as scratch space. See issue 39541.
+				*(*uintptr)(addr) = 0
+				*(*uintptr)(add(addr, ptrSize, "typ.size == 2*ptrSize")) = 0
+			}
 			v = v.assignTo("reflect.MakeFunc", typ, addr)
 
 			// We are writing to stack. No write barrier.
@@ -2367,6 +2374,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 // assignTo returns a value v that can be assigned directly to typ.
 // It panics if v is not assignable to typ.
 // For a conversion to an interface type, target is a suggested scratch space to use.
+// target must be initialized memory (or nil).
 func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue(context, v)
