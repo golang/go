@@ -746,3 +746,37 @@ func TestIndexMismatch(t *testing.T) {
 		t.Errorf("did not see expected error message. out:\n%s", out)
 	}
 }
+
+func TestPErsrc(t *testing.T) {
+	// Test that PE rsrc section is handled correctly (issue 39658).
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
+		t.Skipf("this is a windows/amd64-only test")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	pkgdir := filepath.Join("testdata", "testPErsrc")
+	exe := filepath.Join(tmpdir, "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = pkgdir
+	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building failed: %v, output:\n%s", err, out)
+	}
+
+	// Check that the binary contains the rsrc data
+	b, err := ioutil.ReadFile(exe)
+	if err != nil {
+		t.Fatalf("reading output failed: %v", err)
+	}
+	if !bytes.Contains(b, []byte("Hello Gophers!")) {
+		t.Fatalf("binary does not contain expected content")
+	}
+}
