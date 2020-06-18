@@ -120,6 +120,11 @@ var tests = [][]string{
 	{"examples/functions.go2"},
 	{"examples/methods.go2"},
 	{"examples/types.go2"},
+
+	// Go 2 prototype bug fixes
+	// TODO(gri) Eliminate the need to enumerate these tests here.
+	//           Should just traverse that directory.
+	{"fixedbugs/issue39664.go2"},
 }
 
 var fset = token.NewFileSet()

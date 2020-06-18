@@ -396,6 +396,15 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
 		if Vn != nil && len(Vn.targs) > 0 {
+			// Be careful: The number of type arguments may not match
+			// the number of receiver parameters. If so, an error was
+			// reported earlier but the length discrepancy is still
+			// here. Exit early in this case to prevent an assertion
+			// failure in makeSubstMap.
+			// TODO(gri) Can we avoid this check by fixing the lengths?
+			if len(ftyp.rparams) != len(Vn.targs) {
+				return
+			}
 			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
 		}
 
