@@ -179,7 +179,7 @@ func TestCover(t *testing.T) {
 	}
 	lines := bytes.Split(file, []byte("\n"))
 	for i, line := range lines {
-		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
+		lines[i] = bytes.ReplaceAll(line, []byte("LINE"), []byte(fmt.Sprint(i+1)))
 	}
 
 	// Add a function that is not gofmt'ed. This used to cause a crash.

@@ -138,7 +138,7 @@ func scanFile(file string, info os.FileInfo, mustPrint bool) {
 
 	fmt.Printf("%s: %s\n", file, vers)
 	if *versionM && mod != "" {
-		fmt.Printf("\t%s\n", strings.Replace(mod[:len(mod)-1], "\n", "\n\t", -1))
+		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
 }
 
