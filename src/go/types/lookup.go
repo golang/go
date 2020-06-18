@@ -341,7 +341,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := check.newUnifier(true)
-			u.x.init(mtyp.tparams)
+			u.x.init(ftyp.tparams)
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -414,7 +414,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := check.newUnifier(true)
-		u.x.init(mtyp.tparams)
+		u.x.init(ftyp.tparams)
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}

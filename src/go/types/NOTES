@@ -13,6 +13,8 @@ TODO (implementation issues)
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
+- type parameter constraints are ignored when checking if a parameterized method implements the
+  matching method in an interface
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
   example: type B(type P B(P)) interface{ m() } (need to delay all checking after seting up declarations)

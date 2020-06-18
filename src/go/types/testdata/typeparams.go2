@@ -218,7 +218,7 @@ func init(/* ERROR func init must have no type parameters */ type P)() {}
 type T struct {}
 
 func (T) m1() {}
-// Experimental: We allow method type parameters.
+// The type checker accepts method type parameters if configured accordingly.
 func (T) m2(type)() {}
 func (T) m3(type P)() {}
 
