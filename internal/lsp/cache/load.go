@@ -84,7 +84,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	defer done()
 
 	cfg := s.config(ctx)
-	var cleanup func()
+	cleanup := func() {}
 	if s.view.tmpMod {
 		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
@@ -97,17 +97,15 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 				return err
 			}
 		}
-		var uri span.URI
-		uri, cleanup, err = tempModFile(modFH, sumFH)
+		var tmpURI span.URI
+		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
 			return err
 		}
-		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", uri.Filename()))
+		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
 	pkgs, err := packages.Load(cfg, query...)
-	if cleanup != nil {
-		cleanup()
-	}
+	cleanup()
 
 	// If the context was canceled, return early. Otherwise, we might be
 	// type-checking an incomplete result. Check the context directly,

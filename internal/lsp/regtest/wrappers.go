@@ -34,8 +34,8 @@ func (e *Env) ReadWorkspaceFile(name string) string {
 	return content
 }
 
-// RemoveFileFromWorkspace deletes a file on disk but does nothing in the
-// editor. It calls t.Fatal on any error.
+// WriteWorkspaceFile writes a file to disk but does nothing in the editor.
+// It calls t.Fatal on any error.
 func (e *Env) WriteWorkspaceFile(name, content string) {
 	e.T.Helper()
 	if err := e.Sandbox.Workdir.WriteFile(e.Ctx, name, content); err != nil {
