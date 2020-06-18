@@ -127,6 +127,10 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
 			}
 			ctx, span := trace.StartSpan(ctx, desc)
+			a.traceSpan = span
+			for _, d := range a.Deps {
+				trace.Flow(ctx, d.traceSpan, a.traceSpan)
+			}
 			err = a.Func(b, ctx, a)
 			span.Done()
 		}

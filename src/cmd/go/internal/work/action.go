@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 )
 
@@ -92,10 +93,11 @@ type Action struct {
 	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending  int         // number of deps yet to complete
-	priority int         // relative execution priority
-	Failed   bool        // whether the action failed
-	json     *actionJSON // action graph information
+	pending   int         // number of deps yet to complete
+	priority  int         // relative execution priority
+	Failed    bool        // whether the action failed
+	json      *actionJSON // action graph information
+	traceSpan *trace.Span
 }
 
 // BuildActionID returns the action ID section of a's build ID.

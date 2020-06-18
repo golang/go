@@ -15,6 +15,18 @@ import (
 	"time"
 )
 
+// Constants used in event fields.
+// See https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU
+// for more details.
+const (
+	phaseDurationBegin = "B"
+	phaseDurationEnd   = "E"
+	phaseFlowStart     = "s"
+	phaseFlowEnd       = "f"
+
+	bindEnclosingSlice = "e"
+)
+
 var traceStarted int32
 
 func getTraceContext(ctx context.Context) (traceContext, bool) {
@@ -39,7 +51,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 		Name:  childSpan.name,
 		Time:  float64(childSpan.start.UnixNano()) / float64(time.Microsecond),
 		TID:   childSpan.tid,
-		Phase: "B",
+		Phase: phaseDurationBegin,
 	})
 	ctx = context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.tid})
 	return ctx, childSpan
@@ -54,6 +66,34 @@ func StartGoroutine(ctx context.Context) context.Context {
 		return ctx
 	}
 	return context.WithValue(ctx, traceKey{}, traceContext{tc.t, tc.t.getNextTID()})
+}
+
+// Flow marks a flow indicating that the 'to' span depends on the 'from' span.
+// Flow should be called while the 'to' span is in progress.
+func Flow(ctx context.Context, from *Span, to *Span) {
+	tc, ok := getTraceContext(ctx)
+	if !ok || from == nil || to == nil {
+		return
+	}
+
+	id := tc.t.getNextFlowID()
+	tc.t.writeEvent(&traceviewer.Event{
+		Name:     from.name + " -> " + to.name,
+		Category: "flow",
+		ID:       id,
+		Time:     float64(from.end.UnixNano()) / float64(time.Microsecond),
+		Phase:    phaseFlowStart,
+		TID:      from.tid,
+	})
+	tc.t.writeEvent(&traceviewer.Event{
+		Name:      from.name + " -> " + to.name,
+		Category:  "flow", // TODO(matloob): Add Category to Flow?
+		ID:        id,
+		Time:      float64(to.start.UnixNano()) / float64(time.Microsecond),
+		Phase:     phaseFlowEnd,
+		TID:       to.tid,
+		BindPoint: bindEnclosingSlice,
+	})
 }
 
 type Span struct {
@@ -74,14 +114,15 @@ func (s *Span) Done() {
 		Name:  s.name,
 		Time:  float64(s.end.UnixNano()) / float64(time.Microsecond),
 		TID:   s.tid,
-		Phase: "E",
+		Phase: phaseDurationEnd,
 	})
 }
 
 type tracer struct {
 	file chan traceFile // 1-buffered
 
-	nextTID uint64
+	nextTID    uint64
+	nextFlowID uint64
 }
 
 func (t *tracer) writeEvent(ev *traceviewer.Event) error {
@@ -121,6 +162,10 @@ func (t *tracer) Close() error {
 
 func (t *tracer) getNextTID() uint64 {
 	return atomic.AddUint64(&t.nextTID, 1)
+}
+
+func (t *tracer) getNextFlowID() uint64 {
+	return atomic.AddUint64(&t.nextFlowID, 1)
 }
 
 // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in
