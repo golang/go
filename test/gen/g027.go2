@@ -1,0 +1,22 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 39678.
+package p
+
+type B(type T) struct {
+	T
+}
+
+type C struct {
+	F int
+}
+
+type BC B(C)
+
+func F(s BC) {
+	s.F = 7
+}

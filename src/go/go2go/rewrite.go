@@ -584,31 +584,7 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	case *ast.ParenExpr:
 		t.translateExpr(&e.X)
 	case *ast.SelectorExpr:
-		t.translateExpr(&e.X)
-
-		// Handle references to instantiated embedded fields.
-		// We have to rewrite the name to the name used in
-		// the translated struct definition.
-		obj := t.importer.info.ObjectOf(e.Sel)
-		if obj == nil {
-			break
-		}
-		f, ok := obj.(*types.Var)
-		if !ok || !f.Embedded() {
-			break
-		}
-		named, ok := f.Type().(*types.Named)
-		if !ok || len(named.TArgs()) == 0 {
-			break
-		}
-		if obj.Name() != named.Obj().Name() {
-			break
-		}
-		_, id := t.lookupInstantiatedType(named)
-		*pe = &ast.SelectorExpr{
-			X:   e.X,
-			Sel: id,
-		}
+		t.translateSelectorExpr(pe)
 	case *ast.IndexExpr:
 		t.translateExpr(&e.X)
 		t.translateExpr(&e.Index)
@@ -658,6 +634,63 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Value)
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
+	}
+}
+
+// translateSelectorExpr translates a selector expression
+// from Go with contracts to Go 1.
+func (t *translator) translateSelectorExpr(pe *ast.Expr) {
+	e := (*pe).(*ast.SelectorExpr)
+
+	t.translateExpr(&e.X)
+
+	obj := t.importer.info.ObjectOf(e.Sel)
+	if obj == nil {
+		return
+	}
+
+	// Handle references to promoted fields and methods,
+	// if they go through an embedded instantiated field.
+	// We have to add a reference to the field we inserted.
+	if xType := t.lookupType(e.X); xType != nil {
+		if ptr := xType.Pointer(); ptr != nil {
+			xType = ptr.Elem()
+		}
+		fobj, indexes, _ := types.LookupFieldOrMethod(xType, true, obj.Pkg(), obj.Name())
+		if fobj != nil && len(indexes) > 1 {
+			for _, index := range indexes[:len(indexes)-1] {
+				xf := xType.Struct().Field(index)
+				if xf.Name() == types.TypeString(xf.Type(), types.RelativeTo(xf.Pkg())) {
+					continue
+				}
+				e.X = &ast.SelectorExpr{
+					X:   e.X,
+					Sel: ast.NewIdent(xf.Name()),
+				}
+				xType = xf.Type()
+				if ptr := xType.Pointer(); ptr != nil {
+					xType = ptr.Elem()
+				}
+			}
+		}
+	}
+
+	// Handle references to instantiated embedded fields.
+	// We have to rewrite the name to the name used in
+	// the translated struct definition.
+	if f, ok := obj.(*types.Var); ok && f.Embedded() {
+		named, ok := f.Type().(*types.Named)
+		if !ok || len(named.TArgs()) == 0 {
+			return
+		}
+		if obj.Name() != named.Obj().Name() {
+			return
+		}
+		_, id := t.lookupInstantiatedType(named)
+		*pe = &ast.SelectorExpr{
+			X:   e.X,
+			Sel: id,
+		}
 	}
 }
 
