@@ -126,6 +126,7 @@ type translator struct {
 	instantiations     map[string][]*instantiation
 	newDecls           []ast.Decl
 	typeInstantiations map[types.Type][]*typeInstantiation
+	typePackages       map[*types.Package]bool
 
 	// err is set if we have seen an error during this translation.
 	// This is used by the rewrite methods.
@@ -184,6 +185,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 		types:              make(map[ast.Expr]types.Type),
 		instantiations:     make(map[string][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
+		typePackages:       make(map[*types.Package]bool),
 	}
 	t.translate(file)
 
@@ -193,6 +195,11 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 
 	for _, p := range importer.transitiveImports(importPath) {
 		imps[p] = true
+	}
+	for pkg := range t.typePackages {
+		if pkg != t.tpkg {
+			imps[pkg.Path()] = true
+		}
 	}
 
 	decls := make([]ast.Decl, 0, len(file.Decls))
@@ -1006,6 +1013,13 @@ func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []a
 		}
 		argList = append(argList, arg)
 		t.setType(arg, typ)
+
+		// This inferred type may introduce a reference to
+		// packages that we don't otherwise import, and that
+		// package name may wind up in arg. Record all packages
+		// seen in inferred types so that we add import
+		// statements for them, just in case.
+		t.addTypePackages(typ)
 	}
 	return typeList, argList
 }

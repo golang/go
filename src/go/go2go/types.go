@@ -251,3 +251,50 @@ func (t *translator) instantiateTypeTuple(ta *typeArgs, tuple *types.Tuple) *typ
 	}
 	return types.NewTuple(vars...)
 }
+
+// addTypePackages adds all packages mentioned in typ to t.typePackages.
+func (t *translator) addTypePackages(typ types.Type) {
+	switch typ := typ.(type) {
+	case *types.Basic:
+	case *types.Array:
+		t.addTypePackages(typ.Elem())
+	case *types.Slice:
+		t.addTypePackages(typ.Elem())
+	case *types.Struct:
+		n := typ.NumFields()
+		for i := 0; i < n; i++ {
+			t.addTypePackages(typ.Field(i).Type())
+		}
+	case *types.Pointer:
+		t.addTypePackages(typ.Elem())
+	case *types.Tuple:
+		n := typ.Len()
+		for i := 0; i < n; i++ {
+			t.addTypePackages(typ.At(i).Type())
+		}
+	case *types.Signature:
+		// We'll have seen typ.Recv elsewhere.
+		t.addTypePackages(typ.Params())
+		t.addTypePackages(typ.Results())
+	case *types.Interface:
+		nm := typ.NumExplicitMethods()
+		for i := 0; i < nm; i++ {
+			t.addTypePackages(typ.ExplicitMethod(i).Type())
+		}
+		ne := typ.NumEmbeddeds()
+		for i := 0; i < ne; i++ {
+			t.addTypePackages(typ.EmbeddedType(i))
+		}
+	case *types.Map:
+		t.addTypePackages(typ.Key())
+		t.addTypePackages(typ.Elem())
+	case *types.Chan:
+		t.addTypePackages(typ.Elem())
+	case *types.Named:
+		// This is the point of this whole method.
+		t.typePackages[typ.Obj().Pkg()] = true
+	case *types.TypeParam:
+	default:
+		panic(fmt.Sprintf("unimplemented Type %T", typ))
+	}
+}
