@@ -496,6 +496,9 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 
 // instantiateBlockStmt instantiates a BlockStmt.
 func (t *translator) instantiateBlockStmt(ta *typeArgs, pbs *ast.BlockStmt) *ast.BlockStmt {
+	if pbs == nil {
+		return nil
+	}
 	changed := false
 	stmts := make([]ast.Stmt, len(pbs.List))
 	for i, s := range pbs.List {

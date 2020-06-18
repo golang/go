@@ -452,6 +452,9 @@ func (t *translator) translateFuncDecl(pd *ast.Decl) {
 // translateBlockStmt translates a block statement from Go with
 // contracts to Go 1.
 func (t *translator) translateBlockStmt(pbs *ast.BlockStmt) {
+	if pbs == nil {
+		return
+	}
 	for i := range pbs.List {
 		t.translateStmt(&pbs.List[i])
 	}
