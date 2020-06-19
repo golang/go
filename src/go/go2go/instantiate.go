@@ -29,7 +29,7 @@ func newTypeArgs(typeTypes []types.Type) *typeArgs {
 	}
 }
 
-// typeArgsFromTParams builds mappings from a list of type parameters
+// typeArgsFromFields builds mappings from a list of type parameters
 // expressed as ast.Field values.
 func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
 	ta := newTypeArgs(typeTypes)
@@ -52,7 +52,7 @@ func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Ty
 	return ta
 }
 
-// typeArgsFromTParams builds mappings from a list of type parameters
+// typeArgsFromExprs builds mappings from a list of type parameters
 // expressed as ast.Expr values.
 func typeArgsFromExprs(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
 	ta := newTypeArgs(typeTypes)

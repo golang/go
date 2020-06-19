@@ -128,6 +128,9 @@ type translator struct {
 	typeInstantiations map[types.Type][]*typeInstantiation
 	typePackages       map[*types.Package]bool
 
+	// typeDepth tracks recursive type instantiations.
+	typeDepth int
+
 	// err is set if we have seen an error during this translation.
 	// This is used by the rewrite methods.
 	err error
