@@ -18,6 +18,10 @@ import (
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, map[string]*modfile.Require, error) {
 	uri := snapshot.View().ModFile()
+	if uri == "" {
+		return nil, nil, nil
+	}
+
 	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(uri))
 	defer done()
 

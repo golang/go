@@ -74,6 +74,10 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	}
 	modURI := snapshot.View().ModFile()
 	for id, diags := range reports {
+		if id.URI == "" {
+			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
+			continue
+		}
 		if id.URI != modURI {
 			panic(fmt.Sprintf("expected module diagnostics report for %q, got %q", modURI, id.URI))
 		}
