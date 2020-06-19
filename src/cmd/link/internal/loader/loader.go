@@ -256,6 +256,7 @@ type Loader struct {
 	attrSpecial          map[Sym]struct{} // "special" frame symbols
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
+	generatedSyms        map[Sym]struct{} // symbols that generate their content
 
 	// Outer and Sub relations for symbols.
 	// TODO: figure out whether it's more efficient to just have these
@@ -355,6 +356,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
+		generatedSyms:        make(map[Sym]struct{}),
 		itablink:             make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
@@ -973,6 +975,28 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 		l.attrCgoExportStatic[i] = struct{}{}
 	} else {
 		delete(l.attrCgoExportStatic, i)
+	}
+}
+
+// IsGeneratedSym returns true if a symbol's been previously marked as a
+// generator symbol through the SetIsGeneratedSym. The functions for generator
+// symbols are kept in the Link context.
+func (l *Loader) IsGeneratedSym(i Sym) bool {
+	_, ok := l.generatedSyms[i]
+	return ok
+}
+
+// SetIsGeneratedSym marks symbols as generated symbols. Data shouldn't be
+// stored in generated symbols, and a function is registered and called for
+// each of these symbols.
+func (l *Loader) SetIsGeneratedSym(i Sym, v bool) {
+	if !l.IsExternal(i) {
+		panic("only external symbols can be generated")
+	}
+	if v {
+		l.generatedSyms[i] = struct{}{}
+	} else {
+		delete(l.generatedSyms, i)
 	}
 }
 

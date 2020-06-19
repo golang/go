@@ -285,10 +285,18 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 // edit to the symbol content.
 // If the output file is not Mmap'd, just writes the content.
 func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) {
-	P := ldr.Data(s)
-	n := int64(len(P))
-	pos, buf := out.writeLoc(n)
-	copy(buf[pos:], P)
-	out.off += n
-	ldr.SetOutData(s, buf[pos:pos+n])
+	if !ldr.IsGeneratedSym(s) {
+		P := ldr.Data(s)
+		n := int64(len(P))
+		pos, buf := out.writeLoc(n)
+		copy(buf[pos:], P)
+		out.off += n
+		ldr.SetOutData(s, buf[pos:pos+n])
+	} else {
+		n := ldr.SymSize(s)
+		pos, buf := out.writeLoc(n)
+		out.off += n
+		ldr.SetOutData(s, buf[pos:pos+n])
+		ldr.MakeSymbolUpdater(s).SetData(buf[pos : pos+n])
+	}
 }

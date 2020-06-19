@@ -93,6 +93,12 @@ type Link struct {
 
 	// Elf symtab variables.
 	numelfsym int // starts at 0, 1 is reserved
+
+	// These are symbols that created and written by the linker.
+	// Rather than creating a symbol, and writing all its data into the heap,
+	// you can create a symbol, and just a generation function will be called
+	// after the symbol's been created in the output mmap.
+	generatorSyms map[loader.Sym]generatorFunc
 }
 
 type cgodata struct {
@@ -143,4 +149,29 @@ func (ctxt *Link) IncVersion() int {
 // returns the maximum version number
 func (ctxt *Link) MaxVersion() int {
 	return ctxt.version
+}
+
+// generatorFunc is a convenience type.
+// Linker created symbols that are large, and shouldn't really live in the
+// heap can define a generator function, and their bytes can be generated
+// directly in the output mmap.
+//
+// Generator symbols shouldn't grow the symbol size, and might be called in
+// parallel in the future.
+//
+// Generator Symbols have their Data and OutData set to the mmapped area when
+// the generator is called.
+type generatorFunc func(*Link, loader.Sym)
+
+// createGeneratorSymbol is a convenience method for creating a generator
+// symbol.
+func (ctxt *Link) createGeneratorSymbol(name string, version int, t sym.SymKind, size int64, gen generatorFunc) loader.Sym {
+	ldr := ctxt.loader
+	s := ldr.LookupOrCreateSym(name, version)
+	ldr.SetIsGeneratedSym(s, true)
+	sb := ldr.MakeSymbolUpdater(s)
+	sb.SetType(t)
+	sb.SetSize(size)
+	ctxt.generatorSyms[s] = gen
+	return s
 }
