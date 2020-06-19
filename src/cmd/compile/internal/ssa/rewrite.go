@@ -743,7 +743,7 @@ func uaddOvf(a, b int64) bool {
 
 // de-virtualize an InterCall
 // 'sym' is the symbol for the itab
-func devirt(v *Value, sym Sym, offset int64) *AuxCall {
+func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
 	f := v.Block.Func
 	n, ok := sym.(*obj.LSym)
 	if !ok {
@@ -760,7 +760,8 @@ func devirt(v *Value, sym Sym, offset int64) *AuxCall {
 	if lsym == nil {
 		return nil
 	}
-	return StaticAuxCall(lsym)
+	va := aux.(*AuxCall)
+	return StaticAuxCall(lsym, va.args, va.results)
 }
 
 // isSamePtr reports whether p1 and p2 point to the same address.

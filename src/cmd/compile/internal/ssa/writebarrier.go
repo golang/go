@@ -501,29 +501,33 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
 	// put arguments on stack
 	off := config.ctxt.FixedFrameSize()
 
+	var ACArgs []Param
 	if typ != nil { // for typedmemmove
 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 		off = round(off, taddr.Type.Alignment())
 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
 		off += taddr.Type.Size()
 	}
 
 	off = round(off, ptr.Type.Alignment())
 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
 	off += ptr.Type.Size()
 
 	if val != nil {
 		off = round(off, val.Type.Alignment())
 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
 		off += val.Type.Size()
 	}
 	off = round(off, config.PtrSize)
 
 	// issue call
-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn), mem)
+	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn, ACArgs, nil), mem)
 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
 	return mem
 }

@@ -4280,16 +4280,20 @@ func (s *state) openDeferExit() {
 		argStart := Ctxt.FixedFrameSize()
 		fn := r.n.Left
 		stksize := fn.Type.ArgWidth()
+		var ACArgs []ssa.Param
+		var ACResults []ssa.Param
 		if r.rcvr != nil {
 			// rcvr in case of OCALLINTER
 			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
 			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart)})
 			s.store(types.Types[TUINTPTR], addr, v)
 		}
 		for j, argAddrVal := range r.argVals {
 			f := getParam(r.n, j)
 			pt := types.NewPtr(f.Type)
 			addr := s.constOffPtrSP(pt, argStart+f.Offset)
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart + f.Offset)})
 			if !canSSAType(f.Type) {
 				s.move(f.Type, addr, argAddrVal)
 			} else {
@@ -4305,7 +4309,7 @@ func (s *state) openDeferExit() {
 			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, v, s.mem())
 		} else {
 			// Do a static call if the original call was a static function or method
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym()), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym(), ACArgs, ACResults), s.mem())
 		}
 		call.AuxInt = stksize
 		s.vars[&memVar] = call
@@ -4340,6 +4344,17 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var codeptr *ssa.Value // ptr to target code (if dynamic)
 	var rcvr *ssa.Value    // receiver to set
 	fn := n.Left
+	var ACArgs []ssa.Param
+	var ACResults []ssa.Param
+	res := n.Left.Type.Results()
+	if k == callNormal {
+		nf := res.NumFields()
+		for i := 0; i < nf; i++ {
+			fp := res.Field(i)
+			ACResults = append(ACResults, ssa.Param{Type: fp.Type, Offset: int32(fp.Offset + Ctxt.FixedFrameSize())})
+		}
+	}
+
 	switch n.Op {
 	case OCALLFUNC:
 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
@@ -4437,10 +4452,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Call runtime.deferprocStack with pointer to _defer record.
 		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
 		s.store(types.Types[TUINTPTR], arg0, addr)
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack), s.mem())
+		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(Ctxt.FixedFrameSize())})
+		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults), s.mem())
 		if stksize < int64(Widthptr) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
+			// TODO Revisit this if/when we pass args in registers.
 			stksize = int64(Widthptr)
 		}
 		call.AuxInt = stksize
@@ -4453,8 +4470,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			// Write argsize and closure (args to newproc/deferproc).
 			argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
 			addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINT32], Offset: int32(argStart)})
 			s.store(types.Types[TUINT32], addr, argsize)
 			addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart) + int32(Widthptr)})
 			s.store(types.Types[TUINTPTR], addr, closure)
 			stksize += 2 * int64(Widthptr)
 			argStart += 2 * int64(Widthptr)
@@ -4463,6 +4482,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Set receiver (for interface calls).
 		if rcvr != nil {
 			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
+			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart)})
 			s.store(types.Types[TUINTPTR], addr, rcvr)
 		}
 
@@ -4471,20 +4491,20 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		args := n.Rlist.Slice()
 		if n.Op == OCALLMETH {
 			f := t.Recv()
-			s.storeArg(args[0], f.Type, argStart+f.Offset)
+			ACArgs = append(ACArgs, s.storeArg(args[0], f.Type, argStart+f.Offset))
 			args = args[1:]
 		}
 		for i, n := range args {
 			f := t.Params().Field(i)
-			s.storeArg(n, f.Type, argStart+f.Offset)
+			ACArgs = append(ACArgs, s.storeArg(n, f.Type, argStart+f.Offset))
 		}
 
 		// call target
 		switch {
 		case k == callDefer:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc, ACArgs, ACResults), s.mem())
 		case k == callGo:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc, ACArgs, ACResults), s.mem())
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
@@ -4494,9 +4514,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
 			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, closure, s.mem())
 		case codeptr != nil:
-			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(), codeptr, s.mem())
+			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
 		case sym != nil:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym()), s.mem())
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults), s.mem())
 		default:
 			s.Fatalf("bad call type %v %v", n.Op, n)
 		}
@@ -4522,7 +4542,6 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		s.startBlock(bNext)
 	}
 
-	res := n.Left.Type.Results()
 	if res.NumFields() == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil
@@ -4918,18 +4937,29 @@ func (s *state) intDivide(n *Node, a, b *ssa.Value) *ssa.Value {
 func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args ...*ssa.Value) []*ssa.Value {
 	// Write args to the stack
 	off := Ctxt.FixedFrameSize()
+	var ACArgs []ssa.Param
+	var ACResults []ssa.Param
 	for _, arg := range args {
 		t := arg.Type
 		off = Rnd(off, t.Alignment())
 		ptr := s.constOffPtrSP(t.PtrTo(), off)
 		size := t.Size()
+		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
 		s.store(t, ptr, arg)
 		off += size
 	}
 	off = Rnd(off, int64(Widthreg))
 
+	// Accumulate results types and offsets
+	offR := off
+	for _, t := range results {
+		offR = Rnd(offR, t.Alignment())
+		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
+		offR += t.Size()
+	}
+
 	// Issue call
-	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn), s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn, ACArgs, ACResults), s.mem())
 	s.vars[&memVar] = call
 
 	if !returns {
@@ -5064,8 +5094,9 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 	}
 }
 
-func (s *state) storeArg(n *Node, t *types.Type, off int64) {
+func (s *state) storeArg(n *Node, t *types.Type, off int64) ssa.Param {
 	s.storeArgWithBase(n, t, s.sp, off)
+	return ssa.Param{Type: t, Offset: int32(off)}
 }
 
 func (s *state) storeArgWithBase(n *Node, t *types.Type, base *ssa.Value, off int64) {
