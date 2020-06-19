@@ -316,6 +316,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// will be applied directly there.
 	bench.Start("Asmb")
 	asmb(ctxt)
+	// Generate large symbols.
+	for s, f := range ctxt.generatorSyms {
+		f(ctxt, s)
+	}
 	bench.Start("Asmb2")
 	asmb2(ctxt)
 
