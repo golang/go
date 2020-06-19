@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"go/token"
 	"sort"
 )
@@ -633,12 +634,19 @@ func (t *Interface) Complete() *Interface {
 	allTypes := t.types
 
 	for _, typ := range t.embeddeds {
-		typ := typ.Interface()
-		typ.Complete()
-		for _, m := range typ.allMethods {
+		utyp := typ.Under()
+		etyp := utyp.Interface()
+		if etyp == nil {
+			if utyp != Typ[Invalid] {
+				panic(fmt.Sprintf("%s is not an interface", typ))
+			}
+			continue
+		}
+		etyp.Complete()
+		for _, m := range etyp.allMethods {
 			addMethod(m, false)
 		}
-		allTypes = intersect(allTypes, typ.types)
+		allTypes = intersect(allTypes, etyp.allTypes)
 	}
 
 	for i := 0; i < len(todo); i += 2 {
@@ -795,6 +803,7 @@ func (t *Named) AddMethod(m *Func) {
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
+	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id
 	ptr   bool      // pointer designation
 	obj   *TypeName // corresponding type name
@@ -806,7 +815,7 @@ type TypeParam struct {
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -816,7 +825,12 @@ func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Typ
 
 func (t *TypeParam) Bound() *Interface {
 	iface := t.bound.Interface()
-	iface.Complete() // TODO(gri) should we use check.completeInterface instead?
+	// use the type bound position if we have one
+	pos := token.NoPos
+	if n, _ := t.bound.(*Named); n != nil {
+		pos = n.obj.pos
+	}
+	t.check.completeInterface(pos, iface)
 	return iface
 }
 
