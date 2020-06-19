@@ -111,7 +111,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 
-			value := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, field.Type())
+			value := populateValue(pass.Fset, file, pass.Pkg, field.Type())
 			if value == nil {
 				continue
 			}
@@ -144,9 +144,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		msg := "Fill struct with default values"
+		msg := "Fill struct"
 		if name, ok := expr.Type.(*ast.Ident); ok {
-			msg = fmt.Sprintf("Fill %s with default values", name)
+			msg = fmt.Sprintf("Fill %s", name)
 		}
 
 		pass.Report(analysis.Diagnostic{
@@ -171,4 +171,137 @@ func nextLinePos(tok *token.File, pos token.Pos) token.Pos {
 		tok.AddLine(tok.Offset(pos) + 1)
 	}
 	return tok.LineStart(line + 1)
+}
+
+// populateValue constructs an expression to fill the value of a struct field.
+//
+// When the type of a struct field is a basic literal or interface, we return
+// default values. For other types, such as maps, slices, and channels, we create
+// expressions rather than using default values.
+//
+// The reasoning here is that users will call fillstruct with the intention of
+// initializing the struct, in which case setting these fields to nil has no effect.
+func populateValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+	under := typ
+	if n, ok := typ.(*types.Named); ok {
+		under = n.Underlying()
+	}
+	switch u := under.(type) {
+	case *types.Basic:
+		switch {
+		case u.Info()&types.IsNumeric != 0:
+			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+		case u.Info()&types.IsBoolean != 0:
+			return &ast.Ident{Name: "false"}
+		case u.Info()&types.IsString != 0:
+			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+		default:
+			panic("unknown basic type")
+		}
+	case *types.Map:
+		k := analysisinternal.TypeExpr(fset, f, pkg, u.Key())
+		v := analysisinternal.TypeExpr(fset, f, pkg, u.Elem())
+		if k == nil || v == nil {
+			return nil
+		}
+		return &ast.CompositeLit{
+			Type: &ast.MapType{
+				Key:   k,
+				Value: v,
+			},
+		}
+	case *types.Slice:
+		s := analysisinternal.TypeExpr(fset, f, pkg, u.Elem())
+		if s == nil {
+			return nil
+		}
+		return &ast.CompositeLit{
+			Type: &ast.ArrayType{
+				Elt: s,
+			},
+		}
+	case *types.Array:
+		a := analysisinternal.TypeExpr(fset, f, pkg, u.Elem())
+		if a == nil {
+			return nil
+		}
+		return &ast.CompositeLit{
+			Type: &ast.ArrayType{
+				Elt: a,
+				Len: &ast.BasicLit{
+					Kind: token.INT, Value: fmt.Sprintf("%v", u.Len())},
+			},
+		}
+	case *types.Chan:
+		v := analysisinternal.TypeExpr(fset, f, pkg, u.Elem())
+		if v == nil {
+			return nil
+		}
+		dir := ast.ChanDir(u.Dir())
+		if u.Dir() == types.SendRecv {
+			dir = ast.SEND | ast.RECV
+		}
+		return &ast.CallExpr{
+			Fun: ast.NewIdent("make"),
+			Args: []ast.Expr{
+				&ast.ChanType{
+					Dir:   dir,
+					Value: v,
+				},
+			},
+		}
+	case *types.Struct:
+		s := analysisinternal.TypeExpr(fset, f, pkg, typ)
+		if s == nil {
+			return nil
+		}
+		return &ast.CompositeLit{
+			Type: s,
+		}
+	case *types.Signature:
+		var params []*ast.Field
+		for i := 0; i < u.Params().Len(); i++ {
+			p := analysisinternal.TypeExpr(fset, f, pkg, u.Params().At(i).Type())
+			if p == nil {
+				return nil
+			}
+			params = append(params, &ast.Field{
+				Type: p,
+				Names: []*ast.Ident{
+					{
+						Name: u.Params().At(i).Name(),
+					},
+				},
+			})
+		}
+		var returns []*ast.Field
+		for i := 0; i < u.Results().Len(); i++ {
+			r := analysisinternal.TypeExpr(fset, f, pkg, u.Results().At(i).Type())
+			if r == nil {
+				return nil
+			}
+			returns = append(returns, &ast.Field{
+				Type: r,
+			})
+		}
+		return &ast.FuncLit{
+			Type: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: params,
+				},
+				Results: &ast.FieldList{
+					List: returns,
+				},
+			},
+			Body: &ast.BlockStmt{},
+		}
+	case *types.Pointer:
+		return &ast.UnaryExpr{
+			Op: token.AND,
+			X:  populateValue(fset, f, pkg, u.Elem()),
+		}
+	case *types.Interface:
+		return ast.NewIdent("nil")
+	}
+	return nil
 }

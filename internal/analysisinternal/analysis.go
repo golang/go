@@ -48,7 +48,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
 		return ast.NewIdent("nil")
 	case *types.Struct:
-		texpr := typeExpr(fset, f, pkg, typ) // typ because we want the name here.
+		texpr := TypeExpr(fset, f, pkg, typ) // typ because we want the name here.
 		if texpr == nil {
 			return nil
 		}
@@ -56,7 +56,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 			Type: texpr,
 		}
 	case *types.Array:
-		texpr := typeExpr(fset, f, pkg, u.Elem())
+		texpr := TypeExpr(fset, f, pkg, u.Elem())
 		if texpr == nil {
 			return nil
 		}
@@ -70,7 +70,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 	return nil
 }
 
-func typeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -100,6 +100,11 @@ func typeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		return &ast.SelectorExpr{
 			X:   ast.NewIdent(pkgName),
 			Sel: ast.NewIdent(t.Obj().Name()),
+		}
+	case *types.Pointer:
+		return &ast.UnaryExpr{
+			Op: token.MUL,
+			X:  TypeExpr(fset, f, pkg, t.Elem()),
 		}
 	default:
 		return nil // TODO: anonymous structs, but who does that

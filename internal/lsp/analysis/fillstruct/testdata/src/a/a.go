@@ -6,6 +6,8 @@ package fillstruct
 
 import (
 	data "b"
+	"go/ast"
+	"go/token"
 )
 
 type emptyStruct struct{}
@@ -37,3 +39,53 @@ type nestedStruct struct {
 var _ = nestedStruct{} // want ""
 
 var _ = data.B{} // want ""
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} // want ""
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} // want ""
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} // want ""
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} // want ""
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} // want ""
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} // want ""
