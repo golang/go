@@ -8479,11 +8479,12 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
 func rewriteValuegeneric_OpInterCall(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
-	// cond: devirt(v, itab, off) != nil
-	// result: (StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
+	// match: (InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
+	// cond: devirt(v, auxCall, itab, off) != nil
+	// result: (StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
 	for {
 		argsize := auxIntToInt32(v.AuxInt)
+		auxCall := auxToCall(v.Aux)
 		if v_0.Op != OpLoad {
 			break
 		}
@@ -8510,12 +8511,12 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
 			break
 		}
 		mem := v_1
-		if !(devirt(v, itab, off) != nil) {
+		if !(devirt(v, auxCall, itab, off) != nil) {
 			break
 		}
 		v.reset(OpStaticCall)
 		v.AuxInt = int32ToAuxInt(int32(argsize))
-		v.Aux = callToAux(devirt(v, itab, off))
+		v.Aux = callToAux(devirt(v, auxCall, itab, off))
 		v.AddArg(mem)
 		return true
 	}

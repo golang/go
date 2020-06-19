@@ -2021,8 +2021,8 @@
 // Note that (ITab (IMake)) doesn't get
 // rewritten until after the first opt pass,
 // so this rule should trigger reliably.
-(InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, itab, off) != nil =>
-	(StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
+(InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, auxCall, itab, off) != nil =>
+	(StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
 
 // Move and Zero optimizations.
 // Move source and destination may overlap.
