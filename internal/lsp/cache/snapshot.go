@@ -66,12 +66,18 @@ type snapshot struct {
 	// unloadableFiles keeps track of files that we've failed to load.
 	unloadableFiles map[span.URI]struct{}
 
-	// modHandles keeps track of any ParseModHandles for this snapshot.
-	modHandles map[span.URI]*modHandle
+	// parseModHandles keeps track of any ParseModHandles for the snapshot.
+	// The handles need not refer to only the view's go.mod file.
+	parseModHandles map[span.URI]*parseModHandle
 
-	// modTidyHandle is the saved modTidyHandle for this snapshot, it is attached to the
-	// snapshot so we can reuse it without having to call "go mod tidy" everytime.
-	modTidyHandle *modTidyHandle
+	// Preserve go.mod-related handles to avoid garbage-collecting the results
+	// of various calls to the go command.
+	//
+	// TODO(rstambler): If we end up with any more such handles, we should
+	// consider creating a struct for them.
+	modTidyHandle    *modTidyHandle
+	modWhyHandle     *modWhyHandle
+	modUpgradeHandle *modUpgradeHandle
 }
 
 type packageKey struct {
@@ -135,47 +141,41 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 
 func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []string) error {
 	cfg := s.config(ctx)
-	_, _, err := runGoCommand(ctx, cfg, nil, nil, verb, args)
+	_, _, err := runGoCommand(ctx, cfg, nil, s.view.tmpMod, verb, args)
 	return err
 }
 
 func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
 	cfg := s.config(ctx)
-	var modFH, sumFH source.FileHandle
+	var pmh source.ParseModHandle
 	if s.view.tmpMod {
-		var err error
-		modFH, err = s.GetFile(ctx, s.view.modURI)
+		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
 			return nil, err
 		}
-		if s.view.sumURI != "" {
-			sumFH, err = s.GetFile(ctx, s.view.sumURI)
-			if err != nil {
-				return nil, err
-			}
+		pmh, err = s.ParseModHandle(ctx, modFH)
+		if err != nil {
+			return nil, err
 		}
 	}
-	_, stdout, err := runGoCommand(ctx, cfg, modFH, sumFH, verb, args)
+	_, stdout, err := runGoCommand(ctx, cfg, pmh, s.view.tmpMod, verb, args)
 	return stdout, err
 }
 
 func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
 	cfg := s.config(ctx)
-	var modFH, sumFH source.FileHandle
+	var pmh source.ParseModHandle
 	if s.view.tmpMod {
-		var err error
-		modFH, err = s.GetFile(ctx, s.view.modURI)
+		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
 			return err
 		}
-		if s.view.sumURI != "" {
-			sumFH, err = s.GetFile(ctx, s.view.sumURI)
-			if err != nil {
-				return err
-			}
+		pmh, err = s.ParseModHandle(ctx, modFH)
+		if err != nil {
+			return err
 		}
 	}
-	_, inv, cleanup, err := goCommandInvocation(ctx, cfg, modFH, sumFH, verb, args)
+	_, inv, cleanup, err := goCommandInvocation(ctx, cfg, pmh, verb, args)
 	if err != nil {
 		return err
 	}
@@ -189,8 +189,13 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []st
 // The given go.mod file is used to construct the temporary go.mod file, which
 // is then passed to the go command via the BuildFlags.
 // It assumes that modURI is only provided when the -modfile flag is enabled.
-func runGoCommand(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, verb string, args []string) (span.URI, *bytes.Buffer, error) {
-	tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, modFH, sumFH, verb, args)
+func runGoCommand(ctx context.Context, cfg *packages.Config, pmh source.ParseModHandle, tmpMod bool, verb string, args []string) (span.URI, *bytes.Buffer, error) {
+	// Don't pass in the ParseModHandle if we are not using the -modfile flag.
+	var tmpPMH source.ParseModHandle
+	if tmpMod {
+		tmpPMH = pmh
+	}
+	tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, tmpPMH, verb, args)
 	if err != nil {
 		return "", nil, err
 	}
@@ -202,10 +207,10 @@ func runGoCommand(ctx context.Context, cfg *packages.Config, modFH, sumFH source
 }
 
 // Assumes that modURI is only provided when the -modfile flag is enabled.
-func goCommandInvocation(ctx context.Context, cfg *packages.Config, modFH, sumFH source.FileHandle, verb string, args []string) (tmpURI span.URI, inv *gocommand.Invocation, cleanup func(), err error) {
+func goCommandInvocation(ctx context.Context, cfg *packages.Config, pmh source.ParseModHandle, verb string, args []string) (tmpURI span.URI, inv *gocommand.Invocation, cleanup func(), err error) {
 	cleanup = func() {} // fallback
-	if modFH != nil {
-		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
+	if pmh != nil {
+		tmpURI, cleanup, err = tempModFile(pmh.Mod(), pmh.Sum())
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -345,10 +350,22 @@ func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID
 	}
 }
 
-func (s *snapshot) getModHandle(uri span.URI) *modHandle {
+func (s *snapshot) getModHandle(uri span.URI) *parseModHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.modHandles[uri]
+	return s.parseModHandles[uri]
+}
+
+func (s *snapshot) getModWhyHandle() *modWhyHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modWhyHandle
+}
+
+func (s *snapshot) getModUpgradeHandle() *modUpgradeHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modUpgradeHandle
 }
 
 func (s *snapshot) getModTidyHandle() *modTidyHandle {
@@ -625,7 +642,7 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 		return fh, nil
 	}
 
-	fh, err := s.view.session.cache.GetFile(ctx, uri)
+	fh, err := s.view.session.cache.getFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -787,8 +804,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		files:             make(map[span.URI]source.FileHandle),
 		workspacePackages: make(map[packageID]packagePath),
 		unloadableFiles:   make(map[span.URI]struct{}),
-		modHandles:        make(map[span.URI]*modHandle),
+		parseModHandles:   make(map[span.URI]*parseModHandle),
 		modTidyHandle:     s.modTidyHandle,
+		modUpgradeHandle:  s.modUpgradeHandle,
+		modWhyHandle:      s.modWhyHandle,
 	}
 
 	// Copy all of the FileHandles.
@@ -800,8 +819,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		result.unloadableFiles[k] = v
 	}
 	// Copy all of the modHandles.
-	for k, v := range s.modHandles {
-		result.modHandles[k] = v
+	for k, v := range s.parseModHandles {
+		result.parseModHandles[k] = v
 	}
 
 	// transitiveIDs keeps track of transitive reverse dependencies.
@@ -827,6 +846,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		// saved or if any of the metadata has been invalidated.
 		if invalidateMetadata || fileWasSaved(originalFH, currentFH) {
 			result.modTidyHandle = nil
+			result.modUpgradeHandle = nil
+			result.modWhyHandle = nil
 		}
 		if currentFH.Kind() == source.Mod {
 			// If the view's go.mod file's contents have changed, invalidate the metadata
@@ -836,7 +857,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 					directIDs[id] = struct{}{}
 				}
 			}
-			delete(result.modHandles, withoutURI)
+			delete(result.parseModHandles, withoutURI)
 		}
 
 		// If this is a file we don't yet know about,

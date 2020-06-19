@@ -186,7 +186,7 @@ func tempModFile(modFh, sumFH source.FileHandle) (tmpURI span.URI, cleanup func(
 	defer tmpMod.Close()
 
 	tmpURI = span.URIFromPath(tmpMod.Name())
-	tmpSumName := tmpURI.Filename()[:len(tmpURI.Filename())-len("mod")] + "sum"
+	tmpSumName := sumFilename(tmpURI)
 
 	content, err := modFh.Read()
 	if err != nil {
@@ -308,7 +308,7 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 
 	// Get the FileHandle through the cache to avoid adding it to the snapshot
 	// and to get the file content from disk.
-	fh, err := v.session.cache.GetFile(ctx, uri)
+	fh, err := v.session.cache.getFile(ctx, uri)
 	if err != nil {
 		return err
 	}
@@ -376,12 +376,12 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		// Use temporary go.mod files, but always go to disk for the contents.
 		// Rebuilding the cache is expensive, and we don't want to do it for
 		// transient changes.
-		modFH, err = v.session.cache.GetFile(ctx, v.modURI)
+		modFH, err = v.session.cache.getFile(ctx, v.modURI)
 		if err != nil {
 			return err
 		}
 		if v.sumURI != "" {
-			sumFH, err = v.session.cache.GetFile(ctx, v.sumURI)
+			sumFH, err = v.session.cache.getFile(ctx, v.sumURI)
 			if err != nil {
 				return err
 			}
@@ -396,7 +396,7 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 
 	// If the go.mod file has changed, clear the cache.
 	if v.modURI != "" {
-		modFH, err := v.session.cache.GetFile(ctx, v.modURI)
+		modFH, err := v.session.cache.getFile(ctx, v.modURI)
 		if err != nil {
 			return err
 		}

@@ -21,25 +21,35 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(uri))
 	defer done()
 
-	// Don't show go.mod code lenses in module mode.
-	if snapshot.View().ModFile() == "" {
+	// Only show go.mod code lenses in module mode, for the view's go.mod.
+	if modURI := snapshot.View().ModFile(); modURI == "" || modURI != uri {
 		return nil, nil
 	}
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	mh, err := snapshot.ModHandle(ctx, fh)
+	pmh, err := snapshot.ParseModHandle(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	f, m, upgrades, err := mh.Upgrades(ctx)
+	file, m, _, err := pmh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var codelens []protocol.CodeLens
-	var allUpgrades []string
-	for _, req := range f.Require {
+	muh, err := snapshot.ModUpgradeHandle(ctx)
+	if err != nil {
+		return nil, err
+	}
+	upgrades, err := muh.Upgrades(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		codelens    []protocol.CodeLens
+		allUpgrades []string
+	)
+	for _, req := range file.Require {
 		dep := req.Mod.Path
 		latest, ok := upgrades[dep]
 		if !ok {
@@ -61,7 +71,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		allUpgrades = append(allUpgrades, dep)
 	}
 	// If there is at least 1 upgrade, add an "Upgrade all dependencies" to the module statement.
-	if module := f.Module; len(allUpgrades) > 0 && module != nil && module.Syntax != nil {
+	if module := file.Module; len(allUpgrades) > 0 && module != nil && module.Syntax != nil {
 		// Get the range of the module directive.
 		rng, err := positionsToRange(uri, m, module.Syntax.Start, module.Syntax.End)
 		if err != nil {

@@ -17,22 +17,23 @@ import (
 func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.Hover, error) {
 	uri := snapshot.View().ModFile()
 
-	// Only get hover information on the go.mod for the view.
+	// For now, we only provide hover information for the view's go.mod file.
 	if uri == "" || fh.URI() != uri {
 		return nil, nil
 	}
+
 	ctx, done := event.Start(ctx, "mod.Hover")
 	defer done()
 
-	mh, err := snapshot.ModHandle(ctx, fh)
+	// Get the position of the cursor.
+	pmh, err := snapshot.ParseModHandle(ctx, fh)
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	file, m, why, err := mh.Why(ctx)
+	file, m, _, err := pmh.Parse(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("running go mod why: %w", err)
+		return nil, err
 	}
-	// Get the position of the cursor.
 	spn, err := m.PointSpan(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
@@ -42,6 +43,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		return nil, fmt.Errorf("computing hover range: %w", err)
 	}
 
+	// Confirm that the cursor is at the position of a require statement.
 	var req *modfile.Require
 	var startPos, endPos int
 	for _, r := range file.Require {
@@ -59,13 +61,29 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 			break
 		}
 	}
-	if req == nil || why == nil {
+
+	// The cursor position is not on a require statement.
+	if req == nil {
+		return nil, nil
+	}
+
+	// Get the `go mod why` results for the given file.
+	mwh, err := snapshot.ModWhyHandle(ctx)
+	if err != nil {
+		return nil, err
+	}
+	why, err := mwh.Why(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("running go mod why: %w", err)
+	}
+	if why == nil {
 		return nil, nil
 	}
 	explanation, ok := why[req.Mod.Path]
 	if !ok {
 		return nil, nil
 	}
+
 	// Get the range to highlight for the hover.
 	line, col, err := m.Converter.ToPosition(startPos)
 	if err != nil {

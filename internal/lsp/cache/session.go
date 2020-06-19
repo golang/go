@@ -144,7 +144,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 			actions:           make(map[actionKey]*actionHandle),
 			workspacePackages: make(map[packageID]packagePath),
 			unloadableFiles:   make(map[span.URI]struct{}),
-			modHandles:        make(map[span.URI]*modHandle),
+			parseModHandles:   make(map[span.URI]*parseModHandle),
 		},
 		gocmdRunner: &gocommand.Runner{},
 	}
@@ -335,7 +335,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if o, ok := overlays[c.URI]; ok {
 				views[view][c.URI] = o
 			} else {
-				fh, err := s.cache.GetFile(ctx, c.URI)
+				fh, err := s.cache.getFile(ctx, c.URI)
 				if err != nil {
 					return nil, err
 				}
@@ -400,7 +400,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		var sameContentOnDisk bool
 		switch c.Action {
 		case source.Open:
-			fh, err := s.cache.GetFile(ctx, c.URI)
+			fh, err := s.cache.getFile(ctx, c.URI)
 			if err != nil {
 				return nil, err
 			}
@@ -443,7 +443,7 @@ func (s *Session) GetFile(ctx context.Context, uri span.URI) (source.FileHandle,
 		return overlay, nil
 	}
 	// Fall back to the cache-level file system.
-	return s.cache.GetFile(ctx, uri)
+	return s.cache.getFile(ctx, uri)
 }
 
 func (s *Session) readOverlay(uri span.URI) *overlay {

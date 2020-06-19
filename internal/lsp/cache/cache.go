@@ -59,7 +59,7 @@ type fileHandle struct {
 	err   error
 }
 
-func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) {
 	var modTime time.Time
 	if fi, err := os.Stat(uri.Filename()); err == nil {
 		modTime = fi.ModTime()

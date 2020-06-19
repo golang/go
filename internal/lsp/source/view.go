@@ -58,13 +58,23 @@ type Snapshot interface {
 	// -modfile flag.
 	RunGoCommandDirect(ctx context.Context, verb string, args []string) error
 
-	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
-	// This function can have no data or error if there is no modfile detected.
-	ModTidyHandle(ctx context.Context, fh FileHandle) (ModTidyHandle, error)
+	// ParseModHandle is used to parse go.mod files.
+	ParseModHandle(ctx context.Context, fh FileHandle) (ParseModHandle, error)
 
-	// ModHandle returns a ModHandle for the passed in go.mod file handle.
-	// This function can have no data if there is no modfile detected.
-	ModHandle(ctx context.Context, fh FileHandle) (ModHandle, error)
+	// ModWhyHandle is used get the results of `go mod why` for a given module.
+	// It only works for go.mod files that can be parsed, hence it takes a
+	// ParseModHandle.
+	ModWhyHandle(ctx context.Context) (ModWhyHandle, error)
+
+	// ModWhyHandle is used get the possible upgrades for the dependencies of
+	// a given module. It only works for go.mod files that can be parsed, hence
+	// it takes a ParseModHandle.
+	ModUpgradeHandle(ctx context.Context) (ModUpgradeHandle, error)
+
+	// ModWhyHandle is used get the results of `go mod tidy` for a given
+	// module. It only works for go.mod files that can be parsed, hence it
+	// takes a ParseModHandle.
+	ModTidyHandle(ctx context.Context) (ModTidyHandle, error)
 
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
@@ -291,36 +301,36 @@ type ParseGoHandle interface {
 	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
 }
 
-// ModHandle represents a handle to the modfile for a go.mod.
-type ModHandle interface {
-	// File returns a file handle for which to get the modfile.
-	File() FileHandle
+type ParseModHandle interface {
+	// Mod returns the file handle for the go.mod file.
+	Mod() FileHandle
 
-	// Parse returns the parsed modfile and a mapper for the go.mod file.
-	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, error)
+	// Sum returns the file handle for the analogous go.sum file. It may be nil.
+	Sum() FileHandle
 
-	// Upgrades returns the parsed modfile, a mapper, and any dependency upgrades
-	// for the go.mod file. Note that this will only work if the go.mod is the view's go.mod.
-	// If the file is not available, returns nil and an error.
-	Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
-
-	// Why returns the parsed modfile, a mapper, and any explanations why a dependency should be
-	// in the go.mod file. Note that this will only work if the go.mod is the view's go.mod.
-	// If the file is not available, returns nil and an error.
-	Why(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
+	// Parse returns the parsed go.mod file, a column mapper, and a list of
+	// parse for the go.mod file.
+	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
 }
 
-// ModTidyHandle represents a handle to the modfile for the view.
-// Specifically for the purpose of getting diagnostics by running "go mod tidy".
+type ModUpgradeHandle interface {
+	// Upgrades returns the latest versions for each of the module's
+	// dependencies.
+	Upgrades(ctx context.Context) (map[string]string, error)
+}
+
+type ModWhyHandle interface {
+	// Why returns the results of `go mod why` for every dependency of the
+	// module.
+	Why(ctx context.Context) (map[string]string, error)
+}
+
 type ModTidyHandle interface {
-	// File returns a file handle for which to get the modfile.
-	File() FileHandle
-
-	// Tidy returns the parsed modfile, a mapper, and "go mod tidy" errors
-	// for the go.mod file. If the file is not available, returns nil and an error.
-	Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []Error, error)
+	// Tidy returns the results of `go mod tidy` for the module.
+	Tidy(ctx context.Context) (map[string]*modfile.Require, []Error, error)
 }
+
+var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")
 
 // ParseMode controls the content of the AST produced when parsing a source file.
 type ParseMode int
@@ -388,14 +398,15 @@ func (fileID FileIdentity) String() string {
 type FileKind int
 
 const (
+	// UnknownKind is a file type we don't know about.
+	UnknownKind = FileKind(iota)
+
 	// Go is a normal go source file.
-	Go = FileKind(iota)
+	Go
 	// Mod is a go.mod file.
 	Mod
 	// Sum is a go.sum file.
 	Sum
-	// UnknownKind is a file type we don't know about.
-	UnknownKind
 )
 
 // Analyzer represents a go/analysis analyzer with some boolean properties
