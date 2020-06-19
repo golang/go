@@ -115,6 +115,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/ssa.Sym %v":                 "",
 	"cmd/compile/internal/ssa.ValAndOff %s":           "",
 	"cmd/compile/internal/ssa.domain %v":              "",
+	"cmd/compile/internal/ssa.flagConstant %s":        "",
 	"cmd/compile/internal/ssa.posetNode %v":           "",
 	"cmd/compile/internal/ssa.posetTestOp %v":         "",
 	"cmd/compile/internal/ssa.rbrank %d":              "",

@@ -680,8 +680,9 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 	}
 }
 
-// markUnsafePoints finds unsafe points and computes lv.unsafePoints.
-func (lv *Liveness) markUnsafePoints() {
+// allUnsafe indicates that all points in this function are
+// unsafe-points.
+func allUnsafe(f *ssa.Func) bool {
 	// The runtime assumes the only safe-points are function
 	// prologues (because that's how it used to be). We could and
 	// should improve that, but for now keep consider all points
@@ -691,7 +692,12 @@ func (lv *Liveness) markUnsafePoints() {
 	// go:nosplit functions are similar. Since safe points used to
 	// be coupled with stack checks, go:nosplit often actually
 	// means "no safe points in this function".
-	if compiling_runtime || lv.f.NoSplit {
+	return compiling_runtime || f.NoSplit
+}
+
+// markUnsafePoints finds unsafe points and computes lv.unsafePoints.
+func (lv *Liveness) markUnsafePoints() {
+	if allUnsafe(lv.f) {
 		// No complex analysis necessary.
 		lv.allUnsafe = true
 		return

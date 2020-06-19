@@ -185,6 +185,11 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
 				}
 				canHaveAux = true
+			case auxFlagConstant:
+				if v.AuxInt < 0 || v.AuxInt > 15 {
+					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}

@@ -115,6 +115,7 @@ var ignorePrefixes = []string{
 // These must not be copied into the bootstrap build directory.
 var ignoreSuffixes = []string{
 	"_arm64.s",
+	"_arm64_test.s",
 	"_arm64.go",
 	"_riscv64.s",
 	"_riscv64.go",

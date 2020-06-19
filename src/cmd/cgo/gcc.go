@@ -1354,7 +1354,7 @@ func (p *Package) rewriteRef(f *File) {
 
 		if *godefs {
 			// Substitute definition for mangled type name.
-			if r.Name.Type != nil {
+			if r.Name.Type != nil && r.Name.Kind == "type" {
 				expr = r.Name.Type.Go
 			}
 			if id, ok := expr.(*ast.Ident); ok {

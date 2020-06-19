@@ -3068,6 +3068,7 @@ func ifaceIndir(t *rtype) bool {
 	return t.kind&kindDirectIface == 0
 }
 
+// Note: this type must agree with runtime.bitvector.
 type bitVector struct {
 	n    uint32 // number of bits
 	data []byte
