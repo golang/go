@@ -127,6 +127,7 @@ var tests = [][]string{
 	//           Should just traverse that directory.
 	{"fixedbugs/issue39664.go2"},
 	{"fixedbugs/issue39693.go2"},
+	{"fixedbugs/issue39680.go2"},
 }
 
 var fset = token.NewFileSet()

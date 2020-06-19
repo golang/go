@@ -839,10 +839,17 @@ func (t *TypeParam) Bound() *Interface {
 // as the underlying type (as returned by Under). For
 // Type parameters, the operational type is determined
 // by the corresponding type bound's type list. The
-// result may be the bottom or top type.
+// result may be the bottom or top type, but it is never
+// the incoming type parameter.
 func optype(typ Type) Type {
 	if t := typ.TypeParam(); t != nil {
-		if u := t.Bound().allTypes; u != nil {
+		// If the optype is typ, return the top type as we have
+		// no information. It also prevents infinite recursion
+		// via the TypeParam converter methods. This can happen
+		// for a type parameter list of the form:
+		// (type T interface { type T }).
+		// See also issue #39680.
+		if u := t.Bound().allTypes; u != nil && u != typ {
 			return u
 		}
 		return theTop
