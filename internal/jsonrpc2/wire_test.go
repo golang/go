@@ -81,6 +81,25 @@ func TestIDDecode(t *testing.T) {
 	}
 }
 
+func TestErrorResponse(t *testing.T) {
+	// originally reported in #39719, this checks that result is not present if
+	// it is an error response
+	r, _ := jsonrpc2.NewResponse(jsonrpc2.NewIntID(3), nil, fmt.Errorf("computing fix edits"))
+	data, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkJSON(t, data, []byte(`{
+		"jsonrpc":"2.0",
+		"error":{
+			"code":0,
+			"message":"computing fix edits",
+			"data":null
+		},
+		"id":3
+	}`))
+}
+
 func checkJSON(t *testing.T, got, want []byte) {
 	// compare the compact form, to allow for formatting differences
 	g := &bytes.Buffer{}
