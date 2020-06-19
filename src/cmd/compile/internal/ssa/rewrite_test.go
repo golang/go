@@ -27,3 +27,12 @@ func TestMoveSmall(t *testing.T) {
 		}
 	}
 }
+
+func TestSubFlags(t *testing.T) {
+	if !subFlags32(0, 1).lt() {
+		t.Errorf("subFlags32(0,1).lt() returned false")
+	}
+	if !subFlags32(0, 1).ult() {
+		t.Errorf("subFlags32(0,1).ult() returned false")
+	}
+}

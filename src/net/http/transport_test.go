@@ -3511,7 +3511,8 @@ func TestRetryRequestsOnError(t *testing.T) {
 
 			for i := 0; i < 3; i++ {
 				t0 := time.Now()
-				res, err := c.Do(tc.req())
+				req := tc.req()
+				res, err := c.Do(req)
 				if err != nil {
 					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
 						mu.Lock()
@@ -3522,6 +3523,9 @@ func TestRetryRequestsOnError(t *testing.T) {
 					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
 				}
 				res.Body.Close()
+				if res.Request != req {
+					t.Errorf("Response.Request != original request; want identical Request")
+				}
 			}
 
 			mu.Lock()

@@ -9,5 +9,5 @@ require (
 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
 	golang.org/x/mod v0.3.0
 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
-	golang.org/x/tools v0.0.0-20200601175630-2caf76543d99
+	golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
 )

@@ -824,6 +824,11 @@ var loop1, loop2 Loop
 var loopy1, loopy2 Loopy
 var cycleMap1, cycleMap2, cycleMap3 map[string]interface{}
 
+type structWithSelfPtr struct {
+	p *structWithSelfPtr
+	s string
+}
+
 func init() {
 	loop1 = &loop2
 	loop2 = &loop1
@@ -880,6 +885,7 @@ var deepEqualTests = []DeepEqualTest{
 	{[]float64{math.NaN()}, self{}, true},
 	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
 	{map[float64]float64{math.NaN(): 1}, self{}, true},
+	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},

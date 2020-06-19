@@ -511,6 +511,14 @@ func b2i(b bool) int64 {
 	return 0
 }
 
+// b2i32 translates a boolean value to 0 or 1.
+func b2i32(b bool) int32 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
 // A shift is bounded if it is shifting by less than the width of the shifted value.
 func shiftIsBounded(v *Value) bool {
@@ -616,6 +624,9 @@ func auxIntToInt128(x int64) int128 {
 	}
 	return 0
 }
+func auxIntToFlagConstant(x int64) flagConstant {
+	return flagConstant(x)
+}
 
 func boolToAuxInt(b bool) int64 {
 	if b {
@@ -652,6 +663,9 @@ func int128ToAuxInt(x int128) int64 {
 		panic("nonzero int128 not allowed")
 	}
 	return 0
+}
+func flagConstantToAuxInt(x flagConstant) int64 {
+	return int64(x)
 }
 
 func auxToString(i interface{}) string {
@@ -997,52 +1011,42 @@ func arm64Invert(op Op) Op {
 func ccARM64Eval(cc interface{}, flags *Value) int {
 	op := cc.(Op)
 	fop := flags.Op
-	switch fop {
-	case OpARM64InvertFlags:
+	if fop == OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
-	case OpARM64FlagEQ:
-		switch op {
-		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
-			OpARM64GreaterEqualU, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagLT_ULT:
-		switch op {
-		case OpARM64LessThan, OpARM64LessThanU,
-			OpARM64LessEqual, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagLT_UGT:
-		switch op {
-		case OpARM64LessThan, OpARM64GreaterThanU,
-			OpARM64LessEqual, OpARM64GreaterEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagGT_ULT:
-		switch op {
-		case OpARM64GreaterThan, OpARM64LessThanU,
-			OpARM64GreaterEqual, OpARM64LessEqualU:
-			return 1
-		default:
-			return -1
-		}
-	case OpARM64FlagGT_UGT:
-		switch op {
-		case OpARM64GreaterThan, OpARM64GreaterThanU,
-			OpARM64GreaterEqual, OpARM64GreaterEqualU:
-			return 1
-		default:
-			return -1
-		}
-	default:
+	}
+	if fop != OpARM64FlagConstant {
 		return 0
 	}
+	fc := flagConstant(flags.AuxInt)
+	b2i := func(b bool) int {
+		if b {
+			return 1
+		}
+		return -1
+	}
+	switch op {
+	case OpARM64Equal:
+		return b2i(fc.eq())
+	case OpARM64NotEqual:
+		return b2i(fc.ne())
+	case OpARM64LessThan:
+		return b2i(fc.lt())
+	case OpARM64LessThanU:
+		return b2i(fc.ult())
+	case OpARM64GreaterThan:
+		return b2i(fc.gt())
+	case OpARM64GreaterThanU:
+		return b2i(fc.ugt())
+	case OpARM64LessEqual:
+		return b2i(fc.le())
+	case OpARM64LessEqualU:
+		return b2i(fc.ule())
+	case OpARM64GreaterEqual:
+		return b2i(fc.ge())
+	case OpARM64GreaterEqualU:
+		return b2i(fc.uge())
+	}
+	return 0
 }
 
 // logRule logs the use of the rule s. This will only be enabled if
@@ -1472,4 +1476,171 @@ func sequentialAddresses(x, y *Value, n int64) bool {
 		return true
 	}
 	return false
+}
+
+// flagConstant represents the result of a compile-time comparison.
+// The sense of these flags does not necessarily represent the hardware's notion
+// of a flags register - these are just a compile-time construct.
+// We happen to match the semantics to those of arm/arm64.
+// Note that these semantics differ from x86: the carry flag has the opposite
+// sense on a subtraction!
+//   On amd64, C=1 represents a borrow, e.g. SBB on amd64 does x - y - C.
+//   On arm64, C=0 represents a borrow, e.g. SBC on arm64 does x - y - ^C.
+//    (because it does x + ^y + C).
+// See https://en.wikipedia.org/wiki/Carry_flag#Vs._borrow_flag
+type flagConstant uint8
+
+// N reports whether the result of an operation is negative (high bit set).
+func (fc flagConstant) N() bool {
+	return fc&1 != 0
+}
+
+// Z reports whether the result of an operation is 0.
+func (fc flagConstant) Z() bool {
+	return fc&2 != 0
+}
+
+// C reports whether an unsigned add overflowed (carry), or an
+// unsigned subtract did not underflow (borrow).
+func (fc flagConstant) C() bool {
+	return fc&4 != 0
+}
+
+// V reports whether a signed operation overflowed or underflowed.
+func (fc flagConstant) V() bool {
+	return fc&8 != 0
+}
+
+func (fc flagConstant) eq() bool {
+	return fc.Z()
+}
+func (fc flagConstant) ne() bool {
+	return !fc.Z()
+}
+func (fc flagConstant) lt() bool {
+	return fc.N() != fc.V()
+}
+func (fc flagConstant) le() bool {
+	return fc.Z() || fc.lt()
+}
+func (fc flagConstant) gt() bool {
+	return !fc.Z() && fc.ge()
+}
+func (fc flagConstant) ge() bool {
+	return fc.N() == fc.V()
+}
+func (fc flagConstant) ult() bool {
+	return !fc.C()
+}
+func (fc flagConstant) ule() bool {
+	return fc.Z() || fc.ult()
+}
+func (fc flagConstant) ugt() bool {
+	return !fc.Z() && fc.uge()
+}
+func (fc flagConstant) uge() bool {
+	return fc.C()
+}
+
+func (fc flagConstant) ltNoov() bool {
+	return fc.lt() && !fc.V()
+}
+func (fc flagConstant) leNoov() bool {
+	return fc.le() && !fc.V()
+}
+func (fc flagConstant) gtNoov() bool {
+	return fc.gt() && !fc.V()
+}
+func (fc flagConstant) geNoov() bool {
+	return fc.ge() && !fc.V()
+}
+
+func (fc flagConstant) String() string {
+	return fmt.Sprintf("N=%v,Z=%v,C=%v,V=%v", fc.N(), fc.Z(), fc.C(), fc.V())
+}
+
+type flagConstantBuilder struct {
+	N bool
+	Z bool
+	C bool
+	V bool
+}
+
+func (fcs flagConstantBuilder) encode() flagConstant {
+	var fc flagConstant
+	if fcs.N {
+		fc |= 1
+	}
+	if fcs.Z {
+		fc |= 2
+	}
+	if fcs.C {
+		fc |= 4
+	}
+	if fcs.V {
+		fc |= 8
+	}
+	return fc
+}
+
+// Note: addFlags(x,y) != subFlags(x,-y) in some situations:
+//  - the results of the C flag are different
+//  - the results of the V flag when y==minint are different
+
+// addFlags64 returns the flags that would be set from computing x+y.
+func addFlags64(x, y int64) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x+y == 0
+	fcb.N = x+y < 0
+	fcb.C = uint64(x+y) < uint64(x)
+	fcb.V = x >= 0 && y >= 0 && x+y < 0 || x < 0 && y < 0 && x+y >= 0
+	return fcb.encode()
+}
+
+// subFlags64 returns the flags that would be set from computing x-y.
+func subFlags64(x, y int64) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x-y == 0
+	fcb.N = x-y < 0
+	fcb.C = uint64(y) <= uint64(x) // This code follows the arm carry flag model.
+	fcb.V = x >= 0 && y < 0 && x-y < 0 || x < 0 && y >= 0 && x-y >= 0
+	return fcb.encode()
+}
+
+// addFlags32 returns the flags that would be set from computing x+y.
+func addFlags32(x, y int32) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x+y == 0
+	fcb.N = x+y < 0
+	fcb.C = uint32(x+y) < uint32(x)
+	fcb.V = x >= 0 && y >= 0 && x+y < 0 || x < 0 && y < 0 && x+y >= 0
+	return fcb.encode()
+}
+
+// subFlags32 returns the flags that would be set from computing x-y.
+func subFlags32(x, y int32) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x-y == 0
+	fcb.N = x-y < 0
+	fcb.C = uint32(y) <= uint32(x) // This code follows the arm carry flag model.
+	fcb.V = x >= 0 && y < 0 && x-y < 0 || x < 0 && y >= 0 && x-y >= 0
+	return fcb.encode()
+}
+
+// logicFlags64 returns flags set to the sign/zeroness of x.
+// C and V are set to false.
+func logicFlags64(x int64) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x == 0
+	fcb.N = x < 0
+	return fcb.encode()
+}
+
+// logicFlags32 returns flags set to the sign/zeroness of x.
+// C and V are set to false.
+func logicFlags32(x int32) flagConstant {
+	var fcb flagConstantBuilder
+	fcb.Z = x == 0
+	fcb.N = x < 0
+	return fcb.encode()
 }

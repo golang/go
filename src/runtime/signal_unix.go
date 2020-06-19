@@ -432,14 +432,14 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 		return
 	}
 
+	setg(g.m.gsignal)
+
 	// If some non-Go code called sigaltstack, adjust.
 	var gsignalStack gsignalStack
 	setStack := adjustSignalStack(sig, g.m, &gsignalStack)
 	if setStack {
 		g.m.gsignal.stktopsp = getcallersp()
 	}
-
-	setg(g.m.gsignal)
 
 	if g.stackguard0 == stackFork {
 		signalDuringFork(sig)

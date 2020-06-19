@@ -50,8 +50,8 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="windows">Windows</h3>
 
 <p> <!-- CL 214397 and CL 230217 -->
-  Go 1.15 now generates Windows ASLR executables when -buildmode=pie
-  cmd/link flag is provided. Go command uses -buildmode=pie by default
+  Go 1.15 now generates Windows ASLR executables when <code>-buildmode=pie</code>
+  cmd/link flag is provided. Go command uses <code>-buildmode=pie</code> by default
   on Windows.
 </p>
 
@@ -145,7 +145,7 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="https://golang.org/issue/36568">issue #36568</a>). The workaround is
   not enabled by default because it is not safe to use when Go versions lower
   than 1.14.2 and 1.13.10 are running concurrently with the same module cache.
-  It can be enabled by explictly setting the environment variable
+  It can be enabled by explicitly setting the environment variable
   <code>GODEBUG=modcacheunzipinplace=1</code>.
 </p>
 
@@ -313,7 +313,8 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   For a representative set of large Go programs, linking is 20% faster
   and requires 30% less memory on average, for <code>ELF</code>-based
-  OSes running on <code>amd64</code> architectures, with more modest
+  OSes (Linux, FreeBSD, NetBSD, OpenBSD, Dragonfly, and Solaris)
+  running on <code>amd64</code> architectures, with more modest
   improvements for other architecture/OS combinations.
 </p>
 
@@ -359,11 +360,11 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="cgo">Cgo</h3>
 
 <p><!-- CL 235817 -->
-	Go 1.15 will translate the C type <code>EGLConfig</code> to the
-	Go type <code>uintptr</code>. This change is similar to how Go
-	1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
-	Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
-	documentation</a> for more information.
+  Go 1.15 will translate the C type <code>EGLConfig</code> to the
+  Go type <code>uintptr</code>. This change is similar to how Go
+  1.12 and newer treats <code>EGLDisplay</code>, Darwin's CoreFoundation and
+  Java's JNI types. See the <a href="/cmd/cgo/#hdr-Special_cases">cgo
+  documentation</a> for more information.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -374,24 +375,27 @@ Do not send CLs removing the interior tags from such phrases.
   in mind.
 </p>
 
-<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+<dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
   <dd>
-    <p><!-- CL 222637 -->
-      The package now defines the
-      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
-      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
-      PE file format.
+    <p><!-- CL 225357, CL 225557 -->
+      When a <a href="/pkg/bufio/#Scanner"><code>Scanner</code></a> is
+      used with an invalid
+      <a href="/pkg/io/#Reader"><code>io.Reader</code></a> that
+      incorrectly returns a negative number from <code>Read</code>,
+      the <code>Scanner</code> will no longer panic, but will instead
+      return the new error
+      <a href="/pkg/bufio/#ErrBadReadCount"><code>ErrBadReadCount</code></a>.
     </p>
   </dd>
-</dl><!-- debug/pe -->
+</dl><!-- bufio -->
 
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>
     <p><!-- CL 231417, CL 225460 -->
       The <code>PrivateKey</code> and <code>PublicKey</code> types in the
-      <a href="/pkg/crypto/rsa"><code>crypto/rsa</code></a>,
-      <a href="/pkg/crypto/ecdsa"><code>crypto/ecdsa</code></a>, and
-      <a href="/pkg/crypto/ed25519"><code>crypto/ed25519</code></a> packages
+      <a href="/pkg/crypto/rsa/"><code>crypto/rsa</code></a>,
+      <a href="/pkg/crypto/ecdsa/"><code>crypto/ecdsa</code></a>, and
+      <a href="/pkg/crypto/ed25519/"><code>crypto/ed25519</code></a> packages
       now have an <code>Equal</code> method to compare keys for equivalence
       or to make type-safe interfaces for public keys. The method signature
       is compatible with
@@ -551,6 +555,46 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- crypto/x509/pkix -->
 
+<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
+  <dd>
+    <p><!-- CL 145758 -->
+      The new <a href="/pkg/database/sql/#DB.SetConnMaxIdleTime"><code>DB.SetConnMaxIdleTime</code></a>
+      method allows removing a connection from the connection pool after
+      it has been idle for a period of time, without regard to the total
+      lifespan of the connection.  The <a href="/pkg/database/sql/#DBStats.MaxIdleTimeClosed"><code>DBStats.MaxIdleTimeClosed</code></a>
+      field shows the total number of connections closed due to
+      <code>DB.SetConnMaxIdleTime</code>.
+    </p>
+
+    <p><!-- CL 214317 -->
+      The new <a href="/pkg/database/sql/#Row.Err"><code>Row.Err</code></a> getter
+      allows checking for query errors without calling
+      <code>Row.Scan</code>.
+    </p>
+  </dd>
+</dl><!-- database/sql -->
+
+<dl id="database/sql/driver"><dt><a href="/pkg/database/sql/driver/">database/sql/driver</a></dt>
+  <dd>
+    <p><!-- CL 174122 -->
+      The new <a href="/pkg/database/sql/driver/#Validator"><code>Validator</code></a>
+      interface may be implemented by <code>Conn</code> to allow drivers
+      to signal if a connection is valid or if it should be discarded.
+    </p>
+  </dd>
+</dl><!-- database/sql/driver -->
+
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 222637 -->
+      The package now defines the
+      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
+      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
+      PE file format.
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
     <p><!-- CL 191783 -->
@@ -604,6 +648,16 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- fmt -->
 
+<dl id="go/printer"><dt><a href="/pkg/go/printer/">go/printer</a></dt>
+  <dd>
+    <p><!-- CL 231461 -->
+      The new <a href="/pkg/go/printer/#Mode"><code>Mode</code></a>
+      value <a href="/pkg/go/printer/#StdFormat"><code>StdFormat</code></a>
+      directs the printer to apply standard formatting changes while
+      printing the output.
+  </dd>
+</dl><!-- go/printer -->
+
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 212597 -->
@@ -633,7 +687,7 @@ Do not send CLs removing the interior tags from such phrases.
       <code>Conn.SetReadDeadline</code>,
       or <code>Conn.SetWriteDeadline</code> methods, it will now
       return an error that is or wraps
-      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      <a href="/pkg/os/#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
       This may be used to reliably detect whether an error is due to
       an exceeded deadline.
       Earlier releases recommended calling the <code>Timeout</code>
@@ -712,7 +766,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
       or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
       methods, it will now return an error that is or wraps
-      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      <a href="/pkg/os/#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
       This may be used to reliably detect whether an error is due to
       an exceeded deadline.
       Earlier releases recommended calling the <code>Timeout</code>
@@ -778,7 +832,7 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
-<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
     <p><!-- CL 189318 -->
       The goroutine profile includes the profile labels associated with each goroutine
@@ -797,7 +851,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/strconv/#FormatComplex"><code>FormatComplex</code></a> converts a complex number into a string of the form (a+bi), where a and b are the real and imaginary parts.
     </p>
     <p>
-      <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> converts a string into a complex number of a specificed precision. <code>ParseComplex</code> accepts complex numbers in the format <code>N+Ni</code>.
+      <a href="/pkg/strconv/#ParseComplex"><code>ParseComplex</code></a> converts a string into a complex number of a specified precision. <code>ParseComplex</code> accepts complex numbers in the format <code>N+Ni</code>.
     </p>
   </dd>
 </dl><!-- strconv -->

@@ -1283,11 +1283,7 @@ const (
 	OpARMLoweredPanicExtendA
 	OpARMLoweredPanicExtendB
 	OpARMLoweredPanicExtendC
-	OpARMFlagEQ
-	OpARMFlagLT_ULT
-	OpARMFlagLT_UGT
-	OpARMFlagGT_UGT
-	OpARMFlagGT_ULT
+	OpARMFlagConstant
 	OpARMInvertFlags
 	OpARMLoweredWB
 
@@ -1558,11 +1554,7 @@ const (
 	OpARM64LoweredGetClosurePtr
 	OpARM64LoweredGetCallerSP
 	OpARM64LoweredGetCallerPC
-	OpARM64FlagEQ
-	OpARM64FlagLT_ULT
-	OpARM64FlagLT_UGT
-	OpARM64FlagGT_UGT
-	OpARM64FlagGT_ULT
+	OpARM64FlagConstant
 	OpARM64InvertFlags
 	OpARM64LDAR
 	OpARM64LDARB
@@ -16911,29 +16903,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "FlagEQ",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
+		name:    "FlagConstant",
+		auxType: auxFlagConstant,
+		argLen:  0,
+		reg:     regInfo{},
 	},
 	{
 		name:   "InvertFlags",
@@ -20521,29 +20494,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "FlagEQ",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagLT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_UGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagGT_ULT",
-		argLen: 0,
-		reg:    regInfo{},
+		name:    "FlagConstant",
+		auxType: auxFlagConstant,
+		argLen:  0,
+		reg:     regInfo{},
 	},
 	{
 		name:   "InvertFlags",
@@ -30191,9 +30145,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CFDBRA",
-		argLen: 1,
-		asm:    s390x.ACFDBRA,
+		name:         "CFDBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACFDBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30204,9 +30159,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CGDBRA",
-		argLen: 1,
-		asm:    s390x.ACGDBRA,
+		name:         "CGDBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACGDBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30217,9 +30173,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CFEBRA",
-		argLen: 1,
-		asm:    s390x.ACFEBRA,
+		name:         "CFEBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACFEBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30230,9 +30187,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CGEBRA",
-		argLen: 1,
-		asm:    s390x.ACGEBRA,
+		name:         "CGEBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACGEBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30243,9 +30201,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CEFBRA",
-		argLen: 1,
-		asm:    s390x.ACEFBRA,
+		name:         "CEFBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACEFBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30256,9 +30215,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CDFBRA",
-		argLen: 1,
-		asm:    s390x.ACDFBRA,
+		name:         "CDFBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACDFBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30269,9 +30229,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CEGBRA",
-		argLen: 1,
-		asm:    s390x.ACEGBRA,
+		name:         "CEGBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACEGBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30282,9 +30243,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CDGBRA",
-		argLen: 1,
-		asm:    s390x.ACDGBRA,
+		name:         "CDGBRA",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACDGBRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30295,9 +30257,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CLFEBR",
-		argLen: 1,
-		asm:    s390x.ACLFEBR,
+		name:         "CLFEBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACLFEBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30308,9 +30271,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CLFDBR",
-		argLen: 1,
-		asm:    s390x.ACLFDBR,
+		name:         "CLFDBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACLFDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30321,9 +30285,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CLGEBR",
-		argLen: 1,
-		asm:    s390x.ACLGEBR,
+		name:         "CLGEBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACLGEBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30334,9 +30299,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CLGDBR",
-		argLen: 1,
-		asm:    s390x.ACLGDBR,
+		name:         "CLGDBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACLGDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -30347,9 +30313,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CELFBR",
-		argLen: 1,
-		asm:    s390x.ACELFBR,
+		name:         "CELFBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACELFBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30360,9 +30327,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CDLFBR",
-		argLen: 1,
-		asm:    s390x.ACDLFBR,
+		name:         "CDLFBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACDLFBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30373,9 +30341,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CELGBR",
-		argLen: 1,
-		asm:    s390x.ACELGBR,
+		name:         "CELGBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACELGBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
@@ -30386,9 +30355,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CDLGBR",
-		argLen: 1,
-		asm:    s390x.ACDLGBR,
+		name:         "CDLGBR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.ACDLGBR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
