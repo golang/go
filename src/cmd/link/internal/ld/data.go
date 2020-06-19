@@ -928,7 +928,7 @@ func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, leng
 	}
 }
 
-func Datblk(ctxt *Link, out *OutBuf, addr, size int64) {
+func datblk(ctxt *Link, out *OutBuf, addr, size int64) {
 	writeDatblkToOutBuf(ctxt, out, addr, size)
 }
 

@@ -45,7 +45,7 @@ func asmb(ctxt *Link) {
 		writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
 		for _, sect := range Segtext.Sections[1:] {
 			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
-			writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+			writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
 		}
 	} else {
 		// TODO why can't we handle all sections this way?
@@ -55,20 +55,20 @@ func asmb(ctxt *Link) {
 			if sect.Name == ".text" {
 				writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
 			} else {
-				writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+				writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
 			}
 		}
 	}
 
 	if Segrodata.Filelen > 0 {
-		writeParallel(&wg, Datblk, ctxt, Segrodata.Fileoff, Segrodata.Vaddr, Segrodata.Filelen)
+		writeParallel(&wg, datblk, ctxt, Segrodata.Fileoff, Segrodata.Vaddr, Segrodata.Filelen)
 	}
 
 	if Segrelrodata.Filelen > 0 {
-		writeParallel(&wg, Datblk, ctxt, Segrelrodata.Fileoff, Segrelrodata.Vaddr, Segrelrodata.Filelen)
+		writeParallel(&wg, datblk, ctxt, Segrelrodata.Fileoff, Segrelrodata.Vaddr, Segrelrodata.Filelen)
 	}
 
-	writeParallel(&wg, Datblk, ctxt, Segdata.Fileoff, Segdata.Vaddr, Segdata.Filelen)
+	writeParallel(&wg, datblk, ctxt, Segdata.Fileoff, Segdata.Vaddr, Segdata.Filelen)
 
 	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
 
