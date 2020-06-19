@@ -43,6 +43,15 @@ func (e *Env) WriteWorkspaceFile(name, content string) {
 	}
 }
 
+// WriteWorkspaceFiles deletes a file on disk but does nothing in the
+// editor. It calls t.Fatal on any error.
+func (e *Env) WriteWorkspaceFiles(files map[string]string) {
+	e.T.Helper()
+	if err := e.Sandbox.Workdir.WriteFiles(e.Ctx, files); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // OpenFile opens a file in the editor, calling t.Fatal on any error.
 func (e *Env) OpenFile(name string) {
 	e.T.Helper()

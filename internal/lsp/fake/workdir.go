@@ -153,12 +153,36 @@ func (w *Workdir) sendEvents(ctx context.Context, evts []FileEvent) {
 	}
 }
 
+// WriteFiles writes the text file content to workdir-relative paths.
+// It batches notifications rather than sending them consecutively.
+func (w *Workdir) WriteFiles(ctx context.Context, files map[string]string) error {
+	var evts []FileEvent
+	for filename, content := range files {
+		evt, err := w.writeFile(ctx, filename, content)
+		if err != nil {
+			return err
+		}
+		evts = append(evts, evt)
+	}
+	w.sendEvents(ctx, evts)
+	return nil
+}
+
 // WriteFile writes text file content to a workdir-relative path.
 func (w *Workdir) WriteFile(ctx context.Context, path, content string) error {
+	evt, err := w.writeFile(ctx, path, content)
+	if err != nil {
+		return err
+	}
+	w.sendEvents(ctx, []FileEvent{evt})
+	return nil
+}
+
+func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEvent, error) {
 	fp := w.filePath(path)
 	_, err := os.Stat(fp)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("checking if %q exists: %w", path, err)
+		return FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
 	}
 	var changeType protocol.FileChangeType
 	if os.IsNotExist(err) {
@@ -167,17 +191,15 @@ func (w *Workdir) WriteFile(ctx context.Context, path, content string) error {
 		changeType = protocol.Changed
 	}
 	if err := w.writeFileData(path, content); err != nil {
-		return err
+		return FileEvent{}, err
 	}
-	evts := []FileEvent{{
+	return FileEvent{
 		Path: path,
 		ProtocolEvent: protocol.FileEvent{
 			URI:  w.URI(path),
 			Type: changeType,
 		},
-	}}
-	w.sendEvents(ctx, evts)
-	return nil
+	}, nil
 }
 
 func (w *Workdir) writeFileData(path string, content string) error {

@@ -438,22 +438,11 @@ func (e LogExpectation) Description() string {
 // NoErrorLogs asserts that the client has not received any log messages of
 // error severity.
 func NoErrorLogs() LogExpectation {
-	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
-		for _, msg := range msgs {
-			if msg.Type == protocol.Error {
-				return Unmeetable, nil
-			}
-		}
-		return Met, nil
-	}
-	return LogExpectation{
-		check:       check,
-		description: "no errors have been logged",
-	}
+	return NoLogMatching(protocol.Error, "")
 }
 
 // LogMatching asserts that the client has received a log message
-// matching of type typ matching the regexp re.
+// of type typ matching the regexp re.
 func LogMatching(typ protocol.MessageType, re string) LogExpectation {
 	rec, err := regexp.Compile(re)
 	if err != nil {
@@ -470,6 +459,35 @@ func LogMatching(typ protocol.MessageType, re string) LogExpectation {
 	return LogExpectation{
 		check:       check,
 		description: fmt.Sprintf("log message matching %q", re),
+	}
+}
+
+// NoLogMatching asserts that the client has not received a log message
+// of type typ matching the regexp re. If re is an empty string, any log
+// message is considered a match.
+func NoLogMatching(typ protocol.MessageType, re string) LogExpectation {
+	var r *regexp.Regexp
+	if re != "" {
+		var err error
+		r, err = regexp.Compile(re)
+		if err != nil {
+			panic(err)
+		}
+	}
+	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
+		for _, msg := range msgs {
+			if msg.Type != typ {
+				continue
+			}
+			if r == nil || r.Match([]byte(msg.Message)) {
+				return Unmeetable, nil
+			}
+		}
+		return Met, nil
+	}
+	return LogExpectation{
+		check:       check,
+		description: fmt.Sprintf("no log message matching %q", re),
 	}
 }
 
