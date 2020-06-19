@@ -782,6 +782,20 @@ Do not send CLs removing the interior tags from such phrases.
       1.14 with the addition of asynchronous preemption. Now this is
       handled transparently.
     </p>
+
+    <p><!-- CL 229101 -->
+      The <a href="/pkg/os/#File"><code>os.File</code></a> type now
+      supports a <a href="/pkg/os/#File.ReadFrom"><code>ReadFrom</code></a>
+      method. This permits the use of the <code>copy_file_range</code>
+      system call on some systems when using
+      <a href="/pkg/io/#Copy"><code>io.Copy</code></a> to copy data
+      from one <code>os.File</code> to another. A consequence is that
+      <a href="/pkg/io/#CopyBuffer"><code>io.CopyBuffer</code></a>
+      will not always use the provided buffer when copying to a
+      <code>os.File</code>. If a program wants to force the use of
+      the provided buffer, it can be done by writing
+      <code>io.CopyBuffer(struct{ io.Writer }{dst}, src, buf)</code>.
+    </p>
   </dd>
 </dl>
 
