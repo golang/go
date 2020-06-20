@@ -129,6 +129,7 @@ var tests = [][]string{
 	{"fixedbugs/issue39693.go2"},
 	{"fixedbugs/issue39680.go2"},
 	{"fixedbugs/issue39711.go2"},
+	{"fixedbugs/issue39723.go2"},
 }
 
 var fset = token.NewFileSet()

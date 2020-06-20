@@ -615,17 +615,19 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	}
 
 	index := 0
+	var bound Type
 	for _, f := range list.List {
 		if f.Type == nil {
 			goto next
 		}
 
 		// type bound must be an interface
-		// TODO(gri) We should try to delay the IsInterface check
-		//           as it may expand a possibly incomplete type.
-		//           Worse, it could be a type parameter that is
-		//           not yet instantiated if we accept #39723.
-		if bound := check.anyType(f.Type); IsInterface(bound) {
+		// TODO(gri) We should delay the interface check because
+		//           we may not have a complete interface yet:
+		//           type C(type T C) interface {}
+		//           (issue #39724).
+		bound = check.anyType(f.Type)
+		if _, ok := bound.Under().(*Interface); ok {
 			// If the type bound expects exactly one type argument, permit leaving
 			// it away and use the corresponding type parameter as implicit argument.
 			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
