@@ -282,12 +282,14 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 				continue
 			}
 			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+			var pname string
 
 			var tok token.Token
 			var importableName string
-			if _, ok := importer.lookupPackage(path); ok {
+			if pkg, ok := importer.lookupPackage(path); ok {
 				tok = token.TYPE
 				importableName = t.importableName()
+				pname = pkg.Name()
 			} else {
 				fileDir := filepath.Dir(fset.Position(file.Name.Pos()).Filename)
 				pkg, err := importer.ImportFrom(path, fileDir, 0)
@@ -295,6 +297,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 					return err
 				}
 				scope := pkg.Scope()
+				pname = pkg.Name()
 				names := scope.Names()
 			nameLoop:
 				for _, name := range names {
@@ -326,7 +329,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 			if imp.Name != nil {
 				name = imp.Name.Name
 			} else {
-				name = filepath.Base(path)
+				name = pname
 			}
 			var spec ast.Spec
 			switch tok {
