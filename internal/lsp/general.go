@@ -152,25 +152,6 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		)
 	}
 
-	if options.DynamicWatchedFilesSupported {
-		registrations = append(registrations, protocol.Registration{
-			ID:     "workspace/didChangeWatchedFiles",
-			Method: "workspace/didChangeWatchedFiles",
-			RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
-				Watchers: []protocol.FileSystemWatcher{{
-					GlobPattern: "**/*.go",
-					Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
-				}},
-			},
-		})
-	}
-
-	if len(registrations) > 0 {
-		s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: registrations,
-		})
-	}
-
 	// TODO: this event logging may be unnecessary. The version info is included in the initialize response.
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, buf, true, debug.PlainText)
@@ -179,6 +160,31 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.addFolders(ctx, s.pendingFolders)
 	s.pendingFolders = nil
 
+	if options.DynamicWatchedFilesSupported {
+		for _, view := range s.session.Views() {
+			dirs, err := view.WorkspaceDirectories(ctx)
+			if err != nil {
+				return err
+			}
+			for _, dir := range dirs {
+				registrations = append(registrations, protocol.Registration{
+					ID:     "workspace/didChangeWatchedFiles",
+					Method: "workspace/didChangeWatchedFiles",
+					RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
+						Watchers: []protocol.FileSystemWatcher{{
+							GlobPattern: fmt.Sprintf("%s/**.go", dir),
+							Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
+						}},
+					},
+				})
+			}
+		}
+		if len(registrations) > 0 {
+			s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+				Registrations: registrations,
+			})
+		}
+	}
 	return nil
 }
 

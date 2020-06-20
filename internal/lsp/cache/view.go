@@ -519,6 +519,36 @@ func basename(filename string) string {
 	return strings.ToLower(filepath.Base(filename))
 }
 
+func (v *View) WorkspaceDirectories(ctx context.Context) ([]string, error) {
+	// If the view does not have a go.mod file, only the root directory
+	// is known. In GOPATH mode, we should really watch the entire GOPATH,
+	// but that's probably too expensive.
+	// TODO(rstambler): Figure out a better approach in the future.
+	if v.modURI == "" {
+		return []string{v.folder.Filename()}, nil
+	}
+	// Anything inside of the module root is known.
+	dirs := []string{filepath.Dir(v.modURI.Filename())}
+
+	// Keep track of any directories mentioned in replace targets.
+	fh, err := v.session.GetFile(ctx, v.modURI)
+	if err != nil {
+		return nil, err
+	}
+	pmh, err := v.Snapshot().ParseModHandle(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+	parsed, _, _, err := pmh.Parse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, replace := range parsed.Replace {
+		dirs = append(dirs, replace.New.Path)
+	}
+	return dirs, nil
+}
+
 func (v *View) relevantChange(c source.FileModification) bool {
 	// If the file is known to the view, the change is relevant.
 	known := v.knownFile(c.URI)

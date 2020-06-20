@@ -177,6 +177,10 @@ type View interface {
 	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
 	// workspace.
 	IgnoredFile(uri span.URI) bool
+
+	// WorkspaceDirectories returns any directory known by the view. For views
+	// within a module, this is the module root and any replace targets.
+	WorkspaceDirectories(ctx context.Context) ([]string, error)
 }
 
 type BuiltinPackage interface {
