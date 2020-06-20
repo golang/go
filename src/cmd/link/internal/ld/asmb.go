@@ -6,19 +6,23 @@ package ld
 
 import (
 	"cmd/internal/objabi"
-	"cmd/link/internal/loader"
 	"fmt"
 	"sync"
 )
 
 // Assembling the binary is broken into two steps:
-//  - writing out the code/data/dwarf Segments
+//  - writing out the code/data/dwarf Segments, applying relocations on the fly
 //  - writing out the architecture specific pieces.
 // This function handles the first part.
-func asmb(ctxt *Link, ldr *loader.Loader) {
+func asmb(ctxt *Link) {
+	ctxt.loader.InitOutData()
+	if ctxt.IsExternal() {
+		ctxt.loader.InitExtRelocs()
+	}
+
 	// TODO(jfaller): delete me.
 	if thearch.Asmb != nil {
-		thearch.Asmb(ctxt, ldr)
+		thearch.Asmb(ctxt, ctxt.loader)
 		return
 	}
 

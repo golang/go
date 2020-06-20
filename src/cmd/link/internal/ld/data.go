@@ -640,41 +640,6 @@ func (ctxt *Link) makeRelocSymState() *relocSymState {
 	}
 }
 
-func (ctxt *Link) reloc() {
-	var wg sync.WaitGroup
-	ldr := ctxt.loader
-	if ctxt.IsExternal() {
-		ldr.InitExtRelocs()
-	}
-	wg.Add(3)
-	go func() {
-		if !ctxt.IsWasm() { // On Wasm, text relocations are applied in Asmb2.
-			st := ctxt.makeRelocSymState()
-			for _, s := range ctxt.Textp {
-				st.relocsym(s, ldr.OutData(s))
-			}
-		}
-		wg.Done()
-	}()
-	go func() {
-		st := ctxt.makeRelocSymState()
-		for _, s := range ctxt.datap {
-			st.relocsym(s, ldr.OutData(s))
-		}
-		wg.Done()
-	}()
-	go func() {
-		st := ctxt.makeRelocSymState()
-		for _, si := range dwarfp {
-			for _, s := range si.syms {
-				st.relocsym(s, ldr.OutData(s))
-			}
-		}
-		wg.Done()
-	}()
-	wg.Wait()
-}
-
 func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	var su *loader.SymbolBuilder
 	relocs := ctxt.loader.Relocs(s)
@@ -801,7 +766,7 @@ func (state *dodataState) dynreloc(ctxt *Link) {
 }
 
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
-	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp, addr, size, pad)
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, ctxt.Textp, addr, size, pad)
 }
 
 const blockSize = 1 << 20 // 1MB chunks written at a time.
@@ -811,7 +776,7 @@ const blockSize = 1 << 20 // 1MB chunks written at a time.
 // as many goroutines as necessary to accomplish this task. This call then
 // blocks, waiting on the writes to complete. Note that we use the sem parameter
 // to limit the number of concurrent writes taking place.
-func writeBlocks(out *OutBuf, sem chan int, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
+func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
 			syms = syms[i:]
@@ -876,12 +841,12 @@ func writeBlocks(out *OutBuf, sem chan int, ldr *loader.Loader, syms []loader.Sy
 			sem <- 1
 			wg.Add(1)
 			go func(o *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
-				writeBlock(o, ldr, syms, addr, size, pad)
+				writeBlock(ctxt, o, ldr, syms, addr, size, pad)
 				wg.Done()
 				<-sem
 			}(o, ldr, syms, addr, length, pad)
 		} else { // output not mmaped, don't parallelize.
-			writeBlock(out, ldr, syms, addr, length, pad)
+			writeBlock(ctxt, out, ldr, syms, addr, length, pad)
 		}
 
 		// Prepare for the next loop.
@@ -894,13 +859,15 @@ func writeBlocks(out *OutBuf, sem chan int, ldr *loader.Loader, syms []loader.Sy
 	wg.Wait()
 }
 
-func writeBlock(out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
+func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
 			syms = syms[i:]
 			break
 		}
 	}
+
+	st := ctxt.makeRelocSymState()
 
 	// This doesn't distinguish the memory size from the file
 	// size, and it lays out the file based on Symbol.Value, which
@@ -924,6 +891,7 @@ func writeBlock(out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size i
 			addr = val
 		}
 		out.WriteSym(ldr, s)
+		st.relocsym(s, ldr.OutData(s))
 		addr += int64(len(ldr.Data(s)))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {
@@ -973,7 +941,7 @@ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
 }
 
 func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
-	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap, addr, size, zeros[:])
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, ctxt.datap, addr, size, zeros[:])
 }
 
 func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
@@ -991,7 +959,7 @@ func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	for i := range dwarfp {
 		syms = append(syms, dwarfp[i].syms...)
 	}
-	writeBlocks(out, ctxt.outSem, ctxt.loader, syms, addr, size, zeros[:])
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, syms, addr, size, zeros[:])
 }
 
 var zeros [512]byte
