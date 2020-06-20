@@ -197,16 +197,18 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 		}
 		tparams := rtyp.(*ast.CallExpr).Args
 		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
+		var names []*ast.Ident
+		if mnames := mast.Recv.List[0].Names; len(mnames) > 0 {
+			names = []*ast.Ident{mnames[0]}
+		}
 		newDecl := &ast.FuncDecl{
 			Doc: mast.Doc,
 			Recv: &ast.FieldList{
 				Opening: mast.Recv.Opening,
 				List: []*ast.Field{
 					{
-						Doc: mast.Recv.List[0].Doc,
-						Names: []*ast.Ident{
-							mast.Recv.List[0].Names[0],
-						},
+						Doc:     mast.Recv.List[0].Doc,
+						Names:   names,
 						Type:    newRtype,
 						Comment: mast.Recv.List[0].Comment,
 					},
