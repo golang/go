@@ -836,17 +836,17 @@ func optype(typ Type) Type {
 }
 
 // Converter methods
-func (t *TypeParam) Basic() *Basic         { return optype(t.Under()).Basic() }
-func (t *TypeParam) Array() *Array         { return optype(t.Under()).Array() }
-func (t *TypeParam) Slice() *Slice         { return optype(t.Under()).Slice() }
-func (t *TypeParam) Struct() *Struct       { return optype(t.Under()).Struct() }
-func (t *TypeParam) Pointer() *Pointer     { return optype(t.Under()).Pointer() }
-func (t *TypeParam) Tuple() *Tuple         { return optype(t.Under()).Tuple() }
-func (t *TypeParam) Signature() *Signature { return optype(t.Under()).Signature() }
-func (t *TypeParam) Sum() *Sum             { return optype(t.Under()).Sum() }
-func (t *TypeParam) Interface() *Interface { return optype(t.Under()).Interface() }
-func (t *TypeParam) Map() *Map             { return optype(t.Under()).Map() }
-func (t *TypeParam) Chan() *Chan           { return optype(t.Under()).Chan() }
+func (t *TypeParam) Basic() *Basic         { return optype(t).Basic() }
+func (t *TypeParam) Array() *Array         { return optype(t).Array() }
+func (t *TypeParam) Slice() *Slice         { return optype(t).Slice() }
+func (t *TypeParam) Struct() *Struct       { return optype(t).Struct() }
+func (t *TypeParam) Pointer() *Pointer     { return optype(t).Pointer() }
+func (t *TypeParam) Tuple() *Tuple         { return optype(t).Tuple() }
+func (t *TypeParam) Signature() *Signature { return optype(t).Signature() }
+func (t *TypeParam) Sum() *Sum             { return optype(t).Sum() }
+func (t *TypeParam) Interface() *Interface { return optype(t).Interface() }
+func (t *TypeParam) Map() *Map             { return optype(t).Map() }
+func (t *TypeParam) Chan() *Chan           { return optype(t).Chan() }
 
 // func (t *TypeParam) Named() *Named         // named types are not permitted in type lists
 // func (t *TypeParam) TypeParam() *TypeParam // declared below
@@ -966,7 +966,7 @@ func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
 func (t *Named) Underlying() Type     { return t.underlying }
-func (t *TypeParam) Underlying() Type { return t.Under() }
+func (t *TypeParam) Underlying() Type { return t }
 func (t *instance) Underlying() Type  { return t }
 func (t *bottom) Underlying() Type    { return t }
 func (t *top) Underlying() Type       { return t }
