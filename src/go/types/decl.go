@@ -623,6 +623,8 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// type bound must be an interface
 		// TODO(gri) We should try to delay the IsInterface check
 		//           as it may expand a possibly incomplete type.
+		//           Worse, it could be a type parameter that is
+		//           not yet instantiated if we accept #39723.
 		if bound := check.anyType(f.Type); IsInterface(bound) {
 			// If the type bound expects exactly one type argument, permit leaving
 			// it away and use the corresponding type parameter as implicit argument.

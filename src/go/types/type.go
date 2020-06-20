@@ -360,32 +360,10 @@ func NewSum(types []Type) Type {
 		}
 	}
 
-	types = typeSet(types)
 	if len(types) == 1 {
 		return types[0]
 	}
-	assert(len(types) > 1)
 	return &Sum{types: types}
-}
-
-// typeSet returns the set of (unique) types in list.
-func typeSet(list []Type) []Type {
-	if len(list) <= 1 {
-		return list
-	}
-
-	// Only add types t of list to result which are not in result yet.
-	// Quadratic algorithm, but probably good enough for now.
-	// TODO(gri) we need a fast quick type ID/hash for all types.
-	result := make([]Type, 0, len(list)) // assume types are unique
-	for _, t := range list {
-		if contains(result, t) {
-			continue
-		}
-		result = append(result, t)
-	}
-
-	return result
 }
 
 // is reports whether all types in t satisfy pred.

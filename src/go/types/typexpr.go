@@ -800,7 +800,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// type constraints
-	// TODO(gri) report error for multiple explicitly declared identical types
 	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
 
 	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
@@ -1108,7 +1107,7 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 }
 
 func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []Type {
-	var list []Type
+	list := make([]Type, 0, len(types)) // assume all types are correct
 	for _, texpr := range types {
 		if texpr == nil {
 			check.invalidAST(pos, "missing type constraint")
@@ -1117,22 +1116,34 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 		typ := check.typ(texpr)
 		// A type constraint may be a predeclared type or a
 		// composite type composed of only predeclared types.
+		// TODO(gri) If we enable this again it also must run
+		// at the end.
 		const restricted = false
 		var why string
 		if restricted && !check.typeConstraint(typ, &why) {
 			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
 			continue
 		}
-		// add type if not already in list
-		// Overall, this produces a quadratic algorithm,
-		// but probably good enough for now.
-		// TODO(gri) fix this
-		if contains(list, typ) {
-			check.errorf(texpr.Pos(), "duplicate type %s in type list", typ)
-			continue
-		}
 		list = append(list, typ)
 	}
+
+	// Ensure that each type is only present once in the type list.
+	// Types may be interfaces, which may not be complete yet. It's
+	// ok to do this check at the end because it's not a requirement
+	// for correctness of the code.
+	check.atEnd(func() {
+		uniques := make([]Type, 0, len(list)) // assume all types are unique
+		for i, t := range list {
+			if t := t.Interface(); t != nil {
+				check.completeInterface(types[i].Pos(), t)
+			}
+			if contains(uniques, t) {
+				check.softErrorf(types[i].Pos(), "duplicate type %s in type list", t)
+			}
+			uniques = append(uniques, t)
+		}
+	})
+
 	return list
 }
 
