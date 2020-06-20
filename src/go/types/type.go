@@ -828,7 +828,8 @@ func optype(typ Type) Type {
 		// (type T interface { type T }).
 		// See also issue #39680.
 		if u := t.Bound().allTypes; u != nil && u != typ {
-			return u
+			// u != typ and u is a type parameter => u.Under() != typ, so this is ok
+			return u.Under()
 		}
 		return theTop
 	}
@@ -979,7 +980,7 @@ func (t *Struct) Under() Type    { return t }
 func (t *Pointer) Under() Type   { return t }
 func (t *Tuple) Under() Type     { return t }
 func (t *Signature) Under() Type { return t }
-func (t *Sum) Under() Type       { return t }
+func (t *Sum) Under() Type       { return t } // TODO(gri) is this correct?
 func (t *Interface) Under() Type { return t }
 func (t *Map) Under() Type       { return t }
 func (t *Chan) Under() Type      { return t }

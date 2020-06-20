@@ -172,6 +172,18 @@ type _ interface {
 	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
 }
 
+// Interface type lists can contain any type, incl. *Named types.
+// Verify that we use the underlying type to compute the operational type.
+type MyInt int
+func add1(type T interface{type MyInt})(x T) T {
+	return x + 1
+}
+
+type MyString string
+func double(type T interface{type MyInt, MyString})(x T) T {
+	return x + x
+}
+
 // Embedding of interfaces with type lists leads to interfaces
 // with type lists that are the intersection of the embedded
 // type lists.
