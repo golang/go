@@ -7,7 +7,7 @@ import (
 
 func unexported() {
 	a := data.A{
-	ExportedInt: 0,
-} //@suggestedfix("}", "refactor.rewrite")
+		ExportedInt: 0,
+	} //@suggestedfix("}", "refactor.rewrite")
 }
 

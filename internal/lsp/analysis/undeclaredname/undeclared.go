@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
+	"go/printer"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -89,7 +89,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		var buf bytes.Buffer
-		if err := format.Node(&buf, pass.Fset, file); err != nil {
+		if err := printer.Fprint(&buf, pass.Fset, file); err != nil {
 			continue
 		}
 		old := buf.Bytes()

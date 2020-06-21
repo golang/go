@@ -20,4 +20,7 @@ func fill() {
 	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	if true {
+		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	}
 }

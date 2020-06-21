@@ -12,8 +12,8 @@ type StructC struct {
 func nested() {
 	c := StructB{
 		StructC: StructC{
-	unexportedInt: 0,
-}, //@suggestedfix("}", "refactor.rewrite")
+			unexportedInt: 0,
+		}, //@suggestedfix("}", "refactor.rewrite")
 	}
 }
 

@@ -19,14 +19,17 @@ type StructA3 struct {
 
 func fill() {
 	a := StructA{
-	unexportedIntField: 0,
-	ExportedIntField:   0,
-	MapA:               map[int]string{},
-	Array:              []int{},
-	StructB:            StructB{},
-}  //@suggestedfix("}", "refactor.rewrite")
+		unexportedIntField: 0,
+		ExportedIntField:   0,
+		MapA:               map[int]string{},
+		Array:              []int{},
+		StructB:            StructB{},
+	}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	if true {
+		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	}
 }
 
 -- suggestedfix_fill_struct_21_16 --
@@ -51,9 +54,12 @@ type StructA3 struct {
 func fill() {
 	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{
-	B: &StructB{},
-} //@suggestedfix("}", "refactor.rewrite")
+		B: &StructB{},
+	} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	if true {
+		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	}
 }
 
 -- suggestedfix_fill_struct_22_16 --
@@ -79,7 +85,40 @@ func fill() {
 	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
 	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
 	c := StructA3{
-	B: StructB{},
-} //@suggestedfix("}", "refactor.rewrite")
+		B: StructB{},
+	} //@suggestedfix("}", "refactor.rewrite")
+	if true {
+		_ = StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	}
+}
+
+-- suggestedfix_fill_struct_24_16 --
+package fillstruct
+
+type StructA struct {
+	unexportedIntField int
+	ExportedIntField   int
+	MapA               map[int]string
+	Array              []int
+	StructB
+}
+
+type StructA2 struct {
+	B *StructB
+}
+
+type StructA3 struct {
+	B StructB
+}
+
+func fill() {
+	a := StructA{}  //@suggestedfix("}", "refactor.rewrite")
+	b := StructA2{} //@suggestedfix("}", "refactor.rewrite")
+	c := StructA3{} //@suggestedfix("}", "refactor.rewrite")
+	if true {
+		_ = StructA3{
+			B: StructB{},
+		} //@suggestedfix("}", "refactor.rewrite")
+	}
 }
 
