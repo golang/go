@@ -81,7 +81,7 @@ type wireError struct {
 	// Message is a short description of the error.
 	Message string `json:"message"`
 	// Data is optional structured data containing additional information about the error.
-	Data *json.RawMessage `json:"data"`
+	Data *json.RawMessage `json:"data,omitempty"`
 }
 
 // wireVersionTag is a special 0 sized struct that encodes as the jsonrpc version
