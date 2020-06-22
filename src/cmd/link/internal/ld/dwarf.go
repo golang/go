@@ -1181,7 +1181,7 @@ func expandFile(fname string) string {
 // (one per live function), and finally an epilog symbol containing an
 // end-of-sequence operator. The prolog and epilog symbols are passed
 // in (having been created earlier); here we add content to them.
-func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym, lineEpilog loader.Sym) []loader.Sym {
+func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []loader.Sym {
 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
 
 	unitstart := int64(-1)
@@ -1267,30 +1267,6 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym, li
 			unitlen += int64(len(d.ldr.Data(lines)))
 		}
 	}
-
-	// NB: at some point if we have an end sequence op
-	// after each function (to enable reordering) generated
-	// in the compiler, we can get rid of this.
-	syms = append(syms, lineEpilog)
-	elsu := d.ldr.MakeSymbolUpdater(lineEpilog)
-	elsDwsym := dwSym(lineEpilog)
-
-	// Issue 38192: the DWARF standard specifies that when you issue
-	// an end-sequence op, the PC value should be one past the last
-	// text address in the translation unit, so apply a delta to the
-	// text address before the end sequence op. If this isn't done,
-	// GDB will assign a line number of zero the last row in the line
-	// table, which we don't want. The 1 + ptrsize amount is somewhat
-	// arbitrary, this is chosen to be consistent with the way LLVM
-	// emits its end sequence ops.
-	elsu.AddUint8(dwarf.DW_LNS_advance_pc)
-	dwarf.Uleb128put(d, elsDwsym, int64(1+d.arch.PtrSize))
-
-	// Emit an end-sequence at the end of the unit.
-	elsu.AddUint8(0) // start extended opcode
-	dwarf.Uleb128put(d, elsDwsym, 1)
-	elsu.AddUint8(dwarf.DW_LNE_end_sequence)
-	unitlen += elsu.Size()
 
 	if d.linkctxt.HeadType == objabi.Haix {
 		addDwsectCUSize(".debug_line", unit.Lib.Pkg, uint64(unitlen))
@@ -1959,7 +1935,6 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 type dwUnitSyms struct {
 	// Inputs for a given unit.
 	lineProlog  loader.Sym
-	lineEpilog  loader.Sym
 	rangeProlog loader.Sym
 	infoEpilog  loader.Sym
 
@@ -1977,7 +1952,7 @@ type dwUnitSyms struct {
 // hence they have to happen before the call to writeUnitInfo.
 func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
 	if u.DWInfo.Abbrev != dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
-		us.linesyms = d.writelines(u, us.lineProlog, us.lineEpilog)
+		us.linesyms = d.writelines(u, us.lineProlog)
 		base := loader.Sym(u.Textp[0])
 		us.rangessyms = d.writepcranges(u, base, u.PCs, us.rangeProlog)
 		us.locsyms = d.collectUnitLocs(u)
@@ -2034,7 +2009,6 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	for i := 0; i < ncu; i++ {
 		us := &unitSyms[i]
 		us.lineProlog = mkAnonSym(sym.SDWARFLINES)
-		us.lineEpilog = mkAnonSym(sym.SDWARFLINES)
 		us.rangeProlog = mkAnonSym(sym.SDWARFRANGE)
 		us.infoEpilog = mkAnonSym(sym.SDWARFFCN)
 	}
