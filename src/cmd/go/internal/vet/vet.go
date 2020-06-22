@@ -6,12 +6,16 @@
 package vet
 
 import (
+	"context"
+	"fmt"
+	"path/filepath"
+
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
-	"context"
-	"path/filepath"
 )
 
 // Break init loop.
@@ -53,6 +57,23 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	vetFlags, pkgArgs := vetFlags(args)
+
+	if cfg.DebugTrace != "" {
+		var close func() error
+		var err error
+		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
+		if err != nil {
+			base.Fatalf("failed to start trace: %v", err)
+		}
+		defer func() {
+			if err := close(); err != nil {
+				base.Fatalf("failed to stop trace: %v", err)
+			}
+		}()
+	}
+
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	defer span.Done()
 
 	work.BuildInit()
 	work.VetFlags = vetFlags

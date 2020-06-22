@@ -31,6 +31,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
 	"cmd/internal/test2json"
 )
@@ -570,6 +571,23 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	pkgArgs, testArgs = testFlags(args)
+
+	if cfg.DebugTrace != "" {
+		var close func() error
+		var err error
+		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
+		if err != nil {
+			base.Fatalf("failed to start trace: %v", err)
+		}
+		defer func() {
+			if err := close(); err != nil {
+				base.Fatalf("failed to stop trace: %v", err)
+			}
+		}()
+	}
+
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	defer span.Done()
 
 	work.FindExecCmd() // initialize cached result
 
