@@ -55,7 +55,7 @@ func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 	}
 
 	var inProgress *typeInstantiation
-	for _, inst := range t.typeInstantiations[typ] {
+	for _, inst := range t.typeInstantiations(typ) {
 		if t.sameTypes(ta.types, inst.types) {
 			if inst.typ == nil {
 				inProgress = inst
@@ -77,7 +77,7 @@ func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 			types: ta.types,
 			typ:   ityp,
 		}
-		t.typeInstantiations[typ] = append(t.typeInstantiations[typ], typinst)
+		t.addTypeInstantiation(typ, typinst)
 	}
 
 	return ityp

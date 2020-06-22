@@ -119,14 +119,12 @@ func typeEmbedsComparable(typ types.Type) bool {
 
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
-	fset               *token.FileSet
-	importer           *Importer
-	tpkg               *types.Package
-	types              map[ast.Expr]types.Type
-	instantiations     map[string][]*instantiation
-	newDecls           []ast.Decl
-	typeInstantiations map[types.Type][]*typeInstantiation
-	typePackages       map[*types.Package]bool
+	fset         *token.FileSet
+	importer     *Importer
+	tpkg         *types.Package
+	types        map[ast.Expr]types.Type
+	newDecls     []ast.Decl
+	typePackages map[*types.Package]bool
 
 	// typeDepth tracks recursive type instantiations.
 	typeDepth int
@@ -136,8 +134,14 @@ type translator struct {
 	err error
 }
 
-// An instantiation is a single instantiation of a function.
-type instantiation struct {
+// instantiations tracks all function and type instantiations for a package.
+type instantiations struct {
+	funcInstantiations map[string][]*funcInstantiation
+	typeInstantiations map[types.Type][]*typeInstantiation
+}
+
+// A funcInstantiation is a single instantiation of a function.
+type funcInstantiation struct {
 	types []types.Type
 	decl  *ast.Ident
 }
@@ -148,6 +152,52 @@ type typeInstantiation struct {
 	decl       *ast.Ident
 	typ        types.Type
 	inProgress bool
+}
+
+// funcInstantiations fetches the function instantiations defined in
+// the current package, given a generic function name.
+func (t *translator) funcInstantiations(key string) []*funcInstantiation {
+	insts := t.importer.instantiations[t.tpkg]
+	if insts == nil {
+		return nil
+	}
+	return insts.funcInstantiations[key]
+}
+
+// addFuncInstantiation adds a new function instantiation.
+func (t *translator) addFuncInstantiation(key string, inst *funcInstantiation) {
+	insts := t.pkgInstantiations()
+	insts.funcInstantiations[key] = append(insts.funcInstantiations[key], inst)
+}
+
+// typeInstantiations fetches the type instantiations defined in
+// the current package, given a generic type.
+func (t *translator) typeInstantiations(typ types.Type) []*typeInstantiation {
+	insts := t.importer.instantiations[t.tpkg]
+	if insts == nil {
+		return nil
+	}
+	return insts.typeInstantiations[typ]
+}
+
+// addTypeInstantiations adds a new type instantiation.
+func (t *translator) addTypeInstantiation(typ types.Type, inst *typeInstantiation) {
+	insts := t.pkgInstantiations()
+	insts.typeInstantiations[typ] = append(insts.typeInstantiations[typ], inst)
+}
+
+// pkgInstantiations returns the instantiations structure for the current
+// package, creating it if necessary.
+func (t *translator) pkgInstantiations() *instantiations {
+	insts := t.importer.instantiations[t.tpkg]
+	if insts == nil {
+		insts = &instantiations{
+			funcInstantiations: make(map[string][]*funcInstantiation),
+			typeInstantiations: make(map[types.Type][]*typeInstantiation),
+		}
+		t.importer.instantiations[t.tpkg] = insts
+	}
+	return insts
 }
 
 // rewrite rewrites the contents of one file.
@@ -182,13 +232,11 @@ func rewriteFile(dir string, fset *token.FileSet, importer *Importer, importPath
 // rewriteAST rewrites the AST for a file.
 func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg *types.Package, file *ast.File, addImportableName bool) (err error) {
 	t := translator{
-		fset:               fset,
-		importer:           importer,
-		tpkg:               tpkg,
-		types:              make(map[ast.Expr]types.Type),
-		instantiations:     make(map[string][]*instantiation),
-		typeInstantiations: make(map[types.Type][]*typeInstantiation),
-		typePackages:       make(map[*types.Package]bool),
+		fset:         fset,
+		importer:     importer,
+		tpkg:         tpkg,
+		types:        make(map[ast.Expr]types.Type),
+		typePackages: make(map[*types.Package]bool),
 	}
 	t.translate(file)
 
@@ -771,8 +819,8 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 
 	var instIdent *ast.Ident
 	key := qid.String()
-	instantiations := t.instantiations[key]
-	for _, inst := range instantiations {
+	insts := t.funcInstantiations(key)
+	for _, inst := range insts {
 		if t.sameTypes(typeList, inst.types) {
 			instIdent = inst.decl
 			break
@@ -787,11 +835,11 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 			return
 		}
 
-		n := &instantiation{
+		n := &funcInstantiation{
 			types: typeList,
 			decl:  instIdent,
 		}
-		t.instantiations[key] = append(instantiations, n)
+		t.addFuncInstantiation(key, n)
 	}
 
 	if typeArgs {
@@ -815,7 +863,7 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 
 	var seen *typeInstantiation
 	key := t.typeWithoutArgs(typ)
-	for _, inst := range t.typeInstantiations[key] {
+	for _, inst := range t.typeInstantiations(key) {
 		if t.sameTypes(typeList, inst.types) {
 			if inst.inProgress {
 				panic(fmt.Sprintf("%s: circular type instantiation", t.fset.Position((*pe).Pos())))
@@ -848,7 +896,7 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 			typ:        nil,
 			inProgress: true,
 		}
-		t.typeInstantiations[key] = append(t.typeInstantiations[key], seen)
+		t.addTypeInstantiation(key, seen)
 	}
 
 	defer func() {
@@ -935,7 +983,7 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 	targs := typ.TArgs()
 	key := t.typeWithoutArgs(typ)
 	var seen *typeInstantiation
-	for _, inst := range t.typeInstantiations[key] {
+	for _, inst := range t.typeInstantiations(key) {
 		if t.sameTypes(targs, inst.types) {
 			if inst.inProgress {
 				panic(fmt.Sprintf("instantiation for %v in progress", typ))
@@ -980,7 +1028,7 @@ func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.
 			typ:        nil,
 			inProgress: true,
 		}
-		t.typeInstantiations[key] = append(t.typeInstantiations[key], seen)
+		t.addTypeInstantiation(key, seen)
 	}
 
 	defer func() {

@@ -52,6 +52,12 @@ type Importer struct {
 
 	// Map from Object to AST type definition for parameterized types.
 	idToTypeSpec map[types.Object]*ast.TypeSpec
+
+	// Map from a Package to the instantiations we've created
+	// for that package. This doesn't really belong here,
+	// since it doesn't deal with import information,
+	// but Importer is a useful common location to store the data.
+	instantiations map[*types.Package]*instantiations
 }
 
 var _ types.ImporterFrom = &Importer{}
@@ -74,6 +80,7 @@ func NewImporter(tmpdir string) *Importer {
 		imports:         make(map[string][]string),
 		idToFunc:        make(map[types.Object]*ast.FuncDecl),
 		idToTypeSpec:    make(map[types.Object]*ast.TypeSpec),
+		instantiations:  make(map[*types.Package]*instantiations),
 	}
 }
 
