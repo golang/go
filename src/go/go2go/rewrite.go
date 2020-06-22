@@ -857,6 +857,9 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 	qid := t.instantiatedIdent(call)
 	typ := t.lookupType(call.Fun).(*types.Named)
 	argList, typeList, typeArgs := t.instantiationTypes(call)
+	if t.err != nil {
+		return
+	}
 	if !typeArgs {
 		panic("no type arguments for type")
 	}
@@ -950,6 +953,10 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		argList = call.Args
 		typeList = make([]types.Type, 0, len(argList))
 		for _, arg := range argList {
+			if id, ok := arg.(*ast.Ident); ok && id.Name == "_" {
+				t.err = fmt.Errorf("%s: go2go tool does not support using _ here", t.fset.Position(arg.Pos()))
+				return
+			}
 			if at := t.lookupType(arg); at == nil {
 				panic(fmt.Sprintf("%s: no type found for %T %v", t.fset.Position(arg.Pos()), arg, arg))
 			} else {
