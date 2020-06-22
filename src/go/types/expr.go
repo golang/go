@@ -513,6 +513,9 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 
 	// In case of a type parameter, conversion must succeed against
 	// all types enumerated by the type parameter bound.
+	// TODO(gri) We should not need this because we have the code
+	// for Sum types in convertUntypedInternal. But at least one
+	// test fails. Investigate.
 	if t := target.TypeParam(); t != nil {
 		types := t.Bound().allTypes
 		if types == nil {
@@ -585,6 +588,11 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 				goto Error
 			}
 		}
+	case *Sum:
+		t.is(func(t Type) bool {
+			check.convertUntypedInternal(x, t)
+			return x.mode != invalid
+		})
 	case *Interface:
 		// Update operand types to the default type rather then
 		// the target (interface) type: values must have concrete
