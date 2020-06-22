@@ -477,9 +477,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				var pmain, ptest, pxtest *load.Package
 				var err error
 				if *listE {
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
+					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, p, nil)
 					if err != nil {
 						base.Errorf("can't load test package: %s", err)
 					}
