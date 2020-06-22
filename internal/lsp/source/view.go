@@ -158,6 +158,10 @@ type View interface {
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.
 	IsGoPrivatePath(path string) bool
+
+	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
+	// workspace.
+	IgnoredFile(uri span.URI) bool
 }
 
 type BuiltinPackage interface {

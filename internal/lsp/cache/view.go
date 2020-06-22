@@ -641,6 +641,42 @@ func (v *View) BackgroundContext() context.Context {
 	return v.backgroundCtx
 }
 
+func (v *View) IgnoredFile(uri span.URI) bool {
+	filename := uri.Filename()
+	var prefixes []string
+	if v.modURI == "" {
+		for _, entry := range filepath.SplitList(v.gopath) {
+			prefixes = append(prefixes, filepath.Join(entry, "src"))
+		}
+	} else {
+		mainMod := filepath.Dir(v.modURI.Filename())
+		modCache := filepath.Join(filepath.SplitList(v.gopath)[0], "/pkg/mod")
+		prefixes = []string{mainMod, modCache}
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(filename, prefix) {
+			return checkIgnored(filename[len(prefix):])
+		}
+	}
+	return false
+}
+
+// checkIgnored implements go list's exclusion rules. go help list:
+// 		Directory and file names that begin with "." or "_" are ignored
+// 		by the go tool, as are directories named "testdata".
+func checkIgnored(suffix string) bool {
+	for _, component := range strings.Split(suffix, string(filepath.Separator)) {
+		if len(component) == 0 {
+			continue
+		}
+		if component[0] == '.' || component[0] == '_' || component == "testdata" {
+			return true
+		}
+	}
+	return false
+}
+
 func (v *View) Snapshot() source.Snapshot {
 	return v.getSnapshot()
 }
