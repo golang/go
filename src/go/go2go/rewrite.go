@@ -961,6 +961,23 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		typeList, argList = t.typeListToASTList(inferred.Targs)
 	}
 
+	// Instantiating with a locally defined type won't work.
+	// Check that here.
+	for i, typ := range typeList {
+		if named, ok := typ.(*types.Named); ok {
+			if scope := named.Obj().Parent(); scope != nil && scope != named.Obj().Pkg().Scope() {
+				var pos token.Pos
+				if haveInferred {
+					pos = call.Pos()
+				} else {
+					pos = call.Args[i].Pos()
+				}
+				t.err = fmt.Errorf("%s: go2go tool does not support using locally defined type as type argument", t.fset.Position(pos))
+				return
+			}
+		}
+	}
+
 	return
 }
 
