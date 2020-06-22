@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/doc"
 	"go/token"
 	exec "internal/execabs"
@@ -1423,7 +1424,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	// Look for +build comments to accept or reject the file.
 	ok, sawBinaryOnly, err := ctxt.shouldBuild(info.header, allTags)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %v", name, err)
 	}
 	if !ok && !ctxt.UseAllFiles {
 		return nil, nil
@@ -1459,11 +1460,12 @@ var (
 	bSlashSlash = []byte(slashSlash)
 	bStarSlash  = []byte(starSlash)
 	bSlashStar  = []byte(slashStar)
+	bPlusBuild  = []byte("+build")
 
 	goBuildComment = []byte("//go:build")
 
 	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments") // unused in Go 1.(N-1)
+	errMultipleGoBuild     = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
@@ -1498,8 +1500,7 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 // shouldBuild reports whether the file should be built
 // and whether a //go:binary-only-package comment was found.
 func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
-
-	// Pass 1. Identify leading run of // comments and blank lines,
+	// Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
 	// Also identify any //go:build comments.
 	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
@@ -1507,42 +1508,40 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 		return false, false, err
 	}
 
-	// Pass 2.  Process each +build line in the run.
-	p := content
-	shouldBuild = true
-	sawBuild := false
-	for len(p) > 0 {
-		line := p
-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
-			line, p = line[:i], p[i+1:]
-		} else {
-			p = p[len(p):]
+	// If //go:build line is present, it controls.
+	// Otherwise fall back to +build processing.
+	switch {
+	case goBuild != nil:
+		x, err := constraint.Parse(string(goBuild))
+		if err != nil {
+			return false, false, fmt.Errorf("parsing //go:build line: %v", err)
 		}
-		line = bytes.TrimSpace(line)
-		if !bytes.HasPrefix(line, bSlashSlash) {
-			continue
-		}
-		line = bytes.TrimSpace(line[len(bSlashSlash):])
-		if len(line) > 0 && line[0] == '+' {
-			// Looks like a comment +line.
-			f := strings.Fields(string(line))
-			if f[0] == "+build" {
-				sawBuild = true
-				ok := false
-				for _, tok := range f[1:] {
-					if ctxt.match(tok, allTags) {
-						ok = true
-					}
-				}
-				if !ok {
+		shouldBuild = ctxt.eval(x, allTags)
+
+	default:
+		shouldBuild = true
+		p := content
+		for len(p) > 0 {
+			line := p
+			if i := bytes.IndexByte(line, '\n'); i >= 0 {
+				line, p = line[:i], p[i+1:]
+			} else {
+				p = p[len(p):]
+			}
+			line = bytes.TrimSpace(line)
+			if !bytes.HasPrefix(line, bSlashSlash) || !bytes.Contains(line, bPlusBuild) {
+				continue
+			}
+			text := string(line)
+			if !constraint.IsPlusBuild(text) {
+				continue
+			}
+			if x, err := constraint.Parse(text); err == nil {
+				if !ctxt.eval(x, allTags) {
 					shouldBuild = false
 				}
 			}
 		}
-	}
-
-	if goBuild != nil && !sawBuild {
-		return false, false, errGoBuildWithoutBuild
 	}
 
 	return shouldBuild, sawBinaryOnly, nil
@@ -1580,7 +1579,7 @@ Lines:
 		}
 
 		if !inSlashStar && isGoBuildComment(line) {
-			if false && goBuild != nil { // enabled in Go 1.N
+			if goBuild != nil {
 				return nil, nil, false, errMultipleGoBuild
 			}
 			goBuild = line
@@ -1649,7 +1648,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if len(cond) > 0 {
 			ok := false
 			for _, c := range cond {
-				if ctxt.match(c, nil) {
+				if ctxt.matchAuto(c, nil) {
 					ok = true
 					break
 				}
@@ -1831,48 +1830,42 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-// match reports whether the name is one of:
+// matchAuto interprets text as either a +build or //go:build expression (whichever works),
+// reporting whether the expression matches the build context.
 //
+// matchAuto is only used for testing of tag evaluation
+// and in #cgo lines, which accept either syntax.
+func (ctxt *Context) matchAuto(text string, allTags map[string]bool) bool {
+	if strings.ContainsAny(text, "&|()") {
+		text = "//go:build " + text
+	} else {
+		text = "// +build " + text
+	}
+	x, err := constraint.Parse(text)
+	if err != nil {
+		return false
+	}
+	return ctxt.eval(x, allTags)
+}
+
+func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
+	return x.Eval(func(tag string) bool { return ctxt.matchTag(tag, allTags) })
+}
+
+// matchTag reports whether the name is one of:
+//
+//	cgo (if cgo is enabled)
 //	$GOOS
 //	$GOARCH
-//	cgo (if cgo is enabled)
-//	!cgo (if cgo is disabled)
 //	ctxt.Compiler
-//	!ctxt.Compiler
+//	linux (if GOOS = android)
+//	solaris (if GOOS = illumos)
 //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
-//	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
-//	a comma-separated list of any of these
 //
-func (ctxt *Context) match(name string, allTags map[string]bool) bool {
-	if name == "" {
-		if allTags != nil {
-			allTags[name] = true
-		}
-		return false
-	}
-	if i := strings.Index(name, ","); i >= 0 {
-		// comma-separated list
-		ok1 := ctxt.match(name[:i], allTags)
-		ok2 := ctxt.match(name[i+1:], allTags)
-		return ok1 && ok2
-	}
-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
-		return false
-	}
-	if strings.HasPrefix(name, "!") { // negation
-		return len(name) > 1 && !ctxt.match(name[1:], allTags)
-	}
-
+// It records all consulted tags in allTags.
+func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if allTags != nil {
 		allTags[name] = true
-	}
-
-	// Tags must be letters, digits, underscores or dots.
-	// Unlike in Go identifiers, all digits are fine (e.g., "386").
-	for _, c := range name {
-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
-			return false
-		}
 	}
 
 	// special tags
@@ -1946,10 +1939,10 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	}
 	n := len(l)
 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
-		return ctxt.match(l[n-1], allTags) && ctxt.match(l[n-2], allTags)
+		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
 	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
-		return ctxt.match(l[n-1], allTags)
+		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true
 }

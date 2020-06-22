@@ -295,7 +295,7 @@ var depsRules = `
 	FMT
 	< go/build/constraint;
 
-	go/doc, go/parser, internal/goroot, internal/goversion
+	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
 	< go/build;
 
 	DEBUG, go/build, go/types, text/scanner
