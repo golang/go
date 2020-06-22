@@ -100,6 +100,7 @@ func main() {
 `
 	runner.Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
+		before := env.ReadWorkspaceFile("go.mod")
 		lenses := env.CodeLens("go.mod")
 		want := "Upgrade dependency to v1.3.3"
 		var found *protocol.CodeLens
@@ -116,6 +117,10 @@ func main() {
 			Arguments: found.Command.Arguments,
 		}); err != nil {
 			t.Fatal(err)
+		}
+		after := env.ReadWorkspaceFile("go.mod")
+		if before == after {
+			t.Fatalf("go.mod file was unchanged by upgrade command")
 		}
 	}, WithProxy(proxyWithLatest))
 }

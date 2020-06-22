@@ -133,6 +133,12 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 	return cfg
 }
 
+func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []string) error {
+	cfg := s.config(ctx)
+	_, _, err := runGoCommand(ctx, cfg, nil, nil, verb, args)
+	return err
+}
+
 func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
 	cfg := s.config(ctx)
 	var modFH, sumFH source.FileHandle

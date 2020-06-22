@@ -66,7 +66,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if params.Command == source.CommandVendor {
 			arg = "vendor"
 		}
-		err := s.goModCommand(ctx, uri, "mod", []string{arg}...)
+		err := s.directGoModCommand(ctx, uri, "mod", []string{arg}...)
 		return nil, err
 	case source.CommandUpgradeDependency:
 		if len(params.Arguments) < 2 {
@@ -74,19 +74,18 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		uri := protocol.DocumentURI(params.Arguments[0].(string))
 		deps := params.Arguments[1].(string)
-		err := s.goModCommand(ctx, uri, "get", strings.Split(deps, " ")...)
+		err := s.directGoModCommand(ctx, uri, "get", strings.Split(deps, " ")...)
 		return nil, err
 	}
 	return nil, nil
 }
 
-func (s *Server) goModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {
+func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {
 	view, err := s.session.ViewOf(uri.SpanURI())
 	if err != nil {
 		return err
 	}
-	_, err = view.Snapshot().RunGoCommand(ctx, verb, args)
-	return err
+	return view.Snapshot().RunGoCommandDirect(ctx, verb, args)
 }
 
 func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, funcName string) error {

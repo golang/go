@@ -47,11 +47,16 @@ type Snapshot interface {
 	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Error, error)
 
 	// RunGoCommandPiped runs the given `go` command in the view, using the
-	// provided stdout and stderr.
+	// provided stdout and stderr. It will use the -modfile flag, if possible.
 	RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error
 
-	// RunGoCommand runs the given `go` command in the view.
+	// RunGoCommand runs the given `go` command in the view. It will use the
+	// -modfile flag, if possible.
 	RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error)
+
+	// RunGoCommandDirect runs the given `go` command, never using the
+	// -modfile flag.
+	RunGoCommandDirect(ctx context.Context, verb string, args []string) error
 
 	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
 	// This function can have no data or error if there is no modfile detected.
