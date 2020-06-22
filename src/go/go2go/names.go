@@ -48,7 +48,7 @@ func (t *translator) instantiatedName(qid qualifiedIdent, types []types.Type) (s
 	fmt.Fprintf(&sb, "%c%s", nameSep, qid.ident.Name)
 	for _, typ := range types {
 		sb.WriteRune(nameSep)
-		s := typ.String()
+		s := t.withoutTags(typ).String()
 
 		// We have to uniquely translate s into a valid Go identifier.
 		// This is not possible in general but we assume that

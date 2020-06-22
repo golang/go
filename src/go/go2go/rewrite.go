@@ -1127,7 +1127,7 @@ func (t *translator) sameTypes(a, b []types.Type) bool {
 // sameType reports whether two types are the same.
 // We have to check type arguments ourselves.
 func (t *translator) sameType(a, b types.Type) bool {
-	if types.Identical(a, b) {
+	if types.IdenticalIgnoreTags(a, b) {
 		return true
 	}
 	an, ok := a.(*types.Named)

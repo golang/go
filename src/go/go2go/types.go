@@ -27,13 +27,13 @@ func (t *translator) lookupType(e ast.Expr) types.Type {
 // Uninstantiated AST expressions will be listed in t.importer.info.Types.
 func (t *translator) setType(e ast.Expr, nt types.Type) {
 	if ot, ok := t.importer.info.Types[e]; ok {
-		if !types.Identical(ot.Type, nt) {
+		if !types.IdenticalIgnoreTags(ot.Type, nt) {
 			panic("expression type changed")
 		}
 		return
 	}
 	if ot, ok := t.types[e]; ok {
-		if !types.Identical(ot, nt) {
+		if !types.IdenticalIgnoreTags(ot, nt) {
 			panic("expression type changed")
 		}
 		return
@@ -95,7 +95,7 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 		if elem == instElem {
 			return typ
 		}
-		return types.NewArray(elem, typ.Len())
+		return types.NewArray(instElem, typ.Len())
 	case *types.Slice:
 		elem := typ.Elem()
 		instElem := t.instantiateType(ta, elem)
@@ -304,4 +304,156 @@ func (t *translator) addTypePackages(typ types.Type) {
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
 	}
+}
+
+// withoutTags returns a type with no struct tags. If typ has no
+// struct tags anyhow, this just returns typ.
+func (t *translator) withoutTags(typ types.Type) types.Type {
+	switch typ := typ.(type) {
+	case *types.Basic:
+		return typ
+	case *types.Array:
+		elem := typ.Elem()
+		elemNoTags := t.withoutTags(elem)
+		if elem == elemNoTags {
+			return typ
+		}
+		return types.NewArray(elemNoTags, typ.Len())
+	case *types.Slice:
+		elem := typ.Elem()
+		elemNoTags := t.withoutTags(elem)
+		if elem == elemNoTags {
+			return typ
+		}
+		return types.NewSlice(elemNoTags)
+	case *types.Struct:
+		n := typ.NumFields()
+		fields := make([]*types.Var, n)
+		changed := false
+		hasTag := false
+		for i := 0; i < n; i++ {
+			v := typ.Field(i)
+			typeNoTags := t.withoutTags(v.Type())
+			if v.Type() != typeNoTags {
+				changed = true
+			}
+			fields[i] = types.NewVar(v.Pos(), v.Pkg(), v.Name(), typeNoTags)
+			if typ.Tag(i) != "" {
+				hasTag = true
+			}
+		}
+		if !changed && !hasTag {
+			return typ
+		}
+		return types.NewStruct(fields, nil)
+	case *types.Pointer:
+		elem := typ.Elem()
+		elemNoTags := t.withoutTags(elem)
+		if elem == elemNoTags {
+			return typ
+		}
+		return types.NewPointer(elemNoTags)
+	case *types.Tuple:
+		return t.tupleWithoutTags(typ)
+	case *types.Signature:
+		params := t.tupleWithoutTags(typ.Params())
+		results := t.tupleWithoutTags(typ.Results())
+		if params == typ.Params() && results == typ.Results() {
+			return typ
+		}
+		r := types.NewSignature(typ.Recv(), params, results, typ.Variadic())
+		if tparams := typ.TParams(); tparams != nil {
+			r.SetTParams(tparams)
+		}
+		return r
+	case *types.Interface:
+		nm := typ.NumExplicitMethods()
+		methods := make([]*types.Func, nm)
+		changed := false
+		for i := 0; i < nm; i++ {
+			m := typ.ExplicitMethod(i)
+			sigNoTags := t.withoutTags(m.Type()).(*types.Signature)
+			if sigNoTags != m.Type() {
+				m = types.NewFunc(m.Pos(), m.Pkg(), m.Name(), sigNoTags)
+				changed = true
+			}
+			methods[i] = m
+		}
+		ne := typ.NumEmbeddeds()
+		embeddeds := make([]types.Type, ne)
+		for i := 0; i < ne; i++ {
+			e := typ.EmbeddedType(i)
+			eNoTags := t.withoutTags(e)
+			if e != eNoTags {
+				changed = true
+			}
+			embeddeds[i] = eNoTags
+		}
+		if !changed {
+			return typ
+		}
+		return types.NewInterfaceType(methods, embeddeds)
+	case *types.Map:
+		key := t.withoutTags(typ.Key())
+		elem := t.withoutTags(typ.Elem())
+		if key == typ.Key() && elem == typ.Elem() {
+			return typ
+		}
+		return types.NewMap(key, elem)
+	case *types.Chan:
+		elem := t.withoutTags(typ.Elem())
+		if elem == typ.Elem() {
+			return typ
+		}
+		return types.NewChan(typ.Dir(), elem)
+	case *types.Named:
+		targs := typ.TArgs()
+		targsChanged := false
+		if len(targs) > 0 {
+			newTargs := make([]types.Type, 0, len(targs))
+			for _, targ := range targs {
+				newTarg := t.withoutTags(targ)
+				if newTarg != targ {
+					targsChanged = true
+				}
+				newTargs = append(newTargs, newTarg)
+			}
+			targs = newTargs
+		}
+		if targsChanged {
+			return t.updateTArgs(typ, targs)
+		}
+		return typ
+	case *types.TypeParam:
+		return typ
+	default:
+		panic(fmt.Sprintf("unimplemented Type %T", typ))
+	}
+}
+
+// tupleWithoutTags returns a tuple with all struct tag removed.
+func (t *translator) tupleWithoutTags(tuple *types.Tuple) *types.Tuple {
+	if tuple == nil {
+		return nil
+	}
+	l := tuple.Len()
+	typesNoTags := make([]types.Type, l)
+	changed := false
+	for i := 0; i < l; i++ {
+		typ := tuple.At(i).Type()
+		typNoTags := t.withoutTags(typ)
+		if typ != typNoTags {
+			changed = true
+		}
+		typesNoTags[i] = typNoTags
+	}
+	if !changed {
+		return tuple
+	}
+	vars := make([]*types.Var, l)
+	for i := 0; i < l; i++ {
+		v := tuple.At(i)
+		vars[i] = types.NewVar(v.Pos(), v.Pkg(), v.Name(), typesNoTags[i])
+	}
+	return types.NewTuple(vars...)
 }
