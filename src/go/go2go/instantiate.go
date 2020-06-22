@@ -815,7 +815,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 				continue
 			}
 			instType := t.instantiateType(ta, typeParam)
-			str := types.TypeString(instType, types.RelativeTo(t.tpkg))
+			str := types.TypeString(instType, relativeTo(t.tpkg))
 			newField := &ast.Field{
 				Doc:     f.Doc,
 				Names:   []*ast.Ident{id},

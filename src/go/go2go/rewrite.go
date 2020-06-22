@@ -714,7 +714,7 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 		if fobj != nil && len(indexes) > 1 {
 			for _, index := range indexes[:len(indexes)-1] {
 				xf := xType.Struct().Field(index)
-				if xf.Name() == types.TypeString(xf.Type(), types.RelativeTo(xf.Pkg())) {
+				if xf.Name() == types.TypeString(xf.Type(), relativeTo(xf.Pkg())) {
 					continue
 				}
 				e.X = &ast.SelectorExpr{
@@ -1101,7 +1101,7 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
 	argList := make([]ast.Expr, 0, len(typeList))
 	for _, typ := range typeList {
-		str := types.TypeString(typ, types.RelativeTo(t.tpkg))
+		str := types.TypeString(typ, relativeTo(t.tpkg))
 		arg := ast.NewIdent("(" + str + ")")
 		if named, ok := typ.(*types.Named); ok {
 			if len(named.TArgs()) > 0 {
@@ -1126,6 +1126,17 @@ func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []a
 		t.addTypePackages(typ)
 	}
 	return typeList, argList
+}
+
+// relativeTo is like types.RelativeTo, but returns just the package name,
+// not the package path.
+func relativeTo(pkg *types.Package) types.Qualifier {
+	return func(other *types.Package) string {
+		if pkg == other {
+			return "" // same package; unqualified
+		}
+		return other.Name()
+	}
 }
 
 // sameTypes reports whether two type slices are the same.

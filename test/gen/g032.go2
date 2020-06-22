@@ -1,0 +1,16 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 39744.
+package p
+
+import "net/http"
+
+func F1(type T)(f func() T) { f() }
+
+func F2() {
+	F1(func() *http.Request { return nil })
+}
