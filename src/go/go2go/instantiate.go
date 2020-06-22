@@ -290,6 +290,22 @@ func (t *translator) instantiateSpec(ta *typeArgs, s ast.Spec) ast.Spec {
 			Values:  values,
 			Comment: s.Comment,
 		}
+	case *ast.TypeSpec:
+		if s.TParams != nil {
+			t.err = fmt.Errorf("%s: go2go tool does not support local parameterized types", t.fset.Position(s.Pos()))
+			return nil
+		}
+		typ := t.instantiateExpr(ta, s.Type)
+		if typ == s.Type {
+			return s
+		}
+		return &ast.TypeSpec{
+			Doc:     s.Doc,
+			Name:    s.Name,
+			Assign:  s.Assign,
+			Type:    typ,
+			Comment: s.Comment,
+		}
 	default:
 		panic(fmt.Sprintf("unimplemented Spec %T", s))
 	}
