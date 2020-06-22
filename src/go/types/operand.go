@@ -250,6 +250,11 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 			if Vb, _ := Vu.(*Basic); Vb != nil {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
+		case *Sum:
+			return t.is(func(t Type) bool {
+				// TODO(gri) this could probably be more efficient
+				return x.assignableTo(check, t, reason)
+			})
 		case *Interface:
 			check.completeInterface(token.NoPos, t)
 			return x.isNil() || t.Empty()

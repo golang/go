@@ -526,6 +526,10 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			}
 		}
 
+		// keep nil untyped (was bug #39755)
+		if x.isNil() {
+			target = Typ[UntypedNil]
+		}
 		x.typ = target
 		check.updateExprType(x.expr, target, true) // UntypedNils are final
 		return

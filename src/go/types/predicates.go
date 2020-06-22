@@ -141,6 +141,8 @@ func hasNil(typ Type) bool {
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
+	case *Sum:
+		return t.is(hasNil)
 	}
 	return false
 }
