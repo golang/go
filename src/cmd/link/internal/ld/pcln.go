@@ -585,9 +585,6 @@ const (
 // a given text symbols is a container (outer sym).
 func (ctxt *Link) findfunctab(container loader.Bitmap) {
 	ldr := ctxt.loader
-	t := ldr.CreateSymForUpdate("runtime.findfunctab", 0)
-	t.SetType(sym.SRODATA)
-	ldr.SetAttrLocal(t.Sym(), true)
 
 	// find min and max address
 	min := ldr.SymValue(ctxt.Textp[0])
@@ -598,67 +595,74 @@ func (ctxt *Link) findfunctab(container loader.Bitmap) {
 	// that map to that subbucket.
 	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
 
-	indexes := make([]int32, n)
-	for i := int32(0); i < n; i++ {
-		indexes[i] = NOIDX
-	}
-	idx := int32(0)
-	for i, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s, container) {
-			continue
-		}
-		p := ldr.SymValue(s)
-		var e loader.Sym
-		i++
-		if i < len(ctxt.Textp) {
-			e = ctxt.Textp[i]
-		}
-		for e != 0 && !emitPcln(ctxt, e, container) && i < len(ctxt.Textp) {
-			e = ctxt.Textp[i]
-			i++
-		}
-		q := max
-		if e != 0 {
-			q = ldr.SymValue(e)
-		}
+	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
 
-		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
-		for ; p < q; p += SUBBUCKETSIZE {
-			i = int((p - min) / SUBBUCKETSIZE)
+	size := 4*int64(nbuckets) + int64(n)
+
+	writeFindFuncTab := func(_ *Link, s loader.Sym) {
+		t := ldr.MakeSymbolUpdater(s)
+
+		indexes := make([]int32, n)
+		for i := int32(0); i < n; i++ {
+			indexes[i] = NOIDX
+		}
+		idx := int32(0)
+		for i, s := range ctxt.Textp {
+			if !emitPcln(ctxt, s, container) {
+				continue
+			}
+			p := ldr.SymValue(s)
+			var e loader.Sym
+			i++
+			if i < len(ctxt.Textp) {
+				e = ctxt.Textp[i]
+			}
+			for e != 0 && !emitPcln(ctxt, e, container) && i < len(ctxt.Textp) {
+				e = ctxt.Textp[i]
+				i++
+			}
+			q := max
+			if e != 0 {
+				q = ldr.SymValue(e)
+			}
+
+			//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
+			for ; p < q; p += SUBBUCKETSIZE {
+				i = int((p - min) / SUBBUCKETSIZE)
+				if indexes[i] > idx {
+					indexes[i] = idx
+				}
+			}
+
+			i = int((q - 1 - min) / SUBBUCKETSIZE)
 			if indexes[i] > idx {
 				indexes[i] = idx
 			}
+			idx++
 		}
 
-		i = int((q - 1 - min) / SUBBUCKETSIZE)
-		if indexes[i] > idx {
-			indexes[i] = idx
-		}
-		idx++
-	}
-
-	// allocate table
-	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
-
-	t.Grow(4*int64(nbuckets) + int64(n))
-
-	// fill in table
-	for i := int32(0); i < nbuckets; i++ {
-		base := indexes[i*SUBBUCKETS]
-		if base == NOIDX {
-			Errorf(nil, "hole in findfunctab")
-		}
-		t.SetUint32(ctxt.Arch, int64(i)*(4+SUBBUCKETS), uint32(base))
-		for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
-			idx = indexes[i*SUBBUCKETS+j]
-			if idx == NOIDX {
+		// fill in table
+		for i := int32(0); i < nbuckets; i++ {
+			base := indexes[i*SUBBUCKETS]
+			if base == NOIDX {
 				Errorf(nil, "hole in findfunctab")
 			}
-			if idx-base >= 256 {
-				Errorf(nil, "too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
-			}
+			t.SetUint32(ctxt.Arch, int64(i)*(4+SUBBUCKETS), uint32(base))
+			for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
+				idx = indexes[i*SUBBUCKETS+j]
+				if idx == NOIDX {
+					Errorf(nil, "hole in findfunctab")
+				}
+				if idx-base >= 256 {
+					Errorf(nil, "too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
+				}
 
-			t.SetUint8(ctxt.Arch, int64(i)*(4+SUBBUCKETS)+4+int64(j), uint8(idx-base))
+				t.SetUint8(ctxt.Arch, int64(i)*(4+SUBBUCKETS)+4+int64(j), uint8(idx-base))
+			}
 		}
 	}
+
+	s := ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SRODATA, size, writeFindFuncTab)
+	ldr.SetAttrReachable(s, true)
+	ldr.SetAttrLocal(s, true)
 }
