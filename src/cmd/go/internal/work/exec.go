@@ -1052,17 +1052,28 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// This is OK as long as the packages that are farther down the
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
-	// later vet runs.)
+	// later vet runs, nor does unreachable.)
 	if a.Package.Goroot && !VetExplicit && VetTool == "" {
+		// Turn off -unsafeptr checks.
+		// There's too much unsafe.Pointer code
+		// that vet doesn't like in low-level packages
+		// like runtime, sync, and reflect.
 		// Note that $GOROOT/src/buildall.bash
 		// does the same for the misc-compile trybots
 		// and should be updated if these flags are
 		// changed here.
-		//
-		// There's too much unsafe.Pointer code
-		// that vet doesn't like in low-level packages
-		// like runtime, sync, and reflect.
 		vetFlags = []string{"-unsafeptr=false"}
+
+		// Also turn off -unreachable checks during go test.
+		// During testing it is very common to make changes
+		// like hard-coded forced returns or panics that make
+		// code unreachable. It's unreasonable to insist on files
+		// not having any unreachable code during "go test".
+		// (buildall.bash still runs with -unreachable enabled
+		// for the overall whole-tree scan.)
+		if cfg.CmdName == "test" {
+			vetFlags = append(vetFlags, "-unreachable=false")
+		}
 	}
 
 	// Note: We could decide that vet should compute export data for
