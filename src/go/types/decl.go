@@ -562,7 +562,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		}
 
 		obj.typ = Typ[Invalid]
-		obj.typ = check.typ(tdecl.Type)
+		obj.typ = check.anyType(tdecl.Type)
 
 	} else {
 		// defined type declaration
