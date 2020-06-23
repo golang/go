@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // This file handles all algorithms related to XCOFF files generation.
@@ -417,6 +418,7 @@ type xcoffFile struct {
 	dynLibraries    map[string]int       // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
 	loaderSymbols   []*xcoffLoaderSymbol // symbols inside .loader symbol table
 	loaderReloc     []*xcoffLoaderReloc  // Reloc that must be made inside loader
+	sync.Mutex                           // currently protect loaderReloc
 }
 
 // Var used by XCOFF Generation algorithms
@@ -1265,7 +1267,9 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 		xldr.rtype = 0x3F<<8 + XCOFF_R_POS
 	}
 
+	xfile.Lock()
 	xfile.loaderReloc = append(xfile.loaderReloc, xldr)
+	xfile.Unlock()
 	return true
 }
 
@@ -1398,6 +1402,21 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	off := hdr.Lrldoff                                // current offset is the same of reloc offset
 
 	/* Reloc */
+	// Ensure deterministic order
+	sort.Slice(f.loaderReloc, func(i, j int) bool {
+		r1, r2 := f.loaderReloc[i], f.loaderReloc[j]
+		if r1.sym != r2.sym {
+			return r1.sym < r2.sym
+		}
+		if r1.roff != r2.roff {
+			return r1.roff < r2.roff
+		}
+		if r1.rtype != r2.rtype {
+			return r1.rtype < r2.rtype
+		}
+		return r1.symndx < r2.symndx
+	})
+
 	ep := ldr.Lookup(*flagEntrySymbol, 0)
 	xldr := &XcoffLdRel64{
 		Lvaddr:  uint64(ldr.SymValue(ep)),
