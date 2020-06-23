@@ -20,7 +20,10 @@ import (
 )
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
-// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+//
+// Note that the point at infinity (0, 0) is not considered on the curve, and
+// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
+// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
@@ -307,7 +310,8 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 	return
 }
 
-// Marshal converts a point into the uncompressed form specified in section 4.3.6 of ANSI X9.62.
+// Marshal converts a point on the curve into the uncompressed form specified in
+// section 4.3.6 of ANSI X9.62.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 
@@ -320,7 +324,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 	return ret
 }
 
-// MarshalCompressed converts a point into the compressed form specified in section 4.3.6 of ANSI X9.62.
+// MarshalCompressed converts a point on the curve into the compressed form
+// specified in section 4.3.6 of ANSI X9.62.
 func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
