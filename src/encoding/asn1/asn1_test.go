@@ -225,19 +225,49 @@ func TestBitStringRightAlign(t *testing.T) {
 	}
 }
 
+type defaultValueTest struct {
+	v  interface{}
+	ok bool
+}
+
+var defaultValueTestData = []defaultValueTest{
+	{int8(4), true},
+	{int16(4), true},
+	{int(4), true},
+	{int32(4), true},
+	{int64(4), true},
+	{big.NewInt(4), true},
+	{byte(4), false},
+	{"abc", false},
+	{nil, false},
+}
+
+func TestCanHaveDefaultValue(t *testing.T) {
+	for _, test := range defaultValueTestData {
+		if canHaveDefaultValue(reflect.ValueOf(test.v)) != test.ok {
+			t.Errorf("Bad result. Type '%v' can have default value: %v", reflect.ValueOf(test.v).Type(), test.ok)
+		}
+	}
+}
+
 type objectIdentifierTest struct {
 	in  []byte
 	ok  bool
-	out ObjectIdentifier // has base type[]int
+	out interface{} // has base type []int, []int64 or []*big.Int
 }
 
 var objectIdentifierTestData = []objectIdentifierTest{
-	{[]byte{}, false, []int{}},
-	{[]byte{85}, true, []int{2, 5}},
-	{[]byte{85, 0x02}, true, []int{2, 5, 2}},
-	{[]byte{85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
-	{[]byte{0x81, 0x34, 0x03}, true, []int{2, 100, 3}},
-	{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
+	{[]byte{}, false, ObjectIdentifier{}},
+	{[]byte{85}, true, ObjectIdentifier{2, 5}},
+	{[]byte{85, 0x02}, true, ObjectIdentifier{2, 5, 2}},
+	{[]byte{85, 0x02, 0xc0, 0x00}, true, ObjectIdentifier{2, 5, 2, 0x2000}},
+	{[]byte{0x81, 0x34, 0x03}, true, ObjectIdentifier{2, 100, 3}},
+	{[]byte{85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, ObjectIdentifier{}},
+	// At least one sub-oid has a value higher than max int32 value, but less than max int64 value
+	{[]byte{0x2a, 0x24, 0x81, 0xf9, 0xcf, 0x99, 0xf2, 0x60, 0x85, 0x1a, 0x42, 0x01, 0x01}, true, ObjectIdentifierInt64{1, 2, 36, 67006527840, 666, 66, 1, 1}},
+	{[]byte{0x2a, 0xc0, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x01}, true, ObjectIdentifierInt64{1, 2, 1 << 62, 1}},
+	// At least one sub-oid has a value higher than max int64 value
+	{[]byte{0x2a, 0x84, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x01}, true, ObjectIdentifierBigInt{big.NewInt(1), big.NewInt(2), new(big.Int).Lsh(big.NewInt(1), 65), big.NewInt(1)}},
 }
 
 func TestObjectIdentifier(t *testing.T) {

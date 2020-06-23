@@ -178,11 +178,46 @@ func base128IntLength(n int64) int {
 	return l
 }
 
+func base128IntLengthBigInt(n *big.Int) int {
+	if n.Sign() == 0 {
+		return 1
+	}
+
+	l := 0
+	for i := new(big.Int).Set(n); i.Sign() > 0; i.Rsh(i, 7) {
+		l++
+	}
+
+	return l
+}
+
 func appendBase128Int(dst []byte, n int64) []byte {
 	l := base128IntLength(n)
 
 	for i := l - 1; i >= 0; i-- {
 		o := byte(n >> uint(i*7))
+		o &= 0x7f
+		if i != 0 {
+			o |= 0x80
+		}
+
+		dst = append(dst, o)
+	}
+
+	return dst
+}
+
+func appendBase128IntBigInt(dst []byte, n *big.Int) []byte {
+	l := base128IntLengthBigInt(n)
+
+	for i := l - 1; i >= 0; i-- {
+		b := new(big.Int).Rsh(n, uint(i*7))
+		var o byte
+		if b.Sign() == 0 {
+			o = 0
+		} else {
+			o = b.Bytes()[len(b.Bytes())-1]
+		}
 		o &= 0x7f
 		if i != 0 {
 			o |= 0x80
@@ -302,12 +337,61 @@ func (oid oidEncoder) Encode(dst []byte) {
 	}
 }
 
+type oidEncoderInt64 []int64
+
+func (oid oidEncoderInt64) Len() int {
+	l := base128IntLength(int64(oid[0]*40 + oid[1]))
+	for i := 2; i < len(oid); i++ {
+		l += base128IntLength(int64(oid[i]))
+	}
+	return l
+}
+
+func (oid oidEncoderInt64) Encode(dst []byte) {
+	dst = appendBase128Int(dst[:0], int64(oid[0]*40+oid[1]))
+	for i := 2; i < len(oid); i++ {
+		dst = appendBase128Int(dst, int64(oid[i]))
+	}
+}
+
+type oidEncoderBigInt []*big.Int
+
+func (oid oidEncoderBigInt) Len() int {
+	l := base128IntLengthBigInt(new(big.Int).Add(new(big.Int).Mul(oid[0], bigForty), oid[1]))
+	for i := 2; i < len(oid); i++ {
+		l += base128IntLengthBigInt(oid[i])
+	}
+	return l
+}
+
+func (oid oidEncoderBigInt) Encode(dst []byte) {
+	dst = appendBase128IntBigInt(dst[:0], new(big.Int).Add(new(big.Int).Mul(oid[0], bigForty), oid[1]))
+	for i := 2; i < len(oid); i++ {
+		dst = appendBase128IntBigInt(dst, oid[i])
+	}
+}
+
 func makeObjectIdentifier(oid []int) (e encoder, err error) {
 	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
 		return nil, StructuralError{"invalid object identifier"}
 	}
 
 	return oidEncoder(oid), nil
+}
+
+func makeObjectIdentifierInt64(oid []int64) (e encoder, err error) {
+	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
+		return nil, StructuralError{"invalid object identifier"}
+	}
+
+	return oidEncoderInt64(oid), nil
+}
+
+func makeObjectIdentifierBigInt(oid []*big.Int) (e encoder, err error) {
+	if len(oid) < 2 || oid[0].Cmp(bigTwo) > 0 || (oid[0].Cmp(bigTwo) < 0 && oid[1].Cmp(bigForty) >= 0) {
+		return nil, StructuralError{"invalid object identifier"}
+	}
+	return oidEncoderBigInt(oid), nil
 }
 
 func makePrintableString(s string) (e encoder, err error) {
@@ -472,6 +556,10 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		return bitStringEncoder(value.Interface().(BitString)), nil
 	case objectIdentifierType:
 		return makeObjectIdentifier(value.Interface().(ObjectIdentifier))
+	case objectIdentifierInt64Type:
+		return makeObjectIdentifierInt64(value.Interface().(ObjectIdentifierInt64))
+	case objectIdentifierBigIntType:
+		return makeObjectIdentifierBigInt(value.Interface().(ObjectIdentifierBigInt))
 	case bigIntType:
 		return makeBigInt(value.Interface().(*big.Int))
 	}
@@ -584,12 +672,11 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return makeField(v.Elem(), params)
 	}
-
 	if v.Kind() == reflect.Slice && v.Len() == 0 && params.omitEmpty {
 		return bytesEncoder(nil), nil
 	}
 
-	if params.optional && params.defaultValue != nil && canHaveDefaultValue(v.Kind()) {
+	if params.optional && params.defaultValue != nil && canHaveDefaultValue(v) {
 		defaultValue := reflect.New(v.Type()).Elem()
 		defaultValue.SetInt(*params.defaultValue)
 
