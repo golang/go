@@ -27,6 +27,7 @@ var cmds = map[string]bool{
 }
 
 func main() {
+	flag.Usage = usage
 	flag.Parse()
 
 	args := flag.Args()
@@ -174,7 +175,7 @@ The commands are:
 	test       translate and test packages
 	translate  translate .go2 files into .go files
 `)
-	os.Exit(1)
+	os.Exit(2)
 }
 
 // die reports an error and exits.
