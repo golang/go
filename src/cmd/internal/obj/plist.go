@@ -145,10 +145,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
-	if s.SeenGlobl() {
-		fmt.Printf("duplicate %v\n", s)
-	}
-	s.Set(AttrSeenGlobl, true)
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
