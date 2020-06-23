@@ -6,168 +6,158 @@
 
 // Generates root_darwin_arm64.go.
 //
-// As of iOS 8, there is no API for querying the system trusted X.509 root
-// certificates. We could use SecTrustEvaluate to verify that a trust chain
-// exists for a certificate, but the x509 API requires returning the entire
-// chain.
+// As of iOS 13, there is no API for querying the system trusted X.509 root
+// certificates.
 //
-// Apple publishes the list of trusted root certificates for iOS on
-// support.apple.com. So we parse the list and extract the certificates from
-// an OS X machine and embed them into the x509 package.
+// Apple publishes the trusted root certificates for iOS and macOS on
+// opensource.apple.com so we embed them into the x509 package.
+//
+// Note that this ignores distrusted and revoked certificates.
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"go/format"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os/exec"
-	"regexp"
+	"path"
+	"sort"
 	"strings"
+	"time"
 )
 
-var output = flag.String("output", "root_darwin_arm64.go", "file name to write")
-
 func main() {
-	certs, err := selectCerts()
+	var output = flag.String("output", "root_darwin_arm64.go", "file name to write")
+	var version = flag.String("version", "", "security_certificates version")
+	flag.Parse()
+	if *version == "" {
+		log.Fatal("Select the latest security_certificates version from " +
+			"https://opensource.apple.com/source/security_certificates/")
+	}
+
+	url := "https://opensource.apple.com/tarballs/security_certificates/security_certificates-%s.tar.gz"
+	hc := &http.Client{Timeout: 1 * time.Minute}
+	resp, err := hc.Get(fmt.Sprintf(url, *version))
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("HTTP status not OK: %s", resp.Status)
+	}
 
-	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "%s", header)
+	zr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer zr.Close()
 
-	fmt.Fprintf(buf, "const systemRootsPEM = `\n")
-	for _, cert := range certs {
+	var certs []*x509.Certificate
+	pool := x509.NewCertPool()
+
+	tr := tar.NewReader(zr)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rootsDirectory := fmt.Sprintf("security_certificates-%s/certificates/roots/", *version)
+		if dir, file := path.Split(hdr.Name); hdr.Typeflag != tar.TypeReg ||
+			dir != rootsDirectory || strings.HasPrefix(file, ".") {
+			continue
+		}
+
+		der, err := ioutil.ReadAll(tr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c, err := x509.ParseCertificate(der)
+		if err != nil {
+			log.Printf("Failed to parse certificate %q: %v", hdr.Name, err)
+			continue
+		}
+
+		certs = append(certs, c)
+		pool.AddCert(c)
+	}
+
+	// Quick smoke test to check the pool is well formed, and that we didn't end
+	// up trusting roots in the removed folder.
+	for _, c := range certs {
+		if c.Subject.CommonName == "Symantec Class 2 Public Primary Certification Authority - G4" {
+			log.Fatal("The pool includes a removed root!")
+		}
+	}
+	conn, err := tls.Dial("tcp", "mail.google.com:443", &tls.Config{
+		RootCAs: pool,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn.Close()
+
+	certName := func(c *x509.Certificate) string {
+		if c.Subject.CommonName != "" {
+			return c.Subject.CommonName
+		}
+		if len(c.Subject.OrganizationalUnit) > 0 {
+			return c.Subject.OrganizationalUnit[0]
+		}
+		return c.Subject.Organization[0]
+	}
+	sort.Slice(certs, func(i, j int) bool {
+		if strings.ToLower(certName(certs[i])) != strings.ToLower(certName(certs[j])) {
+			return strings.ToLower(certName(certs[i])) < strings.ToLower(certName(certs[j]))
+		}
+		return certs[i].NotBefore.Before(certs[j].NotBefore)
+	})
+
+	out := new(bytes.Buffer)
+	fmt.Fprintf(out, header, *version)
+	fmt.Fprintf(out, "const systemRootsPEM = `\n")
+
+	for _, c := range certs {
+		fmt.Fprintf(out, "# %q\n", certName(c))
+		h := sha256.Sum256(c.Raw)
+		fmt.Fprintf(out, "# % X\n", h[:len(h)/2])
+		fmt.Fprintf(out, "# % X\n", h[len(h)/2:])
 		b := &pem.Block{
 			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
+			Bytes: c.Raw,
 		}
-		if err := pem.Encode(buf, b); err != nil {
+		if err := pem.Encode(out, b); err != nil {
 			log.Fatal(err)
 		}
 	}
-	fmt.Fprintf(buf, "`")
 
-	source, err := format.Source(buf.Bytes())
+	fmt.Fprintf(out, "`")
+
+	source, err := format.Source(out.Bytes())
 	if err != nil {
-		log.Fatal("source format error:", err)
+		log.Fatal(err)
 	}
 	if err := ioutil.WriteFile(*output, source, 0644); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func selectCerts() ([]*x509.Certificate, error) {
-	ids, err := fetchCertIDs()
-	if err != nil {
-		return nil, err
-	}
-
-	scerts, err := sysCerts()
-	if err != nil {
-		return nil, err
-	}
-
-	var certs []*x509.Certificate
-	for _, id := range ids {
-		if c, ok := scerts[id.fingerprint]; ok {
-			certs = append(certs, c)
-		} else {
-			fmt.Printf("WARNING: cannot find certificate: %s (fingerprint: %s)\n", id.name, id.fingerprint)
-		}
-	}
-	return certs, nil
-}
-
-func sysCerts() (certs map[string]*x509.Certificate, err error) {
-	cmd := exec.Command("/usr/bin/security", "find-certificate", "-a", "-p", "/System/Library/Keychains/SystemRootCertificates.keychain")
-	data, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	certs = make(map[string]*x509.Certificate)
-	for len(data) > 0 {
-		var block *pem.Block
-		block, data = pem.Decode(data)
-		if block == nil {
-			break
-		}
-		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			continue
-		}
-
-		fingerprint := sha256.Sum256(cert.Raw)
-		certs[hex.EncodeToString(fingerprint[:])] = cert
-	}
-	return certs, nil
-}
-
-type certID struct {
-	name        string
-	fingerprint string
-}
-
-// fetchCertIDs fetches IDs of iOS X509 certificates from apple.com.
-func fetchCertIDs() ([]certID, error) {
-	// Download the iOS 11 support page. The index for all iOS versions is here:
-	// https://support.apple.com/en-us/HT204132
-	resp, err := http.Get("https://support.apple.com/en-us/HT208125")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	text := string(body)
-	text = text[strings.Index(text, "<div id=trusted"):]
-	text = text[:strings.Index(text, "</div>")]
-
-	var ids []certID
-	cols := make(map[string]int)
-	for i, rowmatch := range regexp.MustCompile("(?s)<tr>(.*?)</tr>").FindAllStringSubmatch(text, -1) {
-		row := rowmatch[1]
-		if i == 0 {
-			// Parse table header row to extract column names
-			for i, match := range regexp.MustCompile("(?s)<th>(.*?)</th>").FindAllStringSubmatch(row, -1) {
-				cols[match[1]] = i
-			}
-			continue
-		}
-
-		values := regexp.MustCompile("(?s)<td>(.*?)</td>").FindAllStringSubmatch(row, -1)
-		name := values[cols["Certificate name"]][1]
-		fingerprint := values[cols["Fingerprint (SHA-256)"]][1]
-		fingerprint = strings.ReplaceAll(fingerprint, "<br>", "")
-		fingerprint = strings.ReplaceAll(fingerprint, "\n", "")
-		fingerprint = strings.ReplaceAll(fingerprint, " ", "")
-		fingerprint = strings.ToLower(fingerprint)
-
-		ids = append(ids, certID{
-			name:        name,
-			fingerprint: fingerprint,
-		})
-	}
-	return ids, nil
-}
-
-const header = `// Code generated by root_darwin_arm64_gen.go; DO NOT EDIT.
-
-//go:generate go run root_darwin_arm64_gen.go -output root_darwin_arm64.go
+const header = `// Code generated by root_darwin_arm64_gen.go -version %s; DO NOT EDIT.
+// Update the version in root.go and regenerate with "go generate".
 
 // +build !x509omitbundledroots
 
