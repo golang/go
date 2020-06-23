@@ -235,6 +235,23 @@ func (t *translator) findTypeSpec(qid qualifiedIdent) (*ast.TypeSpec, error) {
 	if !ok {
 		return nil, fmt.Errorf("could not find type spec for %q", qid)
 	}
+
+	if spec.Assign != token.NoPos {
+		// This is a type alias that we need to resolve.
+		typ := t.lookupType(spec.Type)
+		if typ != nil {
+			if named, ok := typ.(*types.Named); ok {
+				if s, ok := t.importer.lookupTypeSpec(named.Obj()); ok {
+					spec = s
+				}
+			}
+		}
+	}
+
+	if spec.TParams == nil {
+		return nil, fmt.Errorf("found type spec for %q but it has no type parameters", qid)
+	}
+
 	return spec, nil
 }
 

@@ -49,7 +49,7 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
 // isTranslatableType reports whether a type spec can be translated to Go1.
 // This is false if the type spec relies on any features that use generics.
 func isTranslatableType(s ast.Spec, info *types.Info) bool {
-	if isParameterizedTypeDecl(s) {
+	if isParameterizedTypeDecl(s, info) {
 		return false
 	}
 	if isTypeBound(s, info) {
@@ -62,9 +62,25 @@ func isTranslatableType(s ast.Spec, info *types.Info) bool {
 }
 
 // isParameterizedTypeDecl reports whether s is a parameterized type.
-func isParameterizedTypeDecl(s ast.Spec) bool {
+func isParameterizedTypeDecl(s ast.Spec, info *types.Info) bool {
 	ts := s.(*ast.TypeSpec)
-	return ts.TParams != nil
+	if ts.TParams != nil {
+		return true
+	}
+	if ts.Assign == token.NoPos {
+		return false
+	}
+
+	// This is a type alias. Try to resolve it.
+	typ := info.TypeOf(ts.Type)
+	if typ == nil {
+		return false
+	}
+	named, ok := typ.(*types.Named)
+	if !ok {
+		return false
+	}
+	return len(named.TParams()) > 0 && len(named.TArgs()) == 0
 }
 
 // isTypeBound reports whether s is an interface type that includes a
