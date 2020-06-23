@@ -45,7 +45,7 @@ func main() {
 			env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
 		)
 		if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
-			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(want, got))
+			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
 		}
 		// Save the buffer, which will format and organize imports.
 		// Confirm that the go.mod file still does not change.
@@ -54,7 +54,7 @@ func main() {
 			env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
 		)
 		if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
-			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(want, got))
+			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
 		}
 	}, WithProxy(proxy))
 }

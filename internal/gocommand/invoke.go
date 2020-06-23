@@ -185,7 +185,6 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 		cmd.Env = append(cmd.Env, "PWD="+i.WorkingDir)
 		cmd.Dir = i.WorkingDir
 	}
-
 	defer func(start time.Time) { log("%s for %v", time.Since(start), cmdDebugStr(cmd)) }(time.Now())
 
 	return runCmdContext(ctx, cmd)

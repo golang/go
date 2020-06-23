@@ -1,7 +1,6 @@
 package imports
 
 import (
-	"go/build"
 	"os"
 	"testing"
 
@@ -32,8 +31,6 @@ func TestNilOpts(t *testing.T) {
 			name: "default",
 			opt: &Options{
 				Env: &ProcessEnv{
-					GOPATH:      build.Default.GOPATH,
-					GOROOT:      build.Default.GOROOT,
 					GocmdRunner: &gocommand.Runner{},
 				},
 				Comments:  true,

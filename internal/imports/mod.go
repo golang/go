@@ -79,7 +79,11 @@ func (r *ModuleResolver) init() error {
 		r.initAllMods()
 	}
 
-	r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.GOPATH)[0], "/pkg/mod")
+	if gmc := r.env.Env["GOMODCACHE"]; gmc != "" {
+		r.moduleCacheDir = gmc
+	} else {
+		r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.gopath())[0], "/pkg/mod")
+	}
 
 	sort.Slice(r.modsByModPath, func(i, j int) bool {
 		count := func(x int) int {
@@ -95,7 +99,7 @@ func (r *ModuleResolver) init() error {
 	})
 
 	r.roots = []gopathwalk.Root{
-		{filepath.Join(r.env.GOROOT, "/src"), gopathwalk.RootGOROOT},
+		{filepath.Join(r.env.goroot(), "/src"), gopathwalk.RootGOROOT},
 	}
 	if r.main != nil {
 		r.roots = append(r.roots, gopathwalk.Root{r.main.Dir, gopathwalk.RootCurrentModule})

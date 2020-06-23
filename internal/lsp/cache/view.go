@@ -114,8 +114,10 @@ type View struct {
 	// build system.
 	goCommand bool
 
-	// `go env` variables that need to be tracked.
-	gopath, gocache, goprivate string
+	// `go env` variables that need to be tracked by gopls.
+	gocache, gomodcache, gopath, goprivate string
+
+	goEnv map[string]string
 
 	// gocmdRunner guards go command calls from concurrency errors.
 	gocmdRunner *gocommand.Runner
@@ -464,13 +466,16 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 	cleanup = func() {}
 
 	v.optionsMu.Lock()
-	env, buildFlags := v.envLocked()
+	_, buildFlags := v.envLocked()
 	localPrefix, verboseOutput := v.options.LocalPrefix, v.options.VerboseOutput
 	v.optionsMu.Unlock()
 
 	pe := v.processEnv
-
+	pe.LocalPrefix = localPrefix
+	pe.GocmdRunner = v.gocmdRunner
 	pe.BuildFlags = buildFlags
+	pe.Env = v.goEnv
+	pe.WorkingDir = v.folder.Filename()
 
 	// Add -modfile to the build flags, if we are using it.
 	if modFH != nil {
@@ -482,37 +487,10 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 		pe.BuildFlags = append(pe.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
 
-	pe.WorkingDir = v.folder.Filename()
-	pe.LocalPrefix = localPrefix
-	pe.GocmdRunner = v.gocmdRunner
-
 	if verboseOutput {
 		pe.Logf = func(format string, args ...interface{}) {
 			event.Log(ctx, fmt.Sprintf(format, args...))
 		}
-	}
-	for _, kv := range env {
-		split := strings.SplitN(kv, "=", 2)
-		if len(split) < 2 {
-			continue
-		}
-		switch split[0] {
-		case "GOPATH":
-			pe.GOPATH = split[1]
-		case "GOROOT":
-			pe.GOROOT = split[1]
-		case "GO111MODULE":
-			pe.GO111MODULE = split[1]
-		case "GOPROXY":
-			pe.GOPROXY = split[1]
-		case "GOFLAGS":
-			pe.GOFLAGS = split[1]
-		case "GOSUMDB":
-			pe.GOSUMDB = split[1]
-		}
-	}
-	if pe.GOPATH == "" {
-		return nil, fmt.Errorf("no GOPATH for view %s", v.folder)
 	}
 	return cleanup, nil
 }
@@ -520,8 +498,7 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 // envLocked returns the environment and build flags for the current view.
 // It assumes that the caller is holding the view's optionsMu.
 func (v *View) envLocked() ([]string, []string) {
-	env := []string{fmt.Sprintf("GOPATH=%s", v.gopath)}
-	env = append(env, v.options.Env...)
+	env := append([]string{}, v.options.Env...)
 	buildFlags := append([]string{}, v.options.BuildFlags...)
 	return env, buildFlags
 }
@@ -650,8 +627,7 @@ func (v *View) IgnoredFile(uri span.URI) bool {
 		}
 	} else {
 		mainMod := filepath.Dir(v.modURI.Filename())
-		modCache := filepath.Join(filepath.SplitList(v.gopath)[0], "/pkg/mod")
-		prefixes = []string{mainMod, modCache}
+		prefixes = []string{mainMod, v.gomodcache}
 	}
 
 	for _, prefix := range prefixes {
@@ -747,11 +723,10 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []s
 		return fmt.Errorf("invalid workspace configuration: %w", err)
 	}
 	// Make sure to get the `go env` before continuing with initialization.
-	gomod, err := v.getGoEnv(ctx, env)
+	modFile, err := v.setGoEnv(ctx, env)
 	if err != nil {
 		return err
 	}
-	modFile := strings.TrimSpace(gomod)
 	if modFile == os.DevNull {
 		return nil
 	}
@@ -813,80 +788,52 @@ func isSubdirectory(root, leaf string) bool {
 	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
-// getGoEnv sets the view's build information's GOPATH, GOCACHE, GOPRIVATE, and
-// GOPACKAGESDRIVER values.  It also returns the view's GOMOD value, which need
-// not be cached.
-func (v *View) getGoEnv(ctx context.Context, env []string) (string, error) {
-	var gocache, gopath, gopackagesdriver, goprivate bool
-	isGoCommand := func(gopackagesdriver string) bool {
-		return gopackagesdriver == "" || gopackagesdriver == "off"
+// setGoEnv sets the view's various GO* values. It also returns the view's
+// GOMOD value, which need not be cached.
+func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error) {
+	var gomod string
+	vars := map[string]*string{
+		"GOCACHE":    &v.gocache,
+		"GOPATH":     &v.gopath,
+		"GOPRIVATE":  &v.goprivate,
+		"GOMODCACHE": &v.gomodcache,
+		"GOMOD":      &gomod,
 	}
-	for _, e := range env {
-		split := strings.Split(e, "=")
-		if len(split) != 2 {
-			continue
-		}
-		switch split[0] {
-		case "GOCACHE":
-			v.gocache = split[1]
-			gocache = true
-		case "GOPATH":
-			v.gopath = split[1]
-			gopath = true
-		case "GOPRIVATE":
-			v.goprivate = split[1]
-			goprivate = true
-		case "GOPACKAGESDRIVER":
-			v.goCommand = isGoCommand(split[1])
-			gopackagesdriver = true
-		}
+	// We can save ~200 ms by requesting only the variables we care about.
+	args := append([]string{"-json"}, imports.RequiredGoEnvVars...)
+	for k := range vars {
+		args = append(args, k)
+	}
+
+	inv := gocommand.Invocation{
+		Verb:       "env",
+		Args:       args,
+		Env:        configEnv,
+		WorkingDir: v.Folder().Filename(),
 	}
 	// Don't go through runGoCommand, as we don't need a temporary -modfile to
 	// run `go env`.
-	inv := gocommand.Invocation{
-		Verb:       "env",
-		Args:       []string{"-json"},
-		Env:        env,
-		WorkingDir: v.Folder().Filename(),
-	}
 	stdout, err := v.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return "", err
 	}
-	envMap := make(map[string]string)
-	decoder := json.NewDecoder(stdout)
-	if err := decoder.Decode(&envMap); err != nil {
+	if err := json.Unmarshal(stdout.Bytes(), &v.goEnv); err != nil {
 		return "", err
 	}
-	if !gopath {
-		if gopath, ok := envMap["GOPATH"]; ok {
-			v.gopath = gopath
-		} else {
-			return "", errors.New("unable to determine GOPATH")
-		}
-	}
-	if !gocache {
-		if gocache, ok := envMap["GOCACHE"]; ok {
-			v.gocache = gocache
-		} else {
-			return "", errors.New("unable to determine GOCACHE")
-		}
-	}
-	if !goprivate {
-		if goprivate, ok := envMap["GOPRIVATE"]; ok {
-			v.goprivate = goprivate
-		}
-		// No error here: GOPRIVATE is not essential.
-	}
-	// The value of GOPACKAGESDRIVER is not returned through the go command.
-	if !gopackagesdriver {
-		v.goCommand = isGoCommand(os.Getenv("GOPACKAGESDRIVER"))
-	}
-	if gomod, ok := envMap["GOMOD"]; ok {
-		return gomod, nil
-	}
-	return "", nil
 
+	for key, ptr := range vars {
+		*ptr = v.goEnv[key]
+	}
+
+	// Old versions of Go don't have GOMODCACHE, so emulate it.
+	if v.gomodcache == "" && v.gopath != "" {
+		v.gomodcache = filepath.Join(filepath.SplitList(v.gopath)[0], "pkg/mod")
+	}
+
+	// The value of GOPACKAGESDRIVER is not returned through the go command.
+	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
+	v.goCommand = gopackagesdriver == "" || gopackagesdriver == "off"
+	return gomod, nil
 }
 
 func (v *View) IsGoPrivatePath(target string) bool {

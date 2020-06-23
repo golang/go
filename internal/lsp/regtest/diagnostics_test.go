@@ -418,7 +418,7 @@ func Hello() {
 	})
 }
 
-// Tests golang/go#37984.
+// Tests golang/go#37984: GOPATH should be read from the go command.
 func TestNoGOPATH_Issue37984(t *testing.T) {
 	const missingImport = `
 -- main.go --
@@ -431,9 +431,8 @@ func _() {
 	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
-		if err := env.Editor.OrganizeImports(env.Ctx, "main.go"); err == nil {
-			t.Fatalf("organize imports should fail with an empty GOPATH")
-		}
+		env.SaveBuffer("main.go")
+		env.Await(EmptyDiagnostics("main.go"))
 	}, WithEditorConfig(fake.EditorConfig{Env: []string{"GOPATH="}}))
 }
 

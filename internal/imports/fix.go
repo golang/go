@@ -7,6 +7,7 @@ package imports
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -598,7 +599,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	// Start off with the standard library.
 	for importPath, exports := range stdlib {
 		p := &pkg{
-			dir:             filepath.Join(env.GOROOT, "src", importPath),
+			dir:             filepath.Join(env.goroot(), "src", importPath),
 			importPathShort: importPath,
 			packageName:     path.Base(importPath),
 			relevance:       MaxRelevance,
@@ -743,6 +744,8 @@ func getPackageExports(ctx context.Context, wrapped func(PackageExport), searchP
 	return getCandidatePkgs(ctx, callback, filename, filePkg, env)
 }
 
+var RequiredGoEnvVars = []string{"GO111MODULE", "GOFLAGS", "GOINSECURE", "GOMOD", "GOMODCACHE", "GONOPROXY", "GONOSUMDB", "GOPATH", "GOPROXY", "GOROOT", "GOSUMDB"}
+
 // ProcessEnv contains environment variables and settings that affect the use of
 // the go command, the go/build package, etc.
 type ProcessEnv struct {
@@ -752,15 +755,34 @@ type ProcessEnv struct {
 
 	BuildFlags []string
 
-	// If non-empty, these will be used instead of the
-	// process-wide values.
-	GOPATH, GOROOT, GO111MODULE, GOPROXY, GOFLAGS, GOSUMDB string
-	WorkingDir                                             string
+	// Env overrides the OS environment, and can be used to specify
+	// GOPROXY, GO111MODULE, etc. PATH cannot be set here, because
+	// exec.Command will not honor it.
+	// Specifying all of RequiredGoEnvVars avoids a call to `go env`.
+	Env map[string]string
+
+	WorkingDir string
 
 	// If Logf is non-nil, debug logging is enabled through this function.
 	Logf func(format string, args ...interface{})
 
 	resolver Resolver
+}
+
+func (e *ProcessEnv) goroot() string {
+	return e.mustGetEnv("GOROOT")
+}
+
+func (e *ProcessEnv) gopath() string {
+	return e.mustGetEnv("GOPATH")
+}
+
+func (e *ProcessEnv) mustGetEnv(k string) string {
+	v, ok := e.Env[k]
+	if !ok {
+		panic(fmt.Sprintf("%v not set in evaluated environment", k))
+	}
+	return v
 }
 
 // CopyConfig copies the env's configuration into a new env.
@@ -770,21 +792,40 @@ func (e *ProcessEnv) CopyConfig() *ProcessEnv {
 	return &copy
 }
 
-func (e *ProcessEnv) env() []string {
-	env := os.Environ()
-	add := func(k, v string) {
-		if v != "" {
-			env = append(env, k+"="+v)
+func (e *ProcessEnv) init() error {
+	foundAllRequired := true
+	for _, k := range RequiredGoEnvVars {
+		if _, ok := e.Env[k]; !ok {
+			foundAllRequired = false
+			break
 		}
 	}
-	add("GOPATH", e.GOPATH)
-	add("GOROOT", e.GOROOT)
-	add("GO111MODULE", e.GO111MODULE)
-	add("GOPROXY", e.GOPROXY)
-	add("GOFLAGS", e.GOFLAGS)
-	add("GOSUMDB", e.GOSUMDB)
-	if e.WorkingDir != "" {
-		add("PWD", e.WorkingDir)
+	if foundAllRequired {
+		return nil
+	}
+
+	if e.Env == nil {
+		e.Env = map[string]string{}
+	}
+
+	goEnv := map[string]string{}
+	stdout, err := e.invokeGo(context.TODO(), "env", append([]string{"-json"}, RequiredGoEnvVars...)...)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &goEnv); err != nil {
+		return err
+	}
+	for k, v := range goEnv {
+		e.Env[k] = v
+	}
+	return nil
+}
+
+func (e *ProcessEnv) env() []string {
+	var env []string // the gocommand package will prepend os.Environ.
+	for k, v := range e.Env {
+		env = append(env, k+"="+v)
 	}
 	return env
 }
@@ -793,8 +834,7 @@ func (e *ProcessEnv) GetResolver() Resolver {
 	if e.resolver != nil {
 		return e.resolver
 	}
-	out, err := e.invokeGo(context.TODO(), "env", "GOMOD")
-	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
+	if len(e.Env["GOMOD"]) == 0 {
 		e.resolver = newGopathResolver(e)
 		return e.resolver
 	}
@@ -804,8 +844,8 @@ func (e *ProcessEnv) GetResolver() Resolver {
 
 func (e *ProcessEnv) buildContext() *build.Context {
 	ctx := build.Default
-	ctx.GOROOT = e.GOROOT
-	ctx.GOPATH = e.GOPATH
+	ctx.GOROOT = e.goroot()
+	ctx.GOPATH = e.gopath()
 
 	// As of Go 1.14, build.Context has a Dir field
 	// (see golang.org/issue/34860).
@@ -839,7 +879,7 @@ func (e *ProcessEnv) invokeGo(ctx context.Context, verb string, args ...string) 
 func addStdlibCandidates(pass *pass, refs references) {
 	add := func(pkg string) {
 		// Prevent self-imports.
-		if path.Base(pkg) == pass.f.Name.Name && filepath.Join(pass.env.GOROOT, "src", pkg) == pass.srcDir {
+		if path.Base(pkg) == pass.f.Name.Name && filepath.Join(pass.env.goroot(), "src", pkg) == pass.srcDir {
 			return
 		}
 		exports := copyExports(stdlib[pkg])

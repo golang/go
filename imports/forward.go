@@ -3,9 +3,7 @@
 package imports // import "golang.org/x/tools/imports"
 
 import (
-	"go/build"
 	"log"
-	"os"
 
 	intimp "golang.org/x/tools/internal/imports"
 )
@@ -42,12 +40,6 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	}
 	intopt := &intimp.Options{
 		Env: &intimp.ProcessEnv{
-			GOPATH:      build.Default.GOPATH,
-			GOROOT:      build.Default.GOROOT,
-			GOFLAGS:     os.Getenv("GOFLAGS"),
-			GO111MODULE: os.Getenv("GO111MODULE"),
-			GOPROXY:     os.Getenv("GOPROXY"),
-			GOSUMDB:     os.Getenv("GOSUMDB"),
 			LocalPrefix: LocalPrefix,
 		},
 		AllErrors:  opt.AllErrors,

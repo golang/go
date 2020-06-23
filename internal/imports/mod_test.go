@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -240,7 +239,7 @@ import _ "rsc.io/sampler"
 
 	// Clear out the resolver's cache, since we've changed the environment.
 	mt.resolver = newModuleResolver(mt.env)
-	mt.env.GOFLAGS = "-mod=vendor"
+	mt.env.Env["GOFLAGS"] = "-mod=vendor"
 	mt.assertModuleFoundInDir("rsc.io/sampler", "sampler", `/vendor/`)
 }
 
@@ -686,16 +685,20 @@ func setup(t *testing.T, main, wd string) *modTest {
 	}
 
 	env := &ProcessEnv{
-		GOROOT:      build.Default.GOROOT,
-		GOPATH:      filepath.Join(dir, "gopath"),
-		GO111MODULE: "on",
-		GOPROXY:     proxydir.ToURL(proxyDir),
-		GOSUMDB:     "off",
+		Env: map[string]string{
+			"GOPATH":      filepath.Join(dir, "gopath"),
+			"GO111MODULE": "on",
+			"GOSUMDB":     "off",
+			"GOPROXY":     proxydir.ToURL(proxyDir),
+		},
 		WorkingDir:  filepath.Join(mainDir, wd),
 		GocmdRunner: &gocommand.Runner{},
 	}
 	if *testDebug {
 		env.Logf = log.Printf
+	}
+	if err := env.init(); err != nil {
+		t.Fatal(err)
 	}
 
 	// go mod download gets mad if we don't have a go.mod, so make sure we do.
@@ -838,7 +841,7 @@ package x
 import _ "rsc.io/quote"
 `, "")
 	defer mt.cleanup()
-	want := filepath.Join(mt.resolver.env.GOPATH, "pkg/mod", "rsc.io/quote@v1.5.2")
+	want := filepath.Join(mt.resolver.env.gopath(), "pkg/mod", "rsc.io/quote@v1.5.2")
 
 	found := mt.assertScanFinds("rsc.io/quote", "quote")
 	modDir, _ := mt.resolver.modInfo(found.dir)
@@ -864,12 +867,16 @@ func TestInvalidModCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	env := &ProcessEnv{
-		GOROOT:      build.Default.GOROOT,
-		GOPATH:      filepath.Join(dir, "gopath"),
-		GO111MODULE: "on",
-		GOSUMDB:     "off",
+		Env: map[string]string{
+			"GOPATH":      filepath.Join(dir, "gopath"),
+			"GO111MODULE": "on",
+			"GOSUMDB":     "off",
+		},
 		GocmdRunner: &gocommand.Runner{},
 		WorkingDir:  dir,
+	}
+	if err := env.init(); err != nil {
+		t.Fatal(err)
 	}
 	resolver := newModuleResolver(env)
 	scanToSlice(resolver, nil)
@@ -938,10 +945,11 @@ import _ "rsc.io/quote"
 func BenchmarkScanModCache(b *testing.B) {
 	testenv.NeedsGo1Point(b, 11)
 	env := &ProcessEnv{
-		GOPATH:      build.Default.GOPATH,
-		GOROOT:      build.Default.GOROOT,
 		GocmdRunner: &gocommand.Runner{},
 		Logf:        log.Printf,
+	}
+	if err := env.init(); err != nil {
+		b.Fatal(err)
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	scanToSlice(env.GetResolver(), exclude)

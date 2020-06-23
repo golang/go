@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/build"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -1562,12 +1561,13 @@ var _ = bytes.Buffer
 
 	testConfig{
 		module: packagestest.Module{
-			Name: "ignored.com",
+			Name:  "ignored.com",
+			Files: fm{"x.go": "package x"},
 		},
 	}.test(t, func(t *goimportTest) {
 		// Run in GOROOT/src so that the std module shows up in go list -m all.
-		t.env.WorkingDir = filepath.Join(t.env.GOROOT, "src")
-		got, err := t.processNonModule(filepath.Join(t.env.GOROOT, "src/x.go"), []byte(input), nil)
+		t.env.WorkingDir = filepath.Join(t.env.goroot(), "src")
+		got, err := t.processNonModule(filepath.Join(t.env.goroot(), "src/x.go"), []byte(input), nil)
 		if err != nil {
 			t.Fatalf("Process() = %v", err)
 		}
@@ -1585,10 +1585,11 @@ var _ = ecdsa.GenerateKey
 
 	testConfig{
 		module: packagestest.Module{
-			Name: "ignored.com",
+			Name:  "ignored.com",
+			Files: fm{"x.go": "package x"},
 		},
 	}.test(t, func(t *goimportTest) {
-		got, err := t.processNonModule(filepath.Join(t.env.GOROOT, "src/crypto/ecdsa/foo.go"), []byte(input), nil)
+		got, err := t.processNonModule(filepath.Join(t.env.goroot(), "src/crypto/ecdsa/foo.go"), []byte(input), nil)
 		if err != nil {
 			t.Fatalf("Process() = %v", err)
 		}
@@ -1623,32 +1624,25 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 			exported := packagestest.Export(t, exporter, c.modules)
 			defer exported.Cleanup()
 
-			env := make(map[string]string)
+			env := map[string]string{}
 			for _, kv := range exported.Config.Env {
-				split := strings.Split(kv, "=")
-				k, v := split[0], split[1]
-				env[k] = v
+				split := strings.SplitN(kv, "=", 2)
+				env[split[0]] = split[1]
 			}
-
 			it := &goimportTest{
 				T: t,
 				env: &ProcessEnv{
-					GOROOT:      env["GOROOT"],
-					GOPATH:      env["GOPATH"],
-					GO111MODULE: env["GO111MODULE"],
-					GOSUMDB:     env["GOSUMDB"],
+					Env:         env,
 					WorkingDir:  exported.Config.Dir,
 					GocmdRunner: &gocommand.Runner{},
 				},
 				exported: exported,
 			}
+			if err := it.env.init(); err != nil {
+				t.Fatal(err)
+			}
 			if *testDebug {
 				it.env.Logf = log.Printf
-			}
-			if it.env.GOROOT == "" {
-				// packagestest clears out GOROOT to work around https://golang.org/issue/32849,
-				// which isn't relevant here. Fill it back in so we can find the standard library.
-				it.env.GOROOT = build.Default.GOROOT
 			}
 			fn(it)
 		})
