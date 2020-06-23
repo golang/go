@@ -42,15 +42,60 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	}{
 		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
-		{[]byte(`broken flag\`), []string{"broken", "flag"}},
 		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
 		{[]byte("     \r\n      "), nil},
+		{[]byte(`"-r:foo" "-L/usr/white space/lib" "-lfoo bar" "-lbar baz"`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
+		{[]byte(`"-lextra fun arg\\"`), []string{`-lextra fun arg\`}},
+		{[]byte(`"     \r\n\      "`), []string{`     \r\n\      `}},
+		{[]byte(`""`), nil},
+		{[]byte(``), nil},
+		{[]byte(`"\\"`), []string{`\`}},
+		{[]byte(`"\x"`), []string{`\x`}},
+		{[]byte(`"\\x"`), []string{`\x`}},
+		{[]byte(`'\\'`), []string{`\`}},
+		{[]byte(`'\x'`), []string{`\x`}},
+		{[]byte(`"\\x"`), []string{`\x`}},
+		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='"/test/share/doc"'`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
+		{[]byte(`-fPIC -I/test/include/foo -DQUOTED="/test/share/doc"`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
+		{[]byte(`-fPIC -I/test/include/foo -DQUOTED=\"/test/share/doc\"`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
+		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='/test/share/doc'`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
+		{[]byte(`-DQUOTED='/te\st/share/d\oc'`), []string{`-DQUOTED=/te\st/share/d\oc`}},
+		{[]byte(`-Dhello=10 -Dworld=+32 -DDEFINED_FROM_PKG_CONFIG=hello\ world`), []string{"-Dhello=10", "-Dworld=+32", "-DDEFINED_FROM_PKG_CONFIG=hello world"}},
+		{[]byte(`"broken\"" \\\a "a"`), []string{"broken\"", "\\a", "a"}},
 	} {
-		got := splitPkgConfigOutput(test.in)
+		got, err := splitPkgConfigOutput(test.in)
+		if err != nil {
+			t.Errorf("splitPkgConfigOutput on %v failed with error %v", test.in, err)
+			continue
+		}
 		if !reflect.DeepEqual(got, test.want) {
 			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
 		}
 	}
+
+	for _, test := range []struct {
+		in   []byte
+		want []string
+	}{
+		// broken quotation
+		{[]byte(`"     \r\n      `), nil},
+		{[]byte(`"-r:foo" "-L/usr/white space/lib "-lfoo bar" "-lbar baz"`), nil},
+		{[]byte(`"-lextra fun arg\\`), nil},
+		// broken char escaping
+		{[]byte(`broken flag\`), nil},
+		{[]byte(`extra broken flag \`), nil},
+		{[]byte(`\`), nil},
+		{[]byte(`"broken\"" "extra" \`), nil},
+	} {
+		got, err := splitPkgConfigOutput(test.in)
+		if err == nil {
+			t.Errorf("splitPkgConfigOutput(%v) = %v; haven't failed with error as expected.", test.in, got)
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+		}
+	}
+
 }
 
 func TestSharedLibName(t *testing.T) {
@@ -175,8 +220,13 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("can't set SetGID bit with chmod on nacl")
+	switch runtime.GOOS {
+	case "darwin":
+		if runtime.GOARCH == "arm64" {
+			t.Skip("can't set SetGID bit with chmod on iOS")
+		}
+	case "windows", "plan9":
+		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
 
 	var b Builder
@@ -195,11 +245,13 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 	defer os.RemoveAll(setgiddir)
 
-	if runtime.GOOS == "freebsd" {
-		err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
-		if err != nil {
-			t.Fatal(err)
-		}
+	// BSD mkdir(2) inherits the parent directory group, and other platforms
+	// can inherit the parent directory group via setgid. The test setup (chmod
+	// setgid) will fail if the process does not have the group permission to
+	// the new temporary directory.
+	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
@@ -215,7 +267,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	defer pkgfile.Close()
 
 	dirGIDFile := filepath.Join(setgiddir, "setgid")
-	if err := b.moveOrCopyFile(nil, dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
+	if err := b.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
 		t.Fatalf("moveOrCopyFile: %v", err)
 	}
 

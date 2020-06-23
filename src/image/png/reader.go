@@ -4,7 +4,7 @@
 
 // Package png implements a PNG image decoder and encoder.
 //
-// The PNG specification is at http://www.w3.org/TR/PNG/.
+// The PNG specification is at https://www.w3.org/TR/PNG/.
 package png
 
 import (
@@ -73,7 +73,7 @@ type interlaceScan struct {
 }
 
 // interlacing defines Adam7 interlacing, with 7 passes of reduced images.
-// See http://www.w3.org/TR/PNG/#8Interlace
+// See https://www.w3.org/TR/PNG/#8Interlace
 var interlacing = []interlaceScan{
 	{8, 8, 0, 0},
 	{8, 8, 4, 0},
@@ -89,7 +89,7 @@ var interlacing = []interlaceScan{
 // present), IDAT and IEND chunks must appear in that order. There may be
 // multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
 // have any other chunks between them).
-// http://www.w3.org/TR/PNG/#5ChunkOrdering
+// https://www.w3.org/TR/PNG/#5ChunkOrdering
 const (
 	dsStart = iota
 	dsSeenIHDR
@@ -157,15 +157,22 @@ func (d *decoder) parseIHDR(length uint32) error {
 		return FormatError("invalid interlace method")
 	}
 	d.interlace = int(d.tmp[12])
+
 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
 	if w <= 0 || h <= 0 {
 		return FormatError("non-positive dimension")
 	}
-	nPixels := int64(w) * int64(h)
-	if nPixels != int64(int(nPixels)) {
+	nPixels64 := int64(w) * int64(h)
+	nPixels := int(nPixels64)
+	if nPixels64 != int64(nPixels) {
 		return UnsupportedError("dimension overflow")
 	}
+	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
+	if nPixels != (nPixels*8)/8 {
+		return UnsupportedError("dimension overflow")
+	}
+
 	d.cb = cbInvalid
 	d.depth = int(d.tmp[8])
 	switch d.depth {
@@ -492,7 +499,10 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 	bytesPerPixel := (bitsPerPixel + 7) / 8
 
 	// The +1 is for the per-row filter type, which is at cr[0].
-	rowSize := 1 + (bitsPerPixel*width+7)/8
+	rowSize := 1 + (int64(bitsPerPixel)*int64(width)+7)/8
+	if rowSize != int64(int(rowSize)) {
+		return nil, UnsupportedError("dimension overflow")
+	}
 	// cr and pr are the bytes for the current and previous row.
 	cr := make([]uint8, rowSize)
 	pr := make([]uint8, rowSize)
@@ -700,7 +710,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 			}
 		case cbP8:
-			if len(paletted.Palette) != 255 {
+			if len(paletted.Palette) != 256 {
 				for x := 0; x < width; x++ {
 					if len(paletted.Palette) <= int(cdat[x]) {
 						paletted.Palette = paletted.Palette[:int(cdat[x])+1]
@@ -852,8 +862,7 @@ func (d *decoder) parseIEND(length uint32) error {
 
 func (d *decoder) parseChunk() error {
 	// Read the length and chunk type.
-	n, err := io.ReadFull(d.r, d.tmp[:8])
-	if err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
 	}
 	length := binary.BigEndian.Uint32(d.tmp[:4])
@@ -910,7 +919,7 @@ func (d *decoder) parseChunk() error {
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
 	for length > 0 {
-		n, err = io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
+		n, err := io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
 		if err != nil {
 			return err
 		}

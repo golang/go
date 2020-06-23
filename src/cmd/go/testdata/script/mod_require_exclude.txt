@@ -1,0 +1,33 @@
+# build with no newer version to satisfy exclude
+env GO111MODULE=on
+! go list -m all
+stderr 'no newer version available'
+
+# build with newer version available
+cp go.mod2 go.mod
+go list -m all
+stdout 'rsc.io/quote v1.5.2'
+
+# build with excluded newer version
+cp go.mod3 go.mod
+go list -m all
+stdout 'rsc.io/quote v1.5.1'
+
+-- x.go --
+package x
+import _ "rsc.io/quote"
+
+-- go.mod --
+module x
+exclude rsc.io/sampler latest
+require rsc.io/sampler latest
+
+-- go.mod2 --
+module x
+exclude rsc.io/quote v1.5.1
+require rsc.io/quote v1.5.1
+
+-- go.mod3 --
+module x
+exclude rsc.io/quote v1.5.2
+require rsc.io/quote v1.5.1

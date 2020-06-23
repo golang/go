@@ -97,9 +97,11 @@ type Array struct {
 }
 
 // NewArray returns a new array type for the given element type and length.
+// A negative length indicates an unknown length.
 func NewArray(elem Type, len int64) *Array { return &Array{len, elem} }
 
 // Len returns the length of array a.
+// A negative result indicates an unknown length.
 func (a *Array) Len() int64 { return a.len }
 
 // Elem returns element type of array a.
@@ -139,7 +141,7 @@ func NewStruct(fields []*Var, tags []string) *Struct {
 	return &Struct{fields: fields, tags: tags}
 }
 
-// NumFields returns the number of fields in the struct (including blank and anonymous fields).
+// NumFields returns the number of fields in the struct (including blank and embedded fields).
 func (s *Struct) NumFields() int { return len(s.fields) }
 
 // Field returns the i'th field for 0 <= i < NumFields().
@@ -240,31 +242,67 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	methods   []*Func  // ordered list of explicitly declared methods
-	embeddeds []*Named // ordered list of explicitly embedded types
+	methods   []*Func // ordered list of explicitly declared methods
+	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 }
 
-// NewInterface returns a new interface for the given methods and embedded types.
+// emptyInterface represents the empty (completed) interface
+var emptyInterface = Interface{allMethods: markComplete}
+
+// markComplete is used to mark an empty interface as completely
+// set up by setting the allMethods field to a non-nil empty slice.
+var markComplete = make([]*Func, 0)
+
+// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
+// Each embedded type must have an underlying type of interface type.
+// NewInterface takes ownership of the provided methods and may modify their types by setting
+// missing receivers. To compute the method set of the interface, Complete must be called.
+//
+// Deprecated: Use NewInterfaceType instead which allows any (even non-defined) interface types
+// to be embedded. This is necessary for interfaces that embed alias type names referring to
+// non-defined (literal) interface types.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+	tnames := make([]Type, len(embeddeds))
+	for i, t := range embeddeds {
+		tnames[i] = t
+	}
+	return NewInterfaceType(methods, tnames)
+}
+
+// NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
+// Each embedded type must have an underlying type of interface type (this property is not
+// verified for defined types, which may be in the process of being set up and which don't
+// have a valid underlying type yet).
+// NewInterfaceType takes ownership of the provided methods and may modify their types by setting
+// missing receivers. To compute the method set of the interface, Complete must be called.
+func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+	if len(methods) == 0 && len(embeddeds) == 0 {
+		return &emptyInterface
+	}
+
+	// set method receivers if necessary
 	typ := new(Interface)
-
-	var mset objset
 	for _, m := range methods {
-		if mset.insert(m) != nil {
-			panic("multiple methods with the same name")
+		if sig := m.typ.(*Signature); sig.recv == nil {
+			sig.recv = NewVar(m.pos, m.pkg, "", typ)
 		}
-		// set receiver
-		// TODO(gri) Ideally, we should use a named type here instead of
-		// typ, for less verbose printing of interface method signatures.
-		m.typ.(*Signature).recv = NewVar(m.pos, m.pkg, "", typ)
 	}
-	sort.Sort(byUniqueMethodName(methods))
 
-	if embeddeds == nil {
-		sort.Sort(byUniqueTypeName(embeddeds))
+	// All embedded types should be interfaces; however, defined types
+	// may not yet be fully resolved. Only verify that non-defined types
+	// are interfaces. This matches the behavior of the code before the
+	// fix for #25301 (issue #25596).
+	for _, t := range embeddeds {
+		if _, ok := t.(*Named); !ok && !IsInterface(t) {
+			panic("embedded type is not an interface")
+		}
 	}
+
+	// sort for API stability
+	sort.Sort(byUniqueMethodName(methods))
+	sort.Stable(byUniqueTypeName(embeddeds))
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
@@ -281,53 +319,86 @@ func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
 // NumEmbeddeds returns the number of embedded types in interface t.
 func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 
-// Embedded returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
-// The types are ordered by the corresponding TypeName's unique Id.
-func (t *Interface) Embedded(i int) *Named { return t.embeddeds[i] }
+// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
+// The result is nil if the i'th embedded type is not a defined type.
+//
+// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
+func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
+
+// EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
-func (t *Interface) NumMethods() int { return len(t.allMethods) }
+// The interface must have been completed.
+func (t *Interface) NumMethods() int { t.assertCompleteness(); return len(t.allMethods) }
+
+func (t *Interface) assertCompleteness() {
+	if t.allMethods == nil {
+		panic("interface is incomplete")
+	}
+}
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 // The methods are ordered by their unique Id.
-func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
+// The interface must have been completed.
+func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
 
-// Empty returns true if t is the empty interface.
-func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+// Empty reports whether t is the empty interface.
+// The interface must have been completed.
+func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
 
 // Complete computes the interface's method set. It must be called by users of
-// NewInterface after the interface's embedded types are fully defined and
-// before using the interface type in any way other than to form other types.
-// Complete returns the receiver.
+// NewInterfaceType and NewInterface after the interface's embedded types are
+// fully defined and before using the interface type in any way other than to
+// form other types. The interface must not contain duplicate methods or a
+// panic occurs. Complete returns the receiver.
 func (t *Interface) Complete() *Interface {
+	// TODO(gri) consolidate this method with Checker.completeInterface
 	if t.allMethods != nil {
 		return t
 	}
 
-	var allMethods []*Func
-	if t.embeddeds == nil {
-		if t.methods == nil {
-			allMethods = make([]*Func, 0, 1)
-		} else {
-			allMethods = t.methods
+	t.allMethods = markComplete // avoid infinite recursion
+
+	var todo []*Func
+	var methods []*Func
+	var seen objset
+	addMethod := func(m *Func, explicit bool) {
+		switch other := seen.insert(m); {
+		case other == nil:
+			methods = append(methods, m)
+		case explicit:
+			panic("duplicate method " + m.name)
+		default:
+			// check method signatures after all locally embedded interfaces are computed
+			todo = append(todo, m, other.(*Func))
 		}
-	} else {
-		allMethods = append(allMethods, t.methods...)
-		for _, et := range t.embeddeds {
-			it := et.Underlying().(*Interface)
-			it.Complete()
-			for _, tm := range it.allMethods {
-				// Make a copy of the method and adjust its receiver type.
-				newm := *tm
-				newmtyp := *tm.typ.(*Signature)
-				newm.typ = &newmtyp
-				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
-				allMethods = append(allMethods, &newm)
-			}
-		}
-		sort.Sort(byUniqueMethodName(allMethods))
 	}
-	t.allMethods = allMethods
+
+	for _, m := range t.methods {
+		addMethod(m, true)
+	}
+
+	for _, typ := range t.embeddeds {
+		typ := typ.Underlying().(*Interface)
+		typ.Complete()
+		for _, m := range typ.allMethods {
+			addMethod(m, false)
+		}
+	}
+
+	for i := 0; i < len(todo); i += 2 {
+		m := todo[i]
+		other := todo[i+1]
+		if !Identical(m.typ, other.typ) {
+			panic("duplicate method " + m.name)
+		}
+	}
+
+	if methods != nil {
+		sort.Sort(byUniqueMethodName(methods))
+		t.allMethods = methods
+	}
 
 	return t
 }
@@ -377,18 +448,21 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
+	info       typeInfo  // for cycle detection
 	obj        *TypeName // corresponding declared object
+	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
-	methods    []*Func   // methods declared for this type (not the method set of this type)
+	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+// If the given type name obj doesn't have a type yet, its type is set to the returned named type.
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, underlying: underlying, methods: methods}
+	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -405,7 +479,6 @@ func (t *Named) NumMethods() int { return len(t.methods) }
 func (t *Named) Method(i int) *Func { return t.methods[i] }
 
 // SetUnderlying sets the underlying type and marks t as complete.
-// TODO(gri) determine if there's a better solution rather than providing this function
 func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
 		panic("types.Named.SetUnderlying: underlying type must not be nil")
@@ -417,7 +490,6 @@ func (t *Named) SetUnderlying(underlying Type) {
 }
 
 // AddMethod adds method m unless it is already in the method list.
-// TODO(gri) find a better solution instead of providing this function
 func (t *Named) AddMethod(m *Func) {
 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
 		t.methods = append(t.methods, m)
@@ -426,26 +498,26 @@ func (t *Named) AddMethod(m *Func) {
 
 // Implementations for Type methods.
 
-func (t *Basic) Underlying() Type     { return t }
-func (t *Array) Underlying() Type     { return t }
-func (t *Slice) Underlying() Type     { return t }
-func (t *Struct) Underlying() Type    { return t }
-func (t *Pointer) Underlying() Type   { return t }
+func (b *Basic) Underlying() Type     { return b }
+func (a *Array) Underlying() Type     { return a }
+func (s *Slice) Underlying() Type     { return s }
+func (s *Struct) Underlying() Type    { return s }
+func (p *Pointer) Underlying() Type   { return p }
 func (t *Tuple) Underlying() Type     { return t }
-func (t *Signature) Underlying() Type { return t }
+func (s *Signature) Underlying() Type { return s }
 func (t *Interface) Underlying() Type { return t }
-func (t *Map) Underlying() Type       { return t }
-func (t *Chan) Underlying() Type      { return t }
+func (m *Map) Underlying() Type       { return m }
+func (c *Chan) Underlying() Type      { return c }
 func (t *Named) Underlying() Type     { return t.underlying }
 
-func (t *Basic) String() string     { return TypeString(t, nil) }
-func (t *Array) String() string     { return TypeString(t, nil) }
-func (t *Slice) String() string     { return TypeString(t, nil) }
-func (t *Struct) String() string    { return TypeString(t, nil) }
-func (t *Pointer) String() string   { return TypeString(t, nil) }
+func (b *Basic) String() string     { return TypeString(b, nil) }
+func (a *Array) String() string     { return TypeString(a, nil) }
+func (s *Slice) String() string     { return TypeString(s, nil) }
+func (s *Struct) String() string    { return TypeString(s, nil) }
+func (p *Pointer) String() string   { return TypeString(p, nil) }
 func (t *Tuple) String() string     { return TypeString(t, nil) }
-func (t *Signature) String() string { return TypeString(t, nil) }
+func (s *Signature) String() string { return TypeString(s, nil) }
 func (t *Interface) String() string { return TypeString(t, nil) }
-func (t *Map) String() string       { return TypeString(t, nil) }
-func (t *Chan) String() string      { return TypeString(t, nil) }
+func (m *Map) String() string       { return TypeString(m, nil) }
+func (c *Chan) String() string      { return TypeString(c, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }

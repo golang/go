@@ -69,6 +69,55 @@ func (A10 /* ERROR invalid receiver */ ) m1() {}
 // x0 has methods m1, m2 declared via receiver type names T0 and A0
 var _ interface{ m1(); m2() } = x0
 
+// alias receiver types (test case for issue #23042)
+type T struct{}
+
+var (
+	_ = T.m
+	_ = T{}.m
+	_ interface{m()} = T{}
+)
+
+var (
+	_ = T.n
+	_ = T{}.n
+	_ interface{m(); n()} = T{}
+)
+
+type U = T
+func (U) m() {}
+
+// alias receiver types (long type declaration chains)
+type (
+	V0 = V1
+	V1 = (V2)
+	V2 = ((V3))
+	V3 = T
+)
+
+func (V0) m /* ERROR already declared */ () {}
+func (V1) n() {}
+
+// alias receiver types (invalid due to cycles)
+type (
+	W0 /* ERROR illegal cycle */ = W1
+	W1 = (W2)
+	W2 = ((W0))
+)
+
+func (W0) m() {} // no error expected (due to above cycle error)
+func (W1) n() {}
+
+// alias receiver types (invalid due to builtin underlying type)
+type (
+	B0 = B1
+	B1 = B2
+	B2 = int
+)
+
+func (B0 /* ERROR invalid receiver */ ) m() {}
+func (B1 /* ERROR invalid receiver */ ) n() {}
+
 // cycles
 type (
 	C2 /* ERROR illegal cycle */ = C2
@@ -141,8 +190,8 @@ type eD struct {
 }
 
 var (
-	_ = eD /* ERROR ambiguous selector */ {}.xf
-	_ = eD /* ERROR ambiguous selector */ {}.xm
+	_ = eD{}.xf /* ERROR ambiguous selector \(eD literal\).xf */
+	_ = eD{}.xm /* ERROR ambiguous selector \(eD literal\).xm */
 )
 
 var (

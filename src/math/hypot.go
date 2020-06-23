@@ -26,12 +26,7 @@ func hypot(p, q float64) float64 {
 	case IsNaN(p) || IsNaN(q):
 		return NaN()
 	}
-	if p < 0 {
-		p = -p
-	}
-	if q < 0 {
-		q = -q
-	}
+	p, q = Abs(p), Abs(q)
 	if p < q {
 		p, q = q, p
 	}

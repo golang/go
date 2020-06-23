@@ -7,9 +7,9 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods;
@@ -24,7 +24,7 @@ func (s *MethodSet) String() string {
 		return "MethodSet {}"
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprintln(&buf, "MethodSet {")
 	for _, f := range s.list {
 		fmt.Fprintf(&buf, "\t%s\n", f)
@@ -62,6 +62,11 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 // Shared empty method set.
 var emptyMethodSet MethodSet
 
+// Note: NewMethodSet is intended for external use only as it
+//       requires interfaces to be complete. If may be used
+//       internally if LookupFieldOrMethod completed the same
+//       interfaces beforehand.
+
 // NewMethodSet returns the method set for the given type T.
 // It always returns a non-nil method set, even if it is empty.
 func NewMethodSet(T Type) *MethodSet {
@@ -94,8 +99,8 @@ func NewMethodSet(T Type) *MethodSet {
 	for len(current) > 0 {
 		var next []embeddedType // embedded types found at current depth
 
-		// field and method sets at current depth, allocated lazily
-		var fset fieldSet
+		// field and method sets at current depth, indexed by names (Id's), and allocated lazily
+		var fset map[string]bool // we only care about the field names
 		var mset methodSet
 
 		for _, e := range current {
@@ -126,13 +131,16 @@ func NewMethodSet(T Type) *MethodSet {
 			switch t := typ.(type) {
 			case *Struct:
 				for i, f := range t.fields {
-					fset = fset.add(f, e.multiples)
+					if fset == nil {
+						fset = make(map[string]bool)
+					}
+					fset[f.Id()] = true
 
 					// Embedded fields are always of the form T or *T where
 					// T is a type name. If typ appeared multiple times at
 					// this depth, f.Type appears multiple times at the next
 					// depth.
-					if f.anonymous {
+					if f.embedded {
 						typ, isPtr := deref(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and
@@ -151,7 +159,7 @@ func NewMethodSet(T Type) *MethodSet {
 		for k, m := range mset {
 			if _, found := base[k]; !found {
 				// Fields collide with methods of the same name at this depth.
-				if _, found := fset[k]; found {
+				if fset[k] {
 					m = nil // collision
 				}
 				if base == nil {
@@ -161,21 +169,23 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		// Multiple fields with matching names collide at this depth and shadow all
-		// entries further down; add them as collisions to base if no entries with
-		// matching names exist already.
-		for k, f := range fset {
-			if f == nil {
-				if _, found := base[k]; !found {
-					if base == nil {
-						base = make(methodSet)
-					}
-					base[k] = nil // collision
+		// Add all (remaining) fields at this depth as collisions (since they will
+		// hide any method further down) if no entries with matching names exist already.
+		for k := range fset {
+			if _, found := base[k]; !found {
+				if base == nil {
+					base = make(methodSet)
 				}
+				base[k] = nil // collision
 			}
 		}
 
-		current = consolidateMultiples(next)
+		// It's ok to call consolidateMultiples with a nil *Checker because
+		// MethodSets are not used internally (outside debug mode). When used
+		// externally, interfaces are expected to be completed and then we do
+		// not need a *Checker to complete them when (indirectly) calling
+		// Checker.identical via consolidateMultiples.
+		current = (*Checker)(nil).consolidateMultiples(next)
 	}
 
 	if len(base) == 0 {
@@ -197,33 +207,9 @@ func NewMethodSet(T Type) *MethodSet {
 	return &MethodSet{list}
 }
 
-// A fieldSet is a set of fields and name collisions.
-// A collision indicates that multiple fields with the
-// same unique id appeared.
-type fieldSet map[string]*Var // a nil entry indicates a name collision
-
-// Add adds field f to the field set s.
-// If multiples is set, f appears multiple times
-// and is treated as a collision.
-func (s fieldSet) add(f *Var, multiples bool) fieldSet {
-	if s == nil {
-		s = make(fieldSet)
-	}
-	key := f.Id()
-	// if f is not in the set, add it
-	if !multiples {
-		if _, found := s[key]; !found {
-			s[key] = f
-			return s
-		}
-	}
-	s[key] = nil // collision
-	return s
-}
-
 // A methodSet is a set of methods and name collisions.
 // A collision indicates that multiple methods with the
-// same unique id appeared.
+// same unique id, or a field with that id appeared.
 type methodSet map[string]*Selection // a nil entry indicates a name collision
 
 // Add adds all functions in list to the method set s.
@@ -255,8 +241,20 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
 }
 
 // ptrRecv reports whether the receiver is of the form *T.
-// The receiver must exist.
 func ptrRecv(f *Func) bool {
-	_, isPtr := deref(f.typ.(*Signature).recv.typ)
-	return isPtr
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil f.typ).
+	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
+		return isPtr
+	}
+
+	// If a method's type is not set it may be a method/function that is:
+	// 1) client-supplied (via NewFunc with no signature), or
+	// 2) internally created but not yet type-checked.
+	// For case 1) we can't do anything; the client must know what they are doing.
+	// For case 2) we can use the information gathered by the resolver.
+	return f.hasPtrRecv
 }

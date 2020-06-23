@@ -43,30 +43,34 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 		if br.bits > 0 {
 			// Get next bit - fast path.
 			br.bits--
-			bit = 0 - (uint16(br.n>>br.bits) & 1)
+			bit = uint16(br.n>>(br.bits&63)) & 1
 		} else {
 			// Get next bit - slow path.
 			// Use ReadBits to retrieve a single bit
 			// from the underling io.ByteReader.
-			bit = 0 - uint16(br.ReadBits(1))
+			bit = uint16(br.ReadBits(1))
 		}
-		// now
-		// bit = 0xffff if the next bit was 1
-		// bit = 0x0000 if the next bit was 0
 
-		// 1 means left, 0 means right.
-		//
-		// if bit == 0xffff {
-		//     nodeIndex = node.left
-		// } else {
-		//     nodeIndex = node.right
-		// }
-		nodeIndex = (bit & node.left) | (^bit & node.right)
+		// Trick a compiler into generating conditional move instead of branch,
+		// by making both loads unconditional.
+		l, r := node.left, node.right
+
+		if bit == 1 {
+			nodeIndex = l
+		} else {
+			nodeIndex = r
+		}
 
 		if nodeIndex == invalidNodeValue {
 			// We found a leaf. Use the value of bit to decide
 			// whether is a left or a right value.
-			return (bit & node.leftValue) | (^bit & node.rightValue)
+			l, r := node.leftValue, node.rightValue
+			if bit == 1 {
+				v = l
+			} else {
+				v = r
+			}
+			return
 		}
 	}
 }
@@ -90,13 +94,24 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// First we sort the code length assignments by ascending code length,
 	// using the symbol value to break ties.
-	pairs := huffmanSymbolLengthPairs(make([]huffmanSymbolLengthPair, len(lengths)))
+	pairs := make([]huffmanSymbolLengthPair, len(lengths))
 	for i, length := range lengths {
 		pairs[i].value = uint16(i)
 		pairs[i].length = length
 	}
 
-	sort.Sort(pairs)
+	sort.Slice(pairs, func(i, j int) bool {
+		if pairs[i].length < pairs[j].length {
+			return true
+		}
+		if pairs[i].length > pairs[j].length {
+			return false
+		}
+		if pairs[i].value < pairs[j].value {
+			return true
+		}
+		return false
+	})
 
 	// Now we assign codes to the symbols, starting with the longest code.
 	// We keep the codes packed into a uint32, at the most-significant end.
@@ -105,7 +120,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 	code := uint32(0)
 	length := uint8(32)
 
-	codes := huffmanCodes(make([]huffmanCode, len(lengths)))
+	codes := make([]huffmanCode, len(lengths))
 	for i := len(pairs) - 1; i >= 0; i-- {
 		if length > pairs[i].length {
 			length = pairs[i].length
@@ -120,7 +135,9 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// Now we can sort by the code so that the left half of each branch are
 	// grouped together, recursively.
-	sort.Sort(codes)
+	sort.Slice(codes, func(i, j int) bool {
+		return codes[i].code < codes[j].code
+	})
 
 	t.nodes = make([]huffmanNode, len(codes))
 	_, err := buildHuffmanNode(&t, codes, 0)
@@ -133,50 +150,11 @@ type huffmanSymbolLengthPair struct {
 	length uint8
 }
 
-// huffmanSymbolLengthPair is used to provide an interface for sorting.
-type huffmanSymbolLengthPairs []huffmanSymbolLengthPair
-
-func (h huffmanSymbolLengthPairs) Len() int {
-	return len(h)
-}
-
-func (h huffmanSymbolLengthPairs) Less(i, j int) bool {
-	if h[i].length < h[j].length {
-		return true
-	}
-	if h[i].length > h[j].length {
-		return false
-	}
-	if h[i].value < h[j].value {
-		return true
-	}
-	return false
-}
-
-func (h huffmanSymbolLengthPairs) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
 // huffmanCode contains a symbol, its code and code length.
 type huffmanCode struct {
 	code    uint32
 	codeLen uint8
 	value   uint16
-}
-
-// huffmanCodes is used to provide an interface for sorting.
-type huffmanCodes []huffmanCode
-
-func (n huffmanCodes) Len() int {
-	return len(n)
-}
-
-func (n huffmanCodes) Less(i, j int) bool {
-	return n[i].code < n[j].code
-}
-
-func (n huffmanCodes) Swap(i, j int) {
-	n[i], n[j] = n[j], n[i]
 }
 
 // buildHuffmanNode takes a slice of sorted huffmanCodes and builds a node in

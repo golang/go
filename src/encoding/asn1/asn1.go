@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -250,7 +251,7 @@ func (oi ObjectIdentifier) String() string {
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
 // returns it. An object identifier is a sequence of variable length integers
 // that are assigned in a hierarchy.
-func parseObjectIdentifier(bytes []byte) (s []int, err error) {
+func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
@@ -312,6 +313,12 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 		}
 		ret64 <<= 7
 		b := bytes[offset]
+		// integers should be minimally encoded, so the leading octet should
+		// never be 0x80
+		if shifted == 0 && b == 0x80 {
+			err = SyntaxError{"integer is not minimally encoded"}
+			return
+		}
 		ret64 |= int64(b & 0x7f)
 		offset++
 		if b&0x80 == 0 {
@@ -372,13 +379,32 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 	return
 }
 
+// NumericString
+
+// parseNumericString parses an ASN.1 NumericString from the given byte array
+// and returns it.
+func parseNumericString(bytes []byte) (ret string, err error) {
+	for _, b := range bytes {
+		if !isNumeric(b) {
+			return "", SyntaxError{"NumericString contains invalid character"}
+		}
+	}
+	return string(bytes), nil
+}
+
+// isNumeric reports whether the given b is in the ASN.1 NumericString set.
+func isNumeric(b byte) bool {
+	return '0' <= b && b <= '9' ||
+		b == ' '
+}
+
 // PrintableString
 
-// parsePrintableString parses a ASN.1 PrintableString from the given byte
+// parsePrintableString parses an ASN.1 PrintableString from the given byte
 // array and returns it.
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if !isPrintable(b) {
+		if !isPrintable(b, allowAsterisk, allowAmpersand) {
 			err = SyntaxError{"PrintableString contains invalid character"}
 			return
 		}
@@ -387,8 +413,21 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 	return
 }
 
+type asteriskFlag bool
+type ampersandFlag bool
+
+const (
+	allowAsterisk  asteriskFlag = true
+	rejectAsterisk asteriskFlag = false
+
+	allowAmpersand  ampersandFlag = true
+	rejectAmpersand ampersandFlag = false
+)
+
 // isPrintable reports whether the given b is in the ASN.1 PrintableString set.
-func isPrintable(b byte) bool {
+// If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
+// practice. If ampersand is allowAmpersand then '&' is allowed as well.
+func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
 		'0' <= b && b <= '9' ||
@@ -401,12 +440,17 @@ func isPrintable(b byte) bool {
 		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
-		b == '*'
+		(bool(asterisk) && b == '*') ||
+		// This is not technically allowed either. However, not
+		// only is it relatively common, but there are also a
+		// handful of CA certificates that contain it. At least
+		// one of which will not expire until 2027.
+		(bool(ampersand) && b == '&')
 }
 
 // IA5String
 
-// parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
+// parseIA5String parses an ASN.1 IA5String (ASCII string) from the given
 // byte slice and returns it.
 func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
@@ -421,7 +465,7 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 
 // T61String
 
-// parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
+// parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
@@ -429,13 +473,36 @@ func parseT61String(bytes []byte) (ret string, err error) {
 
 // UTF8String
 
-// parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
+// parseUTF8String parses an ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
 func parseUTF8String(bytes []byte) (ret string, err error) {
 	if !utf8.Valid(bytes) {
 		return "", errors.New("asn1: invalid UTF-8 string")
 	}
 	return string(bytes), nil
+}
+
+// BMPString
+
+// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
+// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
+func parseBMPString(bmpString []byte) (string, error) {
+	if len(bmpString)%2 != 0 {
+		return "", errors.New("pkcs12: odd-length BMP string")
+	}
+
+	// Strip terminator if present.
+	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
+		bmpString = bmpString[:l-2]
+	}
+
+	s := make([]uint16, 0, len(bmpString)/2)
+	for len(bmpString) > 0 {
+		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		bmpString = bmpString[2:]
+	}
+
+	return string(utf16.Decode(s)), nil
 }
 
 // A RawValue represents an undecoded ASN.1 object.
@@ -536,7 +603,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 // a number of ASN.1 values from the given byte slice and returns them as a
 // slice of Go values of the given type.
 func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err error) {
-	expectedTag, compoundType, ok := getUniversalType(elemType)
+	matchAny, expectedTag, compoundType, ok := getUniversalType(elemType)
 	if !ok {
 		err = StructuralError{"unknown Go type for slice"}
 		return
@@ -552,7 +619,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
@@ -562,7 +629,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			t.tag = TagUTCTime
 		}
 
-		if t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+		if !matchAny && (t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag) {
 			err = StructuralError{"sequence tag mismatch"}
 			return
 		}
@@ -596,7 +663,7 @@ var (
 	bigIntType           = reflect.TypeOf(new(big.Int))
 )
 
-// invalidLength returns true iff offset + length > sliceLength, or if the
+// invalidLength reports whether offset + length > sliceLength, or if the
 // addition would overflow.
 func invalidLength(offset, length, sliceLength int) bool {
 	return offset+length < offset || offset+length > sliceLength
@@ -617,23 +684,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 
-	// Deal with raw values.
-	if fieldType == rawValueType {
-		var t tagAndLength
-		t, offset, err = parseTagAndLength(bytes, offset)
-		if err != nil {
-			return
-		}
-		if invalidLength(offset, t.length, len(bytes)) {
-			err = SyntaxError{"data truncated"}
-			return
-		}
-		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
-		offset += t.length
-		v.Set(reflect.ValueOf(result))
-		return
-	}
-
 	// Deal with the ANY type.
 	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
 		var t tagAndLength
@@ -651,6 +701,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			switch t.tag {
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
+			case TagNumericString:
+				result, err = parseNumericString(innerBytes)
 			case TagIA5String:
 				result, err = parseIA5String(innerBytes)
 			case TagT61String:
@@ -669,6 +721,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseGeneralizedTime(innerBytes)
 			case TagOctetString:
 				result = innerBytes
+			case TagBMPString:
+				result, err = parseBMPString(innerBytes)
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
 			}
@@ -680,11 +734,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if result != nil {
 			v.Set(reflect.ValueOf(result))
 		}
-		return
-	}
-	universalTag, compoundType, ok1 := getUniversalType(fieldType)
-	if !ok1 {
-		err = StructuralError{fmt.Sprintf("unknown Go type: %v", fieldType)}
 		return
 	}
 
@@ -702,7 +751,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
-			if t.length > 0 {
+			if fieldType == rawValueType {
+				// The inner element should not be parsed for RawValues.
+			} else if t.length > 0 {
 				t, offset, err = parseTagAndLength(bytes, offset)
 				if err != nil {
 					return
@@ -727,6 +778,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 	}
 
+	matchAny, universalTag, compoundType, ok1 := getUniversalType(fieldType)
+	if !ok1 {
+		err = StructuralError{fmt.Sprintf("unknown Go type: %v", fieldType)}
+		return
+	}
+
 	// Special case for strings: all the ASN.1 string types map to the Go
 	// type string. getUniversalType returns the tag for PrintableString
 	// when it sees a string, so if we see a different string type on the
@@ -734,7 +791,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	if universalTag == TagPrintableString {
 		if t.class == ClassUniversal {
 			switch t.tag {
-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -752,21 +809,31 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		universalTag = TagSet
 	}
 
+	matchAnyClassAndTag := matchAny
 	expectedClass := ClassUniversal
 	expectedTag := universalTag
 
 	if !params.explicit && params.tag != nil {
 		expectedClass = ClassContextSpecific
 		expectedTag = *params.tag
+		matchAnyClassAndTag = false
 	}
 
 	if !params.explicit && params.application && params.tag != nil {
 		expectedClass = ClassApplication
 		expectedTag = *params.tag
+		matchAnyClassAndTag = false
+	}
+
+	if !params.explicit && params.private && params.tag != nil {
+		expectedClass = ClassPrivate
+		expectedTag = *params.tag
+		matchAnyClassAndTag = false
 	}
 
 	// We have unwrapped any explicit tagging at this point.
-	if t.class != expectedClass || t.tag != expectedTag || t.isCompound != compoundType {
+	if !matchAnyClassAndTag && (t.class != expectedClass || t.tag != expectedTag) ||
+		(!matchAny && t.isCompound != compoundType) {
 		// Tags don't match. Again, it could be an optional element.
 		ok := setDefaultValue(v, params)
 		if ok {
@@ -785,6 +852,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// We deal with the structures defined in this package first.
 	switch fieldType {
+	case rawValueType:
+		result := RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
+		v.Set(reflect.ValueOf(result))
+		return
 	case objectIdentifierType:
 		newSlice, err1 := parseObjectIdentifier(innerBytes)
 		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
@@ -904,6 +975,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		switch universalTag {
 		case TagPrintableString:
 			v, err = parsePrintableString(innerBytes)
+		case TagNumericString:
+			v, err = parseNumericString(innerBytes)
 		case TagIA5String:
 			v, err = parseIA5String(innerBytes)
 		case TagT61String:
@@ -916,6 +989,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			// that allow the encoding to change midstring and
 			// such. We give up and pass it as an 8-bit string.
 			v, err = parseT61String(innerBytes)
+		case TagBMPString:
+			v, err = parseBMPString(innerBytes)
+
 		default:
 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
 		}
@@ -961,6 +1037,12 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names.
 //
+// After parsing b, any bytes that were leftover and not used to fill
+// val will be returned in rest. When parsing a SEQUENCE into a struct,
+// any trailing elements of the SEQUENCE that do not have matching
+// fields in val will not be included in rest, as these are considered
+// valid elements of the SEQUENCE and not trailing data.
+//
 // An ASN.1 INTEGER can be written to an int, int32, int64,
 // or *big.Int (from the math/big package).
 // If the encoded value does not fit in the Go type,
@@ -977,7 +1059,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
 //
-// An ASN.1 PrintableString or IA5String can be written to a string.
+// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
 //
 // Any of the above ASN.1 values can be written to an interface{}.
 // The value stored in the interface has the corresponding Go type.
@@ -992,7 +1074,8 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // The following tags on struct fields have special meaning to Unmarshal:
 //
-//	application specifies that a APPLICATION tag is used
+//	application specifies that an APPLICATION tag is used
+//	private     specifies that a PRIVATE tag is used
 //	default:x   sets the default value for optional integer fields (only used if optional is also present)
 //	explicit    specifies that an additional, explicit tag wraps the implicit one
 //	optional    marks the field as ASN.1 OPTIONAL

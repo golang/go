@@ -1,5 +1,5 @@
 // Inferno utils/5l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/obj.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,77 +34,56 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"fmt"
 )
 
-// Reading object files.
-
-func Init() {
+func Init() (*sys.Arch, ld.Arch) {
+	arch := sys.ArchMIPS
 	if objabi.GOARCH == "mipsle" {
-		ld.SysArch = sys.ArchMIPSLE
-	} else {
-		ld.SysArch = sys.ArchMIPS
+		arch = sys.ArchMIPSLE
 	}
 
-	ld.Thearch.Funcalign = FuncAlign
-	ld.Thearch.Maxalign = MaxAlign
-	ld.Thearch.Minalign = MinAlign
-	ld.Thearch.Dwarfregsp = DWARFREGSP
-	ld.Thearch.Dwarfreglr = DWARFREGLR
+	theArch := ld.Arch{
+		Funcalign:  FuncAlign,
+		Maxalign:   MaxAlign,
+		Minalign:   MinAlign,
+		Dwarfregsp: DWARFREGSP,
+		Dwarfreglr: DWARFREGLR,
 
-	ld.Thearch.Adddynrel = adddynrel
-	ld.Thearch.Archinit = archinit
-	ld.Thearch.Archreloc = archreloc
-	ld.Thearch.Archrelocvariant = archrelocvariant
-	ld.Thearch.Asmb = asmb
-	ld.Thearch.Elfreloc1 = elfreloc1
-	ld.Thearch.Elfsetupplt = elfsetupplt
-	ld.Thearch.Gentext = gentext
-	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.SysArch == sys.ArchMIPSLE {
-		ld.Thearch.Lput = ld.Lputl
-		ld.Thearch.Wput = ld.Wputl
-		ld.Thearch.Vput = ld.Vputl
-		ld.Thearch.Append16 = ld.Append16l
-		ld.Thearch.Append32 = ld.Append32l
-		ld.Thearch.Append64 = ld.Append64l
-	} else {
-		ld.Thearch.Lput = ld.Lputb
-		ld.Thearch.Wput = ld.Wputb
-		ld.Thearch.Vput = ld.Vputb
-		ld.Thearch.Append16 = ld.Append16b
-		ld.Thearch.Append32 = ld.Append32b
-		ld.Thearch.Append64 = ld.Append64b
+		Adddynrel:        adddynrel,
+		Archinit:         archinit,
+		Archreloc:        archreloc,
+		Archrelocvariant: archrelocvariant,
+		Asmb:             asmb,
+		Asmb2:            asmb2,
+		Elfreloc1:        elfreloc1,
+		Elfsetupplt:      elfsetupplt,
+		Gentext2:         gentext2,
+		Machoreloc1:      machoreloc1,
+
+		Linuxdynld: "/lib/ld.so.1",
+
+		Freebsddynld:   "XXX",
+		Openbsddynld:   "XXX",
+		Netbsddynld:    "XXX",
+		Dragonflydynld: "XXX",
+		Solarisdynld:   "XXX",
 	}
 
-	ld.Thearch.Linuxdynld = "/lib/ld.so.1"
-
-	ld.Thearch.Freebsddynld = "XXX"
-	ld.Thearch.Openbsddynld = "XXX"
-	ld.Thearch.Netbsddynld = "XXX"
-	ld.Thearch.Dragonflydynld = "XXX"
-	ld.Thearch.Solarisdynld = "XXX"
+	return arch, theArch
 }
 
 func archinit(ctxt *ld.Link) {
-	switch ld.Headtype {
+	switch ctxt.HeadType {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.Headtype)
+		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 	case objabi.Hlinux: /* mips elf */
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
 		}
-	}
-
-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
 	}
 }

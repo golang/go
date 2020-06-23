@@ -36,7 +36,7 @@ func TestListenMulticastUDP(t *testing.T) {
 
 	c1, err := ListenMulticastUDP("udp4", mifc, &UDPAddr{IP: ParseIP("224.0.0.254")})
 	if err != nil {
-		t.Fatalf("multicast not working on %s", runtime.GOOS)
+		t.Fatalf("multicast not working on %s: %v", runtime.GOOS, err)
 	}
 	c1addr := c1.LocalAddr().(*UDPAddr)
 	if err != nil {

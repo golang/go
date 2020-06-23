@@ -11,6 +11,9 @@
 // The default Source is safe for concurrent use by multiple goroutines, but
 // Sources created by NewSource are not.
 //
+// Mathematical interval notation such as [0, n) is used throughout the
+// documentation for this package.
+//
 // For random numbers suitable for security-sensitive work, see the crypto/rand
 // package.
 package rand
@@ -213,24 +216,16 @@ again:
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
-	for i := range m {
-		m[i] = i
+	// In the following loop, the iteration when i=0 always swaps m[0] with m[0].
+	// A change to remove this useless iteration is to assign 1 to i in the init
+	// statement. But Perm also effects r. Making this change will affect
+	// the final state of r. So this change can't be made for compatibility
+	// reasons for Go 1.
+	for i := 0; i < n; i++ {
+		j := r.Intn(i + 1)
+		m[i] = m[j]
+		m[j] = i
 	}
-
-	// The code that follows is equivalent to calling
-	//   r.Shuffle(n, func(i, j int) { m[i], m[j] = m[j], m[i] })
-	// but with the swap function inlined.
-	// This inlining provides a 10-15% speed-up.
-	i := n - 1
-	for ; i > 1<<31-1-1; i-- {
-		j := int(r.Int63n(int64(i + 1)))
-		m[i], m[j] = m[j], m[i]
-	}
-	for ; i > 0; i-- {
-		j := int(r.int31n(int32(i + 1)))
-		m[i], m[j] = m[j], m[i]
-	}
-
 	return m
 }
 
@@ -266,15 +261,20 @@ func (r *Rand) Read(p []byte) (n int, err error) {
 	if lk, ok := r.src.(*lockedSource); ok {
 		return lk.read(p, &r.readVal, &r.readPos)
 	}
-	return read(p, r.Int63, &r.readVal, &r.readPos)
+	return read(p, r.src, &r.readVal, &r.readPos)
 }
 
-func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, err error) {
+func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error) {
 	pos := *readPos
 	val := *readVal
+	rng, _ := src.(*rngSource)
 	for n = 0; n < len(p); n++ {
 		if pos == 0 {
-			val = int63()
+			if rng != nil {
+				val = rng.Int63()
+			} else {
+				val = src.Int63()
+			}
 			pos = 7
 		}
 		p[n] = byte(val)
@@ -290,12 +290,15 @@ func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, e
  * Top-level convenience functions
  */
 
-var globalRand = New(&lockedSource{src: NewSource(1).(Source64)})
+var globalRand = New(&lockedSource{src: NewSource(1).(*rngSource)})
+
+// Type assert that globalRand's source is a lockedSource whose src is a *rngSource.
+var _ *rngSource = globalRand.src.(*lockedSource).src
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
 // if seeded by Seed(1). Seed values that have the same remainder when
-// divided by 2^31-1 generate the same pseudo-random sequence.
+// divided by 2³¹-1 generate the same pseudo-random sequence.
 // Seed, unlike the Rand.Seed method, is safe for concurrent use.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
@@ -378,7 +381,7 @@ func ExpFloat64() float64 { return globalRand.ExpFloat64() }
 
 type lockedSource struct {
 	lk  sync.Mutex
-	src Source64
+	src *rngSource
 }
 
 func (r *lockedSource) Int63() (n int64) {
@@ -401,7 +404,7 @@ func (r *lockedSource) Seed(seed int64) {
 	r.lk.Unlock()
 }
 
-// seedPos implements Seed for a lockedSource without a race condiiton.
+// seedPos implements Seed for a lockedSource without a race condition.
 func (r *lockedSource) seedPos(seed int64, readPos *int8) {
 	r.lk.Lock()
 	r.src.Seed(seed)
@@ -412,7 +415,7 @@ func (r *lockedSource) seedPos(seed int64, readPos *int8) {
 // read implements Read for a lockedSource without a race condition.
 func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
 	r.lk.Lock()
-	n, err = read(p, r.src.Int63, readVal, readPos)
+	n, err = read(p, r.src, readVal, readPos)
 	r.lk.Unlock()
 	return
 }

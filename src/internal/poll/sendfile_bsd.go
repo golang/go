@@ -32,9 +32,11 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 			pos += int64(n)
 			written += int64(n)
 			remain -= int64(n)
-		}
-		if n == 0 && err1 == nil {
+		} else if n == 0 && err1 == nil {
 			break
+		}
+		if err1 == syscall.EINTR {
+			continue
 		}
 		if err1 == syscall.EAGAIN {
 			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {

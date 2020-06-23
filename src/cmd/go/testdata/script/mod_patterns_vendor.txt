@@ -1,0 +1,28 @@
+env GO111MODULE=on
+
+go list -mod=vendor example.com/...
+stdout ^example.com/x$
+stdout ^example.com/x/y$
+! stdout ^example.com/x/vendor
+
+-- go.mod --
+module example.com/m
+
+-- vendor/modules.txt --
+# example.com/x v0.0.0
+example.com/x
+# example.com/x/y v0.1.0
+example.com/x/y
+
+-- vendor/example.com/x/go.mod --
+module example.com/x
+-- vendor/example.com/x/x.go --
+package x
+
+-- vendor/example.com/x/y/go.mod --
+module example.com/x/y
+-- vendor/example.com/x/y/y.go --
+package y
+
+-- vendor/example.com/x/vendor/z/z.go --
+package z

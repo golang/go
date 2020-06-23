@@ -10,7 +10,7 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	"go/ast"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"net/http/internal"
@@ -157,6 +157,34 @@ var respTests = []respTest{
 		"Body here\ncontinued",
 	},
 
+	// Trailer header but no TransferEncoding
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Trailer: Content-MD5, Content-Sources\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Connection":     {"close"},
+				"Content-Length": {"10"},
+				"Trailer":        []string{"Content-MD5, Content-Sources"},
+			},
+			Close:         true,
+			ContentLength: 10,
+		},
+
+		"Body here\n",
+	},
+
 	// Chunked response with Content-Length.
 	{
 		"HTTP/1.1 200 OK\r\n" +
@@ -295,7 +323,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, but trailing space.
-	// (permitted by RFC 2616)
+	// (permitted by RFC 7230, section 3.1.2)
 	{
 		"HTTP/1.0 303 \r\n\r\n",
 		Response{
@@ -314,7 +342,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, and no trailing space.
-	// (not permitted by RFC 2616, but we'll accept it anyway)
+	// (not permitted by RFC 7230, but we'll accept it anyway)
 	{
 		"HTTP/1.0 303\r\n\r\n",
 		Response{
@@ -608,6 +636,11 @@ var readResponseCloseInMiddleTests = []struct {
 	{true, true},
 }
 
+type readerAndCloser struct {
+	io.Reader
+	io.Closer
+}
+
 // TestReadResponseCloseInMiddle tests that closing a body after
 // reading only part of its contents advances the read to the end of
 // the request, right up until the next request.
@@ -701,6 +734,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 }
 
 func diff(t *testing.T, prefix string, have, want interface{}) {
+	t.Helper()
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {
@@ -708,7 +742,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 	}
 	for i := 0; i < hv.NumField(); i++ {
 		name := hv.Type().Field(i).Name
-		if !ast.IsExported(name) {
+		if !token.IsExported(name) {
 			continue
 		}
 		hf := hv.Field(i).Interface()
@@ -816,7 +850,6 @@ func TestReadResponseErrors(t *testing.T) {
 	type testCase struct {
 		name    string // optional, defaults to in
 		in      string
-		header  Header
 		wantErr interface{} // nil, err value, or string substring
 	}
 
@@ -842,22 +875,21 @@ func TestReadResponseErrors(t *testing.T) {
 		}
 	}
 
-	contentLength := func(status, body string, wantErr interface{}, header Header) testCase {
+	contentLength := func(status, body string, wantErr interface{}) testCase {
 		return testCase{
 			name:    fmt.Sprintf("status %q %q", status, body),
 			in:      fmt.Sprintf("HTTP/1.1 %s\r\n%s", status, body),
 			wantErr: wantErr,
-			header:  header,
 		}
 	}
 
 	errMultiCL := "message cannot contain multiple Content-Length headers"
 
 	tests := []testCase{
-		{"", "", nil, io.ErrUnexpectedEOF},
-		{"", "HTTP/1.1 301 Moved Permanently\r\nFoo: bar", nil, io.ErrUnexpectedEOF},
-		{"", "HTTP/1.1", nil, "malformed HTTP response"},
-		{"", "HTTP/2.0", nil, "malformed HTTP response"},
+		{"", "", io.ErrUnexpectedEOF},
+		{"", "HTTP/1.1 301 Moved Permanently\r\nFoo: bar", io.ErrUnexpectedEOF},
+		{"", "HTTP/1.1", "malformed HTTP response"},
+		{"", "HTTP/2.0", "malformed HTTP response"},
 		status("20X Unknown", true),
 		status("abcd Unknown", true),
 		status("二百/两百 OK", true),
@@ -883,18 +915,22 @@ func TestReadResponseErrors(t *testing.T) {
 		version("HTTP/1", true),
 		version("http/1.1", true),
 
-		contentLength("200 OK", "Content-Length: 10\r\nContent-Length: 7\r\n\r\nGopher hey\r\n", errMultiCL, nil),
-		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil, Header{"Content-Length": {"7"}}),
-		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL, nil),
-		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil, Header{"Content-Length": {"0"}}),
-		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil, nil),
-		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL, nil),
+		contentLength("200 OK", "Content-Length: 10\r\nContent-Length: 7\r\n\r\nGopher hey\r\n", errMultiCL),
+		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil),
+		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL),
+		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil),
+		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil),
+		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL),
 
 		// multiple content-length headers for 204 and 304 should still be checked
-		contentLength("204 OK", "Content-Length: 7\r\nContent-Length: 8\r\n\r\n", errMultiCL, nil),
-		contentLength("204 OK", "Content-Length: 3\r\nContent-Length: 3\r\n\r\n", nil, nil),
-		contentLength("304 OK", "Content-Length: 880\r\nContent-Length: 1\r\n\r\n", errMultiCL, nil),
-		contentLength("304 OK", "Content-Length: 961\r\nContent-Length: 961\r\n\r\n", nil, nil),
+		contentLength("204 OK", "Content-Length: 7\r\nContent-Length: 8\r\n\r\n", errMultiCL),
+		contentLength("204 OK", "Content-Length: 3\r\nContent-Length: 3\r\n\r\n", nil),
+		contentLength("304 OK", "Content-Length: 880\r\nContent-Length: 1\r\n\r\n", errMultiCL),
+		contentLength("304 OK", "Content-Length: 961\r\nContent-Length: 961\r\n\r\n", nil),
+
+		// golang.org/issue/22464
+		{"leading space in header", "HTTP/1.1 200 OK\r\n Content-type: text/html\r\nFoo: bar\r\n\r\n", "malformed MIME"},
+		{"leading tab in header", "HTTP/1.1 200 OK\r\n\tContent-type: text/html\r\nFoo: bar\r\n\r\n", "malformed MIME"},
 	}
 
 	for i, tt := range tests {

@@ -5,14 +5,24 @@
 // Package ecdsa implements the Elliptic Curve Digital Signature Algorithm, as
 // defined in FIPS 186-3.
 //
-// This implementation  derives the nonce from an AES-CTR CSPRNG keyed by
-// ChopMD(256, SHA2-512(priv.D || entropy || hash)). The CSPRNG key is IRO by
-// a result of Coron; the AES-CTR stream is IRO under standard assumptions.
+// This implementation derives the nonce from an AES-CTR CSPRNG keyed by:
+//
+// SHA2-512(priv.D || entropy || hash)[:32]
+//
+// The CSPRNG key is indifferentiable from a random oracle as shown in
+// [Coron], the AES-CTR stream is indifferentiable from a random oracle
+// under standard cryptographic assumptions (see [Larsson] for examples).
+//
+// References:
+//   [Coron]
+//     https://cs.nyu.edu/~dodis/ps/merkle.pdf
+//   [Larsson]
+//     https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
 package ecdsa
 
-// References:
-//   [NSA]: Suite B implementer's guide to FIPS 186-3,
-//     http://www.nsa.gov/ia/_files/ecdsa.pdf
+// Further references:
+//   [NSA]: Suite B implementer's guide to FIPS 186-3
+//     https://apps.nsa.gov/iaarchive/library/ia-guidance/ia-solutions-for-classified/algorithm-guidance/suite-b-implementers-guide-to-fips-186-3-ecdsa.cfm
 //   [SECG]: SECG, SEC1
 //     http://www.secg.org/sec1-v2.pdf
 
@@ -21,11 +31,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/internal/randutil"
 	"crypto/sha512"
-	"encoding/asn1"
 	"errors"
 	"io"
 	"math/big"
+
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/crypto/cryptobyte/asn1"
 )
 
 // A invertible implements fast inverse mod Curve.Params().N
@@ -49,14 +62,31 @@ type PublicKey struct {
 	X, Y *big.Int
 }
 
-// PrivateKey represents a ECDSA private key.
+// Any methods implemented on PublicKey might need to also be implemented on
+// PrivateKey, as the latter embeds the former and will expose its methods.
+
+// Equal reports whether pub and x have the same value.
+//
+// Two keys are only considered to have the same value if they have the same Curve value.
+// Note that for example elliptic.P256() and elliptic.P256().Params() are different
+// values, as the latter is a generic not constant time implementation.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.X.Cmp(xx.X) == 0 && pub.Y.Cmp(xx.Y) == 0 &&
+		// Standard library Curve implementations are singletons, so this check
+		// will work for those. Other Curves might be equivalent even if not
+		// singletons, but there is no definitive way to check for that, and
+		// better to err on the side of safety.
+		pub.Curve == xx.Curve
+}
+
+// PrivateKey represents an ECDSA private key.
 type PrivateKey struct {
 	PublicKey
 	D *big.Int
-}
-
-type ecdsaSignature struct {
-	R, S *big.Int
 }
 
 // Public returns the public key corresponding to priv.
@@ -64,17 +94,36 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return &priv.PublicKey
 }
 
-// Sign signs msg with priv, reading randomness from rand. This method is
-// intended to support keys where the private part is kept in, for example, a
-// hardware module. Common uses should use the Sign function in this package
-// directly.
-func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
-	r, s, err := Sign(rand, priv, msg)
+// Equal reports whether priv and x have the same value.
+//
+// See PublicKey.Equal for details on how Curve is compared.
+func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+	xx, ok := x.(*PrivateKey)
+	if !ok {
+		return false
+	}
+	return priv.PublicKey.Equal(&xx.PublicKey) && priv.D.Cmp(xx.D) == 0
+}
+
+// Sign signs digest with priv, reading randomness from rand. The opts argument
+// is not currently used but, in keeping with the crypto.Signer interface,
+// should be the hash function used to digest the message.
+//
+// This method implements crypto.Signer, which is an interface to support keys
+// where the private part is kept in, for example, a hardware module. Common
+// uses should use the Sign function in this package directly.
+func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	r, s, err := Sign(rand, priv, digest)
 	if err != nil {
 		return nil, err
 	}
 
-	return asn1.Marshal(ecdsaSignature{r, s})
+	var b cryptobyte.Builder
+	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		b.AddASN1BigInt(r)
+		b.AddASN1BigInt(s)
+	})
+	return b.Bytes()
 }
 
 var one = new(big.Int).SetInt64(1)
@@ -145,10 +194,12 @@ var errZeroParam = errors.New("zero parameter")
 
 // Sign signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
-// private key's curve order, the hash will be truncated to that length.  It
+// private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+	randutil.MaybeReadByte(rand)
+
 	// Get min(log2(q) / 2, 256) bits of entropy from rand.
 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
 	if entropylen > 32 {
@@ -183,6 +234,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
+	return sign(priv, &csprng, c, hash)
+}
+
+func signGeneric(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
 	N := c.Params().N
 	if N.Sign() == 0 {
 		return nil, nil, errZeroParam
@@ -190,7 +245,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	var k, kInv *big.Int
 	for {
 		for {
-			k, err = randFieldElement(c, csprng)
+			k, err = randFieldElement(c, *csprng)
 			if err != nil {
 				r = nil
 				return
@@ -222,6 +277,15 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	return
 }
 
+// SignASN1 signs a hash (which should be the result of hashing a larger message)
+// using the private key, priv. If the hash is longer than the bit-length of the
+// private key's curve order, the hash will be truncated to that length. It
+// returns the ASN.1 encoded signature. The security of the private key
+// depends on the entropy of rand.
+func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+	return priv.Sign(rand, hash, nil)
+}
+
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
@@ -235,9 +299,13 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
 		return false
 	}
-	e := hashToInt(hash, c)
+	return verify(pub, c, hash, r, s)
+}
 
+func verifyGeneric(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
+	e := hashToInt(hash, c)
 	var w *big.Int
+	N := c.Params().N
 	if in, ok := c.(invertible); ok {
 		w = in.Inverse(s)
 	} else {
@@ -264,6 +332,24 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	}
 	x.Mod(x, N)
 	return x.Cmp(r) == 0
+}
+
+// VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the
+// public key, pub. Its return value records whether the signature is valid.
+func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
+	var (
+		r, s  = &big.Int{}, &big.Int{}
+		inner cryptobyte.String
+	)
+	input := cryptobyte.String(sig)
+	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
+		!input.Empty() ||
+		!inner.ReadASN1Integer(r) ||
+		!inner.ReadASN1Integer(s) ||
+		!inner.Empty() {
+		return false
+	}
+	return Verify(pub, hash, r, s)
 }
 
 type zr struct {

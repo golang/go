@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
 	"os"
 	"syscall"
 )
@@ -49,19 +50,19 @@ func probe(filename, query string) bool {
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
 func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	addr := IPv4zero // address contains port only
-	i := byteIndex(s, '!')
+	i := bytealg.IndexByteString(s, '!')
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
 			return nil, 0, &ParseError{Type: "IP address", Text: s}
 		}
 	}
-	p, _, ok := dtoi(s[i+1:])
+	p, plen, ok := dtoi(s[i+1:])
 	if !ok {
 		return nil, 0, &ParseError{Type: "port", Text: s}
 	}
 	if p < 0 || p > 0xFFFF {
-		return nil, 0, &AddrError{Err: "invalid port", Addr: string(p)}
+		return nil, 0, &AddrError{Err: "invalid port", Addr: s[i+1 : i+1+plen]}
 	}
 	return addr, p, nil
 }
@@ -226,7 +227,7 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
 		f.Close()
-		return nil, err
+		return nil, &OpError{Op: "announce", Net: net, Source: laddr, Addr: nil, Err: err}
 	}
 	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {

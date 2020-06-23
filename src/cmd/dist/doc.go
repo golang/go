@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// dist is the bootstrapping tool for the Go distribution.
+// Dist helps bootstrap, build, and test the Go distribution.
 //
 // Usage:
 //   go tool dist [command]

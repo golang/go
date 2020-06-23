@@ -23,9 +23,11 @@
 //
 // NOTE: setg_gcc<> assume this clobbers only R31.
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
-	MOVB	runtime·iscgo(SB), R31
+#ifndef GOOS_aix
+	MOVBZ	runtime·iscgo(SB), R31
 	CMP	R31, $0
 	BEQ	nocgo
+#endif
 	MOVD	runtime·tls_g(SB), R31
 	MOVD	g, 0(R13)(R31*1)
 
@@ -46,4 +48,4 @@ TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	0(R13)(R31*1), g
 	RET
 
-GLOBL runtime·tls_g+0(SB), TLSBSS, $8
+GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

@@ -151,7 +151,10 @@ func delete(m map[Type]Type1, key Type)
 //	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
 //	String: the number of bytes in v.
 //	Channel: the number of elements queued (unread) in the channel buffer;
-//	if v is nil, len(v) is zero.
+//	         if v is nil, len(v) is zero.
+// For some arguments, such as a string literal or a simple array expression, the
+// result can be a constant. See the Go language specification's "Length and
+// capacity" section for details.
 func len(v Type) int
 
 // The cap built-in function returns the capacity of v, according to its type:
@@ -161,6 +164,9 @@ func len(v Type) int
 //	if v is nil, cap(v) is zero.
 //	Channel: the channel buffer capacity, in units of elements;
 //	if v is nil, cap(v) is zero.
+// For some arguments, such as a simple array expression, the result can be a
+// constant. See the Go language specification's "Length and capacity" section for
+// details.
 func cap(v Type) int
 
 // The make built-in function allocates and initializes an object of type
@@ -171,8 +177,9 @@ func cap(v Type) int
 //	Slice: The size specifies the length. The capacity of the slice is
 //	equal to its length. A second integer argument may be provided to
 //	specify a different capacity; it must be no smaller than the
-//	length, so make([]int, 0, 10) allocates a slice of length 0 and
-//	capacity 10.
+//	length. For example, make([]int, 0, 10) allocates an underlying array
+//	of size 10 and returns a slice of length 0 and capacity 10 that is
+//	backed by this underlying array.
 //	Map: An empty map is allocated with enough space to hold the
 //	specified number of elements. The size may be omitted, in which case
 //	a small starting size is allocated.
@@ -219,10 +226,9 @@ func close(c chan<- Type)
 // invocation of F then behaves like a call to panic, terminating G's
 // execution and running any deferred functions. This continues until all
 // functions in the executing goroutine have stopped, in reverse order. At
-// that point, the program is terminated and the error condition is reported,
-// including the value of the argument to panic. This termination sequence
-// is called panicking and can be controlled by the built-in function
-// recover.
+// that point, the program is terminated with a non-zero exit code. This
+// termination sequence is called panicking and can be controlled by the
+// built-in function recover.
 func panic(v interface{})
 
 // The recover built-in function allows a program to manage behavior of a

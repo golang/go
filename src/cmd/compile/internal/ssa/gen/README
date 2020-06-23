@@ -3,5 +3,5 @@
 // license that can be found in the LICENSE file.
 
 This package generates opcode tables, rewrite rules, etc. for the ssa compiler.
-Run it with:
+Run it with go-1.13 (or above):
    go run *.go

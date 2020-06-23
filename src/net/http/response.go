@@ -17,6 +17,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 var respExcludeHeader = map[string]bool{
@@ -27,6 +29,9 @@ var respExcludeHeader = map[string]bool{
 
 // Response represents the response from an HTTP request.
 //
+// The Client and Transport return Responses from servers once
+// the response headers have been received. The response body
+// is streamed on demand as the Body field is read.
 type Response struct {
 	Status     string // e.g. "200 OK"
 	StatusCode int    // e.g. 200
@@ -36,7 +41,7 @@ type Response struct {
 
 	// Header maps header keys to values. If the response had multiple
 	// headers with the same key, they may be concatenated, with comma
-	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
+	// delimiters.  (RFC 7230, section 3.2.2 requires that multiple headers
 	// be semantically equivalent to a comma-delimited sequence.) When
 	// Header values are duplicated by other fields in this struct (e.g.,
 	// ContentLength, TransferEncoding, Trailer), the field values are
@@ -47,16 +52,23 @@ type Response struct {
 
 	// Body represents the response body.
 	//
+	// The response body is streamed on demand as the Body field
+	// is read. If the network connection fails or the server
+	// terminates the response, Body.Read calls return an error.
+	//
 	// The http Client and Transport guarantee that Body is always
 	// non-nil, even on responses without a body or responses with
 	// a zero-length body. It is the caller's responsibility to
-	// close Body. The default HTTP client's Transport does not
-	// attempt to reuse HTTP/1.0 or HTTP/1.1 TCP connections
-	// ("keep-alive") unless the Body is read to completion and is
-	// closed.
+	// close Body. The default HTTP client's Transport may not
+	// reuse HTTP/1.x "keep-alive" TCP connections if the Body is
+	// not read to completion and closed.
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
+	//
+	// As of Go 1.12, the Body will also implement io.Writer
+	// on a successful "101 Switching Protocols" response,
+	// as used by WebSockets and HTTP/2's "h2c" mode.
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content. The
@@ -154,7 +166,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		return nil, err
 	}
 	if i := strings.IndexByte(line, ' '); i == -1 {
-		return nil, &badStringError{"malformed HTTP response", line}
+		return nil, badStringError("malformed HTTP response", line)
 	} else {
 		resp.Proto = line[:i]
 		resp.Status = strings.TrimLeft(line[i+1:], " ")
@@ -164,15 +176,15 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		statusCode = resp.Status[:i]
 	}
 	if len(statusCode) != 3 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
 	resp.StatusCode, err = strconv.Atoi(statusCode)
 	if err != nil || resp.StatusCode < 0 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
 	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", resp.Proto}
+		return nil, badStringError("malformed HTTP version", resp.Proto)
 	}
 
 	// Parse the response headers.
@@ -195,7 +207,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	return resp, nil
 }
 
-// RFC 2616: Should treat
+// RFC 7234, section 5.4: Should treat
 //	Pragma: no-cache
 // like
 //	Cache-Control: no-cache
@@ -287,7 +299,7 @@ func (r *Response) Write(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	err = tw.WriteHeader(w)
+	err = tw.writeHeader(w, nil)
 	if err != nil {
 		return err
 	}
@@ -313,7 +325,7 @@ func (r *Response) Write(w io.Writer) error {
 	}
 
 	// Write body and trailer
-	err = tw.WriteBody(w)
+	err = tw.writeBody(w)
 	if err != nil {
 		return err
 	}
@@ -326,4 +338,24 @@ func (r *Response) closeBody() {
 	if r.Body != nil {
 		r.Body.Close()
 	}
+}
+
+// bodyIsWritable reports whether the Body supports writing. The
+// Transport returns Writable bodies for 101 Switching Protocols
+// responses.
+// The Transport uses this method to determine whether a persistent
+// connection is done being managed from its perspective. Once we
+// return a writable response body to a user, the net/http package is
+// done managing that connection.
+func (r *Response) bodyIsWritable() bool {
+	_, ok := r.Body.(io.Writer)
+	return ok
+}
+
+// isProtocolSwitch reports whether r is a response to a successful
+// protocol upgrade.
+func (r *Response) isProtocolSwitch() bool {
+	return r.StatusCode == StatusSwitchingProtocols &&
+		r.Header.Get("Upgrade") != "" &&
+		httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
 }

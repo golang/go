@@ -6,6 +6,7 @@
 package base64
 
 import (
+	"encoding/binary"
 	"io"
 	"strconv"
 )
@@ -85,6 +86,9 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // Strict creates a new encoding identical to enc except with
 // strict decoding enabled. In this mode, the decoder requires that
 // trailing padding bits are zero, as described in RFC 4648 section 3.5.
+//
+// Note that the input is still malleable, as new line characters
+// (CR and LF) are still ignored.
 func (enc Encoding) Strict() *Encoding {
 	enc.strict = true
 	return &enc
@@ -122,6 +126,10 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
 	}
+	// enc is a pointer receiver, so the use of enc.encode within the hot
+	// loop below means a nil check at every operation. Lift that nil check
+	// outside of the loop to speed up the encoder.
+	_ = enc.encode
 
 	di, si := 0, 0
 	n := (len(src) / 3) * 3
@@ -269,121 +277,112 @@ func (e CorruptInputError) Error() string {
 	return "illegal base64 data at input byte " + strconv.FormatInt(int64(e), 10)
 }
 
-// decode is like Decode but returns an additional 'end' value, which
-// indicates if end-of-message padding or a partial quantum was encountered
-// and thus any additional data is an error.
-func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
-	si := 0
+// decodeQuantum decodes up to 4 base64 bytes. The received parameters are
+// the destination buffer dst, the source buffer src and an index in the
+// source buffer si.
+// It returns the number of bytes read from src, the number of bytes written
+// to dst, and an error, if any.
+func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err error) {
+	// Decode quantum using the base64 alphabet
+	var dbuf [4]byte
+	dlen := 4
 
-	for si < len(src) && !end {
-		// Decode quantum using the base64 alphabet
-		var dbuf [4]byte
-		dinc, dlen := 3, 4
+	// Lift the nil check outside of the loop.
+	_ = enc.decodeMap
 
-		for j := 0; j < len(dbuf); j++ {
-			if len(src) == si {
-				switch {
-				case j == 0:
-					return n, false, nil
-				case j == 1, enc.padChar != NoPadding:
-					return n, false, CorruptInputError(si - j)
-				}
-				dinc, dlen, end = j-1, j, true
-				break
+	for j := 0; j < len(dbuf); j++ {
+		if len(src) == si {
+			switch {
+			case j == 0:
+				return si, 0, nil
+			case j == 1, enc.padChar != NoPadding:
+				return si, 0, CorruptInputError(si - j)
 			}
-			in := src[si]
+			dlen = j
+			break
+		}
+		in := src[si]
+		si++
+
+		out := enc.decodeMap[in]
+		if out != 0xff {
+			dbuf[j] = out
+			continue
+		}
+
+		if in == '\n' || in == '\r' {
+			j--
+			continue
+		}
+
+		if rune(in) != enc.padChar {
+			return si, 0, CorruptInputError(si - 1)
+		}
+
+		// We've reached the end and there's padding
+		switch j {
+		case 0, 1:
+			// incorrect padding
+			return si, 0, CorruptInputError(si - 1)
+		case 2:
+			// "==" is expected, the first "=" is already consumed.
+			// skip over newlines
+			for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
+				si++
+			}
+			if si == len(src) {
+				// not enough padding
+				return si, 0, CorruptInputError(len(src))
+			}
+			if rune(src[si]) != enc.padChar {
+				// incorrect padding
+				return si, 0, CorruptInputError(si - 1)
+			}
 
 			si++
-
-			out := enc.decodeMap[in]
-			if out != 0xFF {
-				dbuf[j] = out
-				continue
-			}
-
-			if in == '\n' || in == '\r' {
-				j--
-				continue
-			}
-			if rune(in) == enc.padChar {
-				// We've reached the end and there's padding
-				switch j {
-				case 0, 1:
-					// incorrect padding
-					return n, false, CorruptInputError(si - 1)
-				case 2:
-					// "==" is expected, the first "=" is already consumed.
-					// skip over newlines
-					for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
-						si++
-					}
-					if si == len(src) {
-						// not enough padding
-						return n, false, CorruptInputError(len(src))
-					}
-					if rune(src[si]) != enc.padChar {
-						// incorrect padding
-						return n, false, CorruptInputError(si - 1)
-					}
-
-					si++
-				}
-				// skip over newlines
-				for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
-					si++
-				}
-				if si < len(src) {
-					// trailing garbage
-					err = CorruptInputError(si)
-				}
-				dinc, dlen, end = 3, j, true
-				break
-			}
-			return n, false, CorruptInputError(si - 1)
 		}
 
-		// Convert 4x 6bit source bytes into 3 bytes
-		val := uint(dbuf[0])<<18 | uint(dbuf[1])<<12 | uint(dbuf[2])<<6 | uint(dbuf[3])
-		dbuf[2], dbuf[1], dbuf[0] = byte(val>>0), byte(val>>8), byte(val>>16)
-		switch dlen {
-		case 4:
-			dst[2] = dbuf[2]
-			dbuf[2] = 0
-			fallthrough
-		case 3:
-			dst[1] = dbuf[1]
-			if enc.strict && dbuf[2] != 0 {
-				return n, end, CorruptInputError(si - 1)
-			}
-			dbuf[1] = 0
-			fallthrough
-		case 2:
-			dst[0] = dbuf[0]
-			if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
-				return n, end, CorruptInputError(si - 2)
-			}
+		// skip over newlines
+		for si < len(src) && (src[si] == '\n' || src[si] == '\r') {
+			si++
 		}
-		dst = dst[dinc:]
-		n += dlen - 1
+		if si < len(src) {
+			// trailing garbage
+			err = CorruptInputError(si)
+		}
+		dlen = j
+		break
 	}
 
-	return n, end, err
-}
+	// Convert 4x 6bit source bytes into 3 bytes
+	val := uint(dbuf[0])<<18 | uint(dbuf[1])<<12 | uint(dbuf[2])<<6 | uint(dbuf[3])
+	dbuf[2], dbuf[1], dbuf[0] = byte(val>>0), byte(val>>8), byte(val>>16)
+	switch dlen {
+	case 4:
+		dst[2] = dbuf[2]
+		dbuf[2] = 0
+		fallthrough
+	case 3:
+		dst[1] = dbuf[1]
+		if enc.strict && dbuf[2] != 0 {
+			return si, 0, CorruptInputError(si - 1)
+		}
+		dbuf[1] = 0
+		fallthrough
+	case 2:
+		dst[0] = dbuf[0]
+		if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
+			return si, 0, CorruptInputError(si - 2)
+		}
+	}
 
-// Decode decodes src using the encoding enc. It writes at most
-// DecodedLen(len(src)) bytes to dst and returns the number of bytes
-// written. If src contains invalid base64 data, it will return the
-// number of bytes successfully written and CorruptInputError.
-// New line characters (\r and \n) are ignored.
-func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
-	n, _, err = enc.decode(dst, src)
-	return
+	return si, dlen - 1, err
 }
 
 // DecodeString returns the bytes represented by the base64 string s.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, _, err := enc.decode(dbuf, []byte(s))
+	n, err := enc.Decode(dbuf, []byte(s))
 	return dbuf[:n], err
 }
 
@@ -392,7 +391,6 @@ type decoder struct {
 	readErr error // error from r.Read
 	enc     *Encoding
 	r       io.Reader
-	end     bool       // saw end of message
 	buf     [1024]byte // leftover input
 	nbuf    int
 	out     []byte // leftover decoded output
@@ -430,9 +428,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		if d.enc.padChar == NoPadding && d.nbuf > 0 {
 			// Decode final fragment, without padding.
 			var nw int
-			nw, _, d.err = d.enc.decode(d.outbuf[:], d.buf[:d.nbuf])
+			nw, d.err = d.enc.Decode(d.outbuf[:], d.buf[:d.nbuf])
 			d.nbuf = 0
-			d.end = true
 			d.out = d.outbuf[:nw]
 			n = copy(p, d.out)
 			d.out = d.out[n:]
@@ -454,16 +451,125 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	nr := d.nbuf / 4 * 4
 	nw := d.nbuf / 4 * 3
 	if nw > len(p) {
-		nw, d.end, d.err = d.enc.decode(d.outbuf[:], d.buf[:nr])
+		nw, d.err = d.enc.Decode(d.outbuf[:], d.buf[:nr])
 		d.out = d.outbuf[:nw]
 		n = copy(p, d.out)
 		d.out = d.out[n:]
 	} else {
-		n, d.end, d.err = d.enc.decode(p, d.buf[:nr])
+		n, d.err = d.enc.Decode(p, d.buf[:nr])
 	}
 	d.nbuf -= nr
 	copy(d.buf[:d.nbuf], d.buf[nr:])
 	return n, d.err
+}
+
+// Decode decodes src using the encoding enc. It writes at most
+// DecodedLen(len(src)) bytes to dst and returns the number of bytes
+// written. If src contains invalid base64 data, it will return the
+// number of bytes successfully written and CorruptInputError.
+// New line characters (\r and \n) are ignored.
+func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+	if len(src) == 0 {
+		return 0, nil
+	}
+
+	// Lift the nil check outside of the loop. enc.decodeMap is directly
+	// used later in this function, to let the compiler know that the
+	// receiver can't be nil.
+	_ = enc.decodeMap
+
+	si := 0
+	for strconv.IntSize >= 64 && len(src)-si >= 8 && len(dst)-n >= 8 {
+		src2 := src[si : si+8]
+		if dn, ok := assemble64(
+			enc.decodeMap[src2[0]],
+			enc.decodeMap[src2[1]],
+			enc.decodeMap[src2[2]],
+			enc.decodeMap[src2[3]],
+			enc.decodeMap[src2[4]],
+			enc.decodeMap[src2[5]],
+			enc.decodeMap[src2[6]],
+			enc.decodeMap[src2[7]],
+		); ok {
+			binary.BigEndian.PutUint64(dst[n:], dn)
+			n += 6
+			si += 8
+		} else {
+			var ninc int
+			si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
+			n += ninc
+			if err != nil {
+				return n, err
+			}
+		}
+	}
+
+	for len(src)-si >= 4 && len(dst)-n >= 4 {
+		src2 := src[si : si+4]
+		if dn, ok := assemble32(
+			enc.decodeMap[src2[0]],
+			enc.decodeMap[src2[1]],
+			enc.decodeMap[src2[2]],
+			enc.decodeMap[src2[3]],
+		); ok {
+			binary.BigEndian.PutUint32(dst[n:], dn)
+			n += 3
+			si += 4
+		} else {
+			var ninc int
+			si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
+			n += ninc
+			if err != nil {
+				return n, err
+			}
+		}
+	}
+
+	for si < len(src) {
+		var ninc int
+		si, ninc, err = enc.decodeQuantum(dst[n:], src, si)
+		n += ninc
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, err
+}
+
+// assemble32 assembles 4 base64 digits into 3 bytes.
+// Each digit comes from the decode map, and will be 0xff
+// if it came from an invalid character.
+func assemble32(n1, n2, n3, n4 byte) (dn uint32, ok bool) {
+	// Check that all the digits are valid. If any of them was 0xff, their
+	// bitwise OR will be 0xff.
+	if n1|n2|n3|n4 == 0xff {
+		return 0, false
+	}
+	return uint32(n1)<<26 |
+			uint32(n2)<<20 |
+			uint32(n3)<<14 |
+			uint32(n4)<<8,
+		true
+}
+
+// assemble64 assembles 8 base64 digits into 6 bytes.
+// Each digit comes from the decode map, and will be 0xff
+// if it came from an invalid character.
+func assemble64(n1, n2, n3, n4, n5, n6, n7, n8 byte) (dn uint64, ok bool) {
+	// Check that all the digits are valid. If any of them was 0xff, their
+	// bitwise OR will be 0xff.
+	if n1|n2|n3|n4|n5|n6|n7|n8 == 0xff {
+		return 0, false
+	}
+	return uint64(n1)<<58 |
+			uint64(n2)<<52 |
+			uint64(n3)<<46 |
+			uint64(n4)<<40 |
+			uint64(n5)<<34 |
+			uint64(n6)<<28 |
+			uint64(n7)<<22 |
+			uint64(n8)<<16,
+		true
 }
 
 type newlineFilteringReader struct {

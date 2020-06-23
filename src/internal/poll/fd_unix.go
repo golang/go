@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package poll
 
 import (
 	"io"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -26,6 +27,12 @@ type FD struct {
 	// Writev cache.
 	iovecs *[]syscall.Iovec
 
+	// Semaphore signaled when file is closed.
+	csema uint32
+
+	// Non-zero if this file has been set to blocking mode.
+	isBlocking uint32
+
 	// Whether this is a streaming descriptor, as opposed to a
 	// packet-based descriptor like a UDP socket. Immutable.
 	IsStream bool
@@ -42,15 +49,23 @@ type FD struct {
 // This can be called multiple times on a single FD.
 // The net argument is a network name from the net package (e.g., "tcp"),
 // or "file".
+// Set pollable to true if fd should be managed by runtime netpoll.
 func (fd *FD) Init(net string, pollable bool) error {
 	// We don't actually care about the various network types.
 	if net == "file" {
 		fd.isFile = true
 	}
 	if !pollable {
+		fd.isBlocking = 1
 		return nil
 	}
-	return fd.pd.init(fd)
+	err := fd.pd.init(fd)
+	if err != nil {
+		// If we could not initialize the runtime poller,
+		// assume we are using blocking mode.
+		fd.isBlocking = 1
+	}
+	return err
 }
 
 // Destroy closes the file descriptor. This is called when there are
@@ -61,6 +76,7 @@ func (fd *FD) destroy() error {
 	fd.pd.close()
 	err := CloseFunc(fd.Sysfd)
 	fd.Sysfd = -1
+	runtime_Semrelease(&fd.csema)
 	return err
 }
 
@@ -70,24 +86,42 @@ func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
 		return errClosing(fd.isFile)
 	}
+
 	// Unblock any I/O.  Once it all unblocks and returns,
 	// so that it cannot be referring to fd.sysfd anymore,
 	// the final decref will close fd.sysfd. This should happen
 	// fairly quickly, since all the I/O is non-blocking, and any
 	// attempts to block in the pollDesc will return errClosing(fd.isFile).
 	fd.pd.evict()
+
 	// The call to decref will call destroy if there are no other
 	// references.
-	return fd.decref()
+	err := fd.decref()
+
+	// Wait until the descriptor is closed. If this was the only
+	// reference, it is already closed. Only wait if the file has
+	// not been set to blocking mode, as otherwise any current I/O
+	// may be blocking, and that would block the Close.
+	// No need for an atomic read of isBlocking, increfAndClose means
+	// we have exclusive access to fd.
+	if fd.isBlocking == 0 {
+		runtime_Semacquire(&fd.csema)
+	}
+
+	return err
 }
 
-// Shutdown wraps the shutdown network call.
-func (fd *FD) Shutdown(how int) error {
+// SetBlocking puts the file into blocking mode.
+func (fd *FD) SetBlocking() error {
 	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
-	return syscall.Shutdown(fd.Sysfd, how)
+	// Atomic store so that concurrent calls to SetBlocking
+	// do not cause a race condition. isBlocking only ever goes
+	// from 0 to 1 so there is no real race here.
+	atomic.StoreUint32(&fd.isBlocking, 1)
+	return syscall.SetNonblock(fd.Sysfd, false)
 }
 
 // Darwin and FreeBSD can't read or write 2GB+ files at a time,
@@ -118,7 +152,7 @@ func (fd *FD) Read(p []byte) (int, error) {
 		p = p[:maxRW]
 	}
 	for {
-		n, err := syscall.Read(fd.Sysfd, p)
+		n, err := ignoringEINTR(syscall.Read, fd.Sysfd, p)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
@@ -143,7 +177,16 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
 	if fd.IsStream && len(p) > maxRW {
 		p = p[:maxRW]
 	}
-	n, err := syscall.Pread(fd.Sysfd, p, off)
+	var (
+		n   int
+		err error
+	)
+	for {
+		n, err = syscall.Pread(fd.Sysfd, p, off)
+		if err != syscall.EINTR {
+			break
+		}
+	}
 	if err != nil {
 		n = 0
 	}
@@ -164,6 +207,9 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	for {
 		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
 		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -188,6 +234,9 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 	for {
 		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
 		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
 			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -215,7 +264,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 		if fd.IsStream && max-nn > maxRW {
 			max = nn + maxRW
 		}
-		n, err := syscall.Write(fd.Sysfd, p[nn:max])
+		n, err := ignoringEINTR(syscall.Write, fd.Sysfd, p[nn:max])
 		if n > 0 {
 			nn += n
 		}
@@ -252,6 +301,9 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 			max = nn + maxRW
 		}
 		n, err := syscall.Pwrite(fd.Sysfd, p[nn:max], off+int64(nn))
+		if err == syscall.EINTR {
+			continue
+		}
 		if n > 0 {
 			nn += n
 		}
@@ -278,6 +330,9 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	}
 	for {
 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
@@ -301,6 +356,9 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 	for {
 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
@@ -329,6 +387,8 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 			return s, rsa, "", err
 		}
 		switch err {
+		case syscall.EINTR:
+			continue
 		case syscall.EAGAIN:
 			if fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -363,7 +423,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 	}
 	defer fd.decref()
 	for {
-		n, err := syscall.ReadDirent(fd.Sysfd, buf)
+		n, err := ignoringEINTR(syscall.ReadDirent, fd.Sysfd, buf)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
@@ -395,6 +455,52 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 	return syscall.Fstat(fd.Sysfd, s)
 }
 
+// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
+// If the kernel doesn't support it, this is set to 0.
+var tryDupCloexec = int32(1)
+
+// DupCloseOnExec dups fd and marks it close-on-exec.
+func DupCloseOnExec(fd int) (int, string, error) {
+	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
+		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+		if e1 == nil {
+			return r0, "", nil
+		}
+		switch e1.(syscall.Errno) {
+		case syscall.EINVAL, syscall.ENOSYS:
+			// Old kernel, or js/wasm (which returns
+			// ENOSYS). Fall back to the portable way from
+			// now on.
+			atomic.StoreInt32(&tryDupCloexec, 0)
+		default:
+			return -1, "fcntl", e1
+		}
+	}
+	return dupCloseOnExecOld(fd)
+}
+
+// dupCloseOnExecOld is the traditional way to dup an fd and
+// set its O_CLOEXEC bit, using two system calls.
+func dupCloseOnExecOld(fd int) (int, string, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	newfd, err := syscall.Dup(fd)
+	if err != nil {
+		return -1, "dup", err
+	}
+	syscall.CloseOnExec(newfd)
+	return newfd, "", nil
+}
+
+// Dup duplicates the file descriptor.
+func (fd *FD) Dup() (int, string, error) {
+	if err := fd.incref(); err != nil {
+		return -1, "", err
+	}
+	defer fd.decref()
+	return DupCloseOnExec(fd.Sysfd)
+}
+
 // On Unix variants only, expose the IO event for the net code.
 
 // WaitWrite waits until data can be read from fd.
@@ -402,15 +508,13 @@ func (fd *FD) WaitWrite() error {
 	return fd.pd.waitWrite(fd.isFile)
 }
 
-// RawControl invokes the user-defined function f for a non-IO
-// operation.
-func (fd *FD) RawControl(f func(uintptr)) error {
-	if err := fd.incref(); err != nil {
-		return err
+// WriteOnce is for testing only. It makes a single write call.
+func (fd *FD) WriteOnce(p []byte) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
 	}
-	defer fd.decref()
-	f(uintptr(fd.Sysfd))
-	return nil
+	defer fd.writeUnlock()
+	return ignoringEINTR(syscall.Write, fd.Sysfd, p)
 }
 
 // RawRead invokes the user-defined function f for a read operation.
@@ -447,6 +551,22 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 		}
 		if err := fd.pd.waitWrite(fd.isFile); err != nil {
 			return err
+		}
+	}
+}
+
+// ignoringEINTR makes a function call and repeats it if it returns
+// an EINTR error. This appears to be required even though we install
+// all signal handlers with SA_RESTART: see #22838, #38033, #38836.
+// Also #20400 and #36644 are issues in which a signal handler is
+// installed without setting SA_RESTART. None of these are the common case,
+// but there are enough of them that it seems that we can't avoid
+// an EINTR loop.
+func ignoringEINTR(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
+	for {
+		n, err := fn(fd, p)
+		if err != syscall.EINTR {
+			return n, err
 		}
 	}
 }

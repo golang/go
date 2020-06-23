@@ -11,6 +11,8 @@ import (
 	"errors"
 	"io"
 	"math/big"
+
+	"crypto/internal/randutil"
 )
 
 // Parameters represents the domain parameters for a key. These parameters can
@@ -37,7 +39,7 @@ type PrivateKey struct {
 // this error must be handled.
 var ErrInvalidPublicKey = errors.New("crypto/dsa: invalid public key")
 
-// ParameterSizes is a enumeration of the acceptable bit lengths of the primes
+// ParameterSizes is an enumeration of the acceptable bit lengths of the primes
 // in a set of DSA parameters. See FIPS 186-3, section 4.2.
 type ParameterSizes int
 
@@ -195,10 +197,12 @@ func fermatInverse(k, P *big.Int) *big.Int {
 // Be aware that calling Sign with an attacker-controlled PrivateKey may
 // require an arbitrary amount of CPU.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+	randutil.MaybeReadByte(rand)
+
 	// FIPS 186-3, section 4.6
 
 	n := priv.Q.BitLen()
-	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n&7 != 0 {
+	if priv.Q.Sign() <= 0 || priv.P.Sign() <= 0 || priv.G.Sign() <= 0 || priv.X.Sign() <= 0 || n%8 != 0 {
 		err = ErrInvalidPublicKey
 		return
 	}
@@ -275,9 +279,12 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	}
 
 	w := new(big.Int).ModInverse(s, pub.Q)
+	if w == nil {
+		return false
+	}
 
 	n := pub.Q.BitLen()
-	if n&7 != 0 {
+	if n%8 != 0 {
 		return false
 	}
 	z := new(big.Int).SetBytes(hash)

@@ -9,10 +9,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
+)
+
+var (
+	cpuSetRE = regexp.MustCompile(`(\d,?)+`)
 )
 
 func init() {
@@ -80,7 +85,13 @@ func getList() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
 	}
-	pos := bytes.IndexRune(output, ':')
+	pos := bytes.IndexRune(output, '\n')
+	if pos == -1 {
+		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
+	}
+	output = output[0:pos]
+
+	pos = bytes.IndexRune(output, ':')
 	if pos == -1 {
 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
 	}
@@ -105,8 +116,12 @@ func checkNCPU(list []string) error {
 		return fmt.Errorf("could not check against an empty CPU list")
 	}
 
+	cListString := cpuSetRE.FindString(listString)
+	if len(cListString) == 0 {
+		return fmt.Errorf("invalid cpuset output '%s'", listString)
+	}
 	// Launch FreeBSDNumCPUHelper() with specified CPUs list.
-	cmd := exec.Command("cpuset", "-l", listString, os.Args[0], "FreeBSDNumCPUHelper")
+	cmd := exec.Command("cpuset", "-l", cListString, os.Args[0], "FreeBSDNumCPUHelper")
 	cmdline := strings.Join(cmd.Args, " ")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -120,7 +135,7 @@ func checkNCPU(list []string) error {
 		return fmt.Errorf("fail to parse output from child '%s', error: %s, output: %s", cmdline, err, output)
 	}
 	if n != len(list) {
-		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, listString)
+		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, cListString)
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 )
@@ -24,8 +25,13 @@ type rawFile interface {
 
 // A File is an opened executable file.
 type File struct {
-	r   *os.File
-	raw rawFile
+	r       *os.File
+	entries []*Entry
+}
+
+type Entry struct {
+	name string
+	raw  rawFile
 }
 
 // A Sym is a symbol defined in an executable file.
@@ -50,12 +56,12 @@ type RelocStringer interface {
 	String(insnOffset uint64) string
 }
 
-var openers = []func(*os.File) (rawFile, error){
+var openers = []func(io.ReaderAt) (rawFile, error){
 	openElf,
-	openGoobj,
 	openMacho,
 	openPE,
 	openPlan9,
+	openXcoff,
 }
 
 // Open opens the named file.
@@ -65,9 +71,12 @@ func Open(name string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
+	if f, err := openGoFile(r); err == nil {
+		return f, nil
+	}
 	for _, try := range openers {
 		if raw, err := try(r); err == nil {
-			return &File{r, raw}, nil
+			return &File{r, []*Entry{{raw: raw}}}, nil
 		}
 	}
 	r.Close()
@@ -78,8 +87,44 @@ func (f *File) Close() error {
 	return f.r.Close()
 }
 
+func (f *File) Entries() []*Entry {
+	return f.entries
+}
+
 func (f *File) Symbols() ([]Sym, error) {
-	syms, err := f.raw.symbols()
+	return f.entries[0].Symbols()
+}
+
+func (f *File) PCLineTable() (Liner, error) {
+	return f.entries[0].PCLineTable()
+}
+
+func (f *File) Text() (uint64, []byte, error) {
+	return f.entries[0].Text()
+}
+
+func (f *File) GOARCH() string {
+	return f.entries[0].GOARCH()
+}
+
+func (f *File) LoadAddress() (uint64, error) {
+	return f.entries[0].LoadAddress()
+}
+
+func (f *File) DWARF() (*dwarf.Data, error) {
+	return f.entries[0].DWARF()
+}
+
+func (f *File) Disasm() (*Disasm, error) {
+	return f.entries[0].Disasm()
+}
+
+func (e *Entry) Name() string {
+	return e.name
+}
+
+func (e *Entry) Symbols() ([]Sym, error) {
+	syms, err := e.raw.symbols()
 	if err != nil {
 		return nil, err
 	}
@@ -93,37 +138,37 @@ func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
 func (x byAddr) Len() int           { return len(x) }
 func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func (f *File) PCLineTable() (Liner, error) {
+func (e *Entry) PCLineTable() (Liner, error) {
 	// If the raw file implements Liner directly, use that.
 	// Currently, only Go intermediate objects and archives (goobj) use this path.
-	if pcln, ok := f.raw.(Liner); ok {
+	if pcln, ok := e.raw.(Liner); ok {
 		return pcln, nil
 	}
 	// Otherwise, read the pcln tables and build a Liner out of that.
-	textStart, symtab, pclntab, err := f.raw.pcln()
+	textStart, symtab, pclntab, err := e.raw.pcln()
 	if err != nil {
 		return nil, err
 	}
 	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
 }
 
-func (f *File) Text() (uint64, []byte, error) {
-	return f.raw.text()
+func (e *Entry) Text() (uint64, []byte, error) {
+	return e.raw.text()
 }
 
-func (f *File) GOARCH() string {
-	return f.raw.goarch()
+func (e *Entry) GOARCH() string {
+	return e.raw.goarch()
 }
 
 // LoadAddress returns the expected load address of the file.
 // This differs from the actual load address for a position-independent
 // executable.
-func (f *File) LoadAddress() (uint64, error) {
-	return f.raw.loadAddress()
+func (e *Entry) LoadAddress() (uint64, error) {
+	return e.raw.loadAddress()
 }
 
 // DWARF returns DWARF debug data for the file, if any.
 // This is for cmd/pprof to locate cgo functions.
-func (f *File) DWARF() (*dwarf.Data, error) {
-	return f.raw.dwarf()
+func (e *Entry) DWARF() (*dwarf.Data, error) {
+	return e.raw.dwarf()
 }

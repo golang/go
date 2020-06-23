@@ -5,9 +5,7 @@
 package testing
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strings"
@@ -21,8 +19,8 @@ type InternalExample struct {
 	Unordered bool
 }
 
-// An internal function but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// RunExamples is an internal function but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
 	_, ok = runExamples(matchString, examples)
 	return ok
@@ -57,68 +55,39 @@ func sortLines(output string) string {
 	return strings.Join(lines, "\n")
 }
 
-func runExample(eg InternalExample) (ok bool) {
-	if *chatty {
-		fmt.Printf("=== RUN   %s\n", eg.Name)
+// processRunResult computes a summary and status of the result of running an example test.
+// stdout is the captured output from stdout of the test.
+// recovered is the result of invoking recover after running the test, in case it panicked.
+//
+// If stdout doesn't match the expected output or if recovered is non-nil, it'll print the cause of failure to stdout.
+// If the test is chatty/verbose, it'll print a success message to stdout.
+// If recovered is non-nil, it'll panic with that value.
+func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, recovered interface{}) (passed bool) {
+	passed = true
+
+	dstr := fmtDuration(timeSpent)
+	var fail string
+	got := strings.TrimSpace(stdout)
+	want := strings.TrimSpace(eg.Output)
+	if eg.Unordered {
+		if sortLines(got) != sortLines(want) && recovered == nil {
+			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)
+		}
+	} else {
+		if got != want && recovered == nil {
+			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
+		}
+	}
+	if fail != "" || recovered != nil {
+		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+		passed = false
+	} else if *chatty {
+		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+	}
+	if recovered != nil {
+		// Propagate the previously recovered result, by panicking.
+		panic(recovered)
 	}
 
-	// Capture stdout.
-	stdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	os.Stdout = w
-	outC := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		_, err := io.Copy(&buf, r)
-		r.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
-			os.Exit(1)
-		}
-		outC <- buf.String()
-	}()
-
-	start := time.Now()
-	ok = true
-
-	// Clean up in a deferred call so we can recover if the example panics.
-	defer func() {
-		dstr := fmtDuration(time.Since(start))
-
-		// Close pipe, restore stdout, get output.
-		w.Close()
-		os.Stdout = stdout
-		out := <-outC
-
-		var fail string
-		err := recover()
-		got := strings.TrimSpace(out)
-		want := strings.TrimSpace(eg.Output)
-		if eg.Unordered {
-			if sortLines(got) != sortLines(want) && err == nil {
-				fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", out, eg.Output)
-			}
-		} else {
-			if got != want && err == nil {
-				fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
-			}
-		}
-		if fail != "" || err != nil {
-			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
-			ok = false
-		} else if *chatty {
-			fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
-		}
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	// Run example.
-	eg.F()
 	return
 }

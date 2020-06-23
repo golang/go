@@ -46,7 +46,7 @@ GLOBL ·asinrodataL15<> + 0(SB), RODATA, $224
 TEXT	·asinAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·asinrodataL15<>+0(SB), R9
-	WORD	$0xB3CD0070	//lgdr %r7, %f0
+	LGDR	F0, R7
 	FMOVD	F0, F8
 	SRAD	$32, R7
 	WORD	$0xC0193FE6 //iilf  %r1,1072079005

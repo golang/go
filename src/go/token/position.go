@@ -30,7 +30,9 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
 // String returns a string in one of several forms:
 //
 //	file:line:column    valid position with file name
+//	file:line           valid position with file name but no column (column == 0)
 //	line:column         valid position without file name
+//	line                valid position without file name and no column (column == 0)
 //	file                invalid position with file name
 //	-                   invalid position without file name
 //
@@ -40,7 +42,10 @@ func (pos Position) String() string {
 		if s != "" {
 			s += ":"
 		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
+		s += fmt.Sprintf("%d", pos.Line)
+		if pos.Column != 0 {
+			s += fmt.Sprintf(":%d", pos.Column)
+		}
 	}
 	if s == "" {
 		s = "-"
@@ -53,8 +58,11 @@ func (pos Position) String() string {
 // larger, representation.
 //
 // The Pos value for a given file is a number in the range [base, base+size],
-// where base and size are specified when adding the file to the file set via
-// AddFile.
+// where base and size are specified when a file is added to the file set.
+// The difference between a Pos value and the corresponding file base
+// corresponds to the byte offset of that position (represented by the Pos value)
+// from the beginning of the file. Thus, the file base offset is the Pos value
+// representing the first byte in the file.
 //
 // To create the Pos value for a specific source offset (measured in bytes),
 // first add the respective file to the current file set using FileSet.AddFile
@@ -141,7 +149,7 @@ func (f *File) AddLine(offset int) {
 // MergeLine will panic if given an invalid line number.
 //
 func (f *File) MergeLine(line int) {
-	if line <= 0 {
+	if line < 1 {
 		panic("illegal line number (line numbering starts at 1)")
 	}
 	f.mutex.Lock()
@@ -204,28 +212,51 @@ func (f *File) SetLinesForContent(content []byte) {
 	f.mutex.Unlock()
 }
 
-// A lineInfo object describes alternative file and line number
-// information (such as provided via a //line comment in a .go
-// file) for a given file offset.
-type lineInfo struct {
-	// fields are exported to make them accessible to gob
-	Offset   int
-	Filename string
-	Line     int
+// LineStart returns the Pos value of the start of the specified line.
+// It ignores any alternative positions set using AddLineColumnInfo.
+// LineStart panics if the 1-based line number is invalid.
+func (f *File) LineStart(line int) Pos {
+	if line < 1 {
+		panic("illegal line number (line numbering starts at 1)")
+	}
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	if line > len(f.lines) {
+		panic("illegal line number")
+	}
+	return Pos(f.base + f.lines[line-1])
 }
 
-// AddLineInfo adds alternative file and line number information for
-// a given file offset. The offset must be larger than the offset for
-// the previously added alternative line info and smaller than the
-// file size; otherwise the information is ignored.
-//
-// AddLineInfo is typically used to register alternative position
-// information for //line filename:line comments in source files.
+// A lineInfo object describes alternative file, line, and column
+// number information (such as provided via a //line directive)
+// for a given file offset.
+type lineInfo struct {
+	// fields are exported to make them accessible to gob
+	Offset       int
+	Filename     string
+	Line, Column int
+}
+
+// AddLineInfo is like AddLineColumnInfo with a column = 1 argument.
+// It is here for backward-compatibility for code prior to Go 1.11.
 //
 func (f *File) AddLineInfo(offset int, filename string, line int) {
+	f.AddLineColumnInfo(offset, filename, line, 1)
+}
+
+// AddLineColumnInfo adds alternative file, line, and column number
+// information for a given file offset. The offset must be larger
+// than the offset for the previously added alternative line info
+// and smaller than the file size; otherwise the information is
+// ignored.
+//
+// AddLineColumnInfo is typically used to register alternative position
+// information for line directives such as //line filename:line:column.
+//
+func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
 	f.mutex.Lock()
 	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
-		f.infos = append(f.infos, lineInfo{offset, filename, line})
+		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
 	}
 	f.mutex.Unlock()
 }
@@ -275,12 +306,25 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column 
 		line, column = i+1, offset-f.lines[i]+1
 	}
 	if adjusted && len(f.infos) > 0 {
-		// almost no files have extra line infos
+		// few files have extra line infos
 		if i := searchLineInfos(f.infos, offset); i >= 0 {
 			alt := &f.infos[i]
 			filename = alt.Filename
 			if i := searchInts(f.lines, alt.Offset); i >= 0 {
-				line += alt.Line - i - 1
+				// i+1 is the line at which the alternative position was recorded
+				d := line - (i + 1) // line distance from alternative position base
+				line = alt.Line + d
+				if alt.Column == 0 {
+					// alternative column is unknown => relative column is unknown
+					// (the current specification for line directives requires
+					// this to apply until the next PosBase/line directive,
+					// not just until the new newline)
+					column = 0
+				} else if d == 0 {
+					// the alternative position base is on the current line
+					// => column is relative to alternative column
+					column = alt.Column + (offset - alt.Offset)
+				}
 			}
 		}
 	}
@@ -322,6 +366,22 @@ func (f *File) Position(p Pos) (pos Position) {
 // A FileSet represents a set of source files.
 // Methods of file sets are synchronized; multiple goroutines
 // may invoke them concurrently.
+//
+// The byte offsets for each file in a file set are mapped into
+// distinct (integer) intervals, one interval [base, base+size]
+// per file. Base represents the first byte in the file, and size
+// is the corresponding file size. A Pos value is a value in such
+// an interval. By determining the interval a Pos value belongs
+// to, the file, its file base, and thus the byte offset (position)
+// the Pos value is representing can be computed.
+//
+// When adding a new file, a file base must be provided. That can
+// be any integer value that is past the end of any interval of any
+// file already in the file set. For convenience, FileSet.Base provides
+// such a value, which is simply the end of the Pos interval of the most
+// recently added file, plus one. Unless there is a need to extend an
+// interval later, using the FileSet.Base should be used as argument
+// for FileSet.AddFile.
 //
 type FileSet struct {
 	mutex sync.RWMutex // protects the file set

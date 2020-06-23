@@ -4,6 +4,10 @@
 
 package strconv
 
+import (
+	"math/bits"
+)
+
 // An extFloat represents an extended floating-point number, with more
 // precision than a float64. It does not try to save bits: the
 // number represented by the structure is mant*(2^exp), with a negative
@@ -15,7 +19,7 @@ type extFloat struct {
 }
 
 // Powers of ten taken from double-conversion library.
-// http://code.google.com/p/double-conversion/
+// https://code.google.com/p/double-conversion/
 const (
 	firstPowerOfTen = -348
 	stepPowerOfTen  = 8
@@ -196,57 +200,23 @@ func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floa
 
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
-func (f *extFloat) Normalize() (shift uint) {
-	mant, exp := f.mant, f.exp
-	if mant == 0 {
+func (f *extFloat) Normalize() uint {
+	// bits.LeadingZeros64 would return 64
+	if f.mant == 0 {
 		return 0
 	}
-	if mant>>(64-32) == 0 {
-		mant <<= 32
-		exp -= 32
-	}
-	if mant>>(64-16) == 0 {
-		mant <<= 16
-		exp -= 16
-	}
-	if mant>>(64-8) == 0 {
-		mant <<= 8
-		exp -= 8
-	}
-	if mant>>(64-4) == 0 {
-		mant <<= 4
-		exp -= 4
-	}
-	if mant>>(64-2) == 0 {
-		mant <<= 2
-		exp -= 2
-	}
-	if mant>>(64-1) == 0 {
-		mant <<= 1
-		exp -= 1
-	}
-	shift = uint(f.exp - exp)
-	f.mant, f.exp = mant, exp
-	return
+	shift := bits.LeadingZeros64(f.mant)
+	f.mant <<= uint(shift)
+	f.exp -= shift
+	return uint(shift)
 }
 
 // Multiply sets f to the product f*g: the result is correctly rounded,
 // but not normalized.
 func (f *extFloat) Multiply(g extFloat) {
-	fhi, flo := f.mant>>32, uint64(uint32(f.mant))
-	ghi, glo := g.mant>>32, uint64(uint32(g.mant))
-
-	// Cross products.
-	cross1 := fhi * glo
-	cross2 := flo * ghi
-
-	// f.mant*g.mant is fhi*ghi << 64 + (cross1+cross2) << 32 + flo*glo
-	f.mant = fhi*ghi + (cross1 >> 32) + (cross2 >> 32)
-	rem := uint64(uint32(cross1)) + uint64(uint32(cross2)) + ((flo * glo) >> 32)
+	hi, lo := bits.Mul64(f.mant, g.mant)
 	// Round up.
-	rem += (1 << 31)
-
-	f.mant += (rem >> 32)
+	f.mant = hi + (lo >> 63)
 	f.exp = f.exp + g.exp + 64
 }
 
@@ -261,8 +231,30 @@ var uint64pow10 = [...]uint64{
 // float32 depending on flt.
 func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
 	const uint64digits = 19
+
+	// Errors (in the "numerical approximation" sense, not the "Go's error
+	// type" sense) in this function are measured as multiples of 1/8 of a ULP,
+	// so that "1/2 of a ULP" can be represented in integer arithmetic.
+	//
+	// The C++ double-conversion library also uses this 8x scaling factor:
+	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L291
+	// but this Go implementation has a bug, where it forgets to scale other
+	// calculations (further below in this function) by the same number. The
+	// C++ implementation does not forget:
+	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L366
+	//
+	// Scaling the "errors" in the "is mant_extra in the range (halfway ±
+	// errors)" check, but not scaling the other values, means that we return
+	// ok=false (and fall back to a slower atof code path) more often than we
+	// could. This affects performance but not correctness.
+	//
+	// Longer term, we could fix the forgot-to-scale bug (and look carefully
+	// for correctness regressions; https://codereview.appspot.com/5494068
+	// landed in 2011), or replace this atof algorithm with a faster one (e.g.
+	// Ryu). Shorter term, this comment will suffice.
 	const errorscale = 8
-	errors := 0 // An upper bound for error, computed in errorscale*ulp.
+
+	errors := 0 // An upper bound for error, computed in ULP/errorscale.
 	if trunc {
 		// the decimal number was truncated.
 		errors += errorscale / 2
@@ -641,7 +633,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
-// all data is known with a error estimate of ulpBinary*ε.
+// all data is known with an error estimate of ulpBinary*ε.
 func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
 		// Approximation is too wide.

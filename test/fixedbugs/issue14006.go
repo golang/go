@@ -50,7 +50,10 @@ func f() {
 		labelname:	// ERROR "missing statement after label"
 	case false:
 	}
+}
 
+func g() {
+	var z bool
 	switch {
 	case z:
 		labelname:	// ERROR "label labelname defined and not used"

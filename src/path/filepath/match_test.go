@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	. "path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -105,7 +106,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// contains returns true if vector contains the string s.
+// contains reports whether vector contains the string s.
 func contains(vector []string, s string) bool {
 	for _, elem := range vector {
 		if elem == s {
@@ -369,5 +370,20 @@ func TestWindowsGlob(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestNonWindowsGlobEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping non-windows specific test")
+	}
+	pattern := `\match.go`
+	want := []string{"match.go"}
+	matches, err := Glob(pattern)
+	if err != nil {
+		t.Fatalf("Glob error for %q: %s", pattern, err)
+	}
+	if !reflect.DeepEqual(matches, want) {
+		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

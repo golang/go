@@ -25,45 +25,61 @@ func NewCertPool() *CertPool {
 	}
 }
 
+func (s *CertPool) copy() *CertPool {
+	p := &CertPool{
+		bySubjectKeyId: make(map[string][]int, len(s.bySubjectKeyId)),
+		byName:         make(map[string][]int, len(s.byName)),
+		certs:          make([]*Certificate, len(s.certs)),
+	}
+	for k, v := range s.bySubjectKeyId {
+		indexes := make([]int, len(v))
+		copy(indexes, v)
+		p.bySubjectKeyId[k] = indexes
+	}
+	for k, v := range s.byName {
+		indexes := make([]int, len(v))
+		copy(indexes, v)
+		p.byName[k] = indexes
+	}
+	copy(p.certs, s.certs)
+	return p
+}
+
 // SystemCertPool returns a copy of the system cert pool.
 //
 // Any mutations to the returned pool are not written to disk and do
-// not affect any other pool.
+// not affect any other pool returned by SystemCertPool.
+//
+// New changes in the system cert pool might not be reflected
+// in subsequent calls.
 func SystemCertPool() (*CertPool, error) {
 	if runtime.GOOS == "windows" {
 		// Issue 16736, 18609:
 		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
 	}
 
+	if sysRoots := systemRootsPool(); sysRoots != nil {
+		return sysRoots.copy(), nil
+	}
+
 	return loadSystemRoots()
 }
 
-// findVerifiedParents attempts to find certificates in s which have signed the
-// given certificate. If any candidates were rejected then errCert will be set
-// to one of them, arbitrarily, and err will contain the reason that it was
-// rejected.
-func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCert *Certificate, err error) {
+// findPotentialParents returns the indexes of certificates in s which might
+// have signed cert. The caller must not modify the returned slice.
+func (s *CertPool) findPotentialParents(cert *Certificate) []int {
 	if s == nil {
-		return
+		return nil
 	}
-	var candidates []int
 
+	var candidates []int
 	if len(cert.AuthorityKeyId) > 0 {
 		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
 	if len(candidates) == 0 {
 		candidates = s.byName[string(cert.RawIssuer)]
 	}
-
-	for _, c := range candidates {
-		if err = cert.CheckSignatureFrom(s.certs[c]); err == nil {
-			parents = append(parents, c)
-		} else {
-			errCert = s.certs[c]
-		}
-	}
-
-	return
+	return candidates
 }
 
 func (s *CertPool) contains(cert *Certificate) bool {

@@ -17,7 +17,7 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
 	MOVD	ptr+0(FP), R3
 	MOVWZ	old+8(FP), R4
 	MOVWZ	new+12(FP), R5
-	SYNC
+	LWSYNC
 cas_again:
 	LWAR	(R3), R6
 	CMPW	R6, R4
@@ -25,7 +25,7 @@ cas_again:
 	STWCCC	R5, (R3)
 	BNE	cas_again
 	MOVD	$1, R3
-	ISYNC
+	LWSYNC
 	MOVB	R3, ret+16(FP)
 	RET
 cas_fail:
@@ -44,7 +44,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
 	MOVD	ptr+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
-	SYNC
+	LWSYNC
 cas64_again:
 	LDAR	(R3), R6
 	CMP	R6, R4
@@ -52,11 +52,29 @@ cas64_again:
 	STDCCC	R5, (R3)
 	BNE	cas64_again
 	MOVD	$1, R3
-	ISYNC
+	LWSYNC
 	MOVB	R3, ret+24(FP)
 	RET
 cas64_fail:
 	MOVB	R0, ret+24(FP)
+	RET
+
+TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+	MOVD    ptr+0(FP), R3
+	MOVWZ   old+8(FP), R4
+	MOVWZ   new+12(FP), R5
+	LWSYNC
+cas_again:
+	LWAR    (R3), $0, R6        // 0 = Mutex release hint
+	CMPW    R6, R4
+	BNE     cas_fail
+	STWCCC  R5, (R3)
+	BNE     cas_again
+	MOVD    $1, R3
+	MOVB    R3, ret+16(FP)
+	RET
+cas_fail:
+	MOVB    R0, ret+16(FP)
 	RET
 
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
@@ -97,31 +115,29 @@ TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-25
 TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
 	MOVD	ptr+0(FP), R4
 	MOVW	delta+8(FP), R5
-	SYNC
+	LWSYNC
 	LWAR	(R4), R3
 	ADD	R5, R3
 	STWCCC	R3, (R4)
 	BNE	-3(PC)
-	ISYNC
 	MOVW	R3, ret+16(FP)
 	RET
 
 TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R4
 	MOVD	delta+8(FP), R5
-	SYNC
+	LWSYNC
 	LDAR	(R4), R3
 	ADD	R5, R3
 	STDCCC	R3, (R4)
 	BNE	-3(PC)
-	ISYNC
 	MOVD	R3, ret+16(FP)
 	RET
 
 TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
 	MOVD	ptr+0(FP), R4
 	MOVW	new+8(FP), R5
-	SYNC
+	LWSYNC
 	LWAR	(R4), R3
 	STWCCC	R5, (R4)
 	BNE	-2(PC)
@@ -132,7 +148,7 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
 TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
 	MOVD	ptr+0(FP), R4
 	MOVD	new+8(FP), R5
-	SYNC
+	LWSYNC
 	LDAR	(R4), R3
 	STDCCC	R5, (R4)
 	BNE	-2(PC)
@@ -154,6 +170,13 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	MOVW	R4, 0(R3)
 	RET
 
+TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R3
+	MOVB	val+8(FP), R4
+	SYNC
+	MOVB	R4, 0(R3)
+	RET
+
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVD	ptr+0(FP), R3
 	MOVD	val+8(FP), R4
@@ -161,28 +184,33 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVD	R4, 0(R3)
 	RET
 
+TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+	MOVD	ptr+0(FP), R3
+	MOVW	val+8(FP), R4
+	LWSYNC
+	MOVW	R4, 0(R3)
+	RET
+
 // void runtime∕internal∕atomic·Or8(byte volatile*, byte);
 TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-	SYNC
+	LWSYNC
 again:
 	LBAR	(R3), R6
 	OR	R4, R6
 	STBCCC	R6, (R3)
 	BNE	again
-	ISYNC
 	RET
 
 // void runtime∕internal∕atomic·And8(byte volatile*, byte);
 TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-	SYNC
+	LWSYNC
 again:
 	LBAR	(R3),R6
 	AND	R4,R6
 	STBCCC	R6,(R3)
 	BNE	again
-	ISYNC
 	RET

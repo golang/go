@@ -44,28 +44,6 @@ func RelPaths(paths []string) []string {
 	return out
 }
 
-// FilterDotUnderscoreFiles returns a slice containing all elements
-// of path whose base name doesn't begin with "." or "_".
-func FilterDotUnderscoreFiles(path []string) []string {
-	var out []string // lazily initialized
-	for i, p := range path {
-		base := filepath.Base(p)
-		if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") {
-			if out == nil {
-				out = append(make([]string, 0, len(path)), path[:i]...)
-			}
-			continue
-		}
-		if out != nil {
-			out = append(out, p)
-		}
-	}
-	if out == nil {
-		return path
-	}
-	return out
-}
-
 // IsTestFile reports whether the source file is a set of tests and should therefore
 // be excluded from coverage analysis.
 func IsTestFile(file string) bool {

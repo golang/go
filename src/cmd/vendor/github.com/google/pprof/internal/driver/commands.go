@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/report"
-	"github.com/google/pprof/third_party/svg"
 )
 
 // commands describes the commands accepted by pprof.
@@ -136,14 +135,6 @@ var pprofVariables = variables{
 		"Ignore negative differences",
 		"Do not show any locations with values <0.")},
 
-	// Comparisons.
-	"positive_percentages": &variable{boolKind, "f", "", helpText(
-		"Ignore negative samples when computing percentages",
-		" Do not count negative samples when computing the total value",
-		" of the profile, used to compute percentages. If set, and the -base",
-		" option is used, percentages reported will be computed against the",
-		" main profile, ignoring the base profile.")},
-
 	// Graph handling options.
 	"call_tree": &variable{boolKind, "f", "", helpText(
 		"Create a context-sensitive call tree",
@@ -157,11 +148,12 @@ var pprofVariables = variables{
 	"unit": &variable{stringKind, "minimum", "", helpText(
 		"Measurement units to display",
 		"Scale the sample values to this unit.",
-		" For time-based profiles, use seconds, milliseconds, nanoseconds, etc.",
-		" For memory profiles, use megabytes, kilobytes, bytes, etc.",
-		" auto will scale each value independently to the most natural unit.")},
+		"For time-based profiles, use seconds, milliseconds, nanoseconds, etc.",
+		"For memory profiles, use megabytes, kilobytes, bytes, etc.",
+		"Using auto will scale each value independently to the most natural unit.")},
 	"compact_labels": &variable{boolKind, "f", "", "Show minimal headers"},
 	"source_path":    &variable{stringKind, "", "", "Search path for source files"},
+	"trim_path":      &variable{stringKind, "", "", "Path to trim from source paths before search"},
 
 	// Filtering options
 	"nodecount": &variable{intKind, "-1", "", helpText(
@@ -194,12 +186,20 @@ var pprofVariables = variables{
 		"Only show nodes matching regexp",
 		"If set, only show nodes that match this location.",
 		"Matching includes the function name, filename or object name.")},
+	"show_from": &variable{stringKind, "", "", helpText(
+		"Drops functions above the highest matched frame.",
+		"If set, all frames above the highest match are dropped from every sample.",
+		"Matching includes the function name, filename or object name.")},
 	"tagfocus": &variable{stringKind, "", "", helpText(
-		"Restrict to samples with tags in range or matched by regexp",
-		"Discard samples that do not include a node with a tag matching this regexp.")},
+		"Restricts to samples with tags in range or matched by regexp",
+		"Use name=value syntax to limit the matching to a specific tag.",
+		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
 	"tagignore": &variable{stringKind, "", "", helpText(
 		"Discard samples with tags in range or matched by regexp",
-		"Discard samples that do include a node with a tag matching this regexp.")},
+		"Use name=value syntax to limit the matching to a specific tag.",
+		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
 	"tagshow": &variable{stringKind, "", "", helpText(
 		"Only consider tags matching this regexp",
 		"Discard tags that do not match this regexp")},
@@ -218,6 +218,8 @@ var pprofVariables = variables{
 		"Sample value to report (0-based index or name)",
 		"Profiles contain multiple values per sample.",
 		"Use sample_index=i to select the ith value (starting at 0).")},
+	"normalize": &variable{boolKind, "f", "", helpText(
+		"Scales profile based on the base profile.")},
 
 	// Data sorting criteria
 	"flat": &variable{boolKind, "t", "cumulative", helpText("Sort entries based on own weight")},
@@ -226,20 +228,17 @@ var pprofVariables = variables{
 	// Output granularity
 	"functions": &variable{boolKind, "t", "granularity", helpText(
 		"Aggregate at the function level.",
-		"Takes into account the filename/lineno where the function was defined.")},
-	"functionnameonly": &variable{boolKind, "f", "granularity", helpText(
+		"Ignores the filename where the function was defined.")},
+	"filefunctions": &variable{boolKind, "t", "granularity", helpText(
 		"Aggregate at the function level.",
-		"Ignores the filename/lineno where the function was defined.")},
+		"Takes into account the filename where the function was defined.")},
 	"files": &variable{boolKind, "f", "granularity", "Aggregate at the file level."},
 	"lines": &variable{boolKind, "f", "granularity", "Aggregate at the source code line level."},
 	"addresses": &variable{boolKind, "f", "granularity", helpText(
-		"Aggregate at the function level.",
+		"Aggregate at the address level.",
 		"Includes functions' addresses in the output.")},
-	"noinlines": &variable{boolKind, "f", "granularity", helpText(
-		"Aggregate at the function level.",
-		"Attributes inlined functions to their first out-of-line caller.")},
-	"addressnoinlines": &variable{boolKind, "f", "granularity", helpText(
-		"Aggregate at the function level, including functions' addresses in the output.",
+	"noinlines": &variable{boolKind, "f", "", helpText(
+		"Ignore inlines.",
 		"Attributes inlined functions to their first out-of-line caller.")},
 }
 
@@ -266,7 +265,7 @@ func usage(commandLine bool) string {
 
 	var help string
 	if commandLine {
-		help = "  Output formats (select only one):\n"
+		help = "  Output formats (select at most one):\n"
 	} else {
 		help = "  Commands:\n"
 		commands = append(commands, fmtHelp("o/options", "List options and their current values"))
@@ -338,21 +337,27 @@ func listHelp(c string, redirect bool) string {
 
 // browsers returns a list of commands to attempt for web visualization.
 func browsers() []string {
-	cmds := []string{"chrome", "google-chrome", "firefox"}
+	var cmds []string
+	if userBrowser := os.Getenv("BROWSER"); userBrowser != "" {
+		cmds = append(cmds, userBrowser)
+	}
 	switch runtime.GOOS {
 	case "darwin":
-		return append(cmds, "/usr/bin/open")
+		cmds = append(cmds, "/usr/bin/open")
 	case "windows":
-		return append(cmds, "cmd /c start")
+		cmds = append(cmds, "cmd /c start")
 	default:
-		userBrowser := os.Getenv("BROWSER")
-		if userBrowser != "" {
-			cmds = append([]string{userBrowser, "sensible-browser"}, cmds...)
-		} else {
-			cmds = append([]string{"sensible-browser"}, cmds...)
+		// Commands opening browsers are prioritized over xdg-open, so browser()
+		// command can be used on linux to open the .svg file generated by the -web
+		// command (the .svg file includes embedded javascript so is best viewed in
+		// a browser).
+		cmds = append(cmds, []string{"chrome", "google-chrome", "chromium", "firefox", "sensible-browser"}...)
+		if os.Getenv("DISPLAY") != "" {
+			// xdg-open is only for use in a desktop environment.
+			cmds = append(cmds, "xdg-open")
 		}
-		return append(cmds, "xdg-open")
 	}
+	return cmds
 }
 
 var kcachegrind = []string{"kcachegrind"}
@@ -380,7 +385,7 @@ func invokeDot(format string) PostProcessor {
 		cmd := exec.Command("dot", "-T"+format)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = input, output, os.Stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("Failed to execute dot. Is Graphviz installed? Error: %v", err)
+			return fmt.Errorf("failed to execute dot. Is Graphviz installed? Error: %v", err)
 		}
 		return nil
 	}
@@ -395,7 +400,7 @@ func massageDotSVG() PostProcessor {
 		if err := generateSVG(input, baseSVG, ui); err != nil {
 			return err
 		}
-		_, err := output.Write([]byte(svg.Massage(baseSVG.String())))
+		_, err := output.Write([]byte(massageSVG(baseSVG.String())))
 		return err
 	}
 }
@@ -471,7 +476,7 @@ func (vars variables) set(name, value string) error {
 	case boolKind:
 		var b bool
 		if b, err = stringToBool(value); err == nil {
-			if v.group != "" && b == false {
+			if v.group != "" && !b {
 				err = fmt.Errorf("%q can only be set to true", name)
 			}
 		}

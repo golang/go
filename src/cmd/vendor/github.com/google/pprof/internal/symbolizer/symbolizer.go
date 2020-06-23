@@ -34,28 +34,34 @@ import (
 
 // Symbolizer implements the plugin.Symbolize interface.
 type Symbolizer struct {
-	Obj plugin.ObjTool
-	UI  plugin.UI
+	Obj       plugin.ObjTool
+	UI        plugin.UI
+	Transport http.RoundTripper
 }
 
 // test taps for dependency injection
 var symbolzSymbolize = symbolz.Symbolize
 var localSymbolize = doLocalSymbolize
+var demangleFunction = Demangle
 
 // Symbolize attempts to symbolize profile p. First uses binutils on
 // local binaries; if the source is a URL it attempts to get any
 // missed entries using symbolz.
 func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *profile.Profile) error {
-	remote, local, force, demanglerMode := true, true, false, ""
+	remote, local, fast, force, demanglerMode := true, true, false, false, ""
 	for _, o := range strings.Split(strings.ToLower(mode), ":") {
 		switch o {
+		case "":
+			continue
 		case "none", "no":
 			return nil
-		case "local", "fastlocal":
+		case "local":
 			remote, local = false, true
+		case "fastlocal":
+			remote, local, fast = false, true, true
 		case "remote":
 			remote, local = true, false
-		case "", "force":
+		case "force":
 			force = true
 		default:
 			switch d := strings.TrimPrefix(o, "demangle="); d {
@@ -74,29 +80,35 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
 	var err error
 	if local {
 		// Symbolize locally using binutils.
-		if err = localSymbolize(mode, p, s.Obj, s.UI); err != nil {
+		if err = localSymbolize(p, fast, force, s.Obj, s.UI); err != nil {
 			s.UI.PrintErr("local symbolization: " + err.Error())
 		}
 	}
 	if remote {
-		if err = symbolzSymbolize(sources, postURL, p, s.UI); err != nil {
+		post := func(source, post string) ([]byte, error) {
+			return postURL(source, post, s.Transport)
+		}
+		if err = symbolzSymbolize(p, force, sources, post, s.UI); err != nil {
 			return err // Ran out of options.
 		}
 	}
 
-	Demangle(p, force, demanglerMode)
+	demangleFunction(p, force, demanglerMode)
 	return nil
 }
 
 // postURL issues a POST to a URL over HTTP.
-func postURL(source, post string) ([]byte, error) {
-	resp, err := http.Post(source, "application/octet-stream", strings.NewReader(post))
+func postURL(source, post string, tr http.RoundTripper) ([]byte, error) {
+	client := &http.Client{
+		Transport: tr,
+	}
+	resp, err := client.Post(source, "application/octet-stream", strings.NewReader(post))
 	if err != nil {
 		return nil, fmt.Errorf("http post %s: %v", source, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, statusCodeError(resp)
+		return nil, fmt.Errorf("http post %s: %v", source, statusCodeError(resp))
 	}
 	return ioutil.ReadAll(resp.Body)
 }
@@ -114,18 +126,10 @@ func statusCodeError(resp *http.Response) error {
 // doLocalSymbolize adds symbol and line number information to all locations
 // in a profile. mode enables some options to control
 // symbolization.
-func doLocalSymbolize(mode string, prof *profile.Profile, obj plugin.ObjTool, ui plugin.UI) error {
-	force := false
-	// Disable some mechanisms based on mode string.
-	for _, o := range strings.Split(strings.ToLower(mode), ":") {
-		switch {
-		case o == "force":
-			force = true
-		case o == "fastlocal":
-			if bu, ok := obj.(*binutils.Binutils); ok {
-				bu.SetFastSymbolization(true)
-			}
-		default:
+func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjTool, ui plugin.UI) error {
+	if fast {
+		if bu, ok := obj.(*binutils.Binutils); ok {
+			bu.SetFastSymbolization(true)
 		}
 	}
 
@@ -151,6 +155,7 @@ func doLocalSymbolize(mode string, prof *profile.Profile, obj plugin.ObjTool, ui
 		}
 
 		l.Line = make([]profile.Line, len(stack))
+		l.IsFolded = false
 		for i, frame := range stack {
 			if frame.Func != "" {
 				m.HasFunctions = true

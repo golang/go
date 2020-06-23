@@ -1,0 +1,20 @@
+env GO111MODULE=on
+[short] skip
+
+# Test that when 'go get' is run from $GOBIN, it does not delete binaries
+# after it installs them. Verifies golang.org/issue/32766.
+
+go get example.com/tools/cmd/hello
+
+# 'go get' should not delete the command when run from $GOPATH/bin
+cd $GOPATH/bin
+exists hello$GOEXE
+go get example.com/tools/cmd/hello
+exists hello$GOEXE
+
+# 'go get' should not delete the command when run from a different $GOBIN
+mkdir $WORK/bin
+cd $WORK/bin
+env GOBIN=$WORK/bin
+go get example.com/tools/cmd/hello
+exists hello$GOEXE

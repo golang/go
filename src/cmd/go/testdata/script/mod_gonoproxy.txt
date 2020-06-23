@@ -1,0 +1,48 @@
+env GO111MODULE=on
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env GOPRIVATE GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+env dbname=localhost.localdev/sumdb
+
+# disagree with sumdb fails
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+! go get rsc.io/quote
+stderr 'SECURITY ERROR'
+
+# GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
+env GONOSUMDB='*/quote,*/*mple*,golang.org/x'
+go get rsc.io/quote
+rm go.sum
+env GOPRIVATE='*/quote,*/*mple*,golang.org/x'
+env GONOPROXY=none # that is, proxy all despite GOPRIVATE
+go get rsc.io/quote
+
+# When GOPROXY is not empty but contains no entries, an error should be reported.
+env GOPROXY=','
+! go get golang.org/x/text
+stderr '^go get golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
+
+# When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
+env GONOPROXY=*/fortune
+env GOPROXY=off
+! go get golang.org/x/text
+stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
+
+# GONOPROXY bypasses proxy
+[!net] skip
+[!exec:git] skip
+env GOPRIVATE=none
+env GONOPROXY='*/fortune'
+! go get rsc.io/fortune # does not exist in real world, only on test proxy
+stderr 'git ls-remote'
+
+env GOSUMDB=
+env GONOPROXY=
+env GOPRIVATE='*/x'
+go get golang.org/x/text
+go list -m all
+! stdout 'text.*v0.0.0-2017' # should not have the version from the proxy
+
+-- go.mod.orig --
+module m

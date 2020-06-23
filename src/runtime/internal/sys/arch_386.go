@@ -6,12 +6,10 @@ package sys
 
 const (
 	ArchFamily          = I386
-	BigEndian           = 0
-	CacheLineSize       = 64
-	DefaultPhysPageSize = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl
+	BigEndian           = false
+	DefaultPhysPageSize = 4096
 	PCQuantum           = 1
 	Int64Align          = 4
-	HugePageSize        = 1 << 21
 	MinFrameSize        = 0
 )
 

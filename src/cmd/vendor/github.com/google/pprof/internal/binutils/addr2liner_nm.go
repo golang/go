@@ -48,22 +48,23 @@ func newAddr2LinerNM(cmd, file string, base uint64) (*addr2LinerNM, error) {
 	if cmd == "" {
 		cmd = defaultNM
 	}
+	var b bytes.Buffer
+	c := exec.Command(cmd, "-n", file)
+	c.Stdout = &b
+	if err := c.Run(); err != nil {
+		return nil, err
+	}
+	return parseAddr2LinerNM(base, &b)
+}
 
+func parseAddr2LinerNM(base uint64, nm io.Reader) (*addr2LinerNM, error) {
 	a := &addr2LinerNM{
 		m: []symbolInfo{},
 	}
 
-	var b bytes.Buffer
-	c := exec.Command(cmd, "-n", file)
-	c.Stdout = &b
-
-	if err := c.Run(); err != nil {
-		return nil, err
-	}
-
 	// Parse nm output and populate symbol map.
 	// Skip lines we fail to parse.
-	buf := bufio.NewReader(&b)
+	buf := bufio.NewReader(nm)
 	for {
 		line, err := buf.ReadString('\n')
 		if line == "" && err != nil {

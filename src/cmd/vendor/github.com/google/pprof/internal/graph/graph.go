@@ -19,11 +19,28 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/google/pprof/profile"
+)
+
+var (
+	// Removes package name and method arugments for Java method names.
+	// See tests for examples.
+	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
+	// Removes package name and method arugments for Go function names.
+	// See tests for examples.
+	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
+	// Strips C++ namespace prefix from a C++ function / method name.
+	// NOTE: Make sure to keep the template parameters in the name. Normally,
+	// template parameters are stripped from the C++ names but when
+	// -symbolize=demangle=templates flag is used, they will not be.
+	// See tests for examples.
+	cppRegExp                = regexp.MustCompile(`^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)`)
+	cppAnonymousPrefixRegExp = regexp.MustCompile(`^\(anonymous namespace\)::`)
 )
 
 // Graph summarizes a performance profile into a format that is
@@ -184,7 +201,7 @@ type NodeSet map[NodeInfo]bool
 // works as a unique identifier; however, in a tree multiple nodes may share
 // identical NodeInfos. A *Node does uniquely identify a node so we can use that
 // instead. Though a *Node also uniquely identifies a node in a graph,
-// currently, during trimming, graphs are rebult from scratch using only the
+// currently, during trimming, graphs are rebuilt from scratch using only the
 // NodeSet, so there would not be the required context of the initial graph to
 // allow for the use of *Node.
 type NodePtrSet map[*Node]bool
@@ -240,6 +257,8 @@ type Edge struct {
 	Inline bool
 }
 
+// WeightValue returns the weight value for this edge, normalizing if a
+// divisor is available.
 func (e *Edge) WeightValue() int64 {
 	if e.WeightDiv == 0 {
 		return e.Weight
@@ -327,7 +346,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 				// Add cum weight to all nodes in stack, avoiding double counting.
 				if _, ok := seenNode[n]; !ok {
 					seenNode[n] = true
-					n.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, false)
+					n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
 				}
 				// Update edge weights for all edges in stack, avoiding double counting.
 				if _, ok := seenEdge[nodePair{n, parent}]; !ok && parent != nil && n != parent {
@@ -340,7 +359,7 @@ func newGraph(prof *profile.Profile, o *Options) (*Graph, map[uint64]Nodes) {
 		}
 		if parent != nil && !residual {
 			// Add flat weight to leaf node.
-			parent.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, true)
+			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
 		}
 	}
 
@@ -399,7 +418,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 				if n == nil {
 					continue
 				}
-				n.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, false)
+				n.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, false)
 				if parent != nil {
 					parent.AddToEdgeDiv(n, dw, w, false, lidx != len(lines)-1)
 				}
@@ -407,7 +426,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 			}
 		}
 		if parent != nil {
-			parent.addSample(dw, w, labels, sample.NumLabel, o.FormatTag, true)
+			parent.addSample(dw, w, labels, sample.NumLabel, sample.NumUnit, o.FormatTag, true)
 		}
 	}
 
@@ -416,6 +435,17 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 		nodes = append(nodes, nm.nodes()...)
 	}
 	return selectNodesForGraph(nodes, o.DropNegative)
+}
+
+// ShortenFunctionName returns a shortened version of a function's name.
+func ShortenFunctionName(f string) string {
+	f = cppAnonymousPrefixRegExp.ReplaceAllString(f, "")
+	for _, re := range []*regexp.Regexp{goRegExp, javaRegExp, cppRegExp} {
+		if matches := re.FindStringSubmatch(f); len(matches) >= 2 {
+			return strings.Join(matches[1:], "")
+		}
+	}
+	return f
 }
 
 // TrimTree trims a Graph in forest form, keeping only the nodes in kept. This
@@ -510,9 +540,7 @@ func isNegative(n *Node) bool {
 
 // CreateNodes creates graph nodes for all locations in a profile. It
 // returns set of all nodes, plus a mapping of each location to the
-// set of corresponding nodes (one per location.Line). If kept is
-// non-nil, only nodes in that set are included; nodes that do not
-// match are represented as a nil.
+// set of corresponding nodes (one per location.Line).
 func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
 	locations := make(map[uint64]Nodes, len(prof.Location))
 	nm := make(NodeMap, len(prof.Location))
@@ -562,12 +590,12 @@ func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options
 	if fname := line.Function.Filename; fname != "" {
 		ni.File = filepath.Clean(fname)
 	}
-	if o.ObjNames {
-		ni.Objfile = objfile
-		ni.StartLine = int(line.Function.StartLine)
-	}
 	if o.OrigFnNames {
 		ni.OrigName = line.Function.SystemName
+	}
+	if o.ObjNames || (ni.Name == "" && ni.OrigName == "") {
+		ni.Objfile = objfile
+		ni.StartLine = int(line.Function.StartLine)
 	}
 	return ni
 }
@@ -600,7 +628,7 @@ func (ns Nodes) Sum() (flat int64, cum int64) {
 	return
 }
 
-func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, format func(int64, string) string, flat bool) {
+func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64, numUnit map[string][]string, format func(int64, string) string, flat bool) {
 	// Update sample value
 	if flat {
 		n.FlatDiv += dw
@@ -631,9 +659,15 @@ func (n *Node) addSample(dw, w int64, labels string, numLabel map[string][]int64
 	if format == nil {
 		format = defaultLabelFormat
 	}
-	for key, nvals := range numLabel {
-		for _, v := range nvals {
-			t := numericTags.findOrAddTag(format(v, key), key, v)
+	for k, nvals := range numLabel {
+		units := numUnit[k]
+		for i, v := range nvals {
+			var t *Tag
+			if len(units) > 0 {
+				t = numericTags.findOrAddTag(format(v, units[i]), units[i], v)
+			} else {
+				t = numericTags.findOrAddTag(format(v, k), k, v)
+			}
 			if flat {
 				t.FlatDiv += dw
 				t.Flat += w
@@ -800,7 +834,11 @@ func (g *Graph) selectTopNodes(maxNodes int, visualMode bool) Nodes {
 			// If generating a visual graph, count tags as nodes. Update
 			// maxNodes to account for them.
 			for i, n := range g.Nodes {
-				if count += countTags(n) + 1; count >= maxNodes {
+				tags := countTags(n)
+				if tags > maxNodelets {
+					tags = maxNodelets
+				}
+				if count += tags + 1; count >= maxNodes {
 					maxNodes = i + 1
 					break
 				}
@@ -827,17 +865,6 @@ func countTags(n *Node) int {
 			if e.Flat != 0 {
 				count++
 			}
-		}
-	}
-	return count
-}
-
-// countEdges counts the number of edges below the specified cutoff.
-func countEdges(el EdgeMap, cutoff int64) int {
-	count := 0
-	for _, e := range el {
-		if e.Weight > cutoff {
-			count++
 		}
 	}
 	return count

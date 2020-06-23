@@ -1,5 +1,5 @@
 // Inferno's libkern/vlop-arm.s
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlop-arm.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/vlop-arm.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -28,71 +28,9 @@
 #include "funcdata.h"
 #include "textflag.h"
 
-// trampoline for _sfloat2. passes LR as arg0 and
-// saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
-// be changed by _sfloat2.
-TEXT runtime·_sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return value
-	MOVW	R14, 4(R13)
-	MOVW	R0, 8(R13)
-	MOVW	$12(R13), R0
-	MOVM.IA.W	[R1-R12], (R0)
-	MOVW	$72(R13), R1 // correct for frame size
-	MOVW	R1, 60(R13)
-	WORD	$0xe10f1000 // mrs r1, cpsr
-	MOVW	R1, 64(R13)
-	// Disable preemption of this goroutine during _sfloat2 by
-	// m->locks++ and m->locks-- around the call.
-	// Rescheduling this goroutine may cause the loss of the
-	// contents of the software floating point registers in 
-	// m->freghi, m->freglo, m->fflag, if the goroutine is moved
-	// to a different m or another goroutine runs on this m.
-	// Rescheduling at ordinary function calls is okay because
-	// all registers are caller save, but _sfloat2 and the things
-	// that it runs are simulating the execution of individual
-	// program instructions, and those instructions do not expect
-	// the floating point registers to be lost.
-	// An alternative would be to move the software floating point
-	// registers into G, but they do not need to be kept at the 
-	// usual places a goroutine reschedules (at function calls),
-	// so it would be a waste of 132 bytes per G.
-	MOVW	g_m(g), R8
-	MOVW	m_locks(R8), R1
-	ADD	$1, R1
-	MOVW	R1, m_locks(R8)
-	MOVW	$1, R1
-	MOVW	R1, m_softfloat(R8)
-	BL	runtime·_sfloat2(SB)
-	MOVW	68(R13), R0
-	MOVW	g_m(g), R8
-	MOVW	m_locks(R8), R1
-	SUB	$1, R1
-	MOVW	R1, m_locks(R8)
-	MOVW	$0, R1
-	MOVW	R1, m_softfloat(R8)
-	MOVW	R0, 0(R13)
-	MOVW	64(R13), R1
-	WORD	$0xe128f001	// msr cpsr_f, r1
-	MOVW	$12(R13), R0
-	// Restore R1-R12, R0.
-	MOVM.IA.W	(R0), [R1-R12]
-	MOVW	8(R13), R0
-	RET
-
-// trampoline for _sfloat2 panic.
-// _sfloat2 instructs _sfloat to return here.
-// We need to push a fake saved LR onto the stack,
-// load the signal fault address into LR, and jump
-// to the real sigpanic.
-// This simulates what sighandler does for a memory fault.
-TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
-	MOVW	$0, R0
-	MOVW.W	R0, -4(R13)
-	MOVW	g_sigpc(g), LR
-	B	runtime·sigpanic(SB)
-
 // func runtime·udiv(n, d uint32) (q, r uint32)
 // compiler knowns the register usage of this function
-// Reference: 
+// Reference:
 // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
 // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
 #define Rq	R0 // input d, output q
@@ -102,8 +40,9 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
 #define Ra	R11
 
 // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
-TEXT runtime·udiv(SB),NOSPLIT,$-4
-	MOVBU	runtime·hardDiv(SB), Ra
+// Note: this function does not have a frame.
+TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
+	MOVBU	internal∕cpu·ARM+const_offsetARMHasIDIVA(SB), Ra
 	CMP	$0, Ra
 	BNE	udiv_hardware
 

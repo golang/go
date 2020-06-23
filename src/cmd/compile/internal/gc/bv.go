@@ -4,10 +4,14 @@
 
 package gc
 
+import (
+	"math/bits"
+)
+
 const (
-	WORDBITS  = 32
-	WORDMASK  = WORDBITS - 1
-	WORDSHIFT = 5
+	wordBits  = 32
+	wordMask  = wordBits - 1
+	wordShift = 5
 )
 
 // A bvec is a bit vector.
@@ -17,7 +21,7 @@ type bvec struct {
 }
 
 func bvalloc(n int32) bvec {
-	nword := (n + WORDBITS - 1) / WORDBITS
+	nword := (n + wordBits - 1) / wordBits
 	return bvec{n, make([]uint32, nword)}
 }
 
@@ -28,7 +32,7 @@ type bulkBvec struct {
 }
 
 func bvbulkalloc(nbit int32, count int32) bulkBvec {
-	nword := (nbit + WORDBITS - 1) / WORDBITS
+	nword := (nbit + wordBits - 1) / wordBits
 	size := int64(nword) * int64(count)
 	if int64(int32(size*4)) != size*4 {
 		Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
@@ -66,24 +70,24 @@ func (bv bvec) Get(i int32) bool {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	return bv.b[i>>WORDSHIFT]&mask != 0
+	mask := uint32(1 << uint(i%wordBits))
+	return bv.b[i>>wordShift]&mask != 0
 }
 
 func (bv bvec) Set(i int32) {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	bv.b[i/WORDBITS] |= mask
+	mask := uint32(1 << uint(i%wordBits))
+	bv.b[i/wordBits] |= mask
 }
 
 func (bv bvec) Unset(i int32) {
 	if i < 0 || i >= bv.n {
 		Fatalf("bvunset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
-	mask := uint32(1 << uint(i%WORDBITS))
-	bv.b[i/WORDBITS] &^= mask
+	mask := uint32(1 << uint(i%wordBits))
+	bv.b[i/wordBits] &^= mask
 }
 
 // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
@@ -94,11 +98,11 @@ func (bv bvec) Next(i int32) int32 {
 	}
 
 	// Jump i ahead to next word with bits.
-	if bv.b[i>>WORDSHIFT]>>uint(i&WORDMASK) == 0 {
-		i &^= WORDMASK
-		i += WORDBITS
-		for i < bv.n && bv.b[i>>WORDSHIFT] == 0 {
-			i += WORDBITS
+	if bv.b[i>>wordShift]>>uint(i&wordMask) == 0 {
+		i &^= wordMask
+		i += wordBits
+		for i < bv.n && bv.b[i>>wordShift] == 0 {
+			i += wordBits
 		}
 	}
 
@@ -107,19 +111,15 @@ func (bv bvec) Next(i int32) int32 {
 	}
 
 	// Find 1 bit.
-	w := bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)
-
-	for w&1 == 0 {
-		w >>= 1
-		i++
-	}
+	w := bv.b[i>>wordShift] >> uint(i&wordMask)
+	i += int32(bits.TrailingZeros32(w))
 
 	return i
 }
 
 func (bv bvec) IsEmpty() bool {
-	for i := int32(0); i < bv.n; i += WORDBITS {
-		if bv.b[i>>WORDSHIFT] != 0 {
+	for _, x := range bv.b {
+		if x != 0 {
 			return false
 		}
 	}
@@ -127,15 +127,18 @@ func (bv bvec) IsEmpty() bool {
 }
 
 func (bv bvec) Not() {
-	i := int32(0)
-	w := int32(0)
-	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
-		bv.b[w] = ^bv.b[w]
+	for i, x := range bv.b {
+		bv.b[i] = ^x
 	}
 }
 
 // union
 func (dst bvec) Or(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x | src2.b[i]
 	}
@@ -143,6 +146,11 @@ func (dst bvec) Or(src1, src2 bvec) {
 
 // intersection
 func (dst bvec) And(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x & src2.b[i]
 	}
@@ -150,6 +158,11 @@ func (dst bvec) And(src1, src2 bvec) {
 
 // difference
 func (dst bvec) AndNot(src1, src2 bvec) {
+	if len(src1.b) == 0 {
+		return
+	}
+	_, _ = dst.b[len(src1.b)-1], src2.b[len(src1.b)-1] // hoist bounds checks out of the loop
+
 	for i, x := range src1.b {
 		dst.b[i] = x &^ src2.b[i]
 	}
@@ -172,4 +185,94 @@ func (bv bvec) Clear() {
 	for i := range bv.b {
 		bv.b[i] = 0
 	}
+}
+
+// FNV-1 hash function constants.
+const (
+	H0 = 2166136261
+	Hp = 16777619
+)
+
+func hashbitmap(h uint32, bv bvec) uint32 {
+	n := int((bv.n + 31) / 32)
+	for i := 0; i < n; i++ {
+		w := bv.b[i]
+		h = (h * Hp) ^ (w & 0xff)
+		h = (h * Hp) ^ ((w >> 8) & 0xff)
+		h = (h * Hp) ^ ((w >> 16) & 0xff)
+		h = (h * Hp) ^ ((w >> 24) & 0xff)
+	}
+
+	return h
+}
+
+// bvecSet is a set of bvecs, in initial insertion order.
+type bvecSet struct {
+	index []int  // hash -> uniq index. -1 indicates empty slot.
+	uniq  []bvec // unique bvecs, in insertion order
+}
+
+func (m *bvecSet) grow() {
+	// Allocate new index.
+	n := len(m.index) * 2
+	if n == 0 {
+		n = 32
+	}
+	newIndex := make([]int, n)
+	for i := range newIndex {
+		newIndex[i] = -1
+	}
+
+	// Rehash into newIndex.
+	for i, bv := range m.uniq {
+		h := hashbitmap(H0, bv) % uint32(len(newIndex))
+		for {
+			j := newIndex[h]
+			if j < 0 {
+				newIndex[h] = i
+				break
+			}
+			h++
+			if h == uint32(len(newIndex)) {
+				h = 0
+			}
+		}
+	}
+	m.index = newIndex
+}
+
+// add adds bv to the set and returns its index in m.extractUniqe.
+// The caller must not modify bv after this.
+func (m *bvecSet) add(bv bvec) int {
+	if len(m.uniq)*4 >= len(m.index) {
+		m.grow()
+	}
+
+	index := m.index
+	h := hashbitmap(H0, bv) % uint32(len(index))
+	for {
+		j := index[h]
+		if j < 0 {
+			// New bvec.
+			index[h] = len(m.uniq)
+			m.uniq = append(m.uniq, bv)
+			return len(m.uniq) - 1
+		}
+		jlive := m.uniq[j]
+		if bv.Eq(jlive) {
+			// Existing bvec.
+			return j
+		}
+
+		h++
+		if h == uint32(len(index)) {
+			h = 0
+		}
+	}
+}
+
+// extractUniqe returns this slice of unique bit vectors in m, as
+// indexed by the result of bvecSet.add.
+func (m *bvecSet) extractUniqe() []bvec {
+	return m.uniq
 }

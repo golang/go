@@ -27,19 +27,19 @@ import (
 // stored in Header will be the truncated version.
 
 var (
-	ErrHeader          = errors.New("tar: invalid tar header")
-	ErrWriteTooLong    = errors.New("tar: write too long")
-	ErrFieldTooLong    = errors.New("tar: header field too long")
-	ErrWriteAfterClose = errors.New("tar: write after close")
-	errMissData        = errors.New("tar: sparse file references non-existent data")
-	errUnrefData       = errors.New("tar: sparse file contains unreferenced data")
-	errWriteHole       = errors.New("tar: write non-NUL byte in sparse hole")
+	ErrHeader          = errors.New("archive/tar: invalid tar header")
+	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
+	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
+	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")
 )
 
 type headerError []string
 
 func (he headerError) Error() string {
-	const prefix = "tar: cannot encode header"
+	const prefix = "archive/tar: cannot encode header"
 	var ss []string
 	for _, s := range he {
 		if s != "" {
@@ -56,7 +56,7 @@ func (he headerError) Error() string {
 const (
 	// Type '0' indicates a regular file.
 	TypeReg  = '0'
-	TypeRegA = '\x00' // For legacy support; use TypeReg instead
+	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
@@ -81,7 +81,6 @@ const (
 	TypeXGlobalHeader = 'g'
 
 	// Type 'S' indicates a sparse file in the GNU format.
-	// Header.SparseHoles should be populated when using this type.
 	TypeGNUSparse = 'S'
 
 	// Types 'L' and 'K' are used by the GNU format for a meta file
@@ -139,7 +138,10 @@ var basicKeys = map[string]bool{
 // should do so by creating a new Header and copying the fields
 // that they are interested in preserving.
 type Header struct {
-	Typeflag byte // Type of header entry (should be TypeReg for most files)
+	// Typeflag is the type of header entry.
+	// The zero value is automatically promoted to either TypeReg or TypeDir
+	// depending on the presence of a trailing slash in Name.
+	Typeflag byte
 
 	Name     string // Name of file entry
 	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
@@ -151,29 +153,17 @@ type Header struct {
 	Uname string // User name of owner
 	Gname string // Group name of owner
 
-	// The PAX format encodes the timestamps with sub-second resolution,
-	// while the other formats (USTAR and GNU) truncate to the nearest second.
-	// If the Format is unspecified, then Writer.WriteHeader ignores
-	// AccessTime and ChangeTime when using the USTAR format.
+	// If the Format is unspecified, then Writer.WriteHeader rounds ModTime
+	// to the nearest second and ignores the AccessTime and ChangeTime fields.
+	//
+	// To use AccessTime or ChangeTime, specify the Format as PAX or GNU.
+	// To use sub-second resolution, specify the Format as PAX.
 	ModTime    time.Time // Modification time
 	AccessTime time.Time // Access time (requires either PAX or GNU support)
 	ChangeTime time.Time // Change time (requires either PAX or GNU support)
 
 	Devmajor int64 // Major device number (valid for TypeChar or TypeBlock)
 	Devminor int64 // Minor device number (valid for TypeChar or TypeBlock)
-
-	// SparseHoles represents a sequence of holes in a sparse file.
-	//
-	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
-	// If TypeGNUSparse is set, then the format is GNU, otherwise
-	// the format is PAX (by using GNU-specific PAX records).
-	//
-	// A sparse file consists of fragments of data, intermixed with holes
-	// (described by this field). A hole is semantically a block of NUL-bytes,
-	// but does not actually exist within the tar file.
-	// The holes must be sorted in ascending order,
-	// not overlap with each other, and not extend past the specified Size.
-	SparseHoles []SparseEntry
 
 	// Xattrs stores extended attributes as PAX records under the
 	// "SCHILY.xattr." namespace.
@@ -197,7 +187,7 @@ type Header struct {
 	// The key and value should be non-empty UTF-8 strings.
 	//
 	// When Writer.WriteHeader is called, PAX records derived from the
-	// the other fields in Header take precedence over PAXRecords.
+	// other fields in Header take precedence over PAXRecords.
 	PAXRecords map[string]string
 
 	// Format specifies the format of the tar header.
@@ -212,10 +202,10 @@ type Header struct {
 	Format Format
 }
 
-// SparseEntry represents a Length-sized fragment at Offset in the file.
-type SparseEntry struct{ Offset, Length int64 }
+// sparseEntry represents a Length-sized fragment at Offset in the file.
+type sparseEntry struct{ Offset, Length int64 }
 
-func (s SparseEntry) endOffset() int64 { return s.Offset + s.Length }
+func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 
 // A sparse file can be represented as either a sparseDatas or a sparseHoles.
 // As long as the total size is known, they are equivalent and one can be
@@ -238,7 +228,7 @@ func (s SparseEntry) endOffset() int64 { return s.Offset + s.Length }
 //		{Offset: 2,  Length: 5},  // Data fragment for 2..6
 //		{Offset: 18, Length: 3},  // Data fragment for 18..20
 //	}
-//	var sph sparseHoles = []SparseEntry{
+//	var sph sparseHoles = []sparseEntry{
 //		{Offset: 0,  Length: 2},  // Hole fragment for 0..1
 //		{Offset: 7,  Length: 11}, // Hole fragment for 7..17
 //		{Offset: 21, Length: 4},  // Hole fragment for 21..24
@@ -247,19 +237,19 @@ func (s SparseEntry) endOffset() int64 { return s.Offset + s.Length }
 // Then the content of the resulting sparse file with a Header.Size of 25 is:
 //	var sparseFile = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
 type (
-	sparseDatas []SparseEntry
-	sparseHoles []SparseEntry
+	sparseDatas []sparseEntry
+	sparseHoles []sparseEntry
 )
 
 // validateSparseEntries reports whether sp is a valid sparse map.
 // It does not matter whether sp represents data fragments or hole fragments.
-func validateSparseEntries(sp []SparseEntry, size int64) bool {
+func validateSparseEntries(sp []sparseEntry, size int64) bool {
 	// Validate all sparse entries. These are the same checks as performed by
 	// the BSD tar utility.
 	if size < 0 {
 		return false
 	}
-	var pre SparseEntry
+	var pre sparseEntry
 	for _, cur := range sp {
 		switch {
 		case cur.Offset < 0 || cur.Length < 0:
@@ -283,7 +273,7 @@ func validateSparseEntries(sp []SparseEntry, size int64) bool {
 // Even though the Go tar Reader and the BSD tar utility can handle entries
 // with arbitrary offsets and lengths, the GNU tar utility can only handle
 // offsets and lengths that are multiples of blockSize.
-func alignSparseEntries(src []SparseEntry, size int64) []SparseEntry {
+func alignSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
 	for _, s := range src {
 		pos, end := s.Offset, s.endOffset()
@@ -292,7 +282,7 @@ func alignSparseEntries(src []SparseEntry, size int64) []SparseEntry {
 			end -= blockPadding(-end) // Round-down to nearest blockSize
 		}
 		if pos < end {
-			dst = append(dst, SparseEntry{Offset: pos, Length: end - pos})
+			dst = append(dst, sparseEntry{Offset: pos, Length: end - pos})
 		}
 	}
 	return dst
@@ -306,9 +296,9 @@ func alignSparseEntries(src []SparseEntry, size int64) []SparseEntry {
 //	* adjacent fragments are coalesced together
 //	* only the last fragment may be empty
 //	* the endOffset of the last fragment is the total size
-func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry {
+func invertSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
-	var pre SparseEntry
+	var pre sparseEntry
 	for _, cur := range src {
 		if cur.Length == 0 {
 			continue // Skip empty fragments
@@ -323,10 +313,13 @@ func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry {
 	return append(dst, pre)
 }
 
+// fileState tracks the number of logical (includes sparse holes) and physical
+// (actual in tar archive) bytes remaining for the current file.
+//
+// Invariant: LogicalRemaining >= PhysicalRemaining
 type fileState interface {
-	// Remaining reports the number of remaining bytes in the current file.
-	// This count includes any sparse holes that may exist.
-	Remaining() int64
+	LogicalRemaining() int64
+	PhysicalRemaining() int64
 }
 
 // allowedFormats determines which formats can be used.
@@ -336,7 +329,8 @@ type fileState interface {
 //
 // As a by-product of checking the fields, this function returns paxHdrs, which
 // contain all fields that could not be directly encoded.
-func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
+// A value receiver ensures that this method does not mutate the source Header.
+func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
 	format = FormatUSTAR | FormatPAX | FormatGNU
 	paxHdrs = make(map[string]string)
 
@@ -398,8 +392,7 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 		}
 		isMtime := paxKey == paxMtime
 		fitsOctal := fitsInOctal(size, ts.Unix())
-		noACTime := !isMtime && h.Format != FormatUnknown
-		if (isMtime && !fitsOctal) || noACTime {
+		if (isMtime && !fitsOctal) || !isMtime {
 			whyNoUSTAR = fmt.Sprintf("USTAR cannot encode %s=%v", name, ts)
 			format.mustNotBe(FormatUSTAR)
 		}
@@ -440,11 +433,17 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 	// Check for header-only types.
 	var whyOnlyPAX, whyOnlyGNU string
 	switch h.Typeflag {
+	case TypeReg, TypeChar, TypeBlock, TypeFifo, TypeGNUSparse:
+		// Exclude TypeLink and TypeSymlink, since they may reference directories.
+		if strings.HasSuffix(h.Name, "/") {
+			return FormatUnknown, nil, headerError{"filename may not have trailing slash"}
+		}
 	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
 		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
 	case TypeXGlobalHeader:
-		if !reflect.DeepEqual(h, &Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
-			return FormatUnknown, nil, headerError{"only PAXRecords may be set for TypeXGlobalHeader"}
+		h2 := Header{Name: h.Name, Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}
+		if !reflect.DeepEqual(h, h2) {
+			return FormatUnknown, nil, headerError{"only PAXRecords should be set for TypeXGlobalHeader"}
 		}
 		whyOnlyPAX = "only PAX supports TypeXGlobalHeader"
 		format.mayOnlyBe(FormatPAX)
@@ -481,24 +480,28 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
 		}
 	}
 
-	// Check sparse files.
-	if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
-		if isHeaderOnlyType(h.Typeflag) {
-			return FormatUnknown, nil, headerError{"header-only type cannot be sparse"}
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		// Check sparse files.
+		if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
+			if isHeaderOnlyType(h.Typeflag) {
+				return FormatUnknown, nil, headerError{"header-only type cannot be sparse"}
+			}
+			if !validateSparseEntries(h.SparseHoles, h.Size) {
+				return FormatUnknown, nil, headerError{"invalid sparse holes"}
+			}
+			if h.Typeflag == TypeGNUSparse {
+				whyOnlyGNU = "only GNU supports TypeGNUSparse"
+				format.mayOnlyBe(FormatGNU)
+			} else {
+				whyNoGNU = "GNU supports sparse files only with TypeGNUSparse"
+				format.mustNotBe(FormatGNU)
+			}
+			whyNoUSTAR = "USTAR does not support sparse files"
+			format.mustNotBe(FormatUSTAR)
 		}
-		if !validateSparseEntries(h.SparseHoles, h.Size) {
-			return FormatUnknown, nil, headerError{"invalid sparse holes"}
-		}
-		if h.Typeflag == TypeGNUSparse {
-			whyOnlyGNU = "only GNU supports TypeGNUSparse"
-			format.mayOnlyBe(FormatGNU)
-		} else {
-			whyNoGNU = "GNU supports sparse files only with TypeGNUSparse"
-			format.mustNotBe(FormatGNU)
-		}
-		whyNoUSTAR = "USTAR does not support sparse files"
-		format.mustNotBe(FormatUSTAR)
-	}
+	*/
 
 	// Check desired format.
 	if wantFormat := h.Format; wantFormat != FormatUnknown {
@@ -623,11 +626,9 @@ const (
 // Since os.FileInfo's Name method only returns the base name of
 // the file it describes, it may be necessary to modify Header.Name
 // to provide the full path name of the file.
-//
-// This function does not populate Header.SparseHoles.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
-		return nil, errors.New("tar: FileInfo is nil")
+		return nil, errors.New("archive/tar: FileInfo is nil")
 	}
 	fm := fi.Mode()
 	h := &Header{
@@ -654,9 +655,9 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fm&os.ModeNamedPipe != 0:
 		h.Typeflag = TypeFifo
 	case fm&os.ModeSocket != 0:
-		return nil, fmt.Errorf("tar: sockets not supported")
+		return nil, fmt.Errorf("archive/tar: sockets not supported")
 	default:
-		return nil, fmt.Errorf("tar: unknown file mode %v", fm)
+		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
 	}
 	if fm&os.ModeSetuid != 0 {
 		h.Mode |= c_ISUID
@@ -689,9 +690,6 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 			h.Typeflag = TypeLink
 			h.Size = 0
 			h.Linkname = sys.Linkname
-		}
-		if sys.SparseHoles != nil {
-			h.SparseHoles = append([]SparseEntry{}, sys.SparseHoles...)
 		}
 		if sys.PAXRecords != nil {
 			h.PAXRecords = make(map[string]string)

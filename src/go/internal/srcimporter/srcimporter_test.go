@@ -5,17 +5,28 @@
 package srcimporter
 
 import (
+	"flag"
 	"go/build"
 	"go/token"
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 const maxTime = 2 * time.Second
 
@@ -80,10 +91,10 @@ func TestImportStdLib(t *testing.T) {
 		t.Skip("no source code available")
 	}
 
-	dt := maxTime
 	if testing.Short() && testenv.Builder() == "" {
-		dt = 500 * time.Millisecond
+		t.Skip("skipping in -short mode")
 	}
+	dt := maxTime
 	nimports, _ := walkDir(t, "", time.Now().Add(dt)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }
@@ -98,7 +109,7 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	{"math/big.Int", "type Int struct{neg bool; abs nat}"},
-	{"golang_org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
+	{"golang.org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
 }
 
 func TestImportedTypes(t *testing.T) {
@@ -107,12 +118,12 @@ func TestImportedTypes(t *testing.T) {
 	}
 
 	for _, test := range importedObjectTests {
-		s := strings.Split(test.name, ".")
-		if len(s) != 2 {
+		i := strings.LastIndex(test.name, ".")
+		if i < 0 {
 			t.Fatal("invalid test data format")
 		}
-		importPath := s[0]
-		objName := s[1]
+		importPath := test.name[:i]
+		objName := test.name[i+1:]
 
 		pkg, err := importer.ImportFrom(importPath, ".", 0)
 		if err != nil {
@@ -130,6 +141,44 @@ func TestImportedTypes(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
 		}
+
+		if named, _ := obj.Type().(*types.Named); named != nil {
+			verifyInterfaceMethodRecvs(t, named, 0)
+		}
+	}
+}
+
+// verifyInterfaceMethodRecvs verifies that method receiver types
+// are named if the methods belong to a named interface type.
+func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+	// avoid endless recursion in case of an embedding bug that lead to a cycle
+	if level > 10 {
+		t.Errorf("%s: embeds itself", named)
+		return
+	}
+
+	iface, _ := named.Underlying().(*types.Interface)
+	if iface == nil {
+		return // not an interface
+	}
+
+	// check explicitly declared methods
+	for i := 0; i < iface.NumExplicitMethods(); i++ {
+		m := iface.ExplicitMethod(i)
+		recv := m.Type().(*types.Signature).Recv()
+		if recv == nil {
+			t.Errorf("%s: missing receiver type", m)
+			continue
+		}
+		if recv.Type() != named {
+			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+		}
+	}
+
+	// check embedded interfaces (they are named, too)
+	for i := 0; i < iface.NumEmbeddeds(); i++ {
+		// embedding of interfaces cannot have cycles; recursion will terminate
+		verifyInterfaceMethodRecvs(t, iface.Embedded(i), level+1)
 	}
 }
 
@@ -160,5 +209,47 @@ func TestIssue20855(t *testing.T) {
 	}
 	if pkg == nil {
 		t.Error("got no package despite no hard errors")
+	}
+}
+
+func testImportPath(t *testing.T, pkgPath string) {
+	if !testenv.HasSrc() {
+		t.Skip("no source code available")
+	}
+
+	pkgName := path.Base(pkgPath)
+
+	pkg, err := importer.Import(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pkg.Name() != pkgName {
+		t.Errorf("got %q; want %q", pkg.Name(), pkgName)
+	}
+
+	if pkg.Path() != pkgPath {
+		t.Errorf("got %q; want %q", pkg.Path(), pkgPath)
+	}
+}
+
+// TestIssue23092 tests relative imports.
+func TestIssue23092(t *testing.T) {
+	testImportPath(t, "./testdata/issue23092")
+}
+
+// TestIssue24392 tests imports against a path containing 'testdata'.
+func TestIssue24392(t *testing.T) {
+	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
+}
+
+func TestCgo(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+	_, err := importer.ImportFrom("./misc/cgo/test", runtime.GOROOT(), 0)
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
 	}
 }

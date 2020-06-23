@@ -1,0 +1,9 @@
+gopkg.in/dummy.v2-unstable v2.0.0
+written by hand
+
+-- .mod --
+module gopkg.in/dummy.v2-unstable
+-- .info --
+{"Version":"v2.0.0"}
+-- dummy.go --
+package dummy

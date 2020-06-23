@@ -11,7 +11,10 @@
  * $FreeBSD: src/sys/i386/include/elf.h,v 1.16 2004/08/02 19:12:17 dfr Exp $
  * $FreeBSD: src/sys/powerpc/include/elf.h,v 1.7 2004/11/02 09:47:01 ssouhlal Exp $
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
+ * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md)
+ * llvm/BinaryFormat/ELF.h - ELF constants and structures
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
  * Copyright (c) 2001 David E. O'Brien
@@ -132,6 +135,9 @@ const (
 	ELFOSABI_OPENBSD    OSABI = 12  /* OpenBSD */
 	ELFOSABI_OPENVMS    OSABI = 13  /* Open VMS */
 	ELFOSABI_NSK        OSABI = 14  /* HP Non-Stop Kernel */
+	ELFOSABI_AROS       OSABI = 15  /* Amiga Research OS */
+	ELFOSABI_FENIXOS    OSABI = 16  /* The FenixOS highly scalable multi-core OS */
+	ELFOSABI_CLOUDABI   OSABI = 17  /* Nuxi CloudABI */
 	ELFOSABI_ARM        OSABI = 97  /* ARM */
 	ELFOSABI_STANDALONE OSABI = 255 /* Standalone (embedded) application */
 )
@@ -152,6 +158,9 @@ var osabiStrings = []intName{
 	{12, "ELFOSABI_OPENBSD"},
 	{13, "ELFOSABI_OPENVMS"},
 	{14, "ELFOSABI_NSK"},
+	{15, "ELFOSABI_AROS"},
+	{16, "ELFOSABI_FENIXOS"},
+	{17, "ELFOSABI_CLOUDABI"},
 	{97, "ELFOSABI_ARM"},
 	{255, "ELFOSABI_STANDALONE"},
 }
@@ -193,50 +202,188 @@ func (i Type) GoString() string { return stringName(uint32(i), typeStrings, true
 type Machine uint16
 
 const (
-	EM_NONE        Machine = 0   /* Unknown machine. */
-	EM_M32         Machine = 1   /* AT&T WE32100. */
-	EM_SPARC       Machine = 2   /* Sun SPARC. */
-	EM_386         Machine = 3   /* Intel i386. */
-	EM_68K         Machine = 4   /* Motorola 68000. */
-	EM_88K         Machine = 5   /* Motorola 88000. */
-	EM_860         Machine = 7   /* Intel i860. */
-	EM_MIPS        Machine = 8   /* MIPS R3000 Big-Endian only. */
-	EM_S370        Machine = 9   /* IBM System/370. */
-	EM_MIPS_RS3_LE Machine = 10  /* MIPS R3000 Little-Endian. */
-	EM_PARISC      Machine = 15  /* HP PA-RISC. */
-	EM_VPP500      Machine = 17  /* Fujitsu VPP500. */
-	EM_SPARC32PLUS Machine = 18  /* SPARC v8plus. */
-	EM_960         Machine = 19  /* Intel 80960. */
-	EM_PPC         Machine = 20  /* PowerPC 32-bit. */
-	EM_PPC64       Machine = 21  /* PowerPC 64-bit. */
-	EM_S390        Machine = 22  /* IBM System/390. */
-	EM_V800        Machine = 36  /* NEC V800. */
-	EM_FR20        Machine = 37  /* Fujitsu FR20. */
-	EM_RH32        Machine = 38  /* TRW RH-32. */
-	EM_RCE         Machine = 39  /* Motorola RCE. */
-	EM_ARM         Machine = 40  /* ARM. */
-	EM_SH          Machine = 42  /* Hitachi SH. */
-	EM_SPARCV9     Machine = 43  /* SPARC v9 64-bit. */
-	EM_TRICORE     Machine = 44  /* Siemens TriCore embedded processor. */
-	EM_ARC         Machine = 45  /* Argonaut RISC Core. */
-	EM_H8_300      Machine = 46  /* Hitachi H8/300. */
-	EM_H8_300H     Machine = 47  /* Hitachi H8/300H. */
-	EM_H8S         Machine = 48  /* Hitachi H8S. */
-	EM_H8_500      Machine = 49  /* Hitachi H8/500. */
-	EM_IA_64       Machine = 50  /* Intel IA-64 Processor. */
-	EM_MIPS_X      Machine = 51  /* Stanford MIPS-X. */
-	EM_COLDFIRE    Machine = 52  /* Motorola ColdFire. */
-	EM_68HC12      Machine = 53  /* Motorola M68HC12. */
-	EM_MMA         Machine = 54  /* Fujitsu MMA. */
-	EM_PCP         Machine = 55  /* Siemens PCP. */
-	EM_NCPU        Machine = 56  /* Sony nCPU. */
-	EM_NDR1        Machine = 57  /* Denso NDR1 microprocessor. */
-	EM_STARCORE    Machine = 58  /* Motorola Star*Core processor. */
-	EM_ME16        Machine = 59  /* Toyota ME16 processor. */
-	EM_ST100       Machine = 60  /* STMicroelectronics ST100 processor. */
-	EM_TINYJ       Machine = 61  /* Advanced Logic Corp. TinyJ processor. */
-	EM_X86_64      Machine = 62  /* Advanced Micro Devices x86-64 */
-	EM_AARCH64     Machine = 183 /* ARM 64-bit Architecture (AArch64) */
+	EM_NONE          Machine = 0   /* Unknown machine. */
+	EM_M32           Machine = 1   /* AT&T WE32100. */
+	EM_SPARC         Machine = 2   /* Sun SPARC. */
+	EM_386           Machine = 3   /* Intel i386. */
+	EM_68K           Machine = 4   /* Motorola 68000. */
+	EM_88K           Machine = 5   /* Motorola 88000. */
+	EM_860           Machine = 7   /* Intel i860. */
+	EM_MIPS          Machine = 8   /* MIPS R3000 Big-Endian only. */
+	EM_S370          Machine = 9   /* IBM System/370. */
+	EM_MIPS_RS3_LE   Machine = 10  /* MIPS R3000 Little-Endian. */
+	EM_PARISC        Machine = 15  /* HP PA-RISC. */
+	EM_VPP500        Machine = 17  /* Fujitsu VPP500. */
+	EM_SPARC32PLUS   Machine = 18  /* SPARC v8plus. */
+	EM_960           Machine = 19  /* Intel 80960. */
+	EM_PPC           Machine = 20  /* PowerPC 32-bit. */
+	EM_PPC64         Machine = 21  /* PowerPC 64-bit. */
+	EM_S390          Machine = 22  /* IBM System/390. */
+	EM_V800          Machine = 36  /* NEC V800. */
+	EM_FR20          Machine = 37  /* Fujitsu FR20. */
+	EM_RH32          Machine = 38  /* TRW RH-32. */
+	EM_RCE           Machine = 39  /* Motorola RCE. */
+	EM_ARM           Machine = 40  /* ARM. */
+	EM_SH            Machine = 42  /* Hitachi SH. */
+	EM_SPARCV9       Machine = 43  /* SPARC v9 64-bit. */
+	EM_TRICORE       Machine = 44  /* Siemens TriCore embedded processor. */
+	EM_ARC           Machine = 45  /* Argonaut RISC Core. */
+	EM_H8_300        Machine = 46  /* Hitachi H8/300. */
+	EM_H8_300H       Machine = 47  /* Hitachi H8/300H. */
+	EM_H8S           Machine = 48  /* Hitachi H8S. */
+	EM_H8_500        Machine = 49  /* Hitachi H8/500. */
+	EM_IA_64         Machine = 50  /* Intel IA-64 Processor. */
+	EM_MIPS_X        Machine = 51  /* Stanford MIPS-X. */
+	EM_COLDFIRE      Machine = 52  /* Motorola ColdFire. */
+	EM_68HC12        Machine = 53  /* Motorola M68HC12. */
+	EM_MMA           Machine = 54  /* Fujitsu MMA. */
+	EM_PCP           Machine = 55  /* Siemens PCP. */
+	EM_NCPU          Machine = 56  /* Sony nCPU. */
+	EM_NDR1          Machine = 57  /* Denso NDR1 microprocessor. */
+	EM_STARCORE      Machine = 58  /* Motorola Star*Core processor. */
+	EM_ME16          Machine = 59  /* Toyota ME16 processor. */
+	EM_ST100         Machine = 60  /* STMicroelectronics ST100 processor. */
+	EM_TINYJ         Machine = 61  /* Advanced Logic Corp. TinyJ processor. */
+	EM_X86_64        Machine = 62  /* Advanced Micro Devices x86-64 */
+	EM_PDSP          Machine = 63  /* Sony DSP Processor */
+	EM_PDP10         Machine = 64  /* Digital Equipment Corp. PDP-10 */
+	EM_PDP11         Machine = 65  /* Digital Equipment Corp. PDP-11 */
+	EM_FX66          Machine = 66  /* Siemens FX66 microcontroller */
+	EM_ST9PLUS       Machine = 67  /* STMicroelectronics ST9+ 8/16 bit microcontroller */
+	EM_ST7           Machine = 68  /* STMicroelectronics ST7 8-bit microcontroller */
+	EM_68HC16        Machine = 69  /* Motorola MC68HC16 Microcontroller */
+	EM_68HC11        Machine = 70  /* Motorola MC68HC11 Microcontroller */
+	EM_68HC08        Machine = 71  /* Motorola MC68HC08 Microcontroller */
+	EM_68HC05        Machine = 72  /* Motorola MC68HC05 Microcontroller */
+	EM_SVX           Machine = 73  /* Silicon Graphics SVx */
+	EM_ST19          Machine = 74  /* STMicroelectronics ST19 8-bit microcontroller */
+	EM_VAX           Machine = 75  /* Digital VAX */
+	EM_CRIS          Machine = 76  /* Axis Communications 32-bit embedded processor */
+	EM_JAVELIN       Machine = 77  /* Infineon Technologies 32-bit embedded processor */
+	EM_FIREPATH      Machine = 78  /* Element 14 64-bit DSP Processor */
+	EM_ZSP           Machine = 79  /* LSI Logic 16-bit DSP Processor */
+	EM_MMIX          Machine = 80  /* Donald Knuth's educational 64-bit processor */
+	EM_HUANY         Machine = 81  /* Harvard University machine-independent object files */
+	EM_PRISM         Machine = 82  /* SiTera Prism */
+	EM_AVR           Machine = 83  /* Atmel AVR 8-bit microcontroller */
+	EM_FR30          Machine = 84  /* Fujitsu FR30 */
+	EM_D10V          Machine = 85  /* Mitsubishi D10V */
+	EM_D30V          Machine = 86  /* Mitsubishi D30V */
+	EM_V850          Machine = 87  /* NEC v850 */
+	EM_M32R          Machine = 88  /* Mitsubishi M32R */
+	EM_MN10300       Machine = 89  /* Matsushita MN10300 */
+	EM_MN10200       Machine = 90  /* Matsushita MN10200 */
+	EM_PJ            Machine = 91  /* picoJava */
+	EM_OPENRISC      Machine = 92  /* OpenRISC 32-bit embedded processor */
+	EM_ARC_COMPACT   Machine = 93  /* ARC International ARCompact processor (old spelling/synonym: EM_ARC_A5) */
+	EM_XTENSA        Machine = 94  /* Tensilica Xtensa Architecture */
+	EM_VIDEOCORE     Machine = 95  /* Alphamosaic VideoCore processor */
+	EM_TMM_GPP       Machine = 96  /* Thompson Multimedia General Purpose Processor */
+	EM_NS32K         Machine = 97  /* National Semiconductor 32000 series */
+	EM_TPC           Machine = 98  /* Tenor Network TPC processor */
+	EM_SNP1K         Machine = 99  /* Trebia SNP 1000 processor */
+	EM_ST200         Machine = 100 /* STMicroelectronics (www.st.com) ST200 microcontroller */
+	EM_IP2K          Machine = 101 /* Ubicom IP2xxx microcontroller family */
+	EM_MAX           Machine = 102 /* MAX Processor */
+	EM_CR            Machine = 103 /* National Semiconductor CompactRISC microprocessor */
+	EM_F2MC16        Machine = 104 /* Fujitsu F2MC16 */
+	EM_MSP430        Machine = 105 /* Texas Instruments embedded microcontroller msp430 */
+	EM_BLACKFIN      Machine = 106 /* Analog Devices Blackfin (DSP) processor */
+	EM_SE_C33        Machine = 107 /* S1C33 Family of Seiko Epson processors */
+	EM_SEP           Machine = 108 /* Sharp embedded microprocessor */
+	EM_ARCA          Machine = 109 /* Arca RISC Microprocessor */
+	EM_UNICORE       Machine = 110 /* Microprocessor series from PKU-Unity Ltd. and MPRC of Peking University */
+	EM_EXCESS        Machine = 111 /* eXcess: 16/32/64-bit configurable embedded CPU */
+	EM_DXP           Machine = 112 /* Icera Semiconductor Inc. Deep Execution Processor */
+	EM_ALTERA_NIOS2  Machine = 113 /* Altera Nios II soft-core processor */
+	EM_CRX           Machine = 114 /* National Semiconductor CompactRISC CRX microprocessor */
+	EM_XGATE         Machine = 115 /* Motorola XGATE embedded processor */
+	EM_C166          Machine = 116 /* Infineon C16x/XC16x processor */
+	EM_M16C          Machine = 117 /* Renesas M16C series microprocessors */
+	EM_DSPIC30F      Machine = 118 /* Microchip Technology dsPIC30F Digital Signal Controller */
+	EM_CE            Machine = 119 /* Freescale Communication Engine RISC core */
+	EM_M32C          Machine = 120 /* Renesas M32C series microprocessors */
+	EM_TSK3000       Machine = 131 /* Altium TSK3000 core */
+	EM_RS08          Machine = 132 /* Freescale RS08 embedded processor */
+	EM_SHARC         Machine = 133 /* Analog Devices SHARC family of 32-bit DSP processors */
+	EM_ECOG2         Machine = 134 /* Cyan Technology eCOG2 microprocessor */
+	EM_SCORE7        Machine = 135 /* Sunplus S+core7 RISC processor */
+	EM_DSP24         Machine = 136 /* New Japan Radio (NJR) 24-bit DSP Processor */
+	EM_VIDEOCORE3    Machine = 137 /* Broadcom VideoCore III processor */
+	EM_LATTICEMICO32 Machine = 138 /* RISC processor for Lattice FPGA architecture */
+	EM_SE_C17        Machine = 139 /* Seiko Epson C17 family */
+	EM_TI_C6000      Machine = 140 /* The Texas Instruments TMS320C6000 DSP family */
+	EM_TI_C2000      Machine = 141 /* The Texas Instruments TMS320C2000 DSP family */
+	EM_TI_C5500      Machine = 142 /* The Texas Instruments TMS320C55x DSP family */
+	EM_TI_ARP32      Machine = 143 /* Texas Instruments Application Specific RISC Processor, 32bit fetch */
+	EM_TI_PRU        Machine = 144 /* Texas Instruments Programmable Realtime Unit */
+	EM_MMDSP_PLUS    Machine = 160 /* STMicroelectronics 64bit VLIW Data Signal Processor */
+	EM_CYPRESS_M8C   Machine = 161 /* Cypress M8C microprocessor */
+	EM_R32C          Machine = 162 /* Renesas R32C series microprocessors */
+	EM_TRIMEDIA      Machine = 163 /* NXP Semiconductors TriMedia architecture family */
+	EM_QDSP6         Machine = 164 /* QUALCOMM DSP6 Processor */
+	EM_8051          Machine = 165 /* Intel 8051 and variants */
+	EM_STXP7X        Machine = 166 /* STMicroelectronics STxP7x family of configurable and extensible RISC processors */
+	EM_NDS32         Machine = 167 /* Andes Technology compact code size embedded RISC processor family */
+	EM_ECOG1         Machine = 168 /* Cyan Technology eCOG1X family */
+	EM_ECOG1X        Machine = 168 /* Cyan Technology eCOG1X family */
+	EM_MAXQ30        Machine = 169 /* Dallas Semiconductor MAXQ30 Core Micro-controllers */
+	EM_XIMO16        Machine = 170 /* New Japan Radio (NJR) 16-bit DSP Processor */
+	EM_MANIK         Machine = 171 /* M2000 Reconfigurable RISC Microprocessor */
+	EM_CRAYNV2       Machine = 172 /* Cray Inc. NV2 vector architecture */
+	EM_RX            Machine = 173 /* Renesas RX family */
+	EM_METAG         Machine = 174 /* Imagination Technologies META processor architecture */
+	EM_MCST_ELBRUS   Machine = 175 /* MCST Elbrus general purpose hardware architecture */
+	EM_ECOG16        Machine = 176 /* Cyan Technology eCOG16 family */
+	EM_CR16          Machine = 177 /* National Semiconductor CompactRISC CR16 16-bit microprocessor */
+	EM_ETPU          Machine = 178 /* Freescale Extended Time Processing Unit */
+	EM_SLE9X         Machine = 179 /* Infineon Technologies SLE9X core */
+	EM_L10M          Machine = 180 /* Intel L10M */
+	EM_K10M          Machine = 181 /* Intel K10M */
+	EM_AARCH64       Machine = 183 /* ARM 64-bit Architecture (AArch64) */
+	EM_AVR32         Machine = 185 /* Atmel Corporation 32-bit microprocessor family */
+	EM_STM8          Machine = 186 /* STMicroeletronics STM8 8-bit microcontroller */
+	EM_TILE64        Machine = 187 /* Tilera TILE64 multicore architecture family */
+	EM_TILEPRO       Machine = 188 /* Tilera TILEPro multicore architecture family */
+	EM_MICROBLAZE    Machine = 189 /* Xilinx MicroBlaze 32-bit RISC soft processor core */
+	EM_CUDA          Machine = 190 /* NVIDIA CUDA architecture */
+	EM_TILEGX        Machine = 191 /* Tilera TILE-Gx multicore architecture family */
+	EM_CLOUDSHIELD   Machine = 192 /* CloudShield architecture family */
+	EM_COREA_1ST     Machine = 193 /* KIPO-KAIST Core-A 1st generation processor family */
+	EM_COREA_2ND     Machine = 194 /* KIPO-KAIST Core-A 2nd generation processor family */
+	EM_ARC_COMPACT2  Machine = 195 /* Synopsys ARCompact V2 */
+	EM_OPEN8         Machine = 196 /* Open8 8-bit RISC soft processor core */
+	EM_RL78          Machine = 197 /* Renesas RL78 family */
+	EM_VIDEOCORE5    Machine = 198 /* Broadcom VideoCore V processor */
+	EM_78KOR         Machine = 199 /* Renesas 78KOR family */
+	EM_56800EX       Machine = 200 /* Freescale 56800EX Digital Signal Controller (DSC) */
+	EM_BA1           Machine = 201 /* Beyond BA1 CPU architecture */
+	EM_BA2           Machine = 202 /* Beyond BA2 CPU architecture */
+	EM_XCORE         Machine = 203 /* XMOS xCORE processor family */
+	EM_MCHP_PIC      Machine = 204 /* Microchip 8-bit PIC(r) family */
+	EM_INTEL205      Machine = 205 /* Reserved by Intel */
+	EM_INTEL206      Machine = 206 /* Reserved by Intel */
+	EM_INTEL207      Machine = 207 /* Reserved by Intel */
+	EM_INTEL208      Machine = 208 /* Reserved by Intel */
+	EM_INTEL209      Machine = 209 /* Reserved by Intel */
+	EM_KM32          Machine = 210 /* KM211 KM32 32-bit processor */
+	EM_KMX32         Machine = 211 /* KM211 KMX32 32-bit processor */
+	EM_KMX16         Machine = 212 /* KM211 KMX16 16-bit processor */
+	EM_KMX8          Machine = 213 /* KM211 KMX8 8-bit processor */
+	EM_KVARC         Machine = 214 /* KM211 KVARC processor */
+	EM_CDP           Machine = 215 /* Paneve CDP architecture family */
+	EM_COGE          Machine = 216 /* Cognitive Smart Memory Processor */
+	EM_COOL          Machine = 217 /* Bluechip Systems CoolEngine */
+	EM_NORC          Machine = 218 /* Nanoradio Optimized RISC */
+	EM_CSR_KALIMBA   Machine = 219 /* CSR Kalimba architecture family */
+	EM_Z80           Machine = 220 /* Zilog Z80 */
+	EM_VISIUM        Machine = 221 /* Controls and Data Services VISIUMcore processor */
+	EM_FT32          Machine = 222 /* FTDI Chip FT32 high performance 32-bit RISC architecture */
+	EM_MOXIE         Machine = 223 /* Moxie processor family */
+	EM_AMDGPU        Machine = 224 /* AMD GPU architecture */
+	EM_RISCV         Machine = 243 /* RISC-V */
+	EM_LANAI         Machine = 244 /* Lanai 32-bit processor */
+	EM_BPF           Machine = 247 /* Linux BPF – in-kernel virtual machine */
 
 	/* Non-standard or deprecated. */
 	EM_486         Machine = 6      /* Intel i486. */
@@ -289,6 +436,145 @@ var machineStrings = []intName{
 	{60, "EM_ST100"},
 	{61, "EM_TINYJ"},
 	{62, "EM_X86_64"},
+	{63, "EM_PDSP"},
+	{64, "EM_PDP10"},
+	{65, "EM_PDP11"},
+	{66, "EM_FX66"},
+	{67, "EM_ST9PLUS"},
+	{68, "EM_ST7"},
+	{69, "EM_68HC16"},
+	{70, "EM_68HC11"},
+	{71, "EM_68HC08"},
+	{72, "EM_68HC05"},
+	{73, "EM_SVX"},
+	{74, "EM_ST19"},
+	{75, "EM_VAX"},
+	{76, "EM_CRIS"},
+	{77, "EM_JAVELIN"},
+	{78, "EM_FIREPATH"},
+	{79, "EM_ZSP"},
+	{80, "EM_MMIX"},
+	{81, "EM_HUANY"},
+	{82, "EM_PRISM"},
+	{83, "EM_AVR"},
+	{84, "EM_FR30"},
+	{85, "EM_D10V"},
+	{86, "EM_D30V"},
+	{87, "EM_V850"},
+	{88, "EM_M32R"},
+	{89, "EM_MN10300"},
+	{90, "EM_MN10200"},
+	{91, "EM_PJ"},
+	{92, "EM_OPENRISC"},
+	{93, "EM_ARC_COMPACT"},
+	{94, "EM_XTENSA"},
+	{95, "EM_VIDEOCORE"},
+	{96, "EM_TMM_GPP"},
+	{97, "EM_NS32K"},
+	{98, "EM_TPC"},
+	{99, "EM_SNP1K"},
+	{100, "EM_ST200"},
+	{101, "EM_IP2K"},
+	{102, "EM_MAX"},
+	{103, "EM_CR"},
+	{104, "EM_F2MC16"},
+	{105, "EM_MSP430"},
+	{106, "EM_BLACKFIN"},
+	{107, "EM_SE_C33"},
+	{108, "EM_SEP"},
+	{109, "EM_ARCA"},
+	{110, "EM_UNICORE"},
+	{111, "EM_EXCESS"},
+	{112, "EM_DXP"},
+	{113, "EM_ALTERA_NIOS2"},
+	{114, "EM_CRX"},
+	{115, "EM_XGATE"},
+	{116, "EM_C166"},
+	{117, "EM_M16C"},
+	{118, "EM_DSPIC30F"},
+	{119, "EM_CE"},
+	{120, "EM_M32C"},
+	{131, "EM_TSK3000"},
+	{132, "EM_RS08"},
+	{133, "EM_SHARC"},
+	{134, "EM_ECOG2"},
+	{135, "EM_SCORE7"},
+	{136, "EM_DSP24"},
+	{137, "EM_VIDEOCORE3"},
+	{138, "EM_LATTICEMICO32"},
+	{139, "EM_SE_C17"},
+	{140, "EM_TI_C6000"},
+	{141, "EM_TI_C2000"},
+	{142, "EM_TI_C5500"},
+	{143, "EM_TI_ARP32"},
+	{144, "EM_TI_PRU"},
+	{160, "EM_MMDSP_PLUS"},
+	{161, "EM_CYPRESS_M8C"},
+	{162, "EM_R32C"},
+	{163, "EM_TRIMEDIA"},
+	{164, "EM_QDSP6"},
+	{165, "EM_8051"},
+	{166, "EM_STXP7X"},
+	{167, "EM_NDS32"},
+	{168, "EM_ECOG1"},
+	{168, "EM_ECOG1X"},
+	{169, "EM_MAXQ30"},
+	{170, "EM_XIMO16"},
+	{171, "EM_MANIK"},
+	{172, "EM_CRAYNV2"},
+	{173, "EM_RX"},
+	{174, "EM_METAG"},
+	{175, "EM_MCST_ELBRUS"},
+	{176, "EM_ECOG16"},
+	{177, "EM_CR16"},
+	{178, "EM_ETPU"},
+	{179, "EM_SLE9X"},
+	{180, "EM_L10M"},
+	{181, "EM_K10M"},
+	{183, "EM_AARCH64"},
+	{185, "EM_AVR32"},
+	{186, "EM_STM8"},
+	{187, "EM_TILE64"},
+	{188, "EM_TILEPRO"},
+	{189, "EM_MICROBLAZE"},
+	{190, "EM_CUDA"},
+	{191, "EM_TILEGX"},
+	{192, "EM_CLOUDSHIELD"},
+	{193, "EM_COREA_1ST"},
+	{194, "EM_COREA_2ND"},
+	{195, "EM_ARC_COMPACT2"},
+	{196, "EM_OPEN8"},
+	{197, "EM_RL78"},
+	{198, "EM_VIDEOCORE5"},
+	{199, "EM_78KOR"},
+	{200, "EM_56800EX"},
+	{201, "EM_BA1"},
+	{202, "EM_BA2"},
+	{203, "EM_XCORE"},
+	{204, "EM_MCHP_PIC"},
+	{205, "EM_INTEL205"},
+	{206, "EM_INTEL206"},
+	{207, "EM_INTEL207"},
+	{208, "EM_INTEL208"},
+	{209, "EM_INTEL209"},
+	{210, "EM_KM32"},
+	{211, "EM_KMX32"},
+	{212, "EM_KMX16"},
+	{213, "EM_KMX8"},
+	{214, "EM_KVARC"},
+	{215, "EM_CDP"},
+	{216, "EM_COGE"},
+	{217, "EM_COOL"},
+	{218, "EM_NORC"},
+	{219, "EM_CSR_KALIMBA "},
+	{220, "EM_Z80 "},
+	{221, "EM_VISIUM "},
+	{222, "EM_FT32 "},
+	{223, "EM_MOXIE"},
+	{224, "EM_AMDGPU"},
+	{243, "EM_RISCV"},
+	{244, "EM_LANAI"},
+	{247, "EM_BPF"},
 
 	/* Non-standard or deprecated. */
 	{6, "EM_486"},
@@ -744,30 +1030,49 @@ func (i SymVis) GoString() string { return stringName(uint32(i), stvStrings, tru
 type R_X86_64 int
 
 const (
-	R_X86_64_NONE     R_X86_64 = 0  /* No relocation. */
-	R_X86_64_64       R_X86_64 = 1  /* Add 64 bit symbol value. */
-	R_X86_64_PC32     R_X86_64 = 2  /* PC-relative 32 bit signed sym value. */
-	R_X86_64_GOT32    R_X86_64 = 3  /* PC-relative 32 bit GOT offset. */
-	R_X86_64_PLT32    R_X86_64 = 4  /* PC-relative 32 bit PLT offset. */
-	R_X86_64_COPY     R_X86_64 = 5  /* Copy data from shared object. */
-	R_X86_64_GLOB_DAT R_X86_64 = 6  /* Set GOT entry to data address. */
-	R_X86_64_JMP_SLOT R_X86_64 = 7  /* Set GOT entry to code address. */
-	R_X86_64_RELATIVE R_X86_64 = 8  /* Add load address of shared object. */
-	R_X86_64_GOTPCREL R_X86_64 = 9  /* Add 32 bit signed pcrel offset to GOT. */
-	R_X86_64_32       R_X86_64 = 10 /* Add 32 bit zero extended symbol value */
-	R_X86_64_32S      R_X86_64 = 11 /* Add 32 bit sign extended symbol value */
-	R_X86_64_16       R_X86_64 = 12 /* Add 16 bit zero extended symbol value */
-	R_X86_64_PC16     R_X86_64 = 13 /* Add 16 bit signed extended pc relative symbol value */
-	R_X86_64_8        R_X86_64 = 14 /* Add 8 bit zero extended symbol value */
-	R_X86_64_PC8      R_X86_64 = 15 /* Add 8 bit signed extended pc relative symbol value */
-	R_X86_64_DTPMOD64 R_X86_64 = 16 /* ID of module containing symbol */
-	R_X86_64_DTPOFF64 R_X86_64 = 17 /* Offset in TLS block */
-	R_X86_64_TPOFF64  R_X86_64 = 18 /* Offset in static TLS block */
-	R_X86_64_TLSGD    R_X86_64 = 19 /* PC relative offset to GD GOT entry */
-	R_X86_64_TLSLD    R_X86_64 = 20 /* PC relative offset to LD GOT entry */
-	R_X86_64_DTPOFF32 R_X86_64 = 21 /* Offset in TLS block */
-	R_X86_64_GOTTPOFF R_X86_64 = 22 /* PC relative offset to IE GOT entry */
-	R_X86_64_TPOFF32  R_X86_64 = 23 /* Offset in static TLS block */
+	R_X86_64_NONE            R_X86_64 = 0  /* No relocation. */
+	R_X86_64_64              R_X86_64 = 1  /* Add 64 bit symbol value. */
+	R_X86_64_PC32            R_X86_64 = 2  /* PC-relative 32 bit signed sym value. */
+	R_X86_64_GOT32           R_X86_64 = 3  /* PC-relative 32 bit GOT offset. */
+	R_X86_64_PLT32           R_X86_64 = 4  /* PC-relative 32 bit PLT offset. */
+	R_X86_64_COPY            R_X86_64 = 5  /* Copy data from shared object. */
+	R_X86_64_GLOB_DAT        R_X86_64 = 6  /* Set GOT entry to data address. */
+	R_X86_64_JMP_SLOT        R_X86_64 = 7  /* Set GOT entry to code address. */
+	R_X86_64_RELATIVE        R_X86_64 = 8  /* Add load address of shared object. */
+	R_X86_64_GOTPCREL        R_X86_64 = 9  /* Add 32 bit signed pcrel offset to GOT. */
+	R_X86_64_32              R_X86_64 = 10 /* Add 32 bit zero extended symbol value */
+	R_X86_64_32S             R_X86_64 = 11 /* Add 32 bit sign extended symbol value */
+	R_X86_64_16              R_X86_64 = 12 /* Add 16 bit zero extended symbol value */
+	R_X86_64_PC16            R_X86_64 = 13 /* Add 16 bit signed extended pc relative symbol value */
+	R_X86_64_8               R_X86_64 = 14 /* Add 8 bit zero extended symbol value */
+	R_X86_64_PC8             R_X86_64 = 15 /* Add 8 bit signed extended pc relative symbol value */
+	R_X86_64_DTPMOD64        R_X86_64 = 16 /* ID of module containing symbol */
+	R_X86_64_DTPOFF64        R_X86_64 = 17 /* Offset in TLS block */
+	R_X86_64_TPOFF64         R_X86_64 = 18 /* Offset in static TLS block */
+	R_X86_64_TLSGD           R_X86_64 = 19 /* PC relative offset to GD GOT entry */
+	R_X86_64_TLSLD           R_X86_64 = 20 /* PC relative offset to LD GOT entry */
+	R_X86_64_DTPOFF32        R_X86_64 = 21 /* Offset in TLS block */
+	R_X86_64_GOTTPOFF        R_X86_64 = 22 /* PC relative offset to IE GOT entry */
+	R_X86_64_TPOFF32         R_X86_64 = 23 /* Offset in static TLS block */
+	R_X86_64_PC64            R_X86_64 = 24 /* PC relative 64-bit sign extended symbol value. */
+	R_X86_64_GOTOFF64        R_X86_64 = 25
+	R_X86_64_GOTPC32         R_X86_64 = 26
+	R_X86_64_GOT64           R_X86_64 = 27
+	R_X86_64_GOTPCREL64      R_X86_64 = 28
+	R_X86_64_GOTPC64         R_X86_64 = 29
+	R_X86_64_GOTPLT64        R_X86_64 = 30
+	R_X86_64_PLTOFF64        R_X86_64 = 31
+	R_X86_64_SIZE32          R_X86_64 = 32
+	R_X86_64_SIZE64          R_X86_64 = 33
+	R_X86_64_GOTPC32_TLSDESC R_X86_64 = 34
+	R_X86_64_TLSDESC_CALL    R_X86_64 = 35
+	R_X86_64_TLSDESC         R_X86_64 = 36
+	R_X86_64_IRELATIVE       R_X86_64 = 37
+	R_X86_64_RELATIVE64      R_X86_64 = 38
+	R_X86_64_PC32_BND        R_X86_64 = 39
+	R_X86_64_PLT32_BND       R_X86_64 = 40
+	R_X86_64_GOTPCRELX       R_X86_64 = 41
+	R_X86_64_REX_GOTPCRELX   R_X86_64 = 42
 )
 
 var rx86_64Strings = []intName{
@@ -795,6 +1100,25 @@ var rx86_64Strings = []intName{
 	{21, "R_X86_64_DTPOFF32"},
 	{22, "R_X86_64_GOTTPOFF"},
 	{23, "R_X86_64_TPOFF32"},
+	{24, "R_X86_64_PC64"},
+	{25, "R_X86_64_GOTOFF64"},
+	{26, "R_X86_64_GOTPC32"},
+	{27, "R_X86_64_GOT64"},
+	{28, "R_X86_64_GOTPCREL64"},
+	{29, "R_X86_64_GOTPC64"},
+	{30, "R_X86_64_GOTPLT64"},
+	{31, "R_X86_64_PLTOFF64"},
+	{32, "R_X86_64_SIZE32"},
+	{33, "R_X86_64_SIZE64"},
+	{34, "R_X86_64_GOTPC32_TLSDESC"},
+	{35, "R_X86_64_TLSDESC_CALL"},
+	{36, "R_X86_64_TLSDESC"},
+	{37, "R_X86_64_IRELATIVE"},
+	{38, "R_X86_64_RELATIVE64"},
+	{39, "R_X86_64_PC32_BND"},
+	{40, "R_X86_64_PLT32_BND"},
+	{41, "R_X86_64_GOTPCRELX"},
+	{42, "R_X86_64_REX_GOTPCRELX"},
 }
 
 func (i R_X86_64) String() string   { return stringName(uint32(i), rx86_64Strings, false) }
@@ -887,10 +1211,17 @@ const (
 	R_AARCH64_LDST64_ABS_LO12_NC              R_AARCH64 = 286
 	R_AARCH64_LDST128_ABS_LO12_NC             R_AARCH64 = 299
 	R_AARCH64_GOT_LD_PREL19                   R_AARCH64 = 309
+	R_AARCH64_LD64_GOTOFF_LO15                R_AARCH64 = 310
 	R_AARCH64_ADR_GOT_PAGE                    R_AARCH64 = 311
 	R_AARCH64_LD64_GOT_LO12_NC                R_AARCH64 = 312
+	R_AARCH64_LD64_GOTPAGE_LO15               R_AARCH64 = 313
+	R_AARCH64_TLSGD_ADR_PREL21                R_AARCH64 = 512
 	R_AARCH64_TLSGD_ADR_PAGE21                R_AARCH64 = 513
 	R_AARCH64_TLSGD_ADD_LO12_NC               R_AARCH64 = 514
+	R_AARCH64_TLSGD_MOVW_G1                   R_AARCH64 = 515
+	R_AARCH64_TLSGD_MOVW_G0_NC                R_AARCH64 = 516
+	R_AARCH64_TLSLD_ADR_PREL21                R_AARCH64 = 517
+	R_AARCH64_TLSLD_ADR_PAGE21                R_AARCH64 = 518
 	R_AARCH64_TLSIE_MOVW_GOTTPREL_G1          R_AARCH64 = 539
 	R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC       R_AARCH64 = 540
 	R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21       R_AARCH64 = 541
@@ -914,6 +1245,10 @@ const (
 	R_AARCH64_TLSDESC_LDR                     R_AARCH64 = 567
 	R_AARCH64_TLSDESC_ADD                     R_AARCH64 = 568
 	R_AARCH64_TLSDESC_CALL                    R_AARCH64 = 569
+	R_AARCH64_TLSLE_LDST128_TPREL_LO12        R_AARCH64 = 570
+	R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC     R_AARCH64 = 571
+	R_AARCH64_TLSLD_LDST128_DTPREL_LO12       R_AARCH64 = 572
+	R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC    R_AARCH64 = 573
 	R_AARCH64_COPY                            R_AARCH64 = 1024
 	R_AARCH64_GLOB_DAT                        R_AARCH64 = 1025
 	R_AARCH64_JUMP_SLOT                       R_AARCH64 = 1026
@@ -1009,10 +1344,17 @@ var raarch64Strings = []intName{
 	{286, "R_AARCH64_LDST64_ABS_LO12_NC"},
 	{299, "R_AARCH64_LDST128_ABS_LO12_NC"},
 	{309, "R_AARCH64_GOT_LD_PREL19"},
+	{310, "R_AARCH64_LD64_GOTOFF_LO15"},
 	{311, "R_AARCH64_ADR_GOT_PAGE"},
 	{312, "R_AARCH64_LD64_GOT_LO12_NC"},
+	{313, "R_AARCH64_LD64_GOTPAGE_LO15"},
+	{512, "R_AARCH64_TLSGD_ADR_PREL21"},
 	{513, "R_AARCH64_TLSGD_ADR_PAGE21"},
 	{514, "R_AARCH64_TLSGD_ADD_LO12_NC"},
+	{515, "R_AARCH64_TLSGD_MOVW_G1"},
+	{516, "R_AARCH64_TLSGD_MOVW_G0_NC"},
+	{517, "R_AARCH64_TLSLD_ADR_PREL21"},
+	{518, "R_AARCH64_TLSLD_ADR_PAGE21"},
 	{539, "R_AARCH64_TLSIE_MOVW_GOTTPREL_G1"},
 	{540, "R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC"},
 	{541, "R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21"},
@@ -1036,6 +1378,10 @@ var raarch64Strings = []intName{
 	{567, "R_AARCH64_TLSDESC_LDR"},
 	{568, "R_AARCH64_TLSDESC_ADD"},
 	{569, "R_AARCH64_TLSDESC_CALL"},
+	{570, "R_AARCH64_TLSLE_LDST128_TPREL_LO12"},
+	{571, "R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC"},
+	{572, "R_AARCH64_TLSLD_LDST128_DTPREL_LO12"},
+	{573, "R_AARCH64_TLSLD_LDST128_DTPREL_LO12_NC"},
 	{1024, "R_AARCH64_COPY"},
 	{1025, "R_AARCH64_GLOB_DAT"},
 	{1026, "R_AARCH64_JUMP_SLOT"},
@@ -1122,39 +1468,150 @@ func (i R_ALPHA) GoString() string { return stringName(uint32(i), ralphaStrings,
 type R_ARM int
 
 const (
-	R_ARM_NONE          R_ARM = 0 /* No relocation. */
-	R_ARM_PC24          R_ARM = 1
-	R_ARM_ABS32         R_ARM = 2
-	R_ARM_REL32         R_ARM = 3
-	R_ARM_PC13          R_ARM = 4
-	R_ARM_ABS16         R_ARM = 5
-	R_ARM_ABS12         R_ARM = 6
-	R_ARM_THM_ABS5      R_ARM = 7
-	R_ARM_ABS8          R_ARM = 8
-	R_ARM_SBREL32       R_ARM = 9
-	R_ARM_THM_PC22      R_ARM = 10
-	R_ARM_THM_PC8       R_ARM = 11
-	R_ARM_AMP_VCALL9    R_ARM = 12
-	R_ARM_SWI24         R_ARM = 13
-	R_ARM_THM_SWI8      R_ARM = 14
-	R_ARM_XPC25         R_ARM = 15
-	R_ARM_THM_XPC22     R_ARM = 16
-	R_ARM_COPY          R_ARM = 20 /* Copy data from shared object. */
-	R_ARM_GLOB_DAT      R_ARM = 21 /* Set GOT entry to data address. */
-	R_ARM_JUMP_SLOT     R_ARM = 22 /* Set GOT entry to code address. */
-	R_ARM_RELATIVE      R_ARM = 23 /* Add load address of shared object. */
-	R_ARM_GOTOFF        R_ARM = 24 /* Add GOT-relative symbol address. */
-	R_ARM_GOTPC         R_ARM = 25 /* Add PC-relative GOT table address. */
-	R_ARM_GOT32         R_ARM = 26 /* Add PC-relative GOT offset. */
-	R_ARM_PLT32         R_ARM = 27 /* Add PC-relative PLT offset. */
-	R_ARM_GNU_VTENTRY   R_ARM = 100
-	R_ARM_GNU_VTINHERIT R_ARM = 101
-	R_ARM_RSBREL32      R_ARM = 250
-	R_ARM_THM_RPC22     R_ARM = 251
-	R_ARM_RREL32        R_ARM = 252
-	R_ARM_RABS32        R_ARM = 253
-	R_ARM_RPC24         R_ARM = 254
-	R_ARM_RBASE         R_ARM = 255
+	R_ARM_NONE               R_ARM = 0 /* No relocation. */
+	R_ARM_PC24               R_ARM = 1
+	R_ARM_ABS32              R_ARM = 2
+	R_ARM_REL32              R_ARM = 3
+	R_ARM_PC13               R_ARM = 4
+	R_ARM_ABS16              R_ARM = 5
+	R_ARM_ABS12              R_ARM = 6
+	R_ARM_THM_ABS5           R_ARM = 7
+	R_ARM_ABS8               R_ARM = 8
+	R_ARM_SBREL32            R_ARM = 9
+	R_ARM_THM_PC22           R_ARM = 10
+	R_ARM_THM_PC8            R_ARM = 11
+	R_ARM_AMP_VCALL9         R_ARM = 12
+	R_ARM_SWI24              R_ARM = 13
+	R_ARM_THM_SWI8           R_ARM = 14
+	R_ARM_XPC25              R_ARM = 15
+	R_ARM_THM_XPC22          R_ARM = 16
+	R_ARM_TLS_DTPMOD32       R_ARM = 17
+	R_ARM_TLS_DTPOFF32       R_ARM = 18
+	R_ARM_TLS_TPOFF32        R_ARM = 19
+	R_ARM_COPY               R_ARM = 20 /* Copy data from shared object. */
+	R_ARM_GLOB_DAT           R_ARM = 21 /* Set GOT entry to data address. */
+	R_ARM_JUMP_SLOT          R_ARM = 22 /* Set GOT entry to code address. */
+	R_ARM_RELATIVE           R_ARM = 23 /* Add load address of shared object. */
+	R_ARM_GOTOFF             R_ARM = 24 /* Add GOT-relative symbol address. */
+	R_ARM_GOTPC              R_ARM = 25 /* Add PC-relative GOT table address. */
+	R_ARM_GOT32              R_ARM = 26 /* Add PC-relative GOT offset. */
+	R_ARM_PLT32              R_ARM = 27 /* Add PC-relative PLT offset. */
+	R_ARM_CALL               R_ARM = 28
+	R_ARM_JUMP24             R_ARM = 29
+	R_ARM_THM_JUMP24         R_ARM = 30
+	R_ARM_BASE_ABS           R_ARM = 31
+	R_ARM_ALU_PCREL_7_0      R_ARM = 32
+	R_ARM_ALU_PCREL_15_8     R_ARM = 33
+	R_ARM_ALU_PCREL_23_15    R_ARM = 34
+	R_ARM_LDR_SBREL_11_10_NC R_ARM = 35
+	R_ARM_ALU_SBREL_19_12_NC R_ARM = 36
+	R_ARM_ALU_SBREL_27_20_CK R_ARM = 37
+	R_ARM_TARGET1            R_ARM = 38
+	R_ARM_SBREL31            R_ARM = 39
+	R_ARM_V4BX               R_ARM = 40
+	R_ARM_TARGET2            R_ARM = 41
+	R_ARM_PREL31             R_ARM = 42
+	R_ARM_MOVW_ABS_NC        R_ARM = 43
+	R_ARM_MOVT_ABS           R_ARM = 44
+	R_ARM_MOVW_PREL_NC       R_ARM = 45
+	R_ARM_MOVT_PREL          R_ARM = 46
+	R_ARM_THM_MOVW_ABS_NC    R_ARM = 47
+	R_ARM_THM_MOVT_ABS       R_ARM = 48
+	R_ARM_THM_MOVW_PREL_NC   R_ARM = 49
+	R_ARM_THM_MOVT_PREL      R_ARM = 50
+	R_ARM_THM_JUMP19         R_ARM = 51
+	R_ARM_THM_JUMP6          R_ARM = 52
+	R_ARM_THM_ALU_PREL_11_0  R_ARM = 53
+	R_ARM_THM_PC12           R_ARM = 54
+	R_ARM_ABS32_NOI          R_ARM = 55
+	R_ARM_REL32_NOI          R_ARM = 56
+	R_ARM_ALU_PC_G0_NC       R_ARM = 57
+	R_ARM_ALU_PC_G0          R_ARM = 58
+	R_ARM_ALU_PC_G1_NC       R_ARM = 59
+	R_ARM_ALU_PC_G1          R_ARM = 60
+	R_ARM_ALU_PC_G2          R_ARM = 61
+	R_ARM_LDR_PC_G1          R_ARM = 62
+	R_ARM_LDR_PC_G2          R_ARM = 63
+	R_ARM_LDRS_PC_G0         R_ARM = 64
+	R_ARM_LDRS_PC_G1         R_ARM = 65
+	R_ARM_LDRS_PC_G2         R_ARM = 66
+	R_ARM_LDC_PC_G0          R_ARM = 67
+	R_ARM_LDC_PC_G1          R_ARM = 68
+	R_ARM_LDC_PC_G2          R_ARM = 69
+	R_ARM_ALU_SB_G0_NC       R_ARM = 70
+	R_ARM_ALU_SB_G0          R_ARM = 71
+	R_ARM_ALU_SB_G1_NC       R_ARM = 72
+	R_ARM_ALU_SB_G1          R_ARM = 73
+	R_ARM_ALU_SB_G2          R_ARM = 74
+	R_ARM_LDR_SB_G0          R_ARM = 75
+	R_ARM_LDR_SB_G1          R_ARM = 76
+	R_ARM_LDR_SB_G2          R_ARM = 77
+	R_ARM_LDRS_SB_G0         R_ARM = 78
+	R_ARM_LDRS_SB_G1         R_ARM = 79
+	R_ARM_LDRS_SB_G2         R_ARM = 80
+	R_ARM_LDC_SB_G0          R_ARM = 81
+	R_ARM_LDC_SB_G1          R_ARM = 82
+	R_ARM_LDC_SB_G2          R_ARM = 83
+	R_ARM_MOVW_BREL_NC       R_ARM = 84
+	R_ARM_MOVT_BREL          R_ARM = 85
+	R_ARM_MOVW_BREL          R_ARM = 86
+	R_ARM_THM_MOVW_BREL_NC   R_ARM = 87
+	R_ARM_THM_MOVT_BREL      R_ARM = 88
+	R_ARM_THM_MOVW_BREL      R_ARM = 89
+	R_ARM_TLS_GOTDESC        R_ARM = 90
+	R_ARM_TLS_CALL           R_ARM = 91
+	R_ARM_TLS_DESCSEQ        R_ARM = 92
+	R_ARM_THM_TLS_CALL       R_ARM = 93
+	R_ARM_PLT32_ABS          R_ARM = 94
+	R_ARM_GOT_ABS            R_ARM = 95
+	R_ARM_GOT_PREL           R_ARM = 96
+	R_ARM_GOT_BREL12         R_ARM = 97
+	R_ARM_GOTOFF12           R_ARM = 98
+	R_ARM_GOTRELAX           R_ARM = 99
+	R_ARM_GNU_VTENTRY        R_ARM = 100
+	R_ARM_GNU_VTINHERIT      R_ARM = 101
+	R_ARM_THM_JUMP11         R_ARM = 102
+	R_ARM_THM_JUMP8          R_ARM = 103
+	R_ARM_TLS_GD32           R_ARM = 104
+	R_ARM_TLS_LDM32          R_ARM = 105
+	R_ARM_TLS_LDO32          R_ARM = 106
+	R_ARM_TLS_IE32           R_ARM = 107
+	R_ARM_TLS_LE32           R_ARM = 108
+	R_ARM_TLS_LDO12          R_ARM = 109
+	R_ARM_TLS_LE12           R_ARM = 110
+	R_ARM_TLS_IE12GP         R_ARM = 111
+	R_ARM_PRIVATE_0          R_ARM = 112
+	R_ARM_PRIVATE_1          R_ARM = 113
+	R_ARM_PRIVATE_2          R_ARM = 114
+	R_ARM_PRIVATE_3          R_ARM = 115
+	R_ARM_PRIVATE_4          R_ARM = 116
+	R_ARM_PRIVATE_5          R_ARM = 117
+	R_ARM_PRIVATE_6          R_ARM = 118
+	R_ARM_PRIVATE_7          R_ARM = 119
+	R_ARM_PRIVATE_8          R_ARM = 120
+	R_ARM_PRIVATE_9          R_ARM = 121
+	R_ARM_PRIVATE_10         R_ARM = 122
+	R_ARM_PRIVATE_11         R_ARM = 123
+	R_ARM_PRIVATE_12         R_ARM = 124
+	R_ARM_PRIVATE_13         R_ARM = 125
+	R_ARM_PRIVATE_14         R_ARM = 126
+	R_ARM_PRIVATE_15         R_ARM = 127
+	R_ARM_ME_TOO             R_ARM = 128
+	R_ARM_THM_TLS_DESCSEQ16  R_ARM = 129
+	R_ARM_THM_TLS_DESCSEQ32  R_ARM = 130
+	R_ARM_THM_GOT_BREL12     R_ARM = 131
+	R_ARM_THM_ALU_ABS_G0_NC  R_ARM = 132
+	R_ARM_THM_ALU_ABS_G1_NC  R_ARM = 133
+	R_ARM_THM_ALU_ABS_G2_NC  R_ARM = 134
+	R_ARM_THM_ALU_ABS_G3     R_ARM = 135
+	R_ARM_IRELATIVE          R_ARM = 160
+	R_ARM_RXPC25             R_ARM = 249
+	R_ARM_RSBREL32           R_ARM = 250
+	R_ARM_THM_RPC22          R_ARM = 251
+	R_ARM_RREL32             R_ARM = 252
+	R_ARM_RABS32             R_ARM = 253
+	R_ARM_RPC24              R_ARM = 254
+	R_ARM_RBASE              R_ARM = 255
 )
 
 var rarmStrings = []intName{
@@ -1175,6 +1632,9 @@ var rarmStrings = []intName{
 	{14, "R_ARM_THM_SWI8"},
 	{15, "R_ARM_XPC25"},
 	{16, "R_ARM_THM_XPC22"},
+	{17, "R_ARM_TLS_DTPMOD32"},
+	{18, "R_ARM_TLS_DTPOFF32"},
+	{19, "R_ARM_TLS_TPOFF32"},
 	{20, "R_ARM_COPY"},
 	{21, "R_ARM_GLOB_DAT"},
 	{22, "R_ARM_JUMP_SLOT"},
@@ -1183,8 +1643,116 @@ var rarmStrings = []intName{
 	{25, "R_ARM_GOTPC"},
 	{26, "R_ARM_GOT32"},
 	{27, "R_ARM_PLT32"},
+	{28, "R_ARM_CALL"},
+	{29, "R_ARM_JUMP24"},
+	{30, "R_ARM_THM_JUMP24"},
+	{31, "R_ARM_BASE_ABS"},
+	{32, "R_ARM_ALU_PCREL_7_0"},
+	{33, "R_ARM_ALU_PCREL_15_8"},
+	{34, "R_ARM_ALU_PCREL_23_15"},
+	{35, "R_ARM_LDR_SBREL_11_10_NC"},
+	{36, "R_ARM_ALU_SBREL_19_12_NC"},
+	{37, "R_ARM_ALU_SBREL_27_20_CK"},
+	{38, "R_ARM_TARGET1"},
+	{39, "R_ARM_SBREL31"},
+	{40, "R_ARM_V4BX"},
+	{41, "R_ARM_TARGET2"},
+	{42, "R_ARM_PREL31"},
+	{43, "R_ARM_MOVW_ABS_NC"},
+	{44, "R_ARM_MOVT_ABS"},
+	{45, "R_ARM_MOVW_PREL_NC"},
+	{46, "R_ARM_MOVT_PREL"},
+	{47, "R_ARM_THM_MOVW_ABS_NC"},
+	{48, "R_ARM_THM_MOVT_ABS"},
+	{49, "R_ARM_THM_MOVW_PREL_NC"},
+	{50, "R_ARM_THM_MOVT_PREL"},
+	{51, "R_ARM_THM_JUMP19"},
+	{52, "R_ARM_THM_JUMP6"},
+	{53, "R_ARM_THM_ALU_PREL_11_0"},
+	{54, "R_ARM_THM_PC12"},
+	{55, "R_ARM_ABS32_NOI"},
+	{56, "R_ARM_REL32_NOI"},
+	{57, "R_ARM_ALU_PC_G0_NC"},
+	{58, "R_ARM_ALU_PC_G0"},
+	{59, "R_ARM_ALU_PC_G1_NC"},
+	{60, "R_ARM_ALU_PC_G1"},
+	{61, "R_ARM_ALU_PC_G2"},
+	{62, "R_ARM_LDR_PC_G1"},
+	{63, "R_ARM_LDR_PC_G2"},
+	{64, "R_ARM_LDRS_PC_G0"},
+	{65, "R_ARM_LDRS_PC_G1"},
+	{66, "R_ARM_LDRS_PC_G2"},
+	{67, "R_ARM_LDC_PC_G0"},
+	{68, "R_ARM_LDC_PC_G1"},
+	{69, "R_ARM_LDC_PC_G2"},
+	{70, "R_ARM_ALU_SB_G0_NC"},
+	{71, "R_ARM_ALU_SB_G0"},
+	{72, "R_ARM_ALU_SB_G1_NC"},
+	{73, "R_ARM_ALU_SB_G1"},
+	{74, "R_ARM_ALU_SB_G2"},
+	{75, "R_ARM_LDR_SB_G0"},
+	{76, "R_ARM_LDR_SB_G1"},
+	{77, "R_ARM_LDR_SB_G2"},
+	{78, "R_ARM_LDRS_SB_G0"},
+	{79, "R_ARM_LDRS_SB_G1"},
+	{80, "R_ARM_LDRS_SB_G2"},
+	{81, "R_ARM_LDC_SB_G0"},
+	{82, "R_ARM_LDC_SB_G1"},
+	{83, "R_ARM_LDC_SB_G2"},
+	{84, "R_ARM_MOVW_BREL_NC"},
+	{85, "R_ARM_MOVT_BREL"},
+	{86, "R_ARM_MOVW_BREL"},
+	{87, "R_ARM_THM_MOVW_BREL_NC"},
+	{88, "R_ARM_THM_MOVT_BREL"},
+	{89, "R_ARM_THM_MOVW_BREL"},
+	{90, "R_ARM_TLS_GOTDESC"},
+	{91, "R_ARM_TLS_CALL"},
+	{92, "R_ARM_TLS_DESCSEQ"},
+	{93, "R_ARM_THM_TLS_CALL"},
+	{94, "R_ARM_PLT32_ABS"},
+	{95, "R_ARM_GOT_ABS"},
+	{96, "R_ARM_GOT_PREL"},
+	{97, "R_ARM_GOT_BREL12"},
+	{98, "R_ARM_GOTOFF12"},
+	{99, "R_ARM_GOTRELAX"},
 	{100, "R_ARM_GNU_VTENTRY"},
 	{101, "R_ARM_GNU_VTINHERIT"},
+	{102, "R_ARM_THM_JUMP11"},
+	{103, "R_ARM_THM_JUMP8"},
+	{104, "R_ARM_TLS_GD32"},
+	{105, "R_ARM_TLS_LDM32"},
+	{106, "R_ARM_TLS_LDO32"},
+	{107, "R_ARM_TLS_IE32"},
+	{108, "R_ARM_TLS_LE32"},
+	{109, "R_ARM_TLS_LDO12"},
+	{110, "R_ARM_TLS_LE12"},
+	{111, "R_ARM_TLS_IE12GP"},
+	{112, "R_ARM_PRIVATE_0"},
+	{113, "R_ARM_PRIVATE_1"},
+	{114, "R_ARM_PRIVATE_2"},
+	{115, "R_ARM_PRIVATE_3"},
+	{116, "R_ARM_PRIVATE_4"},
+	{117, "R_ARM_PRIVATE_5"},
+	{118, "R_ARM_PRIVATE_6"},
+	{119, "R_ARM_PRIVATE_7"},
+	{120, "R_ARM_PRIVATE_8"},
+	{121, "R_ARM_PRIVATE_9"},
+	{122, "R_ARM_PRIVATE_10"},
+	{123, "R_ARM_PRIVATE_11"},
+	{124, "R_ARM_PRIVATE_12"},
+	{125, "R_ARM_PRIVATE_13"},
+	{126, "R_ARM_PRIVATE_14"},
+	{127, "R_ARM_PRIVATE_15"},
+	{128, "R_ARM_ME_TOO"},
+	{129, "R_ARM_THM_TLS_DESCSEQ16"},
+	{130, "R_ARM_THM_TLS_DESCSEQ32"},
+	{131, "R_ARM_THM_GOT_BREL12"},
+	{132, "R_ARM_THM_ALU_ABS_G0_NC"},
+	{133, "R_ARM_THM_ALU_ABS_G1_NC"},
+	{134, "R_ARM_THM_ALU_ABS_G2_NC"},
+	{135, "R_ARM_THM_ALU_ABS_G3"},
+	{160, "R_ARM_IRELATIVE"},
+	{249, "R_ARM_RXPC25"},
 	{250, "R_ARM_RSBREL32"},
 	{251, "R_ARM_THM_RPC22"},
 	{252, "R_ARM_RREL32"},
@@ -1200,37 +1768,48 @@ func (i R_ARM) GoString() string { return stringName(uint32(i), rarmStrings, tru
 type R_386 int
 
 const (
-	R_386_NONE         R_386 = 0  /* No relocation. */
-	R_386_32           R_386 = 1  /* Add symbol value. */
-	R_386_PC32         R_386 = 2  /* Add PC-relative symbol value. */
-	R_386_GOT32        R_386 = 3  /* Add PC-relative GOT offset. */
-	R_386_PLT32        R_386 = 4  /* Add PC-relative PLT offset. */
-	R_386_COPY         R_386 = 5  /* Copy data from shared object. */
-	R_386_GLOB_DAT     R_386 = 6  /* Set GOT entry to data address. */
-	R_386_JMP_SLOT     R_386 = 7  /* Set GOT entry to code address. */
-	R_386_RELATIVE     R_386 = 8  /* Add load address of shared object. */
-	R_386_GOTOFF       R_386 = 9  /* Add GOT-relative symbol address. */
-	R_386_GOTPC        R_386 = 10 /* Add PC-relative GOT table address. */
-	R_386_TLS_TPOFF    R_386 = 14 /* Negative offset in static TLS block */
-	R_386_TLS_IE       R_386 = 15 /* Absolute address of GOT for -ve static TLS */
-	R_386_TLS_GOTIE    R_386 = 16 /* GOT entry for negative static TLS block */
-	R_386_TLS_LE       R_386 = 17 /* Negative offset relative to static TLS */
-	R_386_TLS_GD       R_386 = 18 /* 32 bit offset to GOT (index,off) pair */
-	R_386_TLS_LDM      R_386 = 19 /* 32 bit offset to GOT (index,zero) pair */
-	R_386_TLS_GD_32    R_386 = 24 /* 32 bit offset to GOT (index,off) pair */
-	R_386_TLS_GD_PUSH  R_386 = 25 /* pushl instruction for Sun ABI GD sequence */
-	R_386_TLS_GD_CALL  R_386 = 26 /* call instruction for Sun ABI GD sequence */
-	R_386_TLS_GD_POP   R_386 = 27 /* popl instruction for Sun ABI GD sequence */
-	R_386_TLS_LDM_32   R_386 = 28 /* 32 bit offset to GOT (index,zero) pair */
-	R_386_TLS_LDM_PUSH R_386 = 29 /* pushl instruction for Sun ABI LD sequence */
-	R_386_TLS_LDM_CALL R_386 = 30 /* call instruction for Sun ABI LD sequence */
-	R_386_TLS_LDM_POP  R_386 = 31 /* popl instruction for Sun ABI LD sequence */
-	R_386_TLS_LDO_32   R_386 = 32 /* 32 bit offset from start of TLS block */
-	R_386_TLS_IE_32    R_386 = 33 /* 32 bit offset to GOT static TLS offset entry */
-	R_386_TLS_LE_32    R_386 = 34 /* 32 bit offset within static TLS block */
-	R_386_TLS_DTPMOD32 R_386 = 35 /* GOT entry containing TLS index */
-	R_386_TLS_DTPOFF32 R_386 = 36 /* GOT entry containing TLS offset */
-	R_386_TLS_TPOFF32  R_386 = 37 /* GOT entry of -ve static TLS offset */
+	R_386_NONE          R_386 = 0  /* No relocation. */
+	R_386_32            R_386 = 1  /* Add symbol value. */
+	R_386_PC32          R_386 = 2  /* Add PC-relative symbol value. */
+	R_386_GOT32         R_386 = 3  /* Add PC-relative GOT offset. */
+	R_386_PLT32         R_386 = 4  /* Add PC-relative PLT offset. */
+	R_386_COPY          R_386 = 5  /* Copy data from shared object. */
+	R_386_GLOB_DAT      R_386 = 6  /* Set GOT entry to data address. */
+	R_386_JMP_SLOT      R_386 = 7  /* Set GOT entry to code address. */
+	R_386_RELATIVE      R_386 = 8  /* Add load address of shared object. */
+	R_386_GOTOFF        R_386 = 9  /* Add GOT-relative symbol address. */
+	R_386_GOTPC         R_386 = 10 /* Add PC-relative GOT table address. */
+	R_386_32PLT         R_386 = 11
+	R_386_TLS_TPOFF     R_386 = 14 /* Negative offset in static TLS block */
+	R_386_TLS_IE        R_386 = 15 /* Absolute address of GOT for -ve static TLS */
+	R_386_TLS_GOTIE     R_386 = 16 /* GOT entry for negative static TLS block */
+	R_386_TLS_LE        R_386 = 17 /* Negative offset relative to static TLS */
+	R_386_TLS_GD        R_386 = 18 /* 32 bit offset to GOT (index,off) pair */
+	R_386_TLS_LDM       R_386 = 19 /* 32 bit offset to GOT (index,zero) pair */
+	R_386_16            R_386 = 20
+	R_386_PC16          R_386 = 21
+	R_386_8             R_386 = 22
+	R_386_PC8           R_386 = 23
+	R_386_TLS_GD_32     R_386 = 24 /* 32 bit offset to GOT (index,off) pair */
+	R_386_TLS_GD_PUSH   R_386 = 25 /* pushl instruction for Sun ABI GD sequence */
+	R_386_TLS_GD_CALL   R_386 = 26 /* call instruction for Sun ABI GD sequence */
+	R_386_TLS_GD_POP    R_386 = 27 /* popl instruction for Sun ABI GD sequence */
+	R_386_TLS_LDM_32    R_386 = 28 /* 32 bit offset to GOT (index,zero) pair */
+	R_386_TLS_LDM_PUSH  R_386 = 29 /* pushl instruction for Sun ABI LD sequence */
+	R_386_TLS_LDM_CALL  R_386 = 30 /* call instruction for Sun ABI LD sequence */
+	R_386_TLS_LDM_POP   R_386 = 31 /* popl instruction for Sun ABI LD sequence */
+	R_386_TLS_LDO_32    R_386 = 32 /* 32 bit offset from start of TLS block */
+	R_386_TLS_IE_32     R_386 = 33 /* 32 bit offset to GOT static TLS offset entry */
+	R_386_TLS_LE_32     R_386 = 34 /* 32 bit offset within static TLS block */
+	R_386_TLS_DTPMOD32  R_386 = 35 /* GOT entry containing TLS index */
+	R_386_TLS_DTPOFF32  R_386 = 36 /* GOT entry containing TLS offset */
+	R_386_TLS_TPOFF32   R_386 = 37 /* GOT entry of -ve static TLS offset */
+	R_386_SIZE32        R_386 = 38
+	R_386_TLS_GOTDESC   R_386 = 39
+	R_386_TLS_DESC_CALL R_386 = 40
+	R_386_TLS_DESC      R_386 = 41
+	R_386_IRELATIVE     R_386 = 42
+	R_386_GOT32X        R_386 = 43
 )
 
 var r386Strings = []intName{
@@ -1245,12 +1824,17 @@ var r386Strings = []intName{
 	{8, "R_386_RELATIVE"},
 	{9, "R_386_GOTOFF"},
 	{10, "R_386_GOTPC"},
+	{11, "R_386_32PLT"},
 	{14, "R_386_TLS_TPOFF"},
 	{15, "R_386_TLS_IE"},
 	{16, "R_386_TLS_GOTIE"},
 	{17, "R_386_TLS_LE"},
 	{18, "R_386_TLS_GD"},
 	{19, "R_386_TLS_LDM"},
+	{20, "R_386_16"},
+	{21, "R_386_PC16"},
+	{22, "R_386_8"},
+	{23, "R_386_PC8"},
 	{24, "R_386_TLS_GD_32"},
 	{25, "R_386_TLS_GD_PUSH"},
 	{26, "R_386_TLS_GD_CALL"},
@@ -1265,6 +1849,12 @@ var r386Strings = []intName{
 	{35, "R_386_TLS_DTPMOD32"},
 	{36, "R_386_TLS_DTPOFF32"},
 	{37, "R_386_TLS_TPOFF32"},
+	{38, "R_386_SIZE32"},
+	{39, "R_386_TLS_GOTDESC"},
+	{40, "R_386_TLS_DESC_CALL"},
+	{41, "R_386_TLS_DESC"},
+	{42, "R_386_IRELATIVE"},
+	{43, "R_386_GOT32X"},
 }
 
 func (i R_386) String() string   { return stringName(uint32(i), r386Strings, false) }
@@ -1380,70 +1970,75 @@ func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, f
 func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
 
 // Relocation types for PowerPC.
+//
+// Values that are shared by both R_PPC and R_PPC64 are prefixed with
+// R_POWERPC_ in the ELF standard. For the R_PPC type, the relevant
+// shared relocations have been renamed with the prefix R_PPC_.
+// The original name follows the value in a comment.
 type R_PPC int
 
 const (
-	R_PPC_NONE            R_PPC = 0 /* No relocation. */
-	R_PPC_ADDR32          R_PPC = 1
-	R_PPC_ADDR24          R_PPC = 2
-	R_PPC_ADDR16          R_PPC = 3
-	R_PPC_ADDR16_LO       R_PPC = 4
-	R_PPC_ADDR16_HI       R_PPC = 5
-	R_PPC_ADDR16_HA       R_PPC = 6
-	R_PPC_ADDR14          R_PPC = 7
-	R_PPC_ADDR14_BRTAKEN  R_PPC = 8
-	R_PPC_ADDR14_BRNTAKEN R_PPC = 9
-	R_PPC_REL24           R_PPC = 10
-	R_PPC_REL14           R_PPC = 11
-	R_PPC_REL14_BRTAKEN   R_PPC = 12
-	R_PPC_REL14_BRNTAKEN  R_PPC = 13
-	R_PPC_GOT16           R_PPC = 14
-	R_PPC_GOT16_LO        R_PPC = 15
-	R_PPC_GOT16_HI        R_PPC = 16
-	R_PPC_GOT16_HA        R_PPC = 17
+	R_PPC_NONE            R_PPC = 0  // R_POWERPC_NONE
+	R_PPC_ADDR32          R_PPC = 1  // R_POWERPC_ADDR32
+	R_PPC_ADDR24          R_PPC = 2  // R_POWERPC_ADDR24
+	R_PPC_ADDR16          R_PPC = 3  // R_POWERPC_ADDR16
+	R_PPC_ADDR16_LO       R_PPC = 4  // R_POWERPC_ADDR16_LO
+	R_PPC_ADDR16_HI       R_PPC = 5  // R_POWERPC_ADDR16_HI
+	R_PPC_ADDR16_HA       R_PPC = 6  // R_POWERPC_ADDR16_HA
+	R_PPC_ADDR14          R_PPC = 7  // R_POWERPC_ADDR14
+	R_PPC_ADDR14_BRTAKEN  R_PPC = 8  // R_POWERPC_ADDR14_BRTAKEN
+	R_PPC_ADDR14_BRNTAKEN R_PPC = 9  // R_POWERPC_ADDR14_BRNTAKEN
+	R_PPC_REL24           R_PPC = 10 // R_POWERPC_REL24
+	R_PPC_REL14           R_PPC = 11 // R_POWERPC_REL14
+	R_PPC_REL14_BRTAKEN   R_PPC = 12 // R_POWERPC_REL14_BRTAKEN
+	R_PPC_REL14_BRNTAKEN  R_PPC = 13 // R_POWERPC_REL14_BRNTAKEN
+	R_PPC_GOT16           R_PPC = 14 // R_POWERPC_GOT16
+	R_PPC_GOT16_LO        R_PPC = 15 // R_POWERPC_GOT16_LO
+	R_PPC_GOT16_HI        R_PPC = 16 // R_POWERPC_GOT16_HI
+	R_PPC_GOT16_HA        R_PPC = 17 // R_POWERPC_GOT16_HA
 	R_PPC_PLTREL24        R_PPC = 18
-	R_PPC_COPY            R_PPC = 19
-	R_PPC_GLOB_DAT        R_PPC = 20
-	R_PPC_JMP_SLOT        R_PPC = 21
-	R_PPC_RELATIVE        R_PPC = 22
+	R_PPC_COPY            R_PPC = 19 // R_POWERPC_COPY
+	R_PPC_GLOB_DAT        R_PPC = 20 // R_POWERPC_GLOB_DAT
+	R_PPC_JMP_SLOT        R_PPC = 21 // R_POWERPC_JMP_SLOT
+	R_PPC_RELATIVE        R_PPC = 22 // R_POWERPC_RELATIVE
 	R_PPC_LOCAL24PC       R_PPC = 23
-	R_PPC_UADDR32         R_PPC = 24
-	R_PPC_UADDR16         R_PPC = 25
-	R_PPC_REL32           R_PPC = 26
-	R_PPC_PLT32           R_PPC = 27
-	R_PPC_PLTREL32        R_PPC = 28
-	R_PPC_PLT16_LO        R_PPC = 29
-	R_PPC_PLT16_HI        R_PPC = 30
-	R_PPC_PLT16_HA        R_PPC = 31
+	R_PPC_UADDR32         R_PPC = 24 // R_POWERPC_UADDR32
+	R_PPC_UADDR16         R_PPC = 25 // R_POWERPC_UADDR16
+	R_PPC_REL32           R_PPC = 26 // R_POWERPC_REL32
+	R_PPC_PLT32           R_PPC = 27 // R_POWERPC_PLT32
+	R_PPC_PLTREL32        R_PPC = 28 // R_POWERPC_PLTREL32
+	R_PPC_PLT16_LO        R_PPC = 29 // R_POWERPC_PLT16_LO
+	R_PPC_PLT16_HI        R_PPC = 30 // R_POWERPC_PLT16_HI
+	R_PPC_PLT16_HA        R_PPC = 31 // R_POWERPC_PLT16_HA
 	R_PPC_SDAREL16        R_PPC = 32
-	R_PPC_SECTOFF         R_PPC = 33
-	R_PPC_SECTOFF_LO      R_PPC = 34
-	R_PPC_SECTOFF_HI      R_PPC = 35
-	R_PPC_SECTOFF_HA      R_PPC = 36
-	R_PPC_TLS             R_PPC = 67
-	R_PPC_DTPMOD32        R_PPC = 68
-	R_PPC_TPREL16         R_PPC = 69
-	R_PPC_TPREL16_LO      R_PPC = 70
-	R_PPC_TPREL16_HI      R_PPC = 71
-	R_PPC_TPREL16_HA      R_PPC = 72
-	R_PPC_TPREL32         R_PPC = 73
-	R_PPC_DTPREL16        R_PPC = 74
-	R_PPC_DTPREL16_LO     R_PPC = 75
-	R_PPC_DTPREL16_HI     R_PPC = 76
-	R_PPC_DTPREL16_HA     R_PPC = 77
-	R_PPC_DTPREL32        R_PPC = 78
-	R_PPC_GOT_TLSGD16     R_PPC = 79
-	R_PPC_GOT_TLSGD16_LO  R_PPC = 80
-	R_PPC_GOT_TLSGD16_HI  R_PPC = 81
-	R_PPC_GOT_TLSGD16_HA  R_PPC = 82
-	R_PPC_GOT_TLSLD16     R_PPC = 83
-	R_PPC_GOT_TLSLD16_LO  R_PPC = 84
-	R_PPC_GOT_TLSLD16_HI  R_PPC = 85
-	R_PPC_GOT_TLSLD16_HA  R_PPC = 86
-	R_PPC_GOT_TPREL16     R_PPC = 87
-	R_PPC_GOT_TPREL16_LO  R_PPC = 88
-	R_PPC_GOT_TPREL16_HI  R_PPC = 89
-	R_PPC_GOT_TPREL16_HA  R_PPC = 90
+	R_PPC_SECTOFF         R_PPC = 33 // R_POWERPC_SECTOFF
+	R_PPC_SECTOFF_LO      R_PPC = 34 // R_POWERPC_SECTOFF_LO
+	R_PPC_SECTOFF_HI      R_PPC = 35 // R_POWERPC_SECTOFF_HI
+	R_PPC_SECTOFF_HA      R_PPC = 36 // R_POWERPC_SECTOFF_HA
+	R_PPC_TLS             R_PPC = 67 // R_POWERPC_TLS
+	R_PPC_DTPMOD32        R_PPC = 68 // R_POWERPC_DTPMOD32
+	R_PPC_TPREL16         R_PPC = 69 // R_POWERPC_TPREL16
+	R_PPC_TPREL16_LO      R_PPC = 70 // R_POWERPC_TPREL16_LO
+	R_PPC_TPREL16_HI      R_PPC = 71 // R_POWERPC_TPREL16_HI
+	R_PPC_TPREL16_HA      R_PPC = 72 // R_POWERPC_TPREL16_HA
+	R_PPC_TPREL32         R_PPC = 73 // R_POWERPC_TPREL32
+	R_PPC_DTPREL16        R_PPC = 74 // R_POWERPC_DTPREL16
+	R_PPC_DTPREL16_LO     R_PPC = 75 // R_POWERPC_DTPREL16_LO
+	R_PPC_DTPREL16_HI     R_PPC = 76 // R_POWERPC_DTPREL16_HI
+	R_PPC_DTPREL16_HA     R_PPC = 77 // R_POWERPC_DTPREL16_HA
+	R_PPC_DTPREL32        R_PPC = 78 // R_POWERPC_DTPREL32
+	R_PPC_GOT_TLSGD16     R_PPC = 79 // R_POWERPC_GOT_TLSGD16
+	R_PPC_GOT_TLSGD16_LO  R_PPC = 80 // R_POWERPC_GOT_TLSGD16_LO
+	R_PPC_GOT_TLSGD16_HI  R_PPC = 81 // R_POWERPC_GOT_TLSGD16_HI
+	R_PPC_GOT_TLSGD16_HA  R_PPC = 82 // R_POWERPC_GOT_TLSGD16_HA
+	R_PPC_GOT_TLSLD16     R_PPC = 83 // R_POWERPC_GOT_TLSLD16
+	R_PPC_GOT_TLSLD16_LO  R_PPC = 84 // R_POWERPC_GOT_TLSLD16_LO
+	R_PPC_GOT_TLSLD16_HI  R_PPC = 85 // R_POWERPC_GOT_TLSLD16_HI
+	R_PPC_GOT_TLSLD16_HA  R_PPC = 86 // R_POWERPC_GOT_TLSLD16_HA
+	R_PPC_GOT_TPREL16     R_PPC = 87 // R_POWERPC_GOT_TPREL16
+	R_PPC_GOT_TPREL16_LO  R_PPC = 88 // R_POWERPC_GOT_TPREL16_LO
+	R_PPC_GOT_TPREL16_HI  R_PPC = 89 // R_POWERPC_GOT_TPREL16_HI
+	R_PPC_GOT_TPREL16_HA  R_PPC = 90 // R_POWERPC_GOT_TPREL16_HA
 	R_PPC_EMB_NADDR32     R_PPC = 101
 	R_PPC_EMB_NADDR16     R_PPC = 102
 	R_PPC_EMB_NADDR16_LO  R_PPC = 103
@@ -1500,7 +2095,6 @@ var rppcStrings = []intName{
 	{34, "R_PPC_SECTOFF_LO"},
 	{35, "R_PPC_SECTOFF_HI"},
 	{36, "R_PPC_SECTOFF_HA"},
-
 	{67, "R_PPC_TLS"},
 	{68, "R_PPC_DTPMOD32"},
 	{69, "R_PPC_TPREL16"},
@@ -1525,7 +2119,6 @@ var rppcStrings = []intName{
 	{88, "R_PPC_GOT_TPREL16_LO"},
 	{89, "R_PPC_GOT_TPREL16_HI"},
 	{90, "R_PPC_GOT_TPREL16_HA"},
-
 	{101, "R_PPC_EMB_NADDR32"},
 	{102, "R_PPC_EMB_NADDR16"},
 	{103, "R_PPC_EMB_NADDR16_LO"},
@@ -1548,29 +2141,34 @@ func (i R_PPC) String() string   { return stringName(uint32(i), rppcStrings, fal
 func (i R_PPC) GoString() string { return stringName(uint32(i), rppcStrings, true) }
 
 // Relocation types for 64-bit PowerPC or Power Architecture processors.
+//
+// Values that are shared by both R_PPC and R_PPC64 are prefixed with
+// R_POWERPC_ in the ELF standard. For the R_PPC64 type, the relevant
+// shared relocations have been renamed with the prefix R_PPC64_.
+// The original name follows the value in a comment.
 type R_PPC64 int
 
 const (
-	R_PPC64_NONE               R_PPC64 = 0
-	R_PPC64_ADDR32             R_PPC64 = 1
-	R_PPC64_ADDR24             R_PPC64 = 2
-	R_PPC64_ADDR16             R_PPC64 = 3
-	R_PPC64_ADDR16_LO          R_PPC64 = 4
-	R_PPC64_ADDR16_HI          R_PPC64 = 5
-	R_PPC64_ADDR16_HA          R_PPC64 = 6
-	R_PPC64_ADDR14             R_PPC64 = 7
-	R_PPC64_ADDR14_BRTAKEN     R_PPC64 = 8
-	R_PPC64_ADDR14_BRNTAKEN    R_PPC64 = 9
-	R_PPC64_REL24              R_PPC64 = 10
-	R_PPC64_REL14              R_PPC64 = 11
-	R_PPC64_REL14_BRTAKEN      R_PPC64 = 12
-	R_PPC64_REL14_BRNTAKEN     R_PPC64 = 13
-	R_PPC64_GOT16              R_PPC64 = 14
-	R_PPC64_GOT16_LO           R_PPC64 = 15
-	R_PPC64_GOT16_HI           R_PPC64 = 16
-	R_PPC64_GOT16_HA           R_PPC64 = 17
-	R_PPC64_JMP_SLOT           R_PPC64 = 21
-	R_PPC64_REL32              R_PPC64 = 26
+	R_PPC64_NONE               R_PPC64 = 0  // R_POWERPC_NONE
+	R_PPC64_ADDR32             R_PPC64 = 1  // R_POWERPC_ADDR32
+	R_PPC64_ADDR24             R_PPC64 = 2  // R_POWERPC_ADDR24
+	R_PPC64_ADDR16             R_PPC64 = 3  // R_POWERPC_ADDR16
+	R_PPC64_ADDR16_LO          R_PPC64 = 4  // R_POWERPC_ADDR16_LO
+	R_PPC64_ADDR16_HI          R_PPC64 = 5  // R_POWERPC_ADDR16_HI
+	R_PPC64_ADDR16_HA          R_PPC64 = 6  // R_POWERPC_ADDR16_HA
+	R_PPC64_ADDR14             R_PPC64 = 7  // R_POWERPC_ADDR14
+	R_PPC64_ADDR14_BRTAKEN     R_PPC64 = 8  // R_POWERPC_ADDR14_BRTAKEN
+	R_PPC64_ADDR14_BRNTAKEN    R_PPC64 = 9  // R_POWERPC_ADDR14_BRNTAKEN
+	R_PPC64_REL24              R_PPC64 = 10 // R_POWERPC_REL24
+	R_PPC64_REL14              R_PPC64 = 11 // R_POWERPC_REL14
+	R_PPC64_REL14_BRTAKEN      R_PPC64 = 12 // R_POWERPC_REL14_BRTAKEN
+	R_PPC64_REL14_BRNTAKEN     R_PPC64 = 13 // R_POWERPC_REL14_BRNTAKEN
+	R_PPC64_GOT16              R_PPC64 = 14 // R_POWERPC_GOT16
+	R_PPC64_GOT16_LO           R_PPC64 = 15 // R_POWERPC_GOT16_LO
+	R_PPC64_GOT16_HI           R_PPC64 = 16 // R_POWERPC_GOT16_HI
+	R_PPC64_GOT16_HA           R_PPC64 = 17 // R_POWERPC_GOT16_HA
+	R_PPC64_JMP_SLOT           R_PPC64 = 21 // R_POWERPC_JMP_SLOT
+	R_PPC64_REL32              R_PPC64 = 26 // R_POWERPC_REL32
 	R_PPC64_ADDR64             R_PPC64 = 38
 	R_PPC64_ADDR16_HIGHER      R_PPC64 = 39
 	R_PPC64_ADDR16_HIGHERA     R_PPC64 = 40
@@ -1582,40 +2180,49 @@ const (
 	R_PPC64_TOC16_HI           R_PPC64 = 49
 	R_PPC64_TOC16_HA           R_PPC64 = 50
 	R_PPC64_TOC                R_PPC64 = 51
+	R_PPC64_PLTGOT16           R_PPC64 = 52
+	R_PPC64_PLTGOT16_LO        R_PPC64 = 53
+	R_PPC64_PLTGOT16_HI        R_PPC64 = 54
+	R_PPC64_PLTGOT16_HA        R_PPC64 = 55
 	R_PPC64_ADDR16_DS          R_PPC64 = 56
 	R_PPC64_ADDR16_LO_DS       R_PPC64 = 57
 	R_PPC64_GOT16_DS           R_PPC64 = 58
 	R_PPC64_GOT16_LO_DS        R_PPC64 = 59
+	R_PPC64_PLT16_LO_DS        R_PPC64 = 60
+	R_PPC64_SECTOFF_DS         R_PPC64 = 61
+	R_PPC64_SECTOFF_LO_DS      R_PPC64 = 61
 	R_PPC64_TOC16_DS           R_PPC64 = 63
 	R_PPC64_TOC16_LO_DS        R_PPC64 = 64
-	R_PPC64_TLS                R_PPC64 = 67
-	R_PPC64_DTPMOD64           R_PPC64 = 68
-	R_PPC64_TPREL16            R_PPC64 = 69
-	R_PPC64_TPREL16_LO         R_PPC64 = 70
-	R_PPC64_TPREL16_HI         R_PPC64 = 71
-	R_PPC64_TPREL16_HA         R_PPC64 = 72
-	R_PPC64_TPREL64            R_PPC64 = 73
-	R_PPC64_DTPREL16           R_PPC64 = 74
-	R_PPC64_DTPREL16_LO        R_PPC64 = 75
-	R_PPC64_DTPREL16_HI        R_PPC64 = 76
-	R_PPC64_DTPREL16_HA        R_PPC64 = 77
-	R_PPC64_DTPREL64           R_PPC64 = 78
-	R_PPC64_GOT_TLSGD16        R_PPC64 = 79
-	R_PPC64_GOT_TLSGD16_LO     R_PPC64 = 80
-	R_PPC64_GOT_TLSGD16_HI     R_PPC64 = 81
-	R_PPC64_GOT_TLSGD16_HA     R_PPC64 = 82
-	R_PPC64_GOT_TLSLD16        R_PPC64 = 83
-	R_PPC64_GOT_TLSLD16_LO     R_PPC64 = 84
-	R_PPC64_GOT_TLSLD16_HI     R_PPC64 = 85
-	R_PPC64_GOT_TLSLD16_HA     R_PPC64 = 86
-	R_PPC64_GOT_TPREL16_DS     R_PPC64 = 87
-	R_PPC64_GOT_TPREL16_LO_DS  R_PPC64 = 88
-	R_PPC64_GOT_TPREL16_HI     R_PPC64 = 89
-	R_PPC64_GOT_TPREL16_HA     R_PPC64 = 90
-	R_PPC64_GOT_DTPREL16_DS    R_PPC64 = 91
-	R_PPC64_GOT_DTPREL16_LO_DS R_PPC64 = 92
-	R_PPC64_GOT_DTPREL16_HI    R_PPC64 = 93
-	R_PPC64_GOT_DTPREL16_HA    R_PPC64 = 94
+	R_PPC64_PLTGOT16_DS        R_PPC64 = 65
+	R_PPC64_PLTGOT_LO_DS       R_PPC64 = 66
+	R_PPC64_TLS                R_PPC64 = 67 // R_POWERPC_TLS
+	R_PPC64_DTPMOD64           R_PPC64 = 68 // R_POWERPC_DTPMOD64
+	R_PPC64_TPREL16            R_PPC64 = 69 // R_POWERPC_TPREL16
+	R_PPC64_TPREL16_LO         R_PPC64 = 70 // R_POWERPC_TPREL16_LO
+	R_PPC64_TPREL16_HI         R_PPC64 = 71 // R_POWERPC_TPREL16_HI
+	R_PPC64_TPREL16_HA         R_PPC64 = 72 // R_POWERPC_TPREL16_HA
+	R_PPC64_TPREL64            R_PPC64 = 73 // R_POWERPC_TPREL64
+	R_PPC64_DTPREL16           R_PPC64 = 74 // R_POWERPC_DTPREL16
+	R_PPC64_DTPREL16_LO        R_PPC64 = 75 // R_POWERPC_DTPREL16_LO
+	R_PPC64_DTPREL16_HI        R_PPC64 = 76 // R_POWERPC_DTPREL16_HI
+	R_PPC64_DTPREL16_HA        R_PPC64 = 77 // R_POWERPC_DTPREL16_HA
+	R_PPC64_DTPREL64           R_PPC64 = 78 // R_POWERPC_DTPREL64
+	R_PPC64_GOT_TLSGD16        R_PPC64 = 79 // R_POWERPC_GOT_TLSGD16
+	R_PPC64_GOT_TLSGD16_LO     R_PPC64 = 80 // R_POWERPC_GOT_TLSGD16_LO
+	R_PPC64_GOT_TLSGD16_HI     R_PPC64 = 81 // R_POWERPC_GOT_TLSGD16_HI
+	R_PPC64_GOT_TLSGD16_HA     R_PPC64 = 82 // R_POWERPC_GOT_TLSGD16_HA
+	R_PPC64_GOT_TLSLD16        R_PPC64 = 83 // R_POWERPC_GOT_TLSLD16
+	R_PPC64_GOT_TLSLD16_LO     R_PPC64 = 84 // R_POWERPC_GOT_TLSLD16_LO
+	R_PPC64_GOT_TLSLD16_HI     R_PPC64 = 85 // R_POWERPC_GOT_TLSLD16_HI
+	R_PPC64_GOT_TLSLD16_HA     R_PPC64 = 86 // R_POWERPC_GOT_TLSLD16_HA
+	R_PPC64_GOT_TPREL16_DS     R_PPC64 = 87 // R_POWERPC_GOT_TPREL16_DS
+	R_PPC64_GOT_TPREL16_LO_DS  R_PPC64 = 88 // R_POWERPC_GOT_TPREL16_LO_DS
+	R_PPC64_GOT_TPREL16_HI     R_PPC64 = 89 // R_POWERPC_GOT_TPREL16_HI
+	R_PPC64_GOT_TPREL16_HA     R_PPC64 = 90 // R_POWERPC_GOT_TPREL16_HA
+	R_PPC64_GOT_DTPREL16_DS    R_PPC64 = 91 // R_POWERPC_GOT_DTPREL16_DS
+	R_PPC64_GOT_DTPREL16_LO_DS R_PPC64 = 92 // R_POWERPC_GOT_DTPREL16_LO_DS
+	R_PPC64_GOT_DTPREL16_HI    R_PPC64 = 93 // R_POWERPC_GOT_DTPREL16_HI
+	R_PPC64_GOT_DTPREL16_HA    R_PPC64 = 94 // R_POWERPC_GOT_DTPREL16_HA
 	R_PPC64_TPREL16_DS         R_PPC64 = 95
 	R_PPC64_TPREL16_LO_DS      R_PPC64 = 96
 	R_PPC64_TPREL16_HIGHER     R_PPC64 = 97
@@ -1630,10 +2237,23 @@ const (
 	R_PPC64_DTPREL16_HIGHESTA  R_PPC64 = 106
 	R_PPC64_TLSGD              R_PPC64 = 107
 	R_PPC64_TLSLD              R_PPC64 = 108
-	R_PPC64_REL16              R_PPC64 = 249
-	R_PPC64_REL16_LO           R_PPC64 = 250
-	R_PPC64_REL16_HI           R_PPC64 = 251
-	R_PPC64_REL16_HA           R_PPC64 = 252
+	R_PPC64_TOCSAVE            R_PPC64 = 109
+	R_PPC64_ADDR16_HIGH        R_PPC64 = 110
+	R_PPC64_ADDR16_HIGHA       R_PPC64 = 111
+	R_PPC64_TPREL16_HIGH       R_PPC64 = 112
+	R_PPC64_TPREL16_HIGHA      R_PPC64 = 113
+	R_PPC64_DTPREL16_HIGH      R_PPC64 = 114
+	R_PPC64_DTPREL16_HIGHA     R_PPC64 = 115
+	R_PPC64_REL24_NOTOC        R_PPC64 = 116
+	R_PPC64_ADDR64_LOCAL       R_PPC64 = 117
+	R_PPC64_ENTRY              R_PPC64 = 118
+	R_PPC64_REL16DX_HA         R_PPC64 = 246 // R_POWERPC_REL16DX_HA
+	R_PPC64_JMP_IREL           R_PPC64 = 247
+	R_PPC64_IRELATIVE          R_PPC64 = 248 // R_POWERPC_IRELATIVE
+	R_PPC64_REL16              R_PPC64 = 249 // R_POWERPC_REL16
+	R_PPC64_REL16_LO           R_PPC64 = 250 // R_POWERPC_REL16_LO
+	R_PPC64_REL16_HI           R_PPC64 = 251 // R_POWERPC_REL16_HI
+	R_PPC64_REL16_HA           R_PPC64 = 252 // R_POWERPC_REL16_HA
 )
 
 var rppc64Strings = []intName{
@@ -1668,12 +2288,21 @@ var rppc64Strings = []intName{
 	{49, "R_PPC64_TOC16_HI"},
 	{50, "R_PPC64_TOC16_HA"},
 	{51, "R_PPC64_TOC"},
+	{52, "R_PPC64_PLTGOT16"},
+	{53, "R_PPC64_PLTGOT16_LO"},
+	{54, "R_PPC64_PLTGOT16_HI"},
+	{55, "R_PPC64_PLTGOT16_HA"},
 	{56, "R_PPC64_ADDR16_DS"},
 	{57, "R_PPC64_ADDR16_LO_DS"},
 	{58, "R_PPC64_GOT16_DS"},
 	{59, "R_PPC64_GOT16_LO_DS"},
+	{60, "R_PPC64_PLT16_LO_DS"},
+	{61, "R_PPC64_SECTOFF_DS"},
+	{61, "R_PPC64_SECTOFF_LO_DS"},
 	{63, "R_PPC64_TOC16_DS"},
 	{64, "R_PPC64_TOC16_LO_DS"},
+	{65, "R_PPC64_PLTGOT16_DS"},
+	{66, "R_PPC64_PLTGOT_LO_DS"},
 	{67, "R_PPC64_TLS"},
 	{68, "R_PPC64_DTPMOD64"},
 	{69, "R_PPC64_TPREL16"},
@@ -1716,6 +2345,19 @@ var rppc64Strings = []intName{
 	{106, "R_PPC64_DTPREL16_HIGHESTA"},
 	{107, "R_PPC64_TLSGD"},
 	{108, "R_PPC64_TLSLD"},
+	{109, "R_PPC64_TOCSAVE"},
+	{110, "R_PPC64_ADDR16_HIGH"},
+	{111, "R_PPC64_ADDR16_HIGHA"},
+	{112, "R_PPC64_TPREL16_HIGH"},
+	{113, "R_PPC64_TPREL16_HIGHA"},
+	{114, "R_PPC64_DTPREL16_HIGH"},
+	{115, "R_PPC64_DTPREL16_HIGHA"},
+	{116, "R_PPC64_REL24_NOTOC"},
+	{117, "R_PPC64_ADDR64_LOCAL"},
+	{118, "R_PPC64_ENTRY"},
+	{246, "R_PPC64_REL16DX_HA"},
+	{247, "R_PPC64_JMP_IREL"},
+	{248, "R_PPC64_IRELATIVE"},
 	{249, "R_PPC64_REL16"},
 	{250, "R_PPC64_REL16_LO"},
 	{251, "R_PPC64_REL16_HI"},
@@ -1724,6 +2366,126 @@ var rppc64Strings = []intName{
 
 func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
 func (i R_PPC64) GoString() string { return stringName(uint32(i), rppc64Strings, true) }
+
+// Relocation types for RISC-V processors.
+type R_RISCV int
+
+const (
+	R_RISCV_NONE          R_RISCV = 0  /* No relocation. */
+	R_RISCV_32            R_RISCV = 1  /* Add 32 bit zero extended symbol value */
+	R_RISCV_64            R_RISCV = 2  /* Add 64 bit symbol value. */
+	R_RISCV_RELATIVE      R_RISCV = 3  /* Add load address of shared object. */
+	R_RISCV_COPY          R_RISCV = 4  /* Copy data from shared object. */
+	R_RISCV_JUMP_SLOT     R_RISCV = 5  /* Set GOT entry to code address. */
+	R_RISCV_TLS_DTPMOD32  R_RISCV = 6  /* 32 bit ID of module containing symbol */
+	R_RISCV_TLS_DTPMOD64  R_RISCV = 7  /* ID of module containing symbol */
+	R_RISCV_TLS_DTPREL32  R_RISCV = 8  /* 32 bit relative offset in TLS block */
+	R_RISCV_TLS_DTPREL64  R_RISCV = 9  /* Relative offset in TLS block */
+	R_RISCV_TLS_TPREL32   R_RISCV = 10 /* 32 bit relative offset in static TLS block */
+	R_RISCV_TLS_TPREL64   R_RISCV = 11 /* Relative offset in static TLS block */
+	R_RISCV_BRANCH        R_RISCV = 16 /* PC-relative branch */
+	R_RISCV_JAL           R_RISCV = 17 /* PC-relative jump */
+	R_RISCV_CALL          R_RISCV = 18 /* PC-relative call */
+	R_RISCV_CALL_PLT      R_RISCV = 19 /* PC-relative call (PLT) */
+	R_RISCV_GOT_HI20      R_RISCV = 20 /* PC-relative GOT reference */
+	R_RISCV_TLS_GOT_HI20  R_RISCV = 21 /* PC-relative TLS IE GOT offset */
+	R_RISCV_TLS_GD_HI20   R_RISCV = 22 /* PC-relative TLS GD reference */
+	R_RISCV_PCREL_HI20    R_RISCV = 23 /* PC-relative reference */
+	R_RISCV_PCREL_LO12_I  R_RISCV = 24 /* PC-relative reference */
+	R_RISCV_PCREL_LO12_S  R_RISCV = 25 /* PC-relative reference */
+	R_RISCV_HI20          R_RISCV = 26 /* Absolute address */
+	R_RISCV_LO12_I        R_RISCV = 27 /* Absolute address */
+	R_RISCV_LO12_S        R_RISCV = 28 /* Absolute address */
+	R_RISCV_TPREL_HI20    R_RISCV = 29 /* TLS LE thread offset */
+	R_RISCV_TPREL_LO12_I  R_RISCV = 30 /* TLS LE thread offset */
+	R_RISCV_TPREL_LO12_S  R_RISCV = 31 /* TLS LE thread offset */
+	R_RISCV_TPREL_ADD     R_RISCV = 32 /* TLS LE thread usage */
+	R_RISCV_ADD8          R_RISCV = 33 /* 8-bit label addition */
+	R_RISCV_ADD16         R_RISCV = 34 /* 16-bit label addition */
+	R_RISCV_ADD32         R_RISCV = 35 /* 32-bit label addition */
+	R_RISCV_ADD64         R_RISCV = 36 /* 64-bit label addition */
+	R_RISCV_SUB8          R_RISCV = 37 /* 8-bit label subtraction */
+	R_RISCV_SUB16         R_RISCV = 38 /* 16-bit label subtraction */
+	R_RISCV_SUB32         R_RISCV = 39 /* 32-bit label subtraction */
+	R_RISCV_SUB64         R_RISCV = 40 /* 64-bit label subtraction */
+	R_RISCV_GNU_VTINHERIT R_RISCV = 41 /* GNU C++ vtable hierarchy */
+	R_RISCV_GNU_VTENTRY   R_RISCV = 42 /* GNU C++ vtable member usage */
+	R_RISCV_ALIGN         R_RISCV = 43 /* Alignment statement */
+	R_RISCV_RVC_BRANCH    R_RISCV = 44 /* PC-relative branch offset */
+	R_RISCV_RVC_JUMP      R_RISCV = 45 /* PC-relative jump offset */
+	R_RISCV_RVC_LUI       R_RISCV = 46 /* Absolute address */
+	R_RISCV_GPREL_I       R_RISCV = 47 /* GP-relative reference */
+	R_RISCV_GPREL_S       R_RISCV = 48 /* GP-relative reference */
+	R_RISCV_TPREL_I       R_RISCV = 49 /* TP-relative TLS LE load */
+	R_RISCV_TPREL_S       R_RISCV = 50 /* TP-relative TLS LE store */
+	R_RISCV_RELAX         R_RISCV = 51 /* Instruction pair can be relaxed */
+	R_RISCV_SUB6          R_RISCV = 52 /* Local label subtraction */
+	R_RISCV_SET6          R_RISCV = 53 /* Local label subtraction */
+	R_RISCV_SET8          R_RISCV = 54 /* Local label subtraction */
+	R_RISCV_SET16         R_RISCV = 55 /* Local label subtraction */
+	R_RISCV_SET32         R_RISCV = 56 /* Local label subtraction */
+	R_RISCV_32_PCREL      R_RISCV = 57 /* 32-bit PC relative */
+)
+
+var rriscvStrings = []intName{
+	{0, "R_RISCV_NONE"},
+	{1, "R_RISCV_32"},
+	{2, "R_RISCV_64"},
+	{3, "R_RISCV_RELATIVE"},
+	{4, "R_RISCV_COPY"},
+	{5, "R_RISCV_JUMP_SLOT"},
+	{6, "R_RISCV_TLS_DTPMOD32"},
+	{7, "R_RISCV_TLS_DTPMOD64"},
+	{8, "R_RISCV_TLS_DTPREL32"},
+	{9, "R_RISCV_TLS_DTPREL64"},
+	{10, "R_RISCV_TLS_TPREL32"},
+	{11, "R_RISCV_TLS_TPREL64"},
+	{16, "R_RISCV_BRANCH"},
+	{17, "R_RISCV_JAL"},
+	{18, "R_RISCV_CALL"},
+	{19, "R_RISCV_CALL_PLT"},
+	{20, "R_RISCV_GOT_HI20"},
+	{21, "R_RISCV_TLS_GOT_HI20"},
+	{22, "R_RISCV_TLS_GD_HI20"},
+	{23, "R_RISCV_PCREL_HI20"},
+	{24, "R_RISCV_PCREL_LO12_I"},
+	{25, "R_RISCV_PCREL_LO12_S"},
+	{26, "R_RISCV_HI20"},
+	{27, "R_RISCV_LO12_I"},
+	{28, "R_RISCV_LO12_S"},
+	{29, "R_RISCV_TPREL_HI20"},
+	{30, "R_RISCV_TPREL_LO12_I"},
+	{31, "R_RISCV_TPREL_LO12_S"},
+	{32, "R_RISCV_TPREL_ADD"},
+	{33, "R_RISCV_ADD8"},
+	{34, "R_RISCV_ADD16"},
+	{35, "R_RISCV_ADD32"},
+	{36, "R_RISCV_ADD64"},
+	{37, "R_RISCV_SUB8"},
+	{38, "R_RISCV_SUB16"},
+	{39, "R_RISCV_SUB32"},
+	{40, "R_RISCV_SUB64"},
+	{41, "R_RISCV_GNU_VTINHERIT"},
+	{42, "R_RISCV_GNU_VTENTRY"},
+	{43, "R_RISCV_ALIGN"},
+	{44, "R_RISCV_RVC_BRANCH"},
+	{45, "R_RISCV_RVC_JUMP"},
+	{46, "R_RISCV_RVC_LUI"},
+	{47, "R_RISCV_GPREL_I"},
+	{48, "R_RISCV_GPREL_S"},
+	{49, "R_RISCV_TPREL_I"},
+	{50, "R_RISCV_TPREL_S"},
+	{51, "R_RISCV_RELAX"},
+	{52, "R_RISCV_SUB6"},
+	{53, "R_RISCV_SET6"},
+	{54, "R_RISCV_SET8"},
+	{55, "R_RISCV_SET16"},
+	{56, "R_RISCV_SET32"},
+	{57, "R_RISCV_32_PCREL"},
+}
+
+func (i R_RISCV) String() string   { return stringName(uint32(i), rriscvStrings, false) }
+func (i R_RISCV) GoString() string { return stringName(uint32(i), rriscvStrings, true) }
 
 // Relocation types for s390x processors.
 type R_390 int

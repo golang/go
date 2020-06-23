@@ -7,6 +7,7 @@
 package dwarf
 
 import (
+	"bytes"
 	"encoding/binary"
 	"strconv"
 )
@@ -79,16 +80,16 @@ func (b *buf) bytes(n int) []byte {
 func (b *buf) skip(n int) { b.bytes(n) }
 
 func (b *buf) string() string {
-	for i := 0; i < len(b.data); i++ {
-		if b.data[i] == 0 {
-			s := string(b.data[0:i])
-			b.data = b.data[i+1:]
-			b.off += Offset(i + 1)
-			return s
-		}
+	i := bytes.IndexByte(b.data, 0)
+	if i < 0 {
+		b.error("underflow")
+		return ""
 	}
-	b.error("underflow")
-	return ""
+
+	s := string(b.data[0:i])
+	b.data = b.data[i+1:]
+	b.off += Offset(i + 1)
+	return s
 }
 
 func (b *buf) uint16() uint16 {
@@ -97,6 +98,18 @@ func (b *buf) uint16() uint16 {
 		return 0
 	}
 	return b.order.Uint16(a)
+}
+
+func (b *buf) uint24() uint32 {
+	a := b.bytes(3)
+	if a == nil {
+		return 0
+	}
+	if b.dwarf.bigEndian {
+		return uint32(a[2]) | uint32(a[1])<<8 | uint32(a[0])<<16
+	} else {
+		return uint32(a[0]) | uint32(a[1])<<8 | uint32(a[2])<<16
+	}
 }
 
 func (b *buf) uint32() uint32 {

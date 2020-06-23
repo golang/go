@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -11,22 +11,17 @@ import (
 	"internal/poll"
 	"os"
 	"runtime"
-	"sync/atomic"
 	"syscall"
 )
 
-// Network file descriptor.
-type netFD struct {
-	pfd poll.FD
-
-	// immutable until Close
-	family      int
-	sotype      int
-	isConnected bool
-	net         string
-	laddr       Addr
-	raddr       Addr
-}
+const (
+	readSyscallName     = "read"
+	readFromSyscallName = "recvfrom"
+	readMsgSyscallName  = "recvmsg"
+	writeSyscallName    = "write"
+	writeToSyscallName  = "sendto"
+	writeMsgSyscallName = "sendmsg"
+)
 
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
 	ret := &netFD{
@@ -44,12 +39,6 @@ func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
 
 func (fd *netFD) init() error {
 	return fd.pfd.Init(fd.net, true)
-}
-
-func (fd *netFD) setAddr(laddr, raddr Addr) {
-	fd.laddr = laddr
-	fd.raddr = raddr
-	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
 func (fd *netFD) name() string {
@@ -81,12 +70,12 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 		runtime.KeepAlive(fd)
 		return nil, nil
 	case syscall.EINVAL:
-		// On Solaris we can see EINVAL if the socket has
-		// already been accepted and closed by the server.
-		// Treat this as a successful connection--writes to
-		// the socket will see EOF.  For details and a test
-		// case in C see https://golang.org/issue/6828.
-		if runtime.GOOS == "solaris" {
+		// On Solaris and illumos we can see EINVAL if the socket has
+		// already been accepted and closed by the server.  Treat this
+		// as a successful connection--writes to the socket will see
+		// EOF.  For details and a test case in C see
+		// https://golang.org/issue/6828.
+		if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
 			return nil, nil
 		}
 		fallthrough
@@ -96,7 +85,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 	if err := fd.pfd.Init(fd.net, true); err != nil {
 		return nil, err
 	}
-	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 		fd.pfd.SetWriteDeadline(deadline)
 		defer fd.pfd.SetWriteDeadline(noDeadline)
 	}
@@ -121,7 +110,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				// == nil). Because we've now poisoned the connection
 				// by making it unwritable, don't return a successful
 				// dial. This was issue 16523.
-				ret = ctxErr
+				ret = mapErr(ctxErr)
 				fd.Close() // prevent a leak
 			}
 		}()
@@ -173,65 +162,10 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
 				return rsa, nil
 			}
 		default:
-			return nil, os.NewSyscallError("getsockopt", err)
+			return nil, os.NewSyscallError("connect", err)
 		}
 		runtime.KeepAlive(fd)
 	}
-}
-
-func (fd *netFD) Close() error {
-	runtime.SetFinalizer(fd, nil)
-	return fd.pfd.Close()
-}
-
-func (fd *netFD) shutdown(how int) error {
-	err := fd.pfd.Shutdown(how)
-	runtime.KeepAlive(fd)
-	return wrapSyscallError("shutdown", err)
-}
-
-func (fd *netFD) closeRead() error {
-	return fd.shutdown(syscall.SHUT_RD)
-}
-
-func (fd *netFD) closeWrite() error {
-	return fd.shutdown(syscall.SHUT_WR)
-}
-
-func (fd *netFD) Read(p []byte) (n int, err error) {
-	n, err = fd.pfd.Read(p)
-	runtime.KeepAlive(fd)
-	return n, wrapSyscallError("read", err)
-}
-
-func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
-	n, sa, err = fd.pfd.ReadFrom(p)
-	runtime.KeepAlive(fd)
-	return n, sa, wrapSyscallError("recvfrom", err)
-}
-
-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
-	runtime.KeepAlive(fd)
-	return n, oobn, flags, sa, wrapSyscallError("recvmsg", err)
-}
-
-func (fd *netFD) Write(p []byte) (nn int, err error) {
-	nn, err = fd.pfd.Write(p)
-	runtime.KeepAlive(fd)
-	return nn, wrapSyscallError("write", err)
-}
-
-func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
-	n, err = fd.pfd.WriteTo(p, sa)
-	runtime.KeepAlive(fd)
-	return n, wrapSyscallError("sendto", err)
-}
-
-func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
-	runtime.KeepAlive(fd)
-	return n, oobn, wrapSyscallError("sendmsg", err)
 }
 
 func (fd *netFD) accept() (netfd *netFD, err error) {
@@ -248,7 +182,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 		return nil, err
 	}
 	if err = netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 	lsa, _ := syscall.Getsockname(netfd.pfd.Sysfd)
@@ -256,65 +190,13 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 	return netfd, nil
 }
 
-// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
-// If the kernel doesn't support it, this is set to 0.
-var tryDupCloexec = int32(1)
-
-func dupCloseOnExec(fd int) (newfd int, err error) {
-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
-		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
-		if runtime.GOOS == "darwin" && e1 == syscall.EBADF {
-			// On OS X 10.6 and below (but we only support
-			// >= 10.6), F_DUPFD_CLOEXEC is unsupported
-			// and fcntl there falls back (undocumented)
-			// to doing an ioctl instead, returning EBADF
-			// in this case because fd is not of the
-			// expected device fd type. Treat it as
-			// EINVAL instead, so we fall back to the
-			// normal dup path.
-			// TODO: only do this on 10.6 if we can detect 10.6
-			// cheaply.
-			e1 = syscall.EINVAL
-		}
-		switch e1 {
-		case 0:
-			return int(r0), nil
-		case syscall.EINVAL:
-			// Old kernel. Fall back to the portable way
-			// from now on.
-			atomic.StoreInt32(&tryDupCloexec, 0)
-		default:
-			return -1, os.NewSyscallError("fcntl", e1)
-		}
-	}
-	return dupCloseOnExecOld(fd)
-}
-
-// dupCloseOnExecUnixOld is the traditional way to dup an fd and
-// set its O_CLOEXEC bit, using two system calls.
-func dupCloseOnExecOld(fd int) (newfd int, err error) {
-	syscall.ForkLock.RLock()
-	defer syscall.ForkLock.RUnlock()
-	newfd, err = syscall.Dup(fd)
-	if err != nil {
-		return -1, os.NewSyscallError("dup", err)
-	}
-	syscall.CloseOnExec(newfd)
-	return
-}
-
 func (fd *netFD) dup() (f *os.File, err error) {
-	ns, err := dupCloseOnExec(fd.pfd.Sysfd)
+	ns, call, err := fd.pfd.Dup()
 	if err != nil {
+		if call != "" {
+			err = os.NewSyscallError(call, err)
+		}
 		return nil, err
-	}
-
-	// We want blocking mode for the new fd, hence the double negative.
-	// This also puts the old fd into blocking mode, meaning that
-	// I/O will block the thread instead of letting us use the epoll server.
-	// Everything will still work, just with more threads.
-	if err = syscall.SetNonblock(ns, false); err != nil {
-		return nil, os.NewSyscallError("setnonblock", err)
 	}
 
 	return os.NewFile(uintptr(ns), fd.name()), nil

@@ -71,6 +71,7 @@ var funcMap = template.FuncMap{
 	"_html_template_jsvalescaper":    jsValEscaper,
 	"_html_template_nospaceescaper":  htmlNospaceEscaper,
 	"_html_template_rcdataescaper":   rcdataEscaper,
+	"_html_template_srcsetescaper":   srcsetFilterAndEscaper,
 	"_html_template_urlescaper":      urlEscaper,
 	"_html_template_urlfilter":       urlFilter,
 	"_html_template_urlnormalizer":   urlNormalizer,
@@ -215,6 +216,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateAttrName, stateTag:
 		c.state = stateAttrName
 		s = append(s, "_html_template_htmlnamefilter")
+	case stateSrcset:
+		s = append(s, "_html_template_srcsetescaper")
 	default:
 		if isComment(c.state) {
 			s = append(s, "_html_template_commentescaper")
@@ -280,9 +283,22 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	// Rewrite the pipeline, creating the escapers in s at the end of the pipeline.
 	newCmds := make([]*parse.CommandNode, pipelineLen, pipelineLen+len(s))
-	copy(newCmds, p.Cmds)
+	insertedIdents := make(map[string]bool)
+	for i := 0; i < pipelineLen; i++ {
+		cmd := p.Cmds[i]
+		newCmds[i] = cmd
+		if idNode, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+			insertedIdents[normalizeEscFn(idNode.Ident)] = true
+		}
+	}
 	for _, name := range s {
-		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+		if !insertedIdents[normalizeEscFn(name)] {
+			// When two templates share an underlying parse tree via the use of
+			// AddParseTree and one template is executed after the other, this check
+			// ensures that escapers that were already inserted into the pipeline on
+			// the first escaping pass do not get inserted again.
+			newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
+		}
 	}
 	p.Cmds = newCmds
 }
@@ -317,13 +333,16 @@ var equivEscapers = map[string]string{
 
 // escFnsEq reports whether the two escaping functions are equivalent.
 func escFnsEq(a, b string) bool {
-	if e := equivEscapers[a]; e != "" {
-		a = e
+	return normalizeEscFn(a) == normalizeEscFn(b)
+}
+
+// normalizeEscFn(a) is equal to normalizeEscFn(b) for any pair of names of
+// escaper functions a and b that are equivalent.
+func normalizeEscFn(e string) string {
+	if norm := equivEscapers[e]; norm != "" {
+		return norm
 	}
-	if e := equivEscapers[b]; e != "" {
-		b = e
-	}
-	return a == b
+	return e
 }
 
 // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
@@ -359,16 +378,6 @@ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.Comma
 		}
 	}
 	return append(cmds, cmd)
-}
-
-// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
-func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
-	for i, t := range strs {
-		if eq(s, t) {
-			return i
-		}
-	}
-	return -1
 }
 
 // newIdentCmd produces a command containing a single identifier node.
@@ -408,7 +417,7 @@ func nudge(c context) context {
 
 // join joins the two contexts of a branch template node. The result is an
 // error context if either of the input contexts are error contexts, or if the
-// the input contexts differ.
+// input contexts differ.
 func join(a, b context, node parse.Node, nodeName string) context {
 	if a.state == stateError {
 		return a
@@ -659,7 +668,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		} else if isComment(c.state) && c.delim == delimNone {
 			switch c.state {
 			case stateJSBlockCmt:
-				// http://es5.github.com/#x7.4:
+				// https://es5.github.com/#x7.4:
 				// "Comments behave like white space and are
 				// discarded except that, if a MultiLineComment
 				// contains a line terminator character, then
@@ -722,7 +731,7 @@ func contextAfterText(c context, s []byte) (context, int) {
 		i = len(s)
 	}
 	if c.delim == delimSpaceOrTagEnd {
-		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+		// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 		// lists the runes below as error characters.
 		// Error out because HTML parsers may differ on whether
 		// "<a id= onclick=f("     ends inside id's or onclick's value,

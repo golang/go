@@ -8,4 +8,4 @@
 
 package p
 
-var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type bool\) as type int in array or slice literal"
+var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal"

@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/pprof/internal/plugin"
 )
@@ -36,12 +37,15 @@ const (
 // addr2Liner is a connection to an addr2line command for obtaining
 // address and line number information from a binary.
 type addr2Liner struct {
+	mu   sync.Mutex
 	rw   lineReaderWriter
 	base uint64
 
-	// nm holds an NM based addr2Liner which can provide
-	// better full names compared to addr2line, which often drops
-	// namespaces etc. from the names it returns.
+	// nm holds an addr2Liner using nm tool. Certain versions of addr2line
+	// produce incomplete names due to
+	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. As a workaround,
+	// the names from nm are used when they look more complete. See addrInfo()
+	// code below for the exact heuristic.
 	nm *addr2LinerNM
 }
 
@@ -170,9 +174,10 @@ func (d *addr2Liner) readFrame() (plugin.Frame, bool) {
 		Line: linenumber}, false
 }
 
-// addrInfo returns the stack frame information for a specific program
-// address. It returns nil if the address could not be identified.
-func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+func (d *addr2Liner) rawAddrInfo(addr uint64) ([]plugin.Frame, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.rw.write(fmt.Sprintf("%x", addr-d.base)); err != nil {
 		return nil, err
 	}
@@ -201,18 +206,33 @@ func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
 			stack = append(stack, frame)
 		}
 	}
+	return stack, err
+}
 
-	// Get better name from nm if possible.
+// addrInfo returns the stack frame information for a specific program
+// address. It returns nil if the address could not be identified.
+func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+	stack, err := d.rawAddrInfo(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Certain versions of addr2line produce incomplete names due to
+	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. Attempt to replace
+	// the name with a better one from nm.
 	if len(stack) > 0 && d.nm != nil {
 		nm, err := d.nm.addrInfo(addr)
 		if err == nil && len(nm) > 0 {
-			// Last entry in frame list should match since
-			// it is non-inlined. As a simple heuristic,
-			// we only switch to the nm-based name if it
-			// is longer.
+			// Last entry in frame list should match since it is non-inlined. As a
+			// simple heuristic, we only switch to the nm-based name if it is longer
+			// by 2 or more characters. We consider nm names that are longer by 1
+			// character insignificant to avoid replacing foo with _foo on MacOS (for
+			// unknown reasons read2line produces the former and nm produces the
+			// latter on MacOS even though both tools are asked to produce mangled
+			// names).
 			nmName := nm[len(nm)-1].Func
 			a2lName := stack[len(stack)-1].Func
-			if len(nmName) > len(a2lName) {
+			if len(nmName) > len(a2lName)+1 {
 				stack[len(stack)-1].Func = nmName
 			}
 		}

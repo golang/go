@@ -24,7 +24,7 @@ func hostname() (name string, err error) {
 			return "", NewSyscallError("ComputerNameEx", err)
 		}
 
-		// If we received a ERROR_MORE_DATA, but n doesn't get larger,
+		// If we received an ERROR_MORE_DATA, but n doesn't get larger,
 		// something has gone wrong and we may be in an infinite loop
 		if n <= uint32(len(b)) {
 			return "", NewSyscallError("ComputerNameEx", err)

@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Test various parsing cases that are a little
-// different now that send is a statement, not a expression.
+// different now that send is a statement, not an expression.
 
 package main
 

@@ -10,16 +10,15 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
-	"strings"
+
+	"cmd/internal/edit"
+	"cmd/internal/objabi"
 )
 
 const usageMessage = "" +
@@ -59,7 +58,7 @@ var (
 
 var profile string // The profile to read; the value of -html or -func
 
-var counterStmt func(*File, ast.Expr) ast.Stmt
+var counterStmt func(*File, string) string
 
 const (
 	atomicPackagePath = "sync/atomic"
@@ -67,6 +66,7 @@ const (
 )
 
 func main() {
+	objabi.AddVersionFlag()
 	flag.Usage = usage
 	flag.Parse()
 
@@ -116,6 +116,10 @@ func parseFlags() error {
 		return fmt.Errorf("too many options")
 	}
 
+	if *varVar != "" && !token.IsIdentifier(*varVar) {
+		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
+	}
+
 	if *mode != "" {
 		switch *mode {
 		case "set":
@@ -151,12 +155,48 @@ type Block struct {
 // File is a wrapper for the state of a file used in the parser.
 // The basic parse tree walker is a method of this type.
 type File struct {
-	fset       *token.FileSet
-	name       string // Name of file.
-	astFile    *ast.File
-	blocks     []Block
-	atomicPkg  string                // Package name for "sync/atomic" in this file.
-	directives map[*ast.Comment]bool // Map of compiler directives to whether it's processed in ast.Visitor or not.
+	fset    *token.FileSet
+	name    string // Name of file.
+	astFile *ast.File
+	blocks  []Block
+	content []byte
+	edit    *edit.Buffer
+}
+
+// findText finds text in the original source, starting at pos.
+// It correctly skips over comments and assumes it need not
+// handle quoted strings.
+// It returns a byte offset within f.src.
+func (f *File) findText(pos token.Pos, text string) int {
+	b := []byte(text)
+	start := f.offset(pos)
+	i := start
+	s := f.content
+	for i < len(s) {
+		if bytes.HasPrefix(s[i:], b) {
+			return i
+		}
+		if i+2 <= len(s) && s[i] == '/' && s[i+1] == '/' {
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if i+2 <= len(s) && s[i] == '/' && s[i+1] == '*' {
+			for i += 2; ; i++ {
+				if i+2 > len(s) {
+					return 0
+				}
+				if s[i] == '*' && s[i+1] == '/' {
+					i += 2
+					break
+				}
+			}
+			continue
+		}
+		i++
+	}
+	return -1
 }
 
 // Visit implements the ast.Visitor interface.
@@ -169,18 +209,18 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			case *ast.CaseClause: // switch
 				for _, n := range n.List {
 					clause := n.(*ast.CaseClause)
-					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
+					f.addCounters(clause.Colon+1, clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			case *ast.CommClause: // select
 				for _, n := range n.List {
 					clause := n.(*ast.CommClause)
-					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
+					f.addCounters(clause.Colon+1, clause.Colon+1, clause.End(), clause.Body, false)
 				}
 				return f
 			}
 		}
-		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
+		f.addCounters(n.Lbrace, n.Lbrace+1, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
 	case *ast.IfStmt:
 		if n.Init != nil {
 			ast.Walk(f, n.Init)
@@ -201,16 +241,28 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		//		if y {
 		//		}
 		//	}
+		elseOffset := f.findText(n.Body.End(), "else")
+		if elseOffset < 0 {
+			panic("lost else")
+		}
+		f.edit.Insert(elseOffset+4, "{")
+		f.edit.Insert(f.offset(n.Else.End()), "}")
+
+		// We just created a block, now walk it.
+		// Adjust the position of the new block to start after
+		// the "else". That will cause it to follow the "{"
+		// we inserted above.
+		pos := f.fset.File(n.Body.End()).Pos(elseOffset + 4)
 		switch stmt := n.Else.(type) {
 		case *ast.IfStmt:
 			block := &ast.BlockStmt{
-				Lbrace: n.Body.End(), // Start at end of the "if" block so the covered part looks like it starts at the "else".
+				Lbrace: pos,
 				List:   []ast.Stmt{stmt},
 				Rbrace: stmt.End(),
 			}
 			n.Else = block
 		case *ast.BlockStmt:
-			stmt.Lbrace = n.Body.End() // Start at end of the "if" block so the covered part looks like it starts at the "else".
+			stmt.Lbrace = pos
 		default:
 			panic("unexpected node type in if")
 		}
@@ -241,117 +293,13 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(f, n.Assign)
 			return nil
 		}
-	case *ast.CommentGroup:
-		var list []*ast.Comment
-		// Drop all but the //go: comments, some of which are semantically important.
-		// We drop all others because they can appear in places that cause our counters
-		// to appear in syntactically incorrect places. //go: appears at the beginning of
-		// the line and is syntactically safe.
-		for _, c := range n.List {
-			if f.isDirective(c) {
-				list = append(list, c)
-
-				// Mark compiler directive as handled.
-				f.directives[c] = true
-			}
+	case *ast.FuncDecl:
+		// Don't annotate functions with blank names - they cannot be executed.
+		if n.Name.Name == "_" {
+			return nil
 		}
-		n.List = list
 	}
 	return f
-}
-
-// unquote returns the unquoted string.
-func unquote(s string) string {
-	t, err := strconv.Unquote(s)
-	if err != nil {
-		log.Fatalf("cover: improperly quoted string %q\n", s)
-	}
-	return t
-}
-
-// addImport adds an import for the specified path, if one does not already exist, and returns
-// the local package name.
-func (f *File) addImport(path string) string {
-	// Does the package already import it?
-	for _, s := range f.astFile.Imports {
-		if unquote(s.Path.Value) == path {
-			if s.Name != nil {
-				return s.Name.Name
-			}
-			return filepath.Base(path)
-		}
-	}
-	newImport := &ast.ImportSpec{
-		Name: ast.NewIdent(atomicPackageName),
-		Path: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: fmt.Sprintf("%q", path),
-		},
-	}
-	impDecl := &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			newImport,
-		},
-	}
-	// Make the new import the first Decl in the file.
-	astFile := f.astFile
-	astFile.Decls = append(astFile.Decls, nil)
-	copy(astFile.Decls[1:], astFile.Decls[0:])
-	astFile.Decls[0] = impDecl
-	astFile.Imports = append(astFile.Imports, newImport)
-
-	// Now refer to the package, just in case it ends up unused.
-	// That is, append to the end of the file the declaration
-	//	var _ = _cover_atomic_.AddUint32
-	reference := &ast.GenDecl{
-		Tok: token.VAR,
-		Specs: []ast.Spec{
-			&ast.ValueSpec{
-				Names: []*ast.Ident{
-					ast.NewIdent("_"),
-				},
-				Values: []ast.Expr{
-					&ast.SelectorExpr{
-						X:   ast.NewIdent(atomicPackageName),
-						Sel: ast.NewIdent("AddUint32"),
-					},
-				},
-			},
-		},
-	}
-	astFile.Decls = append(astFile.Decls, reference)
-	return atomicPackageName
-}
-
-var slashslash = []byte("//")
-
-// initialComments returns the prefix of content containing only
-// whitespace and line comments. Any +build directives must appear
-// within this region. This approach is more reliable than using
-// go/printer to print a modified AST containing comments.
-//
-func initialComments(content []byte) []byte {
-	// Derived from go/build.Context.shouldBuild.
-	end := 0
-	p := content
-	for len(p) > 0 {
-		line := p
-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
-			line, p = line[:i], p[i+1:]
-		} else {
-			p = p[len(p):]
-		}
-		line = bytes.TrimSpace(line)
-		if len(line) == 0 { // Blank line.
-			end = len(content) - len(p)
-			continue
-		}
-		if !bytes.HasPrefix(line, slashslash) { // Not comment line.
-			break
-		}
-	}
-	return content[:end]
 }
 
 func annotate(name string) {
@@ -366,26 +314,25 @@ func annotate(name string) {
 	}
 
 	file := &File{
-		fset:       fset,
-		name:       name,
-		astFile:    parsedFile,
-		directives: map[*ast.Comment]bool{},
+		fset:    fset,
+		name:    name,
+		content: content,
+		edit:    edit.NewBuffer(content),
+		astFile: parsedFile,
 	}
 	if *mode == "atomic" {
-		file.atomicPkg = file.addImport(atomicPackagePath)
+		// Add import of sync/atomic immediately after package clause.
+		// We do this even if there is an existing import, because the
+		// existing import may be shadowed at any given place we want
+		// to refer to it, and our name (_cover_atomic_) is less likely to
+		// be shadowed.
+		file.edit.Insert(file.offset(file.astFile.Name.End()),
+			fmt.Sprintf("; import %s %q", atomicPackageName, atomicPackagePath))
 	}
-
-	for _, cg := range parsedFile.Comments {
-		for _, c := range cg.List {
-			if file.isDirective(c) {
-				file.directives[c] = false
-			}
-		}
-	}
-	// Remove comments. Or else they interfere with new AST.
-	parsedFile.Comments = nil
 
 	ast.Walk(file, file.astFile)
+	newContent := file.edit.Bytes()
+
 	fd := os.Stdout
 	if *output != "" {
 		var err error
@@ -394,92 +341,33 @@ func annotate(name string) {
 			log.Fatalf("cover: %s", err)
 		}
 	}
-	fd.Write(initialComments(content)) // Retain '// +build' directives.
 
-	// Retain compiler directives that are not processed in ast.Visitor.
-	// Some compiler directives like "go:linkname" and "go:cgo_"
-	// can be not attached to anything in the tree and hence will not be printed by printer.
-	// So, we have to explicitly print them here.
-	for cd, handled := range file.directives {
-		if !handled {
-			fmt.Fprintln(fd, cd.Text)
-		}
-	}
+	fmt.Fprintf(fd, "//line %s:1\n", name)
+	fd.Write(newContent)
 
-	file.print(fd)
 	// After printing the source tree, add some declarations for the counters etc.
 	// We could do this by adding to the tree, but it's easier just to print the text.
 	file.addVariables(fd)
 }
 
-func (f *File) print(w io.Writer) {
-	printer.Fprint(w, f.fset, f.astFile)
-}
-
-// isDirective reports whether a comment is a compiler directive.
-func (f *File) isDirective(c *ast.Comment) bool {
-	return strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1
-}
-
-// intLiteral returns an ast.BasicLit representing the integer value.
-func (f *File) intLiteral(i int) *ast.BasicLit {
-	node := &ast.BasicLit{
-		Kind:  token.INT,
-		Value: fmt.Sprint(i),
-	}
-	return node
-}
-
-// index returns an ast.BasicLit representing the number of counters present.
-func (f *File) index() *ast.BasicLit {
-	return f.intLiteral(len(f.blocks))
-}
-
 // setCounterStmt returns the expression: __count[23] = 1.
-func setCounterStmt(f *File, counter ast.Expr) ast.Stmt {
-	return &ast.AssignStmt{
-		Lhs: []ast.Expr{counter},
-		Tok: token.ASSIGN,
-		Rhs: []ast.Expr{f.intLiteral(1)},
-	}
+func setCounterStmt(f *File, counter string) string {
+	return fmt.Sprintf("%s = 1", counter)
 }
 
 // incCounterStmt returns the expression: __count[23]++.
-func incCounterStmt(f *File, counter ast.Expr) ast.Stmt {
-	return &ast.IncDecStmt{
-		X:   counter,
-		Tok: token.INC,
-	}
+func incCounterStmt(f *File, counter string) string {
+	return fmt.Sprintf("%s++", counter)
 }
 
 // atomicCounterStmt returns the expression: atomic.AddUint32(&__count[23], 1)
-func atomicCounterStmt(f *File, counter ast.Expr) ast.Stmt {
-	return &ast.ExprStmt{
-		X: &ast.CallExpr{
-			Fun: &ast.SelectorExpr{
-				X:   ast.NewIdent(f.atomicPkg),
-				Sel: ast.NewIdent("AddUint32"),
-			},
-			Args: []ast.Expr{&ast.UnaryExpr{
-				Op: token.AND,
-				X:  counter,
-			},
-				f.intLiteral(1),
-			},
-		},
-	}
+func atomicCounterStmt(f *File, counter string) string {
+	return fmt.Sprintf("%s.AddUint32(&%s, 1)", atomicPackageName, counter)
 }
 
 // newCounter creates a new counter expression of the appropriate form.
-func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
-	counter := &ast.IndexExpr{
-		X: &ast.SelectorExpr{
-			X:   ast.NewIdent(*varVar),
-			Sel: ast.NewIdent("Count"),
-		},
-		Index: f.index(),
-	}
-	stmt := counterStmt(f, counter)
+func (f *File) newCounter(start, end token.Pos, numStmt int) string {
+	stmt := counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar, len(f.blocks)))
 	f.blocks = append(f.blocks, Block{start, end, numStmt})
 	return stmt
 }
@@ -496,15 +384,18 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
 // counters will be added before S1 and before S3. The block containing S2
 // will be visited in a separate call.
 // TODO: Nested simple blocks get unnecessary (but correct) counters
-func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClosingBrace bool) []ast.Stmt {
+func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, extendToClosingBrace bool) {
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		return []ast.Stmt{f.newCounter(pos, blockEnd, 0)}
+		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
+		return
 	}
+	// Make a copy of the list, as we may mutate it and should leave the
+	// existing list intact.
+	list = append([]ast.Stmt(nil), list...)
 	// We have a block (statement list), but it may have several basic blocks due to the
 	// appearance of statements that affect the flow of control.
-	var newList []ast.Stmt
 	for {
 		// Find first statement that affects flow of control (break, continue, if, etc.).
 		// It will be the last statement of this basic block.
@@ -547,16 +438,15 @@ func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClo
 			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			newList = append(newList, f.newCounter(pos, end, last))
+			f.edit.Insert(f.offset(insertPos), f.newCounter(pos, end, last)+";")
 		}
-		newList = append(newList, list[0:last]...)
 		list = list[last:]
 		if len(list) == 0 {
 			break
 		}
 		pos = list[0].Pos()
+		insertPos = pos
 	}
-	return newList
 }
 
 // hasFuncLiteral reports the existence and position of the first func literal
@@ -766,6 +656,9 @@ func (f *File) addVariables(w io.Writer) {
 	for i, block := range f.blocks {
 		start := f.fset.Position(block.startByte)
 		end := f.fset.Position(block.endByte)
+
+		start, end = dedup(start, end)
+
 		fmt.Fprintf(w, "\t\t%d, %d, %#x, // [%d]\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
 	}
 
@@ -791,4 +684,47 @@ func (f *File) addVariables(w io.Writer) {
 
 	// Close the struct initialization.
 	fmt.Fprintf(w, "}\n")
+
+	// Emit a reference to the atomic package to avoid
+	// import and not used error when there's no code in a file.
+	if *mode == "atomic" {
+		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
+	}
+}
+
+// It is possible for positions to repeat when there is a line
+// directive that does not specify column information and the input
+// has not been passed through gofmt.
+// See issues #27530 and #30746.
+// Tests are TestHtmlUnformatted and TestLineDup.
+// We use a map to avoid duplicates.
+
+// pos2 is a pair of token.Position values, used as a map key type.
+type pos2 struct {
+	p1, p2 token.Position
+}
+
+// seenPos2 tracks whether we have seen a token.Position pair.
+var seenPos2 = make(map[pos2]bool)
+
+// dedup takes a token.Position pair and returns a pair that does not
+// duplicate any existing pair. The returned pair will have the Offset
+// fields cleared.
+func dedup(p1, p2 token.Position) (r1, r2 token.Position) {
+	key := pos2{
+		p1: p1,
+		p2: p2,
+	}
+
+	// We want to ignore the Offset fields in the map,
+	// since cover uses only file/line/column.
+	key.p1.Offset = 0
+	key.p2.Offset = 0
+
+	for seenPos2[key] {
+		key.p2.Column++
+	}
+	seenPos2[key] = true
+
+	return key.p1, key.p2
 }

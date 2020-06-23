@@ -6,7 +6,10 @@ package syntax
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -15,12 +18,16 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src_, nil, nil, 0)
+	// provide a dummy error handler so parsing doesn't stop after first error
+	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	Fprint(os.Stdout, ast, true)
-	fmt.Println()
+
+	if ast != nil {
+		Fprint(testOut(), ast, true)
+		fmt.Println()
+	}
 }
 
 func TestPrintString(t *testing.T) {
@@ -29,7 +36,7 @@ func TestPrintString(t *testing.T) {
 		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
 		// TODO(gri) expand
 	} {
-		ast, err := ParseBytes(nil, []byte(want), nil, nil, 0)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, 0)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -38,4 +45,11 @@ func TestPrintString(t *testing.T) {
 			t.Errorf("%q: got %q", want, got)
 		}
 	}
+}
+
+func testOut() io.Writer {
+	if testing.Verbose() {
+		return os.Stdout
+	}
+	return ioutil.Discard
 }

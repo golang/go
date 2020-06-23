@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// An version of bytes.Buffer without ReadFrom and WriteTo
+// A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
 	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
@@ -29,6 +29,21 @@ func TestCopy(t *testing.T) {
 	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
+	}
+}
+
+func TestCopyNegative(t *testing.T) {
+	rb := new(Buffer)
+	wb := new(Buffer)
+	rb.WriteString("hello")
+	Copy(wb, &LimitedReader{R: rb, N: -1})
+	if wb.String() != "" {
+		t.Errorf("Copy on LimitedReader with N<0 copied data")
+	}
+
+	CopyN(wb, rb, -1)
+	if wb.String() != "" {
+		t.Errorf("CopyN with N<0 copied data")
 	}
 }
 
@@ -156,6 +171,30 @@ func TestCopyNWriteTo(t *testing.T) {
 	}
 }
 
+func BenchmarkCopyNSmall(b *testing.B) {
+	bs := bytes.Repeat([]byte{0}, 512+1)
+	rd := bytes.NewReader(bs)
+	buf := new(Buffer)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		CopyN(buf, rd, 512)
+		rd.Reset(bs)
+	}
+}
+
+func BenchmarkCopyNLarge(b *testing.B) {
+	bs := bytes.Repeat([]byte{0}, (32*1024)+1)
+	rd := bytes.NewReader(bs)
+	buf := new(Buffer)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		CopyN(buf, rd, 32*1024)
+		rd.Reset(bs)
+	}
+}
+
 type noReadFrom struct {
 	w Writer
 }
@@ -245,6 +284,9 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	n, err := ReadAtLeast(rb, buf, 2)
 	if err != nil {
 		t.Error(err)
+	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {

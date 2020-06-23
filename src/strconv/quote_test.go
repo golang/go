@@ -180,39 +180,39 @@ type canBackquoteTest struct {
 
 var canbackquotetests = []canBackquoteTest{
 	{"`", false},
-	{string(0), false},
-	{string(1), false},
-	{string(2), false},
-	{string(3), false},
-	{string(4), false},
-	{string(5), false},
-	{string(6), false},
-	{string(7), false},
-	{string(8), false},
-	{string(9), true}, // \t
-	{string(10), false},
-	{string(11), false},
-	{string(12), false},
-	{string(13), false},
-	{string(14), false},
-	{string(15), false},
-	{string(16), false},
-	{string(17), false},
-	{string(18), false},
-	{string(19), false},
-	{string(20), false},
-	{string(21), false},
-	{string(22), false},
-	{string(23), false},
-	{string(24), false},
-	{string(25), false},
-	{string(26), false},
-	{string(27), false},
-	{string(28), false},
-	{string(29), false},
-	{string(30), false},
-	{string(31), false},
-	{string(0x7F), false},
+	{string(rune(0)), false},
+	{string(rune(1)), false},
+	{string(rune(2)), false},
+	{string(rune(3)), false},
+	{string(rune(4)), false},
+	{string(rune(5)), false},
+	{string(rune(6)), false},
+	{string(rune(7)), false},
+	{string(rune(8)), false},
+	{string(rune(9)), true}, // \t
+	{string(rune(10)), false},
+	{string(rune(11)), false},
+	{string(rune(12)), false},
+	{string(rune(13)), false},
+	{string(rune(14)), false},
+	{string(rune(15)), false},
+	{string(rune(16)), false},
+	{string(rune(17)), false},
+	{string(rune(18)), false},
+	{string(rune(19)), false},
+	{string(rune(20)), false},
+	{string(rune(21)), false},
+	{string(rune(22)), false},
+	{string(rune(23)), false},
+	{string(rune(24)), false},
+	{string(rune(25)), false},
+	{string(rune(26)), false},
+	{string(rune(27)), false},
+	{string(rune(28)), false},
+	{string(rune(29)), false},
+	{string(rune(30)), false},
+	{string(rune(31)), false},
+	{string(rune(0x7F)), false},
 	{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
 	{`0123456789`, true},
 	{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},
@@ -322,6 +322,36 @@ func TestUnquote(t *testing.T) {
 	for _, s := range misquoted {
 		if out, err := Unquote(s); out != "" || err != ErrSyntax {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
+		}
+	}
+}
+
+// Issue 23685: invalid UTF-8 should not go through the fast path.
+func TestUnquoteInvalidUTF8(t *testing.T) {
+	tests := []struct {
+		in string
+
+		// one of:
+		want    string
+		wantErr string
+	}{
+		{in: `"foo"`, want: "foo"},
+		{in: `"foo`, wantErr: "invalid syntax"},
+		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
+		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
+		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
+	}
+	for i, tt := range tests {
+		got, err := Unquote(tt.in)
+		var gotErr string
+		if err != nil {
+			gotErr = err.Error()
+		}
+		if gotErr != tt.wantErr {
+			t.Errorf("%d. Unquote(%q) = err %v; want %q", i, tt.in, err, tt.wantErr)
+		}
+		if tt.wantErr == "" && err == nil && got != tt.want {
+			t.Errorf("%d. Unquote(%q) = %02x; want %02x", i, tt.in, []byte(got), []byte(tt.want))
 		}
 	}
 }

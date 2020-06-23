@@ -7,20 +7,14 @@
 #include <process.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include "libcgo.h"
 
 static void threadentry(void*);
 
-/* 1MB is default stack size for 32-bit Windows.
-   Allocation granularity on Windows is typically 64 KB.
-   The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
-#define STACKSIZE (1*1024*1024)
-
 void
 x_cgo_init(G *g)
 {
-	int tmp;
-	g->stacklo = (uintptr)&tmp - STACKSIZE + 8*1024;
 }
 
 
@@ -44,8 +38,7 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	ts.g->stackhi = (uintptr)&ts;
-	ts.g->stacklo = (uintptr)&ts - STACKSIZE + 8*1024;
+	// minit queries stack bounds from the OS.
 
 	/*
 	 * Set specific keys in thread local storage.

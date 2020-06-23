@@ -1,5 +1,5 @@
 // Inferno's libkern/vlrt-arm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/vlrt-arm.c
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -106,7 +106,6 @@ func _d2v(y *uint64, d float64) {
 
 	*y = uint64(yhi)<<32 | uint64(ylo)
 }
-
 func uint64div(n, d uint64) uint64 {
 	// Check for 32 bit operands
 	if uint32(n>>32) == 0 && uint32(d>>32) == 0 {
@@ -161,6 +160,7 @@ func int64div(n, d int64) int64 {
 	return q
 }
 
+//go:nosplit
 func int64mod(n, d int64) int64 {
 	// Check for 32 bit operands
 	if int64(int32(n)) == n && int64(int32(d)) == d {
@@ -191,6 +191,7 @@ func _mul64by32(lo64 *uint64, a uint64, b uint32) (hi32 uint32)
 //go:noescape
 func _div64by32(a uint64, b uint32, r *uint32) (q uint32)
 
+//go:nosplit
 func dodiv(n, d uint64) (q, r uint64) {
 	if GOARCH == "arm" {
 		// arm doesn't have a division instruction, so
@@ -234,6 +235,7 @@ func dodiv(n, d uint64) (q, r uint64) {
 	return uint64(qhi)<<32 + uint64(qlo), uint64(rlo)
 }
 
+//go:nosplit
 func slowdodiv(n, d uint64) (q, r uint64) {
 	if d == 0 {
 		panicdivide()

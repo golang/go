@@ -6,11 +6,10 @@ package format
 
 import (
 	"bytes"
-	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"log"
 	"strings"
 	"testing"
 )
@@ -57,6 +56,43 @@ func TestNode(t *testing.T) {
 	}
 
 	diff(t, buf.Bytes(), src)
+}
+
+// Node is documented to not modify the AST. Test that it is so, even when
+// formatting changes are applied due to printer.StdFormat mode being used.
+func TestNodeNoModify(t *testing.T) {
+	const (
+		src    = "package p\n\nconst _ = 0000000123i\n"
+		golden = "package p\n\nconst _ = 123i\n"
+	)
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Capture original address and value of a BasicLit node
+	// which will undergo formatting changes during printing.
+	wantLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
+	wantVal := wantLit.Value
+
+	var buf bytes.Buffer
+	if err = Node(&buf, fset, file); err != nil {
+		t.Fatal("Node failed:", err)
+	}
+	diff(t, buf.Bytes(), []byte(golden))
+
+	// Check if anything changed after Node returned.
+	gotLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
+	gotVal := gotLit.Value
+
+	if gotLit != wantLit {
+		t.Errorf("got *ast.BasicLit address %p, want %p", gotLit, wantLit)
+	}
+	if gotVal != wantVal {
+		t.Errorf("got *ast.BasicLit value %q, want %q", gotVal, wantVal)
+	}
 }
 
 func TestSource(t *testing.T) {
@@ -144,29 +180,4 @@ func TestPartial(t *testing.T) {
 			}
 		}
 	}
-}
-
-func ExampleNode() {
-	const expr = "(6+2*3)/4"
-
-	// parser.ParseExpr parses the argument and returns the
-	// corresponding ast.Node.
-	node, err := parser.ParseExpr(expr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create a FileSet for node. Since the node does not come
-	// from a real source file, fset will be empty.
-	fset := token.NewFileSet()
-
-	var buf bytes.Buffer
-	err = Node(&buf, fset, node)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(buf.String())
-
-	// Output: (6 + 2*3) / 4
 }

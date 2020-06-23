@@ -5,7 +5,6 @@
 package syntax
 
 import (
-	"cmd/internal/src"
 	"fmt"
 	"io"
 	"os"
@@ -21,7 +20,7 @@ const (
 
 // Error describes a syntax error. Error implements the error interface.
 type Error struct {
-	Pos src.Pos
+	Pos Pos
 	Msg string
 }
 
@@ -34,29 +33,38 @@ var _ error = Error{} // verify that Error implements error
 // An ErrorHandler is called for each error encountered reading a .go file.
 type ErrorHandler func(err error)
 
-// A Pragma value is a set of flags that augment a function or
-// type declaration. Callers may assign meaning to the flags as
-// appropriate.
-type Pragma uint16
+// A Pragma value augments a package, import, const, func, type, or var declaration.
+// Its meaning is entirely up to the PragmaHandler,
+// except that nil is used to mean “no pragma seen.”
+type Pragma interface{}
 
-// A PragmaHandler is used to process //line and //go: directives as
-// they're scanned. The returned Pragma value will be unioned into the
-// next FuncDecl node.
-type PragmaHandler func(pos src.Pos, text string) Pragma
+// A PragmaHandler is used to process //go: directives while scanning.
+// It is passed the current pragma value, which starts out being nil,
+// and it returns an updated pragma value.
+// The text is the directive, with the "//" prefix stripped.
+// The current pragma is saved at each package, import, const, func, type, or var
+// declaration, into the File, ImportDecl, ConstDecl, FuncDecl, TypeDecl, or VarDecl node.
+//
+// If text is the empty string, the pragma is being returned
+// to the handler unused, meaning it appeared before a non-declaration.
+// The handler may wish to report an error. In this case, pos is the
+// current parser position, not the position of the pragma itself.
+// Blank specifies whether the line is blank before the pragma.
+type PragmaHandler func(pos Pos, blank bool, text string, current Pragma) Pragma
 
 // Parse parses a single Go source file from src and returns the corresponding
 // syntax tree. If there are errors, Parse will return the first error found,
-// and a possibly partially constructed syntax tree, or nil if no correct package
-// clause was found. The base argument is only used for position information.
+// and a possibly partially constructed syntax tree, or nil.
 //
 // If errh != nil, it is called with each error encountered, and Parse will
-// process as much source as possible. If errh is nil, Parse will terminate
-// immediately upon encountering an error.
+// process as much source as possible. In this case, the returned syntax tree
+// is only nil if no correct package clause was found.
+// If errh is nil, Parse will terminate immediately upon encountering the first
+// error, and the returned syntax tree is nil.
 //
-// If a PragmaHandler is provided, it is called with each pragma encountered.
+// If pragh != nil, it is called with each pragma encountered.
 //
-// The Mode argument is currently ignored.
-func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+func Parse(base *PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if err, ok := p.(Error); ok {
@@ -73,24 +81,6 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
 	return p.fileOrNil(), p.first
 }
 
-// ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
-func ParseBytes(base *src.PosBase, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
-	return Parse(base, &bytesReader{src}, errh, pragh, mode)
-}
-
-type bytesReader struct {
-	data []byte
-}
-
-func (r *bytesReader) Read(p []byte) (int, error) {
-	if len(r.data) > 0 {
-		n := copy(p, r.data)
-		r.data = r.data[n:]
-		return n, nil
-	}
-	return 0, io.EOF
-}
-
 // ParseFile behaves like Parse but it reads the source from the named file.
 func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
 	f, err := os.Open(filename)
@@ -101,5 +91,5 @@ func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mod
 		return nil, err
 	}
 	defer f.Close()
-	return Parse(src.NewFileBase(filename, filename), f, errh, pragh, mode)
+	return Parse(NewFileBase(filename), f, errh, pragh, mode)
 }

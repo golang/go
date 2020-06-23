@@ -21,7 +21,7 @@ import (
 func HammerSemaphore(s *uint32, loops int, cdone chan bool) {
 	for i := 0; i < loops; i++ {
 		Runtime_Semacquire(s)
-		Runtime_Semrelease(s, false)
+		Runtime_Semrelease(s, false, 0)
 	}
 	cdone <- true
 }
@@ -155,7 +155,10 @@ func init() {
 	if len(os.Args) == 3 && os.Args[1] == "TESTMISUSE" {
 		for _, test := range misuseTests {
 			if test.name == os.Args[2] {
-				test.f()
+				func() {
+					defer func() { recover() }()
+					test.f()
+				}()
 				fmt.Printf("test completed\n")
 				os.Exit(0)
 			}

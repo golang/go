@@ -12,7 +12,9 @@ import (
 	"cmd/compile/internal/mips"
 	"cmd/compile/internal/mips64"
 	"cmd/compile/internal/ppc64"
+	"cmd/compile/internal/riscv64"
 	"cmd/compile/internal/s390x"
+	"cmd/compile/internal/wasm"
 	"cmd/compile/internal/x86"
 	"cmd/internal/objabi"
 	"fmt"
@@ -23,7 +25,6 @@ import (
 var archInits = map[string]func(*gc.Arch){
 	"386":      x86.Init,
 	"amd64":    amd64.Init,
-	"amd64p32": amd64.Init,
 	"arm":      arm.Init,
 	"arm64":    arm64.Init,
 	"mips":     mips.Init,
@@ -32,7 +33,9 @@ var archInits = map[string]func(*gc.Arch){
 	"mips64le": mips64.Init,
 	"ppc64":    ppc64.Init,
 	"ppc64le":  ppc64.Init,
+	"riscv64":  riscv64.Init,
 	"s390x":    s390x.Init,
+	"wasm":     wasm.Init,
 }
 
 func main() {

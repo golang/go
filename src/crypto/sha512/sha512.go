@@ -4,10 +4,16 @@
 
 // Package sha512 implements the SHA-384, SHA-512, SHA-512/224, and SHA-512/256
 // hash algorithms as defined in FIPS 180-4.
+//
+// All the hash.Hash implementations returned by this package also
+// implement encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// marshal and unmarshal the internal state of the hash.
 package sha512
 
 import (
 	"crypto"
+	"encoding/binary"
+	"errors"
 	"hash"
 )
 
@@ -124,6 +130,85 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
+const (
+	magic384      = "sha\x04"
+	magic512_224  = "sha\x05"
+	magic512_256  = "sha\x06"
+	magic512      = "sha\x07"
+	marshaledSize = len(magic512) + 8*8 + chunk + 8
+)
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	b := make([]byte, 0, marshaledSize)
+	switch d.function {
+	case crypto.SHA384:
+		b = append(b, magic384...)
+	case crypto.SHA512_224:
+		b = append(b, magic512_224...)
+	case crypto.SHA512_256:
+		b = append(b, magic512_256...)
+	case crypto.SHA512:
+		b = append(b, magic512...)
+	default:
+		return nil, errors.New("crypto/sha512: invalid hash function")
+	}
+	b = appendUint64(b, d.h[0])
+	b = appendUint64(b, d.h[1])
+	b = appendUint64(b, d.h[2])
+	b = appendUint64(b, d.h[3])
+	b = appendUint64(b, d.h[4])
+	b = appendUint64(b, d.h[5])
+	b = appendUint64(b, d.h[6])
+	b = appendUint64(b, d.h[7])
+	b = append(b, d.x[:d.nx]...)
+	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = appendUint64(b, d.len)
+	return b, nil
+}
+
+func (d *digest) UnmarshalBinary(b []byte) error {
+	if len(b) < len(magic512) {
+		return errors.New("crypto/sha512: invalid hash state identifier")
+	}
+	switch {
+	case d.function == crypto.SHA384 && string(b[:len(magic384)]) == magic384:
+	case d.function == crypto.SHA512_224 && string(b[:len(magic512_224)]) == magic512_224:
+	case d.function == crypto.SHA512_256 && string(b[:len(magic512_256)]) == magic512_256:
+	case d.function == crypto.SHA512 && string(b[:len(magic512)]) == magic512:
+	default:
+		return errors.New("crypto/sha512: invalid hash state identifier")
+	}
+	if len(b) != marshaledSize {
+		return errors.New("crypto/sha512: invalid hash state size")
+	}
+	b = b[len(magic512):]
+	b, d.h[0] = consumeUint64(b)
+	b, d.h[1] = consumeUint64(b)
+	b, d.h[2] = consumeUint64(b)
+	b, d.h[3] = consumeUint64(b)
+	b, d.h[4] = consumeUint64(b)
+	b, d.h[5] = consumeUint64(b)
+	b, d.h[6] = consumeUint64(b)
+	b, d.h[7] = consumeUint64(b)
+	b = b[copy(d.x[:], b):]
+	b, d.len = consumeUint64(b)
+	d.nx = int(d.len % chunk)
+	return nil
+}
+
+func appendUint64(b []byte, x uint64) []byte {
+	var a [8]byte
+	binary.BigEndian.PutUint64(a[:], x)
+	return append(b, a[:]...)
+}
+
+func consumeUint64(b []byte) ([]byte, uint64) {
+	_ = b[7]
+	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	return b[8:], x
+}
+
 // New returns a new hash.Hash computing the SHA-512 checksum.
 func New() hash.Hash {
 	d := &digest{function: crypto.SHA512}
@@ -190,12 +275,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := new(digest)
-	*d = *d0
-	hash := d.checkSum()
-	switch d.function {
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := new(digest)
+	*d0 = *d
+	hash := d0.checkSum()
+	switch d0.function {
 	case crypto.SHA384:
 		return append(in, hash[:Size384]...)
 	case crypto.SHA512_224:
@@ -220,30 +305,24 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	for i := uint(0); i < 16; i++ {
-		tmp[i] = byte(len >> (120 - 8*i))
-	}
+	binary.BigEndian.PutUint64(tmp[0:], 0) // upper 64 bits are always zero, because len variable has type uint64
+	binary.BigEndian.PutUint64(tmp[8:], len)
 	d.Write(tmp[0:16])
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
 	}
 
-	h := d.h[:]
-	if d.function == crypto.SHA384 {
-		h = d.h[:6]
-	}
-
 	var digest [Size]byte
-	for i, s := range h {
-		digest[i*8] = byte(s >> 56)
-		digest[i*8+1] = byte(s >> 48)
-		digest[i*8+2] = byte(s >> 40)
-		digest[i*8+3] = byte(s >> 32)
-		digest[i*8+4] = byte(s >> 24)
-		digest[i*8+5] = byte(s >> 16)
-		digest[i*8+6] = byte(s >> 8)
-		digest[i*8+7] = byte(s)
+	binary.BigEndian.PutUint64(digest[0:], d.h[0])
+	binary.BigEndian.PutUint64(digest[8:], d.h[1])
+	binary.BigEndian.PutUint64(digest[16:], d.h[2])
+	binary.BigEndian.PutUint64(digest[24:], d.h[3])
+	binary.BigEndian.PutUint64(digest[32:], d.h[4])
+	binary.BigEndian.PutUint64(digest[40:], d.h[5])
+	if d.function != crypto.SHA384 {
+		binary.BigEndian.PutUint64(digest[48:], d.h[6])
+		binary.BigEndian.PutUint64(digest[56:], d.h[7])
 	}
 
 	return digest

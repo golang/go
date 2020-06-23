@@ -15,7 +15,7 @@ package aes
 
 // This file contains AES constants - 8720 bytes of initialized data.
 
-// http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+// https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 
 // AES is based on the mathematical behavior of binary polynomials
 // (polynomials over GF(2)) modulo the irreducible polynomial x⁸ + x⁴ + x³ + x + 1.

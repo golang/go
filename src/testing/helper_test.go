@@ -28,11 +28,13 @@ helperfuncs_test.go:33: 1
 helperfuncs_test.go:21: 2
 helperfuncs_test.go:35: 3
 helperfuncs_test.go:42: 4
-helperfuncs_test.go:47: 5
 --- FAIL: Test/sub (?s)
-helperfuncs_test.go:50: 6
-helperfuncs_test.go:21: 7
-helperfuncs_test.go:53: 8
+helperfuncs_test.go:45: 5
+helperfuncs_test.go:21: 6
+helperfuncs_test.go:44: 7
+helperfuncs_test.go:56: 8
+helperfuncs_test.go:64: 9
+helperfuncs_test.go:60: 10
 `
 	lines := strings.Split(buf.String(), "\n")
 	durationRE := regexp.MustCompile(`\(.*\)$`)

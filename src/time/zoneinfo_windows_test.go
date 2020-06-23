@@ -15,13 +15,6 @@ func testZoneAbbr(t *testing.T) {
 	// discard nsec
 	t1 = Date(t1.Year(), t1.Month(), t1.Day(), t1.Hour(), t1.Minute(), t1.Second(), 0, t1.Location())
 
-	// Skip the test if we're in a timezone with no abbreviation.
-	// Format will fallback to the numeric abbreviation, and
-	// Parse(RFC1123, ..) will fail (see Issue 21183).
-	if tz := t1.Format("MST"); tz[0] == '-' || tz[0] == '+' {
-		t.Skip("No zone abbreviation")
-	}
-
 	t2, err := Parse(RFC1123, t1.Format(RFC1123))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
@@ -31,14 +24,14 @@ func testZoneAbbr(t *testing.T) {
 	}
 }
 
-func TestLocalZoneAbbr(t *testing.T) {
-	ResetLocalOnceForTest() // reset the Once to trigger the race
+func TestUSPacificZoneAbbr(t *testing.T) {
+	ForceUSPacificFromTZIForTesting() // reset the Once to trigger the race
 	defer ForceUSPacificForTesting()
 	testZoneAbbr(t)
 }
 
 func TestAusZoneAbbr(t *testing.T) {
-	ForceAusForTesting()
+	ForceAusFromTZIForTesting()
 	defer ForceUSPacificForTesting()
 	testZoneAbbr(t)
 }

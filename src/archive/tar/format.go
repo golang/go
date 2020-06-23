@@ -41,6 +41,8 @@ import "strings"
 // The table's lower portion shows specialized features of each format,
 // such as supported string encodings, support for sub-second timestamps,
 // or support for sparse files.
+//
+// The Writer currently provides no support for sparse files.
 type Format int
 
 // Constants to identify various tar formats.
@@ -92,7 +94,7 @@ const (
 	// application can only parse GNU formatted archives.
 	//
 	// Reference:
-	//	http://www.gnu.org/software/tar/manual/html_node/Standard.html
+	//	https://www.gnu.org/software/tar/manual/html_node/Standard.html
 	FormatGNU
 
 	// Schily's tar format, which is incompatible with USTAR.
@@ -158,7 +160,7 @@ func (b *block) V7() *headerV7       { return (*headerV7)(b) }
 func (b *block) GNU() *headerGNU     { return (*headerGNU)(b) }
 func (b *block) STAR() *headerSTAR   { return (*headerSTAR)(b) }
 func (b *block) USTAR() *headerUSTAR { return (*headerUSTAR)(b) }
-func (b *block) Sparse() sparseArray { return (sparseArray)(b[:]) }
+func (b *block) Sparse() sparseArray { return sparseArray(b[:]) }
 
 // GetFormat checks that the block is a valid tar header based on the checksum.
 // It then attempts to guess the specific format based on magic values.
@@ -227,7 +229,7 @@ func (b *block) ComputeChecksum() (unsigned, signed int64) {
 		if 148 <= i && i < 156 {
 			c = ' ' // Treat the checksum field itself as all spaces.
 		}
-		unsigned += int64(uint8(c))
+		unsigned += int64(c)
 		signed += int64(int8(c))
 	}
 	return unsigned, signed
@@ -261,7 +263,7 @@ func (h *headerGNU) DevMajor() []byte    { return h[329:][:8] }
 func (h *headerGNU) DevMinor() []byte    { return h[337:][:8] }
 func (h *headerGNU) AccessTime() []byte  { return h[345:][:12] }
 func (h *headerGNU) ChangeTime() []byte  { return h[357:][:12] }
-func (h *headerGNU) Sparse() sparseArray { return (sparseArray)(h[386:][:24*4+1]) }
+func (h *headerGNU) Sparse() sparseArray { return sparseArray(h[386:][:24*4+1]) }
 func (h *headerGNU) RealSize() []byte    { return h[483:][:12] }
 
 type headerSTAR [blockSize]byte
@@ -291,7 +293,7 @@ func (h *headerUSTAR) Prefix() []byte    { return h[345:][:155] }
 
 type sparseArray []byte
 
-func (s sparseArray) Entry(i int) sparseElem { return (sparseElem)(s[i*24:]) }
+func (s sparseArray) Entry(i int) sparseElem { return sparseElem(s[i*24:]) }
 func (s sparseArray) IsExtended() []byte     { return s[24*s.MaxEntries():][:1] }
 func (s sparseArray) MaxEntries() int        { return len(s) / 24 }
 

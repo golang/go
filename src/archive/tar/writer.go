@@ -5,12 +5,10 @@
 package tar
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -40,20 +38,20 @@ type fileWriter interface {
 	io.Writer
 	fileState
 
-	FillZeros(n int64) (int64, error)
+	ReadFrom(io.Reader) (int64, error)
 }
 
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
 //
-// Deprecated: This is unnecessary as the next call to WriteHeader or Close
+// This is unnecessary as the next call to WriteHeader or Close
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.err != nil {
 		return tw.err
 	}
-	if nb := tw.curr.Remaining(); nb > 0 {
-		return fmt.Errorf("tar: missed writing %d bytes", nb)
+	if nb := tw.curr.LogicalRemaining(); nb > 0 {
+		return fmt.Errorf("archive/tar: missed writing %d bytes", nb)
 	}
 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
 		return tw.err
@@ -70,8 +68,29 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-
 	tw.hdr = *hdr // Shallow copy of Header
+
+	// Avoid usage of the legacy TypeRegA flag, and automatically promote
+	// it to use TypeReg or TypeDir.
+	if tw.hdr.Typeflag == TypeRegA {
+		if strings.HasSuffix(tw.hdr.Name, "/") {
+			tw.hdr.Typeflag = TypeDir
+		} else {
+			tw.hdr.Typeflag = TypeReg
+		}
+	}
+
+	// Round ModTime and ignore AccessTime and ChangeTime unless
+	// the format is explicitly chosen.
+	// This ensures nominal usage of WriteHeader (without specifying the format)
+	// does not always result in the PAX format being chosen, which
+	// causes a 1KiB increase to every header.
+	if tw.hdr.Format == FormatUnknown {
+		tw.hdr.ModTime = tw.hdr.ModTime.Round(time.Second)
+		tw.hdr.AccessTime = time.Time{}
+		tw.hdr.ChangeTime = time.Time{}
+	}
+
 	allowedFormats, paxHdrs, err := tw.hdr.allowedFormats()
 	switch {
 	case allowedFormats.has(FormatUSTAR):
@@ -109,36 +128,41 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
 func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	realName, realSize := hdr.Name, hdr.Size
 
-	// Handle sparse files.
-	var spd sparseDatas
-	var spb []byte
-	if len(hdr.SparseHoles) > 0 {
-		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
-		sph = alignSparseEntries(sph, hdr.Size)
-		spd = invertSparseEntries(sph, hdr.Size)
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		// Handle sparse files.
+		var spd sparseDatas
+		var spb []byte
+		if len(hdr.SparseHoles) > 0 {
+			sph := append([]sparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+			sph = alignSparseEntries(sph, hdr.Size)
+			spd = invertSparseEntries(sph, hdr.Size)
 
-		// Format the sparse map.
-		hdr.Size = 0 // Replace with encoded size
-		spb = append(strconv.AppendInt(spb, int64(len(spd)), 10), '\n')
-		for _, s := range spd {
-			hdr.Size += s.Length
-			spb = append(strconv.AppendInt(spb, s.Offset, 10), '\n')
-			spb = append(strconv.AppendInt(spb, s.Length, 10), '\n')
+			// Format the sparse map.
+			hdr.Size = 0 // Replace with encoded size
+			spb = append(strconv.AppendInt(spb, int64(len(spd)), 10), '\n')
+			for _, s := range spd {
+				hdr.Size += s.Length
+				spb = append(strconv.AppendInt(spb, s.Offset, 10), '\n')
+				spb = append(strconv.AppendInt(spb, s.Length, 10), '\n')
+			}
+			pad := blockPadding(int64(len(spb)))
+			spb = append(spb, zeroBlock[:pad]...)
+			hdr.Size += int64(len(spb)) // Accounts for encoded sparse map
+
+			// Add and modify appropriate PAX records.
+			dir, file := path.Split(realName)
+			hdr.Name = path.Join(dir, "GNUSparseFile.0", file)
+			paxHdrs[paxGNUSparseMajor] = "1"
+			paxHdrs[paxGNUSparseMinor] = "0"
+			paxHdrs[paxGNUSparseName] = realName
+			paxHdrs[paxGNUSparseRealSize] = strconv.FormatInt(realSize, 10)
+			paxHdrs[paxSize] = strconv.FormatInt(hdr.Size, 10)
+			delete(paxHdrs, paxPath) // Recorded by paxGNUSparseName
 		}
-		pad := blockPadding(int64(len(spb)))
-		spb = append(spb, zeroBlock[:pad]...)
-		hdr.Size += int64(len(spb)) // Accounts for encoded sparse map
-
-		// Add and modify appropriate PAX records.
-		dir, file := path.Split(realName)
-		hdr.Name = path.Join(dir, "GNUSparseFile.0", file)
-		paxHdrs[paxGNUSparseMajor] = "1"
-		paxHdrs[paxGNUSparseMinor] = "0"
-		paxHdrs[paxGNUSparseName] = realName
-		paxHdrs[paxGNUSparseRealSize] = strconv.FormatInt(realSize, 10)
-		paxHdrs[paxSize] = strconv.FormatInt(hdr.Size, 10)
-		delete(paxHdrs, paxPath) // Recorded by paxGNUSparseName
-	}
+	*/
+	_ = realSize
 
 	// Write PAX records to the output.
 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
@@ -151,7 +175,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		sort.Strings(keys)
 
 		// Write each record to a buffer.
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, k := range keys {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {
@@ -164,7 +188,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		var name string
 		var flag byte
 		if isGlobal {
-			name = "GlobalHead.0.0"
+			name = realName
+			if name == "" {
+				name = "GlobalHead.0.0"
+			}
 			flag = TypeXGlobalHeader
 		} else {
 			dir, file := path.Split(realName)
@@ -186,14 +213,18 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 		return err
 	}
 
-	// Write the sparse map and setup the sparse writer if necessary.
-	if len(spd) > 0 {
-		// Use tw.curr since the sparse map is accounted for in hdr.Size.
-		if _, err := tw.curr.Write(spb); err != nil {
-			return err
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		// Write the sparse map and setup the sparse writer if necessary.
+		if len(spd) > 0 {
+			// Use tw.curr since the sparse map is accounted for in hdr.Size.
+			if _, err := tw.curr.Write(spb); err != nil {
+				return err
+			}
+			tw.curr = &sparseFileWriter{tw.curr, spd, 0}
 		}
-		tw.curr = &sparseFileWriter{tw.curr, spd, 0}
-	}
+	*/
 	return nil
 }
 
@@ -224,40 +255,44 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
 	if !hdr.ChangeTime.IsZero() {
 		f.formatNumeric(blk.GNU().ChangeTime(), hdr.ChangeTime.Unix())
 	}
-	if hdr.Typeflag == TypeGNUSparse {
-		sph := append([]SparseEntry{}, hdr.SparseHoles...) // Copy sparse map
-		sph = alignSparseEntries(sph, hdr.Size)
-		spd = invertSparseEntries(sph, hdr.Size)
+	// TODO(dsnet): Re-enable this when adding sparse support.
+	// See https://golang.org/issue/22735
+	/*
+		if hdr.Typeflag == TypeGNUSparse {
+			sph := append([]sparseEntry{}, hdr.SparseHoles...) // Copy sparse map
+			sph = alignSparseEntries(sph, hdr.Size)
+			spd = invertSparseEntries(sph, hdr.Size)
 
-		// Format the sparse map.
-		formatSPD := func(sp sparseDatas, sa sparseArray) sparseDatas {
-			for i := 0; len(sp) > 0 && i < sa.MaxEntries(); i++ {
-				f.formatNumeric(sa.Entry(i).Offset(), sp[0].Offset)
-				f.formatNumeric(sa.Entry(i).Length(), sp[0].Length)
-				sp = sp[1:]
+			// Format the sparse map.
+			formatSPD := func(sp sparseDatas, sa sparseArray) sparseDatas {
+				for i := 0; len(sp) > 0 && i < sa.MaxEntries(); i++ {
+					f.formatNumeric(sa.Entry(i).Offset(), sp[0].Offset)
+					f.formatNumeric(sa.Entry(i).Length(), sp[0].Length)
+					sp = sp[1:]
+				}
+				if len(sp) > 0 {
+					sa.IsExtended()[0] = 1
+				}
+				return sp
 			}
-			if len(sp) > 0 {
-				sa.IsExtended()[0] = 1
+			sp2 := formatSPD(spd, blk.GNU().Sparse())
+			for len(sp2) > 0 {
+				var spHdr block
+				sp2 = formatSPD(sp2, spHdr.Sparse())
+				spb = append(spb, spHdr[:]...)
 			}
-			return sp
-		}
-		sp2 := formatSPD(spd, blk.GNU().Sparse())
-		for len(sp2) > 0 {
-			var spHdr block
-			sp2 = formatSPD(sp2, spHdr.Sparse())
-			spb = append(spb, spHdr[:]...)
-		}
 
-		// Update size fields in the header block.
-		realSize := hdr.Size
-		hdr.Size = 0 // Encoded size; does not account for encoded sparse map
-		for _, s := range spd {
-			hdr.Size += s.Length
+			// Update size fields in the header block.
+			realSize := hdr.Size
+			hdr.Size = 0 // Encoded size; does not account for encoded sparse map
+			for _, s := range spd {
+				hdr.Size += s.Length
+			}
+			copy(blk.V7().Size(), zeroBlock[:]) // Reset field
+			f.formatNumeric(blk.V7().Size(), hdr.Size)
+			f.formatNumeric(blk.GNU().RealSize(), realSize)
 		}
-		copy(blk.V7().Size(), zeroBlock[:]) // Reset field
-		f.formatNumeric(blk.V7().Size(), hdr.Size)
-		f.formatNumeric(blk.GNU().RealSize(), realSize)
-	}
+	*/
 	blk.SetFormat(FormatGNU)
 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
 		return err
@@ -323,6 +358,7 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format Format) erro
 	if len(name) > nameSize {
 		name = name[:nameSize]
 	}
+	name = strings.TrimRight(name, "/")
 
 	var f formatter
 	v7 := tw.blk.V7()
@@ -389,10 +425,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 // Write returns the error ErrWriteTooLong if more than
 // Header.Size bytes are written after WriteHeader.
 //
-// If the current file is sparse, then the regions marked as a hole
-// must be written as NUL-bytes.
-//
-// Calling Write on special types like TypeLink, TypeSymLink, TypeChar,
+// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
 // TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
 // of what the Header.Size claims.
 func (tw *Writer) Write(b []byte) (int, error) {
@@ -406,19 +439,21 @@ func (tw *Writer) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// TODO(dsnet): Export the Writer.FillZeros method to assist in quickly zeroing
-// out sections of a file. This is especially useful for efficiently
-// skipping over large holes in a sparse file.
-
-// fillZeros writes n bytes of zeros to the current file,
-// returning the number of bytes written.
-// If fewer than n bytes are discarded, it returns an non-nil error,
-// which may be ErrWriteTooLong if the current file is complete.
-func (tw *Writer) fillZeros(n int64) (int64, error) {
+// readFrom populates the content of the current file by reading from r.
+// The bytes read must match the number of remaining bytes in the current file.
+//
+// If the current file is sparse and r is an io.ReadSeeker,
+// then readFrom uses Seek to skip past holes defined in Header.SparseHoles,
+// assuming that skipped regions are all NULs.
+// This always reads the last byte to ensure r is the right size.
+//
+// TODO(dsnet): Re-export this when adding sparse file support.
+// See https://golang.org/issue/22735
+func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 	if tw.err != nil {
 		return 0, tw.err
 	}
-	n, err := tw.curr.FillZeros(n)
+	n, err := tw.curr.ReadFrom(r)
 	if err != nil && err != ErrWriteTooLong {
 		tw.err = err
 	}
@@ -453,13 +488,15 @@ type regFileWriter struct {
 	nb int64     // Number of remaining bytes to write
 }
 
-func (fw *regFileWriter) Write(b []byte) (int, error) {
+func (fw *regFileWriter) Write(b []byte) (n int, err error) {
 	overwrite := int64(len(b)) > fw.nb
 	if overwrite {
 		b = b[:fw.nb]
 	}
-	n, err := fw.w.Write(b)
-	fw.nb -= int64(n)
+	if len(b) > 0 {
+		n, err = fw.w.Write(b)
+		fw.nb -= int64(n)
+	}
 	switch {
 	case err != nil:
 		return n, err
@@ -470,11 +507,14 @@ func (fw *regFileWriter) Write(b []byte) (int, error) {
 	}
 }
 
-func (fw *regFileWriter) FillZeros(n int64) (int64, error) {
-	return io.CopyN(fw, zeroReader{}, n)
+func (fw *regFileWriter) ReadFrom(r io.Reader) (int64, error) {
+	return io.Copy(struct{ io.Writer }{fw}, r)
 }
 
-func (fw regFileWriter) Remaining() int64 {
+func (fw regFileWriter) LogicalRemaining() int64 {
+	return fw.nb
+}
+func (fw regFileWriter) PhysicalRemaining() int64 {
 	return fw.nb
 }
 
@@ -486,9 +526,9 @@ type sparseFileWriter struct {
 }
 
 func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
-	overwrite := int64(len(b)) > sw.Remaining()
+	overwrite := int64(len(b)) > sw.LogicalRemaining()
 	if overwrite {
-		b = b[:sw.Remaining()]
+		b = b[:sw.LogicalRemaining()]
 	}
 
 	b0 := b
@@ -516,7 +556,7 @@ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
 		return n, errMissData // Not possible; implies bug in validation logic
 	case err != nil:
 		return n, err
-	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
+	case sw.LogicalRemaining() == 0 && sw.PhysicalRemaining() > 0:
 		return n, errUnrefData // Not possible; implies bug in validation logic
 	case overwrite:
 		return n, ErrWriteTooLong
@@ -525,22 +565,32 @@ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
 	}
 }
 
-func (sw *sparseFileWriter) FillZeros(n int64) (int64, error) {
-	overwrite := n > sw.Remaining()
-	if overwrite {
-		n = sw.Remaining()
+func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
+	rs, ok := r.(io.ReadSeeker)
+	if ok {
+		if _, err := rs.Seek(0, io.SeekCurrent); err != nil {
+			ok = false // Not all io.Seeker can really seek
+		}
+	}
+	if !ok {
+		return io.Copy(struct{ io.Writer }{sw}, r)
 	}
 
-	var realFill int64 // Number of real data bytes to fill
-	endPos := sw.pos + n
-	for endPos > sw.pos {
+	var readLastByte bool
+	pos0 := sw.pos
+	for sw.LogicalRemaining() > 0 && !readLastByte && err == nil {
 		var nf int64 // Size of fragment
 		dataStart, dataEnd := sw.sp[0].Offset, sw.sp[0].endOffset()
 		if sw.pos < dataStart { // In a hole fragment
-			nf = min(endPos-sw.pos, dataStart-sw.pos)
+			nf = dataStart - sw.pos
+			if sw.PhysicalRemaining() == 0 {
+				readLastByte = true
+				nf--
+			}
+			_, err = rs.Seek(nf, io.SeekCurrent)
 		} else { // In a data fragment
-			nf = min(endPos-sw.pos, dataEnd-sw.pos)
-			realFill += nf
+			nf = dataEnd - sw.pos
+			nf, err = io.CopyN(sw.fw, rs, nf)
 		}
 		sw.pos += nf
 		if sw.pos >= dataEnd && len(sw.sp) > 1 {
@@ -548,23 +598,33 @@ func (sw *sparseFileWriter) FillZeros(n int64) (int64, error) {
 		}
 	}
 
-	_, err := sw.fw.FillZeros(realFill)
+	// If the last fragment is a hole, then seek to 1-byte before EOF, and
+	// read a single byte to ensure the file is the right size.
+	if readLastByte && err == nil {
+		_, err = mustReadFull(rs, []byte{0})
+		sw.pos++
+	}
+
+	n = sw.pos - pos0
 	switch {
+	case err == io.EOF:
+		return n, io.ErrUnexpectedEOF
 	case err == ErrWriteTooLong:
 		return n, errMissData // Not possible; implies bug in validation logic
 	case err != nil:
 		return n, err
-	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
+	case sw.LogicalRemaining() == 0 && sw.PhysicalRemaining() > 0:
 		return n, errUnrefData // Not possible; implies bug in validation logic
-	case overwrite:
-		return n, ErrWriteTooLong
 	default:
-		return n, nil
+		return n, ensureEOF(rs)
 	}
 }
 
-func (sw sparseFileWriter) Remaining() int64 {
+func (sw sparseFileWriter) LogicalRemaining() int64 {
 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
+}
+func (sw sparseFileWriter) PhysicalRemaining() int64 {
+	return sw.fw.PhysicalRemaining()
 }
 
 // zeroWriter may only be written with NULs, otherwise it returns errWriteHole.
@@ -577,4 +637,17 @@ func (zeroWriter) Write(b []byte) (int, error) {
 		}
 	}
 	return len(b), nil
+}
+
+// ensureEOF checks whether r is at EOF, reporting ErrWriteTooLong if not so.
+func ensureEOF(r io.Reader) error {
+	n, err := tryReadFull(r, []byte{0})
+	switch {
+	case n > 0:
+		return ErrWriteTooLong
+	case err == io.EOF:
+		return nil
+	default:
+		return err
+	}
 }

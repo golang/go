@@ -212,14 +212,25 @@ func TestSequencing(t *testing.T) {
 	}
 }
 
-// Check that a range loop and a []int conversion visit the same runes.
+func runtimeRuneCount(s string) int {
+	return len([]rune(s)) // Replaced by gc with call to runtime.countrunes(s).
+}
+
+// Check that a range loop, len([]rune(string)) optimization and
+// []rune conversions visit the same runes.
 // Not really a test of this package, but the assumption is used here and
-// it's good to verify
-func TestIntConversion(t *testing.T) {
+// it's good to verify.
+func TestRuntimeConversion(t *testing.T) {
 	for _, ts := range testStrings {
+		count := RuneCountInString(ts)
+		if n := runtimeRuneCount(ts); n != count {
+			t.Errorf("%q: len([]rune()) counted %d runes; got %d from RuneCountInString", ts, n, count)
+			break
+		}
+
 		runes := []rune(ts)
-		if RuneCountInString(ts) != len(runes) {
-			t.Errorf("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
+		if n := len(runes); n != count {
+			t.Errorf("%q: []rune() has length %d; got %d from RuneCountInString", ts, n, count)
 			break
 		}
 		i := 0

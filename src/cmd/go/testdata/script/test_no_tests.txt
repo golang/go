@@ -1,0 +1,11 @@
+# Tests issue #26242
+
+go test testnorun
+stdout 'testnorun\t\[no test files\]'
+
+-- testnorun/p.go --
+package p
+
+func init() {
+	panic("go test must not link and run test binaries without tests")
+}

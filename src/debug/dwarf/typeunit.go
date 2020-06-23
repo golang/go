@@ -38,16 +38,11 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			b.error("unsupported DWARF version " + strconv.Itoa(vers))
 			return b.err
 		}
-		var ao uint32
+		var ao uint64
 		if !dwarf64 {
-			ao = b.uint32()
+			ao = uint64(b.uint32())
 		} else {
-			ao64 := b.uint64()
-			if ao64 != uint64(uint32(ao64)) {
-				b.error("type unit abbrev offset overflow")
-				return b.err
-			}
-			ao = uint32(ao64)
+			ao = b.uint64()
 		}
 		atable, err := d.parseAbbrev(ao, vers)
 		if err != nil {
@@ -142,7 +137,7 @@ func (tur *typeUnitReader) Next() (*Entry, error) {
 	if len(tur.tu.data) == 0 {
 		return nil, nil
 	}
-	e := tur.b.entry(tur.tu.atable, tur.tu.base)
+	e := tur.b.entry(nil, tur.tu.atable, tur.tu.base, tur.tu.vers)
 	if tur.b.err != nil {
 		tur.err = tur.b.err
 		return nil, tur.err

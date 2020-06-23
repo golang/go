@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd !android,linux netbsd openbsd solaris
-// +build cgo
+// +build aix darwin dragonfly freebsd !android,linux netbsd openbsd solaris
+// +build cgo,!osusergo
 
 package user
 
@@ -94,9 +94,8 @@ func lookupUnixUid(uid int) (*User, error) {
 	defer buf.free()
 
 	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetpwuid_r is a wrapper around getpwuid_r to
-		// to avoid using uid_t because C.uid_t(uid) for
-		// unknown reasons doesn't work on linux.
+		// mygetpwuid_r is a wrapper around getpwuid_r to avoid using uid_t
+		// because C.uid_t(uid) for unknown reasons doesn't work on linux.
 		return syscall.Errno(C.mygetpwuid_r(C.int(uid),
 			&pwd,
 			(*C.char)(buf.ptr),
@@ -114,8 +113,8 @@ func lookupUnixUid(uid int) (*User, error) {
 
 func buildUser(pwd *C.struct_passwd) *User {
 	u := &User{
-		Uid:      strconv.Itoa(int(pwd.pw_uid)),
-		Gid:      strconv.Itoa(int(pwd.pw_gid)),
+		Uid:      strconv.FormatUint(uint64(pwd.pw_uid), 10),
+		Gid:      strconv.FormatUint(uint64(pwd.pw_gid), 10),
 		Username: C.GoString(pwd.pw_name),
 		Name:     C.GoString(pwd.pw_gecos),
 		HomeDir:  C.GoString(pwd.pw_dir),
@@ -128,10 +127,6 @@ func buildUser(pwd *C.struct_passwd) *User {
 		u.Name = u.Name[:i]
 	}
 	return u
-}
-
-func currentGroup() (*Group, error) {
-	return lookupUnixGid(syscall.Getgid())
 }
 
 func lookupGroup(groupname string) (*Group, error) {
@@ -175,9 +170,8 @@ func lookupUnixGid(gid int) (*Group, error) {
 	defer buf.free()
 
 	err := retryWithBuffer(buf, func() syscall.Errno {
-		// mygetgrgid_r is a wrapper around getgrgid_r to
-		// to avoid using gid_t because C.gid_t(gid) for
-		// unknown reasons doesn't work on linux.
+		// mygetgrgid_r is a wrapper around getgrgid_r to avoid using gid_t
+		// because C.gid_t(gid) for unknown reasons doesn't work on linux.
 		return syscall.Errno(C.mygetgrgid_r(C.int(gid),
 			&grp,
 			(*C.char)(buf.ptr),
@@ -268,4 +262,12 @@ const maxBufferSize = 1 << 20
 
 func isSizeReasonable(sz int64) bool {
 	return sz > 0 && sz <= maxBufferSize
+}
+
+// Because we can't use cgo in tests:
+func structPasswdForNegativeTest() C.struct_passwd {
+	sp := C.struct_passwd{}
+	sp.pw_uid = 1<<32 - 2
+	sp.pw_gid = 1<<32 - 3
+	return sp
 }

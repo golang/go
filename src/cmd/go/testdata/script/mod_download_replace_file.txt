@@ -1,0 +1,16 @@
+# This test checks that 'go mod download' produces no output for
+# the main module (when specified implicitly) and for a module replaced
+# with a file path.
+# Verifies golang.org/issue/35505.
+go mod download -json all
+cmp stdout no-output
+
+-- go.mod --
+module example.com/a
+
+require example.com/b v1.0.0
+
+replace example.com/b => ./local/b
+-- local/b/go.mod --
+module example.com/b
+-- no-output --

@@ -7,46 +7,112 @@ package objabi
 import (
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 )
-
-func Flagfn2(string, string, func(string, string)) { panic("flag") }
 
 func Flagcount(name, usage string, val *int) {
 	flag.Var((*count)(val), name, usage)
-}
-
-func Flagint32(name, usage string, val *int32) {
-	flag.Var((*int32Value)(val), name, usage)
-}
-
-func Flagint64(name, usage string, val *int64) {
-	flag.Int64Var(val, name, *val, usage)
-}
-
-func Flagstr(name, usage string, val *string) {
-	flag.StringVar(val, name, *val, usage)
-}
-
-func Flagfn0(name, usage string, f func()) {
-	flag.Var(fn0(f), name, usage)
 }
 
 func Flagfn1(name, usage string, f func(string)) {
 	flag.Var(fn1(f), name, usage)
 }
 
-func Flagprint(fd int) {
-	if fd == 1 {
-		flag.CommandLine.SetOutput(os.Stdout)
-	}
+func Flagprint(w io.Writer) {
+	flag.CommandLine.SetOutput(w)
 	flag.PrintDefaults()
 }
 
 func Flagparse(usage func()) {
 	flag.Usage = usage
+	os.Args = expandArgs(os.Args)
 	flag.Parse()
+}
+
+// expandArgs expands "response files" arguments in the provided slice.
+//
+// A "response file" argument starts with '@' and the rest of that
+// argument is a filename with CR-or-CRLF-separated arguments. Each
+// argument in the named files can also contain response file
+// arguments. See Issue 18468.
+//
+// The returned slice 'out' aliases 'in' iff the input did not contain
+// any response file arguments.
+//
+// TODO: handle relative paths of recursive expansions in different directories?
+// Is there a spec for this? Are relative paths allowed?
+func expandArgs(in []string) (out []string) {
+	// out is nil until we see a "@" argument.
+	for i, s := range in {
+		if strings.HasPrefix(s, "@") {
+			if out == nil {
+				out = make([]string, 0, len(in)*2)
+				out = append(out, in[:i]...)
+			}
+			slurp, err := ioutil.ReadFile(s[1:])
+			if err != nil {
+				log.Fatal(err)
+			}
+			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
+			out = append(out, expandArgs(args)...)
+		} else if out != nil {
+			out = append(out, s)
+		}
+	}
+	if out == nil {
+		return in
+	}
+	return
+}
+
+func AddVersionFlag() {
+	flag.Var(versionFlag{}, "V", "print version and exit")
+}
+
+var buildID string // filled in by linker
+
+type versionFlag struct{}
+
+func (versionFlag) IsBoolFlag() bool { return true }
+func (versionFlag) Get() interface{} { return nil }
+func (versionFlag) String() string   { return "" }
+func (versionFlag) Set(s string) error {
+	name := os.Args[0]
+	name = name[strings.LastIndex(name, `/`)+1:]
+	name = name[strings.LastIndex(name, `\`)+1:]
+	name = strings.TrimSuffix(name, ".exe")
+
+	// If there's an active experiment, include that,
+	// to distinguish go1.10.2 with an experiment
+	// from go1.10.2 without an experiment.
+	p := Expstring()
+	if p == DefaultExpstring() {
+		p = ""
+	}
+	sep := ""
+	if p != "" {
+		sep = " "
+	}
+
+	// The go command invokes -V=full to get a unique identifier
+	// for this tool. It is assumed that the release version is sufficient
+	// for releases, but during development we include the full
+	// build ID of the binary, so that if the compiler is changed and
+	// rebuilt, we notice and rebuild all packages.
+	if s == "full" {
+		if strings.HasPrefix(Version, "devel") {
+			p += " buildID=" + buildID
+		}
+	}
+
+	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
+	os.Exit(0)
+	return nil
 }
 
 // count is a flag.Value that is like a flag.Bool and a flag.Int.
@@ -74,34 +140,15 @@ func (c *count) Set(s string) error {
 	return nil
 }
 
+func (c *count) Get() interface{} {
+	return int(*c)
+}
+
 func (c *count) IsBoolFlag() bool {
 	return true
 }
 
-type int32Value int32
-
-func (i *int32Value) Set(s string) error {
-	v, err := strconv.ParseInt(s, 0, 64)
-	*i = int32Value(v)
-	return err
-}
-
-func (i *int32Value) Get() interface{} { return int32(*i) }
-
-func (i *int32Value) String() string { return fmt.Sprint(*i) }
-
-type fn0 func()
-
-func (f fn0) Set(s string) error {
-	f()
-	return nil
-}
-
-func (f fn0) Get() interface{} { return nil }
-
-func (f fn0) String() string { return "" }
-
-func (f fn0) IsBoolFlag() bool {
+func (c *count) IsCountFlag() bool {
 	return true
 }
 

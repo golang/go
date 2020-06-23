@@ -702,8 +702,8 @@ func _() {
 	//line foo:2
 	_ = 2
 
-	// The following is not a legal line directive (negative line number):
-	//line foo:-3
+	// The following is not a legal line directive (missing colon):
+//line foo -3
 	_ = 3
 }
 
@@ -726,6 +726,34 @@ func _() {
 	   line 2:
 	   line 3:
 	*/
+}
+
+var _ = []T{ /* lone comment */ }
+
+var _ = []T{
+	/* lone comment */
+}
+
+var _ = []T{
+	// lone comments
+	// in composite lit
+}
+
+var _ = [][]T{
+	{
+		// lone comments
+		// in composite lit
+	},
+}
+
+// TODO: gofmt doesn't add these tabs; make it so that these golden
+// tests run the printer in a way that it's exactly like gofmt.
+
+var _ = []T{	// lone comment
+}
+
+var _ = []T{	// lone comments
+	// in composite lit
 }
 
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

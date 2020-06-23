@@ -13,41 +13,6 @@ import (
 	"testing"
 )
 
-type canonicalHeaderKeyTest struct {
-	in, out string
-}
-
-var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
-	{"a-b-c", "A-B-C"},
-	{"a-1-c", "A-1-C"},
-	{"User-Agent", "User-Agent"},
-	{"uSER-aGENT", "User-Agent"},
-	{"user-agent", "User-Agent"},
-	{"USER-AGENT", "User-Agent"},
-
-	// Other valid tchar bytes in tokens:
-	{"foo-bar_baz", "Foo-Bar_baz"},
-	{"foo-bar$baz", "Foo-Bar$baz"},
-	{"foo-bar~baz", "Foo-Bar~baz"},
-	{"foo-bar*baz", "Foo-Bar*baz"},
-
-	// Non-ASCII or anything with spaces or non-token chars is unchanged:
-	{"üser-agenT", "üser-agenT"},
-	{"a B", "a B"},
-
-	// This caused a panic due to mishandling of a space:
-	{"C Ontent-Transfer-Encoding", "C Ontent-Transfer-Encoding"},
-	{"foo bar", "foo bar"},
-}
-
-func TestCanonicalMIMEHeaderKey(t *testing.T) {
-	for _, tt := range canonicalHeaderKeyTests {
-		if s := CanonicalMIMEHeaderKey(tt.in); s != tt.out {
-			t.Errorf("CanonicalMIMEHeaderKey(%q) = %q, want %q", tt.in, s, tt.out)
-		}
-	}
-}
-
 func reader(s string) *Reader {
 	return NewReader(bufio.NewReader(strings.NewReader(s)))
 }
@@ -188,11 +153,10 @@ func TestLargeReadMIMEHeader(t *testing.T) {
 	}
 }
 
-// Test that we read slightly-bogus MIME headers seen in the wild,
-// with spaces before colons, and spaces in keys.
+// TestReadMIMEHeaderNonCompliant checks that we don't normalize headers
+// with spaces before colons, and accept spaces in keys.
 func TestReadMIMEHeaderNonCompliant(t *testing.T) {
-	// Invalid HTTP response header as sent by an Axis security
-	// camera: (this is handled by IE, Firefox, Chrome, curl, etc.)
+	// These invalid headers will be rejected by net/http according to RFC 7230.
 	r := reader("Foo: bar\r\n" +
 		"Content-Language: en\r\n" +
 		"SID : 0\r\n" +
@@ -202,12 +166,34 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 	want := MIMEHeader{
 		"Foo":              {"bar"},
 		"Content-Language": {"en"},
-		"Sid":              {"0"},
-		"Audio Mode":       {"None"},
-		"Privilege":        {"127"},
+		"SID ":             {"0"},
+		"Audio Mode ":      {"None"},
+		"Privilege ":       {"127"},
 	}
 	if !reflect.DeepEqual(m, want) || err != nil {
 		t.Fatalf("ReadMIMEHeader =\n%v, %v; want:\n%v", m, err, want)
+	}
+}
+
+func TestReadMIMEHeaderMalformed(t *testing.T) {
+	inputs := []string{
+		"No colon first line\r\nFoo: foo\r\n\r\n",
+		" No colon first line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tNo colon first line with leading tab\r\nFoo: foo\r\n\r\n",
+		" First: line with leading space\r\nFoo: foo\r\n\r\n",
+		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
+		"Foo: foo\r\nNo colon second line\r\n\r\n",
+		"Foo-\n\tBar: foo\r\n\r\n",
+		"Foo-\r\n\tBar: foo\r\n\r\n",
+		"Foo\r\n\t: foo\r\n\r\n",
+		"Foo-\n\tBar",
+	}
+
+	for _, input := range inputs {
+		r := reader(input)
+		if m, err := r.ReadMIMEHeader(); err == nil {
+			t.Errorf("ReadMIMEHeader(%q) = %v, %v; want nil, err", input, m, err)
+		}
 	}
 }
 
@@ -272,7 +258,7 @@ var readResponseTests = []readResponseTest{
 	},
 }
 
-// See http://www.ietf.org/rfc/rfc959.txt page 36.
+// See https://www.ietf.org/rfc/rfc959.txt page 36.
 func TestRFC959Lines(t *testing.T) {
 	for i, tt := range readResponseTests {
 		r := reader(tt.in + "\nFOLLOWING DATA")
@@ -314,12 +300,13 @@ func TestReadMultiLineError(t *testing.T) {
 	if msg != wantMsg {
 		t.Errorf("ReadResponse: msg=%q, want %q", msg, wantMsg)
 	}
-	if err.Error() != "550 "+wantMsg {
+	if err != nil && err.Error() != "550 "+wantMsg {
 		t.Errorf("ReadResponse: error=%q, want %q", err.Error(), "550 "+wantMsg)
 	}
 }
 
 func TestCommonHeaders(t *testing.T) {
+	commonHeaderOnce.Do(initCommonHeader)
 	for h := range commonHeader {
 		if h != CanonicalMIMEHeaderKey(h) {
 			t.Errorf("Non-canonical header %q in commonHeader", h)
@@ -364,31 +351,25 @@ Non-Interned: test
 
 func BenchmarkReadMIMEHeader(b *testing.B) {
 	b.ReportAllocs()
-	var buf bytes.Buffer
-	br := bufio.NewReader(&buf)
-	r := NewReader(br)
-	for i := 0; i < b.N; i++ {
-		var want int
-		var find string
-		if (i & 1) == 1 {
-			buf.WriteString(clientHeaders)
-			want = 10
-			find = "Cookie"
-		} else {
-			buf.WriteString(serverHeaders)
-			want = 9
-			find = "Via"
-		}
-		h, err := r.ReadMIMEHeader()
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(h) != want {
-			b.Fatalf("wrong number of headers: got %d, want %d", len(h), want)
-		}
-		if _, ok := h[find]; !ok {
-			b.Fatalf("did not find key %s", find)
-		}
+	for _, set := range []struct {
+		name    string
+		headers string
+	}{
+		{"client_headers", clientHeaders},
+		{"server_headers", serverHeaders},
+	} {
+		b.Run(set.name, func(b *testing.B) {
+			var buf bytes.Buffer
+			br := bufio.NewReader(&buf)
+			r := NewReader(br)
+
+			for i := 0; i < b.N; i++ {
+				buf.WriteString(set.headers)
+				if _, err := r.ReadMIMEHeader(); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 

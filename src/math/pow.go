@@ -43,10 +43,6 @@ func pow(x, y float64) float64 {
 		return 1
 	case y == 1:
 		return x
-	case y == 0.5:
-		return Sqrt(x)
-	case y == -0.5:
-		return 1 / Sqrt(x)
 	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0:
@@ -81,15 +77,13 @@ func pow(x, y float64) float64 {
 		case y > 0:
 			return Inf(1)
 		}
+	case y == 0.5:
+		return Sqrt(x)
+	case y == -0.5:
+		return 1 / Sqrt(x)
 	}
 
-	absy := y
-	flip := false
-	if absy < 0 {
-		absy = -absy
-		flip = true
-	}
-	yi, yf := Modf(absy)
+	yi, yf := Modf(Abs(y))
 	if yf != 0 && x < 0 {
 		return NaN()
 	}
@@ -147,9 +141,9 @@ func pow(x, y float64) float64 {
 	}
 
 	// ans = a1*2**ae
-	// if flip { ans = 1 / ans }
+	// if y < 0 { ans = 1 / ans }
 	// but in the opposite order
-	if flip {
+	if y < 0 {
 		a1 = 1 / a1
 		ae = -ae
 	}

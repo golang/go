@@ -19,7 +19,7 @@ func main() {
 	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds"
 	_ = [...]int{100: 0}
 
-	_ = []int{t}    // ERROR "cannot use .* as type int in array or slice literal"
-	_ = [10]int{t}  // ERROR "cannot use .* as type int in array or slice literal"
-	_ = [...]int{t} // ERROR "cannot use .* as type int in array or slice literal"
+	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal"
+	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal"
+	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal"
 }

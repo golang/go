@@ -10,6 +10,7 @@ import (
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
+	"internal/xcoff"
 	"io"
 	"io/ioutil"
 	"os"
@@ -30,14 +31,6 @@ var (
 func TestMain(m *testing.M) {
 	if !testenv.HasGoBuild() {
 		return
-	}
-
-	if runtime.GOARCH == "arm" {
-		switch runtime.GOOS {
-		case "darwin", "android", "nacl":
-		default:
-			return // skip tests due to #19811
-		}
 	}
 
 	if err := buildGoobj(); err != nil {
@@ -130,10 +123,14 @@ func buildGoobj() error {
 	if testenv.HasCGO() {
 		gopath := filepath.Join(buildDir, "gopath")
 		err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
+		if err == nil {
+			err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+		}
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(gotool, "install", "mycgo")
+		cmd := exec.Command(gotool, "install", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+		cmd.Dir = filepath.Join(gopath, "src", "mycgo")
 		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
@@ -265,6 +262,9 @@ func TestParseCGOArchive(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if mf.Symtab == nil {
+				continue
+			}
 			for _, s := range mf.Symtab.Syms {
 				switch s.Name {
 				case c1:
@@ -293,6 +293,24 @@ func TestParseCGOArchive(t *testing.T) {
 				}
 			}
 		}
+	case "aix":
+		c1 = "." + c1
+		c2 = "." + c2
+		for _, obj := range p.Native {
+			xf, err := xcoff.NewFile(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range xf.Symbols {
+				switch s.Name {
+				case c1:
+					found1 = true
+				case c2:
+					found2 = true
+				}
+			}
+		}
+
 	default:
 		for _, obj := range p.Native {
 			ef, err := elf.NewFile(obj)

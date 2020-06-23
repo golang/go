@@ -7,12 +7,15 @@ package arm
 import (
 	"fmt"
 	"math"
+	"math/bits"
 
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
+	"cmd/internal/objabi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -118,9 +121,31 @@ func genregshift(s *gc.SSAGenState, as obj.As, r0, r1, r2, r int16, typ int64) *
 	return p
 }
 
+// find a (lsb, width) pair for BFC
+// lsb must be in [0, 31], width must be in [1, 32 - lsb]
+// return (0xffffffff, 0) if v is not a binary like 0...01...10...0
+func getBFC(v uint32) (uint32, uint32) {
+	var m, l uint32
+	// BFC is not applicable with zero
+	if v == 0 {
+		return 0xffffffff, 0
+	}
+	// find the lowest set bit, for example l=2 for 0x3ffffffc
+	l = uint32(bits.TrailingZeros32(v))
+	// m-1 represents the highest set bit index, for example m=30 for 0x3ffffffc
+	m = 32 - uint32(bits.LeadingZeros32(v))
+	// check if v is a binary like 0...01...10...0
+	if (1<<m)-(1<<l) == v {
+		// it must be m > l for non-zero v
+		return l, m - l
+	}
+	// invalid
+	return 0xffffffff, 0
+}
+
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpARMMOVWconvert, ssa.OpARMMOVWreg:
+	case ssa.OpCopy, ssa.OpARMMOVWreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -182,6 +207,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMADDD,
 		ssa.OpARMSUBF,
 		ssa.OpARMSUBD,
+		ssa.OpARMSLL,
+		ssa.OpARMSRL,
+		ssa.OpARMSRA,
 		ssa.OpARMMULF,
 		ssa.OpARMMULD,
 		ssa.OpARMNMULF,
@@ -197,6 +225,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpARMSRR:
+		genregshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR)
+	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD, ssa.OpARMFMULAD:
+		r := v.Reg()
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		if r != r0 {
+			v.Fatalf("result and addend are not in the same register: %v", v.LongString())
+		}
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpARMADDS,
 		ssa.OpARMSUBS:
 		r := v.Reg0()
@@ -204,18 +248,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r2 := v.Args[1].Reg()
 		p := s.Prog(v.Op.Asm())
 		p.Scond = arm.C_SBIT
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r2
-		p.Reg = r1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpARMSLL,
-		ssa.OpARMSRL,
-		ssa.OpARMSRA:
-		r := v.Reg()
-		r1 := v.Args[0].Reg()
-		r2 := v.Args[1].Reg()
-		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
@@ -244,16 +276,46 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpARMBFX, ssa.OpARMBFXU:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt >> 8
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
+		p.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARMANDconst, ssa.OpARMBICconst:
+		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
+		// BFC is only available on ARMv7, and its result and source are in the same register
+		if objabi.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+			var val uint32
+			if v.Op == ssa.OpARMANDconst {
+				val = ^uint32(v.AuxInt)
+			} else { // BICconst
+				val = uint32(v.AuxInt)
+			}
+			lsb, width := getBFC(val)
+			// omit BFC for ARM's imm12
+			if 8 < width && width < 24 {
+				p := s.Prog(arm.ABFC)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(width)
+				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(lsb)})
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = v.Reg()
+				break
+			}
+		}
+		// fall back to ordinary form
+		fallthrough
 	case ssa.OpARMADDconst,
 		ssa.OpARMADCconst,
 		ssa.OpARMSUBconst,
 		ssa.OpARMSBCconst,
 		ssa.OpARMRSBconst,
 		ssa.OpARMRSCconst,
-		ssa.OpARMANDconst,
 		ssa.OpARMORconst,
 		ssa.OpARMXORconst,
-		ssa.OpARMBICconst,
 		ssa.OpARMSLLconst,
 		ssa.OpARMSRLconst,
 		ssa.OpARMSRAconst:
@@ -451,17 +513,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-	case ssa.OpARMCMPshiftLL:
+	case ssa.OpARMCMPshiftLL, ssa.OpARMCMNshiftLL, ssa.OpARMTSTshiftLL, ssa.OpARMTEQshiftLL:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LL, v.AuxInt)
-	case ssa.OpARMCMPshiftRL:
+	case ssa.OpARMCMPshiftRL, ssa.OpARMCMNshiftRL, ssa.OpARMTSTshiftRL, ssa.OpARMTEQshiftRL:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LR, v.AuxInt)
-	case ssa.OpARMCMPshiftRA:
+	case ssa.OpARMCMPshiftRA, ssa.OpARMCMNshiftRA, ssa.OpARMTSTshiftRA, ssa.OpARMTEQshiftRA:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_AR, v.AuxInt)
-	case ssa.OpARMCMPshiftLLreg:
+	case ssa.OpARMCMPshiftLLreg, ssa.OpARMCMNshiftLLreg, ssa.OpARMTSTshiftLLreg, ssa.OpARMTEQshiftLLreg:
 		genregshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg(), 0, arm.SHIFT_LL)
-	case ssa.OpARMCMPshiftRLreg:
+	case ssa.OpARMCMPshiftRLreg, ssa.OpARMCMNshiftRLreg, ssa.OpARMTSTshiftRLreg, ssa.OpARMTEQshiftRLreg:
 		genregshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg(), 0, arm.SHIFT_LR)
-	case ssa.OpARMCMPshiftRAreg:
+	case ssa.OpARMCMPshiftRAreg, ssa.OpARMCMNshiftRAreg, ssa.OpARMTSTshiftRAreg, ssa.OpARMTEQshiftRAreg:
 		genregshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg(), 0, arm.SHIFT_AR)
 	case ssa.OpARMMOVWaddr:
 		p := s.Prog(arm.AMOVW)
@@ -479,10 +541,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		switch v.Aux.(type) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *ssa.ExternSymbol:
+		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+		case *gc.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -582,14 +644,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			default:
 			}
 		}
+		if objabi.GOARM >= 6 {
+			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
+			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+			return
+		}
 		fallthrough
 	case ssa.OpARMMVN,
 		ssa.OpARMCLZ,
 		ssa.OpARMREV,
+		ssa.OpARMREV16,
 		ssa.OpARMRBIT,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
 		ssa.OpARMNEGD,
+		ssa.OpARMABSD,
 		ssa.OpARMMOVWF,
 		ssa.OpARMMOVWD,
 		ssa.OpARMMOVFW,
@@ -632,6 +701,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.Udiv
+	case ssa.OpARMLoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(8) // space used in callee args area by assembly stubs
+	case ssa.OpARMLoweredPanicExtendA, ssa.OpARMLoweredPanicExtendB, ssa.OpARMLoweredPanicExtendC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+		s.UseArgs(12) // space used in callee args area by assembly stubs
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
@@ -652,6 +738,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm.REGTMP
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
@@ -756,12 +845,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMLoweredGetClosurePtr:
 		// Closure pointer is R7 (arm.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)
-	case ssa.OpARMFlagEQ,
-		ssa.OpARMFlagLT_ULT,
-		ssa.OpARMFlagLT_UGT,
-		ssa.OpARMFlagGT_ULT,
-		ssa.OpARMFlagGT_UGT:
-		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+	case ssa.OpARMLoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(arm.AMOVW)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARMLoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARMFlagConstant:
+		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
 	case ssa.OpARMInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpClobber:
@@ -787,16 +884,30 @@ var condBits = map[ssa.Op]uint8{
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockARMEQ:  {arm.ABEQ, arm.ABNE},
-	ssa.BlockARMNE:  {arm.ABNE, arm.ABEQ},
-	ssa.BlockARMLT:  {arm.ABLT, arm.ABGE},
-	ssa.BlockARMGE:  {arm.ABGE, arm.ABLT},
-	ssa.BlockARMLE:  {arm.ABLE, arm.ABGT},
-	ssa.BlockARMGT:  {arm.ABGT, arm.ABLE},
-	ssa.BlockARMULT: {arm.ABLO, arm.ABHS},
-	ssa.BlockARMUGE: {arm.ABHS, arm.ABLO},
-	ssa.BlockARMUGT: {arm.ABHI, arm.ABLS},
-	ssa.BlockARMULE: {arm.ABLS, arm.ABHI},
+	ssa.BlockARMEQ:     {arm.ABEQ, arm.ABNE},
+	ssa.BlockARMNE:     {arm.ABNE, arm.ABEQ},
+	ssa.BlockARMLT:     {arm.ABLT, arm.ABGE},
+	ssa.BlockARMGE:     {arm.ABGE, arm.ABLT},
+	ssa.BlockARMLE:     {arm.ABLE, arm.ABGT},
+	ssa.BlockARMGT:     {arm.ABGT, arm.ABLE},
+	ssa.BlockARMULT:    {arm.ABLO, arm.ABHS},
+	ssa.BlockARMUGE:    {arm.ABHS, arm.ABLO},
+	ssa.BlockARMUGT:    {arm.ABHI, arm.ABLS},
+	ssa.BlockARMULE:    {arm.ABLS, arm.ABHI},
+	ssa.BlockARMLTnoov: {arm.ABMI, arm.ABPL},
+	ssa.BlockARMGEnoov: {arm.ABPL, arm.ABMI},
+}
+
+// To model a 'LEnoov' ('<=' without overflow checking) branching
+var leJumps = [2][2]gc.IndexJump{
+	{{Jump: arm.ABEQ, Index: 0}, {Jump: arm.ABPL, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm.ABMI, Index: 0}, {Jump: arm.ABEQ, Index: 0}}, // next == b.Succs[1]
+}
+
+// To model a 'GTnoov' ('>' without overflow checking) branching
+var gtJumps = [2][2]gc.IndexJump{
+	{{Jump: arm.ABMI, Index: 1}, {Jump: arm.ABEQ, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm.ABEQ, Index: 1}, {Jump: arm.ABPL, Index: 0}}, // next == b.Succs[1]
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -826,7 +937,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
@@ -841,28 +951,31 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		ssa.BlockARMLT, ssa.BlockARMGE,
 		ssa.BlockARMLE, ssa.BlockARMGT,
 		ssa.BlockARMULT, ssa.BlockARMUGT,
-		ssa.BlockARMULE, ssa.BlockARMUGE:
+		ssa.BlockARMULE, ssa.BlockARMUGE,
+		ssa.BlockARMLTnoov, ssa.BlockARMGEnoov:
 		jmp := blockJump[b.Kind]
-		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
 
+	case ssa.BlockARMLEnoov:
+		s.CombJump(b, next, &leJumps)
+
+	case ssa.BlockARMGTnoov:
+		s.CombJump(b, next, &gtJumps)
+
 	default:
-		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }

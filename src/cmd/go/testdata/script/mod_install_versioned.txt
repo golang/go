@@ -1,0 +1,12 @@
+env GO111MODULE=on
+
+go list -f '{{.Target}}' rsc.io/fortune
+! stdout fortune@v1
+stdout 'fortune(\.exe)?$'
+
+go list -f '{{.Target}}' rsc.io/fortune/v2
+! stdout v2
+stdout 'fortune(\.exe)?$'
+
+-- go.mod --
+module m

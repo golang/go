@@ -48,10 +48,13 @@ func BenchmarkSignP256(b *testing.B) {
 	hashed := []byte("testing")
 	priv, _ := GenerateKey(p256, rand.Reader)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _, _ = Sign(rand.Reader, priv, hashed)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _, _ = Sign(rand.Reader, priv, hashed)
+		}
+	})
 }
 
 func BenchmarkSignP384(b *testing.B) {
@@ -60,10 +63,13 @@ func BenchmarkSignP384(b *testing.B) {
 	hashed := []byte("testing")
 	priv, _ := GenerateKey(p384, rand.Reader)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _, _ = Sign(rand.Reader, priv, hashed)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _, _ = Sign(rand.Reader, priv, hashed)
+		}
+	})
 }
 
 func BenchmarkVerifyP256(b *testing.B) {
@@ -73,20 +79,26 @@ func BenchmarkVerifyP256(b *testing.B) {
 	priv, _ := GenerateKey(p256, rand.Reader)
 	r, s, _ := Sign(rand.Reader, priv, hashed)
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		Verify(&priv.PublicKey, hashed, r, s)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Verify(&priv.PublicKey, hashed, r, s)
+		}
+	})
 }
 
 func BenchmarkKeyGeneration(b *testing.B) {
 	b.ResetTimer()
 	p256 := elliptic.P256()
 
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		GenerateKey(p256, rand.Reader)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			GenerateKey(p256, rand.Reader)
+		}
+	})
 }
 
 func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
@@ -117,6 +129,36 @@ func TestSignAndVerify(t *testing.T) {
 	testSignAndVerify(t, elliptic.P256(), "p256")
 	testSignAndVerify(t, elliptic.P384(), "p384")
 	testSignAndVerify(t, elliptic.P521(), "p521")
+}
+
+func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	sig, err := SignASN1(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if !VerifyASN1(&priv.PublicKey, hashed, sig) {
+		t.Errorf("%s: VerifyASN1 failed", tag)
+	}
+
+	hashed[0] ^= 0xff
+	if VerifyASN1(&priv.PublicKey, hashed, sig) {
+		t.Errorf("%s: VerifyASN1 always works!", tag)
+	}
+}
+
+func TestSignAndVerifyASN1(t *testing.T) {
+	testSignAndVerifyASN1(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testSignAndVerifyASN1(t, elliptic.P256(), "p256")
+	testSignAndVerifyASN1(t, elliptic.P384(), "p384")
+	testSignAndVerifyASN1(t, elliptic.P521(), "p521")
 }
 
 func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
@@ -201,7 +243,7 @@ func fromHex(s string) *big.Int {
 
 func TestVectors(t *testing.T) {
 	// This test runs the full set of NIST test vectors from
-	// http://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
+	// https://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
 	//
 	// The SigVer.rsp file has been edited to remove test vectors for
 	// unsupported algorithms and has been compressed.

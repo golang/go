@@ -8,6 +8,8 @@
 package syscall
 
 const (
+	sys_GETEUID = SYS_GETEUID
+
 	sys_SETGID = SYS_SETGID
 	sys_SETUID = SYS_SETUID
 )

@@ -8,12 +8,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	. "net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -83,35 +85,37 @@ func TestParseFormQueryMethods(t *testing.T) {
 	}
 }
 
-type stringMap map[string][]string
-type parseContentTypeTest struct {
-	shouldError bool
-	contentType stringMap
-}
-
-var parseContentTypeTests = []parseContentTypeTest{
-	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - should be treated as
-	// application/octet-stream (RFC 2616, section 7.2.1)
-	{false, stringMap{}},
-	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
-	{false, stringMap{"Content-Type": {"application/unknown"}}},
-}
-
 func TestParseFormUnknownContentType(t *testing.T) {
-	for i, test := range parseContentTypeTests {
-		req := &Request{
-			Method: "POST",
-			Header: Header(test.contentType),
-			Body:   ioutil.NopCloser(strings.NewReader("body")),
-		}
-		err := req.ParseForm()
-		switch {
-		case err == nil && test.shouldError:
-			t.Errorf("test %d should have returned error", i)
-		case err != nil && !test.shouldError:
-			t.Errorf("test %d should not have returned error, got %v", i, err)
-		}
+	for _, test := range []struct {
+		name        string
+		wantErr     string
+		contentType Header
+	}{
+		{"text", "", Header{"Content-Type": {"text/plain"}}},
+		// Empty content type is legal - may be treated as
+		// application/octet-stream (RFC 7231, section 3.1.1.5)
+		{"empty", "", Header{}},
+		{"boundary", "mime: invalid media parameter", Header{"Content-Type": {"text/plain; boundary="}}},
+		{"unknown", "", Header{"Content-Type": {"application/unknown"}}},
+	} {
+		t.Run(test.name,
+			func(t *testing.T) {
+				req := &Request{
+					Method: "POST",
+					Header: test.contentType,
+					Body:   ioutil.NopCloser(strings.NewReader("body")),
+				}
+				err := req.ParseForm()
+				switch {
+				case err == nil && test.wantErr != "":
+					t.Errorf("unexpected success; want error %q", test.wantErr)
+				case err != nil && test.wantErr == "":
+					t.Errorf("want success, got error: %v", err)
+				case test.wantErr != "" && test.wantErr != fmt.Sprint(err):
+					t.Errorf("got error %q; want %q", err, test.wantErr)
+				}
+			},
+		)
 	}
 }
 
@@ -133,20 +137,31 @@ func TestParseFormInitializeOnError(t *testing.T) {
 }
 
 func TestMultipartReader(t *testing.T) {
-	req := &Request{
-		Method: "POST",
-		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
-	}
-	multipart, err := req.MultipartReader()
-	if multipart == nil {
-		t.Errorf("expected multipart; error: %v", err)
+	tests := []struct {
+		shouldError bool
+		contentType string
+	}{
+		{false, `multipart/form-data; boundary="foo123"`},
+		{false, `multipart/mixed; boundary="foo123"`},
+		{true, `text/plain`},
 	}
 
-	req.Header = Header{"Content-Type": {"text/plain"}}
-	multipart, err = req.MultipartReader()
-	if multipart != nil {
-		t.Error("unexpected multipart for text/plain")
+	for i, test := range tests {
+		req := &Request{
+			Method: "POST",
+			Header: Header{"Content-Type": {test.contentType}},
+			Body:   ioutil.NopCloser(new(bytes.Buffer)),
+		}
+		multipart, err := req.MultipartReader()
+		if test.shouldError {
+			if err == nil || multipart != nil {
+				t.Errorf("test %d: unexpectedly got nil-error (%v) or non-nil-multipart (%v)", i, err, multipart)
+			}
+			continue
+		}
+		if err != nil || multipart == nil {
+			t.Errorf("test %d: unexpectedly got error (%v) or nil-multipart (%v)", i, err, multipart)
+		}
 	}
 }
 
@@ -597,6 +612,11 @@ var parseBasicAuthTests = []struct {
 	ok                         bool
 }{
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+
+	// Case doesn't matter:
+	{"BASIC " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+	{"basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
+
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open:sesame")), "Aladdin", "open:sesame", true},
 	{"Basic " + base64.StdEncoding.EncodeToString([]byte(":")), "", "", true},
 	{"Basic" + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "", "", false},
@@ -808,6 +828,34 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	}
 }
 
+func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h1Mode)
+}
+
+func TestNoPanicOnRoundTripWithBasicAuth_h2(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h2Mode)
+}
+
+// Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
+func testNoPanicWithBasicAuth(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer cst.close()
+
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.User = url.UserPassword("foo", "bar")
+	req := &Request{
+		URL:    u,
+		Method: "GET",
+	}
+	if _, err := cst.c.Do(req); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
 // verify that NewRequest sets Request.GetBody and that it works
 func TestNewRequestGetBody(t *testing.T) {
 	tests := []struct {
@@ -863,7 +911,7 @@ func testMissingFile(t *testing.T, req *Request) {
 }
 
 func newTestMultipartRequest(t *testing.T) *Request {
-	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
+	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
 	req, err := NewRequest("POST", "/", b)
 	if err != nil {
 		t.Fatal("NewRequest:", err)
@@ -955,8 +1003,8 @@ Content-Disposition: form-data; name="textb"
 `
 
 func benchmarkReadRequest(b *testing.B, request string) {
-	request = request + "\n"                             // final \n
-	request = strings.Replace(request, "\n", "\r\n", -1) // expand \n to \r\n
+	request = request + "\n"                            // final \n
+	request = strings.ReplaceAll(request, "\n", "\r\n") // expand \n to \r\n
 	b.SetBytes(int64(len(request)))
 	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
 	b.ReportAllocs()
@@ -1030,4 +1078,93 @@ func BenchmarkReadRequestWrk(b *testing.B) {
 	benchmarkReadRequest(b, `GET / HTTP/1.1
 Host: localhost:8080
 `)
+}
+
+const (
+	withTLS = true
+	noTLS   = false
+)
+
+func BenchmarkFileAndServer_1KB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<10)
+}
+
+func BenchmarkFileAndServer_16MB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<24)
+}
+
+func BenchmarkFileAndServer_64MB(b *testing.B) {
+	benchmarkFileAndServer(b, 1<<26)
+}
+
+func benchmarkFileAndServer(b *testing.B, n int64) {
+	f, err := ioutil.TempFile(os.TempDir(), "go-bench-http-file-and-server")
+	if err != nil {
+		b.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		f.Close()
+		os.RemoveAll(f.Name())
+	}()
+
+	if _, err := io.CopyN(f, rand.Reader, n); err != nil {
+		b.Fatalf("Failed to copy %d bytes: %v", n, err)
+	}
+
+	b.Run("NoTLS", func(b *testing.B) {
+		runFileAndServerBenchmarks(b, noTLS, f, n)
+	})
+
+	b.Run("TLS", func(b *testing.B) {
+		runFileAndServerBenchmarks(b, withTLS, f, n)
+	})
+}
+
+func runFileAndServerBenchmarks(b *testing.B, tlsOption bool, f *os.File, n int64) {
+	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+		defer req.Body.Close()
+		nc, err := io.Copy(ioutil.Discard, req.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		if nc != n {
+			panic(fmt.Errorf("Copied %d Wanted %d bytes", nc, n))
+		}
+	})
+
+	var cst *httptest.Server
+	if tlsOption == withTLS {
+		cst = httptest.NewTLSServer(handler)
+	} else {
+		cst = httptest.NewServer(handler)
+	}
+
+	defer cst.Close()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Perform some setup.
+		b.StopTimer()
+		if _, err := f.Seek(0, 0); err != nil {
+			b.Fatalf("Failed to seek back to file: %v", err)
+		}
+
+		b.StartTimer()
+		req, err := NewRequest("PUT", cst.URL, ioutil.NopCloser(f))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		req.ContentLength = n
+		// Prevent mime sniffing by setting the Content-Type.
+		req.Header.Set("Content-Type", "application/octet-stream")
+		res, err := cst.Client().Do(req)
+		if err != nil {
+			b.Fatalf("Failed to make request to backend: %v", err)
+		}
+
+		res.Body.Close()
+		b.SetBytes(n)
+	}
 }

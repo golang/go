@@ -151,7 +151,7 @@ package main
 const hello = "Hello, World!" // line comment 1
 
 // This comment is associated with the foo variable.
-var foo = hello // line comment 2 
+var foo = hello // line comment 2
 
 // This comment is associated with the main function.
 func main() {
@@ -176,6 +176,7 @@ func main() {
 		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
 			copy(f.Decls[i:], f.Decls[i+1:])
 			f.Decls = f.Decls[:len(f.Decls)-1]
+			break
 		}
 	}
 

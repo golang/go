@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
 
@@ -33,9 +33,18 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		p.sigMu.Unlock()
 	}
 
-	var status syscall.WaitStatus
-	var rusage syscall.Rusage
-	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+	var (
+		status syscall.WaitStatus
+		rusage syscall.Rusage
+		pid1   int
+		e      error
+	)
+	for {
+		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}

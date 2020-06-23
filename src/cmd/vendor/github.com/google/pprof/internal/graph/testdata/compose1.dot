@@ -1,7 +1,0 @@
-digraph "testtitle" {
-node [style=filled fillcolor="#f8f8f8"]
-subgraph cluster_L { "label1" [shape=box fontsize=16 label="label1\llabel2\l"] }
-N1 [label="src\n10 (10.00%)\nof 25 (25.00%)" fontsize=22 shape=box tooltip="src (25)" color="#b23c00" fillcolor="#edddd5"]
-N2 [label="dest\n15 (15.00%)\nof 25 (25.00%)" fontsize=24 shape=box tooltip="dest (25)" color="#b23c00" fillcolor="#edddd5"]
-N1 -> N2 [label=" 10" weight=11 color="#b28559" tooltip="src -> dest (10)" labeltooltip="src -> dest (10)"]
-}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime_test
 
@@ -16,16 +16,10 @@ import (
 // what the code in mem_bsd.go, mem_darwin.go, and mem_linux.go expects.
 // See the uses of ENOMEM in sysMap in those files.
 func TestMmapErrorSign(t *testing.T) {
-	p := runtime.Mmap(nil, ^uintptr(0)&^(runtime.GetPhysPageSize()-1), 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
+	p, err := runtime.Mmap(nil, ^uintptr(0)&^(runtime.GetPhysPageSize()-1), 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
 
-	// The runtime.mmap function is nosplit, but t.Errorf is not.
-	// Reset the pointer so that we don't get an "invalid stack
-	// pointer" error from t.Errorf if we call it.
-	v := uintptr(p)
-	p = nil
-
-	if v != runtime.ENOMEM {
-		t.Errorf("mmap = %v, want %v", v, runtime.ENOMEM)
+	if p != nil || err != runtime.ENOMEM {
+		t.Errorf("mmap = %v, %v, want nil, %v", p, err, runtime.ENOMEM)
 	}
 }
 
@@ -35,20 +29,25 @@ func TestPhysPageSize(t *testing.T) {
 	ps := runtime.GetPhysPageSize()
 
 	// Get a region of memory to play with. This should be page-aligned.
-	b := uintptr(runtime.Mmap(nil, 2*ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0))
-	if b < 4096 {
-		t.Fatalf("Mmap: %v", b)
+	b, err := runtime.Mmap(nil, 2*ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		t.Fatalf("Mmap: %v", err)
+	}
+
+	if runtime.GOOS == "aix" {
+		// AIX does not allow mapping a range that is already mapped.
+		runtime.Munmap(unsafe.Pointer(uintptr(b)), 2*ps)
 	}
 
 	// Mmap should fail at a half page into the buffer.
-	err := uintptr(runtime.Mmap(unsafe.Pointer(uintptr(b)+ps/2), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0))
-	if err >= 4096 {
+	_, err = runtime.Mmap(unsafe.Pointer(uintptr(b)+ps/2), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0)
+	if err == 0 {
 		t.Errorf("Mmap should have failed with half-page alignment %d, but succeeded: %v", ps/2, err)
 	}
 
 	// Mmap should succeed at a full page into the buffer.
-	err = uintptr(runtime.Mmap(unsafe.Pointer(uintptr(b)+ps), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0))
-	if err < 4096 {
+	_, err = runtime.Mmap(unsafe.Pointer(uintptr(b)+ps), ps, 0, runtime.MAP_ANON|runtime.MAP_PRIVATE|runtime.MAP_FIXED, -1, 0)
+	if err != 0 {
 		t.Errorf("Mmap at full-page alignment %d failed: %v", ps, err)
 	}
 }

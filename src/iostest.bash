@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# For testing darwin/arm{,64} on iOS.
+# For testing darwin/arm64 on iOS.
 
 set -e
 ulimit -c 0 # no core files
@@ -20,12 +20,9 @@ if [ "$GOOS" != "darwin" ]; then
 	echo "iostest.bash requires GOOS=darwin, got GOOS=$GOOS" 1>&2
 	exit 1
 fi
-if [ "$GOARCH" != "arm" ] && [ "$GOARCH" != "arm64" ]; then
-	echo "iostest.bash requires GOARCH=arm or GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
+if [ "$GOARCH" != "arm64" ]; then
+	echo "iostest.bash requires GOARCH=arm64, got GOARCH=$GOARCH" 1>&2
 	exit 1
-fi
-if [ "$GOARCH" = "arm" ]; then
-	export GOARM=7
 fi
 
 if [ "$1" = "-restart" ]; then
@@ -56,18 +53,14 @@ export PATH=$GOROOT/bin:$PATH
 export CGO_ENABLED=1
 export CC_FOR_TARGET=$GOROOT/misc/ios/clangwrap.sh
 
-# Run the build for the host bootstrap, so we can build go_darwin_arm_exec.
+# Run the build for the host bootstrap, so we can build detect.go.
 # Also lets us fail early before the (slow) ios-deploy if the build is broken.
 ./make.bash
-
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
-	-o ../bin/go_darwin_${GOARCH}_exec \
-	../misc/ios/go_darwin_arm_exec.go
 
 if [ "$GOIOS_DEV_ID" = "" ]; then
 	echo "detecting iOS development identity"
 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)
 fi
 
-# Run standard build and tests.
-./all.bash --no-clean
+# Run standard tests.
+bash run.bash --no-rebuild

@@ -8,7 +8,7 @@ package bzip2
 import "io"
 
 // There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
-// of guessing: http://en.wikipedia.org/wiki/Bzip2
+// of guessing: https://en.wikipedia.org/wiki/Bzip2
 // The source code to pyflate was useful for debugging:
 // http://www.paul.sladen.org/projects/pyflate
 
@@ -163,7 +163,7 @@ func (bz2 *reader) readFromBlock(buf []byte) int {
 func (bz2 *reader) read(buf []byte) (int, error) {
 	for {
 		n := bz2.readFromBlock(buf)
-		if n > 0 {
+		if n > 0 || len(buf) == 0 {
 			bz2.blockCRC = updateCRC(bz2.blockCRC, buf[:n])
 			return n, nil
 		}

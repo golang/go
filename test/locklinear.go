@@ -125,6 +125,12 @@ func main() {
 		}
 	})
 
+	if runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
+		// lockmany reliably fails on the linux-arm-arm5spacemonkey
+		// builder. See https://golang.org/issue/24221.
+		return
+	}
+
 	checkLinear("lockmany", 1000, func(n int) {
 		locks := make([]sync.RWMutex, n*offset+1)
 

@@ -123,7 +123,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	TEQ	$0, R5
 	BEQ	X7
-	
+
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	ADD	R5<<2, R2, R2
@@ -135,7 +135,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVW	$32, R4
 	SUB	R3, R4
 	MOVW	$0, R7
-	
+
 	MOVW.W	-4(R2), R6
 	MOVW	R6<<R3, R7
 	MOVW	R6>>R4, R6

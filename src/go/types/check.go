@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -39,22 +40,22 @@ type exprInfo struct {
 	val   constant.Value // constant value; or nil (if not a constant)
 }
 
-// funcInfo stores the information required for type-checking a function.
-type funcInfo struct {
-	name string    // for debugging/tracing only
-	decl *declInfo // for cycle detection
-	sig  *Signature
-	body *ast.BlockStmt
-}
-
 // A context represents the context within which an object is type-checked.
 type context struct {
-	decl          *declInfo      // package-level declaration whose init expression/function body is checked
-	scope         *Scope         // top-most scope for lookups
-	iota          constant.Value // value of iota in a constant declaration; nil otherwise
-	sig           *Signature     // function signature if inside a function; nil otherwise
-	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
-	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
+	decl          *declInfo              // package-level declaration whose init expression/function body is checked
+	scope         *Scope                 // top-most scope for lookups
+	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+	sig           *Signature             // function signature if inside a function; nil otherwise
+	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
+	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
+	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+}
+
+// lookup looks up name in the current context and returns the matching object, or nil.
+func (ctxt *context) lookup(name string) Object {
+	_, obj := ctxt.scope.LookupParent(name, ctxt.pos)
+	return obj
 }
 
 // An importKey identifies an imported package by import path and source directory
@@ -76,8 +77,10 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	objMap map[Object]*declInfo   // maps package-level object to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -86,15 +89,15 @@ type Checker struct {
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
 
 	firstErr error                 // first error encountered
-	methods  map[string][]*Func    // maps type names to associated methods
+	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	funcs    []funcInfo            // list of functions to type-check
-	delayed  []func()              // delayed checks requiring fully setup types
+	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
+	finals   []func()              // list of final actions; processed at the end of type-checking the current set of files
+	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
 	context
-	pos token.Pos // if valid, identifiers are looked up as if at position pos (used by Eval)
 
 	// debugging
 	indent int // indentation for tracing
@@ -128,15 +131,6 @@ func (check *Checker) addDeclDep(to Object) {
 	from.addDep(to)
 }
 
-func (check *Checker) assocMethod(tname string, meth *Func) {
-	m := check.methods
-	if m == nil {
-		m = make(map[string][]*Func)
-		check.methods = m
-	}
-	m[tname] = append(m[tname], meth)
-}
-
 func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
 	m := check.untyped
 	if m == nil {
@@ -146,12 +140,35 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 	m[e] = exprInfo{lhs, mode, typ, val}
 }
 
-func (check *Checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
-	check.funcs = append(check.funcs, funcInfo{name, decl, sig, body})
+// later pushes f on to the stack of actions that will be processed later;
+// either at the end of the current statement, or in case of a local constant
+// or variable declaration, before the constant or variable is in scope
+// (so that f still sees the scope before any new declarations).
+func (check *Checker) later(f func()) {
+	check.delayed = append(check.delayed, f)
 }
 
-func (check *Checker) delay(f func()) {
-	check.delayed = append(check.delayed, f)
+// atEnd adds f to the list of actions processed at the end
+// of type-checking, before initialization order computation.
+// Actions added by atEnd are processed after any actions
+// added by later.
+func (check *Checker) atEnd(f func()) {
+	check.finals = append(check.finals, f)
+}
+
+// push pushes obj onto the object path and returns its index in the path.
+func (check *Checker) push(obj Object) int {
+	check.objPath = append(check.objPath, obj)
+	return len(check.objPath) - 1
+}
+
+// pop pops and returns the topmost object from the object path.
+func (check *Checker) pop() Object {
+	i := len(check.objPath) - 1
+	obj := check.objPath[i]
+	check.objPath[i] = nil
+	check.objPath = check.objPath[:i]
+	return obj
 }
 
 // NewChecker returns a new Checker instance for a given package.
@@ -174,6 +191,8 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		Info:   info,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
+		posMap: make(map[*Interface][]token.Pos),
+		pkgCnt: make(map[string]int),
 	}
 }
 
@@ -187,8 +206,8 @@ func (check *Checker) initFiles(files []*ast.File) {
 	check.firstErr = nil
 	check.methods = nil
 	check.untyped = nil
-	check.funcs = nil
 	check.delayed = nil
+	check.finals = nil
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -229,16 +248,23 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
 
+var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
+
 func (check *Checker) checkFiles(files []*ast.File) (err error) {
+	if check.conf.FakeImportC && check.conf.go115UsesCgo {
+		return errBadCgo
+	}
+
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)
 
 	check.collectObjects()
 
-	check.packageObjects(check.resolveOrder())
+	check.packageObjects()
 
-	check.functionBodies()
+	check.processDelayed(0) // incl. all functions
+	check.processFinals()
 
 	check.initOrder()
 
@@ -246,15 +272,35 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 		check.unusedImports()
 	}
 
-	// perform delayed checks
-	for _, f := range check.delayed {
-		f()
-	}
-
 	check.recordUntyped()
 
 	check.pkg.complete = true
 	return
+}
+
+// processDelayed processes all delayed actions pushed after top.
+func (check *Checker) processDelayed(top int) {
+	// If each delayed action pushes a new action, the
+	// stack will continue to grow during this loop.
+	// However, it is only processing functions (which
+	// are processed in a delayed fashion) that may
+	// add more actions (such as nested functions), so
+	// this is a sufficiently bounded process.
+	for i := top; i < len(check.delayed); i++ {
+		check.delayed[i]() // may append to check.delayed
+	}
+	assert(top <= len(check.delayed)) // stack must not have shrunk
+	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) processFinals() {
+	n := len(check.finals)
+	for _, f := range check.finals {
+		f() // must not append to check.finals
+	}
+	if len(check.finals) != n {
+		panic("internal error: final action list grew")
+	}
 }
 
 func (check *Checker) recordUntyped() {
@@ -264,7 +310,7 @@ func (check *Checker) recordUntyped() {
 
 	for x, info := range check.untyped {
 		if debug && isTyped(info.typ) {
-			check.dump("%s: %s (type %s) is typed", x.Pos(), x, info.typ)
+			check.dump("%v: %s (type %s) is typed", x.Pos(), x, info.typ)
 			unreachable()
 		}
 		check.recordTypeAndValue(x, info.mode, info.typ, info.val)
@@ -277,7 +323,6 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if mode == invalid {
 		return // omit
 	}
-	assert(typ != nil)
 	if mode == constant_ {
 		assert(val != nil)
 		assert(typ == Typ[Invalid] || isConstType(typ))
@@ -310,7 +355,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && isBoolean(a[1]))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]

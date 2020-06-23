@@ -235,28 +235,59 @@ func TestAfterTick(t *testing.T) {
 }
 
 func TestAfterStop(t *testing.T) {
-	AfterFunc(100*Millisecond, func() {})
-	t0 := NewTimer(50 * Millisecond)
-	c1 := make(chan bool, 1)
-	t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
-	c2 := After(200 * Millisecond)
-	if !t0.Stop() {
-		t.Fatalf("failed to stop event 0")
+	// We want to test that we stop a timer before it runs.
+	// We also want to test that it didn't run after a longer timer.
+	// Since we don't want the test to run for too long, we don't
+	// want to use lengthy times. That makes the test inherently flaky.
+	// So only report an error if it fails five times in a row.
+
+	var errs []string
+	logErrs := func() {
+		for _, e := range errs {
+			t.Log(e)
+		}
 	}
-	if !t1.Stop() {
-		t.Fatalf("failed to stop event 1")
+
+	for i := 0; i < 5; i++ {
+		AfterFunc(100*Millisecond, func() {})
+		t0 := NewTimer(50 * Millisecond)
+		c1 := make(chan bool, 1)
+		t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
+		c2 := After(200 * Millisecond)
+		if !t0.Stop() {
+			errs = append(errs, "failed to stop event 0")
+			continue
+		}
+		if !t1.Stop() {
+			errs = append(errs, "failed to stop event 1")
+			continue
+		}
+		<-c2
+		select {
+		case <-t0.C:
+			errs = append(errs, "event 0 was not stopped")
+			continue
+		case <-c1:
+			errs = append(errs, "event 1 was not stopped")
+			continue
+		default:
+		}
+		if t1.Stop() {
+			errs = append(errs, "Stop returned true twice")
+			continue
+		}
+
+		// Test passed, so all done.
+		if len(errs) > 0 {
+			t.Logf("saw %d errors, ignoring to avoid flakiness", len(errs))
+			logErrs()
+		}
+
+		return
 	}
-	<-c2
-	select {
-	case <-t0.C:
-		t.Fatalf("event 0 was not stopped")
-	case <-c1:
-		t.Fatalf("event 1 was not stopped")
-	default:
-	}
-	if t1.Stop() {
-		t.Fatalf("Stop returned true twice")
-	}
+
+	t.Errorf("saw %d errors", len(errs))
+	logErrs()
 }
 
 func TestAfterQueuing(t *testing.T) {
@@ -325,7 +356,7 @@ func TestTimerStopStress(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		go func(i int) {
 			timer := AfterFunc(2*Second, func() {
-				t.Fatalf("timer %d was not stopped", i)
+				t.Errorf("timer %d was not stopped", i)
 			})
 			Sleep(1 * Second)
 			timer.Stop()
@@ -359,7 +390,7 @@ func TestSleepZeroDeadlock(t *testing.T) {
 func testReset(d Duration) error {
 	t0 := NewTimer(2 * d)
 	Sleep(d)
-	if t0.Reset(3*d) != true {
+	if !t0.Reset(3 * d) {
 		return errors.New("resetting unfired timer returned false")
 	}
 	Sleep(2 * d)
@@ -375,7 +406,7 @@ func testReset(d Duration) error {
 		return errors.New("reset timer did not fire")
 	}
 
-	if t0.Reset(50*Millisecond) != false {
+	if t0.Reset(50 * Millisecond) {
 		return errors.New("resetting expired timer returned true")
 	}
 	return nil
@@ -425,10 +456,6 @@ func TestOverflowSleep(t *testing.T) {
 // Test that a panic while deleting a timer does not leave
 // the timers mutex held, deadlocking a ticker.Stop in a defer.
 func TestIssue5745(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		t.Skipf("skipping on %s/%s, see issue 10043", runtime.GOOS, runtime.GOARCH)
-	}
-
 	ticker := NewTicker(Hour)
 	defer func() {
 		// would deadlock here before the fix due to

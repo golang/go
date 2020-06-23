@@ -8,13 +8,42 @@ import (
 	"bytes"
 	"cmd/internal/objabi"
 	"fmt"
+	"io"
 	"strings"
 )
 
 const REG_NONE = 0
 
+// Line returns a string containing the filename and line number for p
 func (p *Prog) Line() string {
-	return p.Ctxt.OutermostPos(p.Pos).Format(false)
+	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
+}
+func (p *Prog) InnermostLine(w io.Writer) {
+	p.Ctxt.InnermostPos(p.Pos).WriteTo(w, false, true)
+}
+
+// InnermostLineNumber returns a string containing the line number for the
+// innermost inlined function (if any inlining) at p's position
+func (p *Prog) InnermostLineNumber() string {
+	return p.Ctxt.InnermostPos(p.Pos).LineNumber()
+}
+
+// InnermostLineNumberHTML returns a string containing the line number for the
+// innermost inlined function (if any inlining) at p's position
+func (p *Prog) InnermostLineNumberHTML() string {
+	return p.Ctxt.InnermostPos(p.Pos).LineNumberHTML()
+}
+
+// InnermostFilename returns a string containing the innermost
+// (in inlining) filename at p's position
+func (p *Prog) InnermostFilename() string {
+	// TODO For now, this is only used for debugging output, and if we need more/better information, it might change.
+	// An example of what we might want to see is the full stack of positions for inlined code, so we get some visibility into what is recorded there.
+	pos := p.Ctxt.InnermostPos(p.Pos)
+	if !pos.IsKnown() {
+		return "<unknown file name>"
+	}
+	return pos.Filename()
 }
 
 var armCondCode = []string{
@@ -47,11 +76,26 @@ const (
 	C_SCOND_XOR = 14
 )
 
-// CConv formats ARM condition codes.
+// CConv formats opcode suffix bits (Prog.Scond).
 func CConv(s uint8) string {
 	if s == 0 {
 		return ""
 	}
+	for i := range opSuffixSpace {
+		sset := &opSuffixSpace[i]
+		if sset.arch == objabi.GOARCH {
+			return sset.cconv(s)
+		}
+	}
+	return fmt.Sprintf("SC???%d", s)
+}
+
+// CConvARM formats ARM opcode suffix bits (mostly condition codes).
+func CConvARM(s uint8) string {
+	// TODO: could be great to move suffix-related things into
+	// ARM asm backends some day.
+	// obj/x86 can be used as an example.
+
 	sc := armCondCode[(s&C_SCOND)^C_SCOND_XOR]
 	if s&C_SBIT != 0 {
 		sc += ".S"
@@ -72,39 +116,70 @@ func (p *Prog) String() string {
 	if p == nil {
 		return "<nil Prog>"
 	}
-
 	if p.Ctxt == nil {
 		return "<Prog without ctxt>"
+	}
+	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
+}
+
+func (p *Prog) InnermostString(w io.Writer) {
+	if p == nil {
+		io.WriteString(w, "<nil Prog>")
+		return
+	}
+	if p.Ctxt == nil {
+		io.WriteString(w, "<Prog without ctxt>")
+		return
+	}
+	fmt.Fprintf(w, "%.5d (", p.Pc)
+	p.InnermostLine(w)
+	io.WriteString(w, ")\t")
+	p.WriteInstructionString(w)
+}
+
+// InstructionString returns a string representation of the instruction without preceding
+// program counter or file and line number.
+func (p *Prog) InstructionString() string {
+	buf := new(bytes.Buffer)
+	p.WriteInstructionString(buf)
+	return buf.String()
+}
+
+// WriteInstructionString writes a string representation of the instruction without preceding
+// program counter or file and line number.
+func (p *Prog) WriteInstructionString(w io.Writer) {
+	if p == nil {
+		io.WriteString(w, "<nil Prog>")
+		return
+	}
+
+	if p.Ctxt == nil {
+		io.WriteString(w, "<Prog without ctxt>")
+		return
 	}
 
 	sc := CConv(p.Scond)
 
-	var buf bytes.Buffer
-
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
+	io.WriteString(w, p.As.String())
+	io.WriteString(w, sc)
 	sep := "\t"
-	quadOpAmd64 := p.RegTo2 == -1
-	if quadOpAmd64 {
-		fmt.Fprintf(&buf, "%s$%d", sep, p.From3.Offset)
-		sep = ", "
-	}
+
 	if p.From.Type != TYPE_NONE {
-		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
+		io.WriteString(w, sep)
+		WriteDconv(w, p, &p.From)
 		sep = ", "
 	}
 	if p.Reg != REG_NONE {
 		// Should not happen but might as well show it if it does.
-		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
+		fmt.Fprintf(w, "%s%v", sep, Rconv(int(p.Reg)))
 		sep = ", "
 	}
-	if p.From3Type() != TYPE_NONE {
-		if quadOpAmd64 {
-			fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.From3.Reg)))
-		} else {
-			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, p.From3))
-		}
+	for i := range p.RestArgs {
+		io.WriteString(w, sep)
+		WriteDconv(w, p, &p.RestArgs[i])
 		sep = ", "
 	}
+
 	if p.As == ATEXT {
 		// If there are attributes, print them. Otherwise, skip the comma.
 		// In short, print one of these two:
@@ -112,17 +187,17 @@ func (p *Prog) String() string {
 		// TEXT	foo(SB), $0
 		s := p.From.Sym.Attribute.TextAttrString()
 		if s != "" {
-			fmt.Fprintf(&buf, "%s%s", sep, s)
+			fmt.Fprintf(w, "%s%s", sep, s)
 			sep = ", "
 		}
 	}
 	if p.To.Type != TYPE_NONE {
-		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
+		io.WriteString(w, sep)
+		WriteDconv(w, p, &p.To)
 	}
-	if p.RegTo2 != REG_NONE && !quadOpAmd64 {
-		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.RegTo2)))
+	if p.RegTo2 != REG_NONE {
+		fmt.Fprintf(w, "%s%v", sep, Rconv(int(p.RegTo2)))
 	}
-	return buf.String()
 }
 
 func (ctxt *Link) NewProg() *Prog {
@@ -132,24 +207,24 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) CanReuseProgs() bool {
-	return !ctxt.Debugasm
-}
-
-func (ctxt *Link) Dconv(a *Addr) string {
-	return Dconv(nil, a)
+	return ctxt.Debugasm == 0
 }
 
 func Dconv(p *Prog, a *Addr) string {
-	var str string
+	buf := new(bytes.Buffer)
+	WriteDconv(buf, p, a)
+	return buf.String()
+}
 
+func WriteDconv(w io.Writer, p *Prog, a *Addr) {
 	switch a.Type {
 	default:
-		str = fmt.Sprintf("type=%d", a.Type)
+		fmt.Fprintf(w, "type=%d", a.Type)
 
 	case TYPE_NONE:
-		str = ""
 		if a.Name != NAME_NONE || a.Reg != 0 || a.Sym != nil {
-			str = fmt.Sprintf("%v(%v)(NONE)", Mconv(a), Rconv(int(a.Reg)))
+			a.WriteNameTo(w)
+			fmt.Fprintf(w, "(%v)(NONE)", Rconv(int(a.Reg)))
 		}
 
 	case TYPE_REG:
@@ -157,63 +232,76 @@ func Dconv(p *Prog, a *Addr) string {
 		//	PINSRQ	CX,$1,X6
 		// where the $1 is included in the p->to Addr.
 		// Move into a new field.
-		if a.Offset != 0 {
-			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
-			break
+		if a.Offset != 0 && (a.Reg < RBaseARM64 || a.Reg >= RBaseMIPS) {
+			fmt.Fprintf(w, "$%d,%v", a.Offset, Rconv(int(a.Reg)))
+			return
 		}
 
-		str = Rconv(int(a.Reg))
 		if a.Name != NAME_NONE || a.Sym != nil {
-			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+			a.WriteNameTo(w)
+			fmt.Fprintf(w, "(%v)(REG)", Rconv(int(a.Reg)))
+		} else {
+			io.WriteString(w, Rconv(int(a.Reg)))
+		}
+		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
+			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
+			fmt.Fprintf(w, "[%d]", a.Index)
 		}
 
 	case TYPE_BRANCH:
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+			fmt.Fprintf(w, "%s(SB)", a.Sym.Name)
 		} else if p != nil && p.Pcond != nil {
-			str = fmt.Sprint(p.Pcond.Pc)
+			fmt.Fprint(w, p.Pcond.Pc)
 		} else if a.Val != nil {
-			str = fmt.Sprint(a.Val.(*Prog).Pc)
+			fmt.Fprint(w, a.Val.(*Prog).Pc)
 		} else {
-			str = fmt.Sprintf("%d(PC)", a.Offset)
+			fmt.Fprintf(w, "%d(PC)", a.Offset)
 		}
 
 	case TYPE_INDIR:
-		str = fmt.Sprintf("*%s", Mconv(a))
+		io.WriteString(w, "*")
+		a.WriteNameTo(w)
 
 	case TYPE_MEM:
-		str = Mconv(a)
+		a.WriteNameTo(w)
 		if a.Index != REG_NONE {
-			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			if a.Scale == 0 {
+				// arm64 shifted or extended register offset, scale = 0.
+				fmt.Fprintf(w, "(%v)", Rconv(int(a.Index)))
+			} else {
+				fmt.Fprintf(w, "(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+			}
 		}
 
 	case TYPE_CONST:
+		io.WriteString(w, "$")
+		a.WriteNameTo(w)
 		if a.Reg != 0 {
-			str = fmt.Sprintf("$%v(%v)", Mconv(a), Rconv(int(a.Reg)))
-		} else {
-			str = fmt.Sprintf("$%v", Mconv(a))
+			fmt.Fprintf(w, "(%v)", Rconv(int(a.Reg)))
 		}
 
 	case TYPE_TEXTSIZE:
 		if a.Val.(int32) == objabi.ArgsSizeUnknown {
-			str = fmt.Sprintf("$%d", a.Offset)
+			fmt.Fprintf(w, "$%d", a.Offset)
 		} else {
-			str = fmt.Sprintf("$%d-%d", a.Offset, a.Val.(int32))
+			fmt.Fprintf(w, "$%d-%d", a.Offset, a.Val.(int32))
 		}
 
 	case TYPE_FCONST:
-		str = fmt.Sprintf("%.17g", a.Val.(float64))
+		str := fmt.Sprintf("%.17g", a.Val.(float64))
 		// Make sure 1 prints as 1.0
 		if !strings.ContainsAny(str, ".e") {
 			str += ".0"
 		}
-		str = fmt.Sprintf("$(%s)", str)
+		fmt.Fprintf(w, "$(%s)", str)
 
 	case TYPE_SCONST:
-		str = fmt.Sprintf("$%q", a.Val.(string))
+		fmt.Fprintf(w, "$%q", a.Val.(string))
 
 	case TYPE_ADDR:
-		str = fmt.Sprintf("$%s", Mconv(a))
+		io.WriteString(w, "$")
+		a.WriteNameTo(w)
 
 	case TYPE_SHIFT:
 		v := int(a.Offset)
@@ -222,48 +310,45 @@ func Dconv(p *Prog, a *Addr) string {
 		case "arm":
 			op := ops[((v>>5)&3)<<1:]
 			if v&(1<<4) != 0 {
-				str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
+				fmt.Fprintf(w, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
 			} else {
-				str = fmt.Sprintf("R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
+				fmt.Fprintf(w, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
 			}
 			if a.Reg != 0 {
-				str += fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+				fmt.Fprintf(w, "(%v)", Rconv(int(a.Reg)))
 			}
 		case "arm64":
 			op := ops[((v>>22)&3)<<1:]
-			str = fmt.Sprintf("R%d%c%c%d", (v>>16)&31, op[0], op[1], (v>>10)&63)
+			r := (v >> 16) & 31
+			fmt.Fprintf(w, "%s%c%c%d", Rconv(r+RBaseARM64), op[0], op[1], (v>>10)&63)
 		default:
 			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
 		}
 
 	case TYPE_REGREG:
-		str = fmt.Sprintf("(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
+		fmt.Fprintf(w, "(%v, %v)", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
 
 	case TYPE_REGREG2:
-		str = fmt.Sprintf("%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
+		fmt.Fprintf(w, "%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
 
 	case TYPE_REGLIST:
-		str = regListConv(int(a.Offset))
+		io.WriteString(w, RLconv(a.Offset))
 	}
-
-	return str
 }
 
-func Mconv(a *Addr) string {
-	var str string
-
+func (a *Addr) WriteNameTo(w io.Writer) {
 	switch a.Name {
 	default:
-		str = fmt.Sprintf("name=%d", a.Name)
+		fmt.Fprintf(w, "name=%d", a.Name)
 
 	case NAME_NONE:
 		switch {
 		case a.Reg == REG_NONE:
-			str = fmt.Sprint(a.Offset)
+			fmt.Fprint(w, a.Offset)
 		case a.Offset == 0:
-			str = fmt.Sprintf("(%v)", Rconv(int(a.Reg)))
+			fmt.Fprintf(w, "(%v)", Rconv(int(a.Reg)))
 		case a.Offset != 0:
-			str = fmt.Sprintf("%d(%v)", a.Offset, Rconv(int(a.Reg)))
+			fmt.Fprintf(w, "%d(%v)", a.Offset, Rconv(int(a.Reg)))
 		}
 
 		// Note: a.Reg == REG_NONE encodes the default base register for the NAME_ type.
@@ -273,9 +358,9 @@ func Mconv(a *Addr) string {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_GOTREF:
@@ -284,9 +369,9 @@ func Mconv(a *Addr) string {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s@GOT(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s%s@GOT(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s@GOT(%s)", offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s@GOT(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_STATIC:
@@ -295,9 +380,9 @@ func Mconv(a *Addr) string {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s<>%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s<>%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("<>%s(%s)", offConv(a.Offset), reg)
+			fmt.Fprintf(w, "<>%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_AUTO:
@@ -306,9 +391,9 @@ func Mconv(a *Addr) string {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
 		}
 
 	case NAME_PARAM:
@@ -317,12 +402,21 @@ func Mconv(a *Addr) string {
 			reg = Rconv(int(a.Reg))
 		}
 		if a.Sym != nil {
-			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
 		} else {
-			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
+		}
+	case NAME_TOCREF:
+		reg := "SB"
+		if a.Reg != REG_NONE {
+			reg = Rconv(int(a.Reg))
+		}
+		if a.Sym != nil {
+			fmt.Fprintf(w, "%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
+		} else {
+			fmt.Fprintf(w, "%s(%s)", offConv(a.Offset), reg)
 		}
 	}
-	return str
 }
 
 func offConv(off int64) string {
@@ -330,6 +424,30 @@ func offConv(off int64) string {
 		return ""
 	}
 	return fmt.Sprintf("%+d", off)
+}
+
+// opSuffixSet is like regListSet, but for opcode suffixes.
+//
+// Unlike some other similar structures, uint8 space is not
+// divided by its own values set (because there are only 256 of them).
+// Instead, every arch may interpret/format all 8 bits as they like,
+// as long as they register proper cconv function for it.
+type opSuffixSet struct {
+	arch  string
+	cconv func(suffix uint8) string
+}
+
+var opSuffixSpace []opSuffixSet
+
+// RegisterOpSuffix assigns cconv function for formatting opcode suffixes
+// when compiling for GOARCH=arch.
+//
+// cconv is never called with 0 argument.
+func RegisterOpSuffix(arch string, cconv func(uint8) string) {
+	opSuffixSpace = append(opSuffixSpace, opSuffixSet{
+		arch:  arch,
+		cconv: cconv,
+	})
 }
 
 type regSet struct {
@@ -358,6 +476,8 @@ const (
 	RBaseARM64 = 8 * 1024  // range [8k, 13k)
 	RBaseMIPS  = 13 * 1024 // range [13k, 14k)
 	RBaseS390X = 14 * 1024 // range [14k, 15k)
+	RBaseRISCV = 15 * 1024 // range [15k, 16k)
+	RBaseWasm  = 16 * 1024
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -380,27 +500,44 @@ func Rconv(reg int) string {
 	return fmt.Sprintf("R???%d", reg)
 }
 
-func regListConv(list int) string {
-	str := ""
+type regListSet struct {
+	lo     int64
+	hi     int64
+	RLconv func(int64) string
+}
 
-	for i := 0; i < 16; i++ { // TODO: 16 is ARM-specific.
-		if list&(1<<uint(i)) != 0 {
-			if str == "" {
-				str += "["
-			} else {
-				str += ","
-			}
-			// This is ARM-specific; R10 is g.
-			if i == 10 {
-				str += "g"
-			} else {
-				str += fmt.Sprintf("R%d", i)
-			}
+var regListSpace []regListSet
+
+// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
+// arch-specific register list numbers.
+const (
+	RegListARMLo = 0
+	RegListARMHi = 1 << 16
+
+	// arm64 uses the 60th bit to differentiate from other archs
+	RegListARM64Lo = 1 << 60
+	RegListARM64Hi = 1<<61 - 1
+
+	// x86 uses the 61th bit to differentiate from other archs
+	RegListX86Lo = 1 << 61
+	RegListX86Hi = 1<<62 - 1
+)
+
+// RegisterRegisterList binds a pretty-printer (RLconv) for register list
+// numbers to a given register list number range. Lo is inclusive,
+// hi exclusive (valid register list are lo through hi-1).
+func RegisterRegisterList(lo, hi int64, rlconv func(int64) string) {
+	regListSpace = append(regListSpace, regListSet{lo, hi, rlconv})
+}
+
+func RLconv(list int64) string {
+	for i := range regListSpace {
+		rls := &regListSpace[i]
+		if rls.lo <= list && list < rls.hi {
+			return rls.RLconv(list)
 		}
 	}
-
-	str += "]"
-	return str
+	return fmt.Sprintf("RL???%d", list)
 }
 
 type opSet struct {
@@ -442,8 +579,10 @@ var Anames = []string{
 	"FUNCDATA",
 	"JMP",
 	"NOP",
+	"PCALIGN",
 	"PCDATA",
 	"RET",
+	"GETCALLERPC",
 	"TEXT",
 	"UNDEF",
 }

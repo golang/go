@@ -9,20 +9,21 @@ import (
 	"unsafe"
 )
 
-// Map is a concurrent map with amortized-constant-time loads, stores, and deletes.
-// It is safe for multiple goroutines to call a Map's methods concurrently.
+// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
+// by multiple goroutines without additional locking or coordination.
+// Loads, stores, and deletes run in amortized constant time.
 //
-// It is optimized for use in concurrent loops with keys that are
-// stable over time, and either few steady-state stores, or stores
-// localized to one goroutine per key.
+// The Map type is specialized. Most code should use a plain Go map instead,
+// with separate locking or coordination, for better type safety and to make it
+// easier to maintain other invariants along with the map content.
 //
-// For use cases that do not share these attributes, it will likely have
-// comparable or worse performance and worse type safety than an ordinary
-// map paired with a read-write mutex.
+// The Map type is optimized for two common use cases: (1) when the entry for a given
+// key is only ever written once but read many times, as in caches that only grow,
+// or (2) when multiple goroutines read, write, and overwrite entries for disjoint
+// sets of keys. In these two cases, use of a Map may significantly reduce lock
+// contention compared to a Go map paired with a separate Mutex or RWMutex.
 //
-// The zero Map is valid and empty.
-//
-// A Map must not be copied after first use.
+// The zero Map is empty and ready for use. A Map must not be copied after first use.
 type Map struct {
 	mu Mutex
 
@@ -166,17 +167,13 @@ func (m *Map) Store(key, value interface{}) {
 // If the entry is expunged, tryStore returns false and leaves the entry
 // unchanged.
 func (e *entry) tryStore(i *interface{}) bool {
-	p := atomic.LoadPointer(&e.p)
-	if p == expunged {
-		return false
-	}
 	for {
-		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
-			return true
-		}
-		p = atomic.LoadPointer(&e.p)
+		p := atomic.LoadPointer(&e.p)
 		if p == expunged {
 			return false
+		}
+		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+			return true
 		}
 	}
 }
@@ -266,8 +263,9 @@ func (e *entry) tryLoadOrStore(i interface{}) (actual interface{}, loaded, ok bo
 	}
 }
 
-// Delete deletes the value for a key.
-func (m *Map) Delete(key interface{}) {
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
+func (m *Map) LoadAndDelete(key interface{}) (value interface{}, loaded bool) {
 	read, _ := m.read.Load().(readOnly)
 	e, ok := read.m[key]
 	if !ok && read.amended {
@@ -275,23 +273,33 @@ func (m *Map) Delete(key interface{}) {
 		read, _ = m.read.Load().(readOnly)
 		e, ok = read.m[key]
 		if !ok && read.amended {
-			delete(m.dirty, key)
+			e, ok = m.dirty[key]
+			// Regardless of whether the entry was present, record a miss: this key
+			// will take the slow path until the dirty map is promoted to the read
+			// map.
+			m.missLocked()
 		}
 		m.mu.Unlock()
 	}
 	if ok {
-		e.delete()
+		return e.delete()
 	}
+	return nil, false
 }
 
-func (e *entry) delete() (hadValue bool) {
+// Delete deletes the value for a key.
+func (m *Map) Delete(key interface{}) {
+	m.LoadAndDelete(key)
+}
+
+func (e *entry) delete() (value interface{}, ok bool) {
 	for {
 		p := atomic.LoadPointer(&e.p)
 		if p == nil || p == expunged {
-			return false
+			return nil, false
 		}
 		if atomic.CompareAndSwapPointer(&e.p, p, nil) {
-			return true
+			return *(*interface{})(p), true
 		}
 	}
 }

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
 import (
 	"errors"
+	"internal/bytealg"
 	"io"
 	"os"
 )
@@ -85,7 +86,7 @@ func parseNSSConf(r io.Reader) *nssConf {
 		if len(line) == 0 {
 			return nil
 		}
-		colon := bytesIndexByte(line, ':')
+		colon := bytealg.IndexByte(line, ':')
 		if colon == -1 {
 			return errors.New("no colon on line")
 		}
@@ -96,7 +97,7 @@ func parseNSSConf(r io.Reader) *nssConf {
 			if len(srcs) == 0 {
 				break
 			}
-			sp := bytesIndexByte(srcs, ' ')
+			sp := bytealg.IndexByte(srcs, ' ')
 			var src string
 			if sp == -1 {
 				src = string(srcs)
@@ -108,7 +109,7 @@ func parseNSSConf(r io.Reader) *nssConf {
 			var criteria []nssCriterion
 			// See if there's a criteria block in brackets.
 			if len(srcs) > 0 && srcs[0] == '[' {
-				bclose := bytesIndexByte(srcs, ']')
+				bclose := bytealg.IndexByte(srcs, ']')
 				if bclose == -1 {
 					return errors.New("unclosed criterion bracket")
 				}
@@ -143,7 +144,7 @@ func parseCriteria(x []byte) (c []nssCriterion, err error) {
 		if len(f) < 3 {
 			return errors.New("criterion too short")
 		}
-		eq := bytesIndexByte(f, '=')
+		eq := bytealg.IndexByte(f, '=')
 		if eq == -1 {
 			return errors.New("criterion lacks equal sign")
 		}

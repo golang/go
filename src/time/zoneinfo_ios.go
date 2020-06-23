@@ -3,49 +3,44 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin
-// +build arm arm64
+// +build arm64
 
 package time
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
 
-var zoneFile string
+var zoneSources = []string{
+	getZoneRoot() + "/zoneinfo.zip",
+}
 
-func init() {
-	wd, err := syscall.Getwd()
-	if err != nil {
-		return
-	}
-
+func getZoneRoot() string {
 	// The working directory at initialization is the root of the
 	// app bundle: "/private/.../bundlename.app". That's where we
-	// keep zoneinfo.zip.
-	zoneFile = wd + "/zoneinfo.zip"
-}
-
-func forceZipFileForTesting(zipOnly bool) {
-	// On iOS we only have the zip file.
-}
-
-func initTestingZone() {
-	z, err := loadZoneFile(zoneFile, "America/Los_Angeles")
-	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+	// keep zoneinfo.zip for tethered iOS builds.
+	// For self-hosted iOS builds, the zoneinfo.zip is in GOROOT.
+	roots := []string{runtime.GOROOT() + "/lib/time"}
+	wd, err := syscall.Getwd()
+	if err == nil {
+		roots = append(roots, wd)
 	}
-	z.name = "Local"
-	localLoc = *z
+	for _, r := range roots {
+		var st syscall.Stat_t
+		fd, err := syscall.Open(r, syscall.O_RDONLY, 0)
+		if err != nil {
+			continue
+		}
+		defer syscall.Close(fd)
+		if err := syscall.Fstat(fd, &st); err == nil {
+			return r
+		}
+	}
+	return "/XXXNOEXIST"
 }
 
 func initLocal() {
 	// TODO(crawshaw): [NSTimeZone localTimeZone]
 	localLoc = *UTC
-}
-
-func loadLocation(name string) (*Location, error) {
-	z, err := loadZoneFile(zoneFile, name)
-	if err != nil {
-		return nil, err
-	}
-	z.name = name
-	return z, nil
 }

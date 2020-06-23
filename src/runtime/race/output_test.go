@@ -19,6 +19,16 @@ import (
 )
 
 func TestOutput(t *testing.T) {
+	pkgdir, err := ioutil.TempDir("", "go-build-race-output")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(pkgdir)
+	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "testing").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go install -race: %v\n%s", err, out)
+	}
+
 	for _, test := range tests {
 		if test.goos != "" && test.goos != runtime.GOOS {
 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
@@ -46,8 +56,8 @@ func TestOutput(t *testing.T) {
 		if err := f.Close(); err != nil {
 			t.Fatalf("failed to close file: %v", err)
 		}
-		// Pass -l to the compiler to test stack traces.
-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-gcflags=-l", src)
+
+		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
 		for _, env := range os.Environ() {
 			if strings.HasPrefix(env, "GODEBUG=") ||
@@ -175,6 +185,7 @@ import "testing"
 func TestFail(t *testing.T) {
 	done := make(chan bool)
 	x := 0
+	_ = x
 	go func() {
 		x = 42
 		done <- true
@@ -186,7 +197,7 @@ func TestFail(t *testing.T) {
 `, `
 ==================
 --- FAIL: TestFail \(0...s\)
-.*main_test.go:13: true
+.*main_test.go:14: true
 .*testing.go:.*: race detected during execution of test
 FAIL`},
 
@@ -207,7 +218,53 @@ func main() {
   main\.main\.func1\(\)
       .*/main.go:7`},
 
-	// Test for http://golang.org/issue/17190
+	// Test for https://golang.org/issue/33309
+	{"midstack_inlining_traceback", "run", "linux", "atexit_sleep_ms=0", `
+package main
+
+var x int
+
+func main() {
+	c := make(chan int)
+	go f(c)
+	x = 1
+	<-c
+}
+
+func f(c chan int) {
+	g(c)
+}
+
+func g(c chan int) {
+	h(c)
+}
+
+func h(c chan int) {
+	c <- x
+}
+`, `==================
+WARNING: DATA RACE
+Read at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.h\(\)
+      .+/main\.go:22 \+0x[0-9,a-f]+
+  main\.g\(\)
+      .+/main\.go:18 \+0x[0-9,a-f]+
+  main\.f\(\)
+      .+/main\.go:14 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .+/main\.go:9 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .+/main\.go:8 \+0x[0-9,a-f]+
+==================
+Found 1 data race\(s\)
+exit status 66
+`},
+
+	// Test for https://golang.org/issue/17190
 	{"external_cgo_thread", "run", "linux", "atexit_sleep_ms=0", `
 package main
 
@@ -253,7 +310,7 @@ Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.goCallback\(\)
       .*/main\.go:27 \+0x[0-9,a-f]+
   main._cgoexpwrap_[0-9a-z]+_goCallback\(\)
-      .*/_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
+      .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)
@@ -265,6 +322,7 @@ import "testing"
 func TestFail(t *testing.T) {
 	done := make(chan bool)
 	x := 0
+	_ = x
 	go func() {
 		x = 42
 		done <- true

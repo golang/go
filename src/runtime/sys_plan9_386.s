@@ -102,9 +102,9 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
 	MOVL	$-1, ret_hi+8(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+	CALL	runtime·nanotime1(SB)
 	MOVL	0(SP), AX
 	MOVL	4(SP), DX
 
@@ -126,7 +126,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	INT	$64
 	MOVL	AX, ret+4(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64
@@ -139,7 +139,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$4
 	MOVL	newm+0(FP), CX
 	MOVL	m_g0(CX), DX
 
@@ -163,8 +163,10 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVL	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVL	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // void sigtramp(void *ureg, int8 *note)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0

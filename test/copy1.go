@@ -14,7 +14,7 @@ func main() {
 	si := make([]int, 8)
 	sf := make([]float64, 8)
 
-	_ = copy()        // ERROR "missing arguments"
+	_ = copy()        // ERROR "not enough arguments"
 	_ = copy(1, 2, 3) // ERROR "too many arguments"
 
 	_ = copy(si, "hi") // ERROR "have different element types.*int.*string"

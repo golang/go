@@ -6,7 +6,7 @@
 // P256. The optimizations performed here are described in detail in:
 // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
 //                          256-bit primes"
-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
 #include "textflag.h"
@@ -81,17 +81,23 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
 	PCMPEQL X13, X12
 
 	MOVOU X12, X0
-	PANDN (16*0)(x_ptr), X0
+	MOVOU (16*0)(x_ptr), X6
+	PANDN X6, X0
 	MOVOU X12, X1
-	PANDN (16*1)(x_ptr), X1
+	MOVOU (16*1)(x_ptr), X7
+	PANDN X7, X1
 	MOVOU X12, X2
-	PANDN (16*2)(x_ptr), X2
+	MOVOU (16*2)(x_ptr), X8
+	PANDN X8, X2
 	MOVOU X12, X3
-	PANDN (16*3)(x_ptr), X3
+	MOVOU (16*3)(x_ptr), X9
+	PANDN X9, X3
 	MOVOU X12, X4
-	PANDN (16*4)(x_ptr), X4
+	MOVOU (16*4)(x_ptr), X10
+	PANDN X10, X4
 	MOVOU X12, X5
-	PANDN (16*5)(x_ptr), X5
+	MOVOU (16*5)(x_ptr), X11
+	PANDN X11, X5
 
 	MOVOU (16*0)(y_ptr), X6
 	MOVOU (16*1)(y_ptr), X7
@@ -156,10 +162,14 @@ TEXT ·p256NegCond(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// func p256Sqr(res, in []uint64)
+// func p256Sqr(res, in []uint64, n int)
 TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ res+0(FP), res_ptr
 	MOVQ in+24(FP), x_ptr
+	MOVQ n+48(FP), BX
+
+sqrLoop:
+
 	// y[1:] * y[0]
 	MOVQ (8*0)(x_ptr), t0
 
@@ -310,6 +320,9 @@ TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ acc1, (8*1)(res_ptr)
 	MOVQ acc2, (8*2)(res_ptr)
 	MOVQ acc3, (8*3)(res_ptr)
+	MOVQ res_ptr, x_ptr
+	DECQ BX
+	JNE  sqrLoop
 
 	RET
 /* ---------------------------------------*/
@@ -671,7 +684,7 @@ TEXT ·p256SelectBase(SB),NOSPLIT,$0
 	PXOR X1, X1
 	PXOR X2, X2
 	PXOR X3, X3
-	MOVQ $32, AX
+	MOVQ $16, AX
 
 	MOVOU X15, X13
 
@@ -1480,7 +1493,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, acc4
 	ADCQ acc1, acc5
@@ -1622,7 +1635,7 @@ TEXT p256SqrInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, t0
 	ADCQ acc1, t1
@@ -2287,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 	CMOVQEQ t3, acc7
 	ANDQ t0, mul0
 
-	SHRQ $1, acc4:acc5
-	SHRQ $1, acc5:acc6
-	SHRQ $1, acc6:acc7
-	SHRQ $1, acc7:mul0
+	SHRQ $1, acc5, acc4
+	SHRQ $1, acc6, acc5
+	SHRQ $1, acc7, acc6
+	SHRQ $1, mul0, acc7
 	ST (y)
 	/////////////////////////
 	LDacc (x)

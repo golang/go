@@ -45,14 +45,19 @@ type Scanner struct {
 // input. The arguments are an initial substring of the remaining unprocessed
 // data and a flag, atEOF, that reports whether the Reader has no more data
 // to give. The return values are the number of bytes to advance the input
-// and the next token to return to the user, plus an error, if any. If the
-// data does not yet hold a complete token, for instance if it has no newline
-// while scanning lines, SplitFunc can return (0, nil, nil) to signal the
-// Scanner to read more data into the slice and try again with a longer slice
-// starting at the same point in the input.
+// and the next token to return to the user, if any, plus an error, if any.
 //
-// If the returned error is non-nil, scanning stops and the error
-// is returned to the client.
+// Scanning stops if the function returns an error, in which case some of
+// the input may be discarded.
+//
+// Otherwise, the Scanner advances the input. If the token is not nil,
+// the Scanner returns it to the user. If the token is nil, the
+// Scanner reads more data and continues scanning; if there is no more
+// data--if atEOF was true--the Scanner returns. If the data does not
+// yet hold a complete token, for instance if it has no newline while
+// scanning lines, a SplitFunc can return (0, nil, nil) to signal the
+// Scanner to read more data into the slice and try again with a
+// longer slice starting at the same point in the input.
 //
 // The function is never called with an empty data slice unless atEOF
 // is true. If atEOF is true, however, data may be non-empty and,
@@ -64,11 +69,12 @@ var (
 	ErrTooLong         = errors.New("bufio.Scanner: token too long")
 	ErrNegativeAdvance = errors.New("bufio.Scanner: SplitFunc returns negative advance count")
 	ErrAdvanceTooFar   = errors.New("bufio.Scanner: SplitFunc returns advance count beyond input")
+	ErrBadReadCount    = errors.New("bufio.Scanner: Read returned impossible count")
 )
 
 const (
 	// MaxScanTokenSize is the maximum size used to buffer a token
-	// unless the user provides an explicit buffer with Scan.Buffer.
+	// unless the user provides an explicit buffer with Scanner.Buffer.
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
@@ -123,8 +129,9 @@ var ErrFinalToken = errors.New("final token")
 // After Scan returns false, the Err method will return any error that
 // occurred during scanning, except that if it was io.EOF, Err
 // will return nil.
-// Scan panics if the split function returns 100 empty tokens without
-// advancing the input. This is a common error mode for scanners.
+// Scan panics if the split function returns too many empty
+// tokens without advancing the input. This is a common error mode for
+// scanners.
 func (s *Scanner) Scan() bool {
 	if s.done {
 		return false
@@ -156,8 +163,8 @@ func (s *Scanner) Scan() bool {
 				} else {
 					// Returning tokens not advancing input at EOF.
 					s.empties++
-					if s.empties > 100 {
-						panic("bufio.Scan: 100 empty tokens without progressing")
+					if s.empties > maxConsecutiveEmptyReads {
+						panic("bufio.Scan: too many empty tokens without progressing")
 					}
 				}
 				return true
@@ -205,6 +212,10 @@ func (s *Scanner) Scan() bool {
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
+			if n < 0 || len(s.buf)-s.end < n {
+				s.setErr(ErrBadReadCount)
+				break
+			}
 			s.end += n
 			if err != nil {
 				s.setErr(err)

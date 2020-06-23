@@ -25,7 +25,7 @@ type hmacTest struct {
 
 var hmacTests = []hmacTest{
 	// Tests from US FIPS 198
-	// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+	// https://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
 	{
 		sha1.New,
 		[]byte{
@@ -205,7 +205,7 @@ var hmacTests = []hmacTest{
 		sha256.BlockSize,
 	},
 
-	// Tests from http://csrc.nist.gov/groups/ST/toolkit/examples.html
+	// Tests from https://csrc.nist.gov/groups/ST/toolkit/examples.html
 	// (truncated tag tests are left out)
 	{
 		sha1.New,
@@ -529,7 +529,7 @@ func TestHMAC(t *testing.T) {
 		if b := h.BlockSize(); b != tt.blocksize {
 			t.Errorf("BlockSize: got %v, want %v", b, tt.blocksize)
 		}
-		for j := 0; j < 2; j++ {
+		for j := 0; j < 4; j++ {
 			n, err := h.Write(tt.in)
 			if n != len(tt.in) || err != nil {
 				t.Errorf("test %d.%d: Write(%d) = %d, %v", i, j, len(tt.in), n, err)
@@ -546,8 +546,19 @@ func TestHMAC(t *testing.T) {
 
 			// Second iteration: make sure reset works.
 			h.Reset()
+
+			// Third and fourth iteration: make sure hmac works on
+			// hashes without MarshalBinary/UnmarshalBinary
+			if j == 1 {
+				h = New(func() hash.Hash { return justHash{tt.hash()} }, tt.key)
+			}
 		}
 	}
+}
+
+// justHash implements just the hash.Hash methods and nothing else
+type justHash struct {
+	hash.Hash
 }
 
 func TestEqual(t *testing.T) {

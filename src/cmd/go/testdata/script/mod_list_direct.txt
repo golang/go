@@ -1,0 +1,24 @@
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+[!net] skip
+[!exec:git] skip
+
+# golang.org/issue/33099: if an import path ends in a major-version suffix,
+# ensure that 'direct' mode can resolve the package to the module.
+# For a while, (*modfetch.codeRepo).Stat was not checking for a go.mod file,
+# which would produce a hard error at the subsequent call to GoMod.
+
+go list all
+
+-- go.mod --
+module example.com
+go 1.13
+
+-- main.go --
+package main
+
+import _ "vcs-test.golang.org/git/v3pkg.git/v3"
+
+func main() {}

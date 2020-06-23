@@ -11,16 +11,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/format"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/bits"
-	"sort"
 )
 
-var (
-	header = []byte(`// Copyright 2017 The Go Authors. All rights reserved.
+const header = `// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -32,143 +28,85 @@ import (
 	"fmt"
 	"math/bits"
 )
-
-`)
-
-	exampleRegF = `
-func Example%s() {
-	fmt.Printf("%s\n", %d, bits.%s(%d))
-	// Output:
-	// %s
-}
 `
-	exampleRevF = `
-func Example%s() {
-	fmt.Printf("%s\n", %d)
-	fmt.Printf("%s\n", bits.%s(%d))
-	// Output:
-	// %s
-	// %s
-}
-`
-)
 
 func main() {
-	buf := bytes.NewBuffer(header)
+	w := bytes.NewBuffer([]byte(header))
 
-	genReg(buf)
-	genRev(buf)
-
-	out, err := format.Source(buf.Bytes())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = ioutil.WriteFile("example_test.go", out, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func genReg(w io.Writer) {
-	examples := []struct {
+	for _, e := range []struct {
 		name string
 		in   int
-		out  map[uint]interface{}
+		out  [4]interface{}
+		out2 [4]interface{}
 	}{
 		{
 			name: "LeadingZeros",
 			in:   1,
-			out: map[uint]interface{}{
-				8:  bits.LeadingZeros8(1),
-				16: bits.LeadingZeros16(1),
-				32: bits.LeadingZeros32(1),
-				64: bits.LeadingZeros64(1),
-			},
-		}, {
+			out:  [4]interface{}{bits.LeadingZeros8(1), bits.LeadingZeros16(1), bits.LeadingZeros32(1), bits.LeadingZeros64(1)},
+		},
+		{
 			name: "TrailingZeros",
 			in:   14,
-			out: map[uint]interface{}{
-				8:  bits.TrailingZeros8(14),
-				16: bits.TrailingZeros16(14),
-				32: bits.TrailingZeros32(14),
-				64: bits.TrailingZeros64(14),
-			},
-		}, {
+			out:  [4]interface{}{bits.TrailingZeros8(14), bits.TrailingZeros16(14), bits.TrailingZeros32(14), bits.TrailingZeros64(14)},
+		},
+		{
 			name: "OnesCount",
 			in:   14,
-			out: map[uint]interface{}{
-				8:  bits.OnesCount8(14),
-				16: bits.OnesCount16(14),
-				32: bits.OnesCount32(14),
-				64: bits.OnesCount64(14),
-			},
-		}, {
-			name: "Len",
-			in:   8,
-			out: map[uint]interface{}{
-				8:  bits.Len8(8),
-				16: bits.Len16(8),
-				32: bits.Len32(8),
-				64: bits.Len64(8),
-			},
+			out:  [4]interface{}{bits.OnesCount8(14), bits.OnesCount16(14), bits.OnesCount32(14), bits.OnesCount64(14)},
 		},
-	}
-
-	for _, e := range examples {
-		sizes := sortedSizes(e.out)
-
-		for _, size := range sizes {
-			fnName := fmt.Sprintf("%s%d", e.name, size)
-			outF := fmt.Sprintf("%s(%%0%db) = %%d", fnName, size)
-			out := fmt.Sprintf(outF, e.in, e.out[size])
-
-			fmt.Fprintf(w, exampleRegF, fnName, outF, e.in, fnName, e.in, out)
-		}
-	}
-}
-
-func genRev(w io.Writer) {
-	examples := []struct {
-		name string
-		in   int
-		out  map[uint]interface{}
-	}{
+		{
+			name: "RotateLeft",
+			in:   15,
+			out:  [4]interface{}{bits.RotateLeft8(15, 2), bits.RotateLeft16(15, 2), bits.RotateLeft32(15, 2), bits.RotateLeft64(15, 2)},
+			out2: [4]interface{}{bits.RotateLeft8(15, -2), bits.RotateLeft16(15, -2), bits.RotateLeft32(15, -2), bits.RotateLeft64(15, -2)},
+		},
 		{
 			name: "Reverse",
 			in:   19,
-			out: map[uint]interface{}{
-				8:  bits.Reverse8(19),
-				16: bits.Reverse16(19),
-				32: bits.Reverse32(19),
-				64: bits.Reverse64(19),
-			},
+			out:  [4]interface{}{bits.Reverse8(19), bits.Reverse16(19), bits.Reverse32(19), bits.Reverse64(19)},
 		},
-	}
-
-	for _, e := range examples {
-		sizes := sortedSizes(e.out)
-
-		for _, size := range sizes {
-			fnName := fmt.Sprintf("%s%d", e.name, size)
-			outF := fmt.Sprintf("%%0%db", size)
-			out := fmt.Sprintf(outF, e.in)
-			secOut := fmt.Sprintf(outF, e.out[size])
-
-			fmt.Fprintf(w, exampleRevF, fnName, outF, e.in, outF, fnName, e.in, out, secOut)
+		{
+			name: "ReverseBytes",
+			in:   15,
+			out:  [4]interface{}{nil, bits.ReverseBytes16(15), bits.ReverseBytes32(15), bits.ReverseBytes64(15)},
+		},
+		{
+			name: "Len",
+			in:   8,
+			out:  [4]interface{}{bits.Len8(8), bits.Len16(8), bits.Len32(8), bits.Len64(8)},
+		},
+	} {
+		for i, size := range []int{8, 16, 32, 64} {
+			if e.out[i] == nil {
+				continue // function doesn't exist
+			}
+			f := fmt.Sprintf("%s%d", e.name, size)
+			fmt.Fprintf(w, "\nfunc Example%s() {\n", f)
+			switch e.name {
+			case "RotateLeft", "Reverse", "ReverseBytes":
+				fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", %d)\n", size, e.in)
+				if e.name == "RotateLeft" {
+					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d, 2))\n", size, f, e.in)
+					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d, -2))\n", size, f, e.in)
+				} else {
+					fmt.Fprintf(w, "\tfmt.Printf(\"%%0%db\\n\", bits.%s(%d))\n", size, f, e.in)
+				}
+				fmt.Fprintf(w, "\t// Output:\n")
+				fmt.Fprintf(w, "\t// %0*b\n", size, e.in)
+				fmt.Fprintf(w, "\t// %0*b\n", size, e.out[i])
+				if e.name == "RotateLeft" && e.out2[i] != nil {
+					fmt.Fprintf(w, "\t// %0*b\n", size, e.out2[i])
+				}
+			default:
+				fmt.Fprintf(w, "\tfmt.Printf(\"%s(%%0%db) = %%d\\n\", %d, bits.%s(%d))\n", f, size, e.in, f, e.in)
+				fmt.Fprintf(w, "\t// Output:\n")
+				fmt.Fprintf(w, "\t// %s(%0*b) = %d\n", f, size, e.in, e.out[i])
+			}
+			fmt.Fprintf(w, "}\n")
 		}
 	}
-}
 
-func sortedSizes(out map[uint]interface{}) []uint {
-	sizes := make([]uint, 0, len(out))
-	for size := range out {
-		sizes = append(sizes, size)
+	if err := ioutil.WriteFile("example_test.go", w.Bytes(), 0666); err != nil {
+		log.Fatal(err)
 	}
-
-	sort.Slice(sizes, func(i, j int) bool {
-		return sizes[i] < sizes[j]
-	})
-
-	return sizes
 }

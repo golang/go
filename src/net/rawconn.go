@@ -9,11 +9,14 @@ import (
 	"syscall"
 )
 
-// BUG(mikio): On Windows, the Read and Write methods of
-// syscall.RawConn are not implemented.
+// BUG(tmm1): On Windows, the Write method of syscall.RawConn
+// does not integrate with the runtime's network poller. It cannot
+// wait for the connection to become writeable, and does not respect
+// deadlines. If the user-provided callback returns false, the Write
+// method will fail immediately.
 
-// BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
-// of syscall.RawConn are not implemented.
+// BUG(mikio): On JS and Plan 9, the Control, Read and Write
+// methods of syscall.RawConn are not implemented.
 
 type rawConn struct {
 	fd *netFD
@@ -59,4 +62,20 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 
 func newRawConn(fd *netFD) (*rawConn, error) {
 	return &rawConn{fd: fd}, nil
+}
+
+type rawListener struct {
+	rawConn
+}
+
+func (l *rawListener) Read(func(uintptr) bool) error {
+	return syscall.EINVAL
+}
+
+func (l *rawListener) Write(func(uintptr) bool) error {
+	return syscall.EINVAL
+}
+
+func newRawListener(fd *netFD) (*rawListener, error) {
+	return &rawListener{rawConn{fd: fd}}, nil
 }

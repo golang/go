@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+// +build aix linux
 // +build ppc64 ppc64le
 
 package runtime
@@ -74,18 +74,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	pc := gp.sigpc
 
-	// If we don't recognize the PC as code
-	// but we do recognize the link register as code,
-	// then assume this was a call to non-code and treat like
-	// pc == 0, to make unwinding show the context.
-	if pc != 0 && !findfunc(pc).valid() && findfunc(uintptr(c.link())).valid() {
-		pc = 0
-	}
-
-	// Don't bother saving PC if it's zero, which is
-	// probably a call to a nil func: the old link register
-	// is more useful in the stack trace.
-	if pc != 0 {
+	if shouldPushSigpanic(gp, pc, uintptr(c.link())) {
+		// Make it look the like faulting PC called sigpanic.
 		c.set_link(uint64(pc))
 	}
 
@@ -94,4 +84,28 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
 	c.set_r12(uint64(funcPC(sigpanic)))
 	c.set_pc(uint64(funcPC(sigpanic)))
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra space is known to gentraceback.
+	sp := c.sp() - sys.MinFrameSize
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// In PIC mode, we'll set up (i.e. clobber) R2 on function
+	// entry. Save it ahead of time.
+	// In PIC mode it requires R12 points to the function entry,
+	// so we'll set it up when pushing the call. Save it ahead
+	// of time as well.
+	// 8(SP) and 16(SP) are unused space in the reserved
+	// MinFrameSize (32) bytes.
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 8)) = c.r2()
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 16)) = c.r12()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_link(uint64(resumePC))
+	c.set_r12(uint64(targetPC))
+	c.set_pc(uint64(targetPC))
 }

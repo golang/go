@@ -68,6 +68,14 @@ func (f *formatter) formatString(b []byte, s string) {
 	if len(s) < len(b) {
 		b[len(s)] = 0
 	}
+
+	// Some buggy readers treat regular files with a trailing slash
+	// in the V7 path field as a directory even though the full path
+	// recorded elsewhere (e.g., via PAX record) contains no trailing slash.
+	if len(s) > len(b) && b[len(b)-1] == '/' {
+		n := len(strings.TrimRight(s[:len(b)], "/"))
+		b[n] = 0 // Replace trailing slash with NUL terminator
+	}
 }
 
 // fitsInBase256 reports whether x can be encoded into n bytes using base-256
@@ -218,9 +226,9 @@ func parsePAXTime(s string) (time.Time, error) {
 	}
 	nsecs, _ := strconv.ParseInt(sn, 10, 64) // Must succeed
 	if len(ss) > 0 && ss[0] == '-' {
-		return time.Unix(secs, -1*int64(nsecs)), nil // Negative correction
+		return time.Unix(secs, -1*nsecs), nil // Negative correction
 	}
-	return time.Unix(secs, int64(nsecs)), nil
+	return time.Unix(secs, nsecs), nil
 }
 
 // formatPAXTime converts ts into a time of the form %d.%d as described in the
@@ -236,7 +244,7 @@ func formatPAXTime(ts time.Time) (s string) {
 	if secs < 0 {
 		sign = "-"             // Remember sign
 		secs = -(secs + 1)     // Add a second to secs
-		nsecs = -(nsecs - 1E9) // Take that second away from nsecs
+		nsecs = -(nsecs - 1e9) // Take that second away from nsecs
 	}
 	return strings.TrimRight(fmt.Sprintf("%s%d.%09d", sign, secs, nsecs), "0")
 }

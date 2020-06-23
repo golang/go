@@ -192,8 +192,20 @@ func TestMulUnbalanced(t *testing.T) {
 	}
 }
 
+// rndNat returns a random nat value >= 0 of (usually) n words in length.
+// In extremely unlikely cases it may be smaller than n words if the top-
+// most words are 0.
 func rndNat(n int) nat {
 	return nat(rndV(n)).norm()
+}
+
+// rndNat1 is like rndNat but the result is guaranteed to be > 0.
+func rndNat1(n int) nat {
+	x := nat(rndV(n)).norm()
+	if len(x) == 0 {
+		x.setWord(1)
+	}
+	return x
 }
 
 func BenchmarkMul(b *testing.B) {
@@ -203,6 +215,29 @@ func BenchmarkMul(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var z nat
 		z.mul(mulx, muly)
+	}
+}
+
+func benchmarkNatMul(b *testing.B, nwords int) {
+	x := rndNat(nwords)
+	y := rndNat(nwords)
+	var z nat
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		z.mul(x, y)
+	}
+}
+
+var mulBenchSizes = []int{10, 100, 1000, 10000, 100000}
+
+func BenchmarkNatMul(b *testing.B) {
+	for _, n := range mulBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkNatMul(b, n)
+		})
 	}
 }
 
@@ -265,6 +300,34 @@ func TestShiftRight(t *testing.T) {
 			}
 		}
 	}
+}
+
+func BenchmarkZeroShifts(b *testing.B) {
+	x := rndNat(800)
+
+	b.Run("Shl", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shl(x, 0)
+		}
+	})
+	b.Run("ShlSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shl(x, 0)
+		}
+	})
+
+	b.Run("Shr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var z nat
+			z.shr(x, 0)
+		}
+	})
+	b.Run("ShrSame", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			x.shr(x, 0)
+		}
+	})
 }
 
 type modWTest struct {
@@ -620,26 +683,26 @@ func TestSticky(t *testing.T) {
 	}
 }
 
-func testBasicSqr(t *testing.T, x nat) {
+func testSqr(t *testing.T, x nat) {
 	got := make(nat, 2*len(x))
 	want := make(nat, 2*len(x))
-	basicSqr(got, x)
-	basicMul(want, x, x)
+	got = got.sqr(x)
+	want = want.mul(x, x)
 	if got.cmp(want) != 0 {
 		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
 	}
 }
 
-func TestBasicSqr(t *testing.T) {
+func TestSqr(t *testing.T) {
 	for _, a := range prodNN {
 		if a.x != nil {
-			testBasicSqr(t, a.x)
+			testSqr(t, a.x)
 		}
 		if a.y != nil {
-			testBasicSqr(t, a.y)
+			testSqr(t, a.y)
 		}
 		if a.z != nil {
-			testBasicSqr(t, a.z)
+			testSqr(t, a.z)
 		}
 	}
 }
@@ -653,7 +716,11 @@ func benchmarkNatSqr(b *testing.B, nwords int) {
 	}
 }
 
-var sqrBenchSizes = []int{1, 2, 3, 5, 8, 10, 20, 30, 50, 80, 100, 200, 300, 500, 800, 1000}
+var sqrBenchSizes = []int{
+	1, 2, 3, 5, 8, 10, 20, 30, 50, 80,
+	100, 200, 300, 500, 800,
+	1000, 10000, 100000,
+}
 
 func BenchmarkNatSqr(b *testing.B) {
 	for _, n := range sqrBenchSizes {
@@ -663,5 +730,77 @@ func BenchmarkNatSqr(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			benchmarkNatSqr(b, n)
 		})
+	}
+}
+
+func BenchmarkNatSetBytes(b *testing.B) {
+	const maxLength = 128
+	lengths := []int{
+		// No remainder:
+		8, 24, maxLength,
+		// With remainder:
+		7, 23, maxLength - 1,
+	}
+	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
+	buf := make([]byte, maxLength)
+	for _, l := range lengths {
+		b.Run(fmt.Sprint(l), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				n.setBytes(buf[:l])
+			}
+		})
+	}
+}
+
+func TestNatDiv(t *testing.T) {
+	sizes := []int{
+		1, 2, 5, 8, 15, 25, 40, 65, 100,
+		200, 500, 800, 1500, 2500, 4000, 6500, 10000,
+	}
+	for _, i := range sizes {
+		for _, j := range sizes {
+			a := rndNat1(i)
+			b := rndNat1(j)
+			// the test requires b >= 2
+			if len(b) == 1 && b[0] == 1 {
+				b[0] = 2
+			}
+			// choose a remainder c < b
+			c := rndNat1(len(b))
+			if len(c) == len(b) && c[len(c)-1] >= b[len(b)-1] {
+				c[len(c)-1] = 0
+				c = c.norm()
+			}
+			// compute x = a*b+c
+			x := nat(nil).mul(a, b)
+			x = x.add(x, c)
+
+			var q, r nat
+			q, r = q.div(r, x, b)
+			if q.cmp(a) != 0 {
+				t.Fatalf("wrong quotient: got %s; want %s for %s/%s", q.utoa(10), a.utoa(10), x.utoa(10), b.utoa(10))
+			}
+			if r.cmp(c) != 0 {
+				t.Fatalf("wrong remainder: got %s; want %s for %s/%s", r.utoa(10), c.utoa(10), x.utoa(10), b.utoa(10))
+			}
+		}
+	}
+}
+
+// TestIssue37499 triggers the edge case of divBasic where
+// the inaccurate estimate of the first word's quotient
+// happens at the very beginning of the loop.
+func TestIssue37499(t *testing.T) {
+	// Choose u and v such that v is slightly larger than u >> N.
+	// This tricks divBasic into choosing 1 as the first word
+	// of the quotient. This works in both 32-bit and 64-bit settings.
+	u := natFromString("0x2b6c385a05be027f5c22005b63c42a1165b79ff510e1706b39f8489c1d28e57bb5ba4ef9fd9387a3e344402c0a453381")
+	v := natFromString("0x2b6c385a05be027f5c22005b63c42a1165b79ff510e1706c")
+
+	q := nat(nil).make(8)
+	q.divBasic(u, v)
+	q = q.norm()
+	if s := string(q.utoa(16)); s != "fffffffffffffffffffffffffffffffffffffffffffffffb" {
+		t.Fatalf("incorrect quotient: %s", s)
 	}
 }

@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -118,14 +118,10 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 }
 
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
-	var c int32
-	var name string
-	var q *Prog
-
 	for p := sym.Func.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		if p.From3 != nil {
-			checkaddr(ctxt, p, p.From3)
+		if p.GetFrom3() != nil {
+			checkaddr(ctxt, p, p.GetFrom3())
 		}
 		checkaddr(ctxt, p, &p.To)
 
@@ -144,12 +140,9 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		if p.To.Sym != nil {
 			continue
 		}
-		c = int32(p.To.Offset)
-		for q = sym.Func.Text; q != nil; {
-			if int64(c) == q.Pc {
-				break
-			}
-			if q.Forwd != nil && int64(c) >= q.Forwd.Pc {
+		q := sym.Func.Text
+		for q != nil && p.To.Offset != q.Pc {
+			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
 			} else {
 				q = q.Link
@@ -157,11 +150,11 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		}
 
 		if q == nil {
-			name = "<nil>"
+			name := "<nil>"
 			if p.To.Sym != nil {
 				name = p.To.Sym.Name
 			}
-			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
+			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(p.To.Offset), p, name)
 			p.To.Type = TYPE_NONE
 		}
 

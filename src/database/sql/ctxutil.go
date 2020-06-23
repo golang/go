@@ -26,8 +26,8 @@ func ctxDriverPrepare(ctx context.Context, ci driver.Conn, query string) (driver
 	return si, err
 }
 
-func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvdargs []driver.NamedValue) (driver.Result, error) {
-	if execerCtx, is := execer.(driver.ExecerContext); is {
+func ctxDriverExec(ctx context.Context, execerCtx driver.ExecerContext, execer driver.Execer, query string, nvdargs []driver.NamedValue) (driver.Result, error) {
+	if execerCtx != nil {
 		return execerCtx.ExecContext(ctx, query, nvdargs)
 	}
 	dargs, err := namedValueToValue(nvdargs)
@@ -43,10 +43,9 @@ func ctxDriverExec(ctx context.Context, execer driver.Execer, query string, nvda
 	return execer.Exec(query, dargs)
 }
 
-func ctxDriverQuery(ctx context.Context, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
-	if queryerCtx, is := queryer.(driver.QueryerContext); is {
-		ret, err := queryerCtx.QueryContext(ctx, query, nvdargs)
-		return ret, err
+func ctxDriverQuery(ctx context.Context, queryerCtx driver.QueryerContext, queryer driver.Queryer, query string, nvdargs []driver.NamedValue) (driver.Rows, error) {
+	if queryerCtx != nil {
+		return queryerCtx.QueryContext(ctx, query, nvdargs)
 	}
 	dargs, err := namedValueToValue(nvdargs)
 	if err != nil {
@@ -95,8 +94,6 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
 	return si.Query(dargs)
 }
 
-var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")
-
 func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (driver.Tx, error) {
 	if ciCtx, is := ci.(driver.ConnBeginTx); is {
 		dopts := driver.TxOptions{}
@@ -121,7 +118,7 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 		}
 	}
 
-	if ctx.Done() == context.Background().Done() {
+	if ctx.Done() == nil {
 		return ci.Begin()
 	}
 

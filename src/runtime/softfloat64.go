@@ -13,7 +13,7 @@ const (
 	expbits64  uint = 11
 	bias64          = -1<<(expbits64-1) + 1
 
-	nan64 uint64 = (1<<expbits64-1)<<mantbits64 + 1
+	nan64 uint64 = (1<<expbits64-1)<<mantbits64 + 1<<(mantbits64-1) // quiet NaN, 0 payload
 	inf64 uint64 = (1<<expbits64 - 1) << mantbits64
 	neg64 uint64 = 1 << (expbits64 + mantbits64)
 
@@ -21,7 +21,7 @@ const (
 	expbits32  uint = 8
 	bias32          = -1<<(expbits32-1) + 1
 
-	nan32 uint32 = (1<<expbits32-1)<<mantbits32 + 1
+	nan32 uint32 = (1<<expbits32-1)<<mantbits32 + 1<<(mantbits32-1) // quiet NaN, 0 payload
 	inf32 uint32 = (1<<expbits32 - 1) << mantbits32
 	neg32 uint32 = 1 << (expbits32 + mantbits32)
 )
@@ -482,4 +482,116 @@ again2:
 	}
 
 	return q1*b + q0, (un21*b + un0 - q0*v) >> s
+}
+
+func fadd32(x, y uint32) uint32 {
+	return f64to32(fadd64(f32to64(x), f32to64(y)))
+}
+
+func fmul32(x, y uint32) uint32 {
+	return f64to32(fmul64(f32to64(x), f32to64(y)))
+}
+
+func fdiv32(x, y uint32) uint32 {
+	return f64to32(fdiv64(f32to64(x), f32to64(y)))
+}
+
+func feq32(x, y uint32) bool {
+	cmp, nan := fcmp64(f32to64(x), f32to64(y))
+	return cmp == 0 && !nan
+}
+
+func fgt32(x, y uint32) bool {
+	cmp, nan := fcmp64(f32to64(x), f32to64(y))
+	return cmp >= 1 && !nan
+}
+
+func fge32(x, y uint32) bool {
+	cmp, nan := fcmp64(f32to64(x), f32to64(y))
+	return cmp >= 0 && !nan
+}
+
+func feq64(x, y uint64) bool {
+	cmp, nan := fcmp64(x, y)
+	return cmp == 0 && !nan
+}
+
+func fgt64(x, y uint64) bool {
+	cmp, nan := fcmp64(x, y)
+	return cmp >= 1 && !nan
+}
+
+func fge64(x, y uint64) bool {
+	cmp, nan := fcmp64(x, y)
+	return cmp >= 0 && !nan
+}
+
+func fint32to32(x int32) uint32 {
+	return f64to32(fintto64(int64(x)))
+}
+
+func fint32to64(x int32) uint64 {
+	return fintto64(int64(x))
+}
+
+func fint64to32(x int64) uint32 {
+	return f64to32(fintto64(x))
+}
+
+func fint64to64(x int64) uint64 {
+	return fintto64(x)
+}
+
+func f32toint32(x uint32) int32 {
+	val, _ := f64toint(f32to64(x))
+	return int32(val)
+}
+
+func f32toint64(x uint32) int64 {
+	val, _ := f64toint(f32to64(x))
+	return val
+}
+
+func f64toint32(x uint64) int32 {
+	val, _ := f64toint(x)
+	return int32(val)
+}
+
+func f64toint64(x uint64) int64 {
+	val, _ := f64toint(x)
+	return val
+}
+
+func f64touint64(x float64) uint64 {
+	if x < float64(1<<63) {
+		return uint64(int64(x))
+	}
+	y := x - float64(1<<63)
+	z := uint64(int64(y))
+	return z | (1 << 63)
+}
+
+func f32touint64(x float32) uint64 {
+	if x < float32(1<<63) {
+		return uint64(int64(x))
+	}
+	y := x - float32(1<<63)
+	z := uint64(int64(y))
+	return z | (1 << 63)
+}
+
+func fuint64to64(x uint64) float64 {
+	if int64(x) >= 0 {
+		return float64(int64(x))
+	}
+	// See ../cmd/compile/internal/gc/ssa.go:uint64Tofloat
+	y := x & 1
+	z := x >> 1
+	z = z | y
+	r := float64(int64(z))
+	return r + r
+}
+
+func fuint64to32(x uint64) float32 {
+	return float32(fuint64to64(x))
 }

@@ -114,6 +114,8 @@ const ( // Directory mode bits
 	S_IRUSR  = C.S_IRUSR
 	S_IWUSR  = C.S_IWUSR
 	S_IXUSR  = C.S_IXUSR
+	S_IRWXG  = C.S_IRWXG
+	S_IRWXO  = C.S_IRWXO
 )
 
 type Stat_t C.struct_stat
@@ -125,6 +127,12 @@ type Flock_t C.struct_flock
 type Dirent C.struct_dirent
 
 type Fsid C.fsid_t
+
+// File system limits
+
+const (
+	pathMax = C.PATH_MAX
+)
 
 // Sockets
 

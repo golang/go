@@ -59,12 +59,19 @@ func (p *Profile) preEncode() {
 		}
 		sort.Strings(numKeys)
 		for _, k := range numKeys {
+			keyX := addString(strings, k)
 			vs := s.NumLabel[k]
-			for _, v := range vs {
+			units := s.NumUnit[k]
+			for i, v := range vs {
+				var unitX int64
+				if len(units) != 0 {
+					unitX = addString(strings, units[i])
+				}
 				s.labelX = append(s.labelX,
 					label{
-						keyX: addString(strings, k),
-						numX: v,
+						keyX:  keyX,
+						numX:  v,
+						unitX: unitX,
 					},
 				)
 			}
@@ -207,7 +214,12 @@ var profileDecoder = []decoder{
 	// int64 keep_frames = 8
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).keepFramesX) },
 	// int64 time_nanos = 9
-	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).TimeNanos) },
+	func(b *buffer, m message) error {
+		if m.(*Profile).TimeNanos != 0 {
+			return errConcatProfile
+		}
+		return decodeInt64(b, &m.(*Profile).TimeNanos)
+	},
 	// int64 duration_nanos = 10
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).DurationNanos) },
 	// ValueType period_type = 11
@@ -289,6 +301,7 @@ func (p *Profile) postDecode() error {
 	for _, s := range p.Sample {
 		labels := make(map[string][]string, len(s.labelX))
 		numLabels := make(map[string][]int64, len(s.labelX))
+		numUnits := make(map[string][]string, len(s.labelX))
 		for _, l := range s.labelX {
 			var key, value string
 			key, err = getString(p.stringTable, &l.keyX, err)
@@ -296,6 +309,14 @@ func (p *Profile) postDecode() error {
 				value, err = getString(p.stringTable, &l.strX, err)
 				labels[key] = append(labels[key], value)
 			} else if l.numX != 0 {
+				numValues := numLabels[key]
+				units := numUnits[key]
+				if l.unitX != 0 {
+					var unit string
+					unit, err = getString(p.stringTable, &l.unitX, err)
+					units = padStringArray(units, len(numValues))
+					numUnits[key] = append(units, unit)
+				}
 				numLabels[key] = append(numLabels[key], l.numX)
 			}
 		}
@@ -304,6 +325,12 @@ func (p *Profile) postDecode() error {
 		}
 		if len(numLabels) > 0 {
 			s.NumLabel = numLabels
+			for key, units := range numUnits {
+				if len(units) > 0 {
+					numUnits[key] = padStringArray(units, len(numLabels[key]))
+				}
+			}
+			s.NumUnit = numUnits
 		}
 		s.Location = make([]*Location, len(s.locationIDX))
 		for i, lid := range s.locationIDX {
@@ -338,6 +365,15 @@ func (p *Profile) postDecode() error {
 	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
 	p.stringTable = nil
 	return err
+}
+
+// padStringArray pads arr with enough empty strings to make arr
+// length l when arr's length is less than l.
+func padStringArray(arr []string, l int) []string {
+	if l <= len(arr) {
+		return arr
+	}
+	return append(arr, make([]string, l-len(arr))...)
 }
 
 func (p *ValueType) decoder() []decoder {
@@ -392,6 +428,7 @@ func (p label) encode(b *buffer) {
 	encodeInt64Opt(b, 1, p.keyX)
 	encodeInt64Opt(b, 2, p.strX)
 	encodeInt64Opt(b, 3, p.numX)
+	encodeInt64Opt(b, 4, p.unitX)
 }
 
 var labelDecoder = []decoder{
@@ -402,6 +439,8 @@ var labelDecoder = []decoder{
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*label).strX) },
 	// optional int64 num = 3
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*label).numX) },
+	// optional int64 num = 4
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*label).unitX) },
 }
 
 func (p *Mapping) decoder() []decoder {
@@ -446,6 +485,7 @@ func (p *Location) encode(b *buffer) {
 	for i := range p.Line {
 		encodeMessage(b, 4, &p.Line[i])
 	}
+	encodeBoolOpt(b, 5, p.IsFolded)
 }
 
 var locationDecoder = []decoder{
@@ -459,6 +499,7 @@ var locationDecoder = []decoder{
 		pp.Line = append(pp.Line, Line{})
 		return decodeMessage(b, &pp.Line[n])
 	},
+	func(b *buffer, m message) error { return decodeBool(b, &m.(*Location).IsFolded) }, // optional bool is_folded = 5;
 }
 
 func (p *Line) decoder() []decoder {

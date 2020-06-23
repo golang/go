@@ -40,10 +40,19 @@ func NewTicker(d Duration) *Ticker {
 }
 
 // Stop turns off a ticker. After Stop, no more ticks will be sent.
-// Stop does not close the channel, to prevent a read from the channel succeeding
-// incorrectly.
+// Stop does not close the channel, to prevent a concurrent goroutine
+// reading from the channel from seeing an erroneous "tick".
 func (t *Ticker) Stop() {
 	stopTimer(&t.r)
+}
+
+// Reset stops a ticker and resets its period to the specified duration.
+// The next tick will arrive after the new period elapses.
+func (t *Ticker) Reset(d Duration) {
+	if t.r.f == nil {
+		panic("time: Reset called on uninitialized Ticker")
+	}
+	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking

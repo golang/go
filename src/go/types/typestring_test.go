@@ -89,7 +89,7 @@ var independentTestTypes = []testEntry{
 	dup("func(...int) string"),
 	dup("func(x ...int) string"),
 	dup("func(x ...int) (u string)"),
-	{"func(x, y ...int) (u string)", "func(x int, y ...int) (u string)"},
+	{"func(x int, y ...int) (u string)", "func(x int, y ...int) (u string)"},
 
 	// interfaces
 	dup("interface{}"),
@@ -136,6 +136,58 @@ func TestTypeString(t *testing.T) {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
 	}
+}
+
+func TestIncompleteInterfaces(t *testing.T) {
+	sig := NewSignature(nil, nil, nil, false)
+	m := NewFunc(token.NoPos, nil, "m", sig)
+	for _, test := range []struct {
+		typ  *Interface
+		want string
+	}{
+		{new(Interface), "interface{/* incomplete */}"},
+		{new(Interface).Complete(), "interface{}"},
+
+		{NewInterface(nil, nil), "interface{}"},
+		{NewInterface(nil, nil).Complete(), "interface{}"},
+		{NewInterface([]*Func{}, nil), "interface{}"},
+		{NewInterface([]*Func{}, nil).Complete(), "interface{}"},
+		{NewInterface(nil, []*Named{}), "interface{}"},
+		{NewInterface(nil, []*Named{}).Complete(), "interface{}"},
+		{NewInterface([]*Func{m}, nil), "interface{m() /* incomplete */}"},
+		{NewInterface([]*Func{m}, nil).Complete(), "interface{m()}"},
+		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}), "interface{T /* incomplete */}"},
+		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}).Complete(), "interface{T}"},
+		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil))}), "interface{T /* incomplete */}"},
+		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}), "interface{T /* incomplete */}"},
+		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}).Complete(), "interface{T}"},
+
+		{NewInterfaceType(nil, nil), "interface{}"},
+		{NewInterfaceType(nil, nil).Complete(), "interface{}"},
+		{NewInterfaceType([]*Func{}, nil), "interface{}"},
+		{NewInterfaceType([]*Func{}, nil).Complete(), "interface{}"},
+		{NewInterfaceType(nil, []Type{}), "interface{}"},
+		{NewInterfaceType(nil, []Type{}).Complete(), "interface{}"},
+		{NewInterfaceType([]*Func{m}, nil), "interface{m() /* incomplete */}"},
+		{NewInterfaceType([]*Func{m}, nil).Complete(), "interface{m()}"},
+		{NewInterfaceType(nil, []Type{new(Interface).Complete()}), "interface{interface{} /* incomplete */}"},
+		{NewInterfaceType(nil, []Type{new(Interface).Complete()}).Complete(), "interface{interface{}}"},
+		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil)}), "interface{interface{m() /* incomplete */} /* incomplete */}"},
+		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}), "interface{interface{m()} /* incomplete */}"},
+		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}).Complete(), "interface{interface{m()}}"},
+	} {
+		got := test.typ.String()
+		if got != test.want {
+			t.Errorf("got: %s, want: %s", got, test.want)
+		}
+	}
+}
+
+// newDefined creates a new defined type named T with the given underlying type.
+// Helper function for use with TestIncompleteInterfaces only.
+func newDefined(underlying Type) *Named {
+	tname := NewTypeName(token.NoPos, nil, "T", nil)
+	return NewNamed(tname, underlying, nil)
 }
 
 func TestQualifiedTypeString(t *testing.T) {

@@ -4,10 +4,17 @@
 
 package ssa
 
+import (
+	"cmd/internal/src"
+)
+
 // findlive returns the reachable blocks and live values in f.
+// The caller should call f.retDeadcodeLive(live) when it is done with it.
 func findlive(f *Func) (reachable []bool, live []bool) {
 	reachable = ReachableBlocks(f)
-	live = liveValues(f, reachable)
+	var order []*Value
+	live, order = liveValues(f, reachable)
+	f.retDeadcodeLiveOrderStmts(order)
 	return
 }
 
@@ -15,7 +22,8 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 func ReachableBlocks(f *Func) []bool {
 	reachable := make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
-	p := []*Block{f.Entry} // stack-like worklist
+	p := make([]*Block, 0, 64) // stack-like worklist
+	p = append(p, f.Entry)
 	for len(p) > 0 {
 		// Pop a reachable block
 		b := p[len(p)-1]
@@ -27,6 +35,9 @@ func ReachableBlocks(f *Func) []bool {
 		}
 		for _, e := range s {
 			c := e.b
+			if int(c.ID) >= len(reachable) {
+				f.Fatalf("block %s >= f.NumBlocks()=%d?", c, len(reachable))
+			}
 			if !reachable[c.ID] {
 				reachable[c.ID] = true
 				p = append(p, c) // push
@@ -36,10 +47,25 @@ func ReachableBlocks(f *Func) []bool {
 	return reachable
 }
 
-// liveValues returns the live values in f.
+// liveValues returns the live values in f and a list of values that are eligible
+// to be statements in reversed data flow order.
+// The second result is used to help conserve statement boundaries for debugging.
 // reachable is a map from block ID to whether the block is reachable.
-func liveValues(f *Func, reachable []bool) []bool {
-	live := make([]bool, f.NumValues())
+// The caller should call f.retDeadcodeLive(live) and f.retDeadcodeLiveOrderStmts(liveOrderStmts)
+// when they are done with the return values.
+func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value) {
+	live = f.newDeadcodeLive()
+	if cap(live) < f.NumValues() {
+		live = make([]bool, f.NumValues())
+	} else {
+		live = live[:f.NumValues()]
+		for i := range live {
+			live[i] = false
+		}
+	}
+
+	liveOrderStmts = f.newDeadcodeLiveOrderStmts()
+	liveOrderStmts = liveOrderStmts[:0]
 
 	// After regalloc, consider all values to be live.
 	// See the comment at the top of regalloc.go and in deadcode for details.
@@ -47,11 +73,36 @@ func liveValues(f *Func, reachable []bool) []bool {
 		for i := range live {
 			live[i] = true
 		}
-		return live
+		return
+	}
+
+	// Record all the inline indexes we need
+	var liveInlIdx map[int]bool
+	pt := f.Config.ctxt.PosTable
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			i := pt.Pos(v.Pos).Base().InliningIndex()
+			if i < 0 {
+				continue
+			}
+			if liveInlIdx == nil {
+				liveInlIdx = map[int]bool{}
+			}
+			liveInlIdx[i] = true
+		}
+		i := pt.Pos(b.Pos).Base().InliningIndex()
+		if i < 0 {
+			continue
+		}
+		if liveInlIdx == nil {
+			liveInlIdx = map[int]bool{}
+		}
+		liveInlIdx[i] = true
 	}
 
 	// Find all live values
-	var q []*Value // stack-like worklist of unscanned values
+	q := f.Cache.deadcode.q[:0]
+	defer func() { f.Cache.deadcode.q = q }()
 
 	// Starting set: all control values of reachable blocks are live.
 	// Calls are live (because callee can observe the memory state).
@@ -59,19 +110,37 @@ func liveValues(f *Func, reachable []bool) []bool {
 		if !reachable[b.ID] {
 			continue
 		}
-		if v := b.Control; v != nil && !live[v.ID] {
-			live[v.ID] = true
-			q = append(q, v)
+		for _, v := range b.ControlValues() {
+			if !live[v.ID] {
+				live[v.ID] = true
+				q = append(q, v)
+				if v.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, v)
+				}
+			}
 		}
 		for _, v := range b.Values {
 			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
+				if v.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, v)
+				}
 			}
 			if v.Type.IsVoid() && !live[v.ID] {
-				// The only Void ops are nil checks.  We must keep these.
+				// The only Void ops are nil checks and inline marks.  We must keep these.
+				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
+					// We don't need marks for bodies that
+					// have been completely optimized away.
+					// TODO: save marks only for bodies which
+					// have a faulting instruction or a call?
+					continue
+				}
 				live[v.ID] = true
 				q = append(q, v)
+				if v.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, v)
+				}
 			}
 		}
 	}
@@ -88,11 +157,14 @@ func liveValues(f *Func, reachable []bool) []bool {
 			if !live[x.ID] {
 				live[x.ID] = true
 				q = append(q, x) // push
+				if x.Pos.IsStmt() != src.PosNotStmt {
+					liveOrderStmts = append(liveOrderStmts, x)
+				}
 			}
 		}
 	}
 
-	return live
+	return
 }
 
 // deadcode removes dead code from f.
@@ -140,7 +212,9 @@ func deadcode(f *Func) {
 	copyelim(f)
 
 	// Find live values.
-	live := liveValues(f, reachable)
+	live, order := liveValues(f, reachable)
+	defer f.retDeadcodeLive(live)
+	defer f.retDeadcodeLiveOrderStmts(order)
 
 	// Remove dead & duplicate entries from namedValues map.
 	s := f.newSparseSet(f.NumValues())
@@ -168,22 +242,47 @@ func deadcode(f *Func) {
 			f.NamedValues[name] = values[:j]
 		}
 	}
-	for k := len(f.Names) - 1; k >= i; k-- {
-		f.Names[k] = LocalSlot{}
+	clearNames := f.Names[i:]
+	for j := range clearNames {
+		clearNames[j] = LocalSlot{}
 	}
 	f.Names = f.Names[:i]
 
-	// Unlink values.
-	for _, b := range f.Blocks {
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.clear()
+
+	// Unlink values and conserve statement boundaries
+	for i, b := range f.Blocks {
 		if !reachable[b.ID] {
-			b.SetControl(nil)
+			// TODO what if control is statement boundary? Too late here.
+			b.ResetControls()
 		}
 		for _, v := range b.Values {
 			if !live[v.ID] {
 				v.resetArgs()
+				if v.Pos.IsStmt() == src.PosIsStmt && reachable[b.ID] {
+					pendingLines.set(v.Pos, int32(i)) // TODO could be more than one pos for a line
+				}
 			}
 		}
 	}
+
+	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
+	for i := len(order) - 1; i >= 0; i-- {
+		w := order[i]
+		if j := pendingLines.get(w.Pos); j > -1 && f.Blocks[j] == w.Block {
+			w.Pos = w.Pos.WithIsStmt()
+			pendingLines.remove(w.Pos)
+		}
+	}
+
+	// Any boundary that failed to match a live value can move to a block end
+	pendingLines.foreachEntry(func(j int32, l uint, bi int32) {
+		b := f.Blocks[bi]
+		if b.Pos.Line() == l && b.Pos.FileIndex() == j {
+			b.Pos = b.Pos.WithIsStmt()
+		}
+	})
 
 	// Remove dead values from blocks' value list. Return dead
 	// values to the allocator.
@@ -197,13 +296,22 @@ func deadcode(f *Func) {
 				f.freeValue(v)
 			}
 		}
-		// aid GC
-		tail := b.Values[i:]
-		for j := range tail {
-			tail[j] = nil
-		}
-		b.Values = b.Values[:i]
+		b.truncateValues(i)
 	}
+
+	// Remove dead blocks from WBLoads list.
+	i = 0
+	for _, b := range f.WBLoads {
+		if reachable[b.ID] {
+			f.WBLoads[i] = b
+			i++
+		}
+	}
+	clearWBLoads := f.WBLoads[i:]
+	for j := range clearWBLoads {
+		clearWBLoads[j] = nil
+	}
+	f.WBLoads = f.WBLoads[:i]
 
 	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0

@@ -172,7 +172,7 @@ func Decode(src []byte, ord binary.ByteOrder) (inst Inst, err error) {
 		}
 		break
 	}
-	if inst.Op == 0 {
+	if inst.Op == 0 && inst.Enc != 0 {
 		return inst, errUnknown
 	}
 	return inst, nil

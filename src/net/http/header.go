@@ -6,6 +6,7 @@ package http
 
 import (
 	"io"
+	"net/http/httptrace"
 	"net/textproto"
 	"sort"
 	"strings"
@@ -13,32 +14,45 @@ import (
 	"time"
 )
 
-var raceEnabled = false // set by race.go
-
 // A Header represents the key-value pairs in an HTTP header.
+//
+// The keys should be in canonical form, as returned by
+// CanonicalHeaderKey.
 type Header map[string][]string
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
+// The key is case insensitive; it is canonicalized by
+// CanonicalHeaderKey.
 func (h Header) Add(key, value string) {
 	textproto.MIMEHeader(h).Add(key, value)
 }
 
-// Set sets the header entries associated with key to
-// the single element value. It replaces any existing
-// values associated with key.
+// Set sets the header entries associated with key to the
+// single element value. It replaces any existing values
+// associated with key. The key is case insensitive; it is
+// canonicalized by textproto.CanonicalMIMEHeaderKey.
+// To use non-canonical keys, assign to the map directly.
 func (h Header) Set(key, value string) {
 	textproto.MIMEHeader(h).Set(key, value)
 }
 
-// Get gets the first value associated with the given key.
-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is used
-// to canonicalize the provided key.
-// If there are no values associated with the key, Get returns "".
-// To access multiple values of a key, or to use non-canonical keys,
+// Get gets the first value associated with the given key. If
+// there are no values associated with the key, Get returns "".
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To use non-canonical keys,
 // access the map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
+}
+
+// Values returns all values associated with the given key.
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To use non-canonical
+// keys, access the map directly.
+// The returned slice is not a copy.
+func (h Header) Values(key string) []string {
+	return textproto.MIMEHeader(h).Values(key)
 }
 
 // get is like Get, but key must already be in CanonicalHeaderKey form.
@@ -49,22 +63,46 @@ func (h Header) get(key string) string {
 	return ""
 }
 
+// has reports whether h has the provided key defined, even if it's
+// set to 0-length slice.
+func (h Header) has(key string) bool {
+	_, ok := h[key]
+	return ok
+}
+
 // Del deletes the values associated with key.
+// The key is case insensitive; it is canonicalized by
+// CanonicalHeaderKey.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
 }
 
 // Write writes a header in wire format.
 func (h Header) Write(w io.Writer) error {
-	return h.WriteSubset(w, nil)
+	return h.write(w, nil)
 }
 
-func (h Header) clone() Header {
+func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
+	return h.writeSubset(w, nil, trace)
+}
+
+// Clone returns a copy of h or nil if h is nil.
+func (h Header) Clone() Header {
+	if h == nil {
+		return nil
+	}
+
+	// Find total number of values.
+	nv := 0
+	for _, vv := range h {
+		nv += len(vv)
+	}
+	sv := make([]string, nv) // shared backing array for headers' values
 	h2 := make(Header, len(h))
 	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
+		n := copy(sv, vv)
+		h2[k] = sv[:n:n]
+		sv = sv[n:]
 	}
 	return h2
 }
@@ -89,10 +127,6 @@ func ParseTime(text string) (t time.Time, err error) {
 }
 
 var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
-
-type writeStringer interface {
-	WriteString(string) (int, error)
-}
 
 // stringWriter implements WriteString on a Writer.
 type stringWriter struct {
@@ -144,21 +178,35 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
 
 // WriteSubset writes a header in wire format.
 // If exclude is not nil, keys where exclude[key] == true are not written.
+// Keys are not canonicalized before checking the exclude map.
 func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
-	ws, ok := w.(writeStringer)
+	return h.writeSubset(w, exclude, nil)
+}
+
+func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptrace.ClientTrace) error {
+	ws, ok := w.(io.StringWriter)
 	if !ok {
 		ws = stringWriter{w}
 	}
 	kvs, sorter := h.sortedKeyValues(exclude)
+	var formattedVals []string
 	for _, kv := range kvs {
 		for _, v := range kv.values {
 			v = headerNewlineToSpace.Replace(v)
 			v = textproto.TrimString(v)
 			for _, s := range []string{kv.key, ": ", v, "\r\n"} {
 				if _, err := ws.WriteString(s); err != nil {
+					headerSorterPool.Put(sorter)
 					return err
 				}
 			}
+			if trace != nil && trace.WroteHeaderField != nil {
+				formattedVals = append(formattedVals, v)
+			}
+		}
+		if trace != nil && trace.WroteHeaderField != nil {
+			trace.WroteHeaderField(kv.key, formattedVals)
+			formattedVals = nil
 		}
 	}
 	headerSorterPool.Put(sorter)
@@ -212,14 +260,4 @@ func hasToken(v, token string) bool {
 
 func isTokenBoundary(b byte) bool {
 	return b == ' ' || b == ',' || b == '\t'
-}
-
-func cloneHeader(h Header) Header {
-	h2 := make(Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
 }

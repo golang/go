@@ -1,5 +1,5 @@
 // Inferno's libkern/memset-arm.s
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memset-arm.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/memset-arm.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -30,6 +30,7 @@
 #define N	R12
 #define TMP	R12				/* N and TMP don't overlap */
 
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
 	MOVW	ptr+0(FP), TO
 	MOVW	n+4(FP), N

@@ -5,7 +5,9 @@
 package cipher
 
 import (
+	subtleoverlap "crypto/internal/subtle"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 )
 
@@ -26,8 +28,8 @@ type AEAD interface {
 	// slice. The nonce must be NonceSize() bytes long and unique for all
 	// time, for a given key.
 	//
-	// The plaintext and dst may alias exactly or not at all. To reuse
-	// plaintext's storage for the encrypted output, use plaintext[:0] as dst.
+	// To reuse plaintext's storage for the encrypted output, use plaintext[:0]
+	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
 	Seal(dst, nonce, plaintext, additionalData []byte) []byte
 
 	// Open decrypts and authenticates ciphertext, authenticates the
@@ -36,8 +38,8 @@ type AEAD interface {
 	// bytes long and both it and the additional data must match the
 	// value passed to Seal.
 	//
-	// The ciphertext and dst may alias exactly or not at all. To reuse
-	// ciphertext's storage for the decrypted output, use ciphertext[:0] as dst.
+	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
+	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
 	//
 	// Even if the function fails, the contents of dst, up to its capacity,
 	// may be overwritten.
@@ -48,12 +50,12 @@ type AEAD interface {
 // implementation of GCM, like crypto/aes. NewGCM will check for this interface
 // and return the specific AEAD if found.
 type gcmAble interface {
-	NewGCM(int) (AEAD, error)
+	NewGCM(nonceSize, tagSize int) (AEAD, error)
 }
 
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
-// standard and make getUint64 suitable for marshaling these values, the bits
-// are stored backwards. For example:
+// standard and make binary.BigEndian suitable for marshaling these values, the
+// bits are stored in big endian order. For example:
 //   the coefficient of x⁰ can be obtained by v.low >> 63.
 //   the coefficient of x⁶³ can be obtained by v.low & 1.
 //   the coefficient of x⁶⁴ can be obtained by v.high >> 63.
@@ -63,10 +65,11 @@ type gcmFieldElement struct {
 }
 
 // gcm represents a Galois Counter Mode with a specific key. See
-// http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
+// https://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
 type gcm struct {
 	cipher    Block
 	nonceSize int
+	tagSize   int
 	// productTable contains the first sixteen powers of the key, H.
 	// However, they are in bit reversed order. See NewGCMWithNonceSize.
 	productTable [16]gcmFieldElement
@@ -79,18 +82,43 @@ type gcm struct {
 // An exception is when the underlying Block was created by aes.NewCipher
 // on systems with hardware support for AES. See the crypto/aes package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
-	return NewGCMWithNonceSize(cipher, gcmStandardNonceSize)
+	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
 }
 
 // NewGCMWithNonceSize returns the given 128-bit, block cipher wrapped in Galois
-// Counter Mode, which accepts nonces of the given length.
+// Counter Mode, which accepts nonces of the given length. The length must not
+// be zero.
 //
 // Only use this function if you require compatibility with an existing
 // cryptosystem that uses non-standard nonce lengths. All other users should use
 // NewGCM, which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+	return newGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
+}
+
+// NewGCMWithTagSize returns the given 128-bit, block cipher wrapped in Galois
+// Counter Mode, which generates tags with the given length.
+//
+// Tag sizes between 12 and 16 bytes are allowed.
+//
+// Only use this function if you require compatibility with an existing
+// cryptosystem that uses non-standard tag lengths. All other users should use
+// NewGCM, which is more resistant to misuse.
+func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
+}
+
+func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
+		return nil, errors.New("cipher: incorrect tag size given to GCM")
+	}
+
+	if nonceSize <= 0 {
+		return nil, errors.New("cipher: the nonce can't have zero length, or the security of the key will be immediately compromised")
+	}
+
 	if cipher, ok := cipher.(gcmAble); ok {
-		return cipher.NewGCM(size)
+		return cipher.NewGCM(nonceSize, tagSize)
 	}
 
 	if cipher.BlockSize() != gcmBlockSize {
@@ -100,7 +128,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 	var key [gcmBlockSize]byte
 	cipher.Encrypt(key[:], key[:])
 
-	g := &gcm{cipher: cipher, nonceSize: size}
+	g := &gcm{cipher: cipher, nonceSize: nonceSize, tagSize: tagSize}
 
 	// We precompute 16 multiples of |key|. However, when we do lookups
 	// into this table we'll be using bits from a field element and
@@ -108,8 +136,8 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 	// would expect, say, 4*key to be in index 4 of the table but due to
 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
 	x := gcmFieldElement{
-		getUint64(key[:8]),
-		getUint64(key[8:]),
+		binary.BigEndian.Uint64(key[:8]),
+		binary.BigEndian.Uint64(key[8:]),
 	}
 	g.productTable[reverseBits(1)] = x
 
@@ -124,6 +152,7 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 const (
 	gcmBlockSize         = 16
 	gcmTagSize           = 16
+	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
 	gcmStandardNonceSize = 12
 )
 
@@ -131,19 +160,22 @@ func (g *gcm) NonceSize() int {
 	return g.nonceSize
 }
 
-func (*gcm) Overhead() int {
-	return gcmTagSize
+func (g *gcm) Overhead() int {
+	return g.tagSize
 }
 
 func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	if uint64(len(plaintext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize()) {
-		panic("cipher: message too large for GCM")
+		panic("crypto/cipher: message too large for GCM")
 	}
 
-	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
+	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+	if subtleoverlap.InexactOverlap(out, plaintext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
 	var counter, tagMask [gcmBlockSize]byte
 	g.deriveCounter(&counter, nonce)
@@ -152,7 +184,10 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	gcmInc32(&counter)
 
 	g.counterCrypt(out, plaintext, &counter)
-	g.auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask)
+
+	var tag [gcmTagSize]byte
+	g.auth(tag[:], out[:len(plaintext)], data, &tagMask)
+	copy(out[len(plaintext):], tag[:])
 
 	return ret
 }
@@ -161,18 +196,23 @@ var errOpen = errors.New("cipher: message authentication failed")
 
 func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
+	}
+	// Sanity check to prevent the authentication from always succeeding if an implementation
+	// leaves tagSize uninitialized, for example.
+	if g.tagSize < gcmMinimumTagSize {
+		panic("crypto/cipher: incorrect GCM tag size")
 	}
 
-	if len(ciphertext) < gcmTagSize {
+	if len(ciphertext) < g.tagSize {
 		return nil, errOpen
 	}
-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+gcmTagSize {
+	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+uint64(g.tagSize) {
 		return nil, errOpen
 	}
 
-	tag := ciphertext[len(ciphertext)-gcmTagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
+	tag := ciphertext[len(ciphertext)-g.tagSize:]
+	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	var counter, tagMask [gcmBlockSize]byte
 	g.deriveCounter(&counter, nonce)
@@ -184,8 +224,11 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
 
 	ret, out := sliceForAppend(dst, len(ciphertext))
+	if subtleoverlap.InexactOverlap(out, ciphertext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
 		// The AESNI code decrypts and authenticates concurrently, and
 		// so overwrites dst in the event of a tag mismatch. That
 		// behavior is mimicked here in order to be consistent across
@@ -279,8 +322,8 @@ func (g *gcm) mul(y *gcmFieldElement) {
 // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
 func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
 	for len(blocks) > 0 {
-		y.low ^= getUint64(blocks)
-		y.high ^= getUint64(blocks[8:])
+		y.low ^= binary.BigEndian.Uint64(blocks)
+		y.high ^= binary.BigEndian.Uint64(blocks[8:])
 		g.mul(y)
 		blocks = blocks[gcmBlockSize:]
 	}
@@ -302,12 +345,8 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
 // gcmInc32 treats the final four bytes of counterBlock as a big-endian value
 // and increments it.
 func gcmInc32(counterBlock *[16]byte) {
-	for i := gcmBlockSize - 1; i >= gcmBlockSize-4; i-- {
-		counterBlock[i]++
-		if counterBlock[i] != 0 {
-			break
-		}
-	}
+	ctr := counterBlock[len(counterBlock)-4:]
+	binary.BigEndian.PutUint32(ctr, binary.BigEndian.Uint32(ctr)+1)
 }
 
 // sliceForAppend takes a slice and a requested number of bytes. It returns a
@@ -363,8 +402,8 @@ func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 		g.update(&y, nonce)
 		y.high ^= uint64(len(nonce)) * 8
 		g.mul(&y)
-		putUint64(counter[:8], y.low)
-		putUint64(counter[8:], y.high)
+		binary.BigEndian.PutUint64(counter[:8], y.low)
+		binary.BigEndian.PutUint64(counter[8:], y.high)
 	}
 }
 
@@ -380,31 +419,8 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
 
 	g.mul(&y)
 
-	putUint64(out, y.low)
-	putUint64(out[8:], y.high)
+	binary.BigEndian.PutUint64(out, y.low)
+	binary.BigEndian.PutUint64(out[8:], y.high)
 
 	xorWords(out, out, tagMask[:])
-}
-
-func getUint64(data []byte) uint64 {
-	r := uint64(data[0])<<56 |
-		uint64(data[1])<<48 |
-		uint64(data[2])<<40 |
-		uint64(data[3])<<32 |
-		uint64(data[4])<<24 |
-		uint64(data[5])<<16 |
-		uint64(data[6])<<8 |
-		uint64(data[7])
-	return r
-}
-
-func putUint64(out []byte, v uint64) {
-	out[0] = byte(v >> 56)
-	out[1] = byte(v >> 48)
-	out[2] = byte(v >> 40)
-	out[3] = byte(v >> 32)
-	out[4] = byte(v >> 24)
-	out[5] = byte(v >> 16)
-	out[6] = byte(v >> 8)
-	out[7] = byte(v)
 }

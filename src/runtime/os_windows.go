@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -27,12 +28,15 @@ const (
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -43,14 +47,14 @@ const (
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._TlsAlloc TlsAlloc%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
+//go:cgo_import_dynamic runtime._VirtualQuery VirtualQuery%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WaitForMultipleObjects WaitForMultipleObjects%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
-//go:cgo_import_dynamic runtime._timeEndPeriod timeEndPeriod%1 "winmm.dll"
 
 type stdFunction unsafe.Pointer
 
@@ -71,13 +75,16 @@ var (
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
-	_GetQueuedCompletionStatus,
+	_GetQueuedCompletionStatusEx,
 	_GetStdHandle,
+	_GetSystemDirectoryA,
 	_GetSystemInfo,
 	_GetSystemTimeAsFileTime,
 	_GetThreadContext,
+	_SetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
+	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
 	_ResumeThread,
@@ -90,21 +97,21 @@ var (
 	_SetWaitableTimer,
 	_SuspendThread,
 	_SwitchToThread,
+	_TlsAlloc,
 	_VirtualAlloc,
 	_VirtualFree,
-	_WSAGetOverlappedResult,
+	_VirtualQuery,
 	_WaitForSingleObject,
+	_WaitForMultipleObjects,
 	_WriteConsoleW,
 	_WriteFile,
-	_timeBeginPeriod,
-	_timeEndPeriod,
 	_ stdFunction
 
 	// Following syscalls are only available on some Windows PCs.
 	// We will load syscalls, if available, before using them.
 	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx,
+	_LoadLibraryExA,
 	_LoadLibraryExW,
 	_ stdFunction
 
@@ -122,16 +129,50 @@ var (
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
 	_NtWaitForSingleObject stdFunction
+
+	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
+	_timeBeginPeriod,
+	_timeEndPeriod,
+	_WSAGetOverlappedResult,
+	_ stdFunction
 )
 
 // Function to be called by windows CreateThread
 // to start new os thread.
-func tstart_stdcall(newm *m) uint32
+func tstart_stdcall(newm *m)
 
-func ctrlhandler(_type uint32) uint32
+// Called by OS using stdcall ABI.
+func ctrlhandler()
 
 type mOS struct {
-	waitsema uintptr // semaphore for parking on locks
+	threadLock mutex   // protects "thread" and prevents closing
+	thread     uintptr // thread handle
+
+	waitsema   uintptr // semaphore for parking on locks
+	resumesema uintptr // semaphore to indicate suspend/resume
+
+	// preemptExtLock synchronizes preemptM with entry/exit from
+	// external C code.
+	//
+	// This protects against races between preemptM calling
+	// SuspendThread and external code on this thread calling
+	// ExitProcess. If these happen concurrently, it's possible to
+	// exit the suspending thread and suspend the exiting thread,
+	// leading to deadlock.
+	//
+	// 0 indicates this M is not being preempted or in external
+	// code. Entering external code CASes this from 0 to 1. If
+	// this fails, a preemption is in progress, so the thread must
+	// wait for the preemption. preemptM also CASes this from 0 to
+	// 1. If this fails, the preemption fails (as it would if the
+	// PC weren't in Go code). The value is reset to 0 when
+	// returning from external code or after a preemption is
+	// complete.
+	//
+	// TODO(austin): We may not need this if preemption were more
+	// tightly synchronized on the G/P status and preemption
+	// blocked transition into _Gsyscall/_Psyscall.
+	preemptExtLock uint32
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -169,6 +210,26 @@ func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	return stdFunction(unsafe.Pointer(f))
 }
 
+var sysDirectory [521]byte
+var sysDirectoryLen uintptr
+
+func windowsLoadSystemLib(name []byte) uintptr {
+	if useLoadLibraryEx {
+		return stdcall3(_LoadLibraryExA, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+	} else {
+		if sysDirectoryLen == 0 {
+			l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+			if l == 0 || l > uintptr(len(sysDirectory)-1) {
+				throw("Unable to determine system directory")
+			}
+			sysDirectory[l] = '\\'
+			sysDirectoryLen = l + 1
+		}
+		absName := append(sysDirectory[:sysDirectoryLen], name...)
+		return stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&absName[0])))
+	}
+}
+
 func loadOptionalSyscalls() {
 	var kernel32dll = []byte("kernel32.dll\000")
 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
@@ -177,27 +238,89 @@ func loadOptionalSyscalls() {
 	}
 	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
+	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
 
 	var advapi32dll = []byte("advapi32.dll\000")
-	a32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&advapi32dll[0])))
+	a32 := windowsLoadSystemLib(advapi32dll)
 	if a32 == 0 {
 		throw("advapi32.dll not found")
 	}
 	_RtlGenRandom = windowsFindfunc(a32, []byte("SystemFunction036\000"))
 
 	var ntdll = []byte("ntdll.dll\000")
-	n32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&ntdll[0])))
+	n32 := windowsLoadSystemLib(ntdll)
 	if n32 == 0 {
 		throw("ntdll.dll not found")
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
 
+	if GOARCH == "arm" {
+		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+		if _QueryPerformanceCounter == nil {
+			throw("could not find QPC syscalls")
+		}
+	}
+
+	var winmmdll = []byte("winmm.dll\000")
+	m32 := windowsLoadSystemLib(winmmdll)
+	if m32 == 0 {
+		throw("winmm.dll not found")
+	}
+	_timeBeginPeriod = windowsFindfunc(m32, []byte("timeBeginPeriod\000"))
+	_timeEndPeriod = windowsFindfunc(m32, []byte("timeEndPeriod\000"))
+	if _timeBeginPeriod == nil || _timeEndPeriod == nil {
+		throw("timeBegin/EndPeriod not found")
+	}
+
+	var ws232dll = []byte("ws2_32.dll\000")
+	ws232 := windowsLoadSystemLib(ws232dll)
+	if ws232 == 0 {
+		throw("ws2_32.dll not found")
+	}
+	_WSAGetOverlappedResult = windowsFindfunc(ws232, []byte("WSAGetOverlappedResult\000"))
+	if _WSAGetOverlappedResult == nil {
+		throw("WSAGetOverlappedResult not found")
+	}
+
 	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
 		// running on Wine
 		initWine(k32)
 	}
+}
+
+func monitorSuspendResume() {
+	const (
+		_DEVICE_NOTIFY_CALLBACK = 2
+	)
+	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
+		callback uintptr
+		context  uintptr
+	}
+
+	powrprof := windowsLoadSystemLib([]byte("powrprof.dll\000"))
+	if powrprof == 0 {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	powerRegisterSuspendResumeNotification := windowsFindfunc(powrprof, []byte("PowerRegisterSuspendResumeNotification\000"))
+	if powerRegisterSuspendResumeNotification == nil {
+		return // Running on Windows 7, where we don't need it anyway.
+	}
+	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
+		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+			if mp.resumesema != 0 {
+				stdcall1(_SetEvent, mp.resumesema)
+			}
+		}
+		return 0
+	}
+	params := _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS{
+		callback: compileCallback(*efaceOf(&fn), true),
+	}
+	handle := uintptr(0)
+	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
 }
 
 //go:nosplit
@@ -300,11 +423,7 @@ func osinit() {
 
 	loadOptionalSyscalls()
 
-	useLoadLibraryEx = (_LoadLibraryExW != nil && _AddDllDirectory != nil)
-
 	disableWER()
-
-	externalthreadhandlerp = funcPC(externalthreadhandler)
 
 	initExceptionHandler()
 
@@ -322,8 +441,6 @@ func osinit() {
 	// In such context dynamic priority boosting does nothing but harm, so we turn it off.
 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
 }
-
-func nanotime() int64
 
 // useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
 // This is only set to 1 when running under Wine.
@@ -434,6 +551,10 @@ func goenvs() {
 	}
 
 	stdcall1(_FreeEnvironmentStringsW, uintptr(strings))
+
+	// We call this all the way here, late in init, so that malloc works
+	// for the callback function this generates.
+	monitorSuspendResume()
 }
 
 // exiting is set to non-zero when the process is exiting.
@@ -441,12 +562,21 @@ var exiting uint32
 
 //go:nosplit
 func exit(code int32) {
+	// Disallow thread suspension for preemption. Otherwise,
+	// ExitProcess and SuspendThread can race: SuspendThread
+	// queues a suspension request for this thread, ExitProcess
+	// kills the suspending thread, and then this thread suspends.
+	lock(&suspendLock)
 	atomic.Store(&exiting, 1)
 	stdcall1(_ExitProcess, uintptr(code))
 }
 
+// write1 must be nosplit because it's used as a last resort in
+// functions like badmorestackg0. In such cases, we'll always take the
+// ASCII path.
+//
 //go:nosplit
-func write(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 	const (
 		_STD_OUTPUT_HANDLE = ^uintptr(10) // -11
 		_STD_ERROR_HANDLE  = ^uintptr(11) // -12
@@ -543,6 +673,9 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 	return
 }
 
+// walltime1 isn't implemented on Windows, but will never be called.
+func walltime1() (sec int64, nsec int32)
+
 //go:nosplit
 func semasleep(ns int64) int32 {
 	const (
@@ -552,19 +685,32 @@ func semasleep(ns int64) int32 {
 		_WAIT_FAILED    = 0xFFFFFFFF
 	)
 
-	// store ms in ns to save stack space
+	var result uintptr
 	if ns < 0 {
-		ns = _INFINITE
+		result = stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(_INFINITE))
 	} else {
-		ns = int64(timediv(ns, 1000000, nil))
-		if ns == 0 {
-			ns = 1
+		start := nanotime()
+		elapsed := int64(0)
+		for {
+			ms := int64(timediv(ns-elapsed, 1000000, nil))
+			if ms == 0 {
+				ms = 1
+			}
+			result = stdcall4(_WaitForMultipleObjects, 2,
+				uintptr(unsafe.Pointer(&[2]uintptr{getg().m.waitsema, getg().m.resumesema})),
+				0, uintptr(ms))
+			if result != _WAIT_OBJECT_0+1 {
+				// Not a suspend/resume event
+				break
+			}
+			elapsed = nanotime() - start
+			if elapsed >= ns {
+				return -1
+			}
 		}
 	}
-
-	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
 	switch result {
-	case _WAIT_OBJECT_0: //signaled
+	case _WAIT_OBJECT_0: // Signaled
 		return 0
 
 	case _WAIT_TIMEOUT:
@@ -613,6 +759,15 @@ func semacreate(mp *m) {
 			throw("runtime.semacreate")
 		})
 	}
+	mp.resumesema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.resumesema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+		stdcall1(_CloseHandle, mp.waitsema)
+		mp.waitsema = 0
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed. This
@@ -620,13 +775,11 @@ func semacreate(mp *m) {
 // operate without stack guards.
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc(mp *m, stk unsafe.Pointer) {
-	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
-	// stackSize must match SizeOfStackReserve in cmd/link/internal/ld/pe.go.
-	const stackSize = 0x00200000*_64bit + 0x00020000*(1-_64bit)
-	thandle := stdcall6(_CreateThread, 0, stackSize,
+func newosproc(mp *m) {
+	// We pass 0 for the stack size to use the default for this binary.
+	thandle := stdcall6(_CreateThread, 0, 0,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
-		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+		0, 0)
 
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
@@ -640,6 +793,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
+
+	// Close thandle to avoid leaking the thread object if it exits.
+	stdcall1(_CloseHandle, thandle)
 }
 
 // Used by the C library build mode. On Linux this function would allocate a
@@ -648,7 +804,16 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 //go:nowritebarrierrec
 //go:nosplit
 func newosproc0(mp *m, stk unsafe.Pointer) {
-	newosproc(mp, stk)
+	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
+	// are stacksize and function, not *m and stack.
+	// Check os_linux.go for an implementation that might actually work.
+	throw("bad newosproc0")
+}
+
+func exitThread(wait *uint32) {
+	// We should never reach exitThread on Windows because we let
+	// the OS clean up threads.
+	throw("exitThread")
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -678,15 +843,48 @@ func sigblock() {
 func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
-	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	mp := getg().m
+	lock(&mp.threadLock)
+	mp.thread = thandle
+	unlock(&mp.threadLock)
+
+	// Query the true stack base from the OS. Currently we're
+	// running on a small assumed stack.
+	var mbi memoryBasicInformation
+	res := stdcall3(_VirtualQuery, uintptr(unsafe.Pointer(&mbi)), uintptr(unsafe.Pointer(&mbi)), unsafe.Sizeof(mbi))
+	if res == 0 {
+		print("runtime: VirtualQuery failed; errno=", getlasterror(), "\n")
+		throw("VirtualQuery for stack base failed")
+	}
+	// The system leaves an 8K PAGE_GUARD region at the bottom of
+	// the stack (in theory VirtualQuery isn't supposed to include
+	// that, but it does). Add an additional 8K of slop for
+	// calling C functions that don't have stack checks and for
+	// lastcontinuehandler. We shouldn't be anywhere near this
+	// bound anyway.
+	base := mbi.allocationBase + 16<<10
+	// Sanity check the stack bounds.
+	g0 := getg()
+	if base > g0.stack.hi || g0.stack.hi-base > 64<<20 {
+		print("runtime: g0 stack [", hex(base), ",", hex(g0.stack.hi), ")\n")
+		throw("bad g0 stack")
+	}
+	g0.stack.lo = base
+	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard1 = g0.stackguard0
+	// Sanity check the SP.
+	stackcheck()
 }
 
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	tp := &getg().m.thread
-	stdcall1(_CloseHandle, *tp)
-	*tp = 0
+	mp := getg().m
+	lock(&mp.threadLock)
+	stdcall1(_CloseHandle, mp.thread)
+	mp.thread = 0
+	unlock(&mp.threadLock)
 }
 
 // Calling stdcall on os stack.
@@ -697,17 +895,20 @@ func stdcall(fn stdFunction) uintptr {
 	gp := getg()
 	mp := gp.m
 	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
-
-	if mp.profilehz != 0 {
+	resetLibcall := false
+	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc(unsafe.Pointer(&fn))
+		mp.libcallpc = getcallerpc()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
+		mp.libcallsp = getcallersp()
+		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
-	mp.libcallsp = 0
+	if resetLibcall {
+		mp.libcallsp = 0
+	}
 	return mp.libcall.r1
 }
 
@@ -800,6 +1001,8 @@ func ctrlhandler1(_type uint32) uint32 {
 	switch _type {
 	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
 		s = _SIGINT
+	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
+		s = _SIGTERM
 	default:
 		return 0
 	}
@@ -807,27 +1010,47 @@ func ctrlhandler1(_type uint32) uint32 {
 	if sigsend(s) {
 		return 1
 	}
-	exit(2) // SIGINT, SIGTERM, etc
+	if !islibrary && !isarchive {
+		// Only exit the program if we don't have a DLL.
+		// See https://golang.org/issues/35965.
+		exit(2) // SIGINT, SIGTERM, etc
+	}
 	return 0
 }
 
 // in sys_windows_386.s and sys_windows_amd64.s
 func profileloop()
 
+// called from zcallback_windows_*.s to sys_windows_*.s
+func callbackasm1()
+
 var profiletimer uintptr
 
-func profilem(mp *m) {
-	var r *context
-	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
+func profilem(mp *m, thread uintptr) {
+	// Align Context to 16 bytes.
+	var c *context
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
 
-	tls := &mp.tls[0]
-	gp := *((**g)(unsafe.Pointer(tls)))
+	c.contextflags = _CONTEXT_CONTROL
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 
-	// align Context to 16 bytes
-	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
-	r.contextflags = _CONTEXT_CONTROL
-	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
-	sigprof(r.ip(), r.sp(), 0, gp, mp)
+	gp := gFromTLS(mp)
+
+	sigprof(c.ip(), c.sp(), c.lr(), gp, mp)
+}
+
+func gFromTLS(mp *m) *g {
+	switch GOARCH {
+	case "arm":
+		tls := &mp.tls[0]
+		return **((***g)(unsafe.Pointer(tls)))
+	case "386", "amd64":
+		tls := &mp.tls[0]
+		return *((**g)(unsafe.Pointer(tls)))
+	}
+	throw("unsupported architecture")
+	return nil
 }
 
 func profileloop1(param uintptr) uint32 {
@@ -837,18 +1060,34 @@ func profileloop1(param uintptr) uint32 {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
-			thread := atomic.Loaduintptr(&mp.thread)
+			lock(&mp.threadLock)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
-			if thread == 0 || mp.profilehz == 0 || mp.blocked {
+			if mp.thread == 0 || mp.profilehz == 0 || mp.blocked {
+				unlock(&mp.threadLock)
 				continue
 			}
-			stdcall1(_SuspendThread, thread)
+			// Acquire our own handle to the thread.
+			var thread uintptr
+			stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+			unlock(&mp.threadLock)
+			// mp may exit between the DuplicateHandle
+			// above and the SuspendThread. The handle
+			// will remain valid, but SuspendThread may
+			// fail.
+			if int32(stdcall1(_SuspendThread, thread)) == -1 {
+				// The thread no longer exists.
+				stdcall1(_CloseHandle, thread)
+				continue
+			}
 			if mp.profilehz != 0 && !mp.blocked {
-				profilem(mp)
+				// Pass the thread handle in case mp
+				// was in the process of shutting down.
+				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
+			stdcall1(_CloseHandle, thread)
 		}
 	}
 }
@@ -877,6 +1116,139 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-func memlimit() uintptr {
-	return 0
+const preemptMSupported = GOARCH != "arm"
+
+// suspendLock protects simultaneous SuspendThread operations from
+// suspending each other.
+var suspendLock mutex
+
+func preemptM(mp *m) {
+	if GOARCH == "arm" {
+		// TODO: Implement call injection
+		return
+	}
+
+	if mp == getg().m {
+		throw("self-preempt")
+	}
+
+	// Synchronize with external code that may try to ExitProcess.
+	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// External code is running. Fail the preemption
+		// attempt.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
+	// Acquire our own handle to mp's thread.
+	lock(&mp.threadLock)
+	if mp.thread == 0 {
+		// The M hasn't been minit'd yet (or was just unminit'd).
+		unlock(&mp.threadLock)
+		atomic.Store(&mp.preemptExtLock, 0)
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+	var thread uintptr
+	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+	unlock(&mp.threadLock)
+
+	// Prepare thread context buffer. This must be aligned to 16 bytes.
+	var c *context
+	var cbuf [unsafe.Sizeof(*c) + 15]byte
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
+	c.contextflags = _CONTEXT_CONTROL
+
+	// Serialize thread suspension. SuspendThread is asynchronous,
+	// so it's otherwise possible for two threads to suspend each
+	// other and deadlock. We must hold this lock until after
+	// GetThreadContext, since that blocks until the thread is
+	// actually suspended.
+	lock(&suspendLock)
+
+	// Suspend the thread.
+	if int32(stdcall1(_SuspendThread, thread)) == -1 {
+		unlock(&suspendLock)
+		stdcall1(_CloseHandle, thread)
+		atomic.Store(&mp.preemptExtLock, 0)
+		// The thread no longer exists. This shouldn't be
+		// possible, but just acknowledge the request.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
+	// We have to be very careful between this point and once
+	// we've shown mp is at an async safe-point. This is like a
+	// signal handler in the sense that mp could have been doing
+	// anything when we stopped it, including holding arbitrary
+	// locks.
+
+	// We have to get the thread context before inspecting the M
+	// because SuspendThread only requests a suspend.
+	// GetThreadContext actually blocks until it's suspended.
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+
+	unlock(&suspendLock)
+
+	// Does it want a preemption and is it safe to preempt?
+	gp := gFromTLS(mp)
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+			// Inject call to asyncPreempt
+			targetPC := funcPC(asyncPreempt)
+			switch GOARCH {
+			default:
+				throw("unsupported architecture")
+			case "386", "amd64":
+				// Make it look like the thread called targetPC.
+				sp := c.sp()
+				sp -= sys.PtrSize
+				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+				c.set_sp(sp)
+				c.set_ip(targetPC)
+			}
+
+			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+		}
+	}
+
+	atomic.Store(&mp.preemptExtLock, 0)
+
+	// Acknowledge the preemption.
+	atomic.Xadd(&mp.preemptGen, 1)
+
+	stdcall1(_ResumeThread, thread)
+	stdcall1(_CloseHandle, thread)
+}
+
+// osPreemptExtEnter is called before entering external code that may
+// call ExitProcess.
+//
+// This must be nosplit because it may be called from a syscall with
+// untyped stack slots, so the stack must not be grown or scanned.
+//
+//go:nosplit
+func osPreemptExtEnter(mp *m) {
+	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// An asynchronous preemption is in progress. It's not
+		// safe to enter external code because it may call
+		// ExitProcess and deadlock with SuspendThread.
+		// Ideally we would do the preemption ourselves, but
+		// can't since there may be untyped syscall arguments
+		// on the stack. Instead, just wait and encourage the
+		// SuspendThread APC to run. The preemption should be
+		// done shortly.
+		osyield()
+	}
+	// Asynchronous preemption is now blocked.
+}
+
+// osPreemptExtExit is called after returning from external code that
+// may call ExitProcess.
+//
+// See osPreemptExtEnter for why this is nosplit.
+//
+//go:nosplit
+func osPreemptExtExit(mp *m) {
+	atomic.Store(&mp.preemptExtLock, 0)
 }

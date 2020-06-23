@@ -1,5 +1,5 @@
 // Inferno's libkern/memmove-386.s
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/memmove-386.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -25,8 +25,12 @@
 
 // +build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
+// See memmove Go doc for important implementation constraints.
+
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	to+0(FP), DI
 	MOVL	from+4(FP), SI
@@ -38,6 +42,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	// 128 because that is the maximum SSE register load (loading all data
 	// into registers lets us ignore copy direction).
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTL	BX, BX
 	JEQ	move_0
 	CMPL	BX, $2
@@ -49,7 +54,7 @@ tail:
 	JBE	move_5through8
 	CMPL	BX, $16
 	JBE	move_9through16
-	CMPB	runtime·support_sse2(SB), $1
+	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
 	JNE	nosse2
 	CMPL	BX, $32
 	JBE	move_17through32
@@ -57,7 +62,6 @@ tail:
 	JBE	move_33through64
 	CMPL	BX, $128
 	JBE	move_65through128
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 nosse2:
 /*
@@ -71,7 +75,7 @@ nosse2:
  */
 forward:
 	// If REP MOVSB isn't fast, don't use it
-	CMPB	runtime·support_erms(SB), $1 // enhanced REP MOVSB/STOSB
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
 	JNE	fwdBy4
 
 	// Check alignment

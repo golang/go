@@ -7,11 +7,8 @@
 package base
 
 import (
-	"bytes"
-	"errors"
 	"flag"
 	"fmt"
-	"go/scanner"
 	"log"
 	"os"
 	"os/exec"
@@ -30,7 +27,7 @@ type Command struct {
 	Run func(cmd *Command, args []string)
 
 	// UsageLine is the one-line usage message.
-	// The first word in the line is taken to be the command name.
+	// The words between "go" and the first flag or argument in the line are taken to be the command name.
 	UsageLine string
 
 	// Short is the short description shown in the 'go help' output.
@@ -45,26 +42,45 @@ type Command struct {
 	// CustomFlags indicates that the command will do its own
 	// flag parsing.
 	CustomFlags bool
+
+	// Commands lists the available commands and help topics.
+	// The order here is the order in which they are printed by 'go help'.
+	// Note that subcommands are in general best avoided.
+	Commands []*Command
 }
 
-// Commands lists the available commands and help topics.
-// The order here is the order in which they are printed by 'go help'.
-var Commands []*Command
+var Go = &Command{
+	UsageLine: "go",
+	Long:      `Go is a tool for managing Go source code.`,
+	// Commands initialized in package main
+}
 
-// Name returns the command's name: the first word in the usage line.
-func (c *Command) Name() string {
+// LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
+func (c *Command) LongName() string {
 	name := c.UsageLine
-	i := strings.Index(name, " ")
-	if i >= 0 {
+	if i := strings.Index(name, " ["); i >= 0 {
 		name = name[:i]
+	}
+	if name == "go" {
+		return ""
+	}
+	return strings.TrimPrefix(name, "go ")
+}
+
+// Name returns the command's short name: the last word in the usage line before a flag or argument.
+func (c *Command) Name() string {
+	name := c.LongName()
+	if i := strings.LastIndex(name, " "); i >= 0 {
+		name = name[i+1:]
 	}
 	return name
 }
 
 func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
-	os.Exit(2)
+	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+	SetExitStatus(2)
+	Exit()
 }
 
 // Runnable reports whether the command can be run; otherwise
@@ -113,6 +129,10 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+func GetExitStatus() int {
+	return exitStatus
+}
+
 // Run runs the command, with stdout and stderr
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.
@@ -149,25 +169,3 @@ func RunStdin(cmdline []string) {
 // Usage is the usage-reporting function, filled in by package main
 // but here for reference by other packages.
 var Usage func()
-
-// ExpandScanner expands a scanner.List error into all the errors in the list.
-// The default Error method only shows the first error
-// and does not shorten paths.
-func ExpandScanner(err error) error {
-	// Look for parser errors.
-	if err, ok := err.(scanner.ErrorList); ok {
-		// Prepare error with \n before each message.
-		// When printed in something like context: %v
-		// this will put the leading file positions each on
-		// its own line. It will also show all the errors
-		// instead of just the first, as err.Error does.
-		var buf bytes.Buffer
-		for _, e := range err {
-			e.Pos.Filename = ShortPath(e.Pos.Filename)
-			buf.WriteString("\n")
-			buf.WriteString(e.Error())
-		}
-		return errors.New(buf.String())
-	}
-	return err
-}

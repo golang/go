@@ -4,11 +4,9 @@
 
 // +build !lldb
 // +build darwin
-// +build arm arm64
+// +build arm64
 
 #include <stdint.h>
-
-uintptr_t x_cgo_panicmem;
 
 void darwin_arm_init_thread_exception_port() {}
 void darwin_arm_init_mach_exception_handler() {}

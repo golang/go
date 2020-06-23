@@ -10,6 +10,7 @@ import (
 )
 
 func checkUser(t *testing.T) {
+	t.Helper()
 	if !userImplemented {
 		t.Skip("user: not implemented; skipping tests")
 	}
@@ -44,15 +45,11 @@ func compare(t *testing.T, want, got *User) {
 	if want.Name != got.Name {
 		t.Errorf("got Name=%q; want %q", got.Name, want.Name)
 	}
-	// TODO(brainman): fix it once we know how.
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping Gid and HomeDir comparisons")
+	if want.HomeDir != got.HomeDir {
+		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
 	}
 	if want.Gid != got.Gid {
 		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
-	}
-	if want.HomeDir != got.HomeDir {
-		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
 	}
 }
 
@@ -96,6 +93,7 @@ func TestLookupId(t *testing.T) {
 }
 
 func checkGroup(t *testing.T) {
+	t.Helper()
 	if !groupImplemented {
 		t.Skip("user: group not implemented; skipping test")
 	}
@@ -131,7 +129,10 @@ func TestLookupGroup(t *testing.T) {
 
 func TestGroupIds(t *testing.T) {
 	checkGroup(t)
-	if runtime.GOOS == "solaris" {
+	if runtime.GOOS == "aix" {
+		t.Skip("skipping GroupIds, see golang.org/issue/30563")
+	}
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
 		t.Skip("skipping GroupIds, see golang.org/issue/14709")
 	}
 	user, err := Current()

@@ -127,8 +127,8 @@ func TestServer(t *testing.T) {
 		if resp.Error != nil {
 			t.Fatalf("resp.Error: %s", resp.Error)
 		}
-		if resp.Id.(string) != string(i) {
-			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(i))
+		if resp.Id.(string) != string(rune(i)) {
+			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(rune(i)))
 		}
 		if resp.Result.C != 2*i+1 {
 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)

@@ -50,12 +50,12 @@ func htmlEscaper(args ...interface{}) string {
 // htmlReplacementTable contains the runes that need to be escaped
 // inside a quoted attribute value or in a text node.
 var htmlReplacementTable = []string{
-	// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+	// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
 	// CHARACTER character to the current attribute's value.
 	// "
 	// and similarly
-	// http://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
+	// https://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
 	0:    "\uFFFD",
 	'"':  "&#34;",
 	'&':  "&amp;",
@@ -137,7 +137,7 @@ var htmlNospaceNormReplacementTable = []string{
 // htmlReplacer returns s with runes replaced according to replacementTable
 // and when badRunes is true, certain bad runes are allowed through unescaped.
 func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
-	written, b := 0, new(bytes.Buffer)
+	written, b := 0, new(strings.Builder)
 	r, w := rune(0), 0
 	for i := 0; i < len(s); i += w {
 		// Cannot use 'for range s' because we need to preserve the width
@@ -146,6 +146,9 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 		r, w = utf8.DecodeRuneInString(s[i:])
 		if int(r) < len(replacementTable) {
 			if repl := replacementTable[r]; len(repl) != 0 {
+				if written == 0 {
+					b.Grow(len(s))
+				}
 				b.WriteString(s[written:i])
 				b.WriteString(repl)
 				written = i + w
@@ -154,6 +157,9 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 			// No-op.
 			// IE does not allow these ranges in unquoted attrs.
 		} else if 0xfdd0 <= r && r <= 0xfdef || 0xfff0 <= r && r <= 0xffff {
+			if written == 0 {
+				b.Grow(len(s))
+			}
 			fmt.Fprintf(b, "%s&#x%x;", s[written:i], r)
 			written = i + w
 		}
@@ -234,8 +240,7 @@ func htmlNameFilter(args ...interface{}) string {
 	}
 	s = strings.ToLower(s)
 	if t := attrType(s); t != contentTypePlain {
-		// TODO: Split attr and element name part filters so we can whitelist
-		// attributes.
+		// TODO: Split attr and element name part filters so we can recognize known attributes.
 		return filterFailsafe
 	}
 	for _, r := range s {

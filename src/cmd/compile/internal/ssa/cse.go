@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"sort"
 )
@@ -154,7 +155,7 @@ func cse(f *Func) {
 		}
 	}
 
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -178,50 +179,13 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.IsAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {
 					// e is sorted by domorder, so v.Block doesn't dominate any subsequent blocks in e
 					break
 				}
-			}
-		}
-	}
-
-	// if we rewrite a tuple generator to a new one in a different block,
-	// copy its selectors to the new generator's block, so tuple generator
-	// and selectors stay together.
-	// be careful not to copy same selectors more than once (issue 16741).
-	copiedSelects := make(map[ID][]*Value)
-	for _, b := range f.Blocks {
-	out:
-		for _, v := range b.Values {
-			// New values are created when selectors are copied to
-			// a new block. We can safely ignore those new values,
-			// since they have already been copied (issue 17918).
-			if int(v.ID) >= len(rewrite) || rewrite[v.ID] != nil {
-				continue
-			}
-			if v.Op != OpSelect0 && v.Op != OpSelect1 {
-				continue
-			}
-			if !v.Args[0].Type.IsTuple() {
-				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
-			}
-			t := rewrite[v.Args[0].ID]
-			if t != nil && t.Block != b {
-				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
-				for _, c := range copiedSelects[t.ID] {
-					if v.Op == c.Op {
-						// an equivalent selector is already copied
-						rewrite[v.ID] = c
-						continue out
-					}
-				}
-				c := v.copyInto(t.Block)
-				rewrite[v.ID] = c
-				copiedSelects[t.ID] = append(copiedSelects[t.ID], c)
 			}
 		}
 	}
@@ -233,22 +197,32 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
+					if w.Pos.IsStmt() == src.PosIsStmt {
+						// about to lose a statement marker, w
+						// w is an input to v; if they're in the same block
+						// and the same line, v is a good-enough new statement boundary.
+						if w.Block == v.Block && w.Pos.Line() == v.Pos.Line() {
+							v.Pos = v.Pos.WithIsStmt()
+							w.Pos = w.Pos.WithNotStmt()
+						} // TODO and if this fails?
+					}
 					v.SetArg(i, x)
 					rewrites++
 				}
 			}
 		}
-		if v := b.Control; v != nil {
+		for i, v := range b.ControlValues() {
 			if x := rewrite[v.ID]; x != nil {
 				if v.Op == OpNilCheck {
 					// nilcheck pass will remove the nil checks and log
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.SetControl(x)
+				b.ReplaceControl(i, x)
 			}
 		}
 	}
+
 	if f.pass.stats > 0 {
 		f.LogStat("CSE REWRITES", rewrites)
 	}

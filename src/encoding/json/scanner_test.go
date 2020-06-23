@@ -48,6 +48,7 @@ var examples = []example{
 	{`[1,2,3]`, "[\n\t1,\n\t2,\n\t3\n]"},
 	{`{"x":1}`, "{\n\t\"x\": 1\n}"},
 	{ex1, ex1i},
+	{"{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
 }
 
 var ex1 = `[true,false,null,"x",1,1.5,0,-5e+2]`
@@ -89,8 +90,8 @@ func TestCompactSeparators(t *testing.T) {
 	tests := []struct {
 		in, compact string
 	}{
-		{"{\"\u2028\": 1}", `{"\u2028":1}`},
-		{"{\"\u2029\" :2}", `{"\u2029":2}`},
+		{"{\"\u2028\": 1}", "{\"\u2028\":1}"},
+		{"{\"\u2029\" :2}", "{\"\u2029\":2}"},
 	}
 	for _, tt := range tests {
 		var buf bytes.Buffer
@@ -198,43 +199,6 @@ func TestIndentErrors(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestNextValueBig(t *testing.T) {
-	initBig()
-	var scan scanner
-	item, rest, err := nextValue(jsonBig, &scan)
-	if err != nil {
-		t.Fatalf("nextValue: %s", err)
-	}
-	if len(item) != len(jsonBig) || &item[0] != &jsonBig[0] {
-		t.Errorf("invalid item: %d %d", len(item), len(jsonBig))
-	}
-	if len(rest) != 0 {
-		t.Errorf("invalid rest: %d", len(rest))
-	}
-
-	item, rest, err = nextValue(append(jsonBig, "HELLO WORLD"...), &scan)
-	if err != nil {
-		t.Fatalf("nextValue extra: %s", err)
-	}
-	if len(item) != len(jsonBig) {
-		t.Errorf("invalid item: %d %d", len(item), len(jsonBig))
-	}
-	if string(rest) != "HELLO WORLD" {
-		t.Errorf("invalid rest: %d", len(rest))
-	}
-}
-
-var benchScan scanner
-
-func BenchmarkSkipValue(b *testing.B) {
-	initBig()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		nextValue(jsonBig, &benchScan)
-	}
-	b.SetBytes(int64(len(jsonBig)))
 }
 
 func diff(t *testing.T, a, b []byte) {

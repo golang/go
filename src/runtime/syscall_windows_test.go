@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -156,7 +157,7 @@ func TestEnumWindows(t *testing.T) {
 	}
 }
 
-func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
+func callback(timeFormatString unsafe.Pointer, lparam uintptr) uintptr {
 	(*(*func())(unsafe.Pointer(&lparam)))()
 	return 0 // stop enumeration
 }
@@ -164,9 +165,10 @@ func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
 // nestedCall calls into Windows, back into Go, and finally to f.
 func nestedCall(t *testing.T, f func()) {
 	c := syscall.NewCallback(callback)
-	d := GetDLL(t, "user32.dll")
+	d := GetDLL(t, "kernel32.dll")
 	defer d.Release()
-	d.Proc("EnumWindows").Call(c, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
+	const LOCALE_NAME_USER_DEFAULT = 0
+	d.Proc("EnumTimeFormatsEx").Call(c, LOCALE_NAME_USER_DEFAULT, 0, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
 }
 
 func TestCallback(t *testing.T) {
@@ -250,7 +252,37 @@ func TestBlockingCallback(t *testing.T) {
 }
 
 func TestCallbackInAnotherThread(t *testing.T) {
-	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+	d := GetDLL(t, "kernel32.dll")
+
+	f := func(p uintptr) uintptr {
+		return p
+	}
+	r, _, err := d.Proc("CreateThread").Call(0, 0, syscall.NewCallback(f), 123, 0, 0)
+	if r == 0 {
+		t.Fatalf("CreateThread failed: %v", err)
+	}
+	h := syscall.Handle(r)
+	defer syscall.CloseHandle(h)
+
+	switch s, err := syscall.WaitForSingleObject(h, 100); s {
+	case syscall.WAIT_OBJECT_0:
+		break
+	case syscall.WAIT_TIMEOUT:
+		t.Fatal("timeout waiting for thread to exit")
+	case syscall.WAIT_FAILED:
+		t.Fatalf("WaitForSingleObject failed: %v", err)
+	default:
+		t.Fatalf("WaitForSingleObject returns unexpected value %v", s)
+	}
+
+	var ec uint32
+	r, _, err = d.Proc("GetExitCodeThread").Call(uintptr(h), uintptr(unsafe.Pointer(&ec)))
+	if r == 0 {
+		t.Fatalf("GetExitCodeThread failed: %v", err)
+	}
+	if ec != 123 {
+		t.Fatalf("expected 123, but got %d", ec)
+	}
 }
 
 type cbDLLFunc int // int determines number of callback parameters
@@ -537,6 +569,17 @@ func TestWERDialogue(t *testing.T) {
 	cmd.CombinedOutput()
 }
 
+func TestWindowsStackMemory(t *testing.T) {
+	o := runTestProg(t, "testprog", "StackMemory")
+	stackUsage, err := strconv.Atoi(o)
+	if err != nil {
+		t.Fatalf("Failed to read stack usage: %v", err)
+	}
+	if expected, got := 100<<10, stackUsage; got > expected {
+		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+	}
+}
+
 var used byte
 
 func use(buf []byte) {
@@ -612,12 +655,16 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 		r   uintptr
 		err syscall.Errno
 	}
+	want := result{
+		// Make it large enough to test issue #29331.
+		r:   (^uintptr(0)) >> 24,
+		err: 333,
+	}
 	c := make(chan result)
 	go func() {
-		r, _, err := proc.Call(cb, 100)
+		r, _, err := proc.Call(cb, want.r)
 		c <- result{r, err.(syscall.Errno)}
 	}()
-	want := result{r: 100, err: 333}
 	if got := <-c; got != want {
 		t.Errorf("got %d want %d", got, want)
 	}
@@ -675,6 +722,82 @@ uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
 	)
 	if r != 1 {
 		t.Errorf("got %d want 1 (err=%v)", r, err)
+	}
+}
+
+func TestFloatReturn(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+	}
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+float cfuncFloat(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 1.5f;
+	}
+	return 0;
+}
+
+double cfuncDouble(uintptr_t a, double b, float c, double d) {
+	if (a == 1 && b == 2.2 && c == 3.3f && d == 4.4e44) {
+		return 2.5;
+	}
+	return 0;
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestFloatReturn")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "mydll.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	proc := dll.MustFindProc("cfuncFloat")
+
+	_, r, err := proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	fr := math.Float32frombits(uint32(r))
+	if fr != 1.5 {
+		t.Errorf("got %f want 1.5 (err=%v)", fr, err)
+	}
+
+	proc = dll.MustFindProc("cfuncDouble")
+
+	_, r, err = proc.Call(
+		1,
+		uintptr(math.Float64bits(2.2)),
+		uintptr(math.Float32bits(3.3)),
+		uintptr(math.Float64bits(4.4e44)),
+	)
+	dr := math.Float64frombits(uint64(r))
+	if dr != 2.5 {
+		t.Errorf("got %f want 2.5 (err=%v)", dr, err)
 	}
 }
 
@@ -915,6 +1038,52 @@ uintptr_t cfunc() {
 	}
 }
 
+// Test that C code called via a DLL can use large Windows thread
+// stacks and call back in to Go without crashing. See issue #20975.
+//
+// See also TestBigStackCallbackCgo.
+func TestBigStackCallbackSyscall(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	srcname, err := filepath.Abs("testdata/testprogcgo/bigstack_windows.c")
+	if err != nil {
+		t.Fatal("Abs failed: ", err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestBigStackCallback")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	outname := "mydll.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, outname)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	defer dll.Release()
+
+	var ok bool
+	proc := dll.MustFindProc("bigStack")
+	cb := syscall.NewCallback(func() uintptr {
+		// Do something interesting to force stack checks.
+		forceStackCopy()
+		ok = true
+		return 0
+	})
+	proc.Call(cb)
+	if !ok {
+		t.Fatalf("callback not called")
+	}
+}
+
 // wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
 func wantLoadLibraryEx() bool {
 	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
@@ -1043,7 +1212,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := exec.Command("go", "build", "-o", exe, src)
+	cmd := exec.Command(testenv.GoToolPath(b), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

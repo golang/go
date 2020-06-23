@@ -43,10 +43,11 @@ const (
 	NSYM   = 50
 	NREG   = 32 /* number of general registers */
 	NFREG  = 32 /* number of floating point registers */
+	NWREG  = 32 /* number of MSA registers */
 )
 
 const (
-	REG_R0 = obj.RBaseMIPS + iota
+	REG_R0 = obj.RBaseMIPS + iota // must be a multiple of 32
 	REG_R1
 	REG_R2
 	REG_R3
@@ -79,7 +80,7 @@ const (
 	REG_R30
 	REG_R31
 
-	REG_F0
+	REG_F0 // must be a multiple of 32
 	REG_F1
 	REG_F2
 	REG_F3
@@ -112,11 +113,8 @@ const (
 	REG_F30
 	REG_F31
 
-	REG_HI
-	REG_LO
-
 	// co-processor 0 control registers
-	REG_M0
+	REG_M0 // must be a multiple of 32
 	REG_M1
 	REG_M2
 	REG_M3
@@ -150,7 +148,7 @@ const (
 	REG_M31
 
 	// FPU control registers
-	REG_FCR0
+	REG_FCR0 // must be a multiple of 32
 	REG_FCR1
 	REG_FCR2
 	REG_FCR3
@@ -183,7 +181,45 @@ const (
 	REG_FCR30
 	REG_FCR31
 
-	REG_LAST = REG_FCR31 // the last defined register
+	// MSA registers
+	// The lower bits of W registers are alias to F registers
+	REG_W0 // must be a multiple of 32
+	REG_W1
+	REG_W2
+	REG_W3
+	REG_W4
+	REG_W5
+	REG_W6
+	REG_W7
+	REG_W8
+	REG_W9
+	REG_W10
+	REG_W11
+	REG_W12
+	REG_W13
+	REG_W14
+	REG_W15
+	REG_W16
+	REG_W17
+	REG_W18
+	REG_W19
+	REG_W20
+	REG_W21
+	REG_W22
+	REG_W23
+	REG_W24
+	REG_W25
+	REG_W26
+	REG_W27
+	REG_W28
+	REG_W29
+	REG_W30
+	REG_W31
+
+	REG_HI
+	REG_LO
+
+	REG_LAST = REG_LO // the last defined register
 
 	REG_SPECIAL = REG_M0
 
@@ -200,6 +236,26 @@ const (
 	REGTMP  = REG_R23 /* used by the linker */
 	FREGRET = REG_F0
 )
+
+// https://llvm.org/svn/llvm-project/llvm/trunk/lib/Target/Mips/MipsRegisterInfo.td search for DwarfRegNum
+// https://gcc.gnu.org/viewcvs/gcc/trunk/gcc/config/mips/mips.c?view=co&revision=258099&content-type=text%2Fplain search for mips_dwarf_regno
+// For now, this is adequate for both 32 and 64 bit.
+var MIPSDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
+	f := func(from, to, base int16) {
+		for r := int16(from); r <= to; r++ {
+			MIPSDWARFRegisters[r] = (r - from) + base
+		}
+	}
+	f(REG_R0, REG_R31, 0)
+	f(REG_F0, REG_F31, 32) // For 32-bit MIPS, compiler only uses even numbered registers --  see cmd/compile/internal/ssa/gen/MIPSOps.go
+	MIPSDWARFRegisters[REG_HI] = 64
+	MIPSDWARFRegisters[REG_LO] = 65
+	// The lower bits of W registers are alias to F registers
+	f(REG_W0, REG_W31, 32)
+}
 
 const (
 	BIG = 32766
@@ -225,6 +281,7 @@ const (
 	C_FREG
 	C_FCREG
 	C_MREG /* special processor register */
+	C_WREG /* MSA registers */
 	C_HI
 	C_LO
 	C_ZCON
@@ -301,6 +358,7 @@ const (
 	ALL
 	ALLV
 	ALUI
+	AMADD
 	AMOVB
 	AMOVBU
 	AMOVD
@@ -316,6 +374,7 @@ const (
 	AMOVWF
 	AMOVWL
 	AMOVWR
+	AMSUB
 	AMUL
 	AMULD
 	AMULF
@@ -324,6 +383,7 @@ const (
 	ANEGD
 	ANEGF
 	ANEGW
+	ANEGV
 	ANOOP // hardware nop
 	ANOR
 	AOR
@@ -384,6 +444,12 @@ const (
 	AMOVVF
 	AMOVVD
 
+	/* MSA */
+	AVMOVB
+	AVMOVH
+	AVMOVW
+	AVMOVD
+
 	ALAST
 
 	// aliases
@@ -391,3 +457,25 @@ const (
 	AJAL = obj.ACALL
 	ARET = obj.ARET
 )
+
+func init() {
+	// The asm encoder generally assumes that the lowest 5 bits of the
+	// REG_XX constants match the machine instruction encoding, i.e.
+	// the lowest 5 bits is the register number.
+	// Check this here.
+	if REG_R0%32 != 0 {
+		panic("REG_R0 is not a multiple of 32")
+	}
+	if REG_F0%32 != 0 {
+		panic("REG_F0 is not a multiple of 32")
+	}
+	if REG_M0%32 != 0 {
+		panic("REG_M0 is not a multiple of 32")
+	}
+	if REG_FCR0%32 != 0 {
+		panic("REG_FCR0 is not a multiple of 32")
+	}
+	if REG_W0%32 != 0 {
+		panic("REG_W0 is not a multiple of 32")
+	}
+}

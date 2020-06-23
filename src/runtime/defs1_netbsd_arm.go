@@ -6,6 +6,11 @@ package runtime
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x400000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -79,6 +84,7 @@ const (
 	_EV_CLEAR     = 0x20
 	_EV_RECEIPT   = 0
 	_EV_ERROR     = 0x4000
+	_EV_EOF       = 0x8000
 	_EVFILT_READ  = 0x0
 	_EVFILT_WRITE = 0x1
 )
@@ -107,12 +113,9 @@ type timespec struct {
 	_       [4]byte // EABI
 }
 
-func (ts *timespec) set_sec(x int32) {
-	ts.tv_sec = int64(x)
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = int64(timediv(ns, 1e9, &ts.tv_nsec))
 }
 
 type timeval struct {

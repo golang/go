@@ -36,7 +36,7 @@ type Block struct {
 // bytes) is also returned and this will always be smaller than the original
 // argument.
 func getLine(data []byte) (line, rest []byte) {
-	i := bytes.Index(data, []byte{'\n'})
+	i := bytes.IndexByte(data, '\n')
 	var j int
 	if i < 0 {
 		i = len(data)
@@ -50,14 +50,22 @@ func getLine(data []byte) (line, rest []byte) {
 	return bytes.TrimRight(data[0:i], " \t"), data[j:]
 }
 
-// removeWhitespace returns a copy of its input with all spaces, tab and
-// newline characters removed.
-func removeWhitespace(data []byte) []byte {
+// removeSpacesAndTabs returns a copy of its input with all spaces and tabs
+// removed, if there were any. Otherwise, the input is returned unchanged.
+//
+// The base64 decoder already skips newline characters, so we don't need to
+// filter them out here.
+func removeSpacesAndTabs(data []byte) []byte {
+	if !bytes.ContainsAny(data, " \t") {
+		// Fast path; most base64 data within PEM contains newlines, but
+		// no spaces nor tabs. Skip the extra alloc and work.
+		return data
+	}
 	result := make([]byte, len(data))
 	n := 0
 
 	for _, b := range data {
-		if b == ' ' || b == '\t' || b == '\r' || b == '\n' {
+		if b == ' ' || b == '\t' {
 			continue
 		}
 		result[n] = b
@@ -106,7 +114,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 		line, next := getLine(rest)
 
-		i := bytes.Index(line, []byte{':'})
+		i := bytes.IndexByte(line, ':')
 		if i == -1 {
 			break
 		}
@@ -155,7 +163,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		return decodeError(data, rest)
 	}
 
-	base64Data := removeWhitespace(rest[:endIndex])
+	base64Data := removeSpacesAndTabs(rest[:endIndex])
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {
@@ -252,7 +260,18 @@ func writeHeader(out io.Writer, k, v string) error {
 	return err
 }
 
+// Encode writes the PEM encoding of b to out.
 func Encode(out io.Writer, b *Block) error {
+	// Check for invalid block before writing any output.
+	for k := range b.Headers {
+		if strings.Contains(k, ":") {
+			return errors.New("pem: cannot encode a header key that contains a colon")
+		}
+	}
+
+	// All errors below are relayed from underlying io.Writer,
+	// so it is now safe to write data.
+
 	if _, err := out.Write(pemStart[1:]); err != nil {
 		return err
 	}
@@ -281,9 +300,6 @@ func Encode(out io.Writer, b *Block) error {
 		// For consistency of output, write other headers sorted by key.
 		sort.Strings(h)
 		for _, k := range h {
-			if strings.Contains(k, ":") {
-				return errors.New("pem: cannot encode a header key that contains a colon")
-			}
 			if err := writeHeader(out, k, b.Headers[k]); err != nil {
 				return err
 			}
@@ -310,8 +326,15 @@ func Encode(out io.Writer, b *Block) error {
 	return err
 }
 
+// EncodeToMemory returns the PEM encoding of b.
+//
+// If b has invalid headers and cannot be encoded,
+// EncodeToMemory returns nil. If it is important to
+// report details about this error case, use Encode instead.
 func EncodeToMemory(b *Block) []byte {
 	var buf bytes.Buffer
-	Encode(&buf, b)
+	if err := Encode(&buf, b); err != nil {
+		return nil
+	}
 	return buf.Bytes()
 }

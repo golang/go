@@ -14,6 +14,51 @@ import (
 	"unicode/utf8"
 )
 
+type toks struct {
+	earlyEOF bool
+	t        []Token
+}
+
+func (t *toks) Token() (Token, error) {
+	if len(t.t) == 0 {
+		return nil, io.EOF
+	}
+	var tok Token
+	tok, t.t = t.t[0], t.t[1:]
+	if t.earlyEOF && len(t.t) == 0 {
+		return tok, io.EOF
+	}
+	return tok, nil
+}
+
+func TestDecodeEOF(t *testing.T) {
+	start := StartElement{Name: Name{Local: "test"}}
+	t.Run("EarlyEOF", func(t *testing.T) {
+		d := NewTokenDecoder(&toks{earlyEOF: true, t: []Token{
+			start,
+			start.End(),
+		}})
+		err := d.Decode(&struct {
+			XMLName Name `xml:"test"`
+		}{})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+	t.Run("LateEOF", func(t *testing.T) {
+		d := NewTokenDecoder(&toks{t: []Token{
+			start,
+			start.End(),
+		}})
+		err := d.Decode(&struct {
+			XMLName Name `xml:"test"`
+		}{})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+}
+
 const testInput = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -650,6 +695,20 @@ func TestDisallowedCharacters(t *testing.T) {
 	}
 }
 
+func TestIsInCharacterRange(t *testing.T) {
+	invalid := []rune{
+		utf8.MaxRune + 1,
+		0xD800, // surrogate min
+		0xDFFF, // surrogate max
+		-1,
+	}
+	for _, r := range invalid {
+		if isInCharacterRange(r) {
+			t.Errorf("rune %U considered valid", r)
+		}
+	}
+}
+
 var procInstTests = []struct {
 	input  string
 	expect [2]string
@@ -860,4 +919,27 @@ func TestWrapDecoder(t *testing.T) {
 	if o.Chardata != "[Re-enter Clown with a letter, and FABIAN]" {
 		t.Fatalf("Got unexpected chardata: `%s`\n", o.Chardata)
 	}
+}
+
+type tokReader struct{}
+
+func (tokReader) Token() (Token, error) {
+	return StartElement{}, nil
+}
+
+type Failure struct{}
+
+func (Failure) UnmarshalXML(*Decoder, StartElement) error {
+	return nil
+}
+
+func TestTokenUnmarshaler(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Unexpected panic using custom token unmarshaler")
+		}
+	}()
+
+	d := NewTokenDecoder(tokReader{})
+	d.Decode(&Failure{})
 }

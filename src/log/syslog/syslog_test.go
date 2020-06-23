@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!nacl,!plan9
+// +build !windows,!plan9,!js
 
 package syslog
 
@@ -53,7 +53,7 @@ func testableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "darwin":
 			switch runtime.GOARCH {
-			case "arm", "arm64":
+			case "arm64":
 				return false
 			}
 		case "android":
@@ -214,6 +214,9 @@ func TestNew(t *testing.T) {
 
 	s, err := New(LOG_INFO|LOG_USER, "the_tag")
 	if err != nil {
+		if err.Error() == "Unix syslog delivery error" {
+			t.Skip("skipping: syslogd not running")
+		}
 		t.Fatalf("New() failed: %s", err)
 	}
 	// Don't send any messages.
@@ -226,6 +229,9 @@ func TestNewLogger(t *testing.T) {
 	}
 	f, err := NewLogger(LOG_USER|LOG_INFO, 0)
 	if f == nil {
+		if err.Error() == "Unix syslog delivery error" {
+			t.Skip("skipping: syslogd not running")
+		}
 		t.Error(err)
 	}
 }
@@ -244,6 +250,9 @@ func TestDial(t *testing.T) {
 	}
 	l, err := Dial("", "", LOG_USER|LOG_ERR, "syslog_test")
 	if err != nil {
+		if err.Error() == "Unix syslog delivery error" {
+			t.Skip("skipping: syslogd not running")
+		}
 		t.Fatalf("Dial() failed: %s", err)
 	}
 	l.Close()
@@ -347,7 +356,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	}
 
 	// count all the messages arriving
-	count := make(chan int)
+	count := make(chan int, 1)
 	go func() {
 		ct := 0
 		for range done {

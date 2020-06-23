@@ -10,11 +10,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "libcgo.h"
-#include "libcgo_unix.h"
-
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
+
+#include "libcgo.h"
+#include "libcgo_unix.h"
 
 #define magic (0xc476c475c47957UL)
 
@@ -48,7 +48,7 @@ inittls(void **tlsg, void **tlsbase)
 }
 
 static void *threadentry(void*);
-void (*setg_gcc)(void*);
+static void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -94,7 +94,7 @@ threadentry(void *v)
 }
 
 // init_working_dir sets the current working directory to the app root.
-// By default darwin/arm processes start in "/".
+// By default darwin/arm64 processes start in "/".
 static void
 init_working_dir()
 {
@@ -105,7 +105,7 @@ init_working_dir()
 	}
 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
 	if (url_ref == NULL) {
-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
+		// No Info.plist found. It can happen on Corellium virtual devices.
 		return;
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
@@ -142,8 +142,6 @@ init_working_dir()
 		if (chdir(buf) != 0) {
 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
 		}
-		// Notify the test harness that we're correctly set up
-		raise(SIGINT);
 	}
 }
 

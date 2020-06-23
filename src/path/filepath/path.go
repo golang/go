@@ -166,7 +166,7 @@ func ToSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, string(Separator), "/", -1)
+	return strings.ReplaceAll(path, string(Separator), "/")
 }
 
 // FromSlash returns the result of replacing each slash ('/') character
@@ -176,7 +176,7 @@ func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, "/", string(Separator), -1)
+	return strings.ReplaceAll(path, "/", string(Separator))
 }
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
@@ -201,11 +201,13 @@ func Split(path string) (dir, file string) {
 	return path[:i+1], path[i+1:]
 }
 
-// Join joins any number of path elements into a single path, adding
-// a Separator if necessary. Join calls Clean on the result; in particular,
-// all empty strings are ignored.
-// On Windows, the result is a UNC path if and only if the first path
-// element is a UNC path.
+// Join joins any number of path elements into a single path,
+// separating them with an OS specific Separator. Empty elements
+// are ignored. The result is Cleaned. However, if the argument
+// list is empty or all its elements are empty, Join returns
+// an empty string.
+// On Windows, the result will only be a UNC path if the first
+// non-empty element is a UNC path.
 func Join(elem ...string) string {
 	return join(elem)
 }
@@ -341,33 +343,34 @@ var SkipDir = errors.New("skip this directory")
 //
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
-// to handle that error (and Walk will not descend into that directory). If
-// an error is returned, processing stops. The sole exception is when the function
-// returns the special value SkipDir. If the function returns SkipDir when invoked
-// on a directory, Walk skips the directory's contents entirely.
-// If the function returns SkipDir when invoked on a non-directory file,
-// Walk skips the remaining files in the containing directory.
+// to handle that error (and Walk will not descend into that directory). In the
+// case of an error, the info argument will be nil. If an error is returned,
+// processing stops. The sole exception is when the function returns the special
+// value SkipDir. If the function returns SkipDir when invoked on a directory,
+// Walk skips the directory's contents entirely. If the function returns SkipDir
+// when invoked on a non-directory file, Walk skips the remaining files in the
+// containing directory.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
 var lstat = os.Lstat // for testing
 
-// walk recursively descends path, calling w.
+// walk recursively descends path, calling walkFn.
 func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
-	err := walkFn(path, info, nil)
-	if err != nil {
-		if info.IsDir() && err == SkipDir {
-			return nil
-		}
-		return err
-	}
-
 	if !info.IsDir() {
-		return nil
+		return walkFn(path, info, nil)
 	}
 
 	names, err := readDirNames(path)
-	if err != nil {
-		return walkFn(path, info, err)
+	err1 := walkFn(path, info, err)
+	// If err != nil, walk can't walk into this directory.
+	// err1 != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of err and err1 isn't nil, walk will return.
+	if err != nil || err1 != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore err and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return err1
 	}
 
 	for _, name := range names {

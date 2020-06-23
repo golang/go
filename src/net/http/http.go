@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 golang.org/x/net/http2
+
 package http
 
 import (
@@ -11,16 +13,26 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang_org/x/net/lex/httplex"
+	"golang.org/x/net/http/httpguts"
 )
+
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type incomparable [0]func()
 
 // maxInt64 is the effective "infinite" value for the Server and
 // Transport's byte-limiting readers.
 const maxInt64 = 1<<63 - 1
 
 // aLongTimeAgo is a non-zero time, far in the past, used for
-// immediate cancelation of network operations.
+// immediate cancellation of network operations.
 var aLongTimeAgo = time.Unix(1, 0)
+
+// omitBundledHTTP2 is set by omithttp2.go when the nethttpomithttp2
+// build tag is set. That means h2_bundle.go isn't compiled in and we
+// shouldn't try to use it.
+var omitBundledHTTP2 bool
 
 // TODO(bradfitz): move common stuff here. The other files have accumulated
 // generic http stuff in random places.
@@ -47,7 +59,7 @@ func removeEmptyPort(host string) string {
 }
 
 func isNotToken(r rune) bool {
-	return !httplex.IsTokenRune(r)
+	return !httpguts.IsTokenRune(r)
 }
 
 func isASCII(s string) bool {
@@ -57,6 +69,17 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// stringContainsCTLByte reports whether s contains any ASCII control character.
+func stringContainsCTLByte(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < ' ' || b == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func hexEscapeNonASCII(s string) string {
@@ -134,6 +157,10 @@ type Pusher interface {
 	// Handlers that wish to push URL X should call Push before sending any
 	// data that may trigger a request for URL X. This avoids a race where the
 	// client issues requests for X before receiving the PUSH_PROMISE for X.
+	//
+	// Push will run in a separate goroutine making the order of arrival
+	// non-deterministic. Any required synchronization needs to be implemented
+	// by the caller.
 	//
 	// Push returns ErrNotSupported if the client has disabled push or if push
 	// is not supported on the underlying connection.

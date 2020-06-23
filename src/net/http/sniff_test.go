@@ -36,8 +36,14 @@ var sniffTests = []struct {
 	{"XML", []byte("\n<?xml!"), "text/xml; charset=utf-8"},
 
 	// Image types.
+	{"Windows icon", []byte("\x00\x00\x01\x00"), "image/x-icon"},
+	{"Windows cursor", []byte("\x00\x00\x02\x00"), "image/x-icon"},
+	{"BMP image", []byte("BM..."), "image/bmp"},
 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
+	{"WEBP image", []byte("RIFF\x00\x00\x00\x00WEBPVP"), "image/webp"},
+	{"PNG image", []byte("\x89PNG\x0D\x0A\x1A\x0A"), "image/png"},
+	{"JPEG image", []byte("\xFF\xD8\xFF"), "image/jpeg"},
 
 	// Audio types.
 	{"MIDI audio", []byte("MThd\x00\x00\x00\x06\x00\x01"), "audio/midi"},
@@ -55,6 +61,23 @@ var sniffTests = []struct {
 	{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
 	{"AVI video #1", []byte("RIFF,O\n\x00AVI LISTÀ"), "video/avi"},
 	{"AVI video #2", []byte("RIFF,\n\x00\x00AVI LISTÀ"), "video/avi"},
+
+	// Font types.
+	// {"MS.FontObject", []byte("\x00\x00")},
+	{"TTF sample  I", []byte("\x00\x01\x00\x00\x00\x17\x01\x00\x00\x04\x01\x60\x4f"), "font/ttf"},
+	{"TTF sample II", []byte("\x00\x01\x00\x00\x00\x0e\x00\x80\x00\x03\x00\x60\x46"), "font/ttf"},
+
+	{"OTTO sample  I", []byte("\x4f\x54\x54\x4f\x00\x0e\x00\x80\x00\x03\x00\x60\x42\x41\x53\x45"), "font/otf"},
+
+	{"woff sample  I", []byte("\x77\x4f\x46\x46\x00\x01\x00\x00\x00\x00\x30\x54\x00\x0d\x00\x00"), "font/woff"},
+	{"woff2 sample", []byte("\x77\x4f\x46\x32\x00\x01\x00\x00\x00"), "font/woff2"},
+	{"wasm sample", []byte("\x00\x61\x73\x6d\x01\x00"), "application/wasm"},
+
+	// Archive types
+	{"RAR v1.5-v4.0", []byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},
+	{"RAR v5+", []byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"},
+	{"Incorrect RAR v1.5-v4.0", []byte("Rar \x1A\x07\x00"), "application/octet-stream"},
+	{"Incorrect RAR v5+", []byte("Rar \x1A\x07\x01\x00"), "application/octet-stream"},
 }
 
 func TestDetectContentType(t *testing.T) {
@@ -88,8 +111,17 @@ func testServerContentType(t *testing.T, h2 bool) {
 			t.Errorf("%v: %v", tt.desc, err)
 			continue
 		}
-		if ct := resp.Header.Get("Content-Type"); ct != tt.contentType {
-			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, tt.contentType)
+		// DetectContentType is defined to return
+		// text/plain; charset=utf-8 for an empty body,
+		// but as of Go 1.10 the HTTP server has been changed
+		// to return no content-type at all for an empty body.
+		// Adjust the expectation here.
+		wantContentType := tt.contentType
+		if len(tt.data) == 0 {
+			wantContentType = ""
+		}
+		if ct := resp.Header.Get("Content-Type"); ct != wantContentType {
+			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, wantContentType)
 		}
 		data, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

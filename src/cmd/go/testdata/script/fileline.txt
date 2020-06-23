@@ -1,0 +1,8 @@
+env GO111MODULE=off
+
+# look for short, relative file:line in error message
+! go run ../../gopath/x/y/z/err.go
+stderr ^..[\\/]x[\\/]y[\\/]z[\\/]err.go:
+
+-- ../x/y/z/err.go --
+package main; import "bar"

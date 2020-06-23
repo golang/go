@@ -68,6 +68,6 @@ func main() {
 		log.Fatal("no error from memcopy across memory hole")
 	}
 	if n != 8*size-5 {
-		log.Fatal("memcopy returned %d, want %d", n, 8*size-5)
+		log.Fatalf("memcopy returned %d, want %d", n, 8*size-5)
 	}
 }

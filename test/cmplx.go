@@ -49,10 +49,10 @@ func main() {
 	_ = complex(f64, F64) // ERROR "complex"
 	_ = complex(F64, f64) // ERROR "complex"
 
-	_ = complex(F1()) // ERROR "expects two arguments.*returns 1"
-	_ = complex(F3()) // ERROR "expects two arguments.*returns 3"
+	_ = complex(F1()) // ERROR "not enough arguments"
+	_ = complex(F3()) // ERROR "too many arguments"
 
-	_ = complex() // ERROR "missing argument"
+	_ = complex() // ERROR "not enough arguments"
 
 	c128 = complex(f32, f32) // ERROR "cannot use"
 	c64 = complex(f64, f64)  // ERROR "cannot use"

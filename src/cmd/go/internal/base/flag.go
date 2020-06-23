@@ -33,3 +33,8 @@ func AddBuildFlagsNX(flags *flag.FlagSet) {
 	flags.BoolVar(&cfg.BuildN, "n", false, "")
 	flags.BoolVar(&cfg.BuildX, "x", false, "")
 }
+
+// AddLoadFlags adds the -mod build flag to the flag set.
+func AddLoadFlags(flags *flag.FlagSet) {
+	flags.StringVar(&cfg.BuildMod, "mod", "", "")
+}

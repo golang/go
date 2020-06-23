@@ -243,7 +243,6 @@ func TestEncodeYCbCr(t *testing.T) {
 }
 
 func BenchmarkEncodeRGBA(b *testing.B) {
-	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
@@ -258,7 +257,8 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	options := &Options{Quality: 90}
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, options)
@@ -266,7 +266,6 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 }
 
 func BenchmarkEncodeYCbCr(b *testing.B) {
-	b.StopTimer()
 	img := image.NewYCbCr(image.Rect(0, 0, 640, 480), image.YCbCrSubsampleRatio420)
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
@@ -280,7 +279,8 @@ func BenchmarkEncodeYCbCr(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 3)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	options := &Options{Quality: 90}
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, options)

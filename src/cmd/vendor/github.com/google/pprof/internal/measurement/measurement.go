@@ -17,6 +17,7 @@ package measurement
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -154,6 +155,23 @@ func ScaledLabel(value int64, fromUnit, toUnit string) string {
 	return sv + u
 }
 
+// Percentage computes the percentage of total of a value, and encodes
+// it as a string. At least two digits of precision are printed.
+func Percentage(value, total int64) string {
+	var ratio float64
+	if total != 0 {
+		ratio = math.Abs(float64(value)/float64(total)) * 100
+	}
+	switch {
+	case math.Abs(ratio) >= 99.95 && math.Abs(ratio) <= 100.05:
+		return "  100%"
+	case math.Abs(ratio) >= 1.0:
+		return fmt.Sprintf("%5.2f%%", ratio)
+	default:
+		return fmt.Sprintf("%5.2g%%", ratio)
+	}
+}
+
 // isMemoryUnit returns whether a name is recognized as a memory size
 // unit.
 func isMemoryUnit(unit string) bool {
@@ -170,12 +188,16 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 
 	switch fromUnit {
 	case "byte", "b":
-	case "kilobyte", "kb":
+	case "kb", "kbyte", "kilobyte":
 		value *= 1024
-	case "megabyte", "mb":
+	case "mb", "mbyte", "megabyte":
 		value *= 1024 * 1024
-	case "gigabyte", "gb":
+	case "gb", "gbyte", "gigabyte":
 		value *= 1024 * 1024 * 1024
+	case "tb", "tbyte", "terabyte":
+		value *= 1024 * 1024 * 1024 * 1024
+	case "pb", "pbyte", "petabyte":
+		value *= 1024 * 1024 * 1024 * 1024 * 1024
 	default:
 		return 0, "", false
 	}
@@ -188,8 +210,12 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 			toUnit = "kb"
 		case value < 1024*1024*1024:
 			toUnit = "mb"
-		default:
+		case value < 1024*1024*1024*1024:
 			toUnit = "gb"
+		case value < 1024*1024*1024*1024*1024:
+			toUnit = "tb"
+		default:
+			toUnit = "pb"
 		}
 	}
 
@@ -203,6 +229,10 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 		output, toUnit = float64(value)/(1024*1024), "MB"
 	case "gb", "gbyte", "gigabyte":
 		output, toUnit = float64(value)/(1024*1024*1024), "GB"
+	case "tb", "tbyte", "terabyte":
+		output, toUnit = float64(value)/(1024*1024*1024*1024), "TB"
+	case "pb", "pbyte", "petabyte":
+		output, toUnit = float64(value)/(1024*1024*1024*1024*1024), "PB"
 	}
 	return output, toUnit, true
 }
@@ -289,10 +319,9 @@ func timeLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok bo
 	case "week", "wk":
 		output, toUnit = dd/float64(7*24*time.Hour), "wks"
 	case "year", "yr":
-		output, toUnit = dd/float64(365*7*24*time.Hour), "yrs"
+		output, toUnit = dd/float64(365*24*time.Hour), "yrs"
 	default:
-		fallthrough
-	case "sec", "second", "s":
+		// "sec", "second", "s" handled by default case.
 		output, toUnit = dd/float64(time.Second), "s"
 	}
 	return output, toUnit, true

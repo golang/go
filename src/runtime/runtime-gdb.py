@@ -18,6 +18,7 @@ path to this file based on the path to the runtime package.
 from __future__ import print_function
 import re
 import sys
+import gdb
 
 print("Loading Go Runtime support.", file=sys.stderr)
 #http://python3porting.com/differences.html
@@ -26,6 +27,48 @@ if sys.version > '3':
 # allow to manually reload while developing
 goobjfile = gdb.current_objfile() or gdb.objfiles()[0]
 goobjfile.pretty_printers = []
+
+# G state (runtime2.go)
+
+def read_runtime_const(varname, default):
+  try:
+    return int(gdb.parse_and_eval(varname))
+  except Exception:
+    return int(default)
+
+
+G_IDLE = read_runtime_const("'runtime._Gidle'", 0)
+G_RUNNABLE = read_runtime_const("'runtime._Grunnable'", 1)
+G_RUNNING = read_runtime_const("'runtime._Grunning'", 2)
+G_SYSCALL = read_runtime_const("'runtime._Gsyscall'", 3)
+G_WAITING = read_runtime_const("'runtime._Gwaiting'", 4)
+G_MORIBUND_UNUSED = read_runtime_const("'runtime._Gmoribund_unused'", 5)
+G_DEAD = read_runtime_const("'runtime._Gdead'", 6)
+G_ENQUEUE_UNUSED = read_runtime_const("'runtime._Genqueue_unused'", 7)
+G_COPYSTACK = read_runtime_const("'runtime._Gcopystack'", 8)
+G_SCAN = read_runtime_const("'runtime._Gscan'", 0x1000)
+G_SCANRUNNABLE = G_SCAN+G_RUNNABLE
+G_SCANRUNNING = G_SCAN+G_RUNNING
+G_SCANSYSCALL = G_SCAN+G_SYSCALL
+G_SCANWAITING = G_SCAN+G_WAITING
+
+sts = {
+    G_IDLE: 'idle',
+    G_RUNNABLE: 'runnable',
+    G_RUNNING: 'running',
+    G_SYSCALL: 'syscall',
+    G_WAITING: 'waiting',
+    G_MORIBUND_UNUSED: 'moribund',
+    G_DEAD: 'dead',
+    G_ENQUEUE_UNUSED: 'enqueue',
+    G_COPYSTACK: 'copystack',
+    G_SCAN: 'scan',
+    G_SCANRUNNABLE: 'runnable+s',
+    G_SCANRUNNING: 'running+s',
+    G_SCANSYSCALL: 'syscall+s',
+    G_SCANWAITING: 'waiting+s',
+}
+
 
 #
 #  Value wrappers
@@ -56,11 +99,11 @@ class SliceValue:
 #  Pretty Printers
 #
 
-
+# The patterns for matching types are permissive because gdb 8.2 switched to matching on (we think) typedef names instead of C syntax names.
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string( \*)?$')
+	pattern = re.compile(r'^(struct string( \*)?|string)$')
 
 	def __init__(self, val):
 		self.val = val
@@ -76,7 +119,7 @@ class StringTypePrinter:
 class SliceTypePrinter:
 	"Pretty print slices."
 
-	pattern = re.compile(r'^struct \[\]')
+	pattern = re.compile(r'^(struct \[\]|\[\])')
 
 	def __init__(self, val):
 		self.val = val
@@ -85,7 +128,10 @@ class SliceTypePrinter:
 		return 'array'
 
 	def to_string(self):
-		return str(self.val.type)[6:]  # skip 'struct '
+		t = str(self.val.type)
+		if (t.startswith("struct ")):
+			return t[len("struct "):]
+		return t
 
 	def children(self):
 		sval = SliceValue(self.val)
@@ -153,7 +199,7 @@ class ChanTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(r'^struct hchan<.*>$')
+	pattern = re.compile(r'^chan ')
 
 	def __init__(self, val):
 		self.val = val
@@ -167,7 +213,7 @@ class ChanTypePrinter:
 	def children(self):
 		# see chan.c chanbuf(). et is the type stolen from hchan<T>::recvq->first->elem
 		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
-		ptr = (self.val.address + 1).cast(et.pointer())
+		ptr = (self.val.address["buf"]).cast(et)
 		for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
 			yield ('[{0}]'.format(i), (ptr + j).dereference())
@@ -187,6 +233,25 @@ def makematcher(klass):
 	return matcher
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
+#
+#  Utilities
+#
+
+def pc_to_int(pc):
+	# python2 will not cast pc (type void*) to an int cleanly
+	# instead python2 and python3 work with the hex string representation
+	# of the void pointer which we can parse back into an int.
+	# int(pc) will not work.
+	try:
+		# python3 / newer versions of gdb
+		pc = int(pc)
+	except gdb.error:
+		# str(pc) can return things like
+		# "0x429d6c <runtime.gopark+284>", so
+		# chop at first space.
+		pc = int(str(pc).split(None, 1)[0], 16)
+	return pc
+
 
 #
 #  For reference, this is what we're trying to do:
@@ -290,7 +355,8 @@ class IfacePrinter:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
+			return "({typename}){data}".format(
+				typename=iface_dtype_name(self.val), data=self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
@@ -360,9 +426,6 @@ class DTypeFunc(gdb.Function):
 #  Commands
 #
 
-sts = ('idle', 'runnable', 'running', 'syscall', 'waiting', 'moribund', 'dead', 'recovery')
-
-
 def linked_list(ptr, linkfield):
 	while ptr:
 		yield ptr
@@ -379,32 +442,23 @@ class GoroutinesCmd(gdb.Command):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-			if ptr['atomicstatus'] == 6:  # 'gdead'
+			if ptr['atomicstatus'] == G_DEAD:
 				continue
 			s = ' '
 			if ptr['m']:
 				s = '*'
 			pc = ptr['sched']['pc'].cast(vp)
-			# python2 will not cast pc (type void*) to an int cleanly
-			# instead python2 and python3 work with the hex string representation
-			# of the void pointer which we can parse back into an int.
-			# int(pc) will not work.
-			try:
-				#python3 / newer versions of gdb
-				pc = int(pc)
-			except gdb.error:
-				# str(pc) can return things like
-				# "0x429d6c <runtime.gopark+284>", so
-				# chop at first space.
-				pc = int(str(pc).split(None, 1)[0], 16)
+			pc = pc_to_int(pc)
 			blk = gdb.block_for_pc(pc)
-			print(s, ptr['goid'], "{0:8s}".format(sts[int(ptr['atomicstatus'])]), blk.function)
+			status = int(ptr['atomicstatus'])
+			st = sts.get(status, "unknown(%d)" % status)
+			print(s, ptr['goid'], "{0:8s}".format(st), blk.function)
 
 
 def find_goroutine(goid):
 	"""
 	find_goroutine attempts to find the goroutine identified by goid.
-	It returns a touple of gdv.Value's representing the stack pointer
+	It returns a tuple of gdb.Value's representing the stack pointer
 	and program counter pointer for the goroutine.
 
 	@param int goid
@@ -413,7 +467,7 @@ def find_goroutine(goid):
 	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-		if ptr['atomicstatus'] == 6:  # 'gdead'
+		if ptr['atomicstatus'] == G_DEAD:
 			continue
 		if ptr['goid'] == goid:
 			break
@@ -421,9 +475,11 @@ def find_goroutine(goid):
 		return None, None
 	# Get the goroutine's saved state.
 	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
-	# If the goroutine is stopped, sched.sp will be non-0.
-	if sp != 0:
+	status = ptr['atomicstatus']&~G_SCAN
+	# Goroutine is not running nor in syscall, so use the info in goroutine
+	if status != G_RUNNING and status != G_SYSCALL:
 		return pc.cast(vp), sp.cast(vp)
+
 	# If the goroutine is in a syscall, use syscallpc/sp.
 	pc, sp = ptr['syscallpc'], ptr['syscallsp']
 	if sp != 0:
@@ -457,6 +513,10 @@ class GoroutineCmd(gdb.Command):
 
 	Usage: (gdb) goroutine <goid> <gdbcmd>
 
+	You could pass "all" as <goid> to apply <gdbcmd> to all goroutines.
+
+	For example: (gdb) goroutine all <gdbcmd>
+
 	Note that it is ill-defined to modify state in the context of a goroutine.
 	Restrict yourself to inspecting values.
 	"""
@@ -465,27 +525,40 @@ class GoroutineCmd(gdb.Command):
 		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
 	def invoke(self, arg, _from_tty):
-		goid, cmd = arg.split(None, 1)
-		goid = gdb.parse_and_eval(goid)
-		pc, sp = find_goroutine(int(goid))
+		goid_str, cmd = arg.split(None, 1)
+		goids = []
+
+		if goid_str == 'all':
+			for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+				goids.append(int(ptr['goid']))
+		else:
+			goids = [int(gdb.parse_and_eval(goid_str))]
+
+		for goid in goids:
+			self.invoke_per_goid(goid, cmd)
+
+	def invoke_per_goid(self, goid, cmd):
+		pc, sp = find_goroutine(goid)
 		if not pc:
 			print("No such goroutine: ", goid)
 			return
-		try:
-			#python3 / newer versions of gdb
-			pc = int(pc)
-		except gdb.error:
-			pc = int(str(pc).split(None, 1)[0], 16)
+		pc = pc_to_int(pc)
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')
+		# In GDB, assignments to sp must be done from the
+		# top-most frame, so select frame 0 first.
+		gdb.execute('select-frame 0')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$sp = $save_sp')
+			# In GDB, assignments to sp must be done from the
+			# top-most frame, so select frame 0 first.
+			gdb.execute('select-frame 0')
 			gdb.parse_and_eval('$pc = $save_pc')
+			gdb.parse_and_eval('$sp = $save_sp')
 			save_frame.select()
 
 

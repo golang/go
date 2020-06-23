@@ -30,7 +30,7 @@ const (
 )
 
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
-// http://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
+// https://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
 //sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
 //sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
 
@@ -163,7 +163,7 @@ func (sid *SID) String() (string, error) {
 		return "", e
 	}
 	defer LocalFree((Handle)(unsafe.Pointer(s)))
-	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
+	return utf16PtrToString(s), nil
 }
 
 // Len returns the length, in bytes, of a valid security identifier sid.
@@ -221,6 +221,7 @@ const (
 	TOKEN_ADJUST_PRIVILEGES
 	TOKEN_ADJUST_GROUPS
 	TOKEN_ADJUST_DEFAULT
+	TOKEN_ADJUST_SESSIONID
 
 	TOKEN_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED |
 		TOKEN_ASSIGN_PRIMARY |
@@ -230,7 +231,8 @@ const (
 		TOKEN_QUERY_SOURCE |
 		TOKEN_ADJUST_PRIVILEGES |
 		TOKEN_ADJUST_GROUPS |
-		TOKEN_ADJUST_DEFAULT
+		TOKEN_ADJUST_DEFAULT |
+		TOKEN_ADJUST_SESSIONID
 	TOKEN_READ  = STANDARD_RIGHTS_READ | TOKEN_QUERY
 	TOKEN_WRITE = STANDARD_RIGHTS_WRITE |
 		TOKEN_ADJUST_PRIVILEGES |
@@ -288,6 +290,7 @@ type Tokenprimarygroup struct {
 //sys	OpenProcessToken(h Handle, access uint32, token *Token) (err error) = advapi32.OpenProcessToken
 //sys	GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) = advapi32.GetTokenInformation
 //sys	GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) = userenv.GetUserProfileDirectoryW
+//sys	getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) = kernel32.GetSystemDirectoryW
 
 // An access token contains the security information for a logon session.
 // The system creates an access token when a user logs on, and every

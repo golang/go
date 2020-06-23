@@ -25,51 +25,67 @@ func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
 var (
 	cbs     callbacks
 	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
-
-	callbackasm byte // type isn't really byte, it's code in runtime
 )
+
+func callbackasm()
 
 // callbackasmAddr returns address of runtime.callbackasm
 // function adjusted by i.
-// runtime.callbackasm is just a series of CALL instructions
-// (each is 5 bytes long), and we want callback to arrive at
+// On x86 and amd64, runtime.callbackasm is a series of CALL instructions,
+// and we want callback to arrive at
 // correspondent call instruction instead of start of
 // runtime.callbackasm.
+// On ARM, runtime.callbackasm is a series of mov and branch instructions.
+// R12 is loaded with the callback index. Each entry is two instructions,
+// hence 8 bytes.
 func callbackasmAddr(i int) uintptr {
-	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
+	var entrySize int
+	switch GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "386", "amd64":
+		entrySize = 5
+	case "arm":
+		// On ARM, each entry is a MOV instruction
+		// followed by a branch instruction
+		entrySize = 8
+	}
+	return funcPC(callbackasm) + uintptr(i*entrySize)
 }
 
 //go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
-		panic("compileCallback: not a function")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
 	if len(ft.out()) != 1 {
-		panic("compileCallback: function must have one output parameter")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
 	if ft.out()[0].size != uintptrSize {
-		panic("compileCallback: output parameter size is wrong")
+		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	argsize := uintptr(0)
 	for _, t := range ft.in() {
 		if t.size > uintptrSize {
-			panic("compileCallback: input parameter size is wrong")
+			panic("compileCallback: argument size is larger than uintptr")
 		}
 		argsize += uintptrSize
 	}
 
-	lock(&cbs.lock)
-	defer unlock(&cbs.lock)
+	lock(&cbs.lock) // We don't unlock this in a defer because this is used from the system stack.
 
 	n := cbs.n
 	for i := 0; i < n; i++ {
 		if cbs.ctxt[i].gobody == fn.data && cbs.ctxt[i].isCleanstack() == cleanstack {
-			return callbackasmAddr(i)
+			r := callbackasmAddr(i)
+			unlock(&cbs.lock)
+			return r
 		}
 	}
 	if n >= cb_max {
+		unlock(&cbs.lock)
 		throw("too many callback functions")
 	}
 
@@ -85,14 +101,21 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	cbs.ctxt[n] = c
 	cbs.n++
 
-	return callbackasmAddr(n)
+	r := callbackasmAddr(n)
+	unlock(&cbs.lock)
+	return r
 }
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
+// When available, this function will use LoadLibraryEx with the filename
+// parameter and the important SEARCH_SYSTEM32 argument. But on systems that
+// do not have that option, absoluteFilepath should contain a fallback
+// to the full path inside of system32 for use with vanilla LoadLibrary.
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 //go:nosplit
-func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
+func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle, err uintptr) {
+	lockOSThread()
 	c := &getg().m.syscall
 
 	if useLoadLibraryEx {
@@ -105,14 +128,9 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
 		c.args = uintptr(noescape(unsafe.Pointer(&args)))
 	} else {
-		// User is on Windows XP or something ancient.
-		// The caller wanted to only load the filename DLL
-		// from the System32 directory but that facility
-		// doesn't exist, so just load it the normal way. This
-		// is a potential security risk, but so is Windows XP.
 		c.fn = getLoadLibrary()
 		c.n = 1
-		c.args = uintptr(noescape(unsafe.Pointer(&filename)))
+		c.args = uintptr(noescape(unsafe.Pointer(&absoluteFilepath)))
 	}
 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
@@ -120,12 +138,15 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 	if handle == 0 {
 		err = c.err
 	}
+	unlockOSThread() // not defer'd after the lockOSThread above to save stack frame size.
 	return
 }
 
 //go:linkname syscall_loadlibrary syscall.loadlibrary
 //go:nosplit
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = getLoadLibrary()
 	c.n = 1
@@ -141,6 +162,8 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 //go:linkname syscall_getprocaddress syscall.getprocaddress
 //go:nosplit
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = getGetProcAddress()
 	c.n = 2
@@ -156,6 +179,8 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 //go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
 func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
@@ -167,6 +192,8 @@ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 //go:linkname syscall_Syscall6 syscall.Syscall6
 //go:nosplit
 func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
@@ -178,6 +205,8 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
 //go:linkname syscall_Syscall9 syscall.Syscall9
 //go:nosplit
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
@@ -189,6 +218,8 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
 //go:linkname syscall_Syscall12 syscall.Syscall12
 //go:nosplit
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
@@ -200,6 +231,8 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
 	c.fn = fn
 	c.n = nargs
@@ -208,8 +241,15 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	return c.r1, c.r2, c.err
 }
 
-//go:linkname syscall_exit syscall.Exit
+//go:linkname syscall_Syscall18 syscall.Syscall18
 //go:nosplit
-func syscall_exit(code int) {
-	exit(int32(code))
+func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
+	lockOSThread()
+	defer unlockOSThread()
+	c := &getg().m.syscall
+	c.fn = fn
+	c.n = nargs
+	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	return c.r1, c.r2, c.err
 }

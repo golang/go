@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 amd64p32 386
+// +build amd64 386
 
 package runtime
 
@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// adjust Gobuf as it if executed a call to fn with context ctxt
+// adjust Gobuf as if it executed a call to fn with context ctxt
 // and then did an immediate gosave.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp

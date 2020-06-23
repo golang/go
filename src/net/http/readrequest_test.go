@@ -126,14 +126,14 @@ var reqTests = []reqTest{
 		noError,
 	},
 
-	// Tests a bogus abs_path on the Request-Line (RFC 2616 section 5.1.2)
+	// Tests a bogus absolute-path on the Request-Line (RFC 7230 section 5.3.1)
 	{
 		"GET ../../../../etc/passwd HTTP/1.1\r\n" +
 			"Host: test\r\n\r\n",
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse ../../../../etc/passwd: invalid URI for request",
+		`parse "../../../../etc/passwd": invalid URI for request`,
 	},
 
 	// Tests missing URL:
@@ -143,7 +143,7 @@ var reqTests = []reqTest{
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse : empty url",
+		`parse "": empty url`,
 	},
 
 	// Tests chunked body with trailer:
@@ -438,7 +438,7 @@ func TestReadRequest(t *testing.T) {
 // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
 // ending in \r\n\r\n
 func reqBytes(req string) []byte {
-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
+	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
 }
 
 var badRequestTests = []struct {
@@ -453,6 +453,14 @@ Content-Length: 4
 abc`)},
 	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
 Host: foo
+Content-Length: 5`)},
+
+	// golang.org/issue/22464
+	{"leading_space_in_header", reqBytes(`HEAD / HTTP/1.1
+ Host: foo
+Content-Length: 5`)},
+	{"leading_tab_in_header", reqBytes(`HEAD / HTTP/1.1
+\tHost: foo
 Content-Length: 5`)},
 }
 

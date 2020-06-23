@@ -35,12 +35,13 @@ func TestEscape(t *testing.T) {
 		A, E    []string
 		B, M    json.Marshaler
 		N       int
-		Z       *int
+		U       interface{} // untyped nil
+		Z       *int        // typed nil
 		W       HTML
 	}{
 		F: false,
 		T: true,
-		C: "<Cincinatti>",
+		C: "<Cincinnati>",
 		G: "<Goodbye>",
 		H: "<Hello>",
 		A: []string{"<a>", "<b>"},
@@ -48,6 +49,7 @@ func TestEscape(t *testing.T) {
 		N: 42,
 		B: &badMarshaler{},
 		M: &goodMarshaler{},
+		U: nil,
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
 	}
@@ -61,7 +63,7 @@ func TestEscape(t *testing.T) {
 		{
 			"if",
 			"{{if .T}}Hello{{end}}, {{.C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"else",
@@ -71,17 +73,17 @@ func TestEscape(t *testing.T) {
 		{
 			"overescaping1",
 			"Hello, {{.C | html}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping2",
 			"Hello, {{html .C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping3",
 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"assignment",
@@ -112,6 +114,16 @@ func TestEscape(t *testing.T) {
 			"nonStringValue",
 			"{{.T}}",
 			"true",
+		},
+		{
+			"untypedNilValue",
+			"{{.U}}",
+			"",
+		},
+		{
+			"typedNilValue",
+			"{{.Z}}",
+			"&lt;nil&gt;",
 		},
 		{
 			"constant",
@@ -181,7 +193,7 @@ func TestEscape(t *testing.T) {
 		{
 			"urlBranchConflictMoot",
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
-			`<a href="/foo?a=%3cCincinatti%3e">`,
+			`<a href="/foo?a=%3cCincinnati%3e">`,
 		},
 		{
 			"jsStrValue",
@@ -199,8 +211,13 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert( true )'>`,
 		},
 		{
-			"jsNilValue",
+			"jsNilValueTyped",
 			"<button onclick='alert(typeof{{.Z}})'>",
+			`<button onclick='alert(typeof null )'>`,
+		},
+		{
+			"jsNilValueUntyped",
+			"<button onclick='alert(typeof{{.U}})'>",
 			`<button onclick='alert(typeof null )'>`,
 		},
 		{
@@ -221,7 +238,7 @@ func TestEscape(t *testing.T) {
 		{
 			"jsStr",
 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
-			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+			`<button onclick='alert(&quot;\u003cHello\u003e&quot;)'>`,
 		},
 		{
 			"badMarshaler",
@@ -237,12 +254,12 @@ func TestEscape(t *testing.T) {
 			"jsStrNotUnderEscaped",
 			"<button onclick='alert({{.C | urlquery}})'>",
 			// URL escaped, then quoted for JS.
-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
+			`<button onclick='alert(&#34;%3CCincinnati%3E&#34;)'>`,
 		},
 		{
 			"jsRe",
 			`<button onclick='alert(/{{"foo+bar"}}/.test(""))'>`,
-			`<button onclick='alert(/foo\x2bbar/.test(""))'>`,
+			`<button onclick='alert(/foo\u002bbar/.test(""))'>`,
 		},
 		{
 			"jsReBlank",
@@ -405,7 +422,7 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"HTML comment not first < in text node.",
@@ -445,7 +462,7 @@ func TestEscape(t *testing.T) {
 		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"JS line comment",
@@ -650,6 +667,17 @@ func TestEscape(t *testing.T) {
 			`<{{"script"}}>{{"doEvil()"}}</{{"script"}}>`,
 			`&lt;script>doEvil()&lt;/script>`,
 		},
+		{
+			"srcset bad URL in second position",
+			`<img srcset="{{"/not-an-image#,javascript:alert(1)"}}">`,
+			// The second URL is also filtered.
+			`<img srcset="/not-an-image#,#ZgotmplZ">`,
+		},
+		{
+			"srcset buffer growth",
+			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
+			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
+		},
 	}
 
 	for _, test := range tests {
@@ -797,7 +825,7 @@ func TestEscapeSet(t *testing.T) {
 				"main":   `<button onclick="title='{{template "helper"}}'; ...">{{template "helper"}}</button>`,
 				"helper": `{{11}} of {{"<100>"}}`,
 			},
-			`<button onclick="title='11 of \x3c100\x3e'; ...">11 of &lt;100&gt;</button>`,
+			`<button onclick="title='11 of \u003c100\u003e'; ...">11 of &lt;100&gt;</button>`,
 		},
 		// A non-recursive template that ends in a different context.
 		// helper starts in jsCtxRegexp and ends in jsCtxDivOp.
@@ -1841,8 +1869,7 @@ func TestErrorOnUndefined(t *testing.T) {
 	err := tmpl.Execute(nil, nil)
 	if err == nil {
 		t.Error("expected error")
-	}
-	if !strings.Contains(err.Error(), "incomplete") {
+	} else if !strings.Contains(err.Error(), "incomplete") {
 		t.Errorf("expected error about incomplete template; got %s", err)
 	}
 }
@@ -1888,5 +1915,55 @@ func BenchmarkEscapedExecute(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tmpl.Execute(&buf, "foo & 'bar' & baz")
 		buf.Reset()
+	}
+}
+
+// Covers issue 22780.
+func TestOrphanedTemplate(t *testing.T) {
+	t1 := Must(New("foo").Parse(`<a href="{{.}}">link1</a>`))
+	t2 := Must(t1.New("foo").Parse(`bar`))
+
+	var b bytes.Buffer
+	const wantError = `template: "foo" is an incomplete or empty template`
+	if err := t1.Execute(&b, "javascript:alert(1)"); err == nil {
+		t.Fatal("expected error executing t1")
+	} else if gotError := err.Error(); gotError != wantError {
+		t.Fatalf("got t1 execution error:\n\t%s\nwant:\n\t%s", gotError, wantError)
+	}
+	b.Reset()
+	if err := t2.Execute(&b, nil); err != nil {
+		t.Fatalf("error executing t2: %s", err)
+	}
+	const want = "bar"
+	if got := b.String(); got != want {
+		t.Fatalf("t2 rendered %q, want %q", got, want)
+	}
+}
+
+// Covers issue 21844.
+func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
+	const (
+		tmplText = `{{.}}`
+		data     = `<baz>`
+		want     = `&lt;baz&gt;`
+	)
+	// Templates "foo" and "bar" both alias the same underlying parse tree.
+	tpl := Must(New("foo").Parse(tmplText))
+	if _, err := tpl.AddParseTree("bar", tpl.Tree); err != nil {
+		t.Fatalf("AddParseTree error: %v", err)
+	}
+	var b1, b2 bytes.Buffer
+	if err := tpl.ExecuteTemplate(&b1, "foo", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	if err := tpl.ExecuteTemplate(&b2, "bar", data); err != nil {
+		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
+	}
+	got1, got2 := b1.String(), b2.String()
+	if got1 != want {
+		t.Fatalf(`Template "foo" rendered %q, want %q`, got1, want)
+	}
+	if got1 != got2 {
+		t.Fatalf(`Template "foo" and "bar" rendered %q and %q respectively, expected equal values`, got1, got2)
 	}
 }

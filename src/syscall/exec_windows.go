@@ -15,7 +15,7 @@ import (
 var ForkLock sync.RWMutex
 
 // EscapeArg rewrites command line argument s as prescribed
-// in http://msdn.microsoft.com/en-us/library/ms880421.
+// in https://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
 // - every back slash (\) is doubled, but only if immediately
@@ -219,9 +219,12 @@ type ProcAttr struct {
 }
 
 type SysProcAttr struct {
-	HideWindow    bool
-	CmdLine       string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
-	CreationFlags uint32
+	HideWindow        bool
+	CmdLine           string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
+	CreationFlags     uint32
+	Token             Token               // if set, runs new process in the security context represented by the token
+	ProcessAttributes *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
+	ThreadAttributes  *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
 }
 
 var zeroProcAttr ProcAttr
@@ -321,7 +324,11 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	pi := new(ProcessInformation)
 
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT
-	err = CreateProcess(argv0p, argvp, nil, nil, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	if sys.Token != 0 {
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	} else {
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, true, flags, createEnvBlock(attr.Env), dirp, si, pi)
+	}
 	if err != nil {
 		return 0, 0, err
 	}

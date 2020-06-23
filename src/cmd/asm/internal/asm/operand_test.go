@@ -5,6 +5,7 @@
 package asm
 
 import (
+	"strings"
 	"testing"
 
 	"cmd/asm/internal/arch"
@@ -30,6 +31,45 @@ func newParser(goarch string) *Parser {
 	return NewParser(ctxt, architecture, nil)
 }
 
+// tryParse executes parse func in panicOnError=true context.
+// parse is expected to call any parsing methods that may panic.
+// Returns error gathered from recover; nil if no parse errors occurred.
+//
+// For unexpected panics, calls t.Fatal.
+func tryParse(t *testing.T, parse func()) (err error) {
+	panicOnError = true
+	defer func() {
+		panicOnError = false
+
+		e := recover()
+		var ok bool
+		if err, ok = e.(error); e != nil && !ok {
+			t.Fatal(e)
+		}
+	}()
+
+	parse()
+
+	return nil
+}
+
+func testBadOperandParser(t *testing.T, parser *Parser, tests []badOperandTest) {
+	for _, test := range tests {
+		err := tryParse(t, func() {
+			parser.start(lex.Tokenize(test.input))
+			addr := obj.Addr{}
+			parser.operand(&addr)
+		})
+
+		switch {
+		case err == nil:
+			t.Errorf("fail at %s: got no errors; expected %s\n", test.input, test.error)
+		case !strings.Contains(err.Error(), test.error):
+			t.Errorf("fail at %s: got %s; expected %s", test.input, err, test.error)
+		}
+	}
+}
+
 func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 	for _, test := range tests {
 		parser.start(lex.Tokenize(test.input))
@@ -45,6 +85,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
 func TestAMD64OperandParser(t *testing.T) {
 	parser := newParser("amd64")
 	testOperandParser(t, parser, amd64OperandTests)
+	testBadOperandParser(t, parser, amd64BadOperandTests)
 }
 
 func Test386OperandParser(t *testing.T) {
@@ -81,8 +122,56 @@ func TestS390XOperandParser(t *testing.T) {
 	testOperandParser(t, parser, s390xOperandTests)
 }
 
+func TestFuncAddress(t *testing.T) {
+	type subtest struct {
+		arch  string
+		tests []operandTest
+	}
+	for _, sub := range []subtest{
+		{"amd64", amd64OperandTests},
+		{"386", x86OperandTests},
+		{"arm", armOperandTests},
+		{"arm64", arm64OperandTests},
+		{"ppc64", ppc64OperandTests},
+		{"mips", mipsOperandTests},
+		{"mips64", mips64OperandTests},
+		{"s390x", s390xOperandTests},
+	} {
+		t.Run(sub.arch, func(t *testing.T) {
+			parser := newParser(sub.arch)
+			for _, test := range sub.tests {
+				parser.start(lex.Tokenize(test.input))
+				name, ok := parser.funcAddress()
+
+				isFuncSym := strings.HasSuffix(test.input, "(SB)") &&
+					// Ignore static symbols.
+					!strings.Contains(test.input, "<>")
+
+				wantName := ""
+				if isFuncSym {
+					// Strip $|* and (SB) and +Int.
+					wantName = test.output[:len(test.output)-4]
+					if strings.HasPrefix(wantName, "$") || strings.HasPrefix(wantName, "*") {
+						wantName = wantName[1:]
+					}
+					if i := strings.Index(wantName, "+"); i >= 0 {
+						wantName = wantName[:i]
+					}
+				}
+				if ok != isFuncSym || name != wantName {
+					t.Errorf("fail at %s as function address: got %s, %v; expected %s, %v", test.input, name, ok, wantName, isFuncSym)
+				}
+			}
+		})
+	}
+}
+
 type operandTest struct {
 	input, output string
+}
+
+type badOperandTest struct {
+	input, error string
 }
 
 // Examples collected by scanning all the assembly in the standard repo.
@@ -202,7 +291,26 @@ var amd64OperandTests = []operandTest{
 	{"y+56(FP)", "y+56(FP)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+	{"[X0-X0]", "[X0-X0]"},
+	{"[ Z9 - Z12 ]", "[Z9-Z12]"},
+	{"[X0-AX]", "[X0-AX]"},
+	{"[AX-X0]", "[AX-X0]"},
 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+}
+
+var amd64BadOperandTests = []badOperandTest{
+	{"[", "register list: expected ']', found EOF"},
+	{"[4", "register list: bad low register in `[4`"},
+	{"[]", "register list: bad low register in `[]`"},
+	{"[f-x]", "register list: bad low register in `[f`"},
+	{"[r10-r13]", "register list: bad low register in `[r10`"},
+	{"[k3-k6]", "register list: bad low register in `[k3`"},
+	{"[X0]", "register list: expected '-' after `[X0`, found ']'"},
+	{"[X0-]", "register list: bad high register in `[X0-]`"},
+	{"[X0-x]", "register list: bad high register in `[X0-x`"},
+	{"[X0-X1-X2]", "register list: expected ']' after `[X0-X1`, found '-'"},
+	{"[X0,X3]", "register list: expected '-' after `[X0`, found ','"},
+	{"[X0,X1,X2,X3]", "register list: expected '-' after `[X0`, found ','"},
 }
 
 var x86OperandTests = []operandTest{
@@ -306,7 +414,7 @@ var armOperandTests = []operandTest{
 	{"g", "g"},
 	{"gosave<>(SB)", "gosave<>(SB)"},
 	{"retlo+12(FP)", "retlo+12(FP)"},
-	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+	{"runtime·gogo(SB)", "runtime.gogo(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"(R1, R3)", "(R1, R3)"},
 	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
@@ -543,6 +651,7 @@ var arm64OperandTests = []operandTest{
 	{"R0", "R0"},
 	{"R10", "R10"},
 	{"R11", "R11"},
+	{"R18_PLATFORM", "R18"},
 	{"$4503601774854144.0", "$(4503601774854144.0)"},
 	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
 	{"ZR", "ZR"},
@@ -626,7 +735,7 @@ var mips64OperandTests = []operandTest{
 	{"LO", "LO"},
 	{"a(FP)", "a(FP)"},
 	{"g", "g"},
-	{"RSB", "RSB"},
+	{"RSB", "R28"},
 	{"ret+8(FP)", "ret+8(FP)"},
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
@@ -697,6 +806,7 @@ var mipsOperandTests = []operandTest{
 	{"R25", "R25"},
 	{"R26", "R26"},
 	{"R27", "R27"},
+	{"R28", "R28"},
 	{"R29", "R29"},
 	{"R3", "R3"},
 	{"R31", "R31"},

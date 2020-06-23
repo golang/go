@@ -204,9 +204,17 @@ func TestMTF(t *testing.T) {
 	}
 }
 
+func TestZeroRead(t *testing.T) {
+	b := mustDecodeHex("425a6839314159265359b5aa5098000000600040000004200021008283177245385090b5aa5098")
+	r := NewReader(bytes.NewReader(b))
+	if n, err := r.Read(nil); n != 0 || err != nil {
+		t.Errorf("Read(nil) = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
 var (
 	digits = mustLoadFile("testdata/e.txt.bz2")
-	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+	newton = mustLoadFile("testdata/Isaac.Newton-Opticks.txt.bz2")
 	random = mustLoadFile("testdata/random.data.bz2")
 )
 
@@ -228,5 +236,5 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 }
 
 func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
-func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+func BenchmarkDecodeNewton(b *testing.B) { benchmarkDecode(b, newton) }
 func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }

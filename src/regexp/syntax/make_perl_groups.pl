@@ -34,6 +34,12 @@
 	"\\w",
 );
 
+%overrides = (
+	# Prior to Perl 5.18, \s did not match vertical tab.
+	# RE2 preserves that original behaviour.
+	"\\s:11" => 0,
+);
+
 sub ComputeClass($) {
   my @ranges;
   my ($class) = @_;
@@ -41,7 +47,7 @@ sub ComputeClass($) {
   my $start = -1;
   for (my $i=0; $i<=129; $i++) {
     if ($i == 129) { $i = 256; }
-    if ($i <= 128 && chr($i) =~ $regexp) {
+    if ($i <= 128 && ($overrides{"$class:$i"} // chr($i) =~ $regexp)) {
       if ($start < 0) {
         $start = $i;
       }

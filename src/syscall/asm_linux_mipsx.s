@@ -13,8 +13,7 @@
 //
 
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-
-TEXT	·Syscall(SB),NOSPLIT,$0-28
+TEXT ·Syscall(SB),NOSPLIT,$0-28
 	JAL	runtime·entersyscall(SB)
 	MOVW	a1+4(FP), R4
 	MOVW	a2+8(FP), R5
@@ -35,7 +34,6 @@ ok:
 	MOVW	R0, err+24(FP)	// errno
 	JAL	runtime·exitsyscall(SB)
 	RET
-
 
 // func Syscall6(trap trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // 5th and 6th arg go at sp+16, sp+20.
@@ -139,4 +137,14 @@ ok2:
 	MOVW	R2, r1+28(FP)	// r1
 	MOVW	R3, r2+32(FP)	// r2
 	MOVW	R0, err+36(FP)	// errno
+	RET
+
+TEXT ·rawSyscallNoError(SB),NOSPLIT,$20-24
+	MOVW	a1+4(FP), R4
+	MOVW	a2+8(FP), R5
+	MOVW	a3+12(FP), R6
+	MOVW	trap+0(FP), R2	// syscall entry
+	SYSCALL
+	MOVW	R2, r1+16(FP)	// r1
+	MOVW	R3, r2+20(FP)	// r2
 	RET

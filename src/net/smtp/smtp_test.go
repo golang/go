@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"net"
@@ -62,29 +63,41 @@ testLoop:
 }
 
 func TestAuthPlain(t *testing.T) {
-	auth := PlainAuth("foo", "bar", "baz", "servername")
 
 	tests := []struct {
-		server *ServerInfo
-		err    string
+		authName string
+		server   *ServerInfo
+		err      string
 	}{
 		{
-			server: &ServerInfo{Name: "servername", TLS: true},
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", TLS: true},
 		},
 		{
-			// Okay; explicitly advertised by server.
-			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			// OK to use PlainAuth on localhost without TLS
+			authName: "localhost",
+			server:   &ServerInfo{Name: "localhost", TLS: false},
 		},
 		{
-			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
-			err:    "unencrypted connection",
+			// NOT OK on non-localhost, even if server says PLAIN is OK.
+			// (We don't know that the server is the real server.)
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
+			err:      "unencrypted connection",
 		},
 		{
-			server: &ServerInfo{Name: "attacker", TLS: true},
-			err:    "wrong host name",
+			authName: "servername",
+			server:   &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
+			err:      "unencrypted connection",
+		},
+		{
+			authName: "servername",
+			server:   &ServerInfo{Name: "attacker", TLS: true},
+			err:      "wrong host name",
 		},
 	}
 	for i, tt := range tests {
+		auth := PlainAuth("foo", "bar", "baz", tt.authName)
 		_, _, err := auth.Start(tt.server)
 		got := ""
 		if err != nil {
@@ -182,6 +195,9 @@ func TestBasic(t *testing.T) {
 	if err := c.Verify("user1@gmail.com"); err == nil {
 		t.Fatalf("First VRFY: expected no verification")
 	}
+	if err := c.Verify("user2@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("VRFY should have failed due to a message injection attempt")
+	}
 	if err := c.Verify("user2@gmail.com"); err != nil {
 		t.Fatalf("Second VRFY: expected verification, got %s", err)
 	}
@@ -193,6 +209,12 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("AUTH failed: %s", err)
 	}
 
+	if err := c.Rcpt("golang-nuts@googlegroups.com>\r\nDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("RCPT should have failed due to a message injection attempt")
+	}
+	if err := c.Mail("user@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
+		t.Fatalf("MAIL should have failed due to a message injection attempt")
+	}
 	if err := c.Mail("user@gmail.com"); err != nil {
 		t.Fatalf("MAIL failed: %s", err)
 	}
@@ -352,6 +374,53 @@ HELO localhost
 QUIT
 `
 
+func TestNewClientWithTLS(t *testing.T) {
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		t.Fatalf("loadcert: %v", err)
+	}
+
+	config := tls.Config{Certificates: []tls.Certificate{cert}}
+
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &config)
+	if err != nil {
+		ln, err = tls.Listen("tcp", "[::1]:0", &config)
+		if err != nil {
+			t.Fatalf("server: listen: %v", err)
+		}
+	}
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			t.Errorf("server: accept: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		_, err = conn.Write([]byte("220 SIGNS\r\n"))
+		if err != nil {
+			t.Errorf("server: write: %v", err)
+			return
+		}
+	}()
+
+	config.InsecureSkipVerify = true
+	conn, err := tls.Dial("tcp", ln.Addr().String(), &config)
+	if err != nil {
+		t.Fatalf("client: dial: %v", err)
+	}
+	defer conn.Close()
+
+	client, err := NewClient(conn, ln.Addr().String())
+	if err != nil {
+		t.Fatalf("smtp: newclient: %v", err)
+	}
+	if !client.tls {
+		t.Errorf("client.tls Got: %t Expected: %t", client.tls, true)
+	}
+}
+
 func TestHello(t *testing.T) {
 
 	if len(helloServer) != len(helloClient) {
@@ -375,6 +444,10 @@ func TestHello(t *testing.T) {
 
 		switch i {
 		case 0:
+			err = c.Hello("hostinjection>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n")
+			if err == nil {
+				t.Errorf("Expected Hello to be rejected due to a message injection attempt")
+			}
 			err = c.Hello("customhost")
 		case 1:
 			err = c.StartTLS(nil)
@@ -406,6 +479,8 @@ func TestHello(t *testing.T) {
 					t.Errorf("Want error, got none")
 				}
 			}
+		case 9:
+			err = c.Noop()
 		default:
 			t.Fatalf("Unhandled command")
 		}
@@ -438,6 +513,7 @@ var helloServer = []string{
 	"250 Reset ok\n",
 	"221 Goodbye\n",
 	"250 Sender ok\n",
+	"250 ok\n",
 }
 
 var baseHelloClient = `EHLO customhost
@@ -454,6 +530,7 @@ var helloClient = []string{
 	"RSET\n",
 	"QUIT\n",
 	"VRFY test@example.com\n",
+	"NOOP\n",
 }
 
 func TestSendMail(t *testing.T) {
@@ -463,7 +540,7 @@ func TestSendMail(t *testing.T) {
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Unable to to create listener: %v", err)
+		t.Fatalf("Unable to create listener: %v", err)
 	}
 	defer l.Close()
 
@@ -505,6 +582,16 @@ func TestSendMail(t *testing.T) {
 			}
 		}
 	}(strings.Split(server, "\r\n"))
+
+	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"}, []byte(strings.Replace(`From: test@example.com
+To: other@example.com
+Subject: SendMail test
+
+SendMail is working for me.
+`, "\n", "\r\n", -1)))
+	if err == nil {
+		t.Errorf("Expected SendMail to be rejected due to a message injection attempt")
+	}
 
 	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com
@@ -548,6 +635,60 @@ SendMail is working for me.
 .
 QUIT
 `
+
+func TestSendMailWithAuth(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Unable to create listener: %v", err)
+	}
+	defer l.Close()
+
+	errCh := make(chan error)
+	go func() {
+		defer close(errCh)
+		conn, err := l.Accept()
+		if err != nil {
+			errCh <- fmt.Errorf("Accept: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		tc := textproto.NewConn(conn)
+		tc.PrintfLine("220 hello world")
+		msg, err := tc.ReadLine()
+		if err != nil {
+			errCh <- fmt.Errorf("ReadLine error: %v", err)
+			return
+		}
+		const wantMsg = "EHLO localhost"
+		if msg != wantMsg {
+			errCh <- fmt.Errorf("unexpected response %q; want %q", msg, wantMsg)
+			return
+		}
+		err = tc.PrintfLine("250 mx.google.com at your service")
+		if err != nil {
+			errCh <- fmt.Errorf("PrintfLine: %v", err)
+			return
+		}
+	}()
+
+	err = SendMail(l.Addr().String(), PlainAuth("", "user", "pass", "smtp.google.com"), "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
+To: other@example.com
+Subject: SendMail test
+
+SendMail is working for me.
+`, "\n", "\r\n", -1)))
+	if err == nil {
+		t.Error("SendMail: Server doesn't support AUTH, expected to get an error, but got none ")
+	}
+	if err.Error() != "smtp: server doesn't support AUTH" {
+		t.Errorf("Expected: smtp: server doesn't support AUTH, got: %s", err)
+	}
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("server error: %v", err)
+	}
+}
 
 func TestAuthFailed(t *testing.T) {
 	server := strings.Join(strings.Split(authFailedServer, "\n"), "\r\n")
@@ -594,7 +735,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64" {
+	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
 		testenv.SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
@@ -744,41 +885,46 @@ func init() {
 }
 
 func sendMail(hostPort string) error {
-	host, _, err := net.SplitHostPort(hostPort)
-	if err != nil {
-		return err
-	}
-	auth := PlainAuth("", "", "", host)
 	from := "joe1@example.com"
 	to := []string{"joe2@example.com"}
-	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"))
+	return SendMail(hostPort, nil, from, to, []byte("Subject: test\n\nhowdy!"))
 }
 
-// (copied from net/http/httptest)
-// localhostCert is a PEM-encoded TLS cert with SAN IPs
-// "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
-// of ASN.1 time).
-// generated from src/crypto/tls:
-// go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
-var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
-MIIBjjCCATigAwIBAgIQMon9v0s3pDFXvAMnPgelpzANBgkqhkiG9w0BAQsFADAS
-MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
-MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJB
-AM0u/mNXKkhAzNsFkwKZPSpC4lZZaePQ55IyaJv3ovMM2smvthnlqaUfVKVmz7FF
-wLP9csX6vGtvkZg1uWAtvfkCAwEAAaNoMGYwDgYDVR0PAQH/BAQDAgKkMBMGA1Ud
-JQQMMAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wLgYDVR0RBCcwJYILZXhh
-bXBsZS5jb22HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAEwDQYJKoZIhvcNAQELBQAD
-QQBOZsFVC7IwX+qibmSbt2IPHkUgXhfbq0a9MYhD6tHcj4gbDcTXh4kZCbgHCz22
-gfSj2/G2wxzopoISVDucuncj
+// localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
+// go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
+// 		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+var localhostCert = []byte(`
+-----BEGIN CERTIFICATE-----
+MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw
+EjEQMA4GA1UEChMHQWNtZSBDbzAgFw03MDAxMDEwMDAwMDBaGA8yMDg0MDEyOTE2
+MDAwMFowEjEQMA4GA1UEChMHQWNtZSBDbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAw
+gYkCgYEA0nFbQQuOWsjbGtejcpWz153OlziZM4bVjJ9jYruNw5n2Ry6uYQAffhqa
+JOInCmmcVe2siJglsyH9aRh6vKiobBbIUXXUU1ABd56ebAzlt0LobLlx7pZEMy30
+LqIi9E6zmL3YvdGzpYlkFRnRrqwEtWYbGBf3znO250S56CCWH2UCAwEAAaNoMGYw
+DgYDVR0PAQH/BAQDAgKkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQF
+MAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAAAAAAAAAA
+AAAAAAEwDQYJKoZIhvcNAQELBQADgYEAbZtDS2dVuBYvb+MnolWnCNqvw1w5Gtgi
+NmvQQPOMgM3m+oQSCPRTNGSg25e1Qbo7bgQDv8ZTnq8FgOJ/rbkyERw2JckkHpD4
+n4qcK27WkEDBtQFlPihIM8hLIuzWoi/9wygiElTy/tVL3y7fGCvY2/k1KBthtZGF
+tN8URjVmyEo=
 -----END CERTIFICATE-----`)
 
 // localhostKey is the private key for localhostCert.
-var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIBOwIBAAJBAM0u/mNXKkhAzNsFkwKZPSpC4lZZaePQ55IyaJv3ovMM2smvthnl
-qaUfVKVmz7FFwLP9csX6vGtvkZg1uWAtvfkCAwEAAQJART2qkxODLUbQ2siSx7m2
-rmBLyR/7X+nLe8aPDrMOxj3heDNl4YlaAYLexbcY8d7VDfCRBKYoAOP0UCP1Vhuf
-UQIhAO6PEI55K3SpNIdc2k5f0xz+9rodJCYzu51EwWX7r8ufAiEA3C9EkLiU2NuK
-3L3DHCN5IlUSN1Nr/lw8NIt50Yorj2cCIQCDw1VbvCV6bDLtSSXzAA51B4ZzScE7
-sHtB5EYF9Dwm9QIhAJuCquuH4mDzVjUntXjXOQPdj7sRqVGCNWdrJwOukat7AiAy
-LXLEwb77DIPoI5ZuaXQC+MnyyJj1ExC9RFcGz+bexA==
------END RSA PRIVATE KEY-----`)
+var localhostKey = []byte(testingKey(`
+-----BEGIN RSA TESTING KEY-----
+MIICXgIBAAKBgQDScVtBC45ayNsa16NylbPXnc6XOJkzhtWMn2Niu43DmfZHLq5h
+AB9+Gpok4icKaZxV7ayImCWzIf1pGHq8qKhsFshRddRTUAF3np5sDOW3QuhsuXHu
+lkQzLfQuoiL0TrOYvdi90bOliWQVGdGurAS1ZhsYF/fOc7bnRLnoIJYfZQIDAQAB
+AoGBAMst7OgpKyFV6c3JwyI/jWqxDySL3caU+RuTTBaodKAUx2ZEmNJIlx9eudLA
+kucHvoxsM/eRxlxkhdFxdBcwU6J+zqooTnhu/FE3jhrT1lPrbhfGhyKnUrB0KKMM
+VY3IQZyiehpxaeXAwoAou6TbWoTpl9t8ImAqAMY8hlULCUqlAkEA+9+Ry5FSYK/m
+542LujIcCaIGoG1/Te6Sxr3hsPagKC2rH20rDLqXwEedSFOpSS0vpzlPAzy/6Rbb
+PHTJUhNdwwJBANXkA+TkMdbJI5do9/mn//U0LfrCR9NkcoYohxfKz8JuhgRQxzF2
+6jpo3q7CdTuuRixLWVfeJzcrAyNrVcBq87cCQFkTCtOMNC7fZnCTPUv+9q1tcJyB
+vNjJu3yvoEZeIeuzouX9TJE21/33FaeDdsXbRhQEj23cqR38qFHsF1qAYNMCQQDP
+QXLEiJoClkR2orAmqjPLVhR3t2oB3INcnEjLNSq8LHyQEfXyaFfu4U9l5+fRPL2i
+jiC0k/9L5dHUsF0XZothAkEA23ddgRs+Id/HxtojqqUT27B8MT/IGNrYsp4DvS/c
+qgkeluku4GjxRlDMBuXk94xOBEinUs+p/hwP1Alll80Tpg==
+-----END RSA TESTING KEY-----`))
+
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

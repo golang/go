@@ -105,7 +105,7 @@ func (i Imm) String() string {
 	return fmt.Sprintf("#%#x", uint32(i))
 }
 
-// A ImmAlt is an alternate encoding of an integer constant.
+// An ImmAlt is an alternate encoding of an integer constant.
 type ImmAlt struct {
 	Val uint8
 	Rot uint8

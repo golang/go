@@ -6,6 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
+	"encoding/binary"
 	"reflect"
 	"testing"
 )
@@ -133,5 +134,78 @@ func TestReaderRanges(t *testing.T) {
 
 	if i < len(subprograms) {
 		t.Errorf("saw only %d subprograms, expected %d", i, len(subprograms))
+	}
+}
+
+func Test64Bit(t *testing.T) {
+	// I don't know how to generate a 64-bit DWARF debug
+	// compilation unit except by using XCOFF, so this is
+	// hand-written.
+	tests := []struct {
+		name      string
+		info      []byte
+		addrSize  int
+		byteOrder binary.ByteOrder
+	}{
+		{
+			"32-bit little",
+			[]byte{0x30, 0, 0, 0, // comp unit length
+				4, 0, // DWARF version 4
+				0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+			8, binary.LittleEndian,
+		},
+		{
+			"64-bit little",
+			[]byte{0xff, 0xff, 0xff, 0xff, // 64-bit DWARF
+				0x30, 0, 0, 0, 0, 0, 0, 0, // comp unit length
+				4, 0, // DWARF version 4
+				0, 0, 0, 0, 0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+			8, binary.LittleEndian,
+		},
+		{
+			"64-bit big",
+			[]byte{0xff, 0xff, 0xff, 0xff, // 64-bit DWARF
+				0, 0, 0, 0, 0, 0, 0, 0x30, // comp unit length
+				0, 4, // DWARF version 4
+				0, 0, 0, 0, 0, 0, 0, 0, // abbrev offset
+				8, // address size
+				0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+			},
+			8, binary.BigEndian,
+		},
+	}
+
+	for _, test := range tests {
+		data, err := New(nil, nil, nil, test.info, nil, nil, nil, nil)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+		}
+
+		r := data.Reader()
+		if r.AddressSize() != test.addrSize {
+			t.Errorf("%s: got address size %d, want %d", test.name, r.AddressSize(), test.addrSize)
+		}
+		if r.ByteOrder() != test.byteOrder {
+			t.Errorf("%s: got byte order %s, want %s", test.name, r.ByteOrder(), test.byteOrder)
+		}
 	}
 }

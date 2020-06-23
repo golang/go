@@ -18,20 +18,30 @@ package binutils
 import (
 	"debug/elf"
 	"debug/macho"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/google/pprof/internal/elfexec"
 	"github.com/google/pprof/internal/plugin"
 )
 
 // A Binutils implements plugin.ObjTool by invoking the GNU binutils.
-// SetConfig must be called before any of the other methods.
 type Binutils struct {
+	mu  sync.Mutex
+	rep *binrep
+}
+
+// binrep is an immutable representation for Binutils.  It is atomically
+// replaced on every mutation to provide thread-safe access.
+type binrep struct {
 	// Commands to invoke.
 	llvmSymbolizer      string
 	llvmSymbolizerFound bool
@@ -47,11 +57,58 @@ type Binutils struct {
 	fast bool
 }
 
+// get returns the current representation for bu, initializing it if necessary.
+func (bu *Binutils) get() *binrep {
+	bu.mu.Lock()
+	r := bu.rep
+	if r == nil {
+		r = &binrep{}
+		initTools(r, "")
+		bu.rep = r
+	}
+	bu.mu.Unlock()
+	return r
+}
+
+// update modifies the rep for bu via the supplied function.
+func (bu *Binutils) update(fn func(r *binrep)) {
+	r := &binrep{}
+	bu.mu.Lock()
+	defer bu.mu.Unlock()
+	if bu.rep == nil {
+		initTools(r, "")
+	} else {
+		*r = *bu.rep
+	}
+	fn(r)
+	bu.rep = r
+}
+
+// String returns string representation of the binutils state for debug logging.
+func (bu *Binutils) String() string {
+	r := bu.get()
+	var llvmSymbolizer, addr2line, nm, objdump string
+	if r.llvmSymbolizerFound {
+		llvmSymbolizer = r.llvmSymbolizer
+	}
+	if r.addr2lineFound {
+		addr2line = r.addr2line
+	}
+	if r.nmFound {
+		nm = r.nm
+	}
+	if r.objdumpFound {
+		objdump = r.objdump
+	}
+	return fmt.Sprintf("llvm-symbolizer=%q addr2line=%q nm=%q objdump=%q fast=%t",
+		llvmSymbolizer, addr2line, nm, objdump, r.fast)
+}
+
 // SetFastSymbolization sets a toggle that makes binutils use fast
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
-func (b *Binutils) SetFastSymbolization(fast bool) {
-	b.fast = fast
+func (bu *Binutils) SetFastSymbolization(fast bool) {
+	bu.update(func(r *binrep) { r.fast = fast })
 }
 
 // SetTools processes the contents of the tools option. It
@@ -59,7 +116,11 @@ func (b *Binutils) SetFastSymbolization(fast bool) {
 // of the form t:path, where cmd will be used to look only for the
 // tool named t. If t is not specified, the path is searched for all
 // tools.
-func (b *Binutils) SetTools(config string) {
+func (bu *Binutils) SetTools(config string) {
+	bu.update(func(r *binrep) { initTools(r, config) })
+}
+
+func initTools(b *binrep, config string) {
 	// paths collect paths per tool; Key "" contains the default.
 	paths := make(map[string][]string)
 	for _, t := range strings.Split(config, ",") {
@@ -73,6 +134,11 @@ func (b *Binutils) SetTools(config string) {
 	defaultPath := paths[""]
 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+	if !b.addr2lineFound {
+		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+		// that if the tool is not found by its default name.
+		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+	}
 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
 }
@@ -91,11 +157,8 @@ func findExe(cmd string, paths []string) (string, bool) {
 
 // Disasm returns the assembly instructions for the specified address range
 // of a binary.
-func (b *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
-	if b.addr2line == "" {
-		// Update the command invocations if not initialized.
-		b.SetTools("")
-	}
+func (bu *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+	b := bu.get()
 	cmd := exec.Command(b.objdump, "-d", "-C", "--no-show-raw-insn", "-l",
 		fmt.Sprintf("--start-address=%#x", start),
 		fmt.Sprintf("--stop-address=%#x", end),
@@ -109,19 +172,12 @@ func (b *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error)
 }
 
 // Open satisfies the plugin.ObjTool interface.
-func (b *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
-	if b.addr2line == "" {
-		// Update the command invocations if not initialized.
-		b.SetTools("")
-	}
+func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	b := bu.get()
 
 	// Make sure file is a supported executable.
-	// The pprof driver uses Open to sniff the difference
-	// between an executable and a profile.
-	// For now, only ELF is supported.
-	// Could read the first few bytes of the file and
-	// use a table of prefixes if we need to support other
-	// systems at some point.
+	// This uses magic numbers, mainly to provide better error messages but
+	// it should also help speed.
 
 	if _, err := os.Stat(name); err != nil {
 		// For testing, do not require file name to exist.
@@ -131,32 +187,127 @@ func (b *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFil
 		return nil, err
 	}
 
-	if f, err := b.openELF(name, start, limit, offset); err == nil {
+	// Read the first 4 bytes of the file.
+
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error opening %s: %v", name, err)
+	}
+	defer f.Close()
+
+	var header [4]byte
+	if _, err = io.ReadFull(f, header[:]); err != nil {
+		return nil, fmt.Errorf("error reading magic number from %s: %v", name, err)
+	}
+
+	elfMagic := string(header[:])
+
+	// Match against supported file types.
+	if elfMagic == elf.ELFMAG {
+		f, err := b.openELF(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading ELF file %s: %v", name, err)
+		}
 		return f, nil
 	}
-	if f, err := b.openMachO(name, start, limit, offset); err == nil {
+
+	// Mach-O magic numbers can be big or little endian.
+	machoMagicLittle := binary.LittleEndian.Uint32(header[:])
+	machoMagicBig := binary.BigEndian.Uint32(header[:])
+
+	if machoMagicLittle == macho.Magic32 || machoMagicLittle == macho.Magic64 ||
+		machoMagicBig == macho.Magic32 || machoMagicBig == macho.Magic64 {
+		f, err := b.openMachO(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Mach-O file %s: %v", name, err)
+		}
 		return f, nil
 	}
-	return nil, fmt.Errorf("unrecognized binary: %s", name)
+	if machoMagicLittle == macho.MagicFat || machoMagicBig == macho.MagicFat {
+		f, err := b.openFatMachO(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading fat Mach-O file %s: %v", name, err)
+		}
+		return f, nil
+	}
+
+	return nil, fmt.Errorf("unrecognized binary format: %s", name)
 }
 
-func (b *Binutils) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
-	of, err := macho.Open(name)
+func (b *binrep) openMachOCommon(name string, of *macho.File, start, limit, offset uint64) (plugin.ObjFile, error) {
+
+	// Subtract the load address of the __TEXT section. Usually 0 for shared
+	// libraries or 0x100000000 for executables. You can check this value by
+	// running `objdump -private-headers <file>`.
+
+	textSegment := of.Segment("__TEXT")
+	if textSegment == nil {
+		return nil, fmt.Errorf("could not identify base for %s: no __TEXT segment", name)
+	}
+	if textSegment.Addr > start {
+		return nil, fmt.Errorf("could not identify base for %s: __TEXT segment address (0x%x) > mapping start address (0x%x)",
+			name, textSegment.Addr, start)
+	}
+
+	base := start - textSegment.Addr
+
+	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
+		return &fileNM{file: file{b: b, name: name, base: base}}, nil
+	}
+	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
+}
+
+func (b *binrep) openFatMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	of, err := macho.OpenFat(name)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing %s: %v", name, err)
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
 	}
 	defer of.Close()
 
-	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
-		return &fileNM{file: file{b: b, name: name}}, nil
+	if len(of.Arches) == 0 {
+		return nil, fmt.Errorf("empty fat Mach-O file: %s", name)
 	}
-	return &fileAddr2Line{file: file{b: b, name: name}}, nil
+
+	var arch macho.Cpu
+	// Use the host architecture.
+	// TODO: This is not ideal because the host architecture may not be the one
+	// that was profiled. E.g. an amd64 host can profile a 386 program.
+	switch runtime.GOARCH {
+	case "386":
+		arch = macho.Cpu386
+	case "amd64", "amd64p32":
+		arch = macho.CpuAmd64
+	case "arm", "armbe", "arm64", "arm64be":
+		arch = macho.CpuArm
+	case "ppc":
+		arch = macho.CpuPpc
+	case "ppc64", "ppc64le":
+		arch = macho.CpuPpc64
+	default:
+		return nil, fmt.Errorf("unsupported host architecture for %s: %s", name, runtime.GOARCH)
+	}
+	for i := range of.Arches {
+		if of.Arches[i].Cpu == arch {
+			return b.openMachOCommon(name, of.Arches[i].File, start, limit, offset)
+		}
+	}
+	return nil, fmt.Errorf("architecture not found in %s: %s", name, runtime.GOARCH)
 }
 
-func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	of, err := macho.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+	}
+	defer of.Close()
+
+	return b.openMachOCommon(name, of, start, limit, offset)
+}
+
+func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	ef, err := elf.Open(name)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing %s: %v", name, err)
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
 	}
 	defer ef.Close()
 
@@ -171,7 +322,7 @@ func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.Obj
 		// someone passes a kernel path that doesn't contain "vmlinux" AND
 		// (2) _stext is page-aligned AND (3) _stext is not at Vaddr
 		symbols, err := ef.Symbols()
-		if err != nil {
+		if err != nil && err != elf.ErrNoSymbols {
 			return nil, err
 		}
 		for _, s := range symbols {
@@ -183,9 +334,9 @@ func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.Obj
 		}
 	}
 
-	base, err := elfexec.GetBase(&ef.FileHeader, nil, stextOffset, start, limit, offset)
+	base, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("Could not identify base for %s: %v", name, err)
+		return nil, fmt.Errorf("could not identify base for %s: %v", name, err)
 	}
 
 	buildID := ""
@@ -202,7 +353,7 @@ func (b *Binutils) openELF(name string, start, limit, offset uint64) (plugin.Obj
 
 // file implements the binutils.ObjFile interface.
 type file struct {
-	b       *Binutils
+	b       *binrep
 	name    string
 	base    uint64
 	buildID string
@@ -259,26 +410,31 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 // fileAddr2Line implements the binutils.ObjFile interface, using
-// 'addr2line' to map addresses to symbols (with file/line number
-// information). It can be slow for large binaries with debug
-// information.
+// llvm-symbolizer, if that's available, or addr2line to map addresses to
+// symbols (with file/line number information). It can be slow for large
+// binaries with debug information.
 type fileAddr2Line struct {
+	once sync.Once
 	file
 	addr2liner     *addr2Liner
 	llvmSymbolizer *llvmSymbolizer
 }
 
 func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
+	f.once.Do(f.init)
 	if f.llvmSymbolizer != nil {
 		return f.llvmSymbolizer.addrInfo(addr)
 	}
 	if f.addr2liner != nil {
 		return f.addr2liner.addrInfo(addr)
 	}
+	return nil, fmt.Errorf("could not find local addr2liner")
+}
 
+func (f *fileAddr2Line) init() {
 	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base); err == nil {
 		f.llvmSymbolizer = llvmSymbolizer
-		return f.llvmSymbolizer.addrInfo(addr)
+		return
 	}
 
 	if addr2liner, err := newAddr2Liner(f.b.addr2line, f.name, f.base); err == nil {
@@ -290,13 +446,14 @@ func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
 		if nm, err := newAddr2LinerNM(f.b.nm, f.name, f.base); err == nil {
 			f.addr2liner.nm = nm
 		}
-		return f.addr2liner.addrInfo(addr)
 	}
-
-	return nil, fmt.Errorf("could not find local addr2liner")
 }
 
 func (f *fileAddr2Line) Close() error {
+	if f.llvmSymbolizer != nil {
+		f.llvmSymbolizer.rw.close()
+		f.llvmSymbolizer = nil
+	}
 	if f.addr2liner != nil {
 		f.addr2liner.rw.close()
 		f.addr2liner = nil

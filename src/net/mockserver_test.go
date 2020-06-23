@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
@@ -15,8 +17,6 @@ import (
 )
 
 // testUnixAddr uses ioutil.TempFile to get a name that is unique.
-// It also uses /tmp directory in case it is prohibited to create UNIX
-// sockets in TMPDIR.
 func testUnixAddr() string {
 	f, err := ioutil.TempFile("", "go-nettest")
 	if err != nil {

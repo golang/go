@@ -128,7 +128,7 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 	RET
 
 //func nsec(*int64) int64
-TEXT runtime·nsec(SB),NOSPLIT,$-4-12
+TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	$SYS_NSEC, R0
 	SWI	$0
 	MOVW	arg+0(FP), R1
@@ -138,8 +138,8 @@ TEXT runtime·nsec(SB),NOSPLIT,$-4-12
 	MOVW	R0, ret_hi+8(FP)
 	RET
 
-// time.now() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$12-12
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$12-12
 	// use nsec system call to get current time in nanoseconds
 	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
 	MOVW	R0,res-12(SP)
@@ -207,7 +207,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0-8
 	RET
 
 //func tstart_plan9(newm *m)
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$4-4
 	MOVW	newm+0(FP), R1
 	MOVW	m_g0(R1), g
 
@@ -226,9 +226,11 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0-4
 
 	BL	runtime·mstart(SB)
 
-	MOVW	$0x1234, R0
-	MOVW	R0, 0(R0)		// not reached
-	RET
+	// Exit the thread.
+	MOVW	$0, R0
+	MOVW	R0, 4(R13)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 //func sigtramp(ureg, note unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0-8
@@ -308,11 +310,11 @@ TEXT runtime·errstr(SB),NOSPLIT,$0-8
 	MOVW	R2, ret_len+4(FP)
 	RET
 
-TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 // never called (cgo not supported)
-TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$0, R0
 	MOVW	R0, (R0)
 	RET

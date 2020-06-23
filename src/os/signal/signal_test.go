@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package signal
 
@@ -22,14 +22,86 @@ import (
 	"time"
 )
 
-func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
-	select {
-	case s := <-c:
-		if s != sig {
-			t.Fatalf("signal was %v, want %v", s, sig)
+// settleTime is an upper bound on how long we expect signals to take to be
+// delivered. Lower values make the test faster, but also flakier — especially
+// on heavily loaded systems.
+//
+// The current value is set based on flakes observed in the Go builders.
+var settleTime = 100 * time.Millisecond
+
+func init() {
+	if testenv.Builder() == "solaris-amd64-oraclerel" {
+		// The solaris-amd64-oraclerel builder has been observed to time out in
+		// TestNohup even with a 250ms settle time.
+		//
+		// Use a much longer settle time on that builder to try to suss out whether
+		// the test is flaky due to builder slowness (which may mean we need a
+		// longer GO_TEST_TIMEOUT_SCALE) or due to a dropped signal (which may
+		// instead need a test-skip and upstream bug filed against the Solaris
+		// kernel).
+		//
+		// This constant is chosen so as to make the test as generous as possible
+		// while still reliably completing within 3 minutes in non-short mode.
+		//
+		// See https://golang.org/issue/33174.
+		settleTime = 11 * time.Second
+	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+		if scale, err := strconv.Atoi(s); err == nil {
+			settleTime *= time.Duration(scale)
 		}
-	case <-time.After(1 * time.Second):
-		t.Fatalf("timeout waiting for %v", sig)
+	}
+}
+
+func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	t.Helper()
+	waitSig1(t, c, sig, false)
+}
+func waitSigAll(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+	t.Helper()
+	waitSig1(t, c, sig, true)
+}
+
+func waitSig1(t *testing.T, c <-chan os.Signal, sig os.Signal, all bool) {
+	t.Helper()
+
+	// Sleep multiple times to give the kernel more tries to
+	// deliver the signal.
+	start := time.Now()
+	timer := time.NewTimer(settleTime / 10)
+	defer timer.Stop()
+	// If the caller notified for all signals on c, filter out SIGURG,
+	// which is used for runtime preemption and can come at unpredictable times.
+	// General user code should filter out all unexpected signals instead of just
+	// SIGURG, but since os/signal is tightly coupled to the runtime it seems
+	// appropriate to be stricter here.
+	for time.Since(start) < settleTime {
+		select {
+		case s := <-c:
+			if s == sig {
+				return
+			}
+			if !all || s != syscall.SIGURG {
+				t.Fatalf("signal was %v, want %v", s, sig)
+			}
+		case <-timer.C:
+			timer.Reset(settleTime / 10)
+		}
+	}
+	t.Fatalf("timeout after %v waiting for %v", settleTime, sig)
+}
+
+// quiesce waits until we can be reasonably confident that all pending signals
+// have been delivered by the OS.
+func quiesce() {
+	// The kernel will deliver a signal as a thread returns
+	// from a syscall. If the only active thread is sleeping,
+	// and the system is busy, the kernel may not get around
+	// to waking up a thread to catch the signal.
+	// We try splitting up the sleep to give the kernel
+	// many chances to deliver the signal.
+	start := time.Now()
+	for time.Since(start) < settleTime {
+		time.Sleep(settleTime / 10)
 	}
 }
 
@@ -45,24 +117,26 @@ func TestSignal(t *testing.T) {
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
 	waitSig(t, c, syscall.SIGHUP)
 
-	// Ask for everything we can get.
-	c1 := make(chan os.Signal, 1)
+	// Ask for everything we can get. The buffer size has to be
+	// more than 1, since the runtime might send SIGURG signals.
+	// Using 10 is arbitrary.
+	c1 := make(chan os.Signal, 10)
 	Notify(c1)
 
 	// Send this process a SIGWINCH
 	t.Logf("sigwinch...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-	waitSig(t, c1, syscall.SIGWINCH)
+	waitSigAll(t, c1, syscall.SIGWINCH)
 
 	// Send two more SIGHUPs, to make sure that
 	// they get delivered on c1 and that not reading
 	// from c does not block everything.
 	t.Logf("sighup...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
-	waitSig(t, c1, syscall.SIGHUP)
+	waitSigAll(t, c1, syscall.SIGHUP)
 	t.Logf("sighup...")
 	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
-	waitSig(t, c1, syscall.SIGHUP)
+	waitSigAll(t, c1, syscall.SIGHUP)
 
 	// The first SIGHUP should be waiting for us on c.
 	waitSig(t, c, syscall.SIGHUP)
@@ -74,50 +148,39 @@ func TestStress(t *testing.T) {
 		dur = 100 * time.Millisecond
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	done := make(chan bool)
-	finished := make(chan bool)
+
+	sig := make(chan os.Signal, 1)
+	Notify(sig, syscall.SIGUSR1)
+
 	go func() {
-		sig := make(chan os.Signal, 1)
-		Notify(sig, syscall.SIGUSR1)
-		defer Stop(sig)
-	Loop:
+		stop := time.After(dur)
 		for {
 			select {
-			case <-sig:
-			case <-done:
-				break Loop
-			}
-		}
-		finished <- true
-	}()
-	go func() {
-	Loop:
-		for {
-			select {
-			case <-done:
-				break Loop
+			case <-stop:
+				// Allow enough time for all signals to be delivered before we stop
+				// listening for them.
+				quiesce()
+				Stop(sig)
+				// According to its documentation, “[w]hen Stop returns, it in
+				// guaranteed that c will receive no more signals.” So we can safely
+				// close sig here: if there is a send-after-close race here, that is a
+				// bug in Stop and we would like to detect it.
+				close(sig)
+				return
+
 			default:
 				syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
 				runtime.Gosched()
 			}
 		}
-		finished <- true
 	}()
-	time.Sleep(dur)
-	close(done)
-	<-finished
-	<-finished
-	// When run with 'go test -cpu=1,2,4' SIGUSR1 from this test can slip
-	// into subsequent TestSignal() causing failure.
-	// Sleep for a while to reduce the possibility of the failure.
-	time.Sleep(10 * time.Millisecond)
+
+	for range sig {
+		// Receive signals until the sender closes sig.
+	}
 }
 
 func testCancel(t *testing.T, ignore bool) {
-	// Send SIGWINCH. By default this signal should be ignored.
-	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-	time.Sleep(100 * time.Millisecond)
-
 	// Ask to be notified on c1 when a SIGWINCH is received.
 	c1 := make(chan os.Signal, 1)
 	Notify(c1, syscall.SIGWINCH)
@@ -137,23 +200,14 @@ func testCancel(t *testing.T, ignore bool) {
 	waitSig(t, c2, syscall.SIGHUP)
 
 	// Ignore, or reset the signal handlers for, SIGWINCH and SIGHUP.
+	// Either way, this should undo both calls to Notify above.
 	if ignore {
 		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
+		// Don't bother deferring a call to Reset: it is documented to undo Notify,
+		// but its documentation says nothing about Ignore, and (as of the time of
+		// writing) it empirically does not undo an Ignore.
 	} else {
 		Reset(syscall.SIGWINCH, syscall.SIGHUP)
-	}
-
-	// At this point we do not expect any further signals on c1.
-	// However, it is just barely possible that the initial SIGWINCH
-	// at the start of this function was delivered after we called
-	// Notify on c1. In that case the waitSig for SIGWINCH may have
-	// picked up that initial SIGWINCH, and the second SIGWINCH may
-	// then have been delivered on the channel. This sequence of events
-	// may have caused issue 15661.
-	// So, read any possible signal from the channel now.
-	select {
-	case <-c1:
-	default:
 	}
 
 	// Send this process a SIGWINCH. It should be ignored.
@@ -164,22 +218,28 @@ func testCancel(t *testing.T, ignore bool) {
 		syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
 	}
 
+	quiesce()
+
 	select {
 	case s := <-c1:
-		t.Fatalf("unexpected signal %v", s)
-	case <-time.After(100 * time.Millisecond):
+		t.Errorf("unexpected signal %v", s)
+	default:
 		// nothing to read - good
 	}
 
 	select {
 	case s := <-c2:
-		t.Fatalf("unexpected signal %v", s)
-	case <-time.After(100 * time.Millisecond):
+		t.Errorf("unexpected signal %v", s)
+	default:
 		// nothing to read - good
 	}
 
-	// Reset the signal handlers for all signals.
-	Reset()
+	// One or both of the signals may have been blocked for this process
+	// by the calling process.
+	// Discard any queued signals now to avoid interfering with other tests.
+	Notify(c1, syscall.SIGWINCH)
+	Notify(c2, syscall.SIGHUP)
+	quiesce()
 }
 
 // Test that Reset cancels registration for listed signals on all channels.
@@ -192,7 +252,69 @@ func TestIgnore(t *testing.T) {
 	testCancel(t, true)
 }
 
-var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
+// Test that Ignored correctly detects changes to the ignored status of a signal.
+func TestIgnored(t *testing.T) {
+	// Ask to be notified on SIGWINCH.
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGWINCH)
+
+	// If we're being notified, then the signal should not be ignored.
+	if Ignored(syscall.SIGWINCH) {
+		t.Errorf("expected SIGWINCH to not be ignored.")
+	}
+	Stop(c)
+	Ignore(syscall.SIGWINCH)
+
+	// We're no longer paying attention to this signal.
+	if !Ignored(syscall.SIGWINCH) {
+		t.Errorf("expected SIGWINCH to be ignored when explicitly ignoring it.")
+	}
+
+	Reset()
+}
+
+var checkSighupIgnored = flag.Bool("check_sighup_ignored", false, "if true, TestDetectNohup will fail if SIGHUP is not ignored.")
+
+// Test that Ignored(SIGHUP) correctly detects whether it is being run under nohup.
+func TestDetectNohup(t *testing.T) {
+	if *checkSighupIgnored {
+		if !Ignored(syscall.SIGHUP) {
+			t.Fatal("SIGHUP is not ignored.")
+		} else {
+			t.Log("SIGHUP is ignored.")
+		}
+	} else {
+		defer Reset()
+		// Ugly: ask for SIGHUP so that child will not have no-hup set
+		// even if test is running under nohup environment.
+		// We have no intention of reading from c.
+		c := make(chan os.Signal, 1)
+		Notify(c, syscall.SIGHUP)
+		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
+			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
+		}
+		Stop(c)
+		// Again, this time with nohup, assuming we can find it.
+		_, err := os.Stat("/usr/bin/nohup")
+		if err != nil {
+			t.Skip("cannot find nohup; skipping second half of test")
+		}
+		Ignore(syscall.SIGHUP)
+		os.Remove("nohup.out")
+		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
+
+		data, _ := ioutil.ReadFile("nohup.out")
+		os.Remove("nohup.out")
+		if err != nil {
+			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)
+		}
+	}
+}
+
+var (
+	sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
+	dieFromSighup      = flag.Bool("die_from_sighup", false, "wait to die from uncaught SIGHUP")
+)
 
 // Test that Stop cancels the channel's registrations.
 func TestStop(t *testing.T) {
@@ -203,49 +325,74 @@ func TestStop(t *testing.T) {
 	}
 
 	for _, sig := range sigs {
-		// Send the signal.
-		// If it's SIGWINCH, we should not see it.
-		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
+		sig := sig
+		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+			// When calling Notify with a specific signal,
+			// independent signals should not interfere with each other,
+			// and we end up needing to wait for signals to quiesce a lot.
+			// Test the three different signals concurrently.
+			t.Parallel()
+
+			// If the signal is not ignored, send the signal before registering a
+			// channel to verify the behavior of the default Go handler.
+			// If it's SIGWINCH or SIGUSR1 we should not see it.
+			// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
+			mayHaveBlockedSignal := false
+			if !Ignored(sig) && (sig != syscall.SIGHUP || *sendUncaughtSighup == 1) {
+				syscall.Kill(syscall.Getpid(), sig)
+				quiesce()
+
+				// We don't know whether sig is blocked for this process; see
+				// https://golang.org/issue/38165. Assume that it could be.
+				mayHaveBlockedSignal = true
+			}
+
+			// Ask for signal
+			c := make(chan os.Signal, 1)
+			Notify(c, sig)
+
+			// Send this process the signal again.
 			syscall.Kill(syscall.Getpid(), sig)
-		}
-		time.Sleep(100 * time.Millisecond)
+			waitSig(t, c, sig)
 
-		// Ask for signal
-		c := make(chan os.Signal, 1)
-		Notify(c, sig)
-		defer Stop(c)
+			if mayHaveBlockedSignal {
+				// We may have received a queued initial signal in addition to the one
+				// that we sent after Notify. If so, waitSig may have observed that
+				// initial signal instead of the second one, and we may need to wait for
+				// the second signal to clear. Do that now.
+				quiesce()
+				select {
+				case <-c:
+				default:
+				}
+			}
 
-		// Send this process that signal
-		syscall.Kill(syscall.Getpid(), sig)
-		waitSig(t, c, sig)
+			// Stop watching for the signal and send it again.
+			// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
+			Stop(c)
+			if sig != syscall.SIGHUP || *sendUncaughtSighup == 2 {
+				syscall.Kill(syscall.Getpid(), sig)
+				quiesce()
 
-		Stop(c)
-		select {
-		case s := <-c:
-			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(100 * time.Millisecond):
-			// nothing to read - good
-		}
+				select {
+				case s := <-c:
+					t.Errorf("unexpected signal %v", s)
+				default:
+					// nothing to read - good
+				}
 
-		// Send the signal.
-		// If it's SIGWINCH, we should not see it.
-		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-		if sig != syscall.SIGHUP || *sendUncaughtSighup == 2 {
-			syscall.Kill(syscall.Getpid(), sig)
-		}
-
-		select {
-		case s := <-c:
-			t.Fatalf("unexpected signal %v", s)
-		case <-time.After(100 * time.Millisecond):
-			// nothing to read - good
-		}
+				// If we're going to receive a signal, it has almost certainly been
+				// received by now. However, it may have been blocked for this process —
+				// we don't know. Explicitly unblock it and wait for it to clear now.
+				Notify(c, sig)
+				quiesce()
+				Stop(c)
+			}
+		})
 	}
 }
 
-// Test that when run under nohup, an uncaught SIGHUP does not kill the program,
-// but a
+// Test that when run under nohup, an uncaught SIGHUP does not kill the program.
 func TestNohup(t *testing.T) {
 	// Ugly: ask for SIGHUP so that child will not have no-hup set
 	// even if test is running under nohup environment.
@@ -264,12 +411,38 @@ func TestNohup(t *testing.T) {
 	//
 	// Both should fail without nohup and succeed with nohup.
 
-	for i := 1; i <= 2; i++ {
-		out, err := exec.Command(os.Args[0], "-test.run=TestStop", "-send_uncaught_sighup="+strconv.Itoa(i)).CombinedOutput()
-		if err == nil {
-			t.Fatalf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
-		}
+	var subTimeout time.Duration
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	if deadline, ok := t.Deadline(); ok {
+		subTimeout = time.Until(deadline)
+		subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 	}
+	for i := 1; i <= 2; i++ {
+		i := i
+		go t.Run(fmt.Sprintf("uncaught-%d", i), func(t *testing.T) {
+			defer wg.Done()
+
+			args := []string{
+				"-test.v",
+				"-test.run=TestStop",
+				"-send_uncaught_sighup=" + strconv.Itoa(i),
+				"-die_from_sighup",
+			}
+			if subTimeout != 0 {
+				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+			}
+			out, err := exec.Command(os.Args[0], args...).CombinedOutput()
+
+			if err == nil {
+				t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
+			} else {
+				t.Logf("test with -send_uncaught_sighup=%d failed as expected.\nError: %v\nOutput:\n%s", i, err, out)
+			}
+		})
+	}
+	wg.Wait()
 
 	Stop(c)
 
@@ -280,21 +453,46 @@ func TestNohup(t *testing.T) {
 	}
 
 	// Again, this time with nohup, assuming we can find it.
-	_, err := os.Stat("/usr/bin/nohup")
+	_, err := exec.LookPath("nohup")
 	if err != nil {
 		t.Skip("cannot find nohup; skipping second half of test")
 	}
 
-	for i := 1; i <= 2; i++ {
-		os.Remove("nohup.out")
-		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestStop", "-send_uncaught_sighup="+strconv.Itoa(i)).CombinedOutput()
-
-		data, _ := ioutil.ReadFile("nohup.out")
-		os.Remove("nohup.out")
-		if err != nil {
-			t.Fatalf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", i, err, out, data)
-		}
+	wg.Add(2)
+	if deadline, ok := t.Deadline(); ok {
+		subTimeout = time.Until(deadline)
+		subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 	}
+	for i := 1; i <= 2; i++ {
+		i := i
+		go t.Run(fmt.Sprintf("nohup-%d", i), func(t *testing.T) {
+			defer wg.Done()
+
+			// POSIX specifies that nohup writes to a file named nohup.out if standard
+			// output is a terminal. However, for an exec.Command, standard output is
+			// not a terminal — so we don't need to read or remove that file (and,
+			// indeed, cannot even create it if the current user is unable to write to
+			// GOROOT/src, such as when GOROOT is installed and owned by root).
+
+			args := []string{
+				os.Args[0],
+				"-test.v",
+				"-test.run=TestStop",
+				"-send_uncaught_sighup=" + strconv.Itoa(i),
+			}
+			if subTimeout != 0 {
+				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+			}
+			out, err := exec.Command("nohup", args...).CombinedOutput()
+
+			if err != nil {
+				t.Errorf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s", i, err, out)
+			} else {
+				t.Logf("ran test with -send_uncaught_sighup=%d under nohup.\nOutput:\n%s", i, out)
+			}
+		})
+	}
+	wg.Wait()
 }
 
 // Test that SIGCONT works (issue 8953).
@@ -309,19 +507,38 @@ func TestSIGCONT(t *testing.T) {
 // Test race between stopping and receiving a signal (issue 14571).
 func TestAtomicStop(t *testing.T) {
 	if os.Getenv("GO_TEST_ATOMIC_STOP") != "" {
-		atomicStopTestProgram()
+		atomicStopTestProgram(t)
 		t.Fatal("atomicStopTestProgram returned")
 	}
 
 	testenv.MustHaveExec(t)
 
+	// Call Notify for SIGINT before starting the child process.
+	// That ensures that SIGINT is not ignored for the child.
+	// This is necessary because if SIGINT is ignored when a
+	// Go program starts, then it remains ignored, and closing
+	// the last notification channel for SIGINT will switch it
+	// back to being ignored. In that case the assumption of
+	// atomicStopTestProgram, that it will either die from SIGINT
+	// or have it be reported, breaks down, as there is a third
+	// option: SIGINT might be ignored.
+	cs := make(chan os.Signal, 1)
+	Notify(cs, syscall.SIGINT)
+	defer Stop(cs)
+
 	const execs = 10
 	for i := 0; i < execs; i++ {
-		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop")
+		timeout := "0"
+		if deadline, ok := t.Deadline(); ok {
+			timeout = time.Until(deadline).String()
+		}
+		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
-			t.Logf("iteration %d: output %s", i, out)
+			if len(out) > 0 {
+				t.Logf("iteration %d: output %s", i, out)
+			}
 		} else {
 			t.Logf("iteration %d: exit status %q: output: %s", i, err, out)
 		}
@@ -352,8 +569,22 @@ func TestAtomicStop(t *testing.T) {
 // atomicStopTestProgram is run in a subprocess by TestAtomicStop.
 // It tries to trigger a signal delivery race. This function should
 // either catch a signal or die from it.
-func atomicStopTestProgram() {
+func atomicStopTestProgram(t *testing.T) {
+	// This test won't work if SIGINT is ignored here.
+	if Ignored(syscall.SIGINT) {
+		fmt.Println("SIGINT is ignored")
+		os.Exit(1)
+	}
+
 	const tries = 10
+
+	timeout := 2 * time.Second
+	if deadline, ok := t.Deadline(); ok {
+		// Give each try an equal slice of the deadline, with one slice to spare for
+		// cleanup.
+		timeout = time.Until(deadline) / (tries + 1)
+	}
+
 	pid := syscall.Getpid()
 	printed := false
 	for i := 0; i < tries; i++ {
@@ -371,14 +602,14 @@ func atomicStopTestProgram() {
 
 		// At this point we should either die from SIGINT or
 		// get a notification on cs. If neither happens, we
-		// dropped the signal. Give it a second to deliver,
-		// which is far far longer than it should require.
+		// dropped the signal. It is given 2 seconds to
+		// deliver, as needed for gccgo on some loaded test systems.
 
 		select {
 		case <-cs:
-		case <-time.After(1 * time.Second):
+		case <-time.After(timeout):
 			if !printed {
-				fmt.Print("lost signal on iterations:")
+				fmt.Print("lost signal on tries:")
 				printed = true
 			}
 			fmt.Printf(" %d", i)
@@ -391,4 +622,55 @@ func atomicStopTestProgram() {
 	}
 
 	os.Exit(0)
+}
+
+func TestTime(t *testing.T) {
+	// Test that signal works fine when we are in a call to get time,
+	// which on some platforms is using VDSO. See issue #34391.
+	dur := 3 * time.Second
+	if testing.Short() {
+		dur = 100 * time.Millisecond
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+
+	sig := make(chan os.Signal, 1)
+	Notify(sig, syscall.SIGUSR1)
+
+	stop := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-stop:
+				// Allow enough time for all signals to be delivered before we stop
+				// listening for them.
+				quiesce()
+				Stop(sig)
+				// According to its documentation, “[w]hen Stop returns, it in
+				// guaranteed that c will receive no more signals.” So we can safely
+				// close sig here: if there is a send-after-close race, that is a bug in
+				// Stop and we would like to detect it.
+				close(sig)
+				return
+
+			default:
+				syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+				runtime.Gosched()
+			}
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		for range sig {
+			// Receive signals until the sender closes sig.
+		}
+		close(done)
+	}()
+
+	t0 := time.Now()
+	for t1 := t0; t1.Sub(t0) < dur; t1 = time.Now() {
+	} // hammering on getting time
+
+	close(stop)
+	<-done
 }

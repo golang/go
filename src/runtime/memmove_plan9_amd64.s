@@ -1,5 +1,5 @@
 // Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/memmove-386.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -25,7 +25,9 @@
 
 #include "textflag.h"
 
-// void runtime·memmove(void*, void*, uintptr)
+// See memmove Go doc for important implementation constraints.
+
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $0-24
 
 	MOVQ	to+0(FP), DI
@@ -73,7 +75,7 @@ back:
 	ADDQ	BX, CX
 	CMPQ	CX, DI
 	JLS	forward
-	
+
 /*
  * whole thing backwards has
  * adjusted addresses

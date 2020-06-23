@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/report"
@@ -52,45 +53,62 @@ func PProf(eo *plugin.Options) error {
 		return generateReport(p, cmd, pprofVariables, o)
 	}
 
+	if src.HTTPHostport != "" {
+		return serveWebInterface(src.HTTPHostport, p, o, src.HTTPDisableBrowser)
+	}
 	return interactive(p, o)
 }
 
-func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
+func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) (*command, *report.Report, error) {
 	p = p.Copy() // Prevent modification to the incoming profile.
 
-	vars = applyCommandOverrides(cmd, vars)
+	// Identify units of numeric tags in profile.
+	numLabelUnits := identifyNumLabelUnits(p, o.UI)
+
+	// Get report output format
+	c := pprofCommands[cmd[0]]
+	if c == nil {
+		panic("unexpected nil command")
+	}
+
+	vars = applyCommandOverrides(cmd[0], c.format, vars)
 
 	// Delay focus after configuring report to get percentages on all samples.
 	relative := vars["relative_percentages"].boolValue()
 	if relative {
-		if err := applyFocus(p, vars, o.UI); err != nil {
-			return err
+		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+			return nil, nil, err
 		}
 	}
-	ropt, err := reportOptions(p, vars)
+	ropt, err := reportOptions(p, numLabelUnits, vars)
 	if err != nil {
-		return err
-	}
-	c := pprofCommands[cmd[0]]
-	if c == nil {
-		panic("unexpected nil command")
+		return nil, nil, err
 	}
 	ropt.OutputFormat = c.format
 	if len(cmd) == 2 {
 		s, err := regexp.Compile(cmd[1])
 		if err != nil {
-			return fmt.Errorf("parsing argument regexp %s: %v", cmd[1], err)
+			return nil, nil, fmt.Errorf("parsing argument regexp %s: %v", cmd[1], err)
 		}
 		ropt.Symbol = s
 	}
 
 	rpt := report.New(p, ropt)
 	if !relative {
-		if err := applyFocus(p, vars, o.UI); err != nil {
-			return err
+		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
+			return nil, nil, err
 		}
 	}
 	if err := aggregate(p, vars); err != nil {
+		return nil, nil, err
+	}
+
+	return c, rpt, nil
+}
+
+func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
+	c, rpt, err := generateRawReport(p, cmd, vars, o)
+	if err != nil {
 		return err
 	}
 
@@ -122,7 +140,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 
 	// Output to specified file.
 	o.UI.PrintErr("Generating report in ", output)
-	out, err := os.Create(output)
+	out, err := o.Writer.Open(output)
 	if err != nil {
 		return err
 	}
@@ -133,24 +151,34 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
 	return out.Close()
 }
 
-func applyCommandOverrides(cmd []string, v variables) variables {
-	trim, focus, tagfocus, hide := v["trim"].boolValue(), true, true, true
+func applyCommandOverrides(cmd string, outputFormat int, v variables) variables {
+	// Some report types override the trim flag to false below. This is to make
+	// sure the default heuristics of excluding insignificant nodes and edges
+	// from the call graph do not apply. One example where it is important is
+	// annotated source or disassembly listing. Those reports run on a specific
+	// function (or functions), but the trimming is applied before the function
+	// data is selected. So, with trimming enabled, the report could end up
+	// showing no data if the specified function is "uninteresting" as far as the
+	// trimming is concerned.
+	trim := v["trim"].boolValue()
 
-	switch cmd[0] {
-	case "proto", "raw":
-		trim, focus, tagfocus, hide = false, false, false, false
-		v.set("addresses", "t")
-	case "callgrind", "kcachegrind":
-		trim = false
-		v.set("addresses", "t")
+	switch cmd {
 	case "disasm", "weblist":
 		trim = false
-		v.set("addressnoinlines", "t")
+		v.set("addresses", "t")
+		// Force the 'noinlines' mode so that source locations for a given address
+		// collapse and there is only one for the given address. Without this
+		// cumulative metrics would be double-counted when annotating the assembly.
+		// This is because the merge is done by address and in case of an inlined
+		// stack each of the inlined entries is a separate callgraph node.
+		v.set("noinlines", "t")
 	case "peek":
-		trim, focus, hide = false, false, false
+		trim = false
 	case "list":
-		v.set("nodecount", "0")
+		trim = false
 		v.set("lines", "t")
+		// Do not force 'noinlines' to be false so that specifying
+		// "-list foo -noinlines" is supported and works as expected.
 	case "text", "top", "topproto":
 		if v["nodecount"].intValue() == -1 {
 			v.set("nodecount", "0")
@@ -160,61 +188,52 @@ func applyCommandOverrides(cmd []string, v variables) variables {
 			v.set("nodecount", "80")
 		}
 	}
-	if trim == false {
+
+	switch outputFormat {
+	case report.Proto, report.Raw, report.Callgrind:
+		trim = false
+		v.set("addresses", "t")
+		v.set("noinlines", "f")
+	}
+
+	if !trim {
 		v.set("nodecount", "0")
 		v.set("nodefraction", "0")
 		v.set("edgefraction", "0")
-	}
-	if focus == false {
-		v.set("focus", "")
-		v.set("ignore", "")
-	}
-	if tagfocus == false {
-		v.set("tagfocus", "")
-		v.set("tagignore", "")
-	}
-	if hide == false {
-		v.set("hide", "")
-		v.set("show", "")
 	}
 	return v
 }
 
 func aggregate(prof *profile.Profile, v variables) error {
-	var inlines, function, filename, linenumber, address bool
+	var function, filename, linenumber, address bool
+	inlines := !v["noinlines"].boolValue()
 	switch {
 	case v["addresses"].boolValue():
-		return nil
-	case v["lines"].boolValue():
-		inlines = true
-		function = true
-		filename = true
-		linenumber = true
-	case v["files"].boolValue():
-		inlines = true
-		filename = true
-	case v["functions"].boolValue():
-		inlines = true
-		function = true
-		filename = true
-	case v["noinlines"].boolValue():
-		function = true
-		filename = true
-	case v["addressnoinlines"].boolValue():
+		if inlines {
+			return nil
+		}
 		function = true
 		filename = true
 		linenumber = true
 		address = true
-	case v["functionnameonly"].boolValue():
-		inlines = true
+	case v["lines"].boolValue():
 		function = true
+		filename = true
+		linenumber = true
+	case v["files"].boolValue():
+		filename = true
+	case v["functions"].boolValue():
+		function = true
+	case v["filefunctions"].boolValue():
+		function = true
+		filename = true
 	default:
 		return fmt.Errorf("unexpected granularity")
 	}
 	return prof.Aggregate(inlines, function, filename, linenumber, address)
 }
 
-func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) {
+func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars variables) (*report.Options, error) {
 	si, mean := vars["sample_index"].value, vars["mean"].boolValue()
 	value, meanDiv, sample, err := sampleFormat(p, si, mean)
 	if err != nil {
@@ -230,11 +249,18 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 		return nil, fmt.Errorf("zero divisor specified")
 	}
 
+	var filters []string
+	for _, k := range []string{"focus", "ignore", "hide", "show", "show_from", "tagfocus", "tagignore", "tagshow", "taghide"} {
+		v := vars[k].value
+		if v != "" {
+			filters = append(filters, k+"="+v)
+		}
+	}
+
 	ropt := &report.Options{
-		CumSort:             vars["cum"].boolValue(),
-		CallTree:            vars["call_tree"].boolValue(),
-		DropNegative:        vars["drop_negative"].boolValue(),
-		PositivePercentages: vars["positive_percentages"].boolValue(),
+		CumSort:      vars["cum"].boolValue(),
+		CallTree:     vars["call_tree"].boolValue(),
+		DropNegative: vars["drop_negative"].boolValue(),
 
 		CompactLabels: vars["compact_labels"].boolValue(),
 		Ratio:         1 / vars["divide_by"].floatValue(),
@@ -242,6 +268,9 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 		NodeCount:    vars["nodecount"].intValue(),
 		NodeFraction: vars["nodefraction"].floatValue(),
 		EdgeFraction: vars["edgefraction"].floatValue(),
+
+		ActiveFilters: filters,
+		NumLabelUnits: numLabelUnits,
 
 		SampleValue:       value,
 		SampleMeanDivisor: meanDiv,
@@ -251,6 +280,7 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 		OutputUnit: vars["unit"].value,
 
 		SourcePath: vars["source_path"].stringValue(),
+		TrimPath:   vars["trim_path"].stringValue(),
 	}
 
 	if len(p.Mapping) > 0 && p.Mapping[0].File != "" {
@@ -258,6 +288,19 @@ func reportOptions(p *profile.Profile, vars variables) (*report.Options, error) 
 	}
 
 	return ropt, nil
+}
+
+// identifyNumLabelUnits returns a map of numeric label keys to the units
+// associated with those keys.
+func identifyNumLabelUnits(p *profile.Profile, ui plugin.UI) map[string]string {
+	numLabelUnits, ignoredUnits := p.NumLabelUnits()
+
+	// Print errors for tags with multiple units associated with
+	// a single key.
+	for k, units := range ignoredUnits {
+		ui.PrintErr(fmt.Sprintf("For tag %s used unit %s, also encountered unit(s) %s", k, numLabelUnits[k], strings.Join(units, ", ")))
+	}
+	return numLabelUnits
 }
 
 type sampleValueFunc func([]int64) int64

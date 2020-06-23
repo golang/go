@@ -6,27 +6,39 @@
 package vet
 
 import (
-	"path/filepath"
-
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/str"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
+	"path/filepath"
 )
 
+// Break init loop.
+func init() {
+	CmdVet.Run = runVet
+}
+
 var CmdVet = &base.Command{
-	Run:         runVet,
 	CustomFlags: true,
-	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
-	Short:       "run go tool vet on packages",
+	UsageLine:   "go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]",
+	Short:       "report likely mistakes in packages",
 	Long: `
 Vet runs the Go vet command on the packages named by the import paths.
 
 For more about vet and its flags, see 'go doc cmd/vet'.
 For more about specifying packages, see 'go help packages'.
+For a list of checkers and their flags, see 'go tool vet help'.
+For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+The -vettool=prog flag selects a different analysis tool with alternative
+or additional checks.
+For example, the 'shadow' analyzer can be built and run using these commands:
+
+  go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+  go vet -vettool=$(which shadow)
 
 The build flags supported by go vet are those that control package resolution
 and execution, such as -n, -x, -v, -tags, and -toolexec.
@@ -37,22 +49,48 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *base.Command, args []string) {
-	vetFlags, packages := vetFlags(args)
-	for _, p := range load.Packages(packages) {
-		// Vet expects to be given a set of files all from the same package.
-		// Run once for package p and once for package p_test.
-		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
-			runVetFiles(p, vetFlags, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
-		}
-		if len(p.XTestGoFiles) > 0 {
-			runVetFiles(p, vetFlags, str.StringList(p.XTestGoFiles))
-		}
-	}
-}
+	modload.LoadTests = true
 
-func runVetFiles(p *load.Package, flags, files []string) {
-	for i := range files {
-		files[i] = filepath.Join(p.Dir, files[i])
+	vetFlags, pkgArgs := vetFlags(args)
+
+	work.BuildInit()
+	work.VetFlags = vetFlags
+	if len(vetFlags) > 0 {
+		work.VetExplicit = true
 	}
-	base.Run(cfg.BuildToolexec, base.Tool("vet"), flags, base.RelPaths(files))
+	if vetTool != "" {
+		var err error
+		work.VetTool, err = filepath.Abs(vetTool)
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+	}
+
+	pkgs := load.PackagesForBuild(pkgArgs)
+	if len(pkgs) == 0 {
+		base.Fatalf("no packages to vet")
+	}
+
+	var b work.Builder
+	b.Init()
+
+	root := &work.Action{Mode: "go vet"}
+	for _, p := range pkgs {
+		_, ptest, pxtest, err := load.TestPackagesFor(p, nil)
+		if err != nil {
+			base.Errorf("%v", err)
+			continue
+		}
+		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
+			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
+			continue
+		}
+		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
+			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, ptest))
+		}
+		if pxtest != nil {
+			root.Deps = append(root.Deps, b.VetAction(work.ModeBuild, work.ModeBuild, pxtest))
+		}
+	}
+	b.Do(root)
 }

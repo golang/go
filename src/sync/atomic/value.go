@@ -14,8 +14,6 @@ import (
 //
 // A Value must not be copied after first use.
 type Value struct {
-	noCopy noCopy
-
 	v interface{}
 }
 
@@ -86,13 +84,3 @@ func (v *Value) Store(x interface{}) {
 // Disable/enable preemption, implemented in runtime.
 func runtime_procPin()
 func runtime_procUnpin()
-
-// noCopy may be embedded into structs which must not be copied
-// after the first use.
-//
-// See https://github.com/golang/go/issues/8005#issuecomment-190753527
-// for details.
-type noCopy struct{}
-
-// Lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) Lock() {}

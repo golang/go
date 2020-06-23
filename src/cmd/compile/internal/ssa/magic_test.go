@@ -184,7 +184,7 @@ func TestMagicSigned(t *testing.T) {
 				-c - 1, -c, -c + 1, c - 1, c, c + 1,
 				-2*c - 1, -2 * c, -2*c + 1, 2*c - 1, 2 * c, 2*c + 1,
 				-mul - 1, -mul, -mul + 1, mul - 1, mul, mul + 1,
-				int64(1)<<n - 1, -int64(1)<<n + 1,
+				int64(1)<<(n-1) - 1, -int64(1) << (n - 1),
 			} {
 				X := new(big.Int).SetInt64(x)
 				if X.Cmp(Min) < 0 || X.Cmp(Max) > 0 {
@@ -198,6 +198,211 @@ func TestMagicSigned(t *testing.T) {
 				}
 				if Want.Cmp(Got) != 0 {
 					t.Errorf("smagic for %d/%d n=%d doesn't work, got=%s, want %s\n", x, c, n, Got, Want)
+				}
+			}
+		}
+	}
+}
+
+func testDivisibleExhaustiveU(t *testing.T, n uint) {
+	maxU := uint64(1) << n
+	for c := uint64(1); c < maxU; c++ {
+		if !udivisibleOK(n, int64(c)) {
+			continue
+		}
+		k := udivisible(n, int64(c)).k
+		m := udivisible(n, int64(c)).m
+		max := udivisible(n, int64(c)).max
+		mask := ^uint64(0) >> (64 - n)
+		for i := uint64(0); i < maxU; i++ {
+			want := i%c == 0
+			mul := (i * m) & mask
+			rot := (mul>>uint(k) | mul<<(n-uint(k))) & mask
+			got := rot <= max
+			if want != got {
+				t.Errorf("unsigned divisible wrong for %d %% %d == 0: got %v, want %v (k=%d,m=%d,max=%d)\n", i, c, got, want, k, m, max)
+			}
+		}
+	}
+}
+
+func TestDivisibleExhaustive8U(t *testing.T) {
+	testDivisibleExhaustiveU(t, 8)
+}
+
+func TestDivisibleExhaustive16U(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test; skipping")
+	}
+	testDivisibleExhaustiveU(t, 16)
+}
+
+func TestDivisibleUnsigned(t *testing.T) {
+	One := new(big.Int).SetUint64(1)
+	for _, n := range [...]uint{8, 16, 32, 64} {
+		TwoN := new(big.Int).Lsh(One, n)
+		Max := new(big.Int).Sub(TwoN, One)
+		for _, c := range [...]uint64{
+			3,
+			5,
+			6,
+			7,
+			9,
+			10,
+			11,
+			12,
+			13,
+			14,
+			15,
+			17,
+			1<<8 - 1,
+			1<<8 + 1,
+			1<<16 - 1,
+			1<<16 + 1,
+			1<<32 - 1,
+			1<<32 + 1,
+			1<<64 - 1,
+		} {
+			if c>>n != 0 {
+				continue // c too large for the given n.
+			}
+			if !udivisibleOK(n, int64(c)) {
+				t.Errorf("expected n=%d c=%d to pass\n", n, c)
+			}
+			k := udivisible(n, int64(c)).k
+			m := udivisible(n, int64(c)).m
+			max := udivisible(n, int64(c)).max
+			mask := ^uint64(0) >> (64 - n)
+
+			C := new(big.Int).SetUint64(c)
+
+			// Find largest multiple of c.
+			Mul := new(big.Int).Div(Max, C)
+			Mul.Mul(Mul, C)
+			mul := Mul.Uint64()
+
+			// Try some input values, mostly around multiples of c.
+			for _, x := range [...]uint64{0, 1,
+				c - 1, c, c + 1,
+				2*c - 1, 2 * c, 2*c + 1,
+				mul - 1, mul, mul + 1,
+				uint64(1)<<n - 1,
+			} {
+				X := new(big.Int).SetUint64(x)
+				if X.Cmp(Max) > 0 {
+					continue
+				}
+				want := x%c == 0
+				mul := (x * m) & mask
+				rot := (mul>>uint(k) | mul<<(n-uint(k))) & mask
+				got := rot <= max
+				if want != got {
+					t.Errorf("unsigned divisible wrong for %d %% %d == 0: got %v, want %v (k=%d,m=%d,max=%d)\n", x, c, got, want, k, m, max)
+				}
+			}
+		}
+	}
+}
+
+func testDivisibleExhaustive(t *testing.T, n uint) {
+	minI := -int64(1) << (n - 1)
+	maxI := int64(1) << (n - 1)
+	for c := int64(1); c < maxI; c++ {
+		if !sdivisibleOK(n, int64(c)) {
+			continue
+		}
+		k := sdivisible(n, int64(c)).k
+		m := sdivisible(n, int64(c)).m
+		a := sdivisible(n, int64(c)).a
+		max := sdivisible(n, int64(c)).max
+		mask := ^uint64(0) >> (64 - n)
+		for i := minI; i < maxI; i++ {
+			want := i%c == 0
+			mul := (uint64(i)*m + a) & mask
+			rot := (mul>>uint(k) | mul<<(n-uint(k))) & mask
+			got := rot <= max
+			if want != got {
+				t.Errorf("signed divisible wrong for %d %% %d == 0: got %v, want %v (k=%d,m=%d,a=%d,max=%d)\n", i, c, got, want, k, m, a, max)
+			}
+		}
+	}
+}
+
+func TestDivisibleExhaustive8(t *testing.T) {
+	testDivisibleExhaustive(t, 8)
+}
+
+func TestDivisibleExhaustive16(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test; skipping")
+	}
+	testDivisibleExhaustive(t, 16)
+}
+
+func TestDivisibleSigned(t *testing.T) {
+	One := new(big.Int).SetInt64(1)
+	for _, n := range [...]uint{8, 16, 32, 64} {
+		TwoNMinusOne := new(big.Int).Lsh(One, n-1)
+		Max := new(big.Int).Sub(TwoNMinusOne, One)
+		Min := new(big.Int).Neg(TwoNMinusOne)
+		for _, c := range [...]int64{
+			3,
+			5,
+			6,
+			7,
+			9,
+			10,
+			11,
+			12,
+			13,
+			14,
+			15,
+			17,
+			1<<7 - 1,
+			1<<7 + 1,
+			1<<15 - 1,
+			1<<15 + 1,
+			1<<31 - 1,
+			1<<31 + 1,
+			1<<63 - 1,
+		} {
+			if c>>(n-1) != 0 {
+				continue // not appropriate for the given n.
+			}
+			if !sdivisibleOK(n, int64(c)) {
+				t.Errorf("expected n=%d c=%d to pass\n", n, c)
+			}
+			k := sdivisible(n, int64(c)).k
+			m := sdivisible(n, int64(c)).m
+			a := sdivisible(n, int64(c)).a
+			max := sdivisible(n, int64(c)).max
+			mask := ^uint64(0) >> (64 - n)
+
+			C := new(big.Int).SetInt64(c)
+
+			// Find largest multiple of c.
+			Mul := new(big.Int).Div(Max, C)
+			Mul.Mul(Mul, C)
+			mul := Mul.Int64()
+
+			// Try some input values, mostly around multiples of c.
+			for _, x := range [...]int64{
+				-1, 1,
+				-c - 1, -c, -c + 1, c - 1, c, c + 1,
+				-2*c - 1, -2 * c, -2*c + 1, 2*c - 1, 2 * c, 2*c + 1,
+				-mul - 1, -mul, -mul + 1, mul - 1, mul, mul + 1,
+				int64(1)<<(n-1) - 1, -int64(1) << (n - 1),
+			} {
+				X := new(big.Int).SetInt64(x)
+				if X.Cmp(Min) < 0 || X.Cmp(Max) > 0 {
+					continue
+				}
+				want := x%c == 0
+				mul := (uint64(x)*m + a) & mask
+				rot := (mul>>uint(k) | mul<<(n-uint(k))) & mask
+				got := rot <= max
+				if want != got {
+					t.Errorf("signed divisible wrong for %d %% %d == 0: got %v, want %v (k=%d,m=%d,a=%d,max=%d)\n", x, c, got, want, k, m, a, max)
 				}
 			}
 		}

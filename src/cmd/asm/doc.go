@@ -19,22 +19,30 @@ The GOOS and GOARCH environment variables set the desired target.
 
 Flags:
 
-	-D value
-		predefined symbol with optional simple value -D=identifier=value;
-		can be set multiple times
-	-I value
-		include directory; can be set multiple times
-	-S	print assembly and machine code
+	-D name[=value]
+		Predefine symbol name with an optional simple value.
+		Can be repeated to define multiple symbols.
+	-I dir1 -I dir2
+		Search for #include files in dir1, dir2, etc,
+		after consulting $GOROOT/pkg/$GOOS_$GOARCH.
+	-S
+		Print assembly and machine code.
+	-V
+		Print assembler version and exit.
 	-debug
-		dump instructions as they are parsed
+		Dump instructions as they are parsed.
 	-dynlink
-		support references to Go symbols defined in other shared libraries
-	-o string
-		output file; default foo.o for /a/b/c/foo.s
+		Support references to Go symbols defined in other shared libraries.
+	-gensymabis
+		Write symbol ABI information to output file. Don't assemble.
+	-o file
+		Write output to file. The default is foo.o for /a/b/c/foo.s.
 	-shared
-		generate code that can be linked into a shared library
-	-trimpath string
-		remove prefix from recorded source file paths
+		Generate code that can be linked into a shared library.
+	-spectre list
+		Enable spectre mitigations in list (all, ret).
+	-trimpath prefix
+		Remove prefix from recorded source file paths.
 
 Input language:
 

@@ -207,6 +207,18 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
+// Tests that this doesn't panic. (Issue 30165)
+func TestServeFileDirPanicEmptyPath(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.URL.Path = ""
+	ServeFile(rec, req, "testdata")
+	res := rec.Result()
+	if res.StatusCode != 301 {
+		t.Errorf("code = %v; want 301", res.Status)
+	}
+}
+
 var fsRedirectTestData = []struct {
 	original, redirect string
 }{
@@ -583,16 +595,23 @@ func TestFileServerZeroByte(t *testing.T) {
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
 
-	res, err := Get(ts.URL + "/..\x00")
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	defer c.Close()
+	_, err = fmt.Fprintf(c, "GET /..\x00 HTTP/1.0\r\n\r\n")
 	if err != nil {
-		t.Fatal("reading Body:", err)
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	bufr := bufio.NewReader(io.TeeReader(c, &got))
+	res, err := ReadResponse(bufr, nil)
+	if err != nil {
+		t.Fatal("ReadResponse: ", err)
 	}
 	if res.StatusCode == 200 {
-		t.Errorf("got status 200; want an error. Body is:\n%s", string(b))
+		t.Errorf("got status 200; want an error. Body is:\n%s", got.Bytes())
 	}
 }
 
@@ -948,8 +967,7 @@ func TestServeContent(t *testing.T) {
 			reqHeader: map[string]string{
 				"If-Match": `"B"`,
 			},
-			wantStatus:      412,
-			wantContentType: "text/plain; charset=utf-8",
+			wantStatus: 412,
 		},
 		"ifmatch_fails_on_weak_etag": {
 			file:      "testdata/style.css",
@@ -957,8 +975,7 @@ func TestServeContent(t *testing.T) {
 			reqHeader: map[string]string{
 				"If-Match": `W/"A"`,
 			},
-			wantStatus:      412,
-			wantContentType: "text/plain; charset=utf-8",
+			wantStatus: 412,
 		},
 		"if_unmodified_since_true": {
 			file:    "testdata/style.css",
@@ -976,9 +993,8 @@ func TestServeContent(t *testing.T) {
 			reqHeader: map[string]string{
 				"If-Unmodified-Since": htmlModTime.Add(-2 * time.Second).UTC().Format(TimeFormat),
 			},
-			wantStatus:      412,
-			wantContentType: "text/plain; charset=utf-8",
-			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
+			wantStatus:  412,
+			wantLastMod: htmlModTime.UTC().Format(TimeFormat),
 		},
 	}
 	for testName, tt := range tests {
@@ -996,7 +1012,7 @@ func TestServeContent(t *testing.T) {
 		for _, method := range []string{"GET", "HEAD"} {
 			//restore content in case it is consumed by previous method
 			if content, ok := content.(*strings.Reader); ok {
-				content.Seek(io.SeekStart, 0)
+				content.Seek(0, io.SeekStart)
 			}
 
 			servec <- serveParam{
@@ -1106,21 +1122,13 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 	defer ln.Close()
 
-	syscalls := "sendfile,sendfile64"
-	switch runtime.GOARCH {
-	case "mips64", "mips64le", "s390x":
-		// strace on the above platforms doesn't support sendfile64
-		// and will error out if we specify that with `-e trace='.
-		syscalls = "sendfile"
-	}
-
 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
-	if err := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=^$").Run(); err != nil {
+	if err := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
 		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
 	var buf bytes.Buffer
-	child := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
@@ -1143,7 +1151,7 @@ func TestLinuxSendfile(t *testing.T) {
 	Post(fmt.Sprintf("http://%s/quit", ln.Addr()), "", nil)
 	child.Wait()
 
-	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+`)
+	rx := regexp.MustCompile(`\b(n64:)?sendfile(64)?\(`)
 	out := buf.String()
 	if !rx.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)

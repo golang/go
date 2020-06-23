@@ -8,18 +8,19 @@ import (
 	"math"
 
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
 )
 
-// isFPreg returns whether r is an FP register
+// isFPreg reports whether r is an FP register
 func isFPreg(r int16) bool {
 	return mips.REG_F0 <= r && r <= mips.REG_F31
 }
 
-// isHILO returns whether r is HI or LO register
+// isHILO reports whether r is HI or LO register
 func isHILO(r int16) bool {
 	return r == mips.REG_HI || r == mips.REG_LO
 }
@@ -84,7 +85,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpMIPS64MOVVconvert, ssa.OpMIPS64MOVVreg:
+	case ssa.OpCopy, ssa.OpMIPS64MOVVreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -257,10 +258,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		switch v.Aux.(type) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
-		case *ssa.ExternSymbol:
+		case *obj.LSym:
 			wantreg = "SB"
 			gc.AddAux(&p.From, v)
-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+		case *gc.Node:
 			wantreg = "SP"
 			gc.AddAux(&p.From, v)
 		case nil:
@@ -354,7 +355,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64MOVFD,
 		ssa.OpMIPS64MOVDF,
 		ssa.OpMIPS64NEGF,
-		ssa.OpMIPS64NEGD:
+		ssa.OpMIPS64NEGD,
+		ssa.OpMIPS64SQRTD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
@@ -425,6 +427,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p2)
+	case ssa.OpMIPS64DUFFCOPY:
+		p := s.Prog(obj.ADUFFCOPY)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Duffcopy
+		p.To.Offset = v.AuxInt
 	case ssa.OpMIPS64LoweredMove:
 		// SUBV	$8, R1
 		// MOVV	8(R1), Rtmp
@@ -483,6 +491,228 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Patch(p6, p2)
 	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
 		s.Call(v)
+	case ssa.OpMIPS64LoweredWB:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = v.Aux.(*obj.LSym)
+	case ssa.OpMIPS64LoweredPanicBoundsA, ssa.OpMIPS64LoweredPanicBoundsB, ssa.OpMIPS64LoweredPanicBoundsC:
+		p := s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+		s.UseArgs(16) // space used in callee args area by assembly stubs
+	case ssa.OpMIPS64LoweredAtomicLoad8, ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
+		as := mips.AMOVV
+		switch v.Op {
+		case ssa.OpMIPS64LoweredAtomicLoad8:
+			as = mips.AMOVB
+		case ssa.OpMIPS64LoweredAtomicLoad32:
+			as = mips.AMOVW
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		s.Prog(mips.ASYNC)
+	case ssa.OpMIPS64LoweredAtomicStore8, ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
+		as := mips.AMOVV
+		switch v.Op {
+		case ssa.OpMIPS64LoweredAtomicStore8:
+			as = mips.AMOVB
+		case ssa.OpMIPS64LoweredAtomicStore32:
+			as = mips.AMOVW
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		s.Prog(mips.ASYNC)
+	case ssa.OpMIPS64LoweredAtomicStorezero32, ssa.OpMIPS64LoweredAtomicStorezero64:
+		as := mips.AMOVV
+		if v.Op == ssa.OpMIPS64LoweredAtomicStorezero32 {
+			as = mips.AMOVW
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = mips.REGZERO
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		s.Prog(mips.ASYNC)
+	case ssa.OpMIPS64LoweredAtomicExchange32, ssa.OpMIPS64LoweredAtomicExchange64:
+		// SYNC
+		// MOVV	Rarg1, Rtmp
+		// LL	(Rarg0), Rout
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		ll := mips.ALLV
+		sc := mips.ASCV
+		if v.Op == ssa.OpMIPS64LoweredAtomicExchange32 {
+			ll = mips.ALL
+			sc = mips.ASC
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(mips.AMOVV)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = mips.REGTMP
+		p1 := s.Prog(ll)
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Reg = v.Args[0].Reg()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(sc)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+		p3 := s.Prog(mips.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = mips.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+		s.Prog(mips.ASYNC)
+	case ssa.OpMIPS64LoweredAtomicAdd32, ssa.OpMIPS64LoweredAtomicAdd64:
+		// SYNC
+		// LL	(Rarg0), Rout
+		// ADDV Rarg1, Rout, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		// ADDV Rarg1, Rout
+		ll := mips.ALLV
+		sc := mips.ASCV
+		if v.Op == ssa.OpMIPS64LoweredAtomicAdd32 {
+			ll = mips.ALL
+			sc = mips.ASC
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(ll)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		p1 := s.Prog(mips.AADDVU)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = v.Args[1].Reg()
+		p1.Reg = v.Reg0()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+		p2 := s.Prog(sc)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+		p3 := s.Prog(mips.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = mips.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+		s.Prog(mips.ASYNC)
+		p4 := s.Prog(mips.AADDVU)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = v.Args[1].Reg()
+		p4.Reg = v.Reg0()
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = v.Reg0()
+	case ssa.OpMIPS64LoweredAtomicAddconst32, ssa.OpMIPS64LoweredAtomicAddconst64:
+		// SYNC
+		// LL	(Rarg0), Rout
+		// ADDV $auxint, Rout, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		// ADDV $auxint, Rout
+		ll := mips.ALLV
+		sc := mips.ASCV
+		if v.Op == ssa.OpMIPS64LoweredAtomicAddconst32 {
+			ll = mips.ALL
+			sc = mips.ASC
+		}
+		s.Prog(mips.ASYNC)
+		p := s.Prog(ll)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		p1 := s.Prog(mips.AADDVU)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = v.AuxInt
+		p1.Reg = v.Reg0()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+		p2 := s.Prog(sc)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+		p3 := s.Prog(mips.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = mips.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+		s.Prog(mips.ASYNC)
+		p4 := s.Prog(mips.AADDVU)
+		p4.From.Type = obj.TYPE_CONST
+		p4.From.Offset = v.AuxInt
+		p4.Reg = v.Reg0()
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = v.Reg0()
+	case ssa.OpMIPS64LoweredAtomicCas32, ssa.OpMIPS64LoweredAtomicCas64:
+		// MOVV $0, Rout
+		// SYNC
+		// LL	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 4(PC)
+		// MOVV Rarg2, Rout
+		// SC	Rout, (Rarg0)
+		// BEQ	Rout, -4(PC)
+		// SYNC
+		ll := mips.ALLV
+		sc := mips.ASCV
+		if v.Op == ssa.OpMIPS64LoweredAtomicCas32 {
+			ll = mips.ALL
+			sc = mips.ASC
+		}
+		p := s.Prog(mips.AMOVV)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = mips.REGZERO
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		s.Prog(mips.ASYNC)
+		p1 := s.Prog(ll)
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Reg = v.Args[0].Reg()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+		p2 := s.Prog(mips.ABNE)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = v.Args[1].Reg()
+		p2.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_BRANCH
+		p3 := s.Prog(mips.AMOVV)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = v.Args[2].Reg()
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = v.Reg0()
+		p4 := s.Prog(sc)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = v.Reg0()
+		p4.To.Type = obj.TYPE_MEM
+		p4.To.Reg = v.Args[0].Reg()
+		p5 := s.Prog(mips.ABEQ)
+		p5.From.Type = obj.TYPE_REG
+		p5.From.Reg = v.Reg0()
+		p5.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p5, p1)
+		p6 := s.Prog(mips.ASYNC)
+		gc.Patch(p2, p6)
 	case ssa.OpMIPS64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(mips.AMOVB)
@@ -491,6 +721,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
@@ -520,6 +753,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpMIPS64LoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)
+	case ssa.OpMIPS64LoweredGetCallerSP:
+		// caller's SP is FixedFrameSize below the address of the first arg
+		p := s.Prog(mips.AMOVV)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Name = obj.NAME_PARAM
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpMIPS64LoweredGetCallerPC:
+		p := s.Prog(obj.AGETCALLERPC)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpClobber:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
@@ -564,7 +809,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 	case ssa.BlockExit:
-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
@@ -580,26 +824,23 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Prog(jmp.invasm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			p = s.Br(jmp.invasm, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			p = s.Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-			q := s.Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			if b.Likely != ssa.BranchUnlikely {
+				p = s.Br(jmp.asm, b.Succs[0].Block())
+				s.Br(obj.AJMP, b.Succs[1].Block())
+			} else {
+				p = s.Br(jmp.invasm, b.Succs[1].Block())
+				s.Br(obj.AJMP, b.Succs[0].Block())
+			}
 		}
-		if !b.Control.Type.IsFlags() {
+		if !b.Controls[0].Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = b.Control.Reg()
+			p.From.Reg = b.Controls[0].Reg()
 		}
 	default:
-		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }

@@ -15,6 +15,11 @@ const (
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+	_ENOSYS = 0x4e
+
+	_O_NONBLOCK = 0x4
+	_O_CLOEXEC  = 0x100000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -22,6 +27,7 @@ const (
 	_PROT_EXEC  = 0x4
 
 	_MAP_ANON    = 0x1000
+	_MAP_SHARED  = 0x1
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
@@ -32,6 +38,7 @@ const (
 	_SA_ONSTACK = 0x1
 
 	_CLOCK_MONOTONIC = 0x4
+	_CLOCK_REALTIME  = 0x0
 
 	_UMTX_OP_WAIT_UINT         = 0xb
 	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
@@ -95,6 +102,7 @@ const (
 	_EV_CLEAR     = 0x20
 	_EV_RECEIPT   = 0x40
 	_EV_ERROR     = 0x4000
+	_EV_EOF       = 0x8000
 	_EVFILT_READ  = -0x1
 	_EVFILT_WRITE = -0x2
 )
@@ -117,6 +125,8 @@ type thrparam struct {
 	rtp        *rtprio
 	spare      [3]uintptr
 }
+
+type thread int32 // long
 
 type sigset struct {
 	__bits [4]uint32
@@ -188,8 +198,9 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = int32(x)
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
 type timeval struct {
@@ -220,3 +231,34 @@ type keventt struct {
 	data   int32
 	udata  *byte
 }
+
+type bintime struct {
+	sec  int32
+	frac uint64
+}
+
+type vdsoTimehands struct {
+	algo         uint32
+	gen          uint32
+	scale        uint64
+	offset_count uint32
+	counter_mask uint32
+	offset       bintime
+	boottime     bintime
+	x86_shift    uint32
+	x86_hpet_idx uint32
+	res          [6]uint32
+}
+
+type vdsoTimekeep struct {
+	ver     uint32
+	enabled uint32
+	current uint32
+}
+
+const (
+	_VDSO_TK_VER_CURR = 0x1
+
+	vdsoTimehandsSize = 0x50
+	vdsoTimekeepSize  = 0xc
+)

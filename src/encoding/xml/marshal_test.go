@@ -309,6 +309,11 @@ type ChardataEmptyTest struct {
 	Contents *string `xml:",chardata"`
 }
 
+type PointerAnonFields struct {
+	*MyInt
+	*NamedType
+}
+
 type MyMarshalerTest struct {
 }
 
@@ -392,7 +397,6 @@ func stringptr(x string) *string {
 
 type T1 struct{}
 type T2 struct{}
-type T3 struct{}
 
 type IndirComment struct {
 	T1      T1
@@ -571,16 +575,6 @@ var marshalTests = []struct {
 	{
 		Value:     &Plain{time.Unix(1e9, 123456789).UTC()},
 		ExpectXML: `<Plain><V>2001-09-09T01:46:40.123456789Z</V></Plain>`,
-	},
-
-	// A pointer to struct{} may be used to test for an element's presence.
-	{
-		Value:     &PresenceTest{new(struct{})},
-		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
-	},
-	{
-		Value:     &PresenceTest{},
-		ExpectXML: `<PresenceTest></PresenceTest>`,
 	},
 
 	// A pointer to struct{} may be used to test for an element's presence.
@@ -898,6 +892,18 @@ var marshalTests = []struct {
 			`<FieldA>A.A</FieldA>` +
 			`<FieldE>A.D.E</FieldE>` +
 			`</EmbedA>`,
+	},
+
+	// Anonymous struct pointer field which is nil
+	{
+		Value:     &EmbedB{},
+		ExpectXML: `<EmbedB><FieldB></FieldB></EmbedB>`,
+	},
+
+	// Other kinds of nil anonymous fields
+	{
+		Value:     &PointerAnonFields{},
+		ExpectXML: `<PointerAnonFields></PointerAnonFields>`,
 	},
 
 	// Test that name casing matters
@@ -2277,6 +2283,30 @@ var encodeTokenTests = []struct {
 		}},
 	},
 	want: `<foo xmlns="space"><bar xmlns="space" xmlns:space="space" space:attr="value">`,
+}, {
+	desc: "reserved namespace prefix -- all lower case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/xmlSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_xmlSchema-instance="http://www.w3.org/2001/xmlSchema-instance" _xmlSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all upper case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XMLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" _XMLSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all mixed case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XmLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XmLSchema-instance="http://www.w3.org/2001/XmLSchema-instance" _XmLSchema-instance:nil="true">`,
 }}
 
 func TestEncodeToken(t *testing.T) {
@@ -2439,5 +2469,24 @@ func TestIssue16158(t *testing.T) {
 	}{})
 	if err == nil {
 		t.Errorf("Unmarshal: expected error, got nil")
+	}
+}
+
+// Issue 20953. Crash on invalid XMLName attribute.
+
+type InvalidXMLName struct {
+	XMLName Name `xml:"error"`
+	Type    struct {
+		XMLName Name `xml:"type,attr"`
+	}
+}
+
+func TestInvalidXMLName(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(InvalidXMLName{}); err == nil {
+		t.Error("unexpected success")
+	} else if want := "invalid tag"; !strings.Contains(err.Error(), want) {
+		t.Errorf("error %q does not contain %q", err, want)
 	}
 }

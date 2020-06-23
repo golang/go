@@ -8,7 +8,11 @@
 
 // func Sqrt(x float64) float64
 TEXT ·Sqrt(SB),NOSPLIT,$0
+#ifdef GOMIPS_softfloat
+	JMP ·sqrt(SB)
+#else
 	MOVD	x+0(FP), F0
 	SQRTD	F0, F0
 	MOVD	F0, ret+8(FP)
+#endif
 	RET

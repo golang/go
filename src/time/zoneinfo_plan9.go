@@ -11,6 +11,10 @@ import (
 	"syscall"
 )
 
+var zoneSources = []string{
+	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+}
+
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n'
 }
@@ -118,15 +122,6 @@ func loadZoneFilePlan9(name string) (*Location, error) {
 	return loadZoneDataPlan9(string(b))
 }
 
-func initTestingZone() {
-	z, err := loadLocation("America/Los_Angeles")
-	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
-	}
-	z.name = "Local"
-	localLoc = *z
-}
-
 func initLocal() {
 	t, ok := syscall.Getenv("timezone")
 	if ok {
@@ -144,17 +139,4 @@ func initLocal() {
 
 	// Fall back to UTC.
 	localLoc.name = "UTC"
-}
-
-func loadLocation(name string) (*Location, error) {
-	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name)
-	if err != nil {
-		return nil, err
-	}
-	z.name = name
-	return z, nil
-}
-
-func forceZipFileForTesting(zipOnly bool) {
-	// We only use the zip file anyway.
 }

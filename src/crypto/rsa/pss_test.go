@@ -103,7 +103,7 @@ func TestPSSGolden(t *testing.T) {
 			switch {
 			case len(line) == 0:
 				if len(partialValue) > 0 {
-					values <- strings.Replace(partialValue, " ", "", -1)
+					values <- strings.ReplaceAll(partialValue, " ", "")
 					partialValue = ""
 					lastWasValue = true
 				}

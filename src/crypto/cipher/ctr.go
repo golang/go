@@ -12,6 +12,8 @@
 
 package cipher
 
+import "crypto/internal/subtle"
+
 type ctr struct {
 	b       Block
 	ctr     []byte
@@ -71,6 +73,12 @@ func (x *ctr) refill() {
 }
 
 func (x *ctr) XORKeyStream(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+	if subtle.InexactOverlap(dst[:len(src)], src) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 	for len(src) > 0 {
 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
 			x.refill()

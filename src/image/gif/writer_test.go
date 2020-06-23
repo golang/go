@@ -48,11 +48,17 @@ func delta(u0, u1 uint32) int64 {
 // have the same bounds.
 func averageDelta(m0, m1 image.Image) int64 {
 	b := m0.Bounds()
+	return averageDeltaBound(m0, m1, b, b)
+}
+
+// averageDeltaBounds returns the average delta in RGB space. The average delta is
+// calculated in the specified bounds.
+func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
 	var sum, n int64
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
+	for y := b0.Min.Y; y < b0.Max.Y; y++ {
+		for x := b0.Min.X; x < b0.Max.X; x++ {
 			c0 := m0.At(x, y)
-			c1 := m1.At(x, y)
+			c1 := m1.At(x-b0.Min.X+b1.Min.X, y-b0.Min.Y+b1.Min.Y)
 			r0, g0, b0, _ := c0.RGBA()
 			r1, g1, b1, _ := c1.RGBA()
 			sum += delta(r0, r1)
@@ -63,6 +69,10 @@ func averageDelta(m0, m1 image.Image) int64 {
 	}
 	return sum / n
 }
+
+// lzw.NewWriter wants an interface which is basically the same thing as gif's
+// writer interface.  This ensures we're compatible.
+var _ writer = blockWriter{}
 
 var testCase = []struct {
 	filename  string
@@ -335,7 +345,10 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 		{+2, +2},
 	}
 	for _, p := range points {
-		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)
+		src := image.NewPaletted(image.Rectangle{
+			Min: p,
+			Max: p.Add(image.Point{6, 6}),
+		}, palette.Plan9)
 		var buf bytes.Buffer
 		if err := Encode(&buf, src, nil); err != nil {
 			t.Errorf("p=%v: Encode: %v", p, err)
@@ -348,6 +361,52 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 		}
 		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
 			t.Errorf("p=%v: got %v, want %v", p, got, want)
+		}
+	}
+
+	// Also test having a source image (gray on the diagonal) that has a
+	// non-zero Bounds().Min, but isn't an image.Paletted.
+	{
+		p := image.Point{+2, +2}
+		src := image.NewRGBA(image.Rectangle{
+			Min: p,
+			Max: p.Add(image.Point{6, 6}),
+		})
+		src.SetRGBA(2, 2, color.RGBA{0x22, 0x22, 0x22, 0xFF})
+		src.SetRGBA(3, 3, color.RGBA{0x33, 0x33, 0x33, 0xFF})
+		src.SetRGBA(4, 4, color.RGBA{0x44, 0x44, 0x44, 0xFF})
+		src.SetRGBA(5, 5, color.RGBA{0x55, 0x55, 0x55, 0xFF})
+		src.SetRGBA(6, 6, color.RGBA{0x66, 0x66, 0x66, 0xFF})
+		src.SetRGBA(7, 7, color.RGBA{0x77, 0x77, 0x77, 0xFF})
+
+		var buf bytes.Buffer
+		if err := Encode(&buf, src, nil); err != nil {
+			t.Errorf("gray-diagonal: Encode: %v", err)
+			return
+		}
+		m, err := Decode(&buf)
+		if err != nil {
+			t.Errorf("gray-diagonal: Decode: %v", err)
+			return
+		}
+		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
+			t.Errorf("gray-diagonal: got %v, want %v", got, want)
+			return
+		}
+
+		rednessAt := func(x int, y int) uint32 {
+			r, _, _, _ := m.At(x, y).RGBA()
+			// Shift by 8 to convert from 16 bit color to 8 bit color.
+			return r >> 8
+		}
+
+		// Round-tripping a still (non-animated) image.Image through
+		// Encode+Decode should shift the origin to (0, 0).
+		if got, want := rednessAt(0, 0), uint32(0x22); got != want {
+			t.Errorf("gray-diagonal: rednessAt(0, 0): got 0x%02x, want 0x%02x", got, want)
+		}
+		if got, want := rednessAt(5, 5), uint32(0x77); got != want {
+			t.Errorf("gray-diagonal: rednessAt(5, 5): got 0x%02x, want 0x%02x", got, want)
 		}
 	}
 }
@@ -471,6 +530,35 @@ func TestEncodeBadPalettes(t *testing.T) {
 	}
 }
 
+func TestColorTablesMatch(t *testing.T) {
+	const trIdx = 100
+	global := color.Palette(palette.Plan9)
+	if rgb := global[trIdx].(color.RGBA); rgb.R == 0 && rgb.G == 0 && rgb.B == 0 {
+		t.Fatalf("trIdx (%d) is already black", trIdx)
+	}
+
+	// Make a copy of the palette, substituting trIdx's slot with transparent,
+	// just like decoder.decode.
+	local := append(color.Palette(nil), global...)
+	local[trIdx] = color.RGBA{}
+
+	const testLen = 3 * 256
+	const padded = 7
+	e := new(encoder)
+	if l, err := encodeColorTable(e.globalColorTable[:], global, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode global color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if l, err := encodeColorTable(e.localColorTable[:], local, padded); err != nil || l != testLen {
+		t.Fatalf("Failed to encode local color table: got %d, %v; want nil, %d", l, err, testLen)
+	}
+	if bytes.Equal(e.globalColorTable[:testLen], e.localColorTable[:testLen]) {
+		t.Fatal("Encoded color tables are equal, expected mismatch")
+	}
+	if !e.colorTablesMatch(len(local), trIdx) {
+		t.Fatal("colorTablesMatch() == false, expected true")
+	}
+}
+
 func TestEncodeCroppedSubImages(t *testing.T) {
 	// This test means to ensure that Encode honors the Bounds and Strides of
 	// images correctly when encoding.
@@ -499,10 +587,76 @@ func TestEncodeCroppedSubImages(t *testing.T) {
 	}
 }
 
-func BenchmarkEncode(b *testing.B) {
-	b.StopTimer()
+type offsetImage struct {
+	image.Image
+	Rect image.Rectangle
+}
 
-	bo := image.Rect(0, 0, 640, 480)
+func (i offsetImage) Bounds() image.Rectangle {
+	return i.Rect
+}
+
+func TestEncodeWrappedImage(t *testing.T) {
+	m0, err := readImg("../testdata/video-001.gif")
+	if err != nil {
+		t.Fatalf("readImg: %v", err)
+	}
+
+	// Case 1: Enocde a wrapped image.Image
+	buf := new(bytes.Buffer)
+	w0 := offsetImage{m0, m0.Bounds()}
+	err = Encode(buf, w0, nil)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	w1, err := Decode(buf)
+	if err != nil {
+		t.Fatalf("Dencode: %v", err)
+	}
+	avgDelta := averageDelta(m0, w1)
+	if avgDelta > 0 {
+		t.Fatalf("Wrapped: average delta is too high. expected: 0, got %d", avgDelta)
+	}
+
+	// Case 2: Enocde a wrapped image.Image with offset
+	b0 := image.Rectangle{
+		Min: image.Point{
+			X: 128,
+			Y: 64,
+		},
+		Max: image.Point{
+			X: 256,
+			Y: 128,
+		},
+	}
+	w0 = offsetImage{m0, b0}
+	buf = new(bytes.Buffer)
+	err = Encode(buf, w0, nil)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	w1, err = Decode(buf)
+	if err != nil {
+		t.Fatalf("Dencode: %v", err)
+	}
+
+	b1 := image.Rectangle{
+		Min: image.Point{
+			X: 0,
+			Y: 0,
+		},
+		Max: image.Point{
+			X: 128,
+			Y: 64,
+		},
+	}
+	avgDelta = averageDeltaBound(m0, w1, b0, b1)
+	if avgDelta > 0 {
+		t.Fatalf("Wrapped and offset: average delta is too high. expected: 0, got %d", avgDelta)
+	}
+}
+
+func BenchmarkEncode(b *testing.B) {
 	rnd := rand.New(rand.NewSource(123))
 
 	// Restrict to a 256-color paletted image to avoid quantization path.
@@ -516,21 +670,19 @@ func BenchmarkEncode(b *testing.B) {
 		}
 	}
 	img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
-	for y := bo.Min.Y; y < bo.Max.Y; y++ {
-		for x := bo.Min.X; x < bo.Max.X; x++ {
-			img.Set(x, y, palette[rnd.Intn(256)])
-		}
+	for i := range img.Pix {
+		img.Pix[i] = uint8(rnd.Intn(256))
 	}
 
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}
 }
 
 func BenchmarkQuantizedEncode(b *testing.B) {
-	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
@@ -545,7 +697,8 @@ func BenchmarkQuantizedEncode(b *testing.B) {
 		}
 	}
 	b.SetBytes(640 * 480 * 4)
-	b.StartTimer()
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Encode(ioutil.Discard, img, nil)
 	}

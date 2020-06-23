@@ -28,27 +28,18 @@ func isQuoted(s string) bool {
 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
 }
 
-func plan9quote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	for _, c := range s {
-		if c <= ' ' || c == '\'' {
-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
-		}
-	}
-	return s
-}
+type PragmaFlag int16
 
 const (
 	// Func pragmas.
-	Nointerface    syntax.Pragma = 1 << iota
-	Noescape                     // func parameters don't escape
-	Norace                       // func must not have race detector annotations
-	Nosplit                      // func should not execute on separate stack
-	Noinline                     // func should not be inlined
-	CgoUnsafeArgs                // treat a pointer to one arg as a pointer to them all
-	UintptrEscapes               // pointers converted to uintptr escape
+	Nointerface    PragmaFlag = 1 << iota
+	Noescape                  // func parameters don't escape
+	Norace                    // func must not have race detector annotations
+	Nosplit                   // func should not execute on separate stack
+	Noinline                  // func should not be inlined
+	NoCheckPtr                // func should not be instrumented by checkptr
+	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
+	UintptrEscapes            // pointers converted to uintptr escape
 
 	// Runtime-only func pragmas.
 	// See ../../../../runtime/README.md for detailed descriptions.
@@ -61,7 +52,24 @@ const (
 	NotInHeap // values of this type must not be heap allocated
 )
 
-func pragmaValue(verb string) syntax.Pragma {
+const (
+	FuncPragmas = Nointerface |
+		Noescape |
+		Norace |
+		Nosplit |
+		Noinline |
+		NoCheckPtr |
+		CgoUnsafeArgs |
+		UintptrEscapes |
+		Systemstack |
+		Nowritebarrier |
+		Nowritebarrierrec |
+		Yeswritebarrierrec
+
+	TypePragmas = NotInHeap
+)
+
+func pragmaFlag(verb string) PragmaFlag {
 	switch verb {
 	case "go:nointerface":
 		if objabi.Fieldtrack_enabled != 0 {
@@ -72,9 +80,11 @@ func pragmaValue(verb string) syntax.Pragma {
 	case "go:norace":
 		return Norace
 	case "go:nosplit":
-		return Nosplit
+		return Nosplit | NoCheckPtr // implies NoCheckPtr (see #34972)
 	case "go:noinline":
 		return Noinline
+	case "go:nocheckptr":
+		return NoCheckPtr
 	case "go:systemstack":
 		return Systemstack
 	case "go:nowritebarrier":
@@ -84,7 +94,7 @@ func pragmaValue(verb string) syntax.Pragma {
 	case "go:yeswritebarrierrec":
 		return Yeswritebarrierrec
 	case "go:cgo_unsafe_args":
-		return CgoUnsafeArgs
+		return CgoUnsafeArgs | NoCheckPtr // implies NoCheckPtr (see #34968)
 	case "go:uintptrescapes":
 		// For the next function declared in the file
 		// any uintptr arguments may be pointer values
@@ -105,74 +115,67 @@ func pragmaValue(verb string) syntax.Pragma {
 }
 
 // pragcgo is called concurrently if files are parsed concurrently.
-func (p *noder) pragcgo(pos src.Pos, text string) string {
+func (p *noder) pragcgo(pos syntax.Pos, text string) {
 	f := pragmaFields(text)
 
-	verb := f[0][3:] // skip "go:"
+	verb := strings.TrimPrefix(f[0], "go:")
+	f[0] = verb
+
 	switch verb {
 	case "cgo_export_static", "cgo_export_dynamic":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			return fmt.Sprintln(verb, local, remote)
-
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
+			return
 		}
 	case "cgo_import_dynamic":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			return fmt.Sprintln(verb, local, remote)
-
 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
-			local := plan9quote(f[1])
-			remote := plan9quote(f[2])
-			library := plan9quote(strings.Trim(f[3], `"`))
-			return fmt.Sprintln(verb, local, remote, library)
-
+			f[3] = strings.Trim(f[3], `"`)
+			if objabi.GOOS == "aix" && f[3] != "" {
+				// On Aix, library pattern must be "lib.a/object.o"
+				// or "lib.a/libname.so.X"
+				n := strings.Split(f[3], "/")
+				if len(n) != 2 || !strings.HasSuffix(n[0], ".a") || (!strings.HasSuffix(n[1], ".o") && !strings.Contains(n[1], ".so.")) {
+					p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["lib.a/object.o"]]`})
+					return
+				}
+			}
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
+			return
 		}
 	case "cgo_import_static":
 		switch {
 		case len(f) == 2 && !isQuoted(f[1]):
-			local := plan9quote(f[1])
-			return fmt.Sprintln(verb, local)
-
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
+			return
 		}
 	case "cgo_dynamic_linker":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			path := plan9quote(strings.Trim(f[1], `"`))
-			return fmt.Sprintln(verb, path)
-
+			f[1] = strings.Trim(f[1], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
+			return
 		}
 	case "cgo_ldflag":
 		switch {
 		case len(f) == 2 && isQuoted(f[1]):
-			arg := plan9quote(strings.Trim(f[1], `"`))
-			return fmt.Sprintln(verb, arg)
-
+			f[1] = strings.Trim(f[1], `"`)
 		default:
 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
+			return
 		}
+	default:
+		return
 	}
-	return ""
+	p.pragcgobuf = append(p.pragcgobuf, f)
 }
 
 // pragmaFields is similar to strings.FieldsFunc(s, isSpace)

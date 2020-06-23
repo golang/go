@@ -37,8 +37,7 @@ align_2:
 	BTQ $1, BX
 	JNC align_4
 
-	// CRC32W (SI), AX
-	BYTE $0x66; BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	CRC32W (SI), AX
 
 	SUBQ $2, CX
 	ADDQ $2, SI
@@ -47,8 +46,7 @@ align_4:
 	BTQ $2, BX
 	JNC aligned
 
-	// CRC32L (SI), AX
-	BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	CRC32L (SI), AX
 
 	SUBQ $4, CX
 	ADDQ $4, SI
@@ -68,16 +66,14 @@ less_than_8:
 	BTQ $2, CX
 	JNC less_than_4
 
-	// CRC32L (SI), AX
-	BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	CRC32L (SI), AX
 	ADDQ $4, SI
 
 less_than_4:
 	BTQ $1, CX
 	JNC less_than_2
 
-	// CRC32W (SI), AX
-	BYTE $0x66; BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	CRC32W (SI), AX
 	ADDQ $2, SI
 
 less_than_2:
@@ -153,7 +149,7 @@ GLOBL r4r3<>(SB),RODATA,$16
 GLOBL rupoly<>(SB),RODATA,$16
 GLOBL r5<>(SB),RODATA,$8
 
-// Based on http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+// Based on https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
 // len(p) must be at least 64, and must be a multiple of 16.
 
 // func ieeeCLMUL(crc uint32, p []byte) uint32

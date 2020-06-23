@@ -1,0 +1,30 @@
+# Setup
+mkdir $WORK/tmp/testdata/src/xtestonly
+cp f.go $WORK/tmp/testdata/src/xtestonly/f.go
+cp f_test.go $WORK/tmp/testdata/src/xtestonly/f_test.go
+env GOPATH=$WORK/tmp/testdata
+cd $WORK
+
+# Check output of go list to ensure no duplicates
+go list xtestonly ./tmp/testdata/src/xtestonly/...
+cmp stdout $WORK/gopath/src/wantstdout
+
+-- wantstdout --
+xtestonly
+-- f.go --
+package xtestonly
+
+func F() int { return 42 }
+-- f_test.go --
+package xtestonly_test
+
+import (
+	"testing"
+	"xtestonly"
+)
+
+func TestF(t *testing.T) {
+	if x := xtestonly.F(); x != 42 {
+		t.Errorf("f.F() = %d, want 42", x)
+	}
+}

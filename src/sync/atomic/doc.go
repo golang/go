@@ -47,7 +47,8 @@ import (
 //
 // On non-Linux ARM, the 64-bit functions use instructions unavailable before the ARMv6k core.
 //
-// On both ARM and x86-32, it is the caller's responsibility to arrange for 64-bit
+// On ARM, x86-32, and 32-bit MIPS,
+// it is the caller's responsibility to arrange for 64-bit
 // alignment of 64-bit words accessed atomically. The first word in a
 // variable or in an allocated struct, array, or slice can be relied upon to be
 // 64-bit aligned.
@@ -142,8 +143,3 @@ func StoreUintptr(addr *uintptr, val uintptr)
 
 // StorePointer atomically stores val into *addr.
 func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer)
-
-// Helper for ARM.  Linker will discard on other systems
-func panic64() {
-	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")
-}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+// +build dragonfly freebsd linux netbsd openbsd
 
 package runtime
 
@@ -53,22 +53,26 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	pc := gp.sigpc
 
-	// If we don't recognize the PC as code
-	// but we do recognize the link register as code,
-	// then assume this was a call to non-code and treat like
-	// pc == 0, to make unwinding show the context.
-	if pc != 0 && !findfunc(pc).valid() && findfunc(uintptr(c.lr())).valid() {
-		pc = 0
-	}
-
-	// Don't bother saving PC if it's zero, which is
-	// probably a call to a nil func: the old link register
-	// is more useful in the stack trace.
-	if pc != 0 {
+	if shouldPushSigpanic(gp, pc, uintptr(c.lr())) {
+		// Make it look the like faulting PC called sigpanic.
 		c.set_lr(uint32(pc))
 	}
 
 	// In case we are panicking from external C code
 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(uint32(funcPC(sigpanic)))
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 4
+	c.set_sp(sp)
+	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_lr(uint32(resumePC))
+	c.set_pc(uint32(targetPC))
 }

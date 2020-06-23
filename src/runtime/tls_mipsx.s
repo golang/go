@@ -11,7 +11,7 @@
 
 // If !iscgo, this is a no-op.
 // NOTE: gogo asumes load_g only clobers g (R30) and REGTMP (R23)
-TEXT runtime·save_g(SB),NOSPLIT,$-4-0
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·iscgo(SB), R23
 	BEQ	R23, nocgo
 
@@ -22,7 +22,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4-0
 nocgo:
 	RET
 
-TEXT runtime·load_g(SB),NOSPLIT,$-4-0
+TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	runtime·tls_g(SB), g // TLS relocation clobbers R3
 	RET
 

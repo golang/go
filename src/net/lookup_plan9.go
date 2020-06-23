@@ -7,38 +7,63 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
 	"io"
 	"os"
 )
 
-func query(ctx context.Context, filename, query string, bufSize int) (res []string, err error) {
-	file, err := os.OpenFile(filename, os.O_RDWR, 0)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		return
-	}
-	_, err = file.WriteString(query)
-	if err != nil {
-		return
-	}
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		return
-	}
-	buf := make([]byte, bufSize)
-	for {
-		n, _ := file.Read(buf)
-		if n <= 0 {
-			break
+func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
+	queryAddrs := func() (addrs []string, err error) {
+		file, err := os.OpenFile(filename, os.O_RDWR, 0)
+		if err != nil {
+			return nil, err
 		}
-		res = append(res, string(buf[:n]))
+		defer file.Close()
+
+		_, err = file.Seek(0, io.SeekStart)
+		if err != nil {
+			return nil, err
+		}
+		_, err = file.WriteString(query)
+		if err != nil {
+			return nil, err
+		}
+		_, err = file.Seek(0, io.SeekStart)
+		if err != nil {
+			return nil, err
+		}
+		buf := make([]byte, bufSize)
+		for {
+			n, _ := file.Read(buf)
+			if n <= 0 {
+				break
+			}
+			addrs = append(addrs, string(buf[:n]))
+		}
+		return addrs, nil
 	}
-	return
+
+	type ret struct {
+		addrs []string
+		err   error
+	}
+
+	ch := make(chan ret, 1)
+	go func() {
+		addrs, err := queryAddrs()
+		ch <- ret{addrs: addrs, err: err}
+	}()
+
+	select {
+	case r := <-ch:
+		return r.addrs, r.err
+	case <-ctx.Done():
+		return nil, &DNSError{
+			Name:      query,
+			Err:       ctx.Err().Error(),
+			IsTimeout: ctx.Err() == context.DeadlineExceeded,
+		}
+	}
 }
 
 func queryCS(ctx context.Context, net, host, service string) (res []string, err error) {
@@ -111,7 +136,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
-	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
+	if n, _, ok := dtoi(s[bytealg.IndexByteString(s, '=')+1:]); ok {
 		return n, nil
 	}
 	return 0, UnknownNetworkError(name)
@@ -122,10 +147,12 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
+		dnsError := &DNSError{Err: err.Error(), Name: host}
 		if stringsHasSuffix(err.Error(), "dns failure") {
-			err = errNoSuchHost
+			dnsError.Err = errNoSuchHost.Error()
+			dnsError.IsNotFound = true
 		}
-		return
+		return nil, dnsError
 	}
 loop:
 	for _, line := range lines {
@@ -134,7 +161,7 @@ loop:
 			continue
 		}
 		addr := f[1]
-		if i := byteIndex(addr, '!'); i >= 0 {
+		if i := bytealg.IndexByteString(addr, '!'); i >= 0 {
 			addr = addr[:i] // remove port
 		}
 		if ParseIP(addr) == nil {
@@ -151,7 +178,7 @@ loop:
 	return
 }
 
-func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+func (r *Resolver) lookupIP(ctx context.Context, _, host string) (addrs []IPAddr, err error) {
 	lits, err := r.lookupHost(ctx, host)
 	if err != nil {
 		return
@@ -186,7 +213,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 		return 0, unknownPortError
 	}
 	s := f[1]
-	if i := byteIndex(s, '!'); i >= 0 {
+	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
 		s = s[i+1:] // remove address
 	}
 	if n, _, ok := dtoi(s); ok {
@@ -280,7 +307,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 		return
 	}
 	for _, line := range lines {
-		if i := byteIndex(line, '\t'); i >= 0 {
+		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
 			txt = append(txt, absDomainName([]byte(line[i+1:])))
 		}
 	}
@@ -304,4 +331,10 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
 		name = append(name, absDomainName([]byte(f[2])))
 	}
 	return
+}
+
+// concurrentThreadsLimit returns the number of threads we permit to
+// run concurrently doing DNS lookups.
+func concurrentThreadsLimit() int {
+	return 500
 }

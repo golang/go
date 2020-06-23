@@ -186,7 +186,7 @@ Diff:
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil)
+	obj.Flushplist(ctxt, pList, nil, "")
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -290,7 +290,7 @@ func testErrors(t *testing.T, goarch, file string) {
 		errBuf.WriteString(s)
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil)
+	obj.Flushplist(ctxt, pList, nil, "")
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", goarch)
 	}
@@ -385,12 +385,48 @@ func TestARM64Encoder(t *testing.T) {
 	testEndToEnd(t, "arm64", "arm64enc")
 }
 
+func TestARM64Errors(t *testing.T) {
+	testErrors(t, "arm64", "arm64error")
+}
+
 func TestAMD64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64")
+	defer func(old string) { objabi.GOAMD64 = old }(objabi.GOAMD64)
+	for _, goamd64 := range []string{"normaljumps", "alignedjumps"} {
+		t.Logf("GOAMD64=%s", goamd64)
+		objabi.GOAMD64 = goamd64
+		testEndToEnd(t, "amd64", "amd64")
+	}
+}
+
+func Test386Encoder(t *testing.T) {
+	testEndToEnd(t, "386", "386enc")
 }
 
 func TestAMD64Encoder(t *testing.T) {
-	testEndToEnd(t, "amd64", "amd64enc")
+	filenames := [...]string{
+		"amd64enc",
+		"amd64enc_extra",
+		"avx512enc/aes_avx512f",
+		"avx512enc/gfni_avx512f",
+		"avx512enc/vpclmulqdq_avx512f",
+		"avx512enc/avx512bw",
+		"avx512enc/avx512cd",
+		"avx512enc/avx512dq",
+		"avx512enc/avx512er",
+		"avx512enc/avx512f",
+		"avx512enc/avx512pf",
+		"avx512enc/avx512_4fmaps",
+		"avx512enc/avx512_4vnniw",
+		"avx512enc/avx512_bitalg",
+		"avx512enc/avx512_ifma",
+		"avx512enc/avx512_vbmi",
+		"avx512enc/avx512_vbmi2",
+		"avx512enc/avx512_vnni",
+		"avx512enc/avx512_vpopcntdq",
+	}
+	for _, name := range filenames {
+		testEndToEnd(t, "amd64", name)
+	}
 }
 
 func TestAMD64Errors(t *testing.T) {
@@ -404,6 +440,14 @@ func TestMIPSEndToEnd(t *testing.T) {
 
 func TestPPC64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64")
+}
+
+func TestPPC64Encoder(t *testing.T) {
+	testEndToEnd(t, "ppc64", "ppc64enc")
+}
+
+func TestRISCVEncoder(t *testing.T) {
+	testEndToEnd(t, "riscv64", "riscvenc")
 }
 
 func TestS390XEndToEnd(t *testing.T) {

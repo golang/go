@@ -77,7 +77,7 @@ GLOBL ·cbrttab12067<> + 0(SB), RODATA, $128
 TEXT	·cbrtAsm(SB), NOSPLIT, $0-16
 	FMOVD	x+0(FP), F0
 	MOVD	$·cbrtrodataL9<>+0(SB), R9
-	WORD	$0xB3CD0020	//lgdr %r2, %f0
+	LGDR	F0, R2
 	WORD	$0xC039000F	//iilf	%r3,1048575
 	BYTE	$0xFF
 	BYTE	$0xFF
@@ -96,28 +96,22 @@ L1:
 	RET
 L3:
 L2:
-	WORD	$0xB3120000	//ltdbr	%f0,%f0
+	LTDBR	F0, F0
 	BEQ	L1
 	FMOVD	F0, F2
 	WORD	$0xED209040	//mdb	%f2,.L10-.L9(%r9)
 	BYTE	$0x00
 	BYTE	$0x1C
 	MOVH	$0x200, R4
-	WORD	$0xB3CD0022	//lgdr %r2, %f2
+	LGDR	F2, R2
 	SRAD	$32, R2
 L4:
-	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-25
-	BYTE	$0x27
-	BYTE	$0x55
+	RISBGZ	$57, $62, $39, R2, R3
 	MOVD	$·cbrttab12067<>+0(SB), R1
 	WORD	$0x48131000	//lh	%r1,0(%r3,%r1)
-	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-19
-	BYTE	$0x2D
-	BYTE	$0x55
+	RISBGZ	$57, $62, $45, R2, R3
 	MOVD	$·cbrttab22068<>+0(SB), R5
-	WORD	$0xEC223CBF	//risbgn	%r2,%r2,64-4,128+63,64+44+4
-	BYTE	$0x70
-	BYTE	$0x59
+	RISBGNZ	$60, $63, $48, R2, R2
 	WORD	$0x4A135000	//ah	%r1,0(%r3,%r5)
 	BYTE	$0x18	//lr	%r3,%r1
 	BYTE	$0x31
@@ -134,7 +128,7 @@ L4:
 	ADDW	R4, R1
 	SLW	$16, R1, R1
 	SLD	$32, R1, R1
-	WORD	$0xB3C10021	//ldgr	%f2,%r1
+	LDGR	R1, F2
 	WFMDB	V2, V2, V4
 	WFMDB	V4, V0, V6
 	WFMSDB	V4, V6, V2, V4

@@ -11,60 +11,58 @@ package escape
 var sink interface{}
 
 func ClosureCallArgs0() {
-	x := 0         // ERROR "moved to heap: x"
+	x := 0
 	func(p *int) { // ERROR "p does not escape" "func literal does not escape"
 		*p = 1
-		// BAD: x should not escape to heap here
-	}(&x) // ERROR "&x escapes to heap"
+	}(&x)
 }
 
 func ClosureCallArgs1() {
-	x := 0 // ERROR "moved to heap: x"
+	x := 0
 	for {
 		func(p *int) { // ERROR "p does not escape" "func literal does not escape"
 			*p = 1
-			// BAD: x should not escape to heap here
-		}(&x) // ERROR "&x escapes to heap"
+		}(&x)
 	}
 }
 
 func ClosureCallArgs2() {
 	for {
-		// BAD: x should not escape here
-		x := 0         // ERROR "moved to heap: x"
+		x := 0
 		func(p *int) { // ERROR "p does not escape" "func literal does not escape"
 			*p = 1
-		}(&x) // ERROR "&x escapes to heap"
+		}(&x)
 	}
 }
 
 func ClosureCallArgs3() {
 	x := 0         // ERROR "moved to heap: x"
 	func(p *int) { // ERROR "leaking param: p" "func literal does not escape"
-		sink = p // ERROR "p escapes to heap"
-	}(&x) // ERROR "&x escapes to heap"
+		sink = p
+	}(&x)
 }
 
 func ClosureCallArgs4() {
-	// BAD: x should not leak here
-	x := 0                  // ERROR "moved to heap: x"
+	x := 0
 	_ = func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
 		return p
-	}(&x) // ERROR "&x escapes to heap"
+	}(&x)
 }
 
 func ClosureCallArgs5() {
 	x := 0                     // ERROR "moved to heap: x"
-	sink = func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape" "\(func literal\)\(&x\) escapes to heap"
+	// TODO(mdempsky): We get "leaking param: p" here because the new escape analysis pass
+	// can tell that p flows directly to sink, but it's a little weird. Re-evaluate.
+	sink = func(p *int) *int { // ERROR "leaking param: p" "func literal does not escape"
 		return p
-	}(&x) // ERROR "&x escapes to heap"
+	}(&x)
 }
 
 func ClosureCallArgs6() {
 	x := 0         // ERROR "moved to heap: x"
 	func(p *int) { // ERROR "moved to heap: p" "func literal does not escape"
-		sink = &p // ERROR "&p escapes to heap"
-	}(&x) // ERROR "&x escapes to heap"
+		sink = &p
+	}(&x)
 }
 
 func ClosureCallArgs7() {
@@ -73,17 +71,16 @@ func ClosureCallArgs7() {
 		x := 0         // ERROR "moved to heap: x"
 		func(p *int) { // ERROR "leaking param: p" "func literal does not escape"
 			pp = p
-		}(&x) // ERROR "&x escapes to heap"
+		}(&x)
 	}
 	_ = pp
 }
 
 func ClosureCallArgs8() {
-	x := 0               // ERROR "moved to heap: x"
+	x := 0
 	defer func(p *int) { // ERROR "p does not escape" "func literal does not escape"
 		*p = 1
-		// BAD: x should not escape to heap here
-	}(&x) // ERROR "&x escapes to heap"
+	}(&x)
 }
 
 func ClosureCallArgs9() {
@@ -92,7 +89,7 @@ func ClosureCallArgs9() {
 	for {
 		defer func(p *int) { // ERROR "func literal escapes to heap" "p does not escape"
 			*p = 1
-		}(&x) // ERROR "&x escapes to heap"
+		}(&x)
 	}
 }
 
@@ -101,73 +98,69 @@ func ClosureCallArgs10() {
 		x := 0               // ERROR "moved to heap: x"
 		defer func(p *int) { // ERROR "func literal escapes to heap" "p does not escape"
 			*p = 1
-		}(&x) // ERROR "&x escapes to heap"
+		}(&x)
 	}
 }
 
 func ClosureCallArgs11() {
 	x := 0               // ERROR "moved to heap: x"
 	defer func(p *int) { // ERROR "leaking param: p" "func literal does not escape"
-		sink = p // ERROR "p escapes to heap"
-	}(&x) // ERROR "&x escapes to heap"
+		sink = p
+	}(&x)
 }
 
 func ClosureCallArgs12() {
-	// BAD: x should not leak
-	x := 0                    // ERROR "moved to heap: x"
+	x := 0
 	defer func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
 		return p
-	}(&x) // ERROR "&x escapes to heap"
+	}(&x)
 }
 
 func ClosureCallArgs13() {
 	x := 0               // ERROR "moved to heap: x"
 	defer func(p *int) { // ERROR "moved to heap: p" "func literal does not escape"
-		sink = &p // ERROR "&p escapes to heap"
-	}(&x) // ERROR "&x escapes to heap"
+		sink = &p
+	}(&x)
 }
 
 func ClosureCallArgs14() {
-	x := 0 // ERROR "moved to heap: x"
-	// BAD: &x should not escape here
-	p := &x                  // ERROR "moved to heap: p" "&x escapes to heap"
+	x := 0
+	p := &x
 	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
 		return *p
-		// BAD: p should not escape here
-	}(&p) // ERROR "&p escapes to heap"
+	}(&p)
 }
 
 func ClosureCallArgs15() {
 	x := 0                      // ERROR "moved to heap: x"
-	p := &x                     // ERROR "moved to heap: p" "&x escapes to heap"
-	sink = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape" "\(func literal\)\(&p\) escapes to heap"
+	p := &x
+	sink = func(p **int) *int { // ERROR "leaking param content: p" "func literal does not escape"
 		return *p
-		// BAD: p should not escape here
-	}(&p) // ERROR "&p escapes to heap"
+	}(&p)
 }
 
-func ClosureLeak1(s string) string { // ERROR "ClosureLeak1 s does not escape"
+func ClosureLeak1(s string) string { // ERROR "s does not escape"
 	t := s + "YYYY"         // ERROR "escapes to heap"
-	return ClosureLeak1a(t) // ERROR "ClosureLeak1 ... argument does not escape"
+	return ClosureLeak1a(t) // ERROR "... argument does not escape"
 }
 
 // See #14409 -- returning part of captured var leaks it.
-func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r1 level=1"
-	return func() string { // ERROR "ClosureLeak1a func literal does not escape"
+func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r1 level=1$"
+	return func() string { // ERROR "func literal does not escape"
 		return a[0]
 	}()
 }
 
-func ClosureLeak2(s string) string { // ERROR "ClosureLeak2 s does not escape"
+func ClosureLeak2(s string) string { // ERROR "s does not escape"
 	t := s + "YYYY"       // ERROR "escapes to heap"
-	c := ClosureLeak2a(t) // ERROR "ClosureLeak2 ... argument does not escape"
+	c := ClosureLeak2a(t) // ERROR "... argument does not escape"
 	return c
 }
-func ClosureLeak2a(a ...string) string { // ERROR "leaking param: a to result ~r1 level=1"
-	return ClosureLeak2b(func() string { // ERROR "ClosureLeak2a func literal does not escape"
+func ClosureLeak2a(a ...string) string { // ERROR "leaking param content: a"
+	return ClosureLeak2b(func() string { // ERROR "func literal does not escape"
 		return a[0]
 	})
 }
-func ClosureLeak2b(f func() string) string { // ERROR "leaking param: f to result ~r1 level=1"
+func ClosureLeak2b(f func() string) string { // ERROR "f does not escape"
 	return f()
 }

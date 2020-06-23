@@ -236,6 +236,10 @@ type WriterAt interface {
 // ReadByte reads and returns the next byte from the input or
 // any error encountered. If ReadByte returns an error, no input
 // byte was consumed, and the returned byte value is undefined.
+//
+// ReadByte provides an efficient interface for byte-at-time
+// processing. A Reader that does not implement  ByteReader
+// can be wrapped using bufio.NewReader to add this method.
 type ByteReader interface {
 	ReadByte() (byte, error)
 }
@@ -278,16 +282,16 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
-// stringWriter is the interface that wraps the WriteString method.
-type stringWriter interface {
+// StringWriter is the interface that wraps the WriteString method.
+type StringWriter interface {
 	WriteString(s string) (n int, err error)
 }
 
 // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
-// If w implements a WriteString method, it is invoked directly.
+// If w implements StringWriter, its WriteString method is invoked directly.
 // Otherwise, w.Write is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
-	if sw, ok := w.(stringWriter); ok {
+	if sw, ok := w.(StringWriter); ok {
 		return sw.WriteString(s)
 	}
 	return w.Write([]byte(s))
@@ -300,6 +304,7 @@ func WriteString(w Writer, s string) (n int, err error) {
 // ReadAtLeast returns ErrUnexpectedEOF.
 // If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
 // On return, n >= min if and only if err == nil.
+// If r returns an error having read at least min bytes, the error is dropped.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
 		return 0, ErrShortBuffer
@@ -323,6 +328,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 // If an EOF happens after reading some but not all the bytes,
 // ReadFull returns ErrUnexpectedEOF.
 // On return, n == len(buf) if and only if err == nil.
+// If r returns an error having read at least len(buf) bytes, the error is dropped.
 func ReadFull(r Reader, buf []byte) (n int, err error) {
 	return ReadAtLeast(r, buf, len(buf))
 }
@@ -366,6 +372,9 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
 // provided buffer (if one is required) rather than allocating a
 // temporary one. If buf is nil, one is allocated; otherwise if it has
 // zero length, CopyBuffer panics.
+//
+// If either src implements WriterTo or dst implements ReaderFrom,
+// buf will not be used to perform the copy.
 func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	if buf != nil && len(buf) == 0 {
 		panic("empty buffer in io.CopyBuffer")
@@ -386,7 +395,15 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		return rt.ReadFrom(src)
 	}
 	if buf == nil {
-		buf = make([]byte, 32*1024)
+		size := 32 * 1024
+		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
 	}
 	for {
 		nr, er := src.Read(buf)

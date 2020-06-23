@@ -6,8 +6,8 @@
 // It is intended to be used in concert with the ``go test'' command, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
-// where Xxx can be any alphanumeric string (but the first letter must not be in
-// [a-z]) and serves to identify the test routine.
+// where Xxx does not start with a lowercase letter. The function name
+// serves to identify the test routine.
 //
 // Within these functions, use the Error, Fail or related methods to signal failure.
 //
@@ -17,13 +17,13 @@
 // package builds but will be included when the ``go test'' command is run.
 // For more detail, run ``go help test'' and ``go help testflag''.
 //
-// Tests and benchmarks may be skipped if not applicable with a call to
-// the Skip method of *T and *B:
-//     func TestTimeConsuming(t *testing.T) {
-//         if testing.Short() {
-//             t.Skip("skipping test in short mode.")
+// A simple test function looks like this:
+//
+//     func TestAbs(t *testing.T) {
+//         got := Abs(-1)
+//         if got != 1 {
+//             t.Errorf("Abs(-1) = %d; want 1", got)
 //         }
-//         ...
 //     }
 //
 // Benchmarks
@@ -34,20 +34,20 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+// https://golang.org/cmd/go/#hdr-Testing_flags
 //
 // A sample benchmark function looks like this:
-//     func BenchmarkHello(b *testing.B) {
+//     func BenchmarkRandInt(b *testing.B) {
 //         for i := 0; i < b.N; i++ {
-//             fmt.Sprintf("hello")
+//             rand.Int()
 //         }
 //     }
 //
 // The benchmark function must run the target code b.N times.
 // During benchmark execution, b.N is adjusted until the benchmark function lasts
 // long enough to be timed reliably. The output
-//     BenchmarkHello    10000000    282 ns/op
-// means that the loop ran 10000000 times at a speed of 282 ns per loop.
+//     BenchmarkRandInt-8   	68453040	        17.8 ns/op
+// means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
 //
 // If a benchmark needs some expensive setup before running, the timer
 // may be reset:
@@ -99,7 +99,7 @@
 // line order:
 //
 //     func ExamplePerm() {
-//         for _, value := range Perm(4) {
+//         for _, value := range Perm(5) {
 //             fmt.Println(value)
 //         }
 //         // Unordered output: 4
@@ -131,6 +131,18 @@
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
+//
+// Skipping
+//
+// Tests or benchmarks may be skipped at run time with a call to
+// the Skip method of *T or *B:
+//
+//     func TestTimeConsuming(t *testing.T) {
+//         if testing.Short() {
+//             t.Skip("skipping test in short mode.")
+//         }
+//         ...
+//     }
 //
 // Subtests and Sub-benchmarks
 //
@@ -178,6 +190,9 @@
 //         }
 //     }
 //
+// The race detector kills the program if it exceeds 8192 concurrent goroutines,
+// so use care when running parallel tests with the -race flag set.
+//
 // Run does not return until parallel subtests have completed, providing a way
 // to clean up after a group of parallel tests:
 //
@@ -202,10 +217,14 @@
 //
 // then the generated test will call TestMain(m) instead of running the tests
 // directly. TestMain runs in the main goroutine and can do whatever setup
-// and teardown is necessary around a call to m.Run. It should then call
-// os.Exit with the result of m.Run. When TestMain is called, flag.Parse has
-// not been run. If TestMain depends on command-line flags, including those
-// of the testing package, it should call flag.Parse explicitly.
+// and teardown is necessary around a call to m.Run. m.Run will return an exit
+// code that may be passed to os.Exit. If TestMain returns, the test wrapper
+// will pass the result of m.Run to os.Exit itself.
+//
+// When TestMain is called, flag.Parse has not been run. If TestMain depends on
+// command-line flags, including those of the testing package, it should call
+// flag.Parse explicitly. Command line flags are always parsed by the time test
+// or benchmark functions run.
 //
 // A simple implementation of TestMain is:
 //
@@ -223,6 +242,7 @@ import (
 	"fmt"
 	"internal/race"
 	"io"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -234,7 +254,18 @@ import (
 	"time"
 )
 
-var (
+var initRan bool
+
+// Init registers testing flags. These flags are automatically registered by
+// the "go test" command before running test functions, so Init is only needed
+// when calling functions such as Benchmark without using "go test".
+//
+// Init has no effect if it was already called.
+func Init() {
+	if initRan {
+		return
+	}
+	initRan = true
 	// The short flag requests that tests run more quickly, but its functionality
 	// is provided by test writers themselves. The testing package is just its
 	// home. The all.bash installation script sets it to make installation more
@@ -242,65 +273,162 @@ var (
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
+	// The failfast flag requests that test execution stop after the first test failure.
+	failFast = flag.Bool("test.failfast", false, "do not start new tests after the first test failure")
+
 	// The directory in which to create profile files and the like. When run from
 	// "go test", the binary always runs in the source directory for the package;
 	// this flag lets "go test" tell the binary to write the files in the directory where
 	// the "go test" command is run.
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
-
 	// Report as tests are run; default is silent for success.
-	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
-	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
-	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
-	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
-	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
-	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
-	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
-	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
-	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
-	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
-	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+	chatty = flag.Bool("test.v", false, "verbose: print additional output")
+	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+	matchList = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+	match = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+	memProfile = flag.String("test.memprofile", "", "write an allocation profile to `file`")
+	memProfileRate = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
+	cpuProfile = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+	blockProfile = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
-	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
-	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (0 means unlimited)")
-	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
-	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
+	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
+
+	initBenchmarkFlags()
+}
+
+var (
+	// Flags, registered during Init.
+	short                *bool
+	failFast             *bool
+	outputDir            *string
+	chatty               *bool
+	count                *uint
+	coverProfile         *string
+	matchList            *string
+	match                *string
+	memProfile           *string
+	memProfileRate       *int
+	cpuProfile           *string
+	blockProfile         *string
+	blockProfileRate     *int
+	mutexProfile         *string
+	mutexProfileFraction *int
+	traceFile            *string
+	timeout              *time.Duration
+	cpuListStr           *string
+	parallel             *int
+	testlog              *string
+	printer              *testPrinter
 
 	haveExamples bool // are there examples?
 
-	cpuList []int
+	cpuList     []int
+	testlogFile *os.File
+
+	numFailed uint32 // number of test failures
 )
+
+type testPrinter struct {
+	chatty bool
+
+	lastNameMu sync.Mutex // guards lastName
+	lastName   string     // last printed test name in chatty mode
+}
+
+func newTestPrinter(chatty bool) *testPrinter {
+	return &testPrinter{
+		chatty: chatty,
+	}
+}
+
+func (p *testPrinter) Print(testName, out string) {
+	p.Fprint(os.Stdout, testName, out)
+}
+
+func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
+	p.lastNameMu.Lock()
+	defer p.lastNameMu.Unlock()
+
+	if !p.chatty ||
+		strings.HasPrefix(out, "--- PASS") ||
+		strings.HasPrefix(out, "--- FAIL") ||
+		strings.HasPrefix(out, "=== CONT") ||
+		strings.HasPrefix(out, "=== RUN") {
+		p.lastName = testName
+		fmt.Fprint(w, out)
+		return
+	}
+
+	if p.lastName == "" {
+		p.lastName = testName
+	} else if p.lastName != testName {
+		// Always printed as-is, with 0 decoration or indentation. So, we skip
+		// printing to w.
+		fmt.Printf("=== CONT  %s\n", testName)
+		p.lastName = testName
+	}
+	fmt.Fprint(w, out)
+}
+
+// The maximum number of stack frames to go through when skipping helper functions for
+// the purpose of decorating log messages.
+const maxStackLen = 50
 
 // common holds the elements common between T and B and
 // captures common methods such as Errorf.
 type common struct {
-	mu      sync.RWMutex        // guards this group of fields
-	output  []byte              // Output generated by test or benchmark.
-	w       io.Writer           // For flushToParent.
-	ran     bool                // Test or benchmark (or one of its subtests) was executed.
-	failed  bool                // Test or benchmark has failed.
-	skipped bool                // Test of benchmark has been skipped.
-	done    bool                // Test is finished and all subtests have completed.
-	helpers map[string]struct{} // functions to be skipped when writing file/line info
+	mu          sync.RWMutex        // guards this group of fields
+	output      []byte              // Output generated by test or benchmark.
+	w           io.Writer           // For flushToParent.
+	ran         bool                // Test or benchmark (or one of its subtests) was executed.
+	failed      bool                // Test or benchmark has failed.
+	skipped     bool                // Test of benchmark has been skipped.
+	done        bool                // Test is finished and all subtests have completed.
+	helpers     map[string]struct{} // functions to be skipped when writing file/line info
+	cleanup     func()              // optional function to be called at the end of the test
+	cleanupName string              // Name of the cleanup function.
+	cleanupPc   []uintptr           // The stack trace at the point where Cleanup was called.
 
 	chatty     bool   // A copy of the chatty flag.
+	bench      bool   // Whether the current test is a benchmark.
 	finished   bool   // Test function has completed.
-	hasSub     int32  // written atomically
-	raceErrors int    // number of races detected during test
-	runner     string // function name of tRunner running the test
+	hasSub     int32  // Written atomically.
+	raceErrors int    // Number of races detected during test.
+	runner     string // Function name of tRunner running the test.
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
+	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
 	name     string    // Name of test or benchmark.
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
 	barrier  chan bool // To signal parallel subtests they may start.
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
+
+	tempDirOnce sync.Once
+	tempDir     string
+	tempDirErr  error
+	tempDirSeq  int32
 }
 
 // Short reports whether the -test.short flag is set.
 func Short() bool {
+	if short == nil {
+		panic("testing: Short called before Init")
+	}
+	// Catch code that calls this from TestMain without first calling flag.Parse.
+	if !flag.Parsed() {
+		panic("testing: Short called before Parse")
+	}
+
 	return *short
 }
 
@@ -313,19 +441,31 @@ func CoverMode() string {
 
 // Verbose reports whether the -test.v flag is set.
 func Verbose() bool {
+	// Same as in Short.
+	if chatty == nil {
+		panic("testing: Verbose called before Init")
+	}
+	if !flag.Parsed() {
+		panic("testing: Verbose called before Parse")
+	}
 	return *chatty
 }
 
 // frameSkip searches, starting after skip frames, for the first caller frame
-// in a function not marked as a helper and returns the frames to skip
-// to reach that site. The search stops if it finds a tRunner function that
-// was the entry point into the test.
+// in a function not marked as a helper and returns that frame.
+// The search stops if it finds a tRunner function that
+// was the entry point into the test and the test is not a subtest.
 // This function must be called with c.mu held.
-func (c *common) frameSkip(skip int) int {
-	if c.helpers == nil {
-		return skip
-	}
-	var pc [50]uintptr
+func (c *common) frameSkip(skip int) runtime.Frame {
+	// If the search continues into the parent test, we'll have to hold
+	// its mu temporarily. If we then return, we need to unlock it.
+	shouldUnlock := false
+	defer func() {
+		if shouldUnlock {
+			c.mu.Unlock()
+		}
+	}()
+	var pc [maxStackLen]uintptr
 	// Skip two extra frames to account for this function
 	// and runtime.Callers itself.
 	n := runtime.Callers(skip+2, pc[:])
@@ -333,32 +473,58 @@ func (c *common) frameSkip(skip int) int {
 		panic("testing: zero callers found")
 	}
 	frames := runtime.CallersFrames(pc[:n])
-	var frame runtime.Frame
-	more := true
-	for i := 0; more; i++ {
+	var firstFrame, prevFrame, frame runtime.Frame
+	for more := true; more; prevFrame = frame {
 		frame, more = frames.Next()
+		if frame.Function == c.cleanupName {
+			frames = runtime.CallersFrames(c.cleanupPc)
+			continue
+		}
+		if firstFrame.PC == 0 {
+			firstFrame = frame
+		}
 		if frame.Function == c.runner {
 			// We've gone up all the way to the tRunner calling
 			// the test function (so the user must have
 			// called tb.Helper from inside that test function).
-			// Only skip up to the test function itself.
-			return skip + i - 1
+			// If this is a top-level test, only skip up to the test function itself.
+			// If we're in a subtest, continue searching in the parent test,
+			// starting from the point of the call to Run which created this subtest.
+			if c.level > 1 {
+				frames = runtime.CallersFrames(c.creator)
+				parent := c.parent
+				// We're no longer looking at the current c after this point,
+				// so we should unlock its mu, unless it's the original receiver,
+				// in which case our caller doesn't expect us to do that.
+				if shouldUnlock {
+					c.mu.Unlock()
+				}
+				c = parent
+				// Remember to unlock c.mu when we no longer need it, either
+				// because we went up another nesting level, or because we
+				// returned.
+				shouldUnlock = true
+				c.mu.Lock()
+				continue
+			}
+			return prevFrame
 		}
 		if _, ok := c.helpers[frame.Function]; !ok {
 			// Found a frame that wasn't inside a helper function.
-			return skip + i
+			return frame
 		}
 	}
-	return skip
+	return firstFrame
 }
 
 // decorate prefixes the string with the file and line of the call site
-// and inserts the final newline if needed and indentation tabs for formatting.
+// and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
-func (c *common) decorate(s string) string {
-	skip := c.frameSkip(3) // decorate + log + public function.
-	_, file, line, ok := runtime.Caller(skip)
-	if ok {
+func (c *common) decorate(s string, skip int) string {
+	frame := c.frameSkip(skip)
+	file := frame.File
+	line := frame.Line
+	if file != "" {
 		// Truncate file name at last file name separator.
 		if index := strings.LastIndex(file, "/"); index >= 0 {
 			file = file[index+1:]
@@ -367,11 +533,13 @@ func (c *common) decorate(s string) string {
 		}
 	} else {
 		file = "???"
+	}
+	if line == 0 {
 		line = 1
 	}
-	buf := new(bytes.Buffer)
-	// Every line is indented at least one tab.
-	buf.WriteByte('\t')
+	buf := new(strings.Builder)
+	// Every line is indented at least 4 spaces.
+	buf.WriteString("    ")
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
 	lines := strings.Split(s, "\n")
 	if l := len(lines); l > 1 && lines[l-1] == "" {
@@ -379,8 +547,8 @@ func (c *common) decorate(s string) string {
 	}
 	for i, line := range lines {
 		if i > 0 {
-			// Second and subsequent lines are indented an extra tab.
-			buf.WriteString("\n\t\t")
+			// Second and subsequent lines are indented an additional 4 spaces.
+			buf.WriteString("\n        ")
 		}
 		buf.WriteString(line)
 	}
@@ -390,12 +558,12 @@ func (c *common) decorate(s string) string {
 
 // flushToParent writes c.output to the parent after first writing the header
 // with the given format and arguments.
-func (c *common) flushToParent(format string, args ...interface{}) {
+func (c *common) flushToParent(testName, format string, args ...interface{}) {
 	p := c.parent
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	fmt.Fprintf(p.w, format, args...)
+	printer.Fprint(p.w, testName, fmt.Sprintf(format, args...))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -433,6 +601,7 @@ func fmtDuration(d time.Duration) string {
 
 // TB is the interface common to T and B.
 type TB interface {
+	Cleanup(func())
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
 	Fail()
@@ -440,6 +609,7 @@ type TB interface {
 	Failed() bool
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	Helper()
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
 	Name() string
@@ -447,7 +617,7 @@ type TB interface {
 	SkipNow()
 	Skipf(format string, args ...interface{})
 	Skipped() bool
-	Helper()
+	TempDir() string
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -459,7 +629,6 @@ var _ TB = (*T)(nil)
 var _ TB = (*B)(nil)
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
-// Logs are accumulated during execution and dumped to standard output when done.
 //
 // A test ends when its Test function returns or calls any of the methods
 // FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods, as well as
@@ -513,7 +682,8 @@ func (c *common) Failed() bool {
 }
 
 // FailNow marks the function as having failed and stops its execution
-// by calling runtime.Goexit.
+// by calling runtime.Goexit (which then runs all deferred calls in the
+// current goroutine).
 // Execution will continue at the next test or benchmark.
 // FailNow must be called from the goroutine running the
 // test or benchmark function, not from other goroutines
@@ -547,9 +717,39 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
+	c.logDepth(s, 3) // logDepth + log + public function
+}
+
+// logDepth generates the output at an arbitrary stack depth.
+func (c *common) logDepth(s string, depth int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.output = append(c.output, c.decorate(s)...)
+	if c.done {
+		// This test has already finished. Try and log this message
+		// with our parent. If we don't have a parent, panic.
+		for parent := c.parent; parent != nil; parent = parent.parent {
+			parent.mu.Lock()
+			defer parent.mu.Unlock()
+			if !parent.done {
+				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
+				return
+			}
+		}
+		panic("Log in goroutine after " + c.name + " has completed")
+	} else {
+		if c.chatty {
+			if c.bench {
+				// Benchmarks don't print === CONT, so we should skip the test
+				// printer and just print straight to stdout.
+				fmt.Print(c.decorate(s, depth+1))
+			} else {
+				printer.Print(c.name, c.decorate(s, depth+1))
+			}
+
+			return
+		}
+		c.output = append(c.output, c.decorate(s, depth+1)...)
+	}
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
@@ -631,8 +831,6 @@ func (c *common) Skipped() bool {
 // Helper marks the calling function as a test helper function.
 // When printing file and line information, that function will be skipped.
 // Helper may be called simultaneously from multiple goroutines.
-// Helper has no effect if it is called directly from a TestXxx/BenchmarkXxx
-// function or a subtest/sub-benchmark function.
 func (c *common) Helper() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -642,11 +840,108 @@ func (c *common) Helper() {
 	c.helpers[callerName(1)] = struct{}{}
 }
 
+// Cleanup registers a function to be called when the test and all its
+// subtests complete. Cleanup functions will be called in last added,
+// first called order.
+func (c *common) Cleanup(f func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	oldCleanup := c.cleanup
+	oldCleanupPc := c.cleanupPc
+	c.cleanup = func() {
+		if oldCleanup != nil {
+			defer func() {
+				c.cleanupPc = oldCleanupPc
+				oldCleanup()
+			}()
+		}
+		c.cleanupName = callerName(0)
+		f()
+	}
+	var pc [maxStackLen]uintptr
+	// Skip two extra frames to account for this function and runtime.Callers itself.
+	n := runtime.Callers(2, pc[:])
+	c.cleanupPc = pc[:n]
+}
+
+var tempDirReplacer struct {
+	sync.Once
+	r *strings.Replacer
+}
+
+// TempDir returns a temporary directory for the test to use.
+// The directory is automatically removed by Cleanup when the test and
+// all its subtests complete.
+// Each subsequent call to t.TempDir returns a unique directory;
+// if the directory creation fails, TempDir terminates the test by calling Fatal.
+func (c *common) TempDir() string {
+	// Use a single parent directory for all the temporary directories
+	// created by a test, each numbered sequentially.
+	c.tempDirOnce.Do(func() {
+		c.Helper()
+
+		// ioutil.TempDir doesn't like path separators in its pattern,
+		// so mangle the name to accommodate subtests.
+		tempDirReplacer.Do(func() {
+			tempDirReplacer.r = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
+		})
+		pattern := tempDirReplacer.r.Replace(c.Name())
+
+		c.tempDir, c.tempDirErr = ioutil.TempDir("", pattern)
+		if c.tempDirErr == nil {
+			c.Cleanup(func() {
+				if err := os.RemoveAll(c.tempDir); err != nil {
+					c.Errorf("TempDir RemoveAll cleanup: %v", err)
+				}
+			})
+		}
+	})
+	if c.tempDirErr != nil {
+		c.Fatalf("TempDir: %v", c.tempDirErr)
+	}
+	seq := atomic.AddInt32(&c.tempDirSeq, 1)
+	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
+	if err := os.Mkdir(dir, 0777); err != nil {
+		c.Fatalf("TempDir: %v", err)
+	}
+	return dir
+}
+
+// panicHanding is an argument to runCleanup.
+type panicHandling int
+
+const (
+	normalPanic panicHandling = iota
+	recoverAndReturnPanic
+)
+
+// runCleanup is called at the end of the test.
+// If catchPanic is true, this will catch panics, and return the recovered
+// value if any.
+func (c *common) runCleanup(ph panicHandling) (panicVal interface{}) {
+	c.mu.Lock()
+	cleanup := c.cleanup
+	c.cleanup = nil
+	c.mu.Unlock()
+	if cleanup == nil {
+		return nil
+	}
+
+	if ph == recoverAndReturnPanic {
+		defer func() {
+			panicVal = recover()
+		}()
+	}
+
+	cleanup()
+	return nil
+}
+
 // callerName gives the function name (qualified with a package path)
 // for the caller after skip frames (where 0 means the current function).
 func callerName(skip int) string {
 	// Make room for the skip PC.
-	var pc [2]uintptr
+	var pc [1]uintptr
 	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
 	if n == 0 {
 		panic("testing: zero callers found")
@@ -675,19 +970,42 @@ func (t *T) Parallel() {
 	t.parent.sub = append(t.parent.sub, t)
 	t.raceErrors += race.Errors()
 
+	if t.chatty {
+		// Print directly to root's io.Writer so there is no delay.
+		root := t.parent
+		for ; root.parent != nil; root = root.parent {
+		}
+		root.mu.Lock()
+		fmt.Fprintf(root.w, "=== PAUSE %s\n", t.name)
+		root.mu.Unlock()
+	}
+
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.context.waitParallel()
+
+	if t.chatty {
+		// Print directly to root's io.Writer so there is no delay.
+		root := t.parent
+		for ; root.parent != nil; root = root.parent {
+		}
+		root.mu.Lock()
+		printer.Fprint(root.w, t.name, fmt.Sprintf("=== CONT  %s\n", t.name))
+		root.mu.Unlock()
+	}
+
 	t.start = time.Now()
 	t.raceErrors += -race.Errors()
 }
 
-// An internal type but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// InternalTest is an internal type but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 type InternalTest struct {
 	Name string
 	F    func(*T)
 }
+
+var errNilPanicOrGoexit = errors.New("test executed panic(nil) or runtime.Goexit")
 
 func tRunner(t *T, fn func(t *T)) {
 	t.runner = callerName(0)
@@ -697,21 +1015,52 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
+		if t.Failed() {
+			atomic.AddUint32(&numFailed, 1)
+		}
+
 		if t.raceErrors+race.Errors() > 0 {
 			t.Errorf("race detected during execution of test")
 		}
 
-		t.duration += time.Since(t.start)
 		// If the test panicked, print any test output before dying.
 		err := recover()
+		signal := true
 		if !t.finished && err == nil {
-			err = fmt.Errorf("test executed panic(nil) or runtime.Goexit")
+			err = errNilPanicOrGoexit
+			for p := t.parent; p != nil; p = p.parent {
+				if p.finished {
+					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
+					err = nil
+					signal = false
+					break
+				}
+			}
 		}
-		if err != nil {
+
+		doPanic := func(err interface{}) {
 			t.Fail()
-			t.report()
+			if r := t.runCleanup(recoverAndReturnPanic); r != nil {
+				t.Logf("cleanup panicked with %v", r)
+			}
+			// Flush the output log up to the root before dying.
+			for root := &t.common; root.parent != nil; root = root.parent {
+				root.mu.Lock()
+				root.duration += time.Since(root.start)
+				d := root.duration
+				root.mu.Unlock()
+				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
+					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+				}
+			}
 			panic(err)
 		}
+		if err != nil {
+			doPanic(err)
+		}
+
+		t.duration += time.Since(t.start)
 
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
@@ -722,6 +1071,12 @@ func tRunner(t *T, fn func(t *T)) {
 			// Wait for subtests to complete.
 			for _, sub := range t.sub {
 				<-sub.signal
+			}
+			cleanupStart := time.Now()
+			err := t.runCleanup(recoverAndReturnPanic)
+			t.duration += time.Since(cleanupStart)
+			if err != nil {
+				doPanic(err)
 			}
 			if !t.isParallel {
 				// Reacquire the count for sequential tests. See comment in Run.
@@ -740,27 +1095,39 @@ func tRunner(t *T, fn func(t *T)) {
 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
 		}
-		t.signal <- true
+		t.signal <- signal
+	}()
+	defer func() {
+		if len(t.sub) == 0 {
+			t.runCleanup(normalPanic)
+		}
 	}()
 
 	t.start = time.Now()
 	t.raceErrors = -race.Errors()
 	fn(t)
+
+	// code beyond here will not be executed when FailNow is invoked
 	t.finished = true
 }
 
-// Run runs f as a subtest of t called name. It reports whether f succeeded. Run
-// runs f in a separate goroutine and will block until all its parallel subtests
-// have completed.
+// Run runs f as a subtest of t called name. It runs f in a separate goroutine
+// and blocks until f returns or calls t.Parallel to become a parallel test.
+// Run reports whether f succeeded (or at least did not fail before calling t.Parallel).
 //
 // Run may be called simultaneously from multiple goroutines, but all such calls
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
 	atomic.StoreInt32(&t.hasSub, 1)
 	testName, ok, _ := t.context.match.fullName(&t.common, name)
-	if !ok {
+	if !ok || shouldFailFast() {
 		return true
 	}
+	// Record the stack trace at the point of this call so that if the subtest
+	// function - which runs in a separate stack - is marked as a helper, we can
+	// continue walking the stack into the parent test.
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
 	t = &T{
 		common: common{
 			barrier: make(chan bool),
@@ -768,6 +1135,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 			name:    testName,
 			parent:  &t.common,
 			level:   t.level + 1,
+			creator: pc[:n],
 			chatty:  t.chatty,
 		},
 		context: t.context,
@@ -780,7 +1148,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		for ; root.parent != nil; root = root.parent {
 		}
 		root.mu.Lock()
-		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
+		printer.Fprint(root.w, t.name, fmt.Sprintf("=== RUN   %s\n", t.name))
 		root.mu.Unlock()
 	}
 	// Instead of reducing the running count of this test before calling the
@@ -789,14 +1157,28 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// without being preempted, even when their parent is a parallel test. This
 	// may especially reduce surprises if *parallel == 1.
 	go tRunner(t, f)
-	<-t.signal
+	if !<-t.signal {
+		// At this point, it is likely that FailNow was called on one of the
+		// parent tests by one of the subtests. Continue aborting up the chain.
+		runtime.Goexit()
+	}
 	return !t.failed
+}
+
+// Deadline reports the time at which the test binary will have
+// exceeded the timeout specified by the -timeout flag.
+//
+// The ok result is false if the -timeout flag indicates “no timeout” (0).
+func (t *T) Deadline() (deadline time.Time, ok bool) {
+	deadline = t.context.deadline
+	return deadline, !deadline.IsZero()
 }
 
 // testContext holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
 type testContext struct {
-	match *matcher
+	match    *matcher
+	deadline time.Time
 
 	mu sync.Mutex
 
@@ -856,9 +1238,10 @@ type matchStringOnly func(pat, str string) (bool, error)
 func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f(pat, str) }
 func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
 func (f matchStringOnly) StopCPUProfile()                             {}
-func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
 func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
 func (f matchStringOnly) ImportPath() string                          { return "" }
+func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+func (f matchStringOnly) StopTestLog() error                          { return errMain }
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -879,6 +1262,12 @@ type M struct {
 
 	timer     *time.Timer
 	afterOnce sync.Once
+
+	numRun int
+
+	// value to pass to os.Exit, the outer test func main
+	// harness calls os.Exit with this code. See #34129.
+	exitCode int
 }
 
 // testDeps is an internal interface of functionality that is
@@ -886,18 +1275,20 @@ type M struct {
 // The canonical implementation of this interface is
 // testing/internal/testdeps's TestDeps.
 type testDeps interface {
+	ImportPath() string
 	MatchString(pat, str string) (bool, error)
 	StartCPUProfile(io.Writer) error
 	StopCPUProfile()
-	WriteHeapProfile(io.Writer) error
+	StartTestLog(io.Writer)
+	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
-	ImportPath() string
 }
 
 // MainStart is meant for use by tests generated by 'go test'.
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
+	Init()
 	return &M{
 		deps:       deps,
 		tests:      tests,
@@ -907,30 +1298,44 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
 }
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
-func (m *M) Run() int {
+func (m *M) Run() (code int) {
+	defer func() {
+		code = m.exitCode
+	}()
+
+	// Count the number of calls to m.Run.
+	// We only ever expected 1, but we didn't enforce that,
+	// and now there are tests in the wild that call m.Run multiple times.
+	// Sigh. golang.org/issue/23129.
+	m.numRun++
+
 	// TestMain may have already called flag.Parse.
 	if !flag.Parsed() {
 		flag.Parse()
 	}
 
+	printer = newTestPrinter(Verbose())
+
 	if *parallel < 1 {
 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
 		flag.Usage()
-		return 2
+		m.exitCode = 2
+		return
 	}
 
 	if len(*matchList) != 0 {
 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
-		return 0
+		m.exitCode = 0
+		return
 	}
 
 	parseCpuList()
 
 	m.before()
 	defer m.after()
-	m.startAlarm()
+	deadline := m.startAlarm()
 	haveExamples = len(m.examples) > 0
-	testRan, testOk := runTests(m.deps.MatchString, m.tests)
+	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
 	m.stopAlarm()
 	if !testRan && !exampleRan && *matchBenchmarks == "" {
@@ -938,11 +1343,13 @@ func (m *M) Run() int {
 	}
 	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
 		fmt.Println("FAIL")
-		return 1
+		m.exitCode = 1
+		return
 	}
 
 	fmt.Println("PASS")
-	return 0
+	m.exitCode = 0
+	return
 }
 
 func (t *T) report() {
@@ -952,12 +1359,12 @@ func (t *T) report() {
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
 	if t.Failed() {
-		t.flushToParent(format, "FAIL", t.name, dstr)
+		t.flushToParent(t.name, format, "FAIL", t.name, dstr)
 	} else if t.chatty {
 		if t.Skipped() {
-			t.flushToParent(format, "SKIP", t.name, dstr)
+			t.flushToParent(t.name, format, "SKIP", t.name, dstr)
 		} else {
-			t.flushToParent(format, "PASS", t.name, dstr)
+			t.flushToParent(t.name, format, "PASS", t.name, dstr)
 		}
 	}
 }
@@ -985,22 +1392,30 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 	}
 }
 
-// An internal function but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// RunTests is an internal function but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
-	ran, ok := runTests(matchString, tests)
+	var deadline time.Time
+	if *timeout > 0 {
+		deadline = time.Now().Add(*timeout)
+	}
+	ran, ok := runTests(matchString, tests, deadline)
 	if !ran && !haveExamples {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	return ok
 }
 
-func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ran, ok bool) {
+func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
 	ok = true
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
 		for i := uint(0); i < *count; i++ {
+			if shouldFailFast() {
+				break
+			}
 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+			ctx.deadline = deadline
 			t := &T{
 				common: common{
 					signal:  make(chan bool),
@@ -1067,6 +1482,26 @@ func (m *M) before() {
 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
 		os.Exit(2)
 	}
+	if *testlog != "" {
+		// Note: Not using toOutputDir.
+		// This file is for use by cmd/go, not users.
+		var f *os.File
+		var err error
+		if m.numRun == 1 {
+			f, err = os.Create(*testlog)
+		} else {
+			f, err = os.OpenFile(*testlog, os.O_WRONLY, 0)
+			if err == nil {
+				f.Seek(0, io.SeekEnd)
+			}
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+			os.Exit(2)
+		}
+		m.deps.StartTestLog(f)
+		testlogFile = f
+	}
 }
 
 // after runs after all testing.
@@ -1077,6 +1512,16 @@ func (m *M) after() {
 }
 
 func (m *M) writeProfiles() {
+	if *testlog != "" {
+		if err := m.deps.StopTestLog(); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *testlog, err)
+			os.Exit(2)
+		}
+		if err := testlogFile.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *testlog, err)
+			os.Exit(2)
+		}
+	}
 	if *cpuProfile != "" {
 		m.deps.StopCPUProfile() // flushes profile to disk
 	}
@@ -1090,7 +1535,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		runtime.GC() // materialize all statistics
-		if err = m.deps.WriteHeapProfile(f); err != nil {
+		if err = m.deps.WriteProfileTo("allocs", f, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
 			os.Exit(2)
 		}
@@ -1115,7 +1560,7 @@ func (m *M) writeProfiles() {
 			os.Exit(2)
 		}
 		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *mutexProfile, err)
 			os.Exit(2)
 		}
 		f.Close()
@@ -1131,20 +1576,18 @@ func toOutputDir(path string) string {
 	if *outputDir == "" || path == "" {
 		return path
 	}
-	if runtime.GOOS == "windows" {
-		// On Windows, it's clumsy, but we can be almost always correct
-		// by just looking for a drive letter and a colon.
-		// Absolute paths always have a drive letter (ignoring UNC).
-		// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
-		// what to do, but even then path/filepath doesn't help.
-		// TODO: Worth doing better? Probably not, because we're here only
-		// under the management of go test.
-		if len(path) >= 2 {
-			letter, colon := path[0], path[1]
-			if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
-				// If path starts with a drive letter we're stuck with it regardless.
-				return path
-			}
+	// On Windows, it's clumsy, but we can be almost always correct
+	// by just looking for a drive letter and a colon.
+	// Absolute paths always have a drive letter (ignoring UNC).
+	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
+	// what to do, but even then path/filepath doesn't help.
+	// TODO: Worth doing better? Probably not, because we're here only
+	// under the management of go test.
+	if runtime.GOOS == "windows" && len(path) >= 2 {
+		letter, colon := path[0], path[1]
+		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
+			// If path starts with a drive letter we're stuck with it regardless.
+			return path
 		}
 	}
 	if os.IsPathSeparator(path[0]) {
@@ -1154,14 +1597,18 @@ func toOutputDir(path string) string {
 }
 
 // startAlarm starts an alarm if requested.
-func (m *M) startAlarm() {
-	if *timeout > 0 {
-		m.timer = time.AfterFunc(*timeout, func() {
-			m.after()
-			debug.SetTraceback("all")
-			panic(fmt.Sprintf("test timed out after %v", *timeout))
-		})
+func (m *M) startAlarm() time.Time {
+	if *timeout <= 0 {
+		return time.Time{}
 	}
+
+	deadline := time.Now().Add(*timeout)
+	m.timer = time.AfterFunc(*timeout, func() {
+		m.after()
+		debug.SetTraceback("all")
+		panic(fmt.Sprintf("test timed out after %v", *timeout))
+	})
+	return deadline
 }
 
 // stopAlarm turns off the alarm.
@@ -1187,4 +1634,8 @@ func parseCpuList() {
 	if cpuList == nil {
 		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	}
+}
+
+func shouldFailFast() bool {
+	return *failFast && atomic.LoadUint32(&numFailed) > 0
 }

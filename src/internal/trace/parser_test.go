@@ -7,6 +7,7 @@ package trace
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,8 +26,8 @@ func TestCorruptedInputs(t *testing.T) {
 		"go 1.5 trace\x00\x00\x00\x00\xc3\x0200",
 	}
 	for _, data := range tests {
-		events, err := Parse(strings.NewReader(data), "")
-		if err == nil || events != nil {
+		res, err := Parse(strings.NewReader(data), "")
+		if err == nil || res.Events != nil || res.Stacks != nil {
 			t.Fatalf("no error on input: %q", data)
 		}
 	}
@@ -38,9 +39,17 @@ func TestParseCanned(t *testing.T) {
 		t.Fatalf("failed to read ./testdata: %v", err)
 	}
 	for _, f := range files {
-		data, err := ioutil.ReadFile(filepath.Join("./testdata", f.Name()))
+		name := filepath.Join("./testdata", f.Name())
+		info, err := os.Stat(name)
 		if err != nil {
-			t.Fatalf("failed to read input file: %v", err)
+			t.Fatal(err)
+		}
+		if testing.Short() && info.Size() > 10000 {
+			continue
+		}
+		data, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
 		}
 		// Instead of Parse that requires a proper binary name for old traces,
 		// we use 'parse' that omits symbol lookup if an empty string is given.

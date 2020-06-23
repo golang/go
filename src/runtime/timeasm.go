@@ -3,10 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Declarations for operating systems implementing time.now directly in assembly.
-// Those systems are also expected to have nanotime subtract startNano,
-// so that time.now and nanotime return the same monotonic clock readings.
 
-// +build darwin,amd64 darwin,386 windows
+// +build windows
 
 package runtime
 

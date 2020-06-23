@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,101 +34,81 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 	"log"
+	"runtime"
 )
 
 func linknew(arch *sys.Arch) *Link {
+	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
 	ctxt := &Link{
-		Syms: &Symbols{
-			hash: []map[string]*Symbol{
-				// preallocate about 2mb for hash of
-				// non static symbols
-				make(map[string]*Symbol, 100000),
-			},
-			Allsym: make([]*Symbol, 0, 100000),
-		},
-		Arch:         arch,
-		LibraryByPkg: make(map[string]*Library),
+		Target:        Target{Arch: arch},
+		Syms:          sym.NewSymbols(),
+		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
+		Out:           NewOutBuf(arch),
+		LibraryByPkg:  make(map[string]*sym.Library),
+		numelfsym:     1,
+		ErrorReporter: ErrorReporter{ErrorReporter: ler},
 	}
 
 	if objabi.GOARCH != arch.Name {
 		log.Fatalf("invalid objabi.GOARCH %s (want %s)", objabi.GOARCH, arch.Name)
 	}
 
+	AtExit(func() {
+		if nerrors > 0 {
+			ctxt.Out.Close()
+			mayberemoveoutfile()
+		}
+	})
+
 	return ctxt
 }
 
 // computeTLSOffset records the thread-local storage offset.
+// Not used for Android where the TLS offset is determined at runtime.
 func (ctxt *Link) computeTLSOffset() {
-	switch Headtype {
+	switch ctxt.HeadType {
 	default:
-		log.Fatalf("unknown thread-local storage offset for %v", Headtype)
+		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
 
-	case objabi.Hplan9, objabi.Hwindows:
+	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Haix:
 		break
 
-		/*
-		 * ELF uses TLS offset negative from FS.
-		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
-		 * Known to low-level assembly in package runtime and runtime/cgo.
-		 */
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,
 		objabi.Hopenbsd,
 		objabi.Hdragonfly,
 		objabi.Hsolaris:
-		if objabi.GOOS == "android" {
-			switch ctxt.Arch.Family {
-			case sys.AMD64:
-				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
-				// Explained in src/runtime/cgo/gcc_android_*.c
-				ctxt.Tlsoffset = 0x1d0
-			case sys.I386:
-				// Android/386 constant - offset from 0(GS) to our TLS slot.
-				ctxt.Tlsoffset = 0xf8
-			default:
-				ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
-			}
-		} else {
-			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
-		}
+		/*
+		 * ELF uses TLS offset negative from FS.
+		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+		 * Known to low-level assembly in package runtime and runtime/cgo.
+		 */
+		ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 
-	case objabi.Hnacl:
-		switch ctxt.Arch.Family {
-		default:
-			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
-
-		case sys.ARM:
-			ctxt.Tlsoffset = 0
-
-		case sys.AMD64:
-			ctxt.Tlsoffset = 0
-
-		case sys.I386:
-			ctxt.Tlsoffset = -8
-		}
-
+	case objabi.Hdarwin:
 		/*
 		 * OS X system constants - offset from 0(GS) to our TLS.
-		 * Explained in src/runtime/cgo/gcc_darwin_*.c.
 		 */
-	case objabi.Hdarwin:
 		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
-		case sys.ARM:
-			ctxt.Tlsoffset = 0 // dummy value, not needed
-
+			/*
+			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
+			 * That slot is at offset 0x30 on amd64.
+			 * The slot will hold the G pointer.
+			 * These constants should match those in runtime/sys_darwin_amd64.s
+			 * and runtime/cgo/gcc_darwin_amd64.c.
+			 */
 		case sys.AMD64:
-			ctxt.Tlsoffset = 0x8a0
+			ctxt.Tlsoffset = 0x30
 
 		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
-
-		case sys.I386:
-			ctxt.Tlsoffset = 0x468
 		}
 	}
 

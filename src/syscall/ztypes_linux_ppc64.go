@@ -583,7 +583,14 @@ const (
 	_AT_FDCWD            = -0x64
 	_AT_REMOVEDIR        = 0x200
 	_AT_SYMLINK_NOFOLLOW = 0x100
+	_AT_EACCESS          = 0x200
 )
+
+type pollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
 
 type Termios struct {
 	Iflag     uint32
@@ -600,7 +607,7 @@ type Termios struct {
 const (
 	IUCLC  = 0x1000
 	OLCUC  = 0x4
-	TCGETS = 0x403c7413
-	TCSETS = 0x803c7414
+	TCGETS = 0x402c7413
+	TCSETS = 0x802c7414
 	XCASE  = 0x4000
 )

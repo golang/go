@@ -13,8 +13,8 @@
 // already part of the program are called. The main function is not run.
 // A plugin is only initialized once, and cannot be closed.
 //
-// The plugin support is currently incomplete, only supports Linux,
-// and has known bugs. Please report any issues.
+// Currently plugins are only supported on Linux, FreeBSD, and macOS.
+// Please report any issues.
 package plugin
 
 // Plugin is a loaded Go plugin.

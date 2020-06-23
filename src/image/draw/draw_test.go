@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"testing"
+	"testing/quick"
 )
 
 func eq(c0, c1 color.Color) bool {
@@ -433,11 +434,11 @@ func TestPaletted(t *testing.T) {
 		t.Fatalf("open: %v", err)
 	}
 	defer f.Close()
-	src, err := png.Decode(f)
+	video001, err := png.Decode(f)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	b := src.Bounds()
+	b := video001.Bounds()
 
 	cgaPalette := color.Palette{
 		color.RGBA{0x00, 0x00, 0x00, 0xff},
@@ -449,21 +450,71 @@ func TestPaletted(t *testing.T) {
 		"src":             Src,
 		"floyd-steinberg": FloydSteinberg,
 	}
+	sources := map[string]image.Image{
+		"uniform":  &image.Uniform{color.RGBA{0xff, 0x7f, 0xff, 0xff}},
+		"video001": video001,
+	}
 
-loop:
 	for dName, d := range drawers {
-		dst0 := image.NewPaletted(b, cgaPalette)
-		dst1 := image.NewPaletted(b, cgaPalette)
-		d.Draw(dst0, b, src, image.Point{})
-		d.Draw(embeddedPaletted{dst1}, b, src, image.Point{})
-		for y := b.Min.Y; y < b.Max.Y; y++ {
-			for x := b.Min.X; x < b.Max.X; x++ {
-				if !eq(dst0.At(x, y), dst1.At(x, y)) {
-					t.Errorf("%s: at (%d, %d), %v versus %v",
-						dName, x, y, dst0.At(x, y), dst1.At(x, y))
-					continue loop
+	loop:
+		for sName, src := range sources {
+			dst0 := image.NewPaletted(b, cgaPalette)
+			dst1 := image.NewPaletted(b, cgaPalette)
+			d.Draw(dst0, b, src, image.Point{})
+			d.Draw(embeddedPaletted{dst1}, b, src, image.Point{})
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					if !eq(dst0.At(x, y), dst1.At(x, y)) {
+						t.Errorf("%s / %s: at (%d, %d), %v versus %v",
+							dName, sName, x, y, dst0.At(x, y), dst1.At(x, y))
+						continue loop
+					}
 				}
 			}
 		}
+	}
+}
+
+func TestSqDiff(t *testing.T) {
+	// This test is similar to the one from the image/color package, but
+	// sqDiff in this package accepts int32 instead of uint32, so test it
+	// for appropriate input.
+
+	// canonical sqDiff implementation
+	orig := func(x, y int32) uint32 {
+		var d uint32
+		if x > y {
+			d = uint32(x - y)
+		} else {
+			d = uint32(y - x)
+		}
+		return (d * d) >> 2
+	}
+	testCases := []int32{
+		0,
+		1,
+		2,
+		0x0fffd,
+		0x0fffe,
+		0x0ffff,
+		0x10000,
+		0x10001,
+		0x10002,
+		0x7ffffffd,
+		0x7ffffffe,
+		0x7fffffff,
+		-0x7ffffffd,
+		-0x7ffffffe,
+		-0x80000000,
+	}
+	for _, x := range testCases {
+		for _, y := range testCases {
+			if got, want := sqDiff(x, y), orig(x, y); got != want {
+				t.Fatalf("sqDiff(%#x, %#x): got %d, want %d", x, y, got, want)
+			}
+		}
+	}
+	if err := quick.CheckEqual(orig, sqDiff, &quick.Config{MaxCountScale: 10}); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -1,0 +1,33 @@
+env GO111MODULE=on
+
+# go.sum should list directly used modules and dependencies
+go get -d rsc.io/quote@v1.5.2
+go mod tidy
+grep rsc.io/sampler go.sum
+
+# go.sum should not normally lose old entries
+go get -d rsc.io/quote@v1.0.0
+grep 'rsc.io/quote v1.0.0' go.sum
+grep 'rsc.io/quote v1.5.2' go.sum
+grep rsc.io/sampler go.sum
+
+# go mod tidy should clear dead entries from go.sum
+go mod tidy
+grep 'rsc.io/quote v1.0.0' go.sum
+! grep 'rsc.io/quote v1.5.2' go.sum
+! grep rsc.io/sampler go.sum
+
+# go.sum with no entries is OK to keep
+# (better for version control not to delete and recreate.)
+cp x.go.noimports x.go
+go mod tidy
+exists go.sum
+! grep . go.sum
+
+-- go.mod --
+module x
+-- x.go --
+package x
+import _ "rsc.io/quote"
+-- x.go.noimports --
+package x

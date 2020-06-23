@@ -6,6 +6,8 @@ package tar
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -19,94 +21,171 @@ import (
 	"time"
 )
 
-func equalSparseEntries(x, y []SparseEntry) bool {
+type testError struct{ error }
+
+type fileOps []interface{} // []T where T is (string | int64)
+
+// testFile is an io.ReadWriteSeeker where the IO operations performed
+// on it must match the list of operations in ops.
+type testFile struct {
+	ops fileOps
+	pos int64
+}
+
+func (f *testFile) Read(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if len(f.ops) == 0 {
+		return 0, io.EOF
+	}
+	s, ok := f.ops[0].(string)
+	if !ok {
+		return 0, errors.New("unexpected Read operation")
+	}
+
+	n := copy(b, s)
+	if len(s) > n {
+		f.ops[0] = s[n:]
+	} else {
+		f.ops = f.ops[1:]
+	}
+	f.pos += int64(len(b))
+	return n, nil
+}
+
+func (f *testFile) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if len(f.ops) == 0 {
+		return 0, errors.New("unexpected Write operation")
+	}
+	s, ok := f.ops[0].(string)
+	if !ok {
+		return 0, errors.New("unexpected Write operation")
+	}
+
+	if !strings.HasPrefix(s, string(b)) {
+		return 0, testError{fmt.Errorf("got Write(%q), want Write(%q)", b, s)}
+	}
+	if len(s) > len(b) {
+		f.ops[0] = s[len(b):]
+	} else {
+		f.ops = f.ops[1:]
+	}
+	f.pos += int64(len(b))
+	return len(b), nil
+}
+
+func (f *testFile) Seek(pos int64, whence int) (int64, error) {
+	if pos == 0 && whence == io.SeekCurrent {
+		return f.pos, nil
+	}
+	if len(f.ops) == 0 {
+		return 0, errors.New("unexpected Seek operation")
+	}
+	s, ok := f.ops[0].(int64)
+	if !ok {
+		return 0, errors.New("unexpected Seek operation")
+	}
+
+	if s != pos || whence != io.SeekCurrent {
+		return 0, testError{fmt.Errorf("got Seek(%d, %d), want Seek(%d, %d)", pos, whence, s, io.SeekCurrent)}
+	}
+	f.pos += s
+	f.ops = f.ops[1:]
+	return f.pos, nil
+}
+
+func equalSparseEntries(x, y []sparseEntry) bool {
 	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
 }
 
 func TestSparseEntries(t *testing.T) {
 	vectors := []struct {
-		in   []SparseEntry
+		in   []sparseEntry
 		size int64
 
 		wantValid    bool          // Result of validateSparseEntries
-		wantAligned  []SparseEntry // Result of alignSparseEntries
-		wantInverted []SparseEntry // Result of invertSparseEntries
+		wantAligned  []sparseEntry // Result of alignSparseEntries
+		wantInverted []sparseEntry // Result of invertSparseEntries
 	}{{
-		in: []SparseEntry{}, size: 0,
+		in: []sparseEntry{}, size: 0,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 0}},
+		wantInverted: []sparseEntry{{0, 0}},
 	}, {
-		in: []SparseEntry{}, size: 5000,
+		in: []sparseEntry{}, size: 5000,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{0, 5000}},
 	}, {
-		in: []SparseEntry{{0, 5000}}, size: 5000,
+		in: []sparseEntry{{0, 5000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 5000}},
-		wantInverted: []SparseEntry{{5000, 0}},
+		wantAligned:  []sparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{5000, 0}},
 	}, {
-		in: []SparseEntry{{1000, 4000}}, size: 5000,
+		in: []sparseEntry{{1000, 4000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{1024, 3976}},
-		wantInverted: []SparseEntry{{0, 1000}, {5000, 0}},
+		wantAligned:  []sparseEntry{{1024, 3976}},
+		wantInverted: []sparseEntry{{0, 1000}, {5000, 0}},
 	}, {
-		in: []SparseEntry{{0, 3000}}, size: 5000,
+		in: []sparseEntry{{0, 3000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 2560}},
-		wantInverted: []SparseEntry{{3000, 2000}},
+		wantAligned:  []sparseEntry{{0, 2560}},
+		wantInverted: []sparseEntry{{3000, 2000}},
 	}, {
-		in: []SparseEntry{{3000, 2000}}, size: 5000,
+		in: []sparseEntry{{3000, 2000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{3072, 1928}},
-		wantInverted: []SparseEntry{{0, 3000}, {5000, 0}},
+		wantAligned:  []sparseEntry{{3072, 1928}},
+		wantInverted: []sparseEntry{{0, 3000}, {5000, 0}},
 	}, {
-		in: []SparseEntry{{2000, 2000}}, size: 5000,
+		in: []sparseEntry{{2000, 2000}}, size: 5000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{2048, 1536}},
-		wantInverted: []SparseEntry{{0, 2000}, {4000, 1000}},
+		wantAligned:  []sparseEntry{{2048, 1536}},
+		wantInverted: []sparseEntry{{0, 2000}, {4000, 1000}},
 	}, {
-		in: []SparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
+		in: []sparseEntry{{0, 2000}, {8000, 2000}}, size: 10000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 1536}, {8192, 1808}},
-		wantInverted: []SparseEntry{{2000, 6000}, {10000, 0}},
+		wantAligned:  []sparseEntry{{0, 1536}, {8192, 1808}},
+		wantInverted: []sparseEntry{{2000, 6000}, {10000, 0}},
 	}, {
-		in: []SparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
+		in: []sparseEntry{{0, 2000}, {2000, 2000}, {4000, 0}, {4000, 3000}, {7000, 1000}, {8000, 0}, {8000, 2000}}, size: 10000,
 		wantValid:    true,
-		wantAligned:  []SparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
-		wantInverted: []SparseEntry{{10000, 0}},
+		wantAligned:  []sparseEntry{{0, 1536}, {2048, 1536}, {4096, 2560}, {7168, 512}, {8192, 1808}},
+		wantInverted: []sparseEntry{{10000, 0}},
 	}, {
-		in: []SparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
+		in: []sparseEntry{{0, 0}, {1000, 0}, {2000, 0}, {3000, 0}, {4000, 0}, {5000, 0}}, size: 5000,
 		wantValid:    true,
-		wantInverted: []SparseEntry{{0, 5000}},
+		wantInverted: []sparseEntry{{0, 5000}},
 	}, {
-		in: []SparseEntry{{1, 0}}, size: 0,
+		in: []sparseEntry{{1, 0}}, size: 0,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{-1, 0}}, size: 100,
+		in: []sparseEntry{{-1, 0}}, size: 100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{0, -1}}, size: 100,
+		in: []sparseEntry{{0, -1}}, size: 100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{0, 0}}, size: -100,
+		in: []sparseEntry{{0, 0}}, size: -100,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
+		in: []sparseEntry{{math.MaxInt64, 3}, {6, -5}}, size: 35,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{1, 3}, {6, -5}}, size: 35,
+		in: []sparseEntry{{1, 3}, {6, -5}}, size: 35,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
+		in: []sparseEntry{{math.MaxInt64, math.MaxInt64}}, size: math.MaxInt64,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{3, 3}}, size: 5,
+		in: []sparseEntry{{3, 3}}, size: 5,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
+		in: []sparseEntry{{2, 0}, {1, 0}, {0, 0}}, size: 3,
 		wantValid: false,
 	}, {
-		in: []SparseEntry{{1, 3}, {2, 2}}, size: 10,
+		in: []sparseEntry{{1, 3}, {2, 2}}, size: 10,
 		wantValid: false,
 	}}
 
@@ -118,11 +197,11 @@ func TestSparseEntries(t *testing.T) {
 		if !v.wantValid {
 			continue
 		}
-		gotAligned := alignSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		gotAligned := alignSparseEntries(append([]sparseEntry{}, v.in...), v.size)
 		if !equalSparseEntries(gotAligned, v.wantAligned) {
 			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
 		}
-		gotInverted := invertSparseEntries(append([]SparseEntry{}, v.in...), v.size)
+		gotInverted := invertSparseEntries(append([]sparseEntry{}, v.in...), v.size)
 		if !equalSparseEntries(gotInverted, v.wantInverted) {
 			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
 		}
@@ -227,6 +306,7 @@ func TestRoundTrip(t *testing.T) {
 		ModTime:    time.Now().Round(time.Second),
 		PAXRecords: map[string]string{"uid": "2097152"},
 		Format:     FormatPAX,
+		Typeflag:   TypeReg,
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
 		t.Fatalf("tw.WriteHeader: %v", err)
@@ -616,7 +696,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0)},
 		paxHdrs: map[string]string{paxAtime: "0"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(0, 0), Format: FormatUSTAR},
 		paxHdrs: map[string]string{paxAtime: "0"},
@@ -632,7 +712,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0)},
 		paxHdrs: map[string]string{paxAtime: "-123"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{AccessTime: time.Unix(-123, 0), Format: FormatPAX},
 		paxHdrs: map[string]string{paxAtime: "-123"},
@@ -640,7 +720,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456)},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
-		formats: FormatUSTAR | FormatPAX | FormatGNU,
+		formats: FormatPAX | FormatGNU,
 	}, {
 		header:  &Header{ChangeTime: time.Unix(123, 456), Format: FormatUSTAR},
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
@@ -654,20 +734,14 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
 		formats: FormatPAX,
 	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}},
-		formats: FormatPAX,
+		header:  &Header{Name: "foo/", Typeflag: TypeDir},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}},
-		formats: FormatGNU,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatGNU},
+		header:  &Header{Name: "foo/", Typeflag: TypeReg},
 		formats: FormatUnknown,
 	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, Typeflag: TypeGNUSparse, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatPAX},
-		formats: FormatUnknown,
-	}, {
-		header:  &Header{Name: "sparse.db", Size: 1000, SparseHoles: []SparseEntry{{0, 500}}, Format: FormatUSTAR},
-		formats: FormatUnknown,
+		header:  &Header{Name: "foo/", Typeflag: TypeSymlink},
+		formats: FormatUSTAR | FormatPAX | FormatGNU,
 	}}
 
 	for i, v := range vectors {

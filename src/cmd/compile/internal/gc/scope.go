@@ -55,14 +55,6 @@ func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ScopeID, dwarfScopes []d
 	}
 }
 
-// A scopedPCs represents a non-empty half-open interval of PCs that
-// share a common source position.
-type scopedPCs struct {
-	start, end int64
-	pos        src.XPos
-	scope      ScopeID
-}
-
 // scopePCs assigns PC ranges to their scopes.
 func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 	// If there aren't any child scopes (in particular, when scope
@@ -70,66 +62,22 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 	if len(marks) == 0 {
 		return
 	}
-
-	// Break function text into scopedPCs.
-	var pcs []scopedPCs
 	p0 := fnsym.Func.Text
+	scope := findScope(marks, p0.Pos)
 	for p := fnsym.Func.Text; p != nil; p = p.Link {
 		if p.Pos == p0.Pos {
 			continue
 		}
-		if p0.Pc < p.Pc {
-			pcs = append(pcs, scopedPCs{start: p0.Pc, end: p.Pc, pos: p0.Pos})
-		}
+		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: p.Pc})
 		p0 = p
+		scope = findScope(marks, p0.Pos)
 	}
 	if p0.Pc < fnsym.Size {
-		pcs = append(pcs, scopedPCs{start: p0.Pc, end: fnsym.Size, pos: p0.Pos})
-	}
-
-	// Sort PCs by source position, and walk in parallel with
-	// scope marks to assign a lexical scope to each PC interval.
-	sort.Sort(pcsByPos(pcs))
-	var marki int
-	var scope ScopeID
-	for i := range pcs {
-		for marki < len(marks) && !xposBefore(pcs[i].pos, marks[marki].Pos) {
-			scope = marks[marki].Scope
-			marki++
-		}
-		pcs[i].scope = scope
-	}
-
-	// Re-sort to create sorted PC ranges for each DWARF scope.
-	sort.Sort(pcsByPC(pcs))
-	for _, pc := range pcs {
-		r := &dwarfScopes[pc.scope].Ranges
-		if i := len(*r); i > 0 && (*r)[i-1].End == pc.start {
-			(*r)[i-1].End = pc.end
-		} else {
-			*r = append(*r, dwarf.Range{Start: pc.start, End: pc.end})
-		}
+		dwarfScopes[scope].AppendRange(dwarf.Range{Start: p0.Pc, End: fnsym.Size})
 	}
 }
 
 func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
-	// Forward pass to collapse empty scopes into parents.
-	remap := make([]int32, len(dwarfScopes))
-	j := int32(1)
-	for i := 1; i < len(dwarfScopes); i++ {
-		s := &dwarfScopes[i]
-		s.Parent = remap[s.Parent]
-		if len(s.Vars) == 0 {
-			dwarfScopes[s.Parent].UnifyRanges(s)
-			remap[i] = s.Parent
-			continue
-		}
-		remap[i] = j
-		dwarfScopes[j] = *s
-		j++
-	}
-	dwarfScopes = dwarfScopes[:j]
-
 	// Reverse pass to propagate PC ranges to parent scopes.
 	for i := len(dwarfScopes) - 1; i > 0; i-- {
 		s := &dwarfScopes[i]
@@ -137,22 +85,6 @@ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
 	}
 
 	return dwarfScopes
-}
-
-type pcsByPC []scopedPCs
-
-func (s pcsByPC) Len() int      { return len(s) }
-func (s pcsByPC) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s pcsByPC) Less(i, j int) bool {
-	return s[i].start < s[j].start
-}
-
-type pcsByPos []scopedPCs
-
-func (s pcsByPos) Len() int      { return len(s) }
-func (s pcsByPos) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s pcsByPos) Less(i, j int) bool {
-	return xposBefore(s[i].pos, s[j].pos)
 }
 
 type varsByScopeAndOffset struct {

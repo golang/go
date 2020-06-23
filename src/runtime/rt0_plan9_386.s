@@ -14,7 +14,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
 	MOVL	AX, 0(SP)
 	LEAL	inargv+0(FP), AX
 	MOVL	AX, 4(SP)
-	CALL	runtime·rt0_go(SB)
+	JMP	runtime·rt0_go(SB)
 
 GLOBL _tos(SB), NOPTR, $4
 GLOBL _privates(SB), NOPTR, $4

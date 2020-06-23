@@ -1,0 +1,149 @@
+# the following lines are in sorted order, FYI
+github.com/Azure/go-ansiterm d6e3b3328b783f23731bc4d058875b0371ff8109
+github.com/Microsoft/hcsshim v0.6.5
+github.com/Microsoft/go-winio v0.4.5
+github.com/davecgh/go-spew 346938d642f2ec3594ed81d874461961cd0faa76
+github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
+github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609 https://github.com/cpuguy83/check.git
+github.com/gorilla/context v1.1
+github.com/gorilla/mux v1.1
+github.com/Microsoft/opengcs v0.3.4
+github.com/kr/pty 5cf931ef8f
+github.com/mattn/go-shellwords v1.0.3
+github.com/sirupsen/logrus v1.0.3
+github.com/tchap/go-patricia v2.2.6
+github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
+golang.org/x/net 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+golang.org/x/sys 07c182904dbd53199946ba614a412c61d3c548f5
+github.com/docker/go-units 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
+github.com/docker/go-connections 3ede32e2033de7505e6500d6c868c2b9ed9f169d
+golang.org/x/text f72d8390a633d5dfb0cc84043294db9f6c935756
+github.com/stretchr/testify 4d4bfba8f1d1027c4fdbe371823030df51419987
+github.com/pmezard/go-difflib v1.0.0
+github.com/gotestyourself/gotestyourself v1.1.0
+
+github.com/RackSec/srslog 456df3a81436d29ba874f3590eeeee25d666f8a5
+github.com/imdario/mergo 0.2.1
+golang.org/x/sync de49d9dcd27d4f764488181bea099dfe6179bcf0
+
+github.com/containerd/continuity 22694c680ee48fb8f50015b44618517e2bde77e8
+github.com/moby/buildkit aaff9d591ef128560018433fe61beb802e149de8
+github.com/tonistiigi/fsutil dea3a0da73aee887fc02142d995be764106ac5e2
+
+#get libnetwork packages
+github.com/docker/libnetwork 68f1039f172434709a4550fe92e3e058406c74ce 
+github.com/docker/go-events 9461782956ad83b30282bf90e31fa6a70c255ba9
+github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
+github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
+github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
+github.com/hashicorp/memberlist v0.1.0
+github.com/sean-/seed e2103e2c35297fb7e17febb81e49b312087a2372
+github.com/hashicorp/go-sockaddr acd314c5781ea706c710d9ea70069fd2e110d61d
+github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
+github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
+github.com/docker/libkv 1d8431073ae03cdaedb198a89722f3aab6d418ef
+github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
+github.com/vishvananda/netlink bd6d5de5ccef2d66b0a26177928d0d8895d7f969
+github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
+github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
+github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
+github.com/coreos/etcd v3.2.1
+github.com/coreos/go-semver v0.2.0
+github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
+github.com/hashicorp/consul v0.5.2
+github.com/boltdb/bolt fff57c100f4dea1905678da7e90d92429dff2904
+github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
+
+# get graph and distribution packages
+github.com/docker/distribution edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c
+github.com/vbatts/tar-split v0.10.1
+github.com/opencontainers/go-digest a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+
+# get go-zfs packages
+github.com/mistifyio/go-zfs 22c9b32c84eb0d0c6f4043b6e90fc94073de92fa
+github.com/pborman/uuid v1.0
+
+google.golang.org/grpc v1.3.0
+
+# When updating, also update RUNC_COMMIT in hack/dockerfile/binaries-commits accordingly
+github.com/opencontainers/runc 0351df1c5a66838d0c392b4ac4cf9450de844e2d
+github.com/opencontainers/image-spec 372ad780f63454fbbbbcc7cf80e5b90245c13e13
+github.com/opencontainers/runtime-spec v1.0.0
+
+github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
+
+# libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
+github.com/coreos/go-systemd v4
+github.com/godbus/dbus v4.0.0
+github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
+github.com/golang/protobuf 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+
+# gelf logging driver deps
+github.com/Graylog2/go-gelf v2
+
+github.com/fluent/fluent-logger-golang v1.2.1
+# fluent-logger-golang deps
+github.com/philhofer/fwd 98c11a7a6ec829d672b03833c3d69a7fae1ca972
+github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
+
+# fsnotify
+github.com/fsnotify/fsnotify v1.4.2
+
+# awslogs deps
+github.com/aws/aws-sdk-go v1.4.22
+github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
+github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
+
+# logentries
+github.com/bsphere/le_go 7a984a84b5492ae539b79b62fb4a10afc63c7bcf
+
+# gcplogs deps
+golang.org/x/oauth2 96382aa079b72d8c014eb0c50f6c223d1e6a2de0
+google.golang.org/api 3cc2e591b550923a2c5f0ab5a803feda924d5823
+cloud.google.com/go 9d965e63e8cceb1b5d7977a202f0fcb8866d6525
+github.com/googleapis/gax-go da06d194a00e19ce00d9011a13931c3f6f6887c7
+google.golang.org/genproto d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+
+# containerd
+github.com/containerd/containerd 06b9cb35161009dcb7123345749fef02f7cea8e0
+github.com/tonistiigi/fifo 1405643975692217d6720f8b54aeee1bf2cd5cf4
+
+# cluster
+github.com/docker/swarmkit 872861d2ae46958af7ead1d5fffb092c73afbaf0
+github.com/gogo/protobuf v0.4
+github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a
+github.com/google/certificate-transparency d90e65c3a07988180c5b1ece71791c0b6506826e
+golang.org/x/crypto 558b6879de74bc843225cde5686419267ff707ca
+golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb
+github.com/hashicorp/go-memdb cb9a474f84cc5e41b273b20c6927680b2a8776ad
+github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
+github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
+github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
+github.com/prometheus/client_golang 52437c81da6b127a9925d17eb3a382a2e5fd395e
+github.com/beorn7/perks 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+github.com/prometheus/common ebdfc6da46522d58825777cf1f90490a5b1ef1d8
+github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
+github.com/matttproud/golang_protobuf_extensions v1.0.0
+github.com/pkg/errors 839d9e913e063e28dfd0e6c7b7512793e0a48be9
+github.com/grpc-ecosystem/go-grpc-prometheus 6b7015e65d366bf3f19b2b2a000a831940f0f7e0
+
+# cli
+github.com/spf13/cobra v1.5.1 https://github.com/dnephin/cobra.git
+github.com/spf13/pflag 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+github.com/Nvveen/Gotty a8b993ba6abdb0e0c12b0125c603323a71c7790c https://github.com/ijc25/Gotty
+
+# metrics
+github.com/docker/go-metrics d466d4f6fd960e01820085bd7e1a24426ee7ef18
+
+github.com/opencontainers/selinux v1.0.0-rc1
+
+# archive/tar
+# mkdir -p ./vendor/archive
+# git clone git://github.com/tonistiigi/go-1.git ./go
+# git --git-dir ./go/.git --work-tree ./go checkout revert-prefix-ignore
+# cp -a go/src/archive/tar ./vendor/archive/tar
+# rm -rf ./go
+# vndr

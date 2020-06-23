@@ -14,7 +14,21 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 )
+
+func goCmd() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return "go"
+}
 
 var goroot string
 
@@ -25,21 +39,34 @@ func main() {
 		log.Fatal("No $GOROOT set.")
 	}
 
-	out, err := exec.Command("go", "tool", "api",
-		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8", "go1.9"),
-		"-next", file("next"),
-		"-except", file("except")).CombinedOutput()
+	apiDir := filepath.Join(goroot, "api")
+	out, err := exec.Command(goCmd(), "tool", "api",
+		"-c", findAPIDirFiles(apiDir),
+		"-next", filepath.Join(apiDir, "next.txt"),
+		"-except", filepath.Join(apiDir, "except.txt")).CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error running API checker: %v\n%s", err, out)
 	}
 	fmt.Print(string(out))
 }
 
-// file expands s to $GOROOT/api/s.txt.
-// If there are more than 1, they're comma-separated.
-func file(s ...string) string {
-	if len(s) > 1 {
-		return file(s[0]) + "," + file(s[1:]...)
+// findAPIDirFiles returns a comma-separated list of Go API files
+// (go1.txt, go1.1.txt, etc.) located in apiDir.
+func findAPIDirFiles(apiDir string) string {
+	dir, err := os.Open(apiDir)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return filepath.Join(goroot, "api", s[0]+".txt")
+	defer dir.Close()
+	fs, err := dir.Readdirnames(-1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var apiFiles []string
+	for _, fn := range fs {
+		if strings.HasPrefix(fn, "go1") {
+			apiFiles = append(apiFiles, filepath.Join(apiDir, fn))
+		}
+	}
+	return strings.Join(apiFiles, ",")
 }

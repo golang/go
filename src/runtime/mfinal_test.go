@@ -243,6 +243,10 @@ var (
 )
 
 func TestDeferKeepAlive(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	// See issue 21402.
 	t.Parallel()
 	type T *int // needs to be a pointer base type to avoid tinyalloc and its never-finalized behavior.

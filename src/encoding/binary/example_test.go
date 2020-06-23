@@ -52,18 +52,20 @@ func ExampleRead() {
 }
 
 func ExampleRead_multi() {
-	data := struct {
+	b := []byte{0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, 0xff, 0x01, 0x02, 0x03, 0xbe, 0xef}
+	r := bytes.NewReader(b)
+
+	var data struct {
 		PI   float64
 		Uate uint8
 		Mine [3]byte
 		Too  uint16
-	}{}
-	b := []byte{0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, 0xff, 0x01, 0x02, 0x03, 0xbe, 0xef}
-	buf := bytes.NewReader(b)
-	err := binary.Read(buf, binary.LittleEndian, &data)
-	if err != nil {
+	}
+
+	if err := binary.Read(r, binary.LittleEndian, &data); err != nil {
 		fmt.Println("binary.Read failed:", err)
 	}
+
 	fmt.Println(data.PI)
 	fmt.Println(data.Uate)
 	fmt.Printf("% x\n", data.Mine)
@@ -130,12 +132,12 @@ func ExamplePutVarint() {
 
 func ExampleUvarint() {
 	inputs := [][]byte{
-		[]byte{0x01},
-		[]byte{0x02},
-		[]byte{0x7f},
-		[]byte{0x80, 0x01},
-		[]byte{0xff, 0x01},
-		[]byte{0x80, 0x02},
+		{0x01},
+		{0x02},
+		{0x7f},
+		{0x80, 0x01},
+		{0xff, 0x01},
+		{0x80, 0x02},
 	}
 	for _, b := range inputs {
 		x, n := binary.Uvarint(b)
@@ -155,15 +157,15 @@ func ExampleUvarint() {
 
 func ExampleVarint() {
 	inputs := [][]byte{
-		[]byte{0x81, 0x01},
-		[]byte{0x7f},
-		[]byte{0x03},
-		[]byte{0x01},
-		[]byte{0x00},
-		[]byte{0x02},
-		[]byte{0x04},
-		[]byte{0x7e},
-		[]byte{0x80, 0x01},
+		{0x81, 0x01},
+		{0x7f},
+		{0x03},
+		{0x01},
+		{0x00},
+		{0x02},
+		{0x04},
+		{0x7e},
+		{0x80, 0x01},
 	}
 	for _, b := range inputs {
 		x, n := binary.Varint(b)

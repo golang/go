@@ -4,17 +4,24 @@
 
 // +build mips mipsle
 
+// Export some functions via linkname to assembly in sync/atomic.
+//go:linkname Xadd64
+//go:linkname Xchg64
+//go:linkname Cas64
+//go:linkname Load64
+//go:linkname Store64
+
 package atomic
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
 
 // TODO implement lock striping
 var lock struct {
 	state uint32
-	pad   [sys.CacheLineSize - 4]byte
+	pad   [cpu.CacheLinePadSize - 4]byte
 }
 
 //go:noescape
@@ -25,7 +32,7 @@ func spinUnlock(state *uint32)
 
 //go:nosplit
 func lockAndCheck(addr *uint64) {
-	// ensure 8-byte alignement
+	// ensure 8-byte alignment
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		addr = nil
 	}
@@ -117,7 +124,13 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 func Load(ptr *uint32) uint32
 
 //go:noescape
+func Load8(ptr *uint8) uint8
+
+// NO go:noescape annotation; *ptr escapes if result escapes (#31525)
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func LoadAcq(ptr *uint32) uint32
 
 //go:noescape
 func And8(ptr *uint8, val uint8)
@@ -128,5 +141,14 @@ func Or8(ptr *uint8, val uint8)
 //go:noescape
 func Store(ptr *uint32, val uint32)
 
+//go:noescape
+func Store8(ptr *uint8, val uint8)
+
 // NO go:noescape annotation; see atomic_pointer.go.
 func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+
+//go:noescape
+func StoreRel(ptr *uint32, val uint32)
+
+//go:noescape
+func CasRel(addr *uint32, old, new uint32) bool

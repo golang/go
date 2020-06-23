@@ -16,7 +16,10 @@ import (
 // the output of the random number generator when given a fixed seed.
 
 func Example() {
-	rand.Seed(42) // Try changing this number!
+	// Seeding with the same value results in the same random sequence each run.
+	// For different numbers, seed with a different value, such as
+	// time.Now().UnixNano(), which yields a constantly-changing number.
+	rand.Seed(42)
 	answers := []string{
 		"It is certain",
 		"It is decidedly so",
@@ -94,7 +97,7 @@ func Example_rand() {
 	// Intn(10)    1                   2                   5
 	// Int31n(10)  4                   7                   8
 	// Int63n(10)  7                   6                   3
-	// Perm        [0 1 4 2 3]         [0 4 3 1 2]         [1 2 3 0 4]
+	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
 }
 
 func ExamplePerm() {
@@ -115,7 +118,7 @@ func ExampleShuffle() {
 	fmt.Println(words)
 
 	// Output:
-	// [my of the mouth corners from ink runs]
+	// [mouth my the of runs corners from ink]
 }
 
 func ExampleShuffle_slicesInUnison() {
@@ -132,8 +135,23 @@ func ExampleShuffle_slicesInUnison() {
 
 	// Output:
 	// C: 3
+	// D: 4
+	// A: 1
 	// E: 5
 	// B: 2
-	// A: 1
-	// D: 4
+}
+
+func ExampleIntn() {
+	// Seeding with the same value results in the same random sequence each run.
+	// For different numbers, seed with a different value, such as
+	// time.Now().UnixNano(), which yields a constantly-changing number.
+	rand.Seed(86)
+	fmt.Println(rand.Intn(100))
+	fmt.Println(rand.Intn(100))
+	fmt.Println(rand.Intn(100))
+
+	// Output:
+	// 42
+	// 76
+	// 30
 }

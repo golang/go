@@ -239,3 +239,21 @@ L:	select {
 	}
 	; ; ;
 } /* ERROR "missing return" */
+
+func parenPanic() int {
+	((((((panic)))(0))))
+}
+
+func issue23218a() int {
+	{
+		panic := func(interface{}){}
+		panic(0)
+	}
+} /* ERROR "missing return" */
+
+func issue23218b() int {
+	{
+		panic := func(interface{}){}
+		((((panic))))(0)
+	}
+} /* ERROR "missing return" */

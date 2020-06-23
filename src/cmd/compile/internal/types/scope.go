@@ -4,67 +4,100 @@
 
 package types
 
+import "cmd/internal/src"
+
 // Declaration stack & operations
 
 var blockgen int32 = 1 // max block number
 var Block int32        // current block number
 
+// A dsym stores a symbol's shadowed declaration so that it can be
+// restored once the block scope ends.
+type dsym struct {
+	sym        *Sym // sym == nil indicates stack mark
+	def        *Node
+	block      int32
+	lastlineno src.XPos // last declaration for diagnostic
+}
+
 // dclstack maintains a stack of shadowed symbol declarations so that
 // Popdcl can restore their declarations when a block scope ends.
-//
-// The Syms on this stack are not "real" Syms as they don't actually
-// represent object names. Sym is just a convenient type for saving shadowed
-// Sym definitions, and only a subset of its fields are actually used.
-var dclstack []*Sym
-
-func dcopy(a, b *Sym) {
-	a.Pkg = b.Pkg
-	a.Name = b.Name
-	a.Def = b.Def
-	a.Block = b.Block
-	a.Lastlineno = b.Lastlineno
-}
-
-func push() *Sym {
-	d := new(Sym)
-	dclstack = append(dclstack, d)
-	return d
-}
+var dclstack []dsym
 
 // Pushdcl pushes the current declaration for symbol s (if any) so that
 // it can be shadowed by a new declaration within a nested block scope.
 func Pushdcl(s *Sym) {
-	dcopy(push(), s)
+	dclstack = append(dclstack, dsym{
+		sym:        s,
+		def:        s.Def,
+		block:      s.Block,
+		lastlineno: s.Lastlineno,
+	})
 }
 
 // Popdcl pops the innermost block scope and restores all symbol declarations
 // to their previous state.
 func Popdcl() {
 	for i := len(dclstack); i > 0; i-- {
-		d := dclstack[i-1]
-		if d.Name == "" {
+		d := &dclstack[i-1]
+		s := d.sym
+		if s == nil {
 			// pop stack mark
-			Block = d.Block
+			Block = d.block
 			dclstack = dclstack[:i-1]
 			return
 		}
-		dcopy(d.Pkg.Lookup(d.Name), d)
+
+		s.Def = d.def
+		s.Block = d.block
+		s.Lastlineno = d.lastlineno
+
+		// Clear dead pointer fields.
+		d.sym = nil
+		d.def = nil
 	}
 	Fatalf("popdcl: no stack mark")
 }
 
 // Markdcl records the start of a new block scope for declarations.
 func Markdcl() {
-	push().Block = Block // stack mark (Name == "")
+	dclstack = append(dclstack, dsym{
+		sym:   nil, // stack mark
+		block: Block,
+	})
 	blockgen++
 	Block = blockgen
 }
 
 func IsDclstackValid() bool {
 	for _, d := range dclstack {
-		if d.Name == "" {
+		if d.sym == nil {
 			return false
 		}
 	}
 	return true
+}
+
+// PkgDef returns the definition associated with s at package scope.
+func (s *Sym) PkgDef() *Node {
+	return *s.pkgDefPtr()
+}
+
+// SetPkgDef sets the definition associated with s at package scope.
+func (s *Sym) SetPkgDef(n *Node) {
+	*s.pkgDefPtr() = n
+}
+
+func (s *Sym) pkgDefPtr() **Node {
+	// Look for outermost saved declaration, which must be the
+	// package scope definition, if present.
+	for _, d := range dclstack {
+		if s == d.sym {
+			return &d.def
+		}
+	}
+
+	// Otherwise, the declaration hasn't been shadowed within a
+	// function scope.
+	return &s.Def
 }

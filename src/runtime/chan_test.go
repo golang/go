@@ -5,6 +5,8 @@
 package runtime_test
 
 import (
+	"internal/testenv"
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -430,6 +432,65 @@ func TestSelectStress(t *testing.T) {
 	wg.Wait()
 }
 
+func TestSelectFairness(t *testing.T) {
+	const trials = 10000
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		testenv.SkipFlaky(t, 22047)
+	}
+	c1 := make(chan byte, trials+1)
+	c2 := make(chan byte, trials+1)
+	for i := 0; i < trials+1; i++ {
+		c1 <- 1
+		c2 <- 2
+	}
+	c3 := make(chan byte)
+	c4 := make(chan byte)
+	out := make(chan byte)
+	done := make(chan byte)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			var b byte
+			select {
+			case b = <-c3:
+			case b = <-c4:
+			case b = <-c1:
+			case b = <-c2:
+			}
+			select {
+			case out <- b:
+			case <-done:
+				return
+			}
+		}
+	}()
+	cnt1, cnt2 := 0, 0
+	for i := 0; i < trials; i++ {
+		switch b := <-out; b {
+		case 1:
+			cnt1++
+		case 2:
+			cnt2++
+		default:
+			t.Fatalf("unexpected value %d on channel", b)
+		}
+	}
+	// If the select in the goroutine is fair,
+	// cnt1 and cnt2 should be about the same value.
+	// With 10,000 trials, the expected margin of error at
+	// a confidence level of six nines is 4.891676 / (2 * Sqrt(10000)).
+	r := float64(cnt1) / trials
+	e := math.Abs(r - 0.5)
+	t.Log(cnt1, cnt2, r, e)
+	if e > 4.891676/(2*math.Sqrt(trials)) {
+		t.Errorf("unfair select: in %d trials, results were %d, %d", trials, cnt1, cnt2)
+	}
+	close(done)
+	wg.Wait()
+}
+
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
@@ -658,6 +719,7 @@ func TestSelectStackAdjust(t *testing.T) {
 		if after.NumGC-before.NumGC >= 2 {
 			goto done
 		}
+		runtime.Gosched()
 	}
 	t.Fatal("failed to trigger concurrent GC")
 done:
@@ -1063,6 +1125,20 @@ func BenchmarkChanPopular(b *testing.B) {
 		}
 	}
 	wg.Wait()
+}
+
+func BenchmarkChanClosed(b *testing.B) {
+	c := make(chan struct{})
+	close(c)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			select {
+			case <-c:
+			default:
+				b.Error("Unreachable")
+			}
+		}
+	})
 }
 
 var (

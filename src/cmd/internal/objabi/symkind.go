@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,6 +34,7 @@ package objabi
 type SymKind uint8
 
 // Defined SymKind values.
+// These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
 //
 // TODO(rsc): Give idiomatic Go names.
 //go:generate stringer -type=SymKind
@@ -58,4 +59,16 @@ const (
 	SDWARFINFO
 	SDWARFRANGE
 	SDWARFLOC
+	SDWARFLINES
+	// ABI alias. An ABI alias symbol is an empty symbol with a
+	// single relocation with 0 size that references the native
+	// function implementation symbol.
+	//
+	// TODO(austin): Remove this and all uses once the compiler
+	// generates real ABI wrappers rather than symbol aliases.
+	SABIALIAS
+	// Coverage instrumentation counter for libfuzzer.
+	SLIBFUZZER_EXTRA_COUNTER
+	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+
 )

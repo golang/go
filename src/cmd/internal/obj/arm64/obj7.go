@@ -33,6 +33,7 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 )
@@ -61,6 +62,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
+
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	q := (*obj.Prog)(nil)
 	if framesize <= objabi.StackSmall {
@@ -125,7 +132,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackGuard
+		p.From.Offset = int64(objabi.StackGuard)
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
@@ -140,7 +147,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + (objabi.StackGuard - objabi.StackSmall)
+		p.From.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R3
 
@@ -156,6 +163,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	bls.As = ABLS
 	bls.To.Type = obj.TYPE_BRANCH
 
+	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
+
 	var last *obj.Prog
 	for last = c.cursym.Func.Text; last.Link != nil; last = last.Link {
 	}
@@ -167,13 +176,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := obj.Appendp(spfix, c.newprog)
-	pcdata.Pos = c.cursym.Func.Text.Pos
-	pcdata.As = obj.APCDATA
-	pcdata.From.Type = obj.TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
-	pcdata.To.Type = obj.TYPE_CONST
-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	// MOV	LR, R3
 	movlr := obj.Appendp(pcdata, c.newprog)
@@ -210,18 +214,16 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+
 	// B	start
-	jmp := obj.Appendp(call, c.newprog)
+	jmp := obj.Appendp(pcdata, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = c.cursym.Func.Text.Link
 	jmp.Spadj = +framesize
 
-	// placeholder for bls's jump target
-	// p = obj.Appendp(ctxt, p)
-	// p.As = obj.ANOP
-
-	return bls
+	return end
 }
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -260,7 +262,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	switch p.As {
 	case AFMOVS:
 		if p.From.Type == obj.TYPE_FCONST {
-			f32 := float32(p.From.Val.(float64))
+			f64 := p.From.Val.(float64)
+			f32 := float32(f64)
+			if c.chipfloat7(f64) > 0 {
+				break
+			}
 			if math.Float32bits(f32) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
@@ -275,6 +281,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			f64 := p.From.Val.(float64)
+			if c.chipfloat7(f64) > 0 {
+				break
+			}
 			if math.Float64bits(f64) == 0 {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGZERO
@@ -310,12 +319,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// shared for both 32-bit and 64-bit. 32-bit ops
 	// will zero the high 32-bit of the destination
 	// register anyway.
-	switch p.As {
-	case AANDW, AORRW, AEORW, AANDSW:
-		if p.From.Type == obj.TYPE_CONST {
-			v := p.From.Offset & 0xffffffff
-			p.From.Offset = v | v<<32
-		}
+	if isANDWop(p.As) && p.From.Type == obj.TYPE_CONST {
+		v := p.From.Offset & 0xffffffff
+		p.From.Offset = v | v<<32
 	}
 
 	if c.ctxt.Flag_dynlink {
@@ -382,7 +388,7 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
-	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
 		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
@@ -443,7 +449,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	p := c.cursym.Func.Text
 	textstksiz := p.To.Offset
-	aoffset := int32(textstksiz)
+	if textstksiz == -8 {
+		// Historical way to mark NOFRAME.
+		p.From.Sym.Set(obj.AttrNoFrame, true)
+		textstksiz = 0
+	}
+	if textstksiz < 0 {
+		c.ctxt.Diag("negative frame size %d - did you mean NOFRAME?", textstksiz)
+	}
+	if p.From.Sym.NoFrame() {
+		if textstksiz != 0 {
+			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
+		}
+	}
 
 	c.cursym.Func.Args = p.To.Val.(int32)
 	c.cursym.Func.Locals = int32(textstksiz)
@@ -464,9 +482,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			break
 
 		case obj.ANOP:
-			q1 = p.Link
-			q.Link = q1 /* q is non-nop */
-			q1.Mark |= p.Mark
+			if p.Link != nil {
+				q1 = p.Link
+				q.Link = q1 /* q is non-nop */
+				q1.Mark |= p.Mark
+			}
 			continue
 
 		case ABL,
@@ -521,50 +541,64 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		switch o {
 		case obj.ATEXT:
 			c.cursym.Func.Text = p
-			if textstksiz < 0 {
-				c.autosize = 0
-			} else {
-				c.autosize = int32(textstksiz + 8)
+			c.autosize = int32(textstksiz)
+
+			if p.Mark&LEAF != 0 && c.autosize == 0 {
+				// A leaf function with no locals has no frame.
+				p.From.Sym.Set(obj.AttrNoFrame, true)
 			}
-			if (c.cursym.Func.Text.Mark&LEAF != 0) && c.autosize <= 8 {
-				c.autosize = 0
-			} else if c.autosize&(16-1) != 0 {
-				// The frame includes an LR.
-				// If the frame size is 8, it's only an LR,
-				// so there's no potential for breaking references to
-				// local variables by growing the frame size,
-				// because there are no local variables.
-				// But otherwise, if there is a non-empty locals section,
-				// the author of the code is responsible for making sure
-				// that the frame size is 8 mod 16.
-				if c.autosize == 8 {
-					c.autosize += 8
-					c.cursym.Func.Locals += 8
+
+			if !p.From.Sym.NoFrame() {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				c.autosize += 8
+			}
+
+			if c.autosize != 0 {
+				extrasize := int32(0)
+				if c.autosize%16 == 8 {
+					// Allocate extra 8 bytes on the frame top to save FP
+					extrasize = 8
+				} else if c.autosize&(16-1) == 0 {
+					// Allocate extra 16 bytes to save FP for the old frame whose size is 8 mod 16
+					extrasize = 16
 				} else {
-					c.ctxt.Diag("%v: unaligned frame size %d - must be 8 mod 16 (or 0)", p, c.autosize-8)
+					c.ctxt.Diag("%v: unaligned frame size %d - must be 16 aligned", p, c.autosize-8)
 				}
+				c.autosize += extrasize
+				c.cursym.Func.Locals += extrasize
+
+				// low 32 bits for autosize
+				// high 32 bits for extrasize
+				p.To.Offset = int64(c.autosize) | int64(extrasize)<<32
+			} else {
+				// NOFRAME
+				p.To.Offset = 0
 			}
-			p.To.Offset = int64(c.autosize) - 8
-			if c.autosize == 0 && !(c.cursym.Func.Text.Mark&LEAF != 0) {
+
+			if c.autosize == 0 && c.cursym.Func.Text.Mark&LEAF == 0 {
 				if c.ctxt.Debugvlog {
 					c.ctxt.Logf("save suppressed in: %s\n", c.cursym.Func.Text.From.Sym.Name)
 				}
 				c.cursym.Func.Text.Mark |= LEAF
 			}
 
+			if cursym.Func.Text.Mark&LEAF != 0 {
+				cursym.Set(obj.AttrLeaf, true)
+				if p.From.Sym.NoFrame() {
+					break
+				}
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
-			aoffset = c.autosize
+			var prologueEnd *obj.Prog
+
+			aoffset := c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
-			}
-			if c.cursym.Func.Text.Mark&LEAF != 0 {
-				c.cursym.Set(obj.AttrLeaf, true)
-				if c.autosize == 0 {
-					break
-				}
 			}
 
 			// Frame is non-empty. Make sure to save link register, even if
@@ -575,6 +609,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// Store link register before decrementing SP, so if a signal comes
 				// during the execution of the function prologue, the traceback
 				// code will not see a half-updated stack frame.
+				// This sequence is not async preemptible, as if we open a frame
+				// at the current SP, it will clobber the saved LR.
+				q = c.ctxt.StartUnsafePoint(q, c.newprog)
+
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
 				q.As = ASUB
@@ -583,6 +621,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGTMP
+
+				prologueEnd = q
 
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
@@ -600,6 +640,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Type = obj.TYPE_REG
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
+
+				if c.ctxt.Headtype == objabi.Hdarwin {
+					// iOS does not support SA_ONSTACK. We will run the signal handler
+					// on the G stack. If we write below SP, it may be clobbered by
+					// the signal handler. So we save LR after decrementing SP.
+					q1 = obj.Appendp(q1, c.newprog)
+					q1.Pos = p.Pos
+					q1.As = AMOVD
+					q1.From.Type = obj.TYPE_REG
+					q1.From.Reg = REGLINK
+					q1.To.Type = obj.TYPE_MEM
+					q1.To.Reg = REGSP
+				}
+
+				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
 			} else {
 				// small frame, update SP and save LR in a single MOVD.W instruction
 				q1 = obj.Appendp(q, c.newprog)
@@ -612,6 +667,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Offset = int64(-aoffset)
 				q1.To.Reg = REGSP
 				q1.Spadj = aoffset
+
+				prologueEnd = q1
+			}
+
+			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
+
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+				q1 = obj.Appendp(q1, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = AMOVD
+				q1.From.Type = obj.TYPE_REG
+				q1.From.Reg = REGFP
+				q1.To.Type = obj.TYPE_MEM
+				q1.To.Reg = REGSP
+				q1.To.Offset = -8
+
+				q1 = obj.Appendp(q1, c.newprog)
+				q1.Pos = p.Pos
+				q1.As = ASUB
+				q1.From.Type = obj.TYPE_CONST
+				q1.From.Offset = 8
+				q1.Reg = REGSP
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REGFP
 			}
 
 			if c.cursym.Func.Text.From.Sym.Wrapper() {
@@ -632,7 +711,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				//	B    end
 				//
 				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a ARM64 NOP: it encodes to 0 instruction bytes.
+				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
 				q = q1
 
 				// MOV g_panic(g), R1
@@ -736,27 +815,53 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Type = obj.TYPE_REG
 					p.To.Reg = REGSP
 					p.Spadj = -c.autosize
+
+					if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+						p = obj.Appendp(p, c.newprog)
+						p.As = ASUB
+						p.From.Type = obj.TYPE_CONST
+						p.From.Offset = 8
+						p.Reg = REGSP
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REGFP
+					}
 				}
 			} else {
 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
-				aoffset = c.autosize
 
-				if aoffset > 0xF0 {
-					aoffset = 0xF0
+				if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.From.Reg = REGSP
+					p.From.Offset = -8
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGFP
+					p = obj.Appendp(p, c.newprog)
 				}
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.Scond = C_XPOST
-				p.From.Offset = int64(aoffset)
-				p.From.Reg = REGSP
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGLINK
-				p.Spadj = -aoffset
-				if c.autosize > aoffset {
+
+				aoffset := c.autosize
+
+				if aoffset <= 0xF0 {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.Scond = C_XPOST
+					p.From.Offset = int64(aoffset)
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+					p.Spadj = -aoffset
+				} else {
+					p.As = AMOVD
+					p.From.Type = obj.TYPE_MEM
+					p.From.Offset = 0
+					p.From.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGLINK
+
 					q = newprog()
 					q.As = AADD
 					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(c.autosize) - int64(aoffset)
+					q.From.Offset = int64(aoffset)
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGSP
 					q.Link = p.Link
@@ -797,7 +902,125 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.Spadj = int32(+p.From.Offset)
 				}
 			}
-			break
+
+		case obj.AGETCALLERPC:
+			if cursym.Leaf() {
+				/* MOVD LR, Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGLINK
+			} else {
+				/* MOVD (RSP), Rd */
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+			}
+
+		case obj.ADUFFCOPY:
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+				//  ADR	ret_addr, R27
+				//  STP	(FP, R27), -24(SP)
+				//  SUB	24, SP, FP
+				//  DUFFCOPY
+				// ret_addr:
+				//  SUB	8, SP, FP
+
+				q1 := p
+				// copy DUFFCOPY from q1 to q4
+				q4 := obj.Appendp(p, c.newprog)
+				q4.Pos = p.Pos
+				q4.As = obj.ADUFFCOPY
+				q4.To = p.To
+
+				q1.As = AADR
+				q1.From.Type = obj.TYPE_BRANCH
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REG_R27
+
+				q2 := obj.Appendp(q1, c.newprog)
+				q2.Pos = p.Pos
+				q2.As = ASTP
+				q2.From.Type = obj.TYPE_REGREG
+				q2.From.Reg = REGFP
+				q2.From.Offset = int64(REG_R27)
+				q2.To.Type = obj.TYPE_MEM
+				q2.To.Reg = REGSP
+				q2.To.Offset = -24
+
+				// maintaine FP for DUFFCOPY
+				q3 := obj.Appendp(q2, c.newprog)
+				q3.Pos = p.Pos
+				q3.As = ASUB
+				q3.From.Type = obj.TYPE_CONST
+				q3.From.Offset = 24
+				q3.Reg = REGSP
+				q3.To.Type = obj.TYPE_REG
+				q3.To.Reg = REGFP
+
+				q5 := obj.Appendp(q4, c.newprog)
+				q5.Pos = p.Pos
+				q5.As = ASUB
+				q5.From.Type = obj.TYPE_CONST
+				q5.From.Offset = 8
+				q5.Reg = REGSP
+				q5.To.Type = obj.TYPE_REG
+				q5.To.Reg = REGFP
+				q1.Pcond = q5
+				p = q5
+			}
+
+		case obj.ADUFFZERO:
+			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+				//  ADR	ret_addr, R27
+				//  STP	(FP, R27), -24(SP)
+				//  SUB	24, SP, FP
+				//  DUFFZERO
+				// ret_addr:
+				//  SUB	8, SP, FP
+
+				q1 := p
+				// copy DUFFZERO from q1 to q4
+				q4 := obj.Appendp(p, c.newprog)
+				q4.Pos = p.Pos
+				q4.As = obj.ADUFFZERO
+				q4.To = p.To
+
+				q1.As = AADR
+				q1.From.Type = obj.TYPE_BRANCH
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REG_R27
+
+				q2 := obj.Appendp(q1, c.newprog)
+				q2.Pos = p.Pos
+				q2.As = ASTP
+				q2.From.Type = obj.TYPE_REGREG
+				q2.From.Reg = REGFP
+				q2.From.Offset = int64(REG_R27)
+				q2.To.Type = obj.TYPE_MEM
+				q2.To.Reg = REGSP
+				q2.To.Offset = -24
+
+				// maintaine FP for DUFFZERO
+				q3 := obj.Appendp(q2, c.newprog)
+				q3.Pos = p.Pos
+				q3.As = ASUB
+				q3.From.Type = obj.TYPE_CONST
+				q3.From.Offset = 24
+				q3.Reg = REGSP
+				q3.To.Type = obj.TYPE_REG
+				q3.To.Reg = REGFP
+
+				q5 := obj.Appendp(q4, c.newprog)
+				q5.Pos = p.Pos
+				q5.As = ASUB
+				q5.From.Type = obj.TYPE_CONST
+				q5.From.Offset = 8
+				q5.Reg = REGSP
+				q5.To.Type = obj.TYPE_REG
+				q5.To.Reg = REGFP
+				q1.Pcond = q5
+				p = q5
+			}
 		}
 	}
 }
@@ -813,14 +1036,15 @@ var unaryDst = map[obj.As]bool{
 	ADWORD: true,
 	ABL:    true,
 	AB:     true,
-	ASVC:   true,
+	ACLREX: true,
 }
 
 var Linkarm64 = obj.LinkArch{
-	Arch:       sys.ArchARM64,
-	Init:       buildop,
-	Preprocess: preprocess,
-	Assemble:   span7,
-	Progedit:   progedit,
-	UnaryDst:   unaryDst,
+	Arch:           sys.ArchARM64,
+	Init:           buildop,
+	Preprocess:     preprocess,
+	Assemble:       span7,
+	Progedit:       progedit,
+	UnaryDst:       unaryDst,
+	DWARFRegisters: ARM64DWARFRegisters,
 }
