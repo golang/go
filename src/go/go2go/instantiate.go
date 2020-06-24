@@ -819,7 +819,13 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			if len(f.Names) > 0 {
 				continue
 			}
-			id, ok := f.Type.(*ast.Ident)
+			isPtr := false
+			ftyp := f.Type
+			if star, ok := ftyp.(*ast.StarExpr); ok {
+				ftyp = star.X
+				isPtr = true
+			}
+			id, ok := ftyp.(*ast.Ident)
 			if !ok {
 				continue
 			}
@@ -832,6 +838,9 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 				continue
 			}
 			instType := t.instantiateType(ta, typeParam)
+			if isPtr {
+				instType = types.NewPointer(instType)
+			}
 			str := types.TypeString(instType, relativeTo(t.tpkg))
 			newField := &ast.Field{
 				Doc:     f.Doc,
