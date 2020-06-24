@@ -79,6 +79,10 @@ type AuxCall struct {
 	results []Param
 }
 
+// String returns
+// "AuxCall{<fn>(<args>)}"             if len(results) == 0;
+// "AuxCall{<fn>(<args>)<results[0]>}" if len(results) == 1;
+// "AuxCall{<fn>(<args>)(<results>)}"  otherwise.
 func (a *AuxCall) String() string {
 	var fn string
 	if a.Fn == nil {
@@ -125,8 +129,8 @@ func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
 }
 
 // ClosureAuxCall returns an AuxCall for a closure call.
-func ClosureAuxCall() *AuxCall {
-	return &AuxCall{}
+func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+	return &AuxCall{Fn: nil, args: args, results: results}
 }
 
 const (
