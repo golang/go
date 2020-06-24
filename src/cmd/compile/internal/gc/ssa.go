@@ -4306,7 +4306,7 @@ func (s *state) openDeferExit() {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[TUINTPTR], v)
-			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, v, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, v, s.mem())
 		} else {
 			// Do a static call if the original call was a static function or method
 			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym(), ACArgs, ACResults), s.mem())
@@ -4512,7 +4512,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			// critical that we not clobber any arguments already
 			// stored onto the stack.
 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
-			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, closure, s.mem())
+			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
 		case codeptr != nil:
 			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
 		case sym != nil:
