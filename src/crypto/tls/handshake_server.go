@@ -218,7 +218,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	}
 
 	if len(hs.clientHello.alpnProtocols) > 0 {
-		if selectedProto, fallback := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); !fallback {
+		if selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos); selectedProto != "" {
 			hs.hello.alpnProtocol = selectedProto
 			c.clientProtocol = selectedProto
 		}
