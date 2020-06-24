@@ -152,9 +152,9 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 }
 
 func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interface{}, error) {
-	v := act.handle.Get(ctx)
+	v, err := act.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, ctx.Err()
+		return nil, nil, err
 	}
 	data, ok := v.(*actionData)
 	if !ok {
@@ -182,9 +182,9 @@ func execAll(ctx context.Context, actions []*actionHandle) (map[*actionHandle]*a
 	for _, act := range actions {
 		act := act
 		g.Go(func() error {
-			v := act.handle.Get(ctx)
-			if v == nil {
-				return errors.Errorf("no analyses for %s", act.pkg.ID())
+			v, err := act.handle.Get(ctx)
+			if err != nil {
+				return err
 			}
 			data, ok := v.(*actionData)
 			if !ok {

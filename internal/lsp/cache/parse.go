@@ -91,7 +91,10 @@ func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, []byte, *protoc
 }
 
 func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
-	v := pgh.handle.Get(ctx)
+	v, err := pgh.handle.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
 	data, ok := v.(*parseGoData)
 	if !ok {
 		return nil, errors.Errorf("no parsed file for %s", pgh.File().URI())

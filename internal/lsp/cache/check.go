@@ -190,9 +190,9 @@ func (ph *packageHandle) Check(ctx context.Context) (source.Package, error) {
 }
 
 func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
-	v := ph.handle.Get(ctx)
-	if v == nil {
-		return nil, ctx.Err()
+	v, err := ph.handle.Get(ctx)
+	if err != nil {
+		return nil, err
 	}
 	data := v.(*packageData)
 	return data.pkg, data.err

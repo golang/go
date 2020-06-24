@@ -203,9 +203,9 @@ func (h *Handle) Cached() interface{} {
 // If the value is not yet ready, the underlying function will be invoked.
 // This activates the handle, and it will remember the value for as long as it exists.
 // If ctx is cancelled, Get returns nil.
-func (h *Handle) Get(ctx context.Context) interface{} {
+func (h *Handle) Get(ctx context.Context) (interface{}, error) {
 	if ctx.Err() != nil {
-		return nil
+		return nil, ctx.Err()
 	}
 	h.mu.Lock()
 	switch h.state {
@@ -215,14 +215,14 @@ func (h *Handle) Get(ctx context.Context) interface{} {
 		return h.wait(ctx)
 	case stateCompleted:
 		defer h.mu.Unlock()
-		return h.value
+		return h.value, nil
 	default:
 		panic("unknown state")
 	}
 }
 
 // run starts h.function and returns the result. h.mu must be locked.
-func (h *Handle) run(ctx context.Context) interface{} {
+func (h *Handle) run(ctx context.Context) (interface{}, error) {
 	childCtx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	h.cancel = cancel
 	h.state = stateRunning
@@ -258,7 +258,7 @@ func (h *Handle) run(ctx context.Context) interface{} {
 }
 
 // wait waits for the value to be computed, or ctx to be cancelled. h.mu must be locked.
-func (h *Handle) wait(ctx context.Context) interface{} {
+func (h *Handle) wait(ctx context.Context) (interface{}, error) {
 	h.waiters++
 	done := h.done
 	h.mu.Unlock()
@@ -268,9 +268,9 @@ func (h *Handle) wait(ctx context.Context) interface{} {
 		h.mu.Lock()
 		defer h.mu.Unlock()
 		if h.state == stateCompleted {
-			return h.value
+			return h.value, nil
 		}
-		return nil
+		return nil, nil
 	case <-ctx.Done():
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -282,7 +282,7 @@ func (h *Handle) wait(ctx context.Context) interface{} {
 			h.done = nil
 			h.cancel = nil
 		}
-		return nil
+		return nil, ctx.Err()
 	}
 }
 

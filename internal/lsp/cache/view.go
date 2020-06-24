@@ -280,9 +280,9 @@ func (v *View) BuiltinPackage(ctx context.Context) (source.BuiltinPackage, error
 	if v.builtin == nil {
 		return nil, errors.Errorf("no builtin package for view %s", v.name)
 	}
-	data := v.builtin.handle.Get(ctx)
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
+	data, err := v.builtin.handle.Get(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if data == nil {
 		return nil, errors.Errorf("unexpected nil builtin package")

@@ -55,9 +55,9 @@ func (mh *parseModHandle) Sum() source.FileHandle {
 }
 
 func (mh *parseModHandle) Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []source.Error, error) {
-	v := mh.handle.Get(ctx)
-	if v == nil {
-		return nil, nil, nil, ctx.Err()
+	v, err := mh.handle.Get(ctx)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	data := v.(*parseModData)
 	return data.parsed, data.m, data.parseErrors, data.err
@@ -200,9 +200,9 @@ type modWhyData struct {
 }
 
 func (mwh *modWhyHandle) Why(ctx context.Context) (map[string]string, error) {
-	v := mwh.handle.Get(ctx)
-	if v == nil {
-		return nil, ctx.Err()
+	v, err := mwh.handle.Get(ctx)
+	if err != nil {
+		return nil, err
 	}
 	data := v.(*modWhyData)
 	return data.why, data.err
@@ -287,9 +287,9 @@ type modUpgradeData struct {
 }
 
 func (muh *modUpgradeHandle) Upgrades(ctx context.Context) (map[string]string, error) {
-	v := muh.handle.Get(ctx)
+	v, err := muh.handle.Get(ctx)
 	if v == nil {
-		return nil, ctx.Err()
+		return nil, err
 	}
 	data := v.(*modUpgradeData)
 	return data.upgrades, data.err

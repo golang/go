@@ -49,9 +49,9 @@ type modTidyData struct {
 }
 
 func (mth *modTidyHandle) Tidy(ctx context.Context) (map[string]*modfile.Require, []source.Error, error) {
-	v := mth.handle.Get(ctx)
-	if v == nil {
-		return nil, nil, ctx.Err()
+	v, err := mth.handle.Get(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 	data := v.(*modTidyData)
 	return data.missingDeps, data.diagnostics, data.err

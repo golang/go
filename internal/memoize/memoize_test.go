@@ -217,8 +217,11 @@ func joinValues(ctx context.Context, s *memoize.Store, name string, keys ...stri
 	fmt.Fprintf(w, "start %v\n", name)
 	value := ""
 	for _, key := range keys {
-		v := asValue(s.Bind(key, generate(s, key)).Get(ctx))
-		if v == nil {
+		i, err := s.Bind(key, generate(s, key)).Get(ctx)
+		if err != nil {
+			return &stringOrError{err: err}
+		}
+		if v := asValue(i); v == nil {
 			value = value + " <nil>"
 		} else if v.err != nil {
 			value = value + " !" + v.err.Error()

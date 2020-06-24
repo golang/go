@@ -72,9 +72,9 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 	h := c.store.Bind(key, func(ctx context.Context) interface{} {
 		return readFile(ctx, uri, modTime)
 	})
-	v := h.Get(ctx)
-	if v == nil {
-		return nil, ctx.Err()
+	v, err := h.Get(ctx)
+	if err != nil {
+		return nil, err
 	}
 	return v.(*fileHandle), nil
 }
