@@ -278,7 +278,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.LoadTests = *getT
 
-	buildList := modload.LoadBuildList()
+	buildList := modload.LoadBuildList(ctx)
 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
 	versionByPath := make(map[string]string)
 	for _, m := range buildList {
@@ -444,7 +444,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// packages in unknown modules can't be expanded. This also avoids looking
 	// up new modules while loading packages, only to downgrade later.
 	queryCache := make(map[querySpec]*query)
-	byPath := runQueries(queryCache, queries, nil)
+	byPath := runQueries(ctx, queryCache, queries, nil)
 
 	// Add missing modules to the build list.
 	// We call SetBuildList here and elsewhere, since newUpgrader,
@@ -586,7 +586,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Query target versions for modules providing packages matched by
 		// command line arguments.
-		byPath = runQueries(queryCache, queries, modOnly)
+		byPath = runQueries(ctx, queryCache, queries, modOnly)
 
 		// Handle upgrades. This is needed for arguments that didn't match
 		// modules or matched different modules from a previous iteration. It
@@ -724,7 +724,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 // versions (including earlier queries in the modOnly map), an error will be
 // reported. A map from module paths to queries is returned, which includes
 // queries and modOnly.
-func runQueries(cache map[querySpec]*query, queries []*query, modOnly map[string]*query) map[string]*query {
+func runQueries(ctx context.Context, cache map[querySpec]*query, queries []*query, modOnly map[string]*query) map[string]*query {
 	var lookup par.Work
 	for _, q := range queries {
 		if cached := cache[q.querySpec]; cached != nil {
