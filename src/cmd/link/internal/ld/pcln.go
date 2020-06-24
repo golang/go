@@ -227,13 +227,41 @@ func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader
 	return its
 }
 
+// generatePCHeader creates the runtime.pcheader symbol, setting it up as a
+// generator to fill in its data later.
+func generatePCHeader(ctxt *Link, carrier *loader.SymbolBuilder, pclntabSym loader.Sym) {
+	ldr := ctxt.loader
+	writeHeader := func(ctxt *Link, s loader.Sym) {
+		ldr := ctxt.loader
+		header := ctxt.loader.MakeSymbolUpdater(s)
+
+		// Check symbol order.
+		diff := ldr.SymValue(pclntabSym) - ldr.SymValue(s)
+		if diff <= 0 {
+			panic(fmt.Sprintf("expected runtime.pcheader(%x) to be placed before runtime.pclntab(%x)", ldr.SymValue(s), ldr.SymValue(pclntabSym)))
+		}
+
+		// Write header.
+		// Keep in sync with runtime/symtab.go:pcHeader.
+		header.SetUint32(ctxt.Arch, 0, 0xfffffffa)
+		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
+		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
+		off := header.SetUint(ctxt.Arch, 8, uint64(pclntabNfunc))
+		header.SetUintptr(ctxt.Arch, off, uintptr(diff))
+	}
+
+	size := int64(8 + 2*ctxt.Arch.PtrSize)
+	s := ctxt.createGeneratorSymbol("runtime.pcheader", 0, sym.SPCLNTAB, size, writeHeader)
+	ldr.SetAttrReachable(s, true)
+	ldr.SetCarrierSym(s, carrier.Sym())
+}
+
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
 // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
 var pclntabFiletabOffset int32
-var pclntabPclntabOffset int32
 var pclntabFirstFunc loader.Sym
 var pclntabLastFunc loader.Sym
 
@@ -242,21 +270,45 @@ var pclntabLastFunc loader.Sym
 // symbols, e.g. the set of all symbols X such that Outer(S) = X for
 // some other text symbol S.
 func (ctxt *Link) pclntab() loader.Bitmap {
-	funcdataBytes := int64(0)
+	// Go 1.2's symtab layout is documented in golang.org/s/go12symtab, but the
+	// layout and data has changed since that time.
+	//
+	// As of July 2020, here's the layout of pclntab:
+	//
+	//  .gopclntab/__gopclntab [elf/macho section]
+	//    runtime.pclntab
+	//      Carrier symbol for the entire pclntab section.
+	//
+	//      runtime.pcheader  (see: runtime/symtab.go:pcHeader)
+	//        8-byte magic
+	//        nfunc [thearch.ptrsize bytes]
+	//        offset to runtime.pclntab_old from beginning of runtime.pcheader
+	//
+	//      runtime.pclntab_old
+	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
+	//        end PC [thearch.ptrsize bytes]
+	//        offset to file table [4 bytes]
+	//        func structures, function names, pcdata tables.
+	//        filetable
+
 	ldr := ctxt.loader
-	ftabsym := ldr.LookupOrCreateSym("runtime.pclntab", 0)
-	ftab := ldr.MakeSymbolUpdater(ftabsym)
+	carrier := ldr.CreateSymForUpdate("runtime.pclntab", 0)
+	carrier.SetType(sym.SPCLNTAB)
+	carrier.SetReachable(true)
+
+	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
+	// It contains the pieces of runtime.pclntab that haven't moved to a more
+	// ration form.
+	pclntabSym := ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
+	generatePCHeader(ctxt, carrier, pclntabSym)
+
+	funcdataBytes := int64(0)
+	ldr.SetCarrierSym(pclntabSym, carrier.Sym())
+	ftab := ldr.MakeSymbolUpdater(pclntabSym)
 	ftab.SetType(sym.SPCLNTAB)
-	ldr.SetAttrReachable(ftabsym, true)
+	ftab.SetReachable(true)
 
 	state := makepclnState(ctxt)
-
-	// See golang.org/s/go12symtab for the format. Briefly:
-	//	8-byte header
-	//	nfunc [thearch.ptrsize bytes]
-	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
-	//	end PC [thearch.ptrsize bytes]
-	//	offset to file table [4 bytes]
 
 	// Find container symbols and mark them as such.
 	for _, s := range ctxt.Textp {
@@ -290,12 +342,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	}
 
 	pclntabNfunc = nfunc
-	ftab.Grow(8 + int64(ctxt.Arch.PtrSize) + int64(nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
-	ftab.SetUint32(ctxt.Arch, 0, 0xfffffffb)
-	ftab.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
-	ftab.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
-	ftab.SetUint(ctxt.Arch, 8, uint64(nfunc))
-	pclntabPclntabOffset = int32(8 + ctxt.Arch.PtrSize)
+	ftab.Grow(int64(nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
 
 	szHint := len(ctxt.Textp) * 2
 	funcnameoff := make(map[string]int32, szHint)
@@ -360,8 +407,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 			// invalid funcoff value to mark the hole. See also
 			// runtime/symtab.go:findfunc
 			prevFuncSize := int64(ldr.SymSize(prevFunc))
-			setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
-			ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
+			setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
+			ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
 			nfunc++
 		}
 		prevFunc = s
@@ -410,8 +457,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		funcstart := int32(dSize)
 		funcstart += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1) // align to ptrsize
 
-		setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
-		ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
+		setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
+		ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
 
 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
 		// and package debug/gosym.
@@ -523,14 +570,14 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	last := ctxt.Textp[len(ctxt.Textp)-1]
 	pclntabLastFunc = last
 	// Final entry of table is just end pc.
-	setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
+	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
 
 	// Start file table.
 	dSize := len(ftab.Data())
 	start := int32(dSize)
 	start += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1)
 	pclntabFiletabOffset = start
-	ftab.SetUint32(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
+	ftab.SetUint32(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
 
 	nf := len(state.numberedFiles)
 	ftab.Grow(int64(start) + int64((nf+1)*4))

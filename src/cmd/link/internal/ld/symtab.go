@@ -607,13 +607,15 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	// the definition of moduledata in runtime/symtab.go.
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
-	pclntab := ldr.Lookup("runtime.pclntab", 0)
+	// The pcHeader
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.pcheader", 0))
 	// The pclntab slice
+	pclntab := ldr.Lookup("runtime.pclntab_old", 0)
 	moduledata.AddAddr(ctxt.Arch, pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
 	// The ftab slice
-	moduledata.AddAddrPlus(ctxt.Arch, pclntab, int64(pclntabPclntabOffset))
+	moduledata.AddAddr(ctxt.Arch, pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
 	// The filetab slice
