@@ -86,7 +86,11 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 			Importer: importer,
 			Error:    merr.add,
 		}
-		tpkg, err := conf.Check(pkg.Name, fset, asts, importer.info)
+		path := importPath
+		if path == "" {
+			path = pkg.Name
+		}
+		tpkg, err := conf.Check(path, fset, asts, importer.info)
 		if err != nil {
 			return nil, fmt.Errorf("type checking failed for %s\n%v", pkg.Name, merr)
 		}
