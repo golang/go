@@ -47,9 +47,6 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 	return result, nil
 }
 
-var testMatcher = regexp.MustCompile("^Test[^a-z]")
-var benchMatcher = regexp.MustCompile("^Benchmark[^a-z]")
-
 func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *ast.File, m *protocol.ColumnMapper) ([]protocol.CodeLens, error) {
 	codeLens := make([]protocol.CodeLens, 0)
 
@@ -90,40 +87,48 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *a
 	return codeLens, nil
 }
 
+var testRe = regexp.MustCompile("^Test[^a-z]")
+var benchmarkRe = regexp.MustCompile("^Benchmark[^a-z]")
+
 func isTestFunc(fn *ast.FuncDecl, pkg Package) bool {
-	typesInfo := pkg.GetTypesInfo()
-	if typesInfo == nil {
+	// Make sure that the function name matches either a test or benchmark function.
+	if !(testRe.MatchString(fn.Name.Name) || benchmarkRe.MatchString(fn.Name.Name)) {
 		return false
 	}
-
-	sig, ok := typesInfo.ObjectOf(fn.Name).Type().(*types.Signature)
+	info := pkg.GetTypesInfo()
+	if info == nil {
+		return false
+	}
+	obj := info.ObjectOf(fn.Name)
+	if obj == nil {
+		return false
+	}
+	sig, ok := obj.Type().(*types.Signature)
 	if !ok {
 		return false
 	}
 
-	// test funcs should have a single parameter, so we can exit early if that's not the case.
+	// Test functions should have only one parameter.
 	if sig.Params().Len() != 1 {
 		return false
 	}
 
-	firstParam, ok := sig.Params().At(0).Type().(*types.Pointer)
+	// Check the type of the only parameter to confirm that it is *testing.T
+	// or *testing.B.
+	paramTyp, ok := sig.Params().At(0).Type().(*types.Pointer)
 	if !ok {
 		return false
 	}
-
-	firstParamElem, ok := firstParam.Elem().(*types.Named)
+	named, ok := paramTyp.Elem().(*types.Named)
 	if !ok {
 		return false
 	}
-
-	firstParamObj := firstParamElem.Obj()
-	if firstParamObj.Pkg().Path() != "testing" {
+	namedObj := named.Obj()
+	if namedObj.Pkg().Path() != "testing" {
 		return false
 	}
-
-	firstParamName := firstParamObj.Id()
-	return (firstParamName == "T" && testMatcher.MatchString(fn.Name.Name)) ||
-		(firstParamName == "B" && benchMatcher.MatchString(fn.Name.Name))
+	paramName := namedObj.Id()
+	return paramName == "T" || paramName == "B"
 }
 
 func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle, f *ast.File, m *protocol.ColumnMapper) ([]protocol.CodeLens, error) {
