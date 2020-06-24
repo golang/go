@@ -47,11 +47,15 @@ func (s *CertPool) copy() *CertPool {
 
 // SystemCertPool returns a copy of the system cert pool.
 //
-// Any mutations to the returned pool are not written to disk and do
-// not affect any other pool returned by SystemCertPool.
+// On Unix systems other than macOS the environment variables SSL_CERT_FILE and
+// SSL_CERT_DIR can be used to override the system default locations for the SSL
+// certificate file and SSL certificate files directory, respectively. The
+// latter can be a colon-separated list.
 //
-// New changes in the system cert pool might not be reflected
-// in subsequent calls.
+// Any mutations to the returned pool are not written to disk and do not affect
+// any other pool returned by SystemCertPool.
+//
+// New changes in the system cert pool might not be reflected in subsequent calls.
 func SystemCertPool() (*CertPool, error) {
 	if runtime.GOOS == "windows" {
 		// Issue 16736, 18609:
