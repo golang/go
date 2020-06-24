@@ -107,7 +107,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		case *ast.SelectorExpr:
 			name = fmt.Sprintf("%s.%s", typ.X, typ.Sel.Name)
 		default:
-			log.Printf("anonymous structs are not yet supported: %v (%T)", expr.Type, expr.Type)
+			log.Printf("anonymous structs are not yet supported: (%T)", expr.Type)
 			return
 		}
 
@@ -119,6 +119,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		fset := token.NewFileSet()
 		tok := fset.AddFile("", -1, fieldCount+2)
 
+		line := 2 // account for 1-based lines and the left brace
 		var elts []ast.Expr
 		for i := 0; i < fieldCount; i++ {
 			field := obj.Field(i)
@@ -133,8 +134,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 
-			line := i + 2      // account for 1-based lines and the left brace
-			tok.AddLine(i + 1) // add 1 byte per line
+			tok.AddLine(line - 1) // add 1 byte per line
+			if line > tok.LineCount() {
+				panic(fmt.Sprintf("invalid line number %v (of %v) for fillstruct %s", line, tok.LineCount(), name))
+			}
 			pos := tok.LineStart(line)
 
 			kv := &ast.KeyValueExpr{
@@ -146,6 +149,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				Value: value,
 			}
 			elts = append(elts, kv)
+			line++
 		}
 
 		// If all of the struct's fields are unexported, we have nothing to do.
@@ -156,12 +160,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// Add the final line for the right brace. Offset is the number of
 		// bytes already added plus 1.
 		tok.AddLine(len(elts) + 1)
+		line = len(elts) + 2
+		if line > tok.LineCount() {
+			panic(fmt.Sprintf("invalid line number %v (of %v) for fillstruct %s", line, tok.LineCount(), name))
+		}
 
 		cl := &ast.CompositeLit{
 			Type:   expr.Type,
 			Lbrace: tok.LineStart(1),
 			Elts:   elts,
-			Rbrace: tok.LineStart(len(elts) + 2),
+			Rbrace: tok.LineStart(line),
 		}
 
 		// Print the AST to get the the original source code.
@@ -174,13 +182,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// Find the line on which the composite literal is declared.
 		split := strings.Split(b.String(), "\n")
 		lineNumber := pass.Fset.Position(expr.Type.Pos()).Line
-		line := split[lineNumber-1] // lines are 1-indexed
+		firstLine := split[lineNumber-1] // lines are 1-indexed
 
 		// Trim the whitespace from the left of the line, and use the index
 		// to get the amount of whitespace on the left.
-		trimmed := strings.TrimLeftFunc(line, unicode.IsSpace)
-		i := strings.Index(line, trimmed)
-		whitespace := line[:i]
+		trimmed := strings.TrimLeftFunc(firstLine, unicode.IsSpace)
+		index := strings.Index(firstLine, trimmed)
+		whitespace := firstLine[:index]
 
 		var newExpr bytes.Buffer
 		if err := format.Node(&newExpr, fset, cl); err != nil {

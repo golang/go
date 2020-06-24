@@ -1,13 +1,34 @@
--- suggestedfix_fill_struct_package_8_14 --
+-- suggestedfix_fill_struct_package_10_14 --
 package fillstruct
 
 import (
+	h2 "net/http"
+
 	"golang.org/x/tools/internal/lsp/fillstruct/data"
 )
 
 func unexported() {
 	a := data.A{
 		ExportedInt: 0,
+	}   //@suggestedfix("}", "refactor.rewrite")
+	_ = h2.Client{} //@suggestedfix("}", "refactor.rewrite")
+}
+
+-- suggestedfix_fill_struct_package_11_16 --
+package fillstruct
+
+import (
+	h2 "net/http"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+func unexported() {
+	a := data.A{}   //@suggestedfix("}", "refactor.rewrite")
+	_ = h2.Client{
+		Transport: nil,
+		Jar:       nil,
+		Timeout:   0,
 	} //@suggestedfix("}", "refactor.rewrite")
 }
 
