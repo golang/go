@@ -98,6 +98,11 @@ func TestURIFromURI(t *testing.T) {
 			wantFile: `/`,
 			wantURI:  span.URI(`file:///`),
 		},
+		{
+			inputURI: `file://wsl%24/Ubuntu/home/wdcui/repo/VMEnclaves/cvm-runtime`,
+			wantFile: `/wsl$/Ubuntu/home/wdcui/repo/VMEnclaves/cvm-runtime`,
+			wantURI:  span.URI(`file:///wsl$/Ubuntu/home/wdcui/repo/VMEnclaves/cvm-runtime`),
+		},
 	} {
 		got := span.URIFromURI(test.inputURI)
 		if got != test.wantURI {

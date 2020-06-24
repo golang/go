@@ -54,10 +54,14 @@ func filename(uri URI) (string, error) {
 }
 
 func URIFromURI(s string) URI {
-	if !strings.HasPrefix(s, "file:///") {
+	if !strings.HasPrefix(s, "file://") {
 		return URI(s)
 	}
 
+	if !strings.HasPrefix(s, "file:///") {
+		// VS Code sends URLs with only two slashes, which are invalid. golang/go#39789.
+		s = "file:///" + s[len("file://"):]
+	}
 	// Even though the input is a URI, it may not be in canonical form. VS Code
 	// in particular over-escapes :, @, etc. Unescape and re-encode to canonicalize.
 	path, err := url.PathUnescape(s[len("file://"):])
