@@ -1,0 +1,32 @@
+-- suggestedfix_extract_scope_11_9 --
+package extract
+
+import "go/ast"
+
+func _() {
+	x0 := 0
+	if true {
+		y := ast.CompositeLit{} //@suggestedfix("ast.CompositeLit{}", "refactor.extract")
+	}
+	if true {
+		x2 := !false
+		x1 := x2 //@suggestedfix("!false", "refactor.extract")
+	}
+}
+
+-- suggestedfix_extract_scope_8_8 --
+package extract
+
+import "go/ast"
+
+func _() {
+	x0 := 0
+	if true {
+		x1 := ast.CompositeLit{}
+		y := x1 //@suggestedfix("ast.CompositeLit{}", "refactor.extract")
+	}
+	if true {
+		x1 := !false //@suggestedfix("!false", "refactor.extract")
+	}
+}
+

@@ -217,6 +217,7 @@ func DefaultOptions() source.Options {
 			protocol.SourceOrganizeImports: true,
 			protocol.QuickFix:              true,
 			protocol.RefactorRewrite:       true,
+			protocol.RefactorExtract:       true,
 			protocol.SourceFixAll:          true,
 		},
 		source.Mod: {

@@ -162,6 +162,13 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 			codeActions = append(codeActions, fixes...)
 		}
+		if wanted[protocol.RefactorExtract] {
+			fixes, err := extractionFixes(ctx, snapshot, ph, uri, params.Range)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, fixes...)
+		}
 	default:
 		// Unsupported file kind for a code action.
 		return nil, nil
@@ -383,6 +390,29 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		}
 	}
 	return codeActions, nil
+}
+
+func extractionFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+	fh, err := snapshot.GetFile(ctx, uri)
+	if err != nil {
+		return nil, nil
+	}
+	edits, err := source.ExtractVariable(ctx, snapshot, fh, rng)
+	if err != nil {
+		return nil, err
+	}
+	if len(edits) == 0 {
+		return nil, nil
+	}
+	return []protocol.CodeAction{
+		{
+			Title: "Extract to variable",
+			Kind:  protocol.RefactorExtract,
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: documentChanges(fh, edits),
+			},
+		},
+	}, nil
 }
 
 func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {

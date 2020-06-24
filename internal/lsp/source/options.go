@@ -94,6 +94,7 @@ func DefaultOptions() Options {
 					protocol.SourceOrganizeImports: true,
 					protocol.QuickFix:              true,
 					protocol.RefactorRewrite:       true,
+					protocol.RefactorExtract:       true,
 				},
 				Mod: {
 					protocol.SourceOrganizeImports: true,

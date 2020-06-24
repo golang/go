@@ -955,21 +955,7 @@ func (c *completer) methodsAndFields(ctx context.Context, typ types.Type, addres
 
 // lexical finds completions in the lexical environment.
 func (c *completer) lexical(ctx context.Context) error {
-	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
-	for _, n := range c.path {
-		// Include *FuncType scope if pos is inside the function body.
-		switch node := n.(type) {
-		case *ast.FuncDecl:
-			if node.Body != nil && nodeContains(node.Body, c.pos) {
-				n = node.Type
-			}
-		case *ast.FuncLit:
-			if node.Body != nil && nodeContains(node.Body, c.pos) {
-				n = node.Type
-			}
-		}
-		scopes = append(scopes, c.pkg.GetTypesInfo().Scopes[n])
-	}
+	scopes := collectScopes(c.pkg, c.path, c.pos)
 	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
 	var (
@@ -1104,6 +1090,26 @@ func (c *completer) lexical(ctx context.Context) error {
 	c.addKeywordCompletions()
 
 	return nil
+}
+
+func collectScopes(pkg Package, path []ast.Node, pos token.Pos) []*types.Scope {
+	// scopes[i], where i<len(path), is the possibly nil Scope of path[i].
+	var scopes []*types.Scope
+	for _, n := range path {
+		// Include *FuncType scope if pos is inside the function body.
+		switch node := n.(type) {
+		case *ast.FuncDecl:
+			if node.Body != nil && nodeContains(node.Body, pos) {
+				n = node.Type
+			}
+		case *ast.FuncLit:
+			if node.Body != nil && nodeContains(node.Body, pos) {
+				n = node.Type
+			}
+		}
+		scopes = append(scopes, pkg.GetTypesInfo().Scopes[n])
+	}
+	return scopes
 }
 
 func (c *completer) unimportedPackages(ctx context.Context, seen map[string]struct{}) error {

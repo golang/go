@@ -76,6 +76,10 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 		}
 	}
 
+	rng, err := file.mapper.Range(from)
+	if err != nil {
+		return err
+	}
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
@@ -84,6 +88,7 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 			Only:        codeActionKinds,
 			Diagnostics: file.diagnostics,
 		},
+		Range: rng,
 	}
 	actions, err := conn.CodeAction(ctx, &p)
 	if err != nil {
@@ -116,6 +121,15 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 					}
 				}
 				break
+			}
+		}
+
+		// If suggested fix is not a diagnostic, still must collect edits.
+		if len(a.Diagnostics) == 0 {
+			for _, c := range a.Edit.DocumentChanges {
+				if fileURI(c.TextDocument.URI) == uri {
+					edits = append(edits, c.Edits...)
+				}
 			}
 		}
 	}
