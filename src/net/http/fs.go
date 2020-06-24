@@ -408,6 +408,7 @@ func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
 		}
 		if buf[0] == ',' {
 			buf = buf[1:]
+			continue
 		}
 		if buf[0] == '*' {
 			return condFalse
