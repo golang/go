@@ -296,6 +296,14 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 	}
 	file.Decls = decls
 
+	// If we have a ./ import, let it override a standard import
+	// we may have added due to t.typePackages.
+	for path := range imps {
+		if strings.HasPrefix(path, "./") {
+			delete(imps, strings.TrimPrefix(path, "./"))
+		}
+	}
+
 	paths := make([]string, 0, len(imps))
 	for p := range imps {
 		paths = append(paths, p)
