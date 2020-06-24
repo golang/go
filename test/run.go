@@ -260,11 +260,13 @@ func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Import
 			gofiles[i] = strings.TrimSuffix(name, ".go2") + ".go"
 		}
 
-		defer func() {
-			for _, name := range gofiles {
-				os.Remove(filepath.Join(dir, name))
-			}
-		}()
+		if !*keep {
+			defer func() {
+				for _, name := range gofiles {
+					os.Remove(filepath.Join(dir, name))
+				}
+			}()
+		}
 	}
 
 	cmd := []string{goTool(), "tool", "compile", "-e"}
@@ -694,7 +696,9 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		defer os.Remove(filepath.Join(t.dir, t.gofile))
+		if !*keep {
+			defer os.Remove(filepath.Join(t.dir, t.gofile))
+		}
 	}
 
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
