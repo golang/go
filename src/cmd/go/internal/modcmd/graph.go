@@ -49,7 +49,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: cannot find main module; see 'go help modules'")
 		}
 	}
-	modload.LoadBuildList()
+	modload.LoadBuildList(ctx)
 
 	reqs := modload.MinReqs()
 	format := func(m module.Version) string {

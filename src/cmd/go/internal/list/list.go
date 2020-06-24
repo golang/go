@@ -413,9 +413,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		modload.LoadBuildList()
+		modload.LoadBuildList(ctx)
 
-		mods := modload.ListModules(args, *listU, *listVersions)
+		mods := modload.ListModules(ctx, args, *listU, *listVersions)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {

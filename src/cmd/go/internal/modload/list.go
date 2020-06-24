@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -19,8 +20,8 @@ import (
 	"golang.org/x/mod/module"
 )
 
-func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
-	mods := listModules(args, listVersions)
+func ListModules(ctx context.Context, args []string, listU, listVersions bool) []*modinfo.ModulePublic {
+	mods := listModules(ctx, args, listVersions)
 	if listU || listVersions {
 		var work par.Work
 		for _, m := range mods {
@@ -42,8 +43,8 @@ func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePubli
 	return mods
 }
 
-func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
-	LoadBuildList()
+func listModules(ctx context.Context, args []string, listVersions bool) []*modinfo.ModulePublic {
+	LoadBuildList(ctx)
 	if len(args) == 0 {
 		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
 	}

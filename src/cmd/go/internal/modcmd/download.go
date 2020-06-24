@@ -106,7 +106,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	var work par.Work
 	listU := false
 	listVersions := false
-	for _, info := range modload.ListModules(args, listU, listVersions) {
+	for _, info := range modload.ListModules(ctx, args, listU, listVersions) {
 		if info.Replace != nil {
 			info = info.Replace
 		}
