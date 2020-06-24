@@ -40,6 +40,9 @@
 // These are deficiencies of the tool, they will work as expected in
 // any complete implementation.
 //
+// Similarly, generic function and type bodies that refer to unexported,
+// non-generic, names can't be instantiated by different packages.
+//
 // Because this tool generates Go files, and because it generates type
 // and function instantiations alongside other code in the package that
 // instantiates those functions and types, and because those instantiatations
