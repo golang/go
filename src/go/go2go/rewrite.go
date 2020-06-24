@@ -948,6 +948,9 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
+		if obj := t.importer.info.ObjectOf(fun); obj != nil && obj.Pkg() != t.tpkg {
+			return qualifiedIdent{pkg: obj.Pkg(), ident: fun}
+		}
 		return qualifiedIdent{ident: fun}
 	case *ast.SelectorExpr:
 		pkgname, ok := fun.X.(*ast.Ident)

@@ -1,0 +1,23 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "./a"
+
+type S(type T) struct {
+	F T
+}
+
+func NewS(type T)(v T) S(T) {
+	return S(T){F: v}
+}
+
+func main() {
+	v1 := a.NewS(0)
+	v2 := NewS(0)
+	if v1.F != v2.F {
+		panic(v1)
+	}
+}
