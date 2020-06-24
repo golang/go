@@ -557,7 +557,6 @@ func schedinit() {
 
 	sched.maxmcount = 10000
 
-	tracebackinit()
 	moduledataverify()
 	stackinit()
 	mallocinit()
