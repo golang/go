@@ -296,11 +296,13 @@ func (imp *Importer) localImport(importPath, dir string) (*types.Package, error)
 
 // record records information for a package, for use when working
 // with packages that import this one.
-func (imp *Importer) record(pkgfiles []namedAST, importPath string, tpkg *types.Package, asts []*ast.File) {
-	if importPath != "" {
-		imp.packages[importPath] = tpkg
+func (imp *Importer) record(pkgName string, pkgfiles []namedAST, importPath string, tpkg *types.Package, asts []*ast.File) {
+	if !strings.HasSuffix(pkgName, "_test") {
+		if importPath != "" {
+			imp.packages[importPath] = tpkg
+		}
+		imp.imports[importPath] = imp.collectImports(asts)
 	}
-	imp.imports[importPath] = imp.collectImports(asts)
 	for _, nast := range pkgfiles {
 		imp.addIDs(nast.ast)
 	}

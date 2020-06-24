@@ -95,9 +95,7 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 			return nil, fmt.Errorf("type checking failed for %s\n%v", pkg.Name, merr)
 		}
 
-		if !strings.HasSuffix(pkg.Name, "_test") {
-			importer.record(pkgfiles, importPath, tpkg, asts)
-		}
+		importer.record(pkg.Name, pkgfiles, importPath, tpkg, asts)
 
 		rpkgs = append(rpkgs, tpkg)
 		tpkgs = append(tpkgs, pkgfiles)
