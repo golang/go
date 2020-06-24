@@ -136,6 +136,8 @@ func walkSymlinks(path string) (string, error) {
 			}
 			if r < volLen {
 				dest = vol
+			} else if r == 0 && os.IsPathSeparator(dest[0]) {
+				dest = dest[:1]
 			} else {
 				dest = dest[:r]
 			}
