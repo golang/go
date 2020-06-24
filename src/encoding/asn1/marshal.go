@@ -136,6 +136,7 @@ func (t *taggedEncoder) Len() int {
 
 func (t *taggedEncoder) Encode(dst []byte) {
 	t.tag.Encode(dst)
+
 	t.body.Encode(dst[t.tag.Len():])
 }
 
@@ -178,7 +179,7 @@ func base128IntLength(n int64) int {
 	return l
 }
 
-func base128IntLengthBigInt(n *big.Int) int {
+func base128BigIntLength(n *big.Int) int {
 	if n.Sign() == 0 {
 		return 1
 	}
@@ -207,8 +208,8 @@ func appendBase128Int(dst []byte, n int64) []byte {
 	return dst
 }
 
-func appendBase128IntBigInt(dst []byte, n *big.Int) []byte {
-	l := base128IntLengthBigInt(n)
+func appendBase128BigInt(dst []byte, n *big.Int) []byte {
+	l := base128BigIntLength(n)
 
 	for i := l - 1; i >= 0; i-- {
 		b := new(big.Int).Rsh(n, uint(i*7))
@@ -337,37 +338,55 @@ func (oid oidEncoder) Encode(dst []byte) {
 	}
 }
 
-type oidEncoderInt64 []int64
+type oidEncoderExt ObjectIdentifierExt
 
-func (oid oidEncoderInt64) Len() int {
-	l := base128IntLength(int64(oid[0]*40 + oid[1]))
+func (oid oidEncoderExt) s() int64 {
+	var s int64
+	switch v := oid[0].(type) {
+	case int:
+		s = int64(v) * 40
+	case int64:
+		s = v * 40
+	case *big.Int:
+		s = new(big.Int).Mul(v, bigForty).Int64()
+	}
+	switch v := oid[1].(type) {
+	case int:
+		s += int64(v)
+	case int64:
+		s += v
+	case *big.Int:
+		s += v.Int64()
+	}
+	return s
+}
+
+func (oid oidEncoderExt) Len() int {
+	l := base128IntLength(oid.s())
 	for i := 2; i < len(oid); i++ {
-		l += base128IntLength(int64(oid[i]))
+		switch v := oid[i].(type) {
+		case int:
+			l += base128IntLength(int64(v))
+		case int64:
+			l += base128IntLength(v)
+		case *big.Int:
+			l += base128BigIntLength(v)
+		}
 	}
 	return l
 }
 
-func (oid oidEncoderInt64) Encode(dst []byte) {
-	dst = appendBase128Int(dst[:0], int64(oid[0]*40+oid[1]))
+func (oid oidEncoderExt) Encode(dst []byte) {
+	dst = appendBase128Int(dst[:0], oid.s())
 	for i := 2; i < len(oid); i++ {
-		dst = appendBase128Int(dst, int64(oid[i]))
-	}
-}
-
-type oidEncoderBigInt []*big.Int
-
-func (oid oidEncoderBigInt) Len() int {
-	l := base128IntLengthBigInt(new(big.Int).Add(new(big.Int).Mul(oid[0], bigForty), oid[1]))
-	for i := 2; i < len(oid); i++ {
-		l += base128IntLengthBigInt(oid[i])
-	}
-	return l
-}
-
-func (oid oidEncoderBigInt) Encode(dst []byte) {
-	dst = appendBase128IntBigInt(dst[:0], new(big.Int).Add(new(big.Int).Mul(oid[0], bigForty), oid[1]))
-	for i := 2; i < len(oid); i++ {
-		dst = appendBase128IntBigInt(dst, oid[i])
+		switch v := oid[i].(type) {
+		case int:
+			dst = appendBase128Int(dst, int64(v))
+		case int64:
+			dst = appendBase128Int(dst, v)
+		case *big.Int:
+			dst = appendBase128BigInt(dst, v)
+		}
 	}
 }
 
@@ -379,19 +398,47 @@ func makeObjectIdentifier(oid []int) (e encoder, err error) {
 	return oidEncoder(oid), nil
 }
 
-func makeObjectIdentifierInt64(oid []int64) (e encoder, err error) {
-	if len(oid) < 2 || oid[0] > 2 || (oid[0] < 2 && oid[1] >= 40) {
+func makeObjectIdentifierExt(oid ObjectIdentifierExt) (e encoder, err error) {
+	isValid := true
+	if len(oid) < 2 {
+		isValid = false
+	} else {
+		switch v := oid[0].(type) {
+		case int:
+			if v > 2 {
+				isValid = false
+			}
+		case int64:
+			if v > 2 {
+				isValid = false
+			}
+		case *big.Int:
+			if v.Cmp(bigTwo) > 0 {
+				isValid = false
+			}
+		}
+		if isValid {
+			switch v := oid[1].(type) {
+			case int:
+				if v >= 40 {
+					isValid = false
+				}
+			case int64:
+				if v >= 40 {
+					isValid = false
+				}
+			case *big.Int:
+				if v.Cmp(bigForty) >= 0 {
+					isValid = false
+				}
+			}
+		}
+	}
+	if !isValid {
 		return nil, StructuralError{"invalid object identifier"}
 	}
 
-	return oidEncoderInt64(oid), nil
-}
-
-func makeObjectIdentifierBigInt(oid []*big.Int) (e encoder, err error) {
-	if len(oid) < 2 || oid[0].Cmp(bigTwo) > 0 || (oid[0].Cmp(bigTwo) < 0 && oid[1].Cmp(bigForty) >= 0) {
-		return nil, StructuralError{"invalid object identifier"}
-	}
-	return oidEncoderBigInt(oid), nil
+	return oidEncoderExt(oid), nil
 }
 
 func makePrintableString(s string) (e encoder, err error) {
@@ -556,10 +603,8 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		return bitStringEncoder(value.Interface().(BitString)), nil
 	case objectIdentifierType:
 		return makeObjectIdentifier(value.Interface().(ObjectIdentifier))
-	case objectIdentifierInt64Type:
-		return makeObjectIdentifierInt64(value.Interface().(ObjectIdentifierInt64))
-	case objectIdentifierBigIntType:
-		return makeObjectIdentifierBigInt(value.Interface().(ObjectIdentifierBigInt))
+	case objectIdentifierExtType:
+		return makeObjectIdentifierExt(value.Interface().(ObjectIdentifierExt))
 	case bigIntType:
 		return makeBigInt(value.Interface().(*big.Int))
 	}

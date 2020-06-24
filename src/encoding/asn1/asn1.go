@@ -225,8 +225,14 @@ var NullBytes = []byte{TagNull, 0}
 
 // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
 type ObjectIdentifier []int
-type ObjectIdentifierInt64 []int64
-type ObjectIdentifierBigInt []*big.Int
+
+// A SubOid represents a single INTEGER value in a ASN.1 OBJECT IDENTIFIER.
+// The type may be int, int64 or *big.Int.
+type SubOid interface{}
+
+// An ObjectIdentifierExt represents an ASN.1 OBJECT IDENTIFIER
+// with sub-oids that can be int, int64 or *big.Int.
+type ObjectIdentifierExt []SubOid
 
 // Equal reports whether oi and other represent the same identifier.
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
@@ -258,11 +264,7 @@ func (oi ObjectIdentifier) String() string {
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
 // returns it. An object identifier is a sequence of variable length integers
 // that are assigned in a hierarchy.
-// If all sub-oids are less than max int32, the return value is a ObjectIdentifier.
-// If at least one sub-oid is more than max int32, and all sub-oids are less than max int64,
-// the return value is a ObjectIdentifierInt64.
-// If at least one sub-oid is more than max int64, the return value is a ObjectIdentifierBigInt.
-func parseObjectIdentifier(bytes []byte) (s interface{}, err error) {
+func parseObjectIdentifier(bytes []byte) (s ObjectIdentifierExt, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
@@ -270,7 +272,7 @@ func parseObjectIdentifier(bytes []byte) (s interface{}, err error) {
 
 	// In the worst case, we get two elements from the first byte (which is
 	// encoded differently) and then every varint is a single byte long.
-	s = ObjectIdentifier(make([]int, len(bytes)+1))
+	s = ObjectIdentifierExt(make([]SubOid, len(bytes)+1))
 
 	// The first varint is 40*value1 + value2:
 	// According to this packing, value1 can take the values 0, 1 and 2 only.
@@ -283,29 +285,27 @@ func parseObjectIdentifier(bytes []byte) (s interface{}, err error) {
 	switch v := val.(type) {
 	case int:
 		if v < 80 {
-			s.(ObjectIdentifier)[0] = v / 40
-			s.(ObjectIdentifier)[1] = v % 40
+			s[0] = v / 40
+			s[1] = v % 40
 		} else {
-			s.(ObjectIdentifier)[0] = 2
-			s.(ObjectIdentifier)[1] = v - 80
+			s[0] = 2
+			s[1] = v - 80
 		}
 	case int64:
-		s = ObjectIdentifierInt64(make([]int64, len(bytes)+1))
 		if v < 80 {
-			s.(ObjectIdentifierInt64)[0] = v / 40
-			s.(ObjectIdentifierInt64)[1] = v % 40
+			s[0] = v / 40
+			s[1] = v % 40
 		} else {
-			s.(ObjectIdentifierInt64)[0] = 2
-			s.(ObjectIdentifierInt64)[1] = v - 80
+			s[0] = 2
+			s[1] = v - 80
 		}
 	case *big.Int:
-		s = ObjectIdentifierBigInt(make([]*big.Int, len(bytes)+1))
 		if v.Cmp(bigEighty) == -1 {
-			s.(ObjectIdentifierBigInt)[0] = new(big.Int).Div(v, bigForty)
-			s.(ObjectIdentifierBigInt)[1] = new(big.Int).Mod(v, bigForty)
+			s[0] = new(big.Int).Div(v, bigForty)
+			s[1] = new(big.Int).Mod(v, bigForty)
 		} else {
-			s.(ObjectIdentifierBigInt)[0] = bigTwo
-			s.(ObjectIdentifierBigInt)[1] = new(big.Int).Sub(v, bigEighty)
+			s[0] = bigTwo
+			s[1] = new(big.Int).Sub(v, bigEighty)
 		}
 	}
 
@@ -315,111 +315,129 @@ func parseObjectIdentifier(bytes []byte) (s interface{}, err error) {
 		if err != nil {
 			return
 		}
-		switch v := val.(type) {
-		case int:
-			switch s.(type) {
-			case ObjectIdentifier:
-				s.(ObjectIdentifier)[i] = v
-			case ObjectIdentifierInt64:
-				s.(ObjectIdentifierInt64)[i] = int64(v)
-			case ObjectIdentifierBigInt:
-				s.(ObjectIdentifierBigInt)[i] = big.NewInt(int64(v))
-			}
-		case int64:
-			switch s.(type) {
-			case ObjectIdentifier:
-				t := ObjectIdentifierInt64(make([]int64, len(bytes)+1))
-				for j := 0; j < i; j++ {
-					t[j] = int64(s.(ObjectIdentifier)[j])
-				}
-				s = t
-				s.(ObjectIdentifierInt64)[i] = int64(v)
-			case ObjectIdentifierInt64:
-				s.(ObjectIdentifierInt64)[i] = int64(v)
-			case []*big.Int:
-				s.(ObjectIdentifierBigInt)[i] = big.NewInt(int64(v))
-			}
-		case *big.Int:
-			switch s.(type) {
-			case ObjectIdentifier:
-				t := ObjectIdentifierBigInt(make([]*big.Int, len(bytes)+1))
-				for j := 0; j < i; j++ {
-					t[j] = big.NewInt(int64(s.(ObjectIdentifier)[j]))
-				}
-				s = t
-				s.(ObjectIdentifierBigInt)[i] = v
-			case ObjectIdentifierInt64:
-				t := ObjectIdentifierBigInt(make([]*big.Int, len(bytes)+1))
-				for j := 0; j < i; j++ {
-					t[j] = big.NewInt(s.(ObjectIdentifierInt64)[j])
-				}
-				s = t
-				s.(ObjectIdentifierBigInt)[i] = v
-			case []*big.Int:
-				s.(ObjectIdentifierBigInt)[i] = v
-			}
-		}
+		s[i] = val
 	}
-	switch t := s.(type) {
-	case ObjectIdentifier:
-		s = t[0:i]
-	case ObjectIdentifierInt64:
-		s = t[0:i]
-	case ObjectIdentifierBigInt:
-		s = t[0:i]
+	s = s[0:i]
+	return
+}
+
+// GetObjectIdentifier returns the object identifier as a slice of int.
+// An error is returned if at least one of the sub oid is greater than math.MaxInt32.
+func (oi ObjectIdentifierExt) GetObjectIdentifier() (s ObjectIdentifier, err error) {
+	s = make(ObjectIdentifier, len(oi), len(oi))
+	for i, sub := range oi {
+		switch v := sub.(type) {
+		case int:
+			s[i] = v
+		case int64:
+			if v > math.MaxInt32 {
+				err = StructuralError{"base 128 integer too large"}
+				return
+			}
+			s[i] = int(v)
+		case *big.Int:
+			if !v.IsInt64() || v.Int64() > math.MaxInt32 {
+				err = StructuralError{"base 128 integer too large"}
+				return
+			}
+			s[i] = int(v.Int64())
+		}
 	}
 	return
 }
 
 // Equal reports whether oi and other represent the same identifier.
-func (oi ObjectIdentifierInt64) Equal(other ObjectIdentifierInt64) bool {
-	if len(oi) != len(other) {
-		return false
+func (oi ObjectIdentifierExt) Equal(other interface{}) bool {
+	comp := func(i int, suboid interface{}) bool {
+		switch v1 := oi[i].(type) {
+		case int:
+			switch v2 := suboid.(type) {
+			case int:
+				if v1 != v2 {
+					return false
+				}
+			case int64:
+				if int64(v1) != v2 {
+					return false
+				}
+			case *big.Int:
+				if big.NewInt(int64(v1)).Cmp(v2) != 0 {
+					return false
+				}
+			}
+		case int64:
+			switch v2 := suboid.(type) {
+			case int:
+				if v1 != int64(v2) {
+					return false
+				}
+			case int64:
+				if v1 != v2 {
+					return false
+				}
+			case *big.Int:
+				if big.NewInt(v1).Cmp(v2) != 0 {
+					return false
+				}
+			}
+		case *big.Int:
+			switch v2 := suboid.(type) {
+			case int:
+				if v1.Cmp(big.NewInt(int64(v2))) != 0 {
+					return false
+				}
+			case int64:
+				if v1.Cmp(big.NewInt(v2)) != 0 {
+					return false
+				}
+			case *big.Int:
+				if v1.Cmp(v2) != 0 {
+					return false
+				}
+			}
+		}
+		return true
 	}
-	for i := 0; i < len(oi); i++ {
-		if oi[i] != other[i] {
+	switch v := other.(type) {
+	case ObjectIdentifier:
+		if len(oi) != len(v) {
 			return false
 		}
+		for i := 0; i < len(oi); i++ {
+			if !comp(i, v[i]) {
+				return false
+			}
+		}
+	case ObjectIdentifierExt:
+		if len(oi) != len(v) {
+			return false
+		}
+		for i := 0; i < len(oi); i++ {
+			if !comp(i, v[i]) {
+				return false
+			}
+		}
+	default:
+		return false
 	}
-
 	return true
 }
 
-func (oi ObjectIdentifierInt64) String() string {
+func (oi ObjectIdentifierExt) String() string {
 	var s string
 
 	for i, v := range oi {
 		if i > 0 {
 			s += "."
 		}
-		s += strconv.FormatInt(v, 10)
-	}
-
-	return s
-}
-
-// Equal reports whether oi and other represent the same identifier.
-func (oi ObjectIdentifierBigInt) Equal(other ObjectIdentifierBigInt) bool {
-	if len(oi) != len(other) {
-		return false
-	}
-	for i := 0; i < len(oi); i++ {
-		if oi[i].Cmp(other[i]) != 0 {
-			return false
+		switch val := v.(type) {
+		case int:
+			s += strconv.FormatInt(int64(val), 10)
+		case int64:
+			s += strconv.FormatInt(val, 10)
+		case *big.Int:
+			s += val.String()
 		}
-	}
-
-	return true
-}
-
-func (oi ObjectIdentifierBigInt) String() string {
-	var s string
-
-	for i, v := range oi {
-		if i > 0 {
-			s += "."
-		}
-		s += v.String()
 	}
 
 	return s
@@ -438,7 +456,7 @@ type Flag bool
 // parseBase128Int parses a base-128 encoded int from the given offset in the
 // given byte slice. It returns the value and the new offset.
 // The return value may be a int, int64 or big.Int depending on the size of the input data.
-func parseBase128Int(bytes []byte, initOffset int) (ret interface{}, offset int, err error) {
+func parseBase128Int(bytes []byte, initOffset int) (ret SubOid, offset int, err error) {
 	offset = initOffset
 	var ret64 int64
 	var retBigInt *big.Int
@@ -806,16 +824,15 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 }
 
 var (
-	bitStringType              = reflect.TypeOf(BitString{})
-	objectIdentifierType       = reflect.TypeOf(ObjectIdentifier{})
-	objectIdentifierInt64Type  = reflect.TypeOf(ObjectIdentifierInt64{})
-	objectIdentifierBigIntType = reflect.TypeOf(ObjectIdentifierBigInt{})
-	enumeratedType             = reflect.TypeOf(Enumerated(0))
-	flagType                   = reflect.TypeOf(Flag(false))
-	timeType                   = reflect.TypeOf(time.Time{})
-	rawValueType               = reflect.TypeOf(RawValue{})
-	rawContentsType            = reflect.TypeOf(RawContent(nil))
-	bigIntType                 = reflect.TypeOf(new(big.Int))
+	bitStringType           = reflect.TypeOf(BitString{})
+	objectIdentifierType    = reflect.TypeOf(ObjectIdentifier{})
+	objectIdentifierExtType = reflect.TypeOf(ObjectIdentifierExt{})
+	enumeratedType          = reflect.TypeOf(Enumerated(0))
+	flagType                = reflect.TypeOf(Flag(false))
+	timeType                = reflect.TypeOf(time.Time{})
+	rawValueType            = reflect.TypeOf(RawValue{})
+	rawContentsType         = reflect.TypeOf(RawContent(nil))
+	bigIntType              = reflect.TypeOf(new(big.Int))
 )
 
 // invalidLength reports whether offset + length > sliceLength, or if the
@@ -870,6 +887,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseBitString(innerBytes)
 			case TagOID:
 				result, err = parseObjectIdentifier(innerBytes)
+				if err == nil {
+					var r ObjectIdentifier
+					r, err = result.(ObjectIdentifierExt).GetObjectIdentifier()
+					if err == nil {
+						result = r
+					}
+				}
 			case TagUTCTime:
 				result, err = parseUTCTime(innerBytes)
 			case TagGeneralizedTime:
@@ -1011,18 +1035,21 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		result := RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
 		v.Set(reflect.ValueOf(result))
 		return
-	case objectIdentifierType, objectIdentifierInt64Type, objectIdentifierBigIntType:
+	case objectIdentifierType:
 		newSlice, err1 := parseObjectIdentifier(innerBytes)
-		var l int
-		switch s := newSlice.(type) {
-		case ObjectIdentifier:
-			l = len(s)
-		case ObjectIdentifierInt64:
-			l = len(s)
-		case ObjectIdentifierBigInt:
-			l = len(s)
+		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
+		if err1 == nil {
+			var intSlice []int
+			intSlice, err1 = newSlice.GetObjectIdentifier()
+			if err1 == nil {
+				reflect.Copy(v, reflect.ValueOf(intSlice))
+			}
 		}
-		v.Set(reflect.MakeSlice(v.Type(), l, l))
+		err = err1
+		return
+	case objectIdentifierExtType:
+		newSlice, err1 := parseObjectIdentifier(innerBytes)
+		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
 		if err1 == nil {
 			reflect.Copy(v, reflect.ValueOf(newSlice))
 		}

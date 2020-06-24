@@ -135,13 +135,15 @@ var marshalTests = []marshalTest{
 	{ObjectIdentifier([]int{1, 2, 840, 133549, 1, 1, 5}), "06092a864888932d010105"},
 	{ObjectIdentifier([]int{2, 100, 3}), "0603813403"},
 	// Sub-oid value 67006527840 exceeds 2^31-1 and less than 2^63-1
-	{ObjectIdentifierInt64([]int64{1, 2, 36, 67006527840, 666, 66, 1, 1}), "060d2a2481f9cf99f260851a420101"},
+	{ObjectIdentifierExt{1, 2, 36, 67006527840, 666, 66, 1, 1}, "060d2a2481f9cf99f260851a420101"},
 	// Sub-oid value is near 2^62, which is close to max int64 value
-	{ObjectIdentifierInt64([]int64{1, 2, 1 << 62, 1}), "060b2ac0808080808080800001"},
+	{ObjectIdentifierExt{1, 2, 1 << 62, 1}, "060b2ac0808080808080800001"},
 	// Same OID as above, implemented as big.Int
-	{ObjectIdentifierBigInt([]*big.Int{big.NewInt(1), big.NewInt(2), new(big.Int).Lsh(big.NewInt(1), 62), big.NewInt(1)}), "060b2ac0808080808080800001"},
+	{ObjectIdentifierExt{big.NewInt(1), big.NewInt(2), new(big.Int).Lsh(big.NewInt(1), 62), big.NewInt(1)}, "060b2ac0808080808080800001"},
+	// Same OID as above, with a mix of int, int64 and big.Int
+	{ObjectIdentifierExt{big.NewInt(1), int64(2), new(big.Int).Lsh(big.NewInt(1), 62), int(1)}, "060b2ac0808080808080800001"},
 	// Sub-oid value is more than max int64 value
-	{ObjectIdentifierBigInt([]*big.Int{big.NewInt(1), big.NewInt(2), new(big.Int).Lsh(big.NewInt(1), 65), big.NewInt(1)}), "060c2a8480808080808080800001"},
+	{ObjectIdentifierExt{big.NewInt(1), big.NewInt(2), new(big.Int).Lsh(big.NewInt(1), 65), big.NewInt(1)}, "060c2a8480808080808080800001"},
 	{"test", "130474657374"},
 	{
 		"" +

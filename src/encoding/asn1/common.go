@@ -150,7 +150,7 @@ func getUniversalType(t reflect.Type) (matchAny bool, tagNumber int, isCompound,
 	switch t {
 	case rawValueType:
 		return true, -1, false, true
-	case objectIdentifierType, objectIdentifierInt64Type, objectIdentifierBigIntType:
+	case objectIdentifierType, objectIdentifierExtType:
 		return false, TagOID, false, true
 	case bitStringType:
 		return false, TagBitString, false, true
