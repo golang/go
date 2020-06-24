@@ -4,7 +4,7 @@
 
 package x509
 
-//go:generate go run root_darwin_arm64_gen.go -version 55161.80.1
+//go:generate go run root_darwin_ios_gen.go -version 55161.80.1
 
 import "sync"
 
