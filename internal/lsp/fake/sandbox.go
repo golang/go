@@ -107,6 +107,7 @@ func (sb *Sandbox) GoEnv() []string {
 		"GOPROXY=" + sb.Proxy.GOPROXY(),
 		"GO111MODULE=",
 		"GOSUMDB=off",
+		"GOPACKAGESDRIVER=off",
 	}
 	if testenv.Go1Point() >= 5 {
 		vars = append(vars, "GOMODCACHE=")
