@@ -616,7 +616,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg.ptr()
 	}
-	if sig == _SIGILL {
+	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.
 		// Unfortunately, that's complicated to do in general (mostly for x86
 		// and s930x, but other archs have non-standard instruction lengths also).
