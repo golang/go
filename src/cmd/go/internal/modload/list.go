@@ -9,12 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
@@ -22,24 +22,35 @@ import (
 
 func ListModules(ctx context.Context, args []string, listU, listVersions bool) []*modinfo.ModulePublic {
 	mods := listModules(ctx, args, listVersions)
+
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
 	if listU || listVersions {
-		var work par.Work
 		for _, m := range mods {
-			work.Add(m)
+			add := func(m *modinfo.ModulePublic) {
+				sem <- token{}
+				go func() {
+					if listU {
+						addUpdate(m)
+					}
+					if listVersions {
+						addVersions(m)
+					}
+					<-sem
+				}()
+			}
+
+			add(m)
 			if m.Replace != nil {
-				work.Add(m.Replace)
+				add(m.Replace)
 			}
 		}
-		work.Do(10, func(item interface{}) {
-			m := item.(*modinfo.ModulePublic)
-			if listU {
-				addUpdate(m)
-			}
-			if listVersions {
-				addVersions(m)
-			}
-		})
 	}
+	// Fill semaphore channel to wait for all tasks to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
+	}
+
 	return mods
 }
 
