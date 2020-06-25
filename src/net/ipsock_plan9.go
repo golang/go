@@ -199,7 +199,11 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 	if err != nil {
 		return nil, err
 	}
-	_, err = f.WriteString("connect " + dest)
+	if la := plan9LocalAddr(laddr); la == "" {
+		_, err = f.WriteString("connect " + dest)
+	} else {
+		_, err = f.WriteString("connect " + dest + " " + la)
+	}
 	if err != nil {
 		f.Close()
 		return nil, err
@@ -302,4 +306,30 @@ func toLocal(a Addr, net string) Addr {
 		a.IP = loopbackIP(net)
 	}
 	return a
+}
+
+// plan9LocalAddr returns a Plan 9 local address string.
+// See setladdrport at https://9p.io/sources/plan9/sys/src/9/ip/devip.c.
+func plan9LocalAddr(addr Addr) string {
+	ip := ""
+	port := 0
+	switch a := addr.(type) {
+	case *TCPAddr:
+		if a != nil {
+			ip = ipEmptyString(a.IP)
+			port = a.Port
+		}
+	case *UDPAddr:
+		if a != nil {
+			ip = ipEmptyString(a.IP)
+			port = a.Port
+		}
+	}
+	if ip == "" {
+		if port == 0 {
+			return ""
+		}
+		return itoa(port)
+	}
+	return ip + "!" + itoa(port)
 }
