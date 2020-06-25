@@ -89,3 +89,11 @@ type importedStruct struct {
 }
 
 var _ = importedStruct{} // want ""
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} // want ""

@@ -346,9 +346,23 @@ func populateValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ typ
 			Body: &ast.BlockStmt{},
 		}
 	case *types.Pointer:
-		return &ast.UnaryExpr{
-			Op: token.AND,
-			X:  populateValue(fset, f, pkg, u.Elem()),
+		switch u.Elem().(type) {
+		case *types.Basic:
+			return &ast.CallExpr{
+				Fun: &ast.Ident{
+					Name: "new",
+				},
+				Args: []ast.Expr{
+					&ast.Ident{
+						Name: u.Elem().String(),
+					},
+				},
+			}
+		default:
+			return &ast.UnaryExpr{
+				Op: token.AND,
+				X:  populateValue(fset, f, pkg, u.Elem()),
+			}
 		}
 	case *types.Interface:
 		return ast.NewIdent("nil")

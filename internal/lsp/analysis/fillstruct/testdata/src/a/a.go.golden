@@ -125,3 +125,15 @@ var _ = importedStruct{
 	},
 	st: ast.CompositeLit{},
 } // want ""
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{
+	b: new(bool),
+	s: new(string),
+	i: new(int),
+} // want ""
