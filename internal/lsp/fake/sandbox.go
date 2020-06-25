@@ -20,7 +20,6 @@ import (
 // Sandbox holds a collection of temporary resources to use for working with Go
 // code in tests.
 type Sandbox struct {
-	name    string
 	gopath  string
 	basedir string
 	Proxy   *Proxy
@@ -36,21 +35,24 @@ type Sandbox struct {
 // working directory populated by the txtar-encoded content in srctxt, and a
 // file-based module proxy populated with the txtar-encoded content in
 // proxytxt.
-func NewSandbox(name, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool) (_ *Sandbox, err error) {
-	sb := &Sandbox{
-		name: name,
-	}
+//
+// If rootDir is non-empty, it will be used as the root of temporary
+// directories created for the sandbox. Otherwise, a new temporary directory
+// will be used as root.
+func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool) (_ *Sandbox, err error) {
+	sb := &Sandbox{}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
 		if err != nil {
 			sb.Close()
 		}
 	}()
-	basedir, err := ioutil.TempDir("", fmt.Sprintf("goplstest-sandbox-%s-", name))
+
+	baseDir, err := ioutil.TempDir(rootDir, "gopls-sandbox-")
 	if err != nil {
 		return nil, fmt.Errorf("creating temporary workdir: %v", err)
 	}
-	sb.basedir = basedir
+	sb.basedir = baseDir
 	proxydir := filepath.Join(sb.basedir, "proxy")
 	sb.gopath = filepath.Join(sb.basedir, "gopath")
 	// Set the working directory as $GOPATH/src if inGopath is true.
