@@ -648,6 +648,7 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	}
 	switch e := (*pe).(type) {
 	case *ast.Ident:
+		t.translateIdent(pe)
 	case *ast.Ellipsis:
 		t.translateExpr(&e.Elt)
 	case *ast.BasicLit:
@@ -712,6 +713,38 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Value)
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
+	}
+}
+
+// translateIdent translates a simple identifier from Go with
+// contracts to Go 1. These are usually fine as is, but a reference
+// to a non-generic name in another package may need a package qualifier.
+func (t *translator) translateIdent(pe *ast.Expr) {
+	e := (*pe).(*ast.Ident)
+	obj := t.importer.info.ObjectOf(e)
+	if obj == nil {
+		return
+	}
+	if named, ok := obj.Type().(*types.Named); ok && len(named.TParams()) > 0 {
+		// A generic function that will be instantiated locally.
+		return
+	}
+	ipkg := obj.Pkg()
+	if ipkg == nil || ipkg == t.tpkg {
+		// We don't need a package qualifier if it's defined
+		// in the current package.
+		return
+	}
+	if obj.Parent() != ipkg.Scope() {
+		// We only need a package qualifier if it's defined in
+		// package scope.
+		return
+	}
+
+	// Add package qualifier.
+	*pe = &ast.SelectorExpr{
+		X:   ast.NewIdent(ipkg.Name()),
+		Sel: e,
 	}
 }
 
