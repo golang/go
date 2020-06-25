@@ -15,7 +15,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/par"
 	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
@@ -59,23 +58,25 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 		return m.Path + "@" + m.Version
 	}
 
-	// Note: using par.Work only to manage work queue.
-	// No parallelism here, so no locking.
 	var out []string
 	var deps int // index in out where deps start
-	var work par.Work
-	work.Add(modload.Target)
-	work.Do(1, func(item interface{}) {
-		m := item.(module.Version)
+	seen := map[module.Version]bool{modload.Target: true}
+	queue := []module.Version{modload.Target}
+	for len(queue) > 0 {
+		var m module.Version
+		m, queue = queue[0], queue[1:]
 		list, _ := reqs.Required(m)
 		for _, r := range list {
-			work.Add(r)
+			if !seen[r] {
+				queue = append(queue, r)
+				seen[r] = true
+			}
 			out = append(out, format(m)+" "+format(r)+"\n")
 		}
 		if m == modload.Target {
 			deps = len(out)
 		}
-	})
+	}
 
 	sort.Slice(out[deps:], func(i, j int) bool {
 		return out[deps+i][0] < out[deps+j][0]

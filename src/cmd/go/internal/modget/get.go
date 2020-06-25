@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -21,7 +22,6 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/work"
 
@@ -725,18 +725,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 // reported. A map from module paths to queries is returned, which includes
 // queries and modOnly.
 func runQueries(ctx context.Context, cache map[querySpec]*query, queries []*query, modOnly map[string]*query) map[string]*query {
-	var lookup par.Work
-	for _, q := range queries {
-		if cached := cache[q.querySpec]; cached != nil {
-			*q = *cached
-		} else {
-			cache[q.querySpec] = q
-			lookup.Add(q)
-		}
-	}
 
-	lookup.Do(10, func(item interface{}) {
-		q := item.(*query)
+	runQuery := func(q *query) {
 		if q.vers == "none" {
 			// Wait for downgrade step.
 			q.m = module.Version{Path: q.path, Version: "none"}
@@ -747,7 +737,32 @@ func runQueries(ctx context.Context, cache map[querySpec]*query, queries []*quer
 			base.Errorf("go get %s: %v", q.arg, err)
 		}
 		q.m = m
-	})
+	}
+
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
+	for _, q := range queries {
+		if cached := cache[q.querySpec]; cached != nil {
+			*q = *cached
+		} else {
+			sem <- token{}
+			go func(q *query) {
+				runQuery(q)
+				<-sem
+			}(q)
+		}
+	}
+
+	// Fill semaphore channel to wait for goroutines to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
+	}
+
+	// Add to cache after concurrent section to avoid races...
+	for _, q := range queries {
+		cache[q.querySpec] = q
+	}
+
 	base.ExitIfErrors()
 
 	byPath := make(map[string]*query)
