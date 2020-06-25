@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -83,6 +84,7 @@ func (e *Entry) String() string {
 
 type GoObj struct {
 	TextHeader []byte
+	Arch       string
 	Data
 }
 
@@ -404,6 +406,10 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 		}
 	}
 	o.TextHeader = h
+	hs := strings.Fields(string(h))
+	if len(hs) >= 4 {
+		o.Arch = hs[3]
+	}
 	o.Offset = r.offset
 	o.Size = size - int64(len(h))
 
