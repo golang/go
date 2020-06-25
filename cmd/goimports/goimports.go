@@ -42,6 +42,7 @@ var (
 		TabIndent: true,
 		Comments:  true,
 		Fragment:  true,
+		Env: &imports.ProcessEnv{},
 	}
 	exitCode = 0
 )
