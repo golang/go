@@ -102,8 +102,16 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 	}
 
 	for i, tpkg := range tpkgs {
+		addImportable := 0
 		for j, pkgfile := range tpkg {
-			if err := rewriteFile(dir, fset, importer, importPath, rpkgs[i], pkgfile.name, pkgfile.ast, j == 0); err != nil {
+			if !strings.HasSuffix(pkgfile.name, "_test.go2") {
+				addImportable = j
+				break
+			}
+		}
+
+		for j, pkgfile := range tpkg {
+			if err := rewriteFile(dir, fset, importer, importPath, rpkgs[i], pkgfile.name, pkgfile.ast, j == addImportable); err != nil {
 				return nil, err
 			}
 		}
