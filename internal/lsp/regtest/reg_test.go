@@ -20,7 +20,7 @@ import (
 var (
 	runSubprocessTests       = flag.Bool("enable_gopls_subprocess_tests", false, "run regtests against a gopls subprocess")
 	goplsBinaryPath          = flag.String("gopls_test_binary", "", "path to the gopls binary for use as a remote, for use with the -enable_gopls_subprocess_tests flag")
-	regtestTimeout           = flag.Duration("regtest_timeout", 60*time.Second, "default timeout for each regtest")
+	regtestTimeout           = flag.Duration("regtest_timeout", 20*time.Second, "default timeout for each regtest")
 	skipCleanup              = flag.Bool("regtest_skip_cleanup", false, "whether to skip cleaning up temp directories")
 	printGoroutinesOnFailure = flag.Bool("regtest_print_goroutines", false, "whether to print goroutines info on failure")
 )
