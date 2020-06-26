@@ -656,8 +656,8 @@ func TestRawStructs(t *testing.T) {
 }
 
 type oiEqualTest struct {
-	first  interface{}
-	second interface{}
+	first  ObjectIdentifier
+	second ObjectIdentifier
 	same   bool
 }
 
@@ -677,17 +677,79 @@ var oiEqualTests = []oiEqualTest{
 		ObjectIdentifier{10, 11, 12},
 		false,
 	},
-	{
-		ObjectIdentifierExt{1, 2, 3},
-		ObjectIdentifierExt{10, 11, 12},
-		false,
-	},
 }
 
 func TestObjectIdentifierEqual(t *testing.T) {
 	for _, o := range oiEqualTests {
 		if s := o.first.Equal(o.second); s != o.same {
 			t.Errorf("ObjectIdentifier.Equal: got: %t want: %t", s, o.same)
+		}
+	}
+}
+
+type oiExtEqualTest struct {
+	first  ObjectIdentifierExt
+	second interface{}
+	same   bool
+}
+
+var oiExtEqualTests = []oiExtEqualTest{
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifierExt{1, 2, 3},
+		true,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifier{1, 2, 3},
+		true,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 1 << 61},
+		ObjectIdentifierExt{1, 2, 1 << 61},
+		true,
+	},
+	{
+		ObjectIdentifierExt{1, 2, new(big.Int).Lsh(big.NewInt(1), 80)},
+		ObjectIdentifierExt{1, 2, new(big.Int).Lsh(big.NewInt(1), 80)},
+		true,
+	},
+	{
+		ObjectIdentifierExt{1},
+		ObjectIdentifierExt{1, 2, 3},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1},
+		ObjectIdentifier{1, 2, 3},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifierExt{10, 11, 12},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifier{10, 11, 12},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifierExt{10, 11, 12},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifier{10, 11, 12},
+		false,
+	},
+}
+
+func TestObjectIdentifierExtEqual(t *testing.T) {
+	for _, o := range oiEqualTests {
+		if s := o.first.Equal(o.second); s != o.same {
+			t.Errorf("ObjectIdentifierExt.Equal: got: %t want: %t", s, o.same)
 		}
 	}
 }
