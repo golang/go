@@ -760,7 +760,16 @@ type Certificate struct {
 	// CRL Distribution Points
 	CRLDistributionPoints []string
 
+	// Policy identifiers with sub-oid values less than or equal to math.MaxInt32.
+	// When parsing a certificate, the certificate policy identifiers are unmarshaled into
+	// PolicyIdentifiers if all sub-oids are less than or equal to math.MaxInt32.
+	// If at least one sub-oid is greater than math.MaxInt32, policy identifiers are
+	// unmarshaled into PolicyIdentifiersExt.
+	// When generating a certificate, set either PolicyIdentifiers or PolicyIdentifiersExt
+	// but not both.
 	PolicyIdentifiers []asn1.ObjectIdentifier
+	// Policy identifiers with sub-oid values greater than math.MaxInt32.
+	PolicyIdentifiersExt []asn1.ObjectIdentifierExt
 }
 
 // ErrUnsupportedAlgorithm results from attempting to perform an operation that
@@ -943,7 +952,7 @@ type basicConstraints struct {
 
 // RFC 5280 4.2.1.4
 type policyInformation struct {
-	Policy asn1.ObjectIdentifier
+	Policy asn1.ObjectIdentifierExt
 	// policyQualifiers omitted
 }
 
@@ -1517,9 +1526,25 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				} else if len(rest) != 0 {
 					return nil, errors.New("x509: trailing data after X.509 certificate policies")
 				}
-				out.PolicyIdentifiers = make([]asn1.ObjectIdentifier, len(policies))
-				for i, policy := range policies {
-					out.PolicyIdentifiers[i] = policy.Policy
+				s := make([]asn1.ObjectIdentifier, 0, len(policies))
+				largeoids := false
+				for _, policy := range policies {
+					if oid, err1 := policy.Policy.GetObjectIdentifier(); err1 == nil {
+						// Add to PolicyIdentifiers if sub-oids are less than or equal to math.MaxInt32.
+						s = append(s, oid)
+					} else {
+						largeoids = true
+					}
+				}
+				if largeoids {
+					// The certificate contains at least one policy identifier that has a sub-oid
+					// value greater than math.MaxInt32.
+					out.PolicyIdentifiersExt = make([]asn1.ObjectIdentifierExt, len(policies))
+					for i, policy := range policies {
+						out.PolicyIdentifiersExt[i] = policy.Policy
+					}
+				} else {
+					out.PolicyIdentifiers = s
 				}
 
 			default:
@@ -1811,11 +1836,30 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 		n++
 	}
 
+	if len(template.PolicyIdentifiers) > 0 && len(template.PolicyIdentifiersExt) > 0 {
+		err = errors.New("x509: invalid template, cannot specify both PolicyIdentifiers and PolicyIdentifiersExt")
+		return
+	}
+
 	if len(template.PolicyIdentifiers) > 0 &&
 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
 		ret[n].Id = oidExtensionCertificatePolicies
 		policies := make([]policyInformation, len(template.PolicyIdentifiers))
 		for i, policy := range template.PolicyIdentifiers {
+			policies[i].Policy = asn1.NewObjectIdentifierExt(policy)
+		}
+		ret[n].Value, err = asn1.Marshal(policies)
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.PolicyIdentifiersExt) > 0 &&
+		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+		ret[n].Id = oidExtensionCertificatePolicies
+		policies := make([]policyInformation, len(template.PolicyIdentifiersExt))
+		for i, policy := range template.PolicyIdentifiersExt {
 			policies[i].Policy = policy
 		}
 		ret[n].Value, err = asn1.Marshal(policies)
@@ -2067,6 +2111,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //  - PermittedIPRanges
 //  - PermittedURIDomains
 //  - PolicyIdentifiers
+//  - PolicyIdentifiersExt
 //  - SerialNumber
 //  - SignatureAlgorithm
 //  - Subject

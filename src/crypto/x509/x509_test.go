@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"internal/testenv"
+	"math"
 	"math/big"
 	"net"
 	"net/url"
@@ -686,6 +687,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			t.Errorf("%s: failed to parse policy identifiers: got:%#v want:%#v", test.name, cert.PolicyIdentifiers, template.PolicyIdentifiers)
 		}
 
+		if len(cert.PolicyIdentifiersExt) > 0 {
+			t.Errorf("%s: unexpected PolicyIdentifiersExt value:%#v", test.name, template.PolicyIdentifiersExt)
+		}
+
 		if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
 			t.Errorf("%s: failed to parse name constraints: %#v", test.name, cert.PermittedDNSDomains)
 		}
@@ -801,6 +806,82 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			err = cert.CheckSignatureFrom(cert)
 			if err != nil {
 				t.Errorf("%s: signature verification failed: %s", test.name, err)
+			}
+		}
+	}
+}
+
+func TestCreateSelfSignedCertificatePolicyIdentifier(t *testing.T) {
+	random := rand.Reader
+
+	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
+	{
+		// Cannot have a certificate template with both PolicyIdentifiers and PolicyIdentifiersExt.
+		template := Certificate{
+			SerialNumber:         big.NewInt(-1),
+			SignatureAlgorithm:   ECDSAWithSHA256,
+			PolicyIdentifiers:    []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			PolicyIdentifiersExt: []asn1.ObjectIdentifierExt{asn1.ObjectIdentifierExt{1, 2, 3, 4}},
+		}
+		_, err := CreateCertificate(random, &template, &template, &ecdsaPriv.PublicKey, ecdsaPriv)
+		if err == nil {
+			t.Error("specifying PolicyIdentifiers and PolicyIdentifiersExt should fail")
+		}
+	}
+	{
+		// Certificate template with policy identifier that has sub-oids less than math.MaxInt32.
+		template := Certificate{
+			SerialNumber:       big.NewInt(-1),
+			SignatureAlgorithm: ECDSAWithSHA256,
+			PolicyIdentifiers:  []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+		}
+		derBytes, err := CreateCertificate(random, &template, &template, &ecdsaPriv.PublicKey, ecdsaPriv)
+		if err != nil {
+			t.Errorf("failed to create certificate: %s", err)
+		}
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Errorf("failed to parse certificate: %s", err)
+		}
+		if len(cert.PolicyIdentifiers) != 1 || !cert.PolicyIdentifiers[0].Equal(template.PolicyIdentifiers[0]) {
+			t.Errorf("failed to parse policy identifiers: got:%#v want:%#v", cert.PolicyIdentifiers, template.PolicyIdentifiers)
+		}
+		if len(cert.PolicyIdentifiersExt) > 0 {
+			t.Errorf("unexpected PolicyIdentifiersExt value:%#v", template.PolicyIdentifiersExt)
+		}
+	}
+	{
+		// Certificate template with policy identifier that has sub-oids greater than math.MaxInt32.
+		template := Certificate{
+			SerialNumber:       big.NewInt(-1),
+			SignatureAlgorithm: ECDSAWithSHA256,
+			PolicyIdentifiersExt: []asn1.ObjectIdentifierExt{
+				asn1.ObjectIdentifierExt{1, 2, math.MaxInt32},
+				asn1.ObjectIdentifierExt{1, 2, 1 << 60},
+				asn1.ObjectIdentifierExt{1, 2, new(big.Int).Lsh(big.NewInt(1), 80)},
+				asn1.ObjectIdentifierExt{1, 2, new(big.Int).Lsh(big.NewInt(1), 80), 1 << 60},
+			},
+		}
+		derBytes, err := CreateCertificate(random, &template, &template, &ecdsaPriv.PublicKey, ecdsaPriv)
+		if err != nil {
+			t.Errorf("failed to create certificate: %s", err)
+		}
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Errorf("failed to parse certificate: %s", err)
+		}
+		if len(cert.PolicyIdentifiers) > 0 {
+			t.Errorf("unexpected PolicyIdentifiers value:%#v", template.PolicyIdentifiers)
+		}
+		if len(cert.PolicyIdentifiersExt) == 0 || len(cert.PolicyIdentifiersExt) != len(template.PolicyIdentifiersExt) {
+			t.Errorf("failed to parse policy identifiers: got:%#v want:%#v", cert.PolicyIdentifiersExt, template.PolicyIdentifiersExt)
+		}
+		for i, pi := range cert.PolicyIdentifiersExt {
+			if !pi.Equal(template.PolicyIdentifiersExt[i]) {
+				t.Errorf("failed to parse policy identifiers: got:%#v want:%#v", cert.PolicyIdentifiersExt, template.PolicyIdentifiersExt)
 			}
 		}
 	}
@@ -2186,6 +2267,66 @@ func TestCriticalNameConstraintWithUnknownType(t *testing.T) {
 
 	if l := len(cert.UnhandledCriticalExtensions); l != 1 {
 		t.Fatalf("expected one unhandled critical extension, but found %d", l)
+	}
+}
+
+const certWithLargeSubOidPEM = `
+-----BEGIN CERTIFICATE-----
+MIIFZjCCA06gAwIBAgITFgAAAAImoUeGgGDlrAAAAAAAAjANBgkqhkiG9w0BAQsF
+ADAYMRYwFAYDVQQDEw1DaG9ydXNSb290LUNBMB4XDTE0MDMyNTIxMjYxNFoXDTM0
+MDMxOTIzMjAwNlowYTESMBAGCgmSJomT8ixkARkWAm56MRIwEAYKCZImiZPyLGQB
+GRYCY28xFjAUBgoJkiaJk/IsZAEZFgZjaG9ydXMxHzAdBgNVBAMTFmNob3J1cy1D
+U01TUFJQS0kxNTgtQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC3
+YrgjhkQJqYjL27DAbQim8c3wVldUURBWMLExycwGIbMCxyRFrQmMhqV3bBaKxixx
+jIAZTVB7hha6HCuR/fkfYlNo1suiu1g7WIPxdecV23CuvOiVfTbI7j8LlijsVbKW
+2jOy7LBSywaU58aPS95UqUfqtY53pWbFzQQu//hovqFFwk12mApu42SqmcupxS7/
+tmhkaC+wgliaiS8p+CJZGSBUekuVQNclLGqyYUeBlO3jjIwVZzh9qlLaEbO7NLG8
+k3A5w/9T3r195AmA4+sXKlj9nV9zS6Q8t6ygB6g6/Hr2sv8Xogi3AAR65HghSz2z
+kRbANOUVuVtCMHfiJUYHAgMBAAGjggFeMIIBWjAQBgkrBgEEAYI3FQEEAwIBADAd
+BgNVHQ4EFgQUPn4jsmFshpUupvUcLDmp2LpJCaowgYwGA1UdIASBhDCBgTB/Bg0q
+JIH5z5nyYIUaQgEBMG4wOgYIKwYBBQUHAgIwLh4sAEwAZQBnAGEAbAAgAFAAbwBs
+AGkAYwB5ACAAUwB0AGEAdABlAG0AZQBuAHQwMAYIKwYBBQUHAgEWJGh0dHA6Ly9j
+cmwuY2hvcnVzLmNvLm56L3BraS9jcHMudHh0ADAZBgkrBgEEAYI3FAIEDB4KAFMA
+dQBiAEMAQTALBgNVHQ8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAfBgNVHSMEGDAW
+gBTPctdjhzmVPatJ73QufzslwP7q3DA+BgNVHR8ENzA1MDOgMaAvhi1odHRwOi8v
+Y3JsLmNob3J1cy5jby5uei9wa2kvQ2hvcnVzUm9vdC1DQS5jcmwwDQYJKoZIhvcN
+AQELBQADggIBAKFEeteUZqZXv95+hpjYFGj6NubVRmbmIH1DU2nydY+RdOZAhn6b
+0ozXoTtprEoo5POUjNZOz7btr08SCbtYQsm4nL5NHj3JSuMj0jDlnn8Qs4yadk5D
+3rTMOf6ZdwVqqZuctwfjlfXgOvPHnVsbUsK02x4b6yJqbbQu7KxxkVoSuneOWpHd
+ZPNqF8aigupfTn5wylKFz2zW39yRQbu1Xbbe31xjqN6g0T/57+myf1j6PtyntmcX
+8n31ZFLCtuC1uXEvN4Mlr0FGXoMpwzlysHzWejFWRQ7Oj7O9/pyzHFgxrlbZilp4
+7qDATM212smJDReEFaFTVR6CgA4xZC4xADL0SU/6MNa2vA4bg8bVlQ5XxBOyRBfq
+PEItYXN3dp7c9medpAh1QauNpFZL7n4DA63X2zB97o6N8fyNSzJXp6x1qGUUgSSz
+QSF65ypj/QDdRwczNmvBlSAFQoFEQpYJarJXPBj9859y1ZkDCctYz6lXUA1qjkCT
+/mM6UTdnDD7LR3vQmQo6t8ydr4sQVV8O1ZJmAxHt+4qYg/UpHdPt63mneHPZaoE9
+N9tF+yS8w1F2Mw5YP6OyjZJy6o8kXR3I/jao4hvDVjfEzo4eSrucAsqwr3Q4kUgl
+GYhu9NN9++fuqOoXuWBguh+3//dgMOXhgFVsWvx9fzLiQQqUc5ToGbJK
+-----END CERTIFICATE-----`
+
+// X.509 certificates may contain policy identifiers that have
+// sub-oid values greater than math.MaxInt32. ParseCertificate
+// must not return an error when parsing such certificates.
+func TestCertificateWithLargeSubOidInPolicyIdentifiers(t *testing.T) {
+	block, _ := pem.Decode([]byte(certWithLargeSubOidPEM))
+	c, err := ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse certificate: %v", err.Error())
+	}
+	if len(c.PolicyIdentifiersExt) != 1 {
+		// The Certificate policy identifier is 1.2.36.67006527840.666.66.1.1
+		// Because it does not fit in the PolicyIdentifiers field, it is
+		// unmarshaled in the PolicyIdentifiersExt field.
+		t.Errorf("PolicyIdentifiersExt expected 1 but got %d", len(c.PolicyIdentifiersExt))
+	}
+	expected := "1.2.36.67006527840.666.66.1.1"
+	if c.PolicyIdentifiersExt[0].String() != expected {
+		t.Errorf("PolicyIdentifiersExt expected %s but got %s", expected, c.PolicyIdentifiersExt[0].String())
+	}
+	if len(c.PolicyIdentifiers) > 0 {
+		// The Certificate policy identifier for this particular x509 certificate
+		// does not fit in the PolicyIdentifiers field, because suboid 67006527840
+		// is more than 2^31
+		t.Errorf("PolicyIdentifiers expected zero length but got %d", len(c.PolicyIdentifiers))
 	}
 }
 
