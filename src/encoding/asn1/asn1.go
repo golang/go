@@ -321,6 +321,15 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifierExt, err error) {
 	return
 }
 
+// NewObjectIdentifierExt creates and returns a ObjectIdentifierExt from a ObjectIdentifier.
+func NewObjectIdentifierExt(oid ObjectIdentifier) (s ObjectIdentifierExt) {
+	s = make(ObjectIdentifierExt, len(oid), len(oid))
+	for i, o := range oid {
+		s[i] = o
+	}
+	return
+}
+
 // GetObjectIdentifier returns the object identifier as a slice of int.
 // An error is returned if at least one of the sub oid is greater than math.MaxInt32.
 func (oi ObjectIdentifierExt) GetObjectIdentifier() (s ObjectIdentifier, err error) {

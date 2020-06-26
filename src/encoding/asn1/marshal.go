@@ -136,7 +136,6 @@ func (t *taggedEncoder) Len() int {
 
 func (t *taggedEncoder) Encode(dst []byte) {
 	t.tag.Encode(dst)
-
 	t.body.Encode(dst[t.tag.Len():])
 }
 
@@ -340,7 +339,10 @@ func (oid oidEncoder) Encode(dst []byte) {
 
 type oidEncoderExt ObjectIdentifierExt
 
-func (oid oidEncoderExt) s() int64 {
+// suboid12Encoding returns 40 * value1 + value2.
+// Overflow cannot happen since first sub-oid is limited to values 0, 1, and 2
+// and second sub-oid is limited to the range 0 to 39 when value1 is 0 or 1.
+func (oid oidEncoderExt) suboid12Encoding() int64 {
 	var s int64
 	switch v := oid[0].(type) {
 	case int:
@@ -362,7 +364,7 @@ func (oid oidEncoderExt) s() int64 {
 }
 
 func (oid oidEncoderExt) Len() int {
-	l := base128IntLength(oid.s())
+	l := base128IntLength(oid.suboid12Encoding())
 	for i := 2; i < len(oid); i++ {
 		switch v := oid[i].(type) {
 		case int:
@@ -377,7 +379,7 @@ func (oid oidEncoderExt) Len() int {
 }
 
 func (oid oidEncoderExt) Encode(dst []byte) {
-	dst = appendBase128Int(dst[:0], oid.s())
+	dst = appendBase128Int(dst[:0], oid.suboid12Encoding())
 	for i := 2; i < len(oid); i++ {
 		switch v := oid[i].(type) {
 		case int:
