@@ -1279,8 +1279,8 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "incompatible key usage",
 	},
 
-	// #67: in order to support COMODO chains, SGC key usages permit
-	// serverAuth and clientAuth.
+	// #67: SGC key usages used to permit serverAuth and clientAuth,
+	// but don't anymore.
 	{
 		roots: []constraintsSpec{
 			{},
@@ -1296,10 +1296,11 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "clientAuth"},
 		},
+		expectedError: "incompatible key usage",
 	},
 
-	// #68: in order to support COMODO chains, SGC key usages permit
-	// serverAuth and clientAuth.
+	// #68: SGC key usages used to permit serverAuth and clientAuth,
+	// but don't anymore.
 	{
 		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
@@ -1313,6 +1314,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:example.com"},
 			ekus: []string{"serverAuth", "clientAuth"},
 		},
+		expectedError: "incompatible key usage",
 	},
 
 	// #69: an empty DNS constraint should allow anything.
@@ -1437,7 +1439,8 @@ var nameConstraintsTests = []nameConstraintsTest{
 		expectedError: "incompatible key usage",
 	},
 
-	// #76: However, MSSGC in a leaf should match a request for serverAuth.
+	// #76: MSSGC in a leaf used to match a request for serverAuth, but doesn't
+	// anymore.
 	{
 		roots: make([]constraintsSpec, 1),
 		intermediates: [][]constraintsSpec{
@@ -1450,6 +1453,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 			ekus: []string{"msSGC"},
 		},
 		requestedEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+		expectedError: "incompatible key usage",
 	},
 
 	// An invalid DNS SAN should be detected only at validation time so
