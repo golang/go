@@ -635,6 +635,23 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			pkg.CompiledGoFiles = pkg.GoFiles
 		}
 
+		// Temporary work-around for golang/go#39986. Parse filenames out of
+		// error messages. This happens if there are unrecoverable syntax
+		// errors in the source, so we can't match on a specific error message.
+		if err := p.Error; err != nil && len(err.ImportStack) == 0 && len(pkg.CompiledGoFiles) == 0 {
+			if split := strings.Split(err.Pos, ":"); len(split) > 1 {
+				if filename := split[0]; filename != "" {
+					if !filepath.IsAbs(filename) {
+						filename = filepath.Join(state.cfg.Dir, filename)
+					}
+					if info, _ := os.Stat(filename); info != nil {
+						pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, filename)
+						pkg.GoFiles = append(pkg.GoFiles, filename)
+					}
+				}
+			}
+		}
+
 		if p.Error != nil {
 			msg := strings.TrimSpace(p.Error.Err) // Trim to work around golang.org/issue/32363.
 			// Address golang.org/issue/35964 by appending import stack to error message.

@@ -15,12 +15,19 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-const commonMode = packages.NeedName | packages.NeedFiles |
-	packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedSyntax
+const (
+	commonMode = packages.NeedName | packages.NeedFiles |
+		packages.NeedCompiledGoFiles | packages.NeedImports | packages.NeedSyntax
+	everythingMode = commonMode | packages.NeedDeps | packages.NeedTypes |
+		packages.NeedTypesSizes
+)
 
-func TestOverlayChangesPackage(t *testing.T) {
+func TestOverlayChangesPackageName(t *testing.T) {
+	packagestest.TestAll(t, testOverlayChangesPackageName)
+}
+func testOverlayChangesPackageName(t *testing.T, exporter packagestest.Exporter) {
 	log.SetFlags(log.Lshortfile)
-	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "fake",
 		Files: map[string]interface{}{
 			"a.go": "package foo\nfunc f(){}\n",
@@ -45,9 +52,12 @@ func TestOverlayChangesPackage(t *testing.T) {
 	}
 	log.SetFlags(0)
 }
-func TestOverlayChangesBothPackages(t *testing.T) {
+func TestOverlayChangesBothPackageNames(t *testing.T) {
+	packagestest.TestAll(t, testOverlayChangesBothPackageNames)
+}
+func testOverlayChangesBothPackageNames(t *testing.T, exporter packagestest.Exporter) {
 	log.SetFlags(log.Lshortfile)
-	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "fake",
 		Files: map[string]interface{}{
 			"a.go":      "package foo\nfunc g(){}\n",
@@ -88,10 +98,12 @@ func TestOverlayChangesBothPackages(t *testing.T) {
 	}
 	log.SetFlags(0)
 }
-
-func TestOverlayChangesTestPackage(t *testing.T) {
+func TestOverlayChangesTestPackageName(t *testing.T) {
+	packagestest.TestAll(t, testOverlayChangesTestPackageName)
+}
+func testOverlayChangesTestPackageName(t *testing.T, exporter packagestest.Exporter) {
 	log.SetFlags(log.Lshortfile)
-	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "fake",
 		Files: map[string]interface{}{
 			"a_test.go": "package foo\nfunc f(){}\n",
@@ -129,6 +141,14 @@ func TestOverlayChangesTestPackage(t *testing.T) {
 		t.Fatalf("got %v, expected no errors", initial[0].Errors)
 	}
 	log.SetFlags(0)
+}
+
+func checkPkg(t *testing.T, p *packages.Package, id, name string, syntax int) bool {
+	t.Helper()
+	if p.ID == id && p.Name == name && len(p.Syntax) == syntax {
+		return true
+	}
+	return false
 }
 
 func TestOverlayXTests(t *testing.T) {
@@ -514,8 +534,8 @@ const A = 1
 	}
 }
 
-// TestOverlayModFileChanges tests the behavior resulting from having files from
-// multiple modules in overlays.
+// TestOverlayModFileChanges tests the behavior resulting from having files
+// from multiple modules in overlays.
 func TestOverlayModFileChanges(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 
@@ -674,18 +694,60 @@ func testContainsOverlayXTest(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestInvalidFilesBeforeOverlay(t *testing.T) {
+	packagestest.TestAll(t, testInvalidFilesBeforeOverlay)
+}
+
+func testInvalidFilesBeforeOverlay(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGo1Point(t, 15)
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"d/d.go":  ``,
+				"main.go": ``,
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	dir := filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "d/d.go")))
+
+	exported.Config.Mode = everythingMode
+	exported.Config.Tests = true
+
+	// First, check that all packages returned have files associated with them.
+	// Tests the work-around for golang/go#39986.
+	t.Run("no overlay", func(t *testing.T) {
+		initial, err := packages.Load(exported.Config, fmt.Sprintf("%s/...", dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, pkg := range initial {
+			if len(pkg.CompiledGoFiles) == 0 {
+				t.Fatalf("expected at least 1 CompiledGoFile for %s, got none", pkg.PkgPath)
+			}
+		}
+	})
+
+}
+
 // Tests golang/go#35973, fixed in Go 1.14.
-func TestInvalidFilesInOverlay(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInOverlay) }
-func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
+func TestInvalidFilesBeforeOverlayContains(t *testing.T) {
+	packagestest.TestAll(t, testInvalidFilesBeforeOverlayContains)
+}
+func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsGo1Point(t, 14)
 
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
 		{
 			Name: "golang.org/fake",
 			Files: map[string]interface{}{
-				"d/d.go":      `package d; import "net/http"; const d = http.MethodGet;`,
+				"d/d.go":      `package d; import "net/http"; const Get = http.MethodGet; const Hello = "hello";`,
 				"d/util.go":   ``,
 				"d/d_test.go": ``,
+				"main.go":     ``,
 			},
 		},
 	})
@@ -703,18 +765,22 @@ func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 		// Overlay with a test variant.
 		{"test_variant",
 			map[string][]byte{
-				filepath.Join(dir, "d", "d_test.go"): []byte(`package d; import "testing"; const D = d + "_test"; func TestD(t *testing.T) {};`)},
+				filepath.Join(dir, "d", "d_test.go"): []byte(`package d; import "testing"; const D = Get + "_test"; func TestD(t *testing.T) {};`)},
 			`"GET_test"`},
 		// Overlay in package.
 		{"second_file",
 			map[string][]byte{
-				filepath.Join(dir, "d", "util.go"): []byte(`package d; const D = d + "_util";`)},
+				filepath.Join(dir, "d", "util.go"): []byte(`package d; const D = Get + "_util";`)},
 			`"GET_util"`},
+		// Overlay on the main file.
+		{"main",
+			map[string][]byte{
+				filepath.Join(dir, "main.go"): []byte(`package main; import "golang.org/fake/d"; const D = d.Get + "_main"; func main() {};`)},
+			`"GET_main"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			exported.Config.Overlay = tt.overlay
-			exported.Config.Mode = packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
-				packages.NeedDeps | packages.NeedTypes | packages.NeedTypesSizes
+			exported.Config.Mode = everythingMode
 			exported.Config.Tests = true
 
 			for f := range tt.overlay {
@@ -722,35 +788,27 @@ func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				d := initial[0]
+				pkg := initial[0]
 				var containsFile bool
-				for _, goFile := range d.CompiledGoFiles {
+				for _, goFile := range pkg.CompiledGoFiles {
 					if f == goFile {
 						containsFile = true
 						break
 					}
 				}
 				if !containsFile {
-					t.Fatalf("expected %s in CompiledGoFiles, got %v", f, d.CompiledGoFiles)
+					t.Fatalf("expected %s in CompiledGoFiles, got %v", f, pkg.CompiledGoFiles)
 				}
 				// Check value of d.D.
-				dD := constant(d, "D")
-				if dD == nil {
-					t.Fatalf("%d. d.D: got nil", i)
+				D := constant(pkg, "D")
+				if D == nil {
+					t.Fatalf("%d. D: got nil", i)
 				}
-				got := dD.Val().String()
+				got := D.Val().String()
 				if got != tt.want {
-					t.Fatalf("%d. d.D: got %s, want %s", i, got, tt.want)
+					t.Fatalf("%d. D: got %s, want %s", i, got, tt.want)
 				}
 			}
 		})
 	}
-}
-
-func checkPkg(t *testing.T, p *packages.Package, id, name string, syntax int) bool {
-	t.Helper()
-	if p.ID == id && p.Name == name && len(p.Syntax) == syntax {
-		return true
-	}
-	return false
 }

@@ -865,72 +865,88 @@ const C = a.A
 // This is a copy of the scenario_default/quickfix_empty_files.txt test from
 // govim. Reproduces golang/go#39646.
 func TestQuickFixEmptyFiles(t *testing.T) {
+	testenv.NeedsGo1Point(t, 15)
+
 	const mod = `
 -- go.mod --
 module mod.com
 
 go 1.12
 `
-	runner.Run(t, mod, func(t *testing.T, env *Env) {
-		// To fully recreate the govim tests, we create files by inserting
-		// a newline, adding to the file, and then deleting the newline.
-		// Wait for each event to process to avoid cancellations.
-		writeGoVim := func(name, content string) {
-			env.OpenFileWithContent(name, "\n")
-			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+	// To fully recreate the govim tests, we create files by inserting
+	// a newline, adding to the file, and then deleting the newline.
+	// Wait for each event to process to avoid cancellations and force
+	// package loads.
+	writeGoVim := func(env *Env, name, content string) {
+		env.WriteWorkspaceFile(name, "")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1))
 
-			env.EditBuffer(name, fake.NewEdit(1, 0, 1, 0, content))
-			env.Await(env.AnyDiagnosticAtCurrentVersion(name))
+		env.OpenFileWithContent(name, "\n")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
 
-			env.EditBuffer(name, fake.NewEdit(0, 0, 1, 0, ""))
-			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
-		}
-		writeGoVim("p/p.go", `package p
+		env.EditBuffer(name, fake.NewEdit(1, 0, 1, 0, content))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
 
+		env.EditBuffer(name, fake.NewEdit(0, 0, 1, 0, ""))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
+	}
 
-func DoIt(s string) {
-	var x int
-}
-`)
-		writeGoVim("main.go", `package main
+	const p = `package p; func DoIt(s string) {};`
+	const main = `package main
 
 import "mod.com/p"
 
 func main() {
 	p.DoIt(5)
 }
-`)
-		writeGoVim("p/p_test.go", `package p
+`
+	// A simple version of the test that reproduces most of the problems it
+	// exposes.
+	t.Run("short", func(t *testing.T) {
+		runner.Run(t, mod, func(t *testing.T, env *Env) {
+			writeGoVim(env, "p/p.go", p)
+			writeGoVim(env, "main.go", main)
+			env.Await(env.DiagnosticAtRegexp("main.go", "5"))
+		})
+	})
 
+	// A full version that replicates the whole flow of the test.
+	t.Run("full", func(t *testing.T) {
+		runner.Run(t, mod, func(t *testing.T, env *Env) {
+			writeGoVim(env, "p/p.go", p)
+			writeGoVim(env, "main.go", main)
+			writeGoVim(env, "p/p_test.go", `package p
+	
 import "testing"
-
+	
 func TestDoIt(t *testing.T) {
 	DoIt(5)
 }
 `)
-		writeGoVim("p/x_test.go", `package p_test
-
+			writeGoVim(env, "p/x_test.go", `package p_test
+	
 import (
 	"testing"
 
 	"mod.com/p"
 )
-
+	
 func TestDoIt(t *testing.T) {
 	p.DoIt(5)
 }
 `)
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", "5"),
-			env.DiagnosticAtRegexp("p/p_test.go", "5"),
-			env.DiagnosticAtRegexp("p/x_test.go", "5"),
-		)
-		env.RegexpReplace("p/p.go", "s string", "i int")
-		env.Await(
-			EmptyDiagnostics("main.go"),
-			EmptyDiagnostics("p/p_test.go"),
-			EmptyDiagnostics("p/x_test.go"),
-		)
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "5"),
+				env.DiagnosticAtRegexp("p/p_test.go", "5"),
+				env.DiagnosticAtRegexp("p/x_test.go", "5"),
+			)
+			env.RegexpReplace("p/p.go", "s string", "i int")
+			env.Await(
+				EmptyDiagnostics("main.go"),
+				EmptyDiagnostics("p/p_test.go"),
+				EmptyDiagnostics("p/x_test.go"),
+			)
+		})
 	})
 }
 
