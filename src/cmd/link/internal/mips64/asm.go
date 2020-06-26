@@ -41,7 +41,7 @@ import (
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
@@ -52,36 +52,36 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 	//		type	uint8
 	//		addend	int64
 
-	ctxt.Out.Write64(uint64(sectoff))
+	out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	ctxt.Out.Write32(uint32(elfsym))
-	ctxt.Out.Write8(0)
-	ctxt.Out.Write8(0)
-	ctxt.Out.Write8(0)
+	out.Write32(uint32(elfsym))
+	out.Write8(0)
+	out.Write8(0)
+	out.Write8(0)
 	switch r.Type() {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz() {
 		case 4:
-			ctxt.Out.Write8(uint8(elf.R_MIPS_32))
+			out.Write8(uint8(elf.R_MIPS_32))
 		case 8:
-			ctxt.Out.Write8(uint8(elf.R_MIPS_64))
+			out.Write8(uint8(elf.R_MIPS_64))
 		default:
 			return false
 		}
 	case objabi.R_ADDRMIPS:
-		ctxt.Out.Write8(uint8(elf.R_MIPS_LO16))
+		out.Write8(uint8(elf.R_MIPS_LO16))
 	case objabi.R_ADDRMIPSU:
-		ctxt.Out.Write8(uint8(elf.R_MIPS_HI16))
+		out.Write8(uint8(elf.R_MIPS_HI16))
 	case objabi.R_ADDRMIPSTLS:
-		ctxt.Out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
+		out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
-		ctxt.Out.Write8(uint8(elf.R_MIPS_26))
+		out.Write8(uint8(elf.R_MIPS_26))
 	}
-	ctxt.Out.Write64(uint64(r.Xadd))
+	out.Write64(uint64(r.Xadd))
 
 	return true
 }

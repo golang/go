@@ -18,8 +18,8 @@ import (
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
-	log.Fatalf("elfreloc2")
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+	log.Fatalf("elfreloc1")
 	return false
 }
 

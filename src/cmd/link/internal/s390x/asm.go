@@ -219,8 +219,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
-	ctxt.Out.Write64(uint64(sectoff))
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+	out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
@@ -233,30 +233,30 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 			return false
 		case 4:
 			// WARNING - silently ignored by linker in ELF64
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_LE32) | uint64(elfsym)<<32)
 		case 8:
 			// WARNING - silently ignored by linker in ELF32
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_LE64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_TLS_IE:
 		switch siz {
 		default:
 			return false
 		case 4:
-			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
 		}
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch siz {
 		default:
 			return false
 		case 4:
-			ctxt.Out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_32) | uint64(elfsym)<<32)
 		case 8:
-			ctxt.Out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_64) | uint64(elfsym)<<32)
 		}
 	case objabi.R_GOTPCREL:
 		if siz == 4 {
-			ctxt.Out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_390_GOTENT) | uint64(elfsym)<<32)
 		} else {
 			return false
 		}
@@ -308,10 +308,10 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		if elfrel == elf.R_390_NONE {
 			return false // unsupported size/dbl combination
 		}
-		ctxt.Out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
+		out.Write64(uint64(elfrel) | uint64(elfsym)<<32)
 	}
 
-	ctxt.Out.Write64(uint64(r.Xadd))
+	out.Write64(uint64(r.Xadd))
 	return true
 }
 

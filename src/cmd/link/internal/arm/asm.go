@@ -248,8 +248,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
-	ctxt.Out.Write32(uint32(sectoff))
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+	out.Write32(uint32(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
@@ -258,33 +258,33 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_ARM_ABS32) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_ARM_ABS32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_PCREL:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_ARM_REL32) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_ARM_REL32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_CALLARM:
 		if siz == 4 {
 			if r.Add()&0xff000000 == 0xeb000000 { // BL
-				ctxt.Out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
+				out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
 			} else {
-				ctxt.Out.Write32(uint32(elf.R_ARM_JUMP24) | uint32(elfsym)<<8)
+				out.Write32(uint32(elf.R_ARM_JUMP24) | uint32(elfsym)<<8)
 			}
 		} else {
 			return false
 		}
 	case objabi.R_TLS_LE:
-		ctxt.Out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
 	case objabi.R_TLS_IE:
-		ctxt.Out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
 	case objabi.R_GOTPCREL:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}

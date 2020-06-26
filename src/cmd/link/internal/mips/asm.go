@@ -43,8 +43,8 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	return
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
-	ctxt.Out.Write32(uint32(sectoff))
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+	out.Write32(uint32(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch r.Type() {
@@ -54,15 +54,15 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		if r.Siz() != 4 {
 			return false
 		}
-		ctxt.Out.Write32(uint32(elf.R_MIPS_32) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_MIPS_32) | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPS:
-		ctxt.Out.Write32(uint32(elf.R_MIPS_LO16) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_MIPS_LO16) | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSU:
-		ctxt.Out.Write32(uint32(elf.R_MIPS_HI16) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_MIPS_HI16) | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSTLS:
-		ctxt.Out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
-		ctxt.Out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
+		out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
 	}
 
 	return true
