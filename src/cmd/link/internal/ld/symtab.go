@@ -409,8 +409,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	ctxt.xdefine("runtime.text", sym.STEXT, 0)
-	ctxt.xdefine("runtime.etext", sym.STEXT, 0)
 	ctxt.xdefine("runtime.itablink", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.eitablink", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)

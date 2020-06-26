@@ -2084,8 +2084,9 @@ func (ctxt *Link) textaddress() {
 	sect.Align = int32(Funcalign)
 
 	ldr := ctxt.loader
-	text := ldr.LookupOrCreateSym("runtime.text", 0)
-	ldr.SetAttrReachable(text, true)
+
+	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)
+	etext := ctxt.xdefine("runtime.etext", sym.STEXT, 0)
 	ldr.SetSymSect(text, sect)
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Setting runtime.text has a real symbol prevents ld to
@@ -2097,9 +2098,7 @@ func (ctxt *Link) textaddress() {
 	}
 
 	if (ctxt.DynlinkingGo() && ctxt.IsDarwin()) || (ctxt.IsAIX() && ctxt.IsExternal()) {
-		etext := ldr.LookupOrCreateSym("runtime.etext", 0)
 		ldr.SetSymSect(etext, sect)
-
 		ctxt.Textp = append(ctxt.Textp, etext, 0)
 		copy(ctxt.Textp[1:], ctxt.Textp)
 		ctxt.Textp[0] = text
@@ -2126,9 +2125,13 @@ func (ctxt *Link) textaddress() {
 	}
 
 	sect.Length = va - sect.Vaddr
-	etext := ldr.LookupOrCreateSym("runtime.etext", 0)
-	ldr.SetAttrReachable(etext, true)
 	ldr.SetSymSect(etext, sect)
+	if ldr.SymValue(etext) == 0 {
+		// Set the address of the start/end symbols, if not already
+		// (i.e. not darwin+dynlink or AIX+external, see above).
+		ldr.SetSymValue(etext, int64(va))
+		ldr.SetSymValue(text, *FlagTextAddr)
+	}
 
 	// merge tramps into Textp, keeping Textp in address order
 	if ntramps != 0 {
@@ -2351,20 +2354,12 @@ func (ctxt *Link) address() []*sym.Segment {
 
 	ldr := ctxt.loader
 	var (
-		text     = Segtext.Sections[0]
 		rodata   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
 		itablink = ldr.SymSect(ldr.LookupOrCreateSym("runtime.itablink", 0))
 		symtab   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
 		pclntab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
 		types    = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
 	)
-	lasttext := text
-	// Could be multiple .text sections
-	for _, sect := range Segtext.Sections {
-		if sect.Name == ".text" {
-			lasttext = sect
-		}
-	}
 
 	for _, s := range ctxt.datap {
 		if sect := ldr.SymSect(s); sect != nil {
@@ -2398,9 +2393,6 @@ func (ctxt *Link) address() []*sym.Segment {
 		ldr.SetSymSect(s, sect)
 		ldr.SetSymValue(s, int64(sect.Vaddr+16))
 	}
-
-	ctxt.xdefine("runtime.text", sym.STEXT, int64(text.Vaddr))
-	ctxt.xdefine("runtime.etext", sym.STEXT, int64(lasttext.Vaddr+lasttext.Length))
 
 	// If there are multiple text sections, create runtime.text.n for
 	// their section Vaddr, using n for index
