@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"sort"
@@ -339,32 +340,49 @@ func (oid oidEncoder) Encode(dst []byte) {
 
 type oidEncoderExt ObjectIdentifierExt
 
-// suboid12Encoding returns 40 * value1 + value2.
-// Overflow cannot happen since first sub-oid is limited to values 0, 1, and 2
-// and second sub-oid is limited to the range 0 to 39 when value1 is 0 or 1.
-func (oid oidEncoderExt) suboid12Encoding() int64 {
-	var s int64
+// suboid12Encoding returns 40 * value1 + value2, either as int64 or *big.Int.
+// First sub-oid is limited to values 0, 1, and 2.
+// Second sub-oid is limited to the range 0 to 39 when value1 is 0 or 1.
+func (oid oidEncoderExt) suboid12Encoding() interface{} {
+	var s interface{}
 	switch v := oid[0].(type) {
 	case int:
 		s = int64(v) * 40
 	case int64:
+		// This cannot overflow because sub-oid is limited to values 0, 1, and 2.
 		s = v * 40
 	case *big.Int:
-		s = new(big.Int).Mul(v, bigForty).Int64()
+		// This can be converted to int64 because sub-oid is limited to values 0, 1, and 2.
+		s = v.Int64() * 40
 	}
 	switch v := oid[1].(type) {
 	case int:
-		s += int64(v)
+		if math.MaxInt64-int64(v) >= s.(int64) {
+			s = s.(int64) + int64(v)
+		} else {
+			s = new(big.Int).Add(big.NewInt(s.(int64)), big.NewInt(int64(v)))
+		}
 	case int64:
-		s += v
+		if math.MaxInt64-int64(v) >= s.(int64) {
+			s = s.(int64) + int64(v)
+		} else {
+			s = new(big.Int).Add(big.NewInt(s.(int64)), big.NewInt(v))
+		}
 	case *big.Int:
-		s += v.Int64()
+		s = new(big.Int).Add(big.NewInt(s.(int64)), v)
 	}
 	return s
 }
 
 func (oid oidEncoderExt) Len() int {
-	l := base128IntLength(oid.suboid12Encoding())
+	s := oid.suboid12Encoding()
+	var l int
+	switch v := s.(type) {
+	case int64:
+		l = base128IntLength(v)
+	case *big.Int:
+		l = base128BigIntLength(v)
+	}
 	for i := 2; i < len(oid); i++ {
 		switch v := oid[i].(type) {
 		case int:
@@ -379,7 +397,13 @@ func (oid oidEncoderExt) Len() int {
 }
 
 func (oid oidEncoderExt) Encode(dst []byte) {
-	dst = appendBase128Int(dst[:0], oid.suboid12Encoding())
+	s := oid.suboid12Encoding()
+	switch v := s.(type) {
+	case int64:
+		dst = appendBase128Int(dst[:0], v)
+	case *big.Int:
+		dst = appendBase128BigInt(dst[:0], v)
+	}
 	for i := 2; i < len(oid); i++ {
 		switch v := oid[i].(type) {
 		case int:
@@ -405,21 +429,31 @@ func makeObjectIdentifierExt(oid ObjectIdentifierExt) (e encoder, err error) {
 	if len(oid) < 2 {
 		isValid = false
 	} else {
+		validateOid2Range := false
 		switch v := oid[0].(type) {
 		case int:
 			if v > 2 {
 				isValid = false
 			}
+			if v < 2 {
+				validateOid2Range = true
+			}
 		case int64:
 			if v > 2 {
 				isValid = false
+			}
+			if v < 2 {
+				validateOid2Range = true
 			}
 		case *big.Int:
 			if v.Cmp(bigTwo) > 0 {
 				isValid = false
 			}
+			if v.Cmp(bigTwo) < 0 {
+				validateOid2Range = false
+			}
 		}
-		if isValid {
+		if isValid && validateOid2Range {
 			switch v := oid[1].(type) {
 			case int:
 				if v >= 40 {

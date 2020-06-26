@@ -7,6 +7,7 @@ package asn1
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
 	"math/big"
 	"reflect"
 	"strings"
@@ -136,6 +137,11 @@ var marshalTests = []marshalTest{
 	{ObjectIdentifier([]int{2, 100, 3}), "0603813403"},
 	// Sub-oid value 67006527840 exceeds 2^31-1 and less than 2^63-1
 	{ObjectIdentifierExt{1, 2, 36, 67006527840, 666, 66, 1, 1}, "060d2a2481f9cf99f260851a420101"},
+	// Use cases that could cause overflow of (40 * value1 + value2)
+	{ObjectIdentifierExt{2, math.MaxInt64, 1, 1}, "060C8180808080808080804F0101"},
+	{ObjectIdentifierExt{2, math.MaxInt64 - 79, 1, 1}, "060C818080808080808080000101"},
+	{ObjectIdentifierExt{2, math.MaxInt64 - 80, 1, 1}, "060BFFFFFFFFFFFFFFFF7F0101"},
+	{ObjectIdentifierExt{2, math.MaxInt64 - 81, 1, 1}, "060BFFFFFFFFFFFFFFFF7E0101"},
 	// Sub-oid value is near 2^62, which is close to max int64 value
 	{ObjectIdentifierExt{1, 2, 1 << 62, 1}, "060b2ac0808080808080800001"},
 	// Same OID as above, implemented as big.Int
@@ -261,6 +267,30 @@ func TestInvalidUTF8(t *testing.T) {
 	_, err := Marshal(string([]byte{0xff, 0xff}))
 	if err == nil {
 		t.Errorf("invalid UTF8 string was accepted")
+	}
+}
+
+func TestInvalidOID(t *testing.T) {
+	var marshalTestsOID = []interface{}{
+		// First sub-oid must be 0, 1 or 2.
+		ObjectIdentifier{-1, 999, 3},
+		ObjectIdentifier{3, 999, 3},
+		ObjectIdentifierExt{3, 999, 3},
+		ObjectIdentifierExt{math.MaxInt64, 999, 3},
+		ObjectIdentifierExt{big.NewInt(3), 999, 3},
+		// Second sub-oid is limited to the range 0 to 39 when first sub-oid is 0 or 1.
+		ObjectIdentifier{0, 40, 3},
+		ObjectIdentifier{1, 40, 3},
+		ObjectIdentifierExt{0, 40, 3},
+		ObjectIdentifierExt{1, 40, 3},
+		ObjectIdentifierExt{0, math.MaxInt64, 3},
+		ObjectIdentifierExt{1, math.MaxInt64, 3},
+	}
+	for i, oid := range marshalTestsOID {
+		_, err := Marshal(oid)
+		if err == nil || "asn1: structure error: invalid object identifier" != err.Error() {
+			t.Errorf("#%d failed: %s", i, err)
+		}
 	}
 }
 
