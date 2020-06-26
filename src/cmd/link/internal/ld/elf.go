@@ -1397,11 +1397,29 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 }
 
 func elfEmitReloc(ctxt *Link) {
-
 	for ctxt.Out.Offset()&7 != 0 {
 		ctxt.Out.Write8(0)
 	}
 
+	// Precompute the size needed for the reloc records if we can
+	// Mmap the output buffer with the proper size.
+	//
+	// TODO: on some architectures, one Go relocation may turn to
+	// multiple ELF relocations, which makes the size not fixed.
+	// Handle this case better. Maybe increment the counter by the
+	// number of external reloc records in relocsym.
+	var sz, filesz int64
+	if thearch.ElfrelocSize != 0 {
+		for _, seg := range Segments {
+			for _, sect := range seg.Sections {
+				sz += int64(thearch.ElfrelocSize * sect.Relcount)
+			}
+		}
+		filesz = ctxt.Out.Offset() + sz
+		ctxt.Out.Mmap(uint64(filesz))
+	}
+
+	// Now emits the records.
 	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
 			elfrelocsect(ctxt, sect, ctxt.Textp)
@@ -1427,6 +1445,11 @@ func elfEmitReloc(ctxt *Link) {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
 		elfrelocsect(ctxt, sect, si.syms)
+	}
+
+	// sanity check
+	if thearch.ElfrelocSize != 0 && ctxt.Out.Offset() != filesz {
+		panic("elfEmitReloc: size mismatch")
 	}
 }
 

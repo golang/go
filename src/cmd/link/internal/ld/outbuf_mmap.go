@@ -10,7 +10,15 @@ import (
 	"syscall"
 )
 
+// Mmap maps the output file with the given size. It unmaps the old mapping
+// if it is already mapped. It also flushes any in-heap data to the new
+// mapping.
 func (out *OutBuf) Mmap(filesize uint64) (err error) {
+	oldlen := len(out.buf)
+	if oldlen != 0 {
+		out.munmap()
+	}
+
 	for {
 		if err = out.fallocate(filesize); err != syscall.EINTR {
 			break
@@ -29,7 +37,17 @@ func (out *OutBuf) Mmap(filesize uint64) (err error) {
 		Exitf("resize output file failed: %v", err)
 	}
 	out.buf, err = syscall.Mmap(int(out.f.Fd()), 0, int(filesize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FILE)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// copy heap to new mapping
+	if uint64(oldlen+len(out.heap)) > filesize {
+		panic("mmap size too small")
+	}
+	copy(out.buf[oldlen:], out.heap)
+	out.heap = out.heap[:0]
+	return nil
 }
 
 func (out *OutBuf) munmap() {
