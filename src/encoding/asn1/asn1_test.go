@@ -656,8 +656,8 @@ func TestRawStructs(t *testing.T) {
 }
 
 type oiEqualTest struct {
-	first  ObjectIdentifier
-	second ObjectIdentifier
+	first  interface{}
+	second interface{}
 	same   bool
 }
 
@@ -675,6 +675,11 @@ var oiEqualTests = []oiEqualTest{
 	{
 		ObjectIdentifier{1, 2, 3},
 		ObjectIdentifier{10, 11, 12},
+		false,
+	},
+	{
+		ObjectIdentifierExt{1, 2, 3},
+		ObjectIdentifierExt{10, 11, 12},
 		false,
 	},
 }
