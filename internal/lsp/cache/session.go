@@ -31,6 +31,9 @@ type Session struct {
 
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
+
+	// gocmdRunner guards go command calls from concurrency errors.
+	gocmdRunner *gocommand.Runner
 }
 
 type overlay struct {
@@ -146,7 +149,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 			unloadableFiles:   make(map[span.URI]struct{}),
 			parseModHandles:   make(map[span.URI]*parseModHandle),
 		},
-		gocmdRunner: &gocommand.Runner{},
 	}
 	v.snapshot.view = v
 
@@ -241,6 +243,12 @@ func (s *Session) bestView(uri span.URI) (*View, error) {
 	}
 	if longest != nil {
 		return longest, nil
+	}
+	// Try our best to return a view that knows the file.
+	for _, view := range s.views {
+		if view.knownFile(uri) {
+			return view, nil
+		}
 	}
 	// TODO: are there any more heuristics we can use?
 	return s.views[0], nil

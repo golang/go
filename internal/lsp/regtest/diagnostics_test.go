@@ -933,3 +933,24 @@ func TestDoIt(t *testing.T) {
 		)
 	})
 }
+
+func TestSingleFile(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.13
+-- a/a.go --
+package a
+
+func _() {
+	var x int
+}
+`
+	runner.Run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.Await(
+			env.DiagnosticAtRegexp("a/a.go", "x"),
+		)
+	}, WithoutWorkspaceFolders())
+}

@@ -7,7 +7,6 @@ package lsp
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -41,7 +40,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	source.SetOptions(&options, params.InitializationOptions)
 	options.ForClientCapabilities(params.Capabilities)
 
-	if !params.RootURI.SpanURI().IsFile() {
+	if params.RootURI != "" && !params.RootURI.SpanURI().IsFile() {
 		return nil, fmt.Errorf("unsupported URI scheme: %v (gopls only supports file URIs)", params.RootURI)
 	}
 	s.pendingFolders = params.WorkspaceFolders
@@ -51,10 +50,6 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 				URI:  string(params.RootURI),
 				Name: path.Base(params.RootURI.SpanURI().Filename()),
 			}}
-		} else {
-			// No folders and no root--we are in single file mode.
-			// TODO: https://golang.org/issue/34160.
-			return nil, errors.New("gopls does not yet support editing a single file. Please open a directory.")
 		}
 	}
 
@@ -152,12 +147,15 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		)
 	}
 
-	// TODO: this event logging may be unnecessary. The version info is included in the initialize response.
+	// TODO: this event logging may be unnecessary.
+	// The version info is included in the initialize response.
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, buf, true, debug.PlainText)
 	event.Log(ctx, buf.String())
 
-	s.addFolders(ctx, s.pendingFolders)
+	if err := s.addFolders(ctx, s.pendingFolders); err != nil {
+		return err
+	}
 	s.pendingFolders = nil
 
 	if options.DynamicWatchedFilesSupported {
@@ -188,7 +186,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	return nil
 }
 
-func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFolder) {
+func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFolder) error {
 	originalViews := len(s.session.Views())
 	viewErrors := make(map[span.URI]error)
 
@@ -215,11 +213,12 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		for uri, err := range viewErrors {
 			errMsg += fmt.Sprintf("failed to load view for %s: %v\n", uri, err)
 		}
-		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+		return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Error,
 			Message: errMsg,
 		})
 	}
+	return nil
 }
 
 func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, o *source.Options) error {

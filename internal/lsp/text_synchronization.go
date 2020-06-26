@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -55,6 +57,37 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	uri := params.TextDocument.URI.SpanURI()
 	if !uri.IsFile() {
 		return nil
+	}
+	// There may not be any matching view in the current session. If that's
+	// the case, try creating a new view based on the opened file path.
+	//
+	// TODO(rstambler): This seems like it would continuously add new
+	// views, but it won't because ViewOf only returns an error when there
+	// are no views in the session. I don't know if that logic should go
+	// here, or if we can continue to rely on that implementation detail.
+	if _, err := s.session.ViewOf(uri); err != nil {
+		// Run `go env GOMOD` to detect a module root. If we are not in a module,
+		// just use the current directory as the root.
+		dir := filepath.Dir(uri.Filename())
+		stdout, err := (&gocommand.Runner{}).Run(ctx, gocommand.Invocation{
+			Verb:       "env",
+			Args:       []string{"GOMOD"},
+			BuildFlags: s.session.Options().BuildFlags,
+			Env:        s.session.Options().Env,
+			WorkingDir: dir,
+		})
+		if err != nil {
+			return err
+		}
+		if stdout.String() != "" {
+			dir = filepath.Dir(stdout.String())
+		}
+		if err := s.addFolders(ctx, []protocol.WorkspaceFolder{{
+			URI:  string(protocol.URIFromPath(dir)),
+			Name: filepath.Base(dir),
+		}}); err != nil {
+			return err
+		}
 	}
 
 	_, err := s.didModifyFiles(ctx, []source.FileModification{

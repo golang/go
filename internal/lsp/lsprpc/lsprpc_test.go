@@ -196,7 +196,7 @@ func main() {
 }`
 
 func TestDebugInfoLifecycle(t *testing.T) {
-	sb, err := fake.NewSandbox("gopls-lsprpc-test", exampleProgram, "", false)
+	sb, err := fake.NewSandbox("gopls-lsprpc-test", exampleProgram, "", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

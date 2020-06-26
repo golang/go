@@ -134,7 +134,7 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 	if typesinternal.SetUsesCgo(&types.Config{}) {
 		cfg.Mode |= packages.LoadMode(packagesinternal.TypecheckCgo)
 	}
-	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
+	packagesinternal.SetGoCmdRunner(cfg, s.view.session.gocmdRunner)
 
 	return cfg
 }

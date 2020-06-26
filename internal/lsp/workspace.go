@@ -23,8 +23,7 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 			return errors.Errorf("view %s for %v not found", folder.Name, folder.URI)
 		}
 	}
-	s.addFolders(ctx, event.Added)
-	return nil
+	return s.addFolders(ctx, event.Added)
 }
 
 func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.View, source.Snapshot, error) {

@@ -66,12 +66,13 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editorConfig fake.EditorConfig
-	modes        Mode
-	proxyTxt     string
-	timeout      time.Duration
-	skipCleanup  bool
-	gopath       bool
+	editorConfig            fake.EditorConfig
+	modes                   Mode
+	proxyTxt                string
+	timeout                 time.Duration
+	skipCleanup             bool
+	gopath                  bool
+	withoutWorkspaceFolders bool
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -113,10 +114,20 @@ func WithModes(modes Mode) RunOption {
 	})
 }
 
-// WithEditorConfig configures the editors LSP session.
+// WithEditorConfig configures the editor's LSP session.
 func WithEditorConfig(config fake.EditorConfig) RunOption {
 	return optionSetter(func(opts *runConfig) {
 		opts.editorConfig = config
+	})
+}
+
+// WithoutWorkspaceFolders prevents workspace folders from being sent as part
+// of the sandbox's initialization. It is used to simulate opening a single
+// file in the editor, without a workspace root. In that case, the client sends
+// neither workspace folders nor a root URI.
+func WithoutWorkspaceFolders() RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.withoutWorkspaceFolders = false
 	})
 }
 
@@ -167,7 +178,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *E
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.gopath)
+			sandbox, err := fake.NewSandbox("regtest", filedata, config.proxyTxt, config.gopath, config.withoutWorkspaceFolders)
 			if err != nil {
 				t.Fatal(err)
 			}

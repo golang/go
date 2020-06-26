@@ -118,9 +118,6 @@ type View struct {
 	gocache, gomodcache, gopath, goprivate string
 
 	goEnv map[string]string
-
-	// gocmdRunner guards go command calls from concurrency errors.
-	gocmdRunner *gocommand.Runner
 }
 
 type builtinPackageHandle struct {
@@ -353,7 +350,7 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 	}
 	// Don't go through runGoCommand, as we don't need a temporary go.mod to
 	// run `go env`.
-	stdout, err := v.gocmdRunner.Run(ctx, inv)
+	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return err
 	}
@@ -472,7 +469,7 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 
 	pe := v.processEnv
 	pe.LocalPrefix = localPrefix
-	pe.GocmdRunner = v.gocmdRunner
+	pe.GocmdRunner = v.session.gocmdRunner
 	pe.BuildFlags = buildFlags
 	pe.Env = v.goEnv
 	pe.WorkingDir = v.folder.Filename()
@@ -843,7 +840,7 @@ func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error)
 	}
 	// Don't go through runGoCommand, as we don't need a temporary -modfile to
 	// run `go env`.
-	stdout, err := v.gocmdRunner.Run(ctx, inv)
+	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return "", err
 	}
@@ -925,7 +922,7 @@ func (v *View) modfileFlagExists(ctx context.Context, env []string) (bool, error
 		Env:        append(env, "GO111MODULE=off"),
 		WorkingDir: v.Folder().Filename(),
 	}
-	stdout, err := v.gocmdRunner.Run(ctx, inv)
+	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return false, err
 	}

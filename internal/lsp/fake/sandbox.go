@@ -25,13 +25,18 @@ type Sandbox struct {
 	basedir string
 	Proxy   *Proxy
 	Workdir *Workdir
+
+	// withoutWorkspaceFolders is used to simulate opening a single file in the
+	// editor, without a workspace root. In that case, the client sends neither
+	// workspace folders nor a root URI.
+	withoutWorkspaceFolders bool
 }
 
 // NewSandbox creates a collection of named temporary resources, with a
 // working directory populated by the txtar-encoded content in srctxt, and a
 // file-based module proxy populated with the txtar-encoded content in
 // proxytxt.
-func NewSandbox(name, srctxt, proxytxt string, inGopath bool) (_ *Sandbox, err error) {
+func NewSandbox(name, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool) (_ *Sandbox, err error) {
 	sb := &Sandbox{
 		name: name,
 	}
@@ -62,6 +67,7 @@ func NewSandbox(name, srctxt, proxytxt string, inGopath bool) (_ *Sandbox, err e
 	}
 	sb.Proxy, err = NewProxy(proxydir, proxytxt)
 	sb.Workdir, err = NewWorkdir(workdir, srctxt)
+	sb.withoutWorkspaceFolders = withoutWorkspaceFolders
 
 	return sb, nil
 }

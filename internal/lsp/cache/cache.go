@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -112,10 +113,11 @@ func readFile(ctx context.Context, uri span.URI, origTime time.Time) *fileHandle
 func (c *Cache) NewSession(ctx context.Context) *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	s := &Session{
-		cache:    c,
-		id:       strconv.FormatInt(index, 10),
-		options:  source.DefaultOptions(),
-		overlays: make(map[span.URI]*overlay),
+		cache:       c,
+		id:          strconv.FormatInt(index, 10),
+		options:     source.DefaultOptions(),
+		overlays:    make(map[span.URI]*overlay),
+		gocmdRunner: &gocommand.Runner{},
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s

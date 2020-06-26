@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -89,7 +90,7 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))
-	if err := e.initialize(ctx); err != nil {
+	if err := e.initialize(ctx, e.sandbox.withoutWorkspaceFolders); err != nil {
 		return nil, err
 	}
 	e.sandbox.Workdir.AddWatcher(e.onFileChanges)
@@ -166,11 +167,16 @@ func (e *Editor) configuration() map[string]interface{} {
 	return config
 }
 
-func (e *Editor) initialize(ctx context.Context) error {
+func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool) error {
 	params := &protocol.ParamInitialize{}
 	params.ClientInfo.Name = "fakeclient"
 	params.ClientInfo.Version = "v1.0.0"
-	params.RootURI = e.sandbox.Workdir.RootURI()
+	if !withoutWorkspaceFolders {
+		params.WorkspaceFolders = []protocol.WorkspaceFolder{{
+			URI:  string(e.sandbox.Workdir.RootURI()),
+			Name: filepath.Base(e.sandbox.Workdir.RootURI().SpanURI().Filename()),
+		}}
+	}
 	params.Capabilities.Workspace.Configuration = true
 	params.Capabilities.Window.WorkDoneProgress = true
 	// TODO: set client capabilities
