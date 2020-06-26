@@ -30,11 +30,13 @@ import (
 // value is a filename on the native file system, not a URL, so it is separated
 // by filepath.Separator, which isn't necessarily '/'.
 //
-// Note that Dir will allow access to files and directories starting with a
-// period, which could expose sensitive directories like a .git directory or
-// sensitive files like .htpasswd. To exclude files with a leading period,
-// remove the files/directories from the server or create a custom FileSystem
-// implementation.
+// Note that Dir could expose sensitive files and directories. Dir will follow
+// symlinks pointing out of the directory tree, which can be especially dangerous
+// if serving from a directory in which users are able to create arbitrary symlinks.
+// Dir will also allow access to files and directories starting with a period,
+// which could expose sensitive directories like .git or sensitive files like
+// .htpasswd. To exclude files with a leading period, remove the files/directories
+// from the server or create a custom FileSystem implementation.
 //
 // An empty Dir is treated as ".".
 type Dir string

@@ -235,7 +235,7 @@ func (d *Dialer) netDialer() *net.Dialer {
 	return new(net.Dialer)
 }
 
-// Dial connects to the given network address and initiates a TLS
+// DialContext connects to the given network address and initiates a TLS
 // handshake, returning the resulting TLS connection.
 //
 // The provided Context must be non-nil. If the context expires before

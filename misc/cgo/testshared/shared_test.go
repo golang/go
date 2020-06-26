@@ -1028,3 +1028,9 @@ func TestGeneratedHash(t *testing.T) {
 	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
 	goCmd(nil, "test", "-linkshared", "./issue30768")
 }
+
+// Test that packages can be added not in dependency order (here a depends on b, and a adds
+// before b). This could happen with e.g. go build -buildmode=shared std. See issue 39777.
+func TestPackageOrder(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+}

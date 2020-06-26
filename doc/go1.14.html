@@ -466,7 +466,15 @@ Do not send CLs removing the interior tags from such phrases.
       certificate, and letting the package automatically select the best one.
       Note that the performance of this selection is going to be poor unless the
       <a href="/pkg/crypto/tls/#Certificate.Leaf"><code>Certificate.Leaf</code></a>
-      field is set.
+      field is set. The
+      <a href="/pkg/crypto/tls/#Config.NameToCertificate"><code>Config.NameToCertificate</code></a>
+      field, which only supports associating a single certificate with
+      a give name, is now deprecated and should be left as <code>nil</code>.
+      Similarly the
+      <a href="/pkg/crypto/tls/#Config.BuildNameToCertificate"><code>Config.BuildNameToCertificate</code></a>
+      method, which builds the <code>NameToCertificate</code> field
+      from the leaf certificates, is now deprecated and should not be
+      called.
     </p>
 
     <p><!-- CL 175517 -->

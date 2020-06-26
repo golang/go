@@ -418,41 +418,62 @@ func TestP256Mult(t *testing.T) {
 	}
 }
 
+func testInfinity(t *testing.T, curve Curve) {
+	_, x, y, _ := GenerateKey(curve, rand.Reader)
+	x, y = curve.ScalarMult(x, y, curve.Params().N.Bytes())
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("x^q != ∞")
+	}
+
+	x, y = curve.ScalarBaseMult([]byte{0})
+	if x.Sign() != 0 || y.Sign() != 0 {
+		t.Errorf("b^0 != ∞")
+		x.SetInt64(0)
+		y.SetInt64(0)
+	}
+
+	x2, y2 := curve.Double(x, y)
+	if x2.Sign() != 0 || y2.Sign() != 0 {
+		t.Errorf("2∞ != ∞")
+	}
+
+	baseX := curve.Params().Gx
+	baseY := curve.Params().Gy
+
+	x3, y3 := curve.Add(baseX, baseY, x, y)
+	if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
+		t.Errorf("x+∞ != x")
+	}
+
+	x4, y4 := curve.Add(x, y, baseX, baseY)
+	if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
+		t.Errorf("∞+x != x")
+	}
+
+	if curve.IsOnCurve(x, y) {
+		t.Errorf("IsOnCurve(∞) == true")
+	}
+}
+
 func TestInfinity(t *testing.T) {
 	tests := []struct {
 		name  string
 		curve Curve
 	}{
-		{"p224", P224()},
-		{"p256", P256()},
+		{"P-224", P224()},
+		{"P-256", P256()},
+		{"P-256/Generic", P256().Params()},
+		{"P-384", P384()},
+		{"P-521", P521()},
 	}
-
+	if testing.Short() {
+		tests = tests[:1]
+	}
 	for _, test := range tests {
 		curve := test.curve
-		x, y := curve.ScalarBaseMult(nil)
-		if x.Sign() != 0 || y.Sign() != 0 {
-			t.Errorf("%s: x^0 != ∞", test.name)
-		}
-		x.SetInt64(0)
-		y.SetInt64(0)
-
-		x2, y2 := curve.Double(x, y)
-		if x2.Sign() != 0 || y2.Sign() != 0 {
-			t.Errorf("%s: 2∞ != ∞", test.name)
-		}
-
-		baseX := curve.Params().Gx
-		baseY := curve.Params().Gy
-
-		x3, y3 := curve.Add(baseX, baseY, x, y)
-		if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
-			t.Errorf("%s: x+∞ != x", test.name)
-		}
-
-		x4, y4 := curve.Add(x, y, baseX, baseY)
-		if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
-			t.Errorf("%s: ∞+x != x", test.name)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			testInfinity(t, curve)
+		})
 	}
 }
 
