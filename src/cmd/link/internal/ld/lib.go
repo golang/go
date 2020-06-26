@@ -236,7 +236,7 @@ type Arch struct {
 	Asmb  func(*Link, *loader.Loader)
 	Asmb2 func(*Link, *loader.Loader)
 
-	Elfreloc1    func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1. Currently this can be 0, meaning that the size is not fixed (a Go reloc may turn into multiple ELF reloc).
 	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext      func(*Link, *loader.Loader)

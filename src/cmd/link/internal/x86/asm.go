@@ -314,8 +314,8 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
-	ctxt.Out.Write32(uint32(sectoff))
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+	out.Write32(uint32(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
@@ -324,16 +324,16 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_GOTPCREL:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
+			out.Write32(uint32(elf.R_386_GOTPC))
 			if ldr.SymName(r.Xsym) != "_GLOBAL_OFFSET_TABLE_" {
-				ctxt.Out.Write32(uint32(sectoff))
-				ctxt.Out.Write32(uint32(elf.R_386_GOT32) | uint32(elfsym)<<8)
+				out.Write32(uint32(sectoff))
+				out.Write32(uint32(elf.R_386_GOT32) | uint32(elfsym)<<8)
 			}
 		} else {
 			return false
@@ -341,30 +341,30 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 	case objabi.R_CALL:
 		if siz == 4 {
 			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
-				ctxt.Out.Write32(uint32(elf.R_386_PLT32) | uint32(elfsym)<<8)
+				out.Write32(uint32(elf.R_386_PLT32) | uint32(elfsym)<<8)
 			} else {
-				ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
+				out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
 			}
 		} else {
 			return false
 		}
 	case objabi.R_PCREL:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_386_PC32) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_TLS_LE:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_386_TLS_LE) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_386_TLS_LE) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}
 	case objabi.R_TLS_IE:
 		if siz == 4 {
-			ctxt.Out.Write32(uint32(elf.R_386_GOTPC))
-			ctxt.Out.Write32(uint32(sectoff))
-			ctxt.Out.Write32(uint32(elf.R_386_TLS_GOTIE) | uint32(elfsym)<<8)
+			out.Write32(uint32(elf.R_386_GOTPC))
+			out.Write32(uint32(sectoff))
+			out.Write32(uint32(elf.R_386_TLS_GOTIE) | uint32(elfsym)<<8)
 		} else {
 			return false
 		}

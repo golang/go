@@ -13,8 +13,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 /*
@@ -1342,7 +1344,7 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
 	return sh
 }
 
-func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1353,7 +1355,6 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 	}
 
 	ldr := ctxt.loader
-	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
 		if !ldr.AttrReachable(s) {
 			panic("should never happen")
@@ -1387,13 +1388,11 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 			if !ldr.AttrReachable(r.Xsym) {
 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
 			}
-			if !thearch.Elfreloc1(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
 	}
-
-	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 }
 
 func elfEmitReloc(ctxt *Link) {
@@ -1412,7 +1411,9 @@ func elfEmitReloc(ctxt *Link) {
 	if thearch.ElfrelocSize != 0 {
 		for _, seg := range Segments {
 			for _, sect := range seg.Sections {
-				sz += int64(thearch.ElfrelocSize * sect.Relcount)
+				sect.Reloff = uint64(ctxt.Out.Offset() + sz)
+				sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
+				sz += int64(sect.Rellen)
 			}
 		}
 		filesz = ctxt.Out.Offset() + sz
@@ -1420,22 +1421,54 @@ func elfEmitReloc(ctxt *Link) {
 	}
 
 	// Now emits the records.
+	var relocSect func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
+	var wg sync.WaitGroup
+	var sem chan int
+	if thearch.ElfrelocSize != 0 && ctxt.Out.isMmapped() {
+		// Write sections in parallel.
+		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
+		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+			wg.Add(1)
+			sem <- 1
+			out, err := ctxt.Out.View(sect.Reloff)
+			if err != nil {
+				panic(err)
+			}
+			go func() {
+				elfrelocsect(ctxt, out, sect, syms)
+				// sanity check
+				if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
+					panic("elfEmitReloc: size mismatch")
+				}
+				wg.Done()
+				<-sem
+			}()
+		}
+	} else {
+		// Sizes and offsets are not precomputed, or we cannot Mmap.
+		// We have to write sequentially.
+		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+			sect.Reloff = uint64(ctxt.Out.Offset()) // offset is not precomputed, so fill it in now
+			elfrelocsect(ctxt, ctxt.Out, sect, syms)
+			sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+		}
+	}
 	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
-			elfrelocsect(ctxt, sect, ctxt.Textp)
+			relocSect(ctxt, sect, ctxt.Textp)
 		} else {
-			elfrelocsect(ctxt, sect, ctxt.datap)
+			relocSect(ctxt, sect, ctxt.datap)
 		}
 	}
 
 	for _, sect := range Segrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segrelrodata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		elfrelocsect(ctxt, sect, ctxt.datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
@@ -1444,13 +1477,9 @@ func elfEmitReloc(ctxt *Link) {
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
-		elfrelocsect(ctxt, sect, si.syms)
+		relocSect(ctxt, sect, si.syms)
 	}
-
-	// sanity check
-	if thearch.ElfrelocSize != 0 && ctxt.Out.Offset() != filesz {
-		panic("elfEmitReloc: size mismatch")
-	}
+	wg.Wait()
 }
 
 func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {

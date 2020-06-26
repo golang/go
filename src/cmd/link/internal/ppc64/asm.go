@@ -441,7 +441,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 
 }
 
-func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
 	rt := r.Type()
 	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
@@ -450,7 +450,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 			sectoff += 2
 		}
 	}
-	ctxt.Out.Write64(uint64(sectoff))
+	out.Write64(uint64(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch rt {
@@ -459,60 +459,60 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Siz() {
 		case 4:
-			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
 		case 8:
-			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
+			out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
 		default:
 			return false
 		}
 	case objabi.R_POWER_TLS:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_LE:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_TPREL16) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_IE:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_DS:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_GOT:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_PCREL:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
 		r.Xadd += 4
 	case objabi.R_ADDRPOWER_TOCREL:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_TOCREL_DS:
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
-		ctxt.Out.Write64(uint64(r.Xadd))
-		ctxt.Out.Write64(uint64(sectoff + 4))
-		ctxt.Out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_CALLPOWER:
 		if r.Siz() != 4 {
 			return false
 		}
-		ctxt.Out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
 
 	}
-	ctxt.Out.Write64(uint64(r.Xadd))
+	out.Write64(uint64(r.Xadd))
 
 	return true
 }
