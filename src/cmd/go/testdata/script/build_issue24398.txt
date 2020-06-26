@@ -1,3 +1,6 @@
+# "GOARCH=xtensa GOOS=darwin go build -compiler=gccgo" should build successful because gccgo support this GOARCH/GOOS pair although gc does not. But in the previous version of go command, we checked the GOARCH/GOOS pair before parse and set the compiler from flags, and lead to misleading error message to users.
+
+[gccgo] skip
 env GOARCH=xtensa
 env GOOS=linux
 ! go build -compiler=gccgo issue24398/main.go
