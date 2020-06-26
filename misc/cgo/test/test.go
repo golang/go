@@ -2200,3 +2200,7 @@ func test32579(t *testing.T) {
 // issue 38649
 
 var issue38649 C.netbsd_gid = 42
+
+// issue 39877
+
+var issue39877 *C.void = nil
