@@ -2376,13 +2376,14 @@ const (
 	DeletedAutoSym = 'x'
 )
 
-func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
+func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) loader.Sym {
 	ldr := ctxt.loader
 	s := ldr.CreateSymForUpdate(p, 0)
 	s.SetType(t)
 	s.SetValue(v)
 	s.SetSpecial(true)
 	s.SetLocal(true)
+	return s.Sym()
 }
 
 func datoff(ldr *loader.Loader, s loader.Sym, addr int64) int64 {
