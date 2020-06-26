@@ -149,13 +149,10 @@ func (out *OutBuf) copyHeap() bool {
 	bufLen := len(out.buf)
 	heapLen := len(out.heap)
 	total := uint64(bufLen + heapLen)
-	out.munmap()
 	if heapLen != 0 {
-		if err := out.Mmap(total); err != nil {
+		if err := out.Mmap(total); err != nil { // Mmap will copy out.heap over to out.buf
 			panic(err)
 		}
-		copy(out.buf[bufLen:], out.heap[:heapLen])
-		out.heap = out.heap[:0]
 	}
 	return true
 }

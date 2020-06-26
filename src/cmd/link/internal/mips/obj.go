@@ -53,6 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Elfreloc1:        elfreloc1,
+		ElfrelocSize:     8,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,

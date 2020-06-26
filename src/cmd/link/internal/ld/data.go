@@ -47,6 +47,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // isRuntimeDepPkg reports whether pkg is the runtime package or its dependency
@@ -581,6 +582,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	if len(extRelocs) != 0 {
 		st.finalizeExtRelocSlice(extRelocs)
 		ldr.SetExtRelocs(s, extRelocs)
+		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)))
 	}
 }
 
