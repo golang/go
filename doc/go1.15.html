@@ -620,20 +620,6 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- encoding/json -->
 
-<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
-  <dd>
-    <p><!-- CL 203417 -->
-      The encoder has always taken care to avoid using namespace prefixes beginning with
-      <code>xml</code>,
-      which are reserved by the XML specification.
-      Now, following the specification more closely,
-      that check is case-insensitive, so that prefixes beginning with
-      <code>XML</code>, <code>XmL</code>,
-      and so on are also avoided.
-    </p>
-  </dd>
-</dl><!-- encoding/xml -->
-
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 221427 -->
