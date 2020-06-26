@@ -771,6 +771,10 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 		if fobj != nil && len(indexes) > 1 {
 			for _, index := range indexes[:len(indexes)-1] {
 				xf := xType.Struct().Field(index)
+				// This must be an embedded type.
+				// If the field name is the one we expect,
+				// don't mention it explicitly,
+				// because it might not be exported.
 				if xf.Name() == types.TypeString(xf.Type(), relativeTo(xf.Pkg())) {
 					continue
 				}
@@ -1168,22 +1172,7 @@ func (t *translator) typeWithoutArgs(typ *types.Named) *types.Named {
 func (t *translator) typeListToASTList(typeList []types.Type) ([]types.Type, []ast.Expr) {
 	argList := make([]ast.Expr, 0, len(typeList))
 	for _, typ := range typeList {
-		str := types.TypeString(typ, relativeTo(t.tpkg))
-		arg := ast.NewIdent("(" + str + ")")
-		if named, ok := typ.(*types.Named); ok {
-			if len(named.TArgs()) > 0 {
-				var narg *ast.Ident
-				_, narg = t.lookupInstantiatedType(named)
-				if t.err != nil {
-					return nil, nil
-				}
-				if narg != nil {
-					arg = ast.NewIdent(narg.Name)
-				}
-			}
-		}
-		argList = append(argList, arg)
-		t.setType(arg, typ)
+		argList = append(argList, t.typeToAST(typ))
 
 		// This inferred type may introduce a reference to
 		// packages that we don't otherwise import, and that

@@ -7,7 +7,10 @@ package go2go
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
+	"strconv"
+	"strings"
 )
 
 // lookupType returns the types.Type for an AST expression.
@@ -27,13 +30,13 @@ func (t *translator) lookupType(e ast.Expr) types.Type {
 // Uninstantiated AST expressions will be listed in t.importer.info.Types.
 func (t *translator) setType(e ast.Expr, nt types.Type) {
 	if ot, ok := t.importer.info.Types[e]; ok {
-		if !types.IdenticalIgnoreTags(ot.Type, nt) {
+		if !t.sameType(ot.Type, nt) {
 			panic("expression type changed")
 		}
 		return
 	}
 	if ot, ok := t.types[e]; ok {
-		if !types.IdenticalIgnoreTags(ot, nt) {
+		if !t.sameType(ot, nt) {
 			panic("expression type changed")
 		}
 		return
@@ -458,4 +461,166 @@ func (t *translator) tupleWithoutTags(tuple *types.Tuple) *types.Tuple {
 		vars[i] = types.NewVar(v.Pos(), v.Pkg(), v.Name(), typesNoTags[i])
 	}
 	return types.NewTuple(vars...)
+}
+
+// typeToAST converts a types.Type to an ast.Expr.
+func (t *translator) typeToAST(typ types.Type) ast.Expr {
+	var r ast.Expr
+	switch typ := typ.(type) {
+	case *types.Basic:
+		r = ast.NewIdent(typ.Name())
+	case *types.Array:
+		r = &ast.ArrayType{
+			Len: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: strconv.FormatInt(typ.Len(), 10),
+			},
+			Elt: t.typeToAST(typ.Elem()),
+		}
+	case *types.Slice:
+		r = &ast.ArrayType{
+			Elt: t.typeToAST(typ.Elem()),
+		}
+	case *types.Struct:
+		var fields []*ast.Field
+		n := typ.NumFields()
+		for i := 0; i < n; i++ {
+			tf := typ.Field(i)
+			var names []*ast.Ident
+			if !tf.Embedded() {
+				names = []*ast.Ident{
+					ast.NewIdent(tf.Name()),
+				}
+			}
+			var atag *ast.BasicLit
+			if tag := typ.Tag(i); tag != "" {
+				atag = &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: strconv.Quote(tag),
+				}
+			}
+			af := &ast.Field{
+				Names: names,
+				Type:  t.typeToAST(tf.Type()),
+				Tag:   atag,
+			}
+			fields = append(fields, af)
+		}
+		r = &ast.StructType{
+			Fields: &ast.FieldList{
+				List: fields,
+			},
+		}
+	case *types.Pointer:
+		r = &ast.StarExpr{
+			X: t.typeToAST(typ.Elem()),
+		}
+	case *types.Tuple:
+		// We should only see this in a types.Signature,
+		// where we handle it specially, since there is
+		// no ast.Expr that can represent this.
+		panic("unexpected types.Tuple")
+	case *types.Signature:
+		if len(typ.TParams()) > 0 {
+			// We should only see type parameters for
+			// a package scope function declaration.
+			panic("unexpected type parameters")
+		}
+		r = &ast.FuncType{
+			Params:  t.tupleToFieldList(typ.Params()),
+			Results: t.tupleToFieldList(typ.Params()),
+		}
+	case *types.Interface:
+		var methods []*ast.Field
+		nm := typ.NumExplicitMethods()
+		for i := 0; i < nm; i++ {
+			m := typ.ExplicitMethod(i)
+			f := &ast.Field{
+				Names: []*ast.Ident{
+					ast.NewIdent(m.Name()),
+				},
+				Type: t.typeToAST(m.Type()),
+			}
+			methods = append(methods, f)
+		}
+		ne := typ.NumEmbeddeds()
+		for i := 0; i < ne; i++ {
+			e := typ.EmbeddedType(i)
+			f := &ast.Field{
+				Type: t.typeToAST(e),
+			}
+			methods = append(methods, f)
+		}
+		r = &ast.InterfaceType{
+			Methods: &ast.FieldList{
+				List: methods,
+			},
+		}
+	case *types.Map:
+		r = &ast.MapType{
+			Key:   t.typeToAST(typ.Key()),
+			Value: t.typeToAST(typ.Elem()),
+		}
+	case *types.Chan:
+		var dir ast.ChanDir
+		switch typ.Dir() {
+		case types.SendRecv:
+			dir = ast.SEND | ast.RECV
+		case types.SendOnly:
+			dir = ast.SEND
+		case types.RecvOnly:
+			dir = ast.RECV
+		default:
+			panic("unsupported channel direction")
+		}
+		r = &ast.ChanType{
+			Dir:   dir,
+			Value: t.typeToAST(typ.Elem()),
+		}
+	case *types.Named:
+		if len(typ.TArgs()) > 0 {
+			_, id := t.lookupInstantiatedType(typ)
+			r = id
+		} else {
+			var sb strings.Builder
+			tn := typ.Obj()
+			if tn.Pkg() != nil && tn.Pkg() != t.tpkg {
+				sb.WriteString(tn.Pkg().Name())
+				sb.WriteByte('.')
+			}
+			sb.WriteString(tn.Name())
+			r = ast.NewIdent(sb.String())
+		}
+	case *types.TypeParam:
+		// This should have been instantiated already.
+		panic("unexpected type parameter")
+	default:
+		panic(fmt.Sprintf("unimplemented Type %T", typ))
+	}
+
+	t.setType(r, typ)
+	return r
+}
+
+// tupleToFieldList converts a tupes.Tuple to a ast.FieldList.
+func (t *translator) tupleToFieldList(tuple *types.Tuple) *ast.FieldList {
+	var fields []*ast.Field
+	n := tuple.Len()
+	for i := 0; i < n; i++ {
+		v := tuple.At(i)
+		var names []*ast.Ident
+		if v.Name() != "" {
+			names = []*ast.Ident{
+				ast.NewIdent(v.Name()),
+			}
+		}
+		f := &ast.Field{
+			Names: names,
+			Type:  t.typeToAST(v.Type()),
+		}
+		fields = append(fields, f)
+	}
+	return &ast.FieldList{
+		List: fields,
+	}
 }

@@ -841,11 +841,10 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			if isPtr {
 				instType = types.NewPointer(instType)
 			}
-			str := types.TypeString(instType, relativeTo(t.tpkg))
 			newField := &ast.Field{
 				Doc:     f.Doc,
 				Names:   []*ast.Ident{id},
-				Type:    ast.NewIdent(str),
+				Type:    t.typeToAST(instType),
 				Tag:     f.Tag,
 				Comment: f.Comment,
 			}
