@@ -214,6 +214,12 @@ func (e *Editor) OpenFile(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
+	return e.OpenFileWithContent(ctx, path, content)
+}
+
+// OpenFileWithContent creates a buffer for the given workdir-relative file
+// with the given contents.
+func (e *Editor) OpenFileWithContent(ctx context.Context, path, content string) error {
 	buf := newBuffer(path, content)
 	e.mu.Lock()
 	e.buffers[path] = buf
