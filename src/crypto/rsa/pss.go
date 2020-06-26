@@ -260,8 +260,14 @@ func (opts *PSSOptions) saltLength() int {
 //
 // digest must be the result of hashing the input message using the given hash
 // function. The opts argument may be nil, in which case sensible defaults are
-// used. If opts.Hash is set, it overrides hash.
+// used. If opts.Hash is set, it overrides hash. The rand argument may be nil
+// if nil rand will get initialized via crypto/rand.Reader
 func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+	// if no random source has been passed
+	// initialize with secure random from crypto/rand.Reader
+	if rand == nil {
+		rand = rand.Reader
+	}
 	if opts != nil && opts.Hash != 0 {
 		hash = opts.Hash
 	}
