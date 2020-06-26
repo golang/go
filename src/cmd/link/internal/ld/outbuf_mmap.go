@@ -38,8 +38,4 @@ func (out *OutBuf) munmap() {
 	}
 	syscall.Munmap(out.buf)
 	out.buf = nil
-	_, err := out.f.Seek(out.off, 0)
-	if err != nil {
-		Exitf("seek output file failed: %v", err)
-	}
 }
