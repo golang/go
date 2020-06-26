@@ -1031,7 +1031,7 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 	// Instantiating with a locally defined type won't work.
 	// Check that here.
 	for i, typ := range typeList {
-		if named, ok := typ.(*types.Named); ok {
+		if named, ok := typ.(*types.Named); ok && named.Obj().Pkg() != nil {
 			if scope := named.Obj().Parent(); scope != nil && scope != named.Obj().Pkg().Scope() {
 				var pos token.Pos
 				if haveInferred {

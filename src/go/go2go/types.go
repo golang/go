@@ -299,7 +299,9 @@ func (t *translator) addTypePackages(typ types.Type) {
 		t.addTypePackages(typ.Elem())
 	case *types.Named:
 		// This is the point of this whole method.
-		t.typePackages[typ.Obj().Pkg()] = true
+		if typ.Obj().Pkg() != nil {
+			t.typePackages[typ.Obj().Pkg()] = true
+		}
 	case *types.TypeParam:
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
