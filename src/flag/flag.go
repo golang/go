@@ -278,6 +278,12 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+type funcValue func(string) error
+
+func (f funcValue) Set(s string) error { return f(s) }
+
+func (f funcValue) String() string { return "" }
+
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 //
@@ -296,7 +302,7 @@ type Value interface {
 // Getter is an interface that allows the contents of a Value to be retrieved.
 // It wraps the Value interface, rather than being part of it, because it
 // appeared after Go 1 and its compatibility rules. All Value types provided
-// by this package satisfy the Getter interface.
+// by this package satisfy the Getter interface, except the type used by Func.
 type Getter interface {
 	Value
 	Get() interface{}
@@ -828,6 +834,24 @@ func (f *FlagSet) Duration(name string, value time.Duration, usage string) *time
 // The flag accepts a value acceptable to time.ParseDuration.
 func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
+}
+
+// Func defines a flag with the specified name and usage string. The last argument, fn, is called
+// once, in command line order, for each flag present, like the Set method of the Value interface.
+// This allows arbitary code to be executed for flags passed. For instance, the
+// caller could create a flag that turns a comma-separated string into a slice
+// of strings by passing a function that decomposes the comma-separated string into a slice.
+func (f *FlagSet) Func(name, usage string, fn func(string) error) {
+	f.Var(funcValue(cb), name, usage)
+}
+
+// Func defines a flag with the specified name and usage string. The last argument, fn, is called
+// once, in command line order, for each flag present, like the Set method of the Value interface.
+// This allows arbitary code to be executed for flags passed. For instance, the
+// caller could create a flag that turns a comma-separated string into a slice
+// of strings by passing a function that decomposes the comma-separated string into a slice.
+func Func(name, usage string, fn func(string) error) {
+	CommandLine.Func(name, usage, f)
 }
 
 // Var defines a flag with the specified name and usage string. The type and

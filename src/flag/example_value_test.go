@@ -42,3 +42,19 @@ func ExampleValue() {
 	// Output:
 	// {scheme: "https", host: "golang.org", path: "/pkg/flag/"}
 }
+
+func ExampleFunc() {
+	fs := flag.NewFlagSet("ExampleFunc", flag.ExitOnError)
+	var u *url.URL
+	fs.Func("url", "`URL` to parse", func(s string) error {
+		var err error
+		u, err = url.Parse(s)
+		return err
+	})
+
+	fs.Parse([]string{"-url", "https://golang.org/pkg/flag/"})
+	fmt.Printf(`{scheme: %q, host: %q, path: %q}`, u.Scheme, u.Host, u.Path)
+
+	// Output:
+	// {scheme: "https", host: "golang.org", path: "/pkg/flag/"}
+}
