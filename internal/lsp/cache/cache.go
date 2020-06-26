@@ -176,11 +176,21 @@ func (c *Cache) PackageStats(withNames bool) template.HTML {
 		switch k.(type) {
 		case packageHandleKey:
 			v := v.(*packageData)
+			if v.pkg == nil {
+				break
+			}
+			var typsCost, typInfoCost int64
+			if v.pkg.types != nil {
+				typsCost = typesCost(v.pkg.types.Scope())
+			}
+			if v.pkg.typesInfo != nil {
+				typInfoCost = typesInfoCost(v.pkg.typesInfo)
+			}
 			stat := packageStat{
 				id:        v.pkg.id,
 				mode:      v.pkg.mode,
-				types:     typesCost(v.pkg.types.Scope()),
-				typesInfo: typesInfoCost(v.pkg.typesInfo),
+				types:     typsCost,
+				typesInfo: typInfoCost,
 			}
 			for _, f := range v.pkg.compiledGoFiles {
 				fvi := f.handle.Cached()
