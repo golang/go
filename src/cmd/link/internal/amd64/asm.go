@@ -389,7 +389,6 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	siz := r.Siz()
-	xst := ldr.SymType(r.Xsym)
 	switch r.Type() {
 	default:
 		return false
@@ -415,7 +414,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		}
 	case objabi.R_CALL:
 		if siz == 4 {
-			if xst == sym.SDYNIMPORT {
+			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
 				if ctxt.DynlinkingGo() {
 					ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
 				} else {
@@ -429,7 +428,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
 		}
 	case objabi.R_PCREL:
 		if siz == 4 {
-			if xst == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
+			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
 				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
 			} else {
 				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
