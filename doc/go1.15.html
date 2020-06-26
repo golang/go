@@ -447,7 +447,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/crypto/tls/#Dialer"><code>Dialer</code></a>
       type and its
       <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
-      method permits using a context to both connect and handshake with a TLS server.
+      method permit using a context to both connect and handshake with a TLS server.
     </p>
 
     <p><!-- CL 229122 -->
@@ -603,9 +603,10 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 199837 -->
-      Introduce an internal limit to the maximum depth of nesting when decoding.
-      This reduces the possibility that a deeply nested input could use large quantities
-      of stack memory, or even cause a "goroutine stack exceeds limit" panic.
+      The package now has an internal limit to the maximum depth of
+      nesting when decoding. This reduces the possibility that a
+      deeply nested input could use large quantities of stack memory,
+      or even cause a "goroutine stack exceeds limit" panic.
     </p>
   </dd>
 </dl><!-- encoding/json -->
@@ -628,7 +629,7 @@ Do not send CLs removing the interior tags from such phrases.
   <dd>
     <p><!-- CL 221427 -->
       When the flag package sees <code>-h</code> or <code>-help</code>, and
-      those flags are not defined, the flag package prints a usage message.
+      those flags are not defined, it now prints a usage message.
       If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
       <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
       <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
@@ -931,7 +932,7 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 226877, golang.org/issue/35998 -->
        The new methods
        <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
-       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a> and
+       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a>
        return temporary directories that are automatically cleaned up
        at the end of the test.
     </p>
