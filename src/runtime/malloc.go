@@ -303,6 +303,8 @@ const (
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
 	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*sys.GoosAix
+	// A typed version of this constant that will make it into DWARF (for viewcore).
+	arenaBaseOffsetUintptr = uintptr(arenaBaseOffset)
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
