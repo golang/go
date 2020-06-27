@@ -5537,16 +5537,23 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
 	}
 }
 
-func TestServerShutdown_h1(t *testing.T) { testServerShutdown(t, h1Mode) }
-func TestServerShutdown_h2(t *testing.T) { testServerShutdown(t, h2Mode) }
+func TestServerShutdown_h1(t *testing.T) {
+	testServerShutdown(t, h1Mode)
+}
+func TestServerShutdown_h2(t *testing.T) {
+	testServerShutdown(t, h2Mode)
+}
 
 func testServerShutdown(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
 	var doShutdown func() // set later
+	var doStateCount func()
 	var shutdownRes = make(chan error, 1)
+	var statesRes = make(chan map[ConnState]int, 1)
 	var gotOnShutdown = make(chan struct{}, 1)
 	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		doStateCount()
 		go doShutdown()
 		// Shutdown is graceful, so it should not interrupt
 		// this in-flight response. Add a tiny sleep here to
@@ -5563,6 +5570,9 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	doShutdown = func() {
 		shutdownRes <- cst.ts.Config.Shutdown(context.Background())
 	}
+	doStateCount = func() {
+		statesRes <- cst.ts.Config.ExportAllConnsByState()
+	}
 	get(t, cst.c, cst.ts.URL) // calls t.Fail on failure
 
 	if err := <-shutdownRes; err != nil {
@@ -5572,6 +5582,10 @@ func testServerShutdown(t *testing.T, h2 bool) {
 	case <-gotOnShutdown:
 	case <-time.After(5 * time.Second):
 		t.Errorf("onShutdown callback not called, RegisterOnShutdown broken?")
+	}
+
+	if states := <-statesRes; states[StateActive] != 1 {
+		t.Errorf("connection in wrong state, %v", states)
 	}
 
 	res, err := cst.c.Get(cst.ts.URL)
