@@ -177,7 +177,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// targ's underlying type must also be one of the interface types listed, if any
 		if iface.allTypes == nil {
-			break // nothing to do
+			continue // nothing to do
 		}
 		// iface.allTypes != nil
 
