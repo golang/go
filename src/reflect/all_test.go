@@ -5491,6 +5491,18 @@ func TestChanOf(t *testing.T) {
 	// check that type already in binary is found
 	type T1 int
 	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
+
+	// Check arrow token association in undefined chan types.
+	var left chan<- chan T
+	var right chan (<-chan T)
+	tLeft := ChanOf(SendDir, ChanOf(BothDir, TypeOf(T(""))))
+	tRight := ChanOf(BothDir, ChanOf(RecvDir, TypeOf(T(""))))
+	if tLeft != TypeOf(left) {
+		t.Errorf("chan<-chan: have %s, want %T", tLeft, left)
+	}
+	if tRight != TypeOf(right) {
+		t.Errorf("chan<-chan: have %s, want %T", tRight, right)
+	}
 }
 
 func TestChanOfDir(t *testing.T) {
