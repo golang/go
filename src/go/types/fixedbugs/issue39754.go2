@@ -1,0 +1,25 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+type Optional(type T) struct {
+	p   T
+	set bool
+}
+
+func (o Optional(T)) Val() (T, bool) {
+	return o.p, true
+}
+
+type Box(type T) interface {
+	Val() (T, bool)
+}
+
+func F1(type V interface{}, A, B Box(V))() {}
+
+func main() {
+    F1(int, Optional(int), Optional(int))()
+	F1(int, Optional(int), Optional(string) /* ERROR "does not satisfy Box(V) (missing method Val)" */)()
+}
