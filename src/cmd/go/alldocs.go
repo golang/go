@@ -464,14 +464,18 @@
 //
 // Usage:
 //
-// 	go fix [packages]
+// 	go fix [-fix list] [packages]
 //
 // Fix runs the Go fix command on the packages named by the import paths.
+//
+// The -fix flag sets a comma-separated list of fixes to run.
+// The default is all known fixes.
+// (Its value is passed to 'go tool fix -r'.)
 //
 // For more about fix, see 'go doc cmd/fix'.
 // For more about specifying packages, see 'go help packages'.
 //
-// To run fix with specific options, run 'go tool fix'.
+// To run fix with other options, run 'go tool fix'.
 //
 // See also: go fmt, go vet.
 //

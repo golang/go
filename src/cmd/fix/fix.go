@@ -125,6 +125,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.IndexExpr:
 		walkBeforeAfter(&n.X, before, after)
 		walkBeforeAfter(&n.Index, before, after)
+	case *ast.IndexListExpr:
+		walkBeforeAfter(&n.X, before, after)
+		walkBeforeAfter(&n.Indices, before, after)
 	case *ast.SliceExpr:
 		walkBeforeAfter(&n.X, before, after)
 		if n.Low != nil {
@@ -156,6 +159,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.StructType:
 		walkBeforeAfter(&n.Fields, before, after)
 	case *ast.FuncType:
+		if n.TypeParams != nil {
+			walkBeforeAfter(&n.TypeParams, before, after)
+		}
 		walkBeforeAfter(&n.Params, before, after)
 		if n.Results != nil {
 			walkBeforeAfter(&n.Results, before, after)
@@ -231,6 +237,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 		walkBeforeAfter(&n.Values, before, after)
 		walkBeforeAfter(&n.Names, before, after)
 	case *ast.TypeSpec:
+		if n.TypeParams != nil {
+			walkBeforeAfter(&n.TypeParams, before, after)
+		}
 		walkBeforeAfter(&n.Type, before, after)
 
 	case *ast.BadDecl:
