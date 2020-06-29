@@ -97,3 +97,10 @@ type pointerBuiltinStruct struct {
 }
 
 var _ = pointerBuiltinStruct{} // want ""
+
+var _ = []ast.BasicLit{
+	{}, // want ""
+}
+
+var _ = []ast.BasicLit{{}, // want ""
+}

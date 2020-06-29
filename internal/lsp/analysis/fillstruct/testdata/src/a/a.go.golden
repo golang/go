@@ -137,3 +137,18 @@ var _ = pointerBuiltinStruct{
 	s: new(string),
 	i: new(int),
 } // want ""
+
+var _ = []ast.BasicLit{
+	{
+		ValuePos: 0,
+		Kind:     0,
+		Value:    "",
+	}, // want ""
+}
+
+var _ = []ast.BasicLit{{
+	ValuePos: 0,
+	Kind:     0,
+	Value:    "",
+}, // want ""
+}

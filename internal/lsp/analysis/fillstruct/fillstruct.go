@@ -107,8 +107,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		case *ast.SelectorExpr:
 			name = fmt.Sprintf("%s.%s", typ.X, typ.Sel.Name)
 		default:
-			log.Printf("anonymous structs are not yet supported: (%T)", expr.Type)
-			return
+			name = "anonymous struct"
 		}
 
 		// Use a new fileset to build up a token.File for the new composite
@@ -181,7 +180,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Find the line on which the composite literal is declared.
 		split := strings.Split(b.String(), "\n")
-		lineNumber := pass.Fset.Position(expr.Type.Pos()).Line
+		lineNumber := pass.Fset.Position(expr.Lbrace).Line
 		firstLine := split[lineNumber-1] // lines are 1-indexed
 
 		// Trim the whitespace from the left of the line, and use the index
