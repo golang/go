@@ -12,20 +12,18 @@ go mod verify
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 
 # With bad go.sum, sync (which must download) fails.
-# Even if the bad sum is in the old legacy go.modverify file.
 rm go.sum
-cp go.sum.bad go.modverify
+cp go.sum.bad go.sum
 ! go mod tidy
 stderr 'checksum mismatch'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 
-# With good go.sum, sync works (and moves go.modverify to go.sum).
+# With good go.sum, sync works.
 rm go.sum
-cp go.sum.good go.modverify
+cp go.sum.good go.sum
 go mod tidy
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
 exists $GOPATH/pkg/mod/rsc.io/quote@v1.1.0/quote.go
-! exists go.modverify
 
 # go.sum should have the new checksum for go.mod
 grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
