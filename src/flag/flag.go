@@ -842,7 +842,7 @@ func Duration(name string, value time.Duration, usage string) *time.Duration {
 // caller could create a flag that turns a comma-separated string into a slice
 // of strings by passing a function that decomposes the comma-separated string into a slice.
 func (f *FlagSet) Func(name, usage string, fn func(string) error) {
-	f.Var(funcValue(cb), name, usage)
+	f.Var(funcValue(fn), name, usage)
 }
 
 // Func defines a flag with the specified name and usage string. The last argument, fn, is called
