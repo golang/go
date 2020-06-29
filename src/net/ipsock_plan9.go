@@ -311,25 +311,25 @@ func toLocal(a Addr, net string) Addr {
 // plan9LocalAddr returns a Plan 9 local address string.
 // See setladdrport at https://9p.io/sources/plan9/sys/src/9/ip/devip.c.
 func plan9LocalAddr(addr Addr) string {
-	ip := ""
+	var ip IP
 	port := 0
 	switch a := addr.(type) {
 	case *TCPAddr:
 		if a != nil {
-			ip = ipEmptyString(a.IP)
+			ip = a.IP
 			port = a.Port
 		}
 	case *UDPAddr:
 		if a != nil {
-			ip = ipEmptyString(a.IP)
+			ip = a.IP
 			port = a.Port
 		}
 	}
-	if ip == "" {
+	if len(ip) == 0 || ip.IsUnspecified() {
 		if port == 0 {
 			return ""
 		}
 		return itoa(port)
 	}
-	return ip + "!" + itoa(port)
+	return ip.String() + "!" + itoa(port)
 }
