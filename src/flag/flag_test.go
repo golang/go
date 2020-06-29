@@ -263,16 +263,17 @@ func TestUserDefinedFunc(t *testing.T) {
 	var ss []string
 	flags.Func("v", "usage", func(s string) error {
 		ss = append(ss, s)
+		return nil
 	})
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
 		t.Error(err)
 	}
 	if len(ss) != 3 {
-		t.Fatal("expected 3 args; got ", len(v))
+		t.Fatal("expected 3 args; got ", len(ss))
 	}
 	expect := "[1 2 3]"
-	if fmt.Sprint(ss) != expect {
-		t.Errorf("expected value %q got %q", expect, v.String())
+	if got := fmt.Sprint(ss); got != expect {
+		t.Errorf("expected value %q got %q", expect, got)
 	}
 }
 
