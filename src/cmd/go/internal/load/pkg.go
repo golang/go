@@ -185,7 +185,7 @@ type NoGoError struct {
 }
 
 func (e *NoGoError) Error() string {
-	if len(e.Package.constraintIgnoredGoFiles()) > 0 {
+	if len(e.Package.IgnoredGoFiles) > 0 {
 		// Go files exist, but they were ignored due to build constraints.
 		return "build constraints exclude all Go files in " + e.Package.Dir
 	}
@@ -2009,22 +2009,7 @@ func (p *Package) InternalXGoFiles() []string {
 // using absolute paths. "Possibly relevant" means that files are not excluded
 // due to build tags, but files with names beginning with . or _ are still excluded.
 func (p *Package) InternalAllGoFiles() []string {
-	return p.mkAbs(str.StringList(p.constraintIgnoredGoFiles(), p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
-}
-
-// constraintIgnoredGoFiles returns the list of Go files ignored for reasons
-// other than having a name beginning with '.' or '_'.
-func (p *Package) constraintIgnoredGoFiles() []string {
-	if len(p.IgnoredGoFiles) == 0 {
-		return nil
-	}
-	files := make([]string, 0, len(p.IgnoredGoFiles))
-	for _, f := range p.IgnoredGoFiles {
-		if f != "" && f[0] != '.' && f[0] != '_' {
-			files = append(files, f)
-		}
-	}
-	return files
+	return p.mkAbs(str.StringList(p.IgnoredGoFiles, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
 }
 
 // usesSwig reports whether the package needs to run SWIG.
