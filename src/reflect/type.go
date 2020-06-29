@@ -1798,13 +1798,13 @@ func ChanOf(dir ChanDir, t Type) Type {
 	case RecvDir:
 		s = "<-chan " + typ.String()
 	case BothDir:
-		typstr := typ.String()
-		if typstr[0] == '<' {
+		typeStr := typ.String()
+		if typeStr[0] == '<' {
 			// typ is recv chan, need parentheses as "<-" associates with leftmost
 			// chan possible, see https://golang.org/ref/spec#Channel_types.
-			s = "chan (" + typstr + ")"
+			s = "chan (" + typeStr + ")"
 		} else {
-			s = "chan " + typstr
+			s = "chan " + typeStr
 		}
 	}
 	for _, tt := range typesByString(s) {
