@@ -851,7 +851,7 @@ func (f *FlagSet) Func(name, usage string, fn func(string) error) {
 // caller could create a flag that turns a comma-separated string into a slice
 // of strings by passing a function that decomposes the comma-separated string into a slice.
 func Func(name, usage string, fn func(string) error) {
-	CommandLine.Func(name, usage, f)
+	CommandLine.Func(name, usage, fn)
 }
 
 // Var defines a flag with the specified name and usage string. The type and
