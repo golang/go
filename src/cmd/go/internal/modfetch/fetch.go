@@ -374,12 +374,11 @@ type modSum struct {
 
 var goSum struct {
 	mu        sync.Mutex
-	m         map[module.Version][]string // content of go.sum file (+ go.modverify if present)
+	m         map[module.Version][]string // content of go.sum file
 	checked   map[modSum]bool             // sums actually checked during execution
 	dirty     bool                        // whether we added any new sums to m
 	overwrite bool                        // if true, overwrite go.sum without incorporating its contents
 	enabled   bool                        // whether to use go.sum at all
-	modverify string                      // path to go.modverify, to be deleted
 }
 
 // initGoSum initializes the go.sum data.
@@ -403,19 +402,6 @@ func initGoSum() (bool, error) {
 	goSum.enabled = true
 	readGoSum(goSum.m, GoSumFile, data)
 
-	// Add old go.modverify file.
-	// We'll delete go.modverify in WriteGoSum.
-	alt := strings.TrimSuffix(GoSumFile, ".sum") + ".modverify"
-	if data, err := renameio.ReadFile(alt); err == nil {
-		migrate := make(map[module.Version][]string)
-		readGoSum(migrate, alt, data)
-		for mod, sums := range migrate {
-			for _, sum := range sums {
-				addModSumLocked(mod, sum)
-			}
-		}
-		goSum.modverify = alt
-	}
 	return true, nil
 }
 
@@ -616,14 +602,9 @@ func WriteGoSum() {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
-	if !goSum.enabled {
-		// If we haven't read the go.sum file yet, don't bother writing it: at best,
-		// we could rename the go.modverify file if it isn't empty, but we haven't
-		// needed to touch it so far — how important could it be?
-		return
-	}
-	if !goSum.dirty {
-		// Don't bother opening the go.sum file if we don't have anything to add.
+	if !goSum.enabled || !goSum.dirty {
+		// If we haven't read go.sum yet or if we don't have anything to add,
+		// don't bother opening it.
 		return
 	}
 	if cfg.BuildMod == "readonly" {
@@ -674,10 +655,6 @@ func WriteGoSum() {
 	goSum.checked = make(map[modSum]bool)
 	goSum.dirty = false
 	goSum.overwrite = false
-
-	if goSum.modverify != "" {
-		os.Remove(goSum.modverify) // best effort
-	}
 }
 
 // TrimGoSum trims go.sum to contain only the modules for which keep[m] is true.
