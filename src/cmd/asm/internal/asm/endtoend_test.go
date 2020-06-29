@@ -257,11 +257,11 @@ func isHexes(s string) bool {
 	return true
 }
 
-// It would be nice if the error messages began with
+// It would be nice if the error messages always began with
 // the standard file:line: prefix,
 // but that's not where we are today.
 // It might be at the beginning but it might be in the middle of the printed instruction.
-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\))`)
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
 
 // Same as in test/run.go
 var (
@@ -281,6 +281,7 @@ func testErrors(t *testing.T, goarch, file string) {
 	defer ctxt.Bso.Flush()
 	failed := false
 	var errBuf bytes.Buffer
+	parser.errorWriter = &errBuf
 	ctxt.DiagFunc = func(format string, args ...interface{}) {
 		failed = true
 		s := fmt.Sprintf(format, args...)
@@ -292,7 +293,7 @@ func testErrors(t *testing.T, goarch, file string) {
 	pList.Firstpc, ok = parser.Parse()
 	obj.Flushplist(ctxt, pList, nil, "")
 	if ok && !failed {
-		t.Errorf("asm: %s had no errors", goarch)
+		t.Errorf("asm: %s had no errors", file)
 	}
 
 	errors := map[string]string{}
@@ -366,6 +367,10 @@ func TestARMEndToEnd(t *testing.T) {
 			testEndToEnd(t, "arm", "armv6")
 		}
 	}
+}
+
+func TestGoBuildErrors(t *testing.T) {
+	testErrors(t, "amd64", "buildtagerror")
 }
 
 func TestARMErrors(t *testing.T) {

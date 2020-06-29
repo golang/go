@@ -29,6 +29,7 @@ type Parser struct {
 	lineNum       int   // Line number in source file.
 	errorLine     int   // Line number of last error.
 	errorCount    int   // Number of errors.
+	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
 	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
 	input         []lex.Token
 	inputPos      int
@@ -132,6 +133,30 @@ func (p *Parser) ParseSymABIs(w io.Writer) bool {
 	return p.errorCount == 0
 }
 
+// nextToken returns the next non-build-comment token from the lexer.
+// It reports misplaced //go:build comments but otherwise discards them.
+func (p *Parser) nextToken() lex.ScanToken {
+	for {
+		tok := p.lex.Next()
+		if tok == lex.BuildComment {
+			if p.sawCode {
+				p.errorf("misplaced //go:build comment")
+			}
+			continue
+		}
+		if tok != '\n' {
+			p.sawCode = true
+		}
+		if tok == '#' {
+			// A leftover wisp of a #include/#define/etc,
+			// to let us know that p.sawCode should be true now.
+			// Otherwise ignored.
+			continue
+		}
+		return tok
+	}
+}
+
 // line consumes a single assembly line from p.lex of the form
 //
 //   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
@@ -146,7 +171,7 @@ next:
 	// Skip newlines.
 	var tok lex.ScanToken
 	for {
-		tok = p.lex.Next()
+		tok = p.nextToken()
 		// We save the line number here so error messages from this instruction
 		// are labeled with this line. Otherwise we complain after we've absorbed
 		// the terminating newline and the line numbers are off by one in errors.
@@ -179,11 +204,11 @@ next:
 			items = make([]lex.Token, 0, 3)
 		}
 		for {
-			tok = p.lex.Next()
+			tok = p.nextToken()
 			if len(operands) == 0 && len(items) == 0 {
 				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
 					// Suffixes: ARM conditionals or x86 modifiers.
-					tok = p.lex.Next()
+					tok = p.nextToken()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
 						p.errorf("instruction suffix expected identifier, found %s", str)
