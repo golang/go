@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"log"
 )
 
 // Decoding the type.* symbols.	 This has to be in sync with
@@ -93,7 +94,7 @@ func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
 func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 	for _, shlib := range ctxt.Shlibs {
 		if shlib.Path == path {
-			for _, sect := range shlib.File.Sections {
+			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
 				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
 					return sect
 				}
@@ -112,9 +113,15 @@ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
 			// A gcprog is a 4-byte uint32 indicating length, followed by
 			// the actual program.
 			progsize := make([]byte, 4)
-			sect.ReadAt(progsize, int64(addr-sect.Addr))
+			_, err := sect.ReadAt(progsize, int64(addr-sect.Addr))
+			if err != nil {
+				log.Fatal(err)
+			}
 			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
-			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
+			_, err = sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
+			if err != nil {
+				log.Fatal(err)
+			}
 			return append(progsize, progbytes...)
 		}
 		Exitf("cannot find gcprog for %s", s.Name)
@@ -124,14 +131,6 @@ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
 }
 
 func decodetypeGcprogShlib(ctxt *Link, s *sym.Symbol) uint64 {
-	if ctxt.Arch.Family == sys.ARM64 {
-		for _, shlib := range ctxt.Shlibs {
-			if shlib.Path == s.File {
-				return shlib.gcdataAddresses[s]
-			}
-		}
-		return 0
-	}
 	return decodeInuxi(ctxt.Arch, s.P[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
 }
 
@@ -141,8 +140,15 @@ func decodetypeGcmask(ctxt *Link, s *sym.Symbol) []byte {
 		ptrdata := decodetypePtrdata(ctxt.Arch, s.P)
 		sect := findShlibSection(ctxt, s.File, addr)
 		if sect != nil {
-			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
-			sect.ReadAt(r, int64(addr-sect.Addr))
+			bits := ptrdata / int64(ctxt.Arch.PtrSize)
+			r := make([]byte, (bits+7)/8)
+			// ldshlibsyms avoids closing the ELF file so sect.ReadAt works.
+			// If we remove this read (and the ones in decodetypeGcprog), we
+			// can close the file.
+			_, err := sect.ReadAt(r, int64(addr-sect.Addr))
+			if err != nil {
+				log.Fatal(err)
+			}
 			return r
 		}
 		Exitf("cannot find gcmask for %s", s.Name)
