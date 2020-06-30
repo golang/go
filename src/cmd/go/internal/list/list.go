@@ -20,6 +20,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
@@ -349,7 +350,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		fm := template.FuncMap{
 			"join":    strings.Join,
 			"context": context,
-			"module":  modload.ModuleInfo,
+			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(ctx, path) },
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
@@ -389,7 +390,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
+		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
