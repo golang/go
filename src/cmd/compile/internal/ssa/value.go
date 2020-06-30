@@ -460,3 +460,23 @@ func (v *Value) LackingPos() bool {
 	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
 }
+
+// removeable reports whether the value v can be removed from the SSA graph entirely
+// if its use count drops to 0.
+func (v *Value) removeable() bool {
+	if v.Type.IsVoid() {
+		// Void ops, like nil pointer checks, must stay.
+		return false
+	}
+	if v.Type.IsMemory() {
+		// All memory ops aren't needed here, but we do need
+		// to keep calls at least (because they might have
+		// syncronization operations we can't see).
+		return false
+	}
+	if v.Op.HasSideEffects() {
+		// These are mostly synchronization operations.
+		return false
+	}
+	return true
+}

@@ -72,7 +72,7 @@ func softfloat(f *Func) {
 	if newInt64 && f.Config.RegSize == 4 {
 		// On 32bit arch, decompose Uint64 introduced in the switch above.
 		decomposeBuiltIn(f)
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, removeDeadValues)
 	}
 
 }
