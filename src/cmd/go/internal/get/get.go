@@ -246,9 +246,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
 			mode := 0 // don't do module or vendor resolution
-			return load.LoadImport(path, base.Cwd, nil, stk, nil, mode)
+			return load.LoadImport(context.TODO(), path, base.Cwd, nil, stk, nil, mode)
 		}
-		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		return load.LoadImport(context.TODO(), path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)

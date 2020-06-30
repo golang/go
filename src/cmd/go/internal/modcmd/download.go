@@ -90,7 +90,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		args = []string{"all"}
 	} else if modload.HasModRoot() {
-		modload.InitMod() // to fill Target
+		modload.InitMod(ctx) // to fill Target
 		targetAtLatest := modload.Target.Path + "@latest"
 		targetAtUpgrade := modload.Target.Path + "@upgrade"
 		targetAtPatch := modload.Target.Path + "@patch"
@@ -126,7 +126,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 		m.Sum = modfetch.Sum(mod)
-		m.Dir, err = modfetch.Download(mod)
+		m.Dir, err = modfetch.Download(ctx, mod)
 		if err != nil {
 			m.Error = err.Error()
 			return
