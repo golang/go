@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ const (
 // matchPackages is like m.MatchPackages, but uses a local variable (rather than
 // a global) for tags, can include or exclude packages in the standard library,
 // and is restricted to the given list of modules.
-func matchPackages(m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
+func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
 	m.Pkgs = []string{}
 
 	isMatch := func(string) bool { return true }
@@ -153,7 +154,7 @@ func matchPackages(m *search.Match, tags map[string]bool, filter stdFilter, modu
 			isLocal = true
 		} else {
 			var err error
-			root, isLocal, err = fetch(mod)
+			root, isLocal, err = fetch(ctx, mod)
 			if err != nil {
 				m.AddError(err)
 				continue

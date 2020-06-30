@@ -77,7 +77,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(files)
+		p = load.GoFilesPackage(ctx, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		pkgs := load.PackagesAndErrors(ctx, args[:1])
 		if len(pkgs) == 0 {

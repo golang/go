@@ -6,6 +6,7 @@ package modload
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -332,7 +333,7 @@ func die() {
 //
 // As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
 // already have an explicit value.
-func InitMod() {
+func InitMod(ctx context.Context) {
 	if len(buildList) > 0 {
 		return
 	}
@@ -359,7 +360,7 @@ func InitMod() {
 	}
 
 	var fixed bool
-	f, err := modfile.Parse(gomod, data, fixVersion(&fixed))
+	f, err := modfile.Parse(gomod, data, fixVersion(ctx, &fixed))
 	if err != nil {
 		// Errors returned by modfile.Parse begin with file:line.
 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
@@ -397,7 +398,7 @@ func InitMod() {
 // and does nothing for versions that already appear to be canonical.
 //
 // The VersionFixer sets 'fixed' if it ever returns a non-canonical version.
-func fixVersion(fixed *bool) modfile.VersionFixer {
+func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 	return func(path, vers string) (resolved string, err error) {
 		defer func() {
 			if err == nil && resolved != vers {
@@ -429,7 +430,7 @@ func fixVersion(fixed *bool) modfile.VersionFixer {
 			}
 		}
 
-		info, err := Query(path, vers, "", nil)
+		info, err := Query(ctx, path, vers, "", nil)
 		if err != nil {
 			return "", err
 		}
