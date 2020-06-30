@@ -10,7 +10,6 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"log"
 )
 
 // Decoding the type.* symbols.	 This has to be in sync with
@@ -230,15 +229,8 @@ func decodetypeGcmask(ctxt *Link, s loader.Sym) []byte {
 		ptrdata := decodetypePtrdata(ctxt.Arch, symData)
 		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
 		if sect != nil {
-			bits := ptrdata / int64(ctxt.Arch.PtrSize)
-			r := make([]byte, (bits+7)/8)
-			// ldshlibsyms avoids closing the ELF file so sect.ReadAt works.
-			// If we remove this read (and the ones in decodetypeGcprog), we
-			// can close the file.
-			_, err := sect.ReadAt(r, int64(addr-sect.Addr))
-			if err != nil {
-				log.Fatal(err)
-			}
+			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
+			sect.ReadAt(r, int64(addr-sect.Addr))
 			return r
 		}
 		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
@@ -259,15 +251,9 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
 			// A gcprog is a 4-byte uint32 indicating length, followed by
 			// the actual program.
 			progsize := make([]byte, 4)
-			_, err := sect.ReadAt(progsize, int64(addr-sect.Addr))
-			if err != nil {
-				log.Fatal(err)
-			}
+			sect.ReadAt(progsize, int64(addr-sect.Addr))
 			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
-			_, err = sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
-			if err != nil {
-				log.Fatal(err)
-			}
+			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
 			return append(progsize, progbytes...)
 		}
 		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
@@ -282,7 +268,7 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
 func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 	for _, shlib := range ctxt.Shlibs {
 		if shlib.Path == path {
-			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
+			for _, sect := range shlib.File.Sections {
 				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
 					return sect
 				}
@@ -293,5 +279,8 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 }
 
 func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+	if ctxt.Arch.Family == sys.ARM64 {
+		return 0
+	}
 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
 }
