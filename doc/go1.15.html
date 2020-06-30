@@ -666,6 +666,17 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- go/printer -->
 
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      The package now uses Unicode escapes (<code>\uNNNN</code>) in all
+      JavaScript and JSON contexts. This fixes escaping errors in
+      <code>application/ld+json</code> and <code>application/json</code>
+      contexts.
+    </p>
+  </dd>
+</dl><!-- html/template -->
+
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 212597 -->
@@ -949,6 +960,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      <a href="/pkg/text/template/#JSEscape"><code>JSEscape</code></a> now
+      consistently uses Unicode escapes (<code>\u00XX</code>), which are
+      compatible with JSON.
+    </p>
+  </dd>
+</dl><!-- text/template -->
 
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
