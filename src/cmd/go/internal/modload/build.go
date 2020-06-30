@@ -6,6 +6,7 @@ package modload
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"internal/goroot"
@@ -57,21 +58,21 @@ func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
 	if !ok {
 		return nil
 	}
-	return moduleInfo(m, true)
+	return moduleInfo(context.TODO(), m, true)
 }
 
-func ModuleInfo(path string) *modinfo.ModulePublic {
+func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 	if !Enabled() {
 		return nil
 	}
 
 	if i := strings.Index(path, "@"); i >= 0 {
-		return moduleInfo(module.Version{Path: path[:i], Version: path[i+1:]}, false)
+		return moduleInfo(ctx, module.Version{Path: path[:i], Version: path[i+1:]}, false)
 	}
 
 	for _, m := range BuildList() {
 		if m.Path == path {
-			return moduleInfo(m, true)
+			return moduleInfo(ctx, m, true)
 		}
 	}
 
@@ -84,12 +85,12 @@ func ModuleInfo(path string) *modinfo.ModulePublic {
 }
 
 // addUpdate fills in m.Update if an updated version is available.
-func addUpdate(m *modinfo.ModulePublic) {
+func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	if m.Version == "" {
 		return
 	}
 
-	if info, err := Query(m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	if info, err := Query(ctx, m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -103,7 +104,7 @@ func addVersions(m *modinfo.ModulePublic) {
 	m.Versions, _ = versions(m.Path)
 }
 
-func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	if m == Target {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
@@ -132,7 +133,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
 		if m.Version != "" {
-			if q, err := Query(m.Path, m.Version, "", nil); err != nil {
+			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
 				m.Version = q.Version
