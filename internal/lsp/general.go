@@ -239,32 +239,38 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 	}
 	configs, err := s.client.Configuration(ctx, &v)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get workspace configuration from client (%s): %v", folder, err)
 	}
 	for _, config := range configs {
 		results := source.SetOptions(o, config)
 		for _, result := range results {
 			if result.Error != nil {
-				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 					Type:    protocol.Error,
 					Message: result.Error.Error(),
-				})
+				}); err != nil {
+					return err
+				}
 			}
 			switch result.State {
 			case source.OptionUnexpected:
-				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 					Type:    protocol.Error,
 					Message: fmt.Sprintf("unexpected config %s", result.Name),
-				})
+				}); err != nil {
+					return err
+				}
 			case source.OptionDeprecated:
 				msg := fmt.Sprintf("config %s is deprecated", result.Name)
 				if result.Replacement != "" {
 					msg = fmt.Sprintf("%s, use %s instead", msg, result.Replacement)
 				}
-				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 					Type:    protocol.Warning,
 					Message: msg,
-				})
+				}); err != nil {
+					return err
+				}
 			}
 		}
 	}
