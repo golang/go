@@ -170,6 +170,9 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}
+	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
+		s.Set(AttrStatic, true)
+	}
 }
 
 // EmitEntryLiveness generates PCDATA Progs after p to switch to the

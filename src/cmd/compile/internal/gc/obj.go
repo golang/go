@@ -291,10 +291,8 @@ func addGCLocals() {
 		}
 		if x := s.Func.StackObjects; x != nil {
 			attr := int16(obj.RODATA)
-			if s.DuplicateOK() {
-				attr |= obj.DUPOK
-			}
 			ggloblsym(x, int32(len(x.P)), attr)
+			x.Set(obj.AttrStatic, true)
 		}
 		if x := s.Func.OpenCodedDeferInfo; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
