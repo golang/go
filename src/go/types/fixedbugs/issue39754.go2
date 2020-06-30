@@ -2,24 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package p
 
-type Optional(type T) struct {
-	p   T
-	set bool
-}
+type Optional(type T) struct {}
 
-func (o Optional(T)) Val() (T, bool) {
-	return o.p, true
-}
+func (_ Optional(T)) Val() (T, bool)
 
 type Box(type T) interface {
 	Val() (T, bool)
 }
 
-func F1(type V interface{}, A, B Box(V))() {}
+func f(type V interface{}, A, B Box(V))() {}
 
-func main() {
-    F1(int, Optional(int), Optional(int))()
-	F1(int, Optional(int), Optional(string) /* ERROR "does not satisfy Box(V) (missing method Val)" */)()
+func _() {
+	f(int, Optional(int), Optional(int))()
+	f(int, Optional(int), Optional /* ERROR does not satisfy Box */ (string))()
 }
