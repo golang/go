@@ -241,6 +241,7 @@ const SymABIstatic = ^uint16(0)
 const (
 	ObjFlagShared            = 1 << iota // this object is built with -shared
 	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
+	ObjFlagFromAssembly                  // object is from asm src, not go
 )
 
 // Sym.Flag
@@ -742,3 +743,4 @@ func (r *Reader) Flags() uint32 {
 
 func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
 func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
+func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }

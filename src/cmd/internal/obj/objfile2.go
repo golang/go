@@ -41,6 +41,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	if pkgpath == "" {
 		flags |= goobj2.ObjFlagNeedNameExpansion
 	}
+	if ctxt.IsAsm {
+		flags |= goobj2.ObjFlagFromAssembly
+	}
 	h := goobj2.Header{
 		Magic:       goobj2.Magic,
 		Fingerprint: ctxt.Fingerprint,
