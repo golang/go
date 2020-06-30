@@ -80,6 +80,9 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			return ast.NewIdent(t.Name())
 		}
 	case *types.Named:
+		if t.Obj().Pkg() == nil {
+			return nil
+		}
 		if t.Obj().Pkg() == pkg {
 			return ast.NewIdent(t.Obj().Name())
 		}
