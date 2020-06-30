@@ -900,7 +900,13 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		etyp := utyp.Interface()
 		if etyp == nil {
 			if utyp != Typ[Invalid] {
-				check.errorf(pos, "%s is not an interface", typ)
+				var format string
+				if _, ok := utyp.(*TypeParam); ok {
+					format = "%s is a type parameter, not an interface"
+				} else {
+					format = "%s is not an interface"
+				}
+				check.errorf(pos, format, typ)
 			}
 			continue
 		}
