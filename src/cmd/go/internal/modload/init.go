@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
@@ -161,12 +160,6 @@ func Init() {
 	}
 
 	// We're in module mode. Install the hooks to make it work.
-
-	if c := cache.Default(); c == nil {
-		// With modules, there are no install locations for packages
-		// other than the build cache.
-		base.Fatalf("go: cannot use modules with build cache disabled")
-	}
 
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) == 0 || list[0] == "" {
