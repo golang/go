@@ -379,6 +379,34 @@ func BenchmarkIndexByte(b *testing.B) {
 	}
 }
 
+type SplitRTest struct {
+	s   string
+	sep string
+	a   []string
+}
+
+var r_splittests = []SplitRTest{
+	{"", "", []string{}},
+	{abcd, "", []string{"d", "c", "b", "a"}},
+	{faces, "", []string{"☹", "☻", "☺"}},
+	{"☺�☹", "", []string{"☹", "�", "☺"}},
+	{abcd, "a", []string{"bcd", ""}},
+	{abcd, "z", []string{"abcd"}},
+	{commas, ",", []string{"4", "3", "2", "1"}},
+	{dots, "...", []string{"4", "3.", "2.", "1."}},
+	{faces, "☹", []string{"", "☺☻"}},
+	{faces, "~", []string{faces}},
+}
+
+func TestSplitR(t *testing.T) {
+	for _, tt := range r_splittests {
+		b := SplitR(tt.s, tt.sep)
+		if !reflect.DeepEqual(tt.a, b) {
+			t.Errorf("Split disagrees with SplitR(%q, %q) = %v; want %v", tt.s, tt.sep, b, tt.a)
+		}
+	}
+}
+
 type SplitTest struct {
 	s   string
 	sep string

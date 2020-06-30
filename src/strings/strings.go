@@ -16,22 +16,36 @@ import (
 // explode splits s into a slice of UTF-8 strings,
 // one string per Unicode character up to a maximum of n (n < 0 means no limit).
 // Invalid UTF-8 sequences become correct encodings of U+FFFD.
-func explode(s string, n int) []string {
+func explode(s string, n int, isReverse bool) []string {
 	l := utf8.RuneCountInString(s)
 	if n < 0 || n > l {
 		n = l
 	}
 	a := make([]string, n)
-	for i := 0; i < n-1; i++ {
-		ch, size := utf8.DecodeRuneInString(s)
-		a[i] = s[:size]
-		s = s[size:]
-		if ch == utf8.RuneError {
-			a[i] = string(utf8.RuneError)
+	if !isReverse {
+		for i := 0; i < n-1; i++ {
+			ch, size := utf8.DecodeRuneInString(s)
+			a[i] = s[:size]
+			s = s[size:]
+			if ch == utf8.RuneError {
+				a[i] = string(utf8.RuneError)
+			}
 		}
-	}
-	if n > 0 {
-		a[n-1] = s
+		if n > 0 {
+			a[n-1] = s
+		}
+	} else {
+		for i := n - 1; i > 0; i-- {
+			ch, size := utf8.DecodeRuneInString(s)
+			a[i] = s[:size]
+			s = s[size:]
+			if ch == utf8.RuneError {
+				a[i] = string(utf8.RuneError)
+			}
+		}
+		if n > 0 {
+			a[0] = s
+		}
 	}
 	return a
 }
@@ -238,7 +252,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 		return nil
 	}
 	if sep == "" {
-		return explode(s, n)
+		return explode(s, n, false)
 	}
 	if n < 0 {
 		n = Count(s, sep) + 1
@@ -254,6 +268,36 @@ func genSplit(s, sep string, sepSave, n int) []string {
 		}
 		a[i] = s[:m+sepSave]
 		s = s[m+len(sep):]
+		i++
+	}
+	a[i] = s
+	return a[:i+1]
+}
+
+// SplitR slices s into all substrings separated by sep in reverse direction and returns a slice of
+// the substrings between those separators.
+//
+// If s does not contain sep and sep is not empty, Split returns a
+// slice of length 1 whose only element is s.
+//
+// If sep is empty, SplitR splits after each UTF-8 sequence. If both s
+// and sep are empty, SplitR returns an empty slice.
+func SplitR(s, sep string) []string {
+	if sep == "" {
+		return explode(s, -1, true)
+	}
+	n := Count(s, sep) + 1
+
+	a := make([]string, n)
+	n--
+	i := 0
+	for i < n {
+		m := LastIndex(s, sep)
+		if m < 0 {
+			break
+		}
+		a[i] = s[m+len(sep):]
+		s = s[:m]
 		i++
 	}
 	a[i] = s
