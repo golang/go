@@ -264,6 +264,11 @@ func isNonPkgSym(ctxt *Link, s *LSym) bool {
 	return false
 }
 
+// StaticNamePref is the prefix the front end applies to static temporary
+// variables. When turned into LSyms, these can be tagged as static so
+// as to avoid inserting them into the linker's name lookup tables.
+const StaticNamePref = ".stmp_"
+
 type traverseFlag uint32
 
 const (
