@@ -335,16 +335,90 @@ func gostringn(p *byte, l int) string {
 	return s
 }
 
-func index(s, t string) int {
-	if len(t) == 0 {
+// index is a local version of strings.Index.
+func index(s, substr string) int {
+	n := len(substr)
+	switch {
+	case n == 0:
 		return 0
+	case n == 1:
+		return indexbyte(s, substr[0])
+	case n == len(s):
+		if substr == s {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and substr both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.IndexString(s, substr)
+		}
+		c0 := substr[0]
+		c1 := substr[1]
+		i := 0
+		t := len(s) - n + 1
+		fails := 0
+		for i < t {
+			if s[i] != c0 {
+				// indexbyte is faster than bytealg.IndexString, so use it as long as
+				// we're not getting lots of false positives.
+				o := indexbyte(s[i+1:t], c0)
+				if o < 0 {
+					return -1
+				}
+				i += o + 1
+			}
+			if s[i+1] == c1 && s[i:i+n] == substr {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.IndexString when indexbyte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.IndexString(s[i:], substr)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
 	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasPrefix(s[i:], t) {
+	c0 := substr[0]
+	c1 := substr[1]
+	i := 0
+	t := len(s) - n + 1
+	fails := 0
+	for i < t {
+		if s[i] != c0 {
+			o := indexbyte(s[i+1:t], c0)
+			if o < 0 {
+				return -1
+			}
+			i += o + 1
+		}
+		if s[i+1] == c1 && s[i:i+n] == substr {
 			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < t {
+			// See comment in ../bytes/bytes.go.
+			j := bytealg.IndexRabinKarp(s[i:], substr)
+			if j < 0 {
+				return -1
+			}
+			return i + j
 		}
 	}
 	return -1
+}
+
+// indexbyte is a local version of strings.IndexByte.
+func indexbyte(s string, c byte) int {
+	return bytealg.IndexByteString(s, c)
 }
 
 func contains(s, t string) bool {
@@ -451,7 +525,7 @@ func findnull(s *byte) int {
 	for {
 		t := *(*string)(unsafe.Pointer(&stringStruct{ptr, safeLen}))
 		// Check one page at a time.
-		if i := bytealg.IndexByteString(t, 0); i != -1 {
+		if i := indexbyte(t, 0); i != -1 {
 			return offset + i
 		}
 		// Move to next page

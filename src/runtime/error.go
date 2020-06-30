@@ -4,8 +4,6 @@
 
 package runtime
 
-import "internal/bytealg"
-
 // The Error interface identifies a run time error.
 type Error interface {
 	error
@@ -285,7 +283,7 @@ func panicwrap() {
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.
-	i := bytealg.IndexByteString(name, '(')
+	i := indexbyte(name, '(')
 	if i < 0 {
 		throw("panicwrap: no ( in " + name)
 	}
@@ -294,7 +292,7 @@ func panicwrap() {
 		throw("panicwrap: unexpected string after package name: " + name)
 	}
 	name = name[i+2:]
-	i = bytealg.IndexByteString(name, ')')
+	i = indexbyte(name, ')')
 	if i < 0 {
 		throw("panicwrap: no ) in " + name)
 	}
