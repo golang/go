@@ -20,7 +20,15 @@ import (
 	"path/filepath"
 )
 
-func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+type deadValueChoice bool
+
+const (
+	leaveDeadValues  deadValueChoice = false
+	removeDeadValues                 = true
+)
+
+// deadcode indicates that rewrite should try to remove any values that become dead.
+func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
 	pendingLines.clear()
@@ -55,6 +63,18 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					v0 = new(Value)
 					*v0 = *v
 					v0.Args = append([]*Value{}, v.Args...) // make a new copy, not aliasing
+				}
+				if v.Uses == 0 && v.removeable() {
+					if v.Op != OpInvalid && deadcode == removeDeadValues {
+						// Reset any values that are now unused, so that we decrement
+						// the use count of all of its arguments.
+						// Not quite a deadcode pass, because it does not handle cycles.
+						// But it should help Uses==1 rules to fire.
+						v.reset(OpInvalid)
+						change = true
+					}
+					// No point rewriting values which aren't used.
+					continue
 				}
 
 				vchange := phielimValue(v)
