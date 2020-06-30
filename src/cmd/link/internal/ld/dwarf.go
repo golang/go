@@ -1887,11 +1887,12 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		if d.ldr.SymGoType(idx) == 0 {
 			continue
 		}
-
-		sn := d.ldr.SymName(idx)
-		if ctxt.LinkMode != LinkExternal && isStaticTemp(sn) {
+		// Skip file local symbols (this includes static tmps, stack
+		// object symbols, and local symbols in assembler src files).
+		if d.ldr.IsFileLocal(idx) {
 			continue
 		}
+		sn := d.ldr.SymName(idx)
 		if sn == "" {
 			// skip aux symbols
 			continue

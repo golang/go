@@ -196,7 +196,14 @@ func genelfsym(ctxt *Link, elfbind int) {
 			return false
 		}
 		// FIXME: avoid having to do name inspections here.
+		// NB: the restrictions below on file local symbols are a bit
+		// arbitrary -- if it turns out we need nameless static
+		// symbols they could be relaxed/removed.
 		sn := ldr.SymName(s)
+		if (sn == "" || sn[0] == '.') && ldr.IsFileLocal(s) {
+			panic(fmt.Sprintf("unexpected file local symbol %d %s<%d>\n",
+				s, sn, ldr.SymVersion(s)))
+		}
 		if (sn == "" || sn[0] == '.') && !ldr.IsFileLocal(s) {
 			return false
 		}
@@ -499,15 +506,14 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
-		name := ldr.SymName(s)
-		if !ctxt.IsExternal() && isStaticTemp(name) {
+		if !ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) {
 			ldr.SetAttrNotInSymbolTable(s, true)
 		}
-
 		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {
 			continue
 		}
 
+		name := ldr.SymName(s)
 		switch {
 		case strings.HasPrefix(name, "type."):
 			if !ctxt.DynlinkingGo() {
@@ -767,11 +773,4 @@ func (ctxt *Link) symtab() []sym.SymKind {
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
 	}
 	return symGroupType
-}
-
-func isStaticTemp(name string) bool {
-	if i := strings.LastIndex(name, "/"); i >= 0 {
-		name = name[i:]
-	}
-	return strings.Contains(name, "..stmp_")
 }
