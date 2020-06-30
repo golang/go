@@ -157,6 +157,7 @@ const AfterLoadlibFull = 2
 func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss **sym.Symbol) {
 	if which == BeforeLoadlibFull {
 		*ls = ctxt.loader.LookupOrCreateSym(name, ver)
+		ctxt.loader.SetAttrReachable(*ls, true)
 	} else {
 		*ss = ctxt.loader.Syms[*ls]
 	}
@@ -167,6 +168,7 @@ func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss 
 func (ctxt *Link) mkArchSymVec(which int, name string, ver int, ls []loader.Sym, ss []*sym.Symbol) {
 	if which == BeforeLoadlibFull {
 		ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+		ctxt.loader.SetAttrReachable(ls[ver], true)
 	} else if ls[ver] != 0 {
 		ss[ver] = ctxt.loader.Syms[ls[ver]]
 	}
