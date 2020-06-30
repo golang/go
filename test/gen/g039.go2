@@ -1,0 +1,29 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type top(type T, T2) struct {
+	p *parent(T, T2)
+}
+
+type parent(type T, T2) struct {
+	(child(T, T2))
+}
+
+type child(type T, T2) struct {
+	T2
+}
+
+func (d *top(T, T2)) foo() *T {
+	return d.p.child.foo()
+}
+
+func (rb *child(T, T2)) foo() *T {
+	return nil
+}
+
+var V top(int, int)

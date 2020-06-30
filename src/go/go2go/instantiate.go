@@ -676,7 +676,22 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		}
 	case *ast.SelectorExpr:
 		x := t.instantiateExpr(ta, e.X)
-		if x == e.X {
+
+		// If this is a reference to an instantiated embedded field,
+		// we may need to instantiate it. The actual instantiation
+		// is at the end of the function, as long as we create a
+		// a new SelectorExpr when needed.
+		instantiate := false
+		obj := t.importer.info.ObjectOf(e.Sel)
+		if obj != nil {
+			if f, ok := obj.(*types.Var); ok && f.Embedded() {
+				if named, ok := f.Type().(*types.Named); ok && len(named.TArgs()) > 0 && obj.Name() == named.Obj().Name() {
+					instantiate = true
+				}
+			}
+		}
+
+		if x == e.X && !instantiate {
 			return e
 		}
 		r = &ast.SelectorExpr{

@@ -794,7 +794,11 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 	// We have to rewrite the name to the name used in
 	// the translated struct definition.
 	if f, ok := obj.(*types.Var); ok && f.Embedded() {
-		named, ok := f.Type().(*types.Named)
+		typ := t.lookupType(e)
+		if typ == nil {
+			typ = f.Type()
+		}
+		named, ok := typ.(*types.Named)
 		if !ok || len(named.TArgs()) == 0 {
 			return
 		}
