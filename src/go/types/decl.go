@@ -349,6 +349,9 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 			panic("internal error: cycle start not found")
 		}
 		return t.info
+
+	case *instance:
+		return check.validType(t.expand(), path)
 	}
 
 	return valid
