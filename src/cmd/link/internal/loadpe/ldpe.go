@@ -409,7 +409,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		bld = makeUpdater(l, bld, s)
 		sectsym := sectsyms[sect]
 		bld.SetType(l.SymType(sectsym))
-		l.PrependSub(sectsym, s)
+		l.AddInteriorSym(sectsym, s)
 		bld.SetValue(int64(pesym.Value))
 		bld.SetSize(4)
 		if l.SymType(sectsym) == sym.STEXT {

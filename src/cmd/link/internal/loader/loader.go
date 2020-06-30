@@ -1060,8 +1060,8 @@ func (l *Loader) AttrSubSymbol(i Sym) bool {
 }
 
 // Note that we don't have a 'SetAttrSubSymbol' method in the loader;
-// clients should instead use the PrependSub method to establish
-// outer/sub relationships for host object symbols.
+// clients should instead use the AddInteriorSym method to establish
+// containment relationships for host object symbols.
 
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
@@ -1560,8 +1560,6 @@ func (l *Loader) Aux2(i Sym, j int) Aux2 {
 // introduction of the loader, this was done purely using name
 // lookups, e.f. for function with name XYZ we would then look up
 // go.info.XYZ, etc.
-// FIXME: once all of dwarfgen is converted over to the loader,
-// it would save some space to make these aux symbols nameless.
 func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
 	if l.SymType(fnSymIdx) != sym.STEXT {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
@@ -1601,25 +1599,53 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 	return
 }
 
-// PrependSub prepends 'sub' onto the sub list for outer symbol 'outer'.
-// Will panic if 'sub' already has an outer sym or sub sym.
-// FIXME: should this be instead a method on SymbolBuilder?
-func (l *Loader) PrependSub(outer Sym, sub Sym) {
-	// NB: this presupposes that an outer sym can't be a sub symbol of
-	// some other outer-outer sym (I'm assuming this is true, but I
-	// haven't tested exhaustively).
-	if l.OuterSym(outer) != 0 {
+// AddInteriorSym sets up 'interior' as an interior symbol of
+// container/payload symbol 'container'. An interior symbol does not
+// itself have data, but gives a name to a subrange of the data in its
+// container symbol. The container itself may or may not have a name.
+// This method is intended primarily for use in the host object
+// loaders, to capture the semantics of symbols and sections in an
+// object file. When reading a host object file, we'll typically
+// encounter a static section symbol (ex: ".text") containing content
+// for a collection of functions, then a series of ELF (or macho, etc)
+// symbol table entries each of which points into a sub-section
+// (offset and length) of its corresponding container symbol. Within
+// the go linker we create a loader.Sym for the container (which is
+// expected to have the actual content/payload) and then a set of
+// interior loader.Sym's that point into a portion of the container.
+func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
+	// Container symbols are expected to have content/data.
+	// NB: this restriction may turn out to be too strict (it's possible
+	// to imagine a zero-sized container with an interior symbol pointing
+	// into it); it's ok to relax or remove it if we counter an
+	// oddball host object that triggers this.
+	if l.SymSize(container) == 0 && len(l.Data(container)) == 0 {
+		panic("unexpected empty container symbol")
+	}
+	// The interior symbols for a container are not expected to have
+	// content/data or relocations.
+	if len(l.Data(interior)) != 0 {
+		panic("unexpected non-empty interior symbol")
+	}
+	// Interior symbol is expected to be in the symbol table.
+	if l.AttrNotInSymbolTable(interior) {
+		panic("interior symbol must be in symtab")
+	}
+	// Only a single level of containment is allowed.
+	if l.OuterSym(container) != 0 {
 		panic("outer has outer itself")
 	}
-	if l.SubSym(sub) != 0 {
+	// Interior sym should not already have a sibling.
+	if l.SubSym(interior) != 0 {
 		panic("sub set for subsym")
 	}
-	if l.OuterSym(sub) != 0 {
+	// Interior sym should not already point at a container.
+	if l.OuterSym(interior) != 0 {
 		panic("outer already set for subsym")
 	}
-	l.sub[sub] = l.sub[outer]
-	l.sub[outer] = sub
-	l.outer[sub] = outer
+	l.sub[interior] = l.sub[container]
+	l.sub[container] = interior
+	l.outer[interior] = container
 }
 
 // OuterSym gets the outer symbol for host object loaded symbols.

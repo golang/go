@@ -359,6 +359,7 @@ func TestOuterSub(t *testing.T) {
 	// Populate loader with some symbols.
 	addDummyObjSym(t, ldr, or, "type.uint8")
 	es1 := ldr.LookupOrCreateSym("outer", 0)
+	ldr.MakeSymbolUpdater(es1).SetSize(101)
 	es2 := ldr.LookupOrCreateSym("sub1", 0)
 	es3 := ldr.LookupOrCreateSym("sub2", 0)
 	es4 := ldr.LookupOrCreateSym("sub3", 0)
@@ -374,7 +375,7 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Establish first outer/sub relationship
-	ldr.PrependSub(es1, es2)
+	ldr.AddInteriorSym(es1, es2)
 	if ldr.OuterSym(es1) != 0 {
 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
 	}
@@ -389,7 +390,7 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Establish second outer/sub relationship
-	ldr.PrependSub(es1, es3)
+	ldr.AddInteriorSym(es1, es3)
 	if ldr.OuterSym(es1) != 0 {
 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
 	}
@@ -407,9 +408,9 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Some more
-	ldr.PrependSub(es1, es4)
-	ldr.PrependSub(es1, es5)
-	ldr.PrependSub(es1, es6)
+	ldr.AddInteriorSym(es1, es4)
+	ldr.AddInteriorSym(es1, es5)
+	ldr.AddInteriorSym(es1, es6)
 
 	// Set values.
 	ldr.SetSymValue(es2, 7)

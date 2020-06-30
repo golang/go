@@ -633,7 +633,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		bld.SetType(l.SymType(outer))
-		l.PrependSub(outer, s)
+		l.AddInteriorSym(outer, s)
 
 		bld.SetValue(int64(machsym.value - sect.addr))
 		if !l.AttrCgoExportDynamic(s) {
