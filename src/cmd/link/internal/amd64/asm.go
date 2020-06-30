@@ -371,7 +371,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			got := ldr.MakeSymbolUpdater(syms.GOT)
 			su := ldr.MakeSymbolUpdater(s)
 			su.SetType(got.Type())
-			got.PrependSub(s)
+			got.AddInteriorSym(s)
 			su.SetValue(got.Size())
 			got.AddUint64(target.Arch, 0)
 			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT)

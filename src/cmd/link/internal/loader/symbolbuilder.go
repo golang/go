@@ -240,8 +240,8 @@ func (sb *SymbolBuilder) SortSub() {
 	sb.l.SortSub(sb.symIdx)
 }
 
-func (sb *SymbolBuilder) PrependSub(sub Sym) {
-	sb.l.PrependSub(sb.symIdx, sub)
+func (sb *SymbolBuilder) AddInteriorSym(sub Sym) {
+	sb.l.AddInteriorSym(sb.symIdx, sub)
 }
 
 func (sb *SymbolBuilder) AddUint8(v uint8) int64 {

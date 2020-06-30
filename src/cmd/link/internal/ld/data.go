@@ -1629,7 +1629,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 				toc := ldr.Lookup(".TOC.", int(ldr.SymVersion(s)))
 				if toc != 0 {
 					ldr.SetSymSect(toc, sect)
-					ldr.PrependSub(s, toc)
+					ldr.AddInteriorSym(s, toc)
 					ldr.SetSymValue(toc, 0x8000)
 				}
 			}

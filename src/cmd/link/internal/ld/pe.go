@@ -1119,9 +1119,9 @@ func initdynimport(ctxt *Link) *Dll {
 			for m = d.ms; m != nil; m = m.next {
 				sb := ldr.MakeSymbolUpdater(m.s)
 				sb.SetType(sym.SWINDOWS)
-				dynamic.PrependSub(m.s)
 				sb.SetValue(dynamic.Size())
 				dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
+				dynamic.AddInteriorSym(m.s)
 			}
 
 			dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
