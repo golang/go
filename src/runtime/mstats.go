@@ -882,7 +882,8 @@ func (m *consistentHeapStats) unsafeClear() {
 // heapStatsDelta, the resulting values should be complete and
 // valid statistic values.
 //
-// Not safe to call concurrently.
+// Not safe to call concurrently. The world must be stopped
+// or metricsSema must be held.
 func (m *consistentHeapStats) read(out *heapStatsDelta) {
 	// Getting preempted after this point is not safe because
 	// we read allp. We need to make sure a STW can't happen

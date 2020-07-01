@@ -44,6 +44,60 @@ the documentation of the Name field of the Description struct.
 
 Supported metrics
 
-TODO(mknyszek): List them here as they're added.
+	/memory/classes/heap/free:bytes
+		Memory that is available for allocation, and may be returned
+		to the underlying system.
+
+	/memory/classes/heap/objects:bytes
+		Memory occupied by live objects and dead objects that have
+		not yet been collected.
+
+	/memory/classes/heap/released:bytes
+		Memory that has been returned to the underlying system.
+
+	/memory/classes/heap/stacks:bytes
+		Memory allocated from the heap that is occupied by stacks.
+
+	/memory/classes/heap/unused:bytes
+		Memory that is unavailable for allocation, but cannot be
+		returned to the underlying system.
+
+	/memory/classes/metadata/mcache/free:bytes
+		Memory that is reserved for runtime mcache structures, but
+		not in-use.
+
+	/memory/classes/metadata/mcache/inuse:bytes
+		Memory that is occupied by runtime mcache structures that
+		are currently being used.
+
+	/memory/classes/metadata/mspan/free:bytes
+		Memory that is reserved for runtime mspan structures, but
+		not in-use.
+
+	/memory/classes/metadata/mspan/inuse:bytes
+		Memory that is occupied by runtime mspan structures that are
+		currently being used.
+
+	/memory/classes/metadata/other:bytes
+		Memory that is reserved for or used to hold runtime
+		metadata.
+
+	/memory/classes/os-stacks:bytes
+		Stack memory allocated by the underlying operating system.
+
+	/memory/classes/other:bytes
+		Memory used by execution trace buffers, structures for
+		debugging the runtime, finalizer and profiler specials, and
+		more.
+
+	/memory/classes/profiling/buckets:bytes
+		Memory that is used by the stack trace hash map used for
+		profiling.
+
+	/memory/classes/total:bytes
+		All memory mapped by the Go runtime into the current process
+		as read-write. Note that this does not include memory mapped
+		by code called via cgo or via the syscall package.
+		Sum of all metrics in /memory/classes.
 */
 package metrics
