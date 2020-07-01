@@ -38,17 +38,16 @@ func TestMarker(t *testing.T) {
 			},
 			expectChecks: map[string][]interface{}{
 				"αSimpleMarker": nil,
-				"StringAndInt":  []interface{}{"Number %d", int64(12)},
-				"Bool":          []interface{}{true},
+				"StringAndInt":  {"Number %d", int64(12)},
+				"Bool":          {true},
 			},
 		},
 		{
 			filename:    "testdata/go.mod",
-			expectNotes: 3,
+			expectNotes: 2,
 			expectMarkers: map[string]string{
-				"αMarker":        "αfake1α",
-				"IndirectMarker": "// indirect",
-				"βMarker":        "require golang.org/modfile v0.0.0",
+				"αMarker": "αfake1α",
+				"βMarker": "require golang.org/modfile v0.0.0",
 			},
 		},
 	} {
@@ -62,11 +61,6 @@ func TestMarker(t *testing.T) {
 			markers := make(map[string]token.Pos)
 			for name, tok := range tt.expectMarkers {
 				offset := bytes.Index(content, []byte(tok))
-				// Handle special case where we look for // indirect and we
-				// need to search the next line.
-				if tok == "// indirect" {
-					offset = bytes.Index(content, []byte(" "+tok)) + 1
-				}
 				markers[name] = token.Pos(offset + 1)
 				end := bytes.Index(content[offset:], []byte(tok))
 				if end > 0 {

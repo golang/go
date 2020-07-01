@@ -56,7 +56,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"path/filepath"
 	"regexp"
 )
 
@@ -96,14 +95,6 @@ func MatchBefore(fset *token.FileSet, readFile ReadFile, end token.Pos, pattern 
 	matchStart, matchEnd := -1, -1
 	switch pattern := pattern.(type) {
 	case string:
-		// If the file is a go.mod and we are matching // indirect, then we
-		// need to look for it on the line after the current line.
-		// TODO(golang/go#36894): have a more intuitive approach for // indirect
-		if filepath.Ext(f.Name()) == ".mod" && pattern == "// indirect" {
-			startOffset = f.Offset(f.LineStart(position.Line + 1))
-			endOffset = f.Offset(lineEnd(f, position.Line+1))
-			line = content[startOffset:endOffset]
-		}
 		bytePattern := []byte(pattern)
 		matchStart = bytes.Index(line, bytePattern)
 		if matchStart >= 0 {

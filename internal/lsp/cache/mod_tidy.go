@@ -352,22 +352,20 @@ func changeDirectnessEdits(uri span.URI, parsed *modfile.File, m *protocol.Colum
 }
 
 func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {
-	line, col, err := m.Converter.ToPosition(s.Byte)
+	toPoint := func(offset int) (span.Point, error) {
+		l, c, err := m.Converter.ToPosition(offset)
+		if err != nil {
+			return span.Point{}, err
+		}
+		return span.NewPoint(l, c, offset), nil
+	}
+	start, err := toPoint(s.Byte)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	start := span.NewPoint(line, col, s.Byte)
-
-	line, col, err = m.Converter.ToPosition(e.Byte)
+	end, err := toPoint(e.Byte)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	end := span.NewPoint(line, col, e.Byte)
-
-	spn := span.New(uri, start, end)
-	rng, err := m.Range(spn)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	return rng, nil
+	return m.Range(span.New(uri, start, end))
 }
