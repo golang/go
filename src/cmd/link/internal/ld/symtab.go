@@ -515,10 +515,14 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			}
 			if ctxt.UseRelro() {
 				symGroupType[s] = sym.STYPERELRO
-				ldr.SetOuterSym(s, symtyperel)
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtyperel)
+				}
 			} else {
 				symGroupType[s] = sym.STYPE
-				ldr.SetOuterSym(s, symtype)
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtype)
+				}
 			}
 
 		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
@@ -530,17 +534,17 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			nitablinks++
 			symGroupType[s] = sym.SITABLINK
 			ldr.SetAttrNotInSymbolTable(s, true)
-			ldr.SetOuterSym(s, symitablink.Sym())
+			ldr.SetCarrierSym(s, symitablink.Sym())
 
 		case strings.HasPrefix(name, "go.string."):
 			symGroupType[s] = sym.SGOSTRING
 			ldr.SetAttrNotInSymbolTable(s, true)
-			ldr.SetOuterSym(s, symgostring)
+			ldr.SetCarrierSym(s, symgostring)
 
 		case strings.HasPrefix(name, "runtime.gcbits."):
 			symGroupType[s] = sym.SGCBITS
 			ldr.SetAttrNotInSymbolTable(s, true)
-			ldr.SetOuterSym(s, symgcbits)
+			ldr.SetCarrierSym(s, symgcbits)
 
 		case strings.HasSuffix(name, "·f"):
 			if !ctxt.DynlinkingGo() {
@@ -548,10 +552,12 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			}
 			if ctxt.UseRelro() {
 				symGroupType[s] = sym.SGOFUNCRELRO
-				ldr.SetOuterSym(s, symgofuncrel)
+				if symgofuncrel != 0 {
+					ldr.SetCarrierSym(s, symgofuncrel)
+				}
 			} else {
 				symGroupType[s] = sym.SGOFUNC
-				ldr.SetOuterSym(s, symgofunc)
+				ldr.SetCarrierSym(s, symgofunc)
 			}
 
 		case strings.HasPrefix(name, "gcargs."),
@@ -561,7 +567,7 @@ func (ctxt *Link) symtab() []sym.SymKind {
 			strings.HasSuffix(name, ".opendefer"):
 			symGroupType[s] = sym.SGOFUNC
 			ldr.SetAttrNotInSymbolTable(s, true)
-			ldr.SetOuterSym(s, symgofunc)
+			ldr.SetCarrierSym(s, symgofunc)
 			const align = 4
 			ldr.SetSymAlign(s, align)
 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)

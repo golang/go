@@ -1661,18 +1661,35 @@ func (l *Loader) SubSym(i Sym) Sym {
 	return l.sub[i]
 }
 
-// SetOuterSym sets the outer symbol of i to o (without setting
-// sub symbols).
-func (l *Loader) SetOuterSym(i Sym, o Sym) {
-	if o != 0 {
-		l.outer[i] = o
-		// relocsym's foldSubSymbolOffset requires that we only
-		// have a single level of containment-- enforce here.
-		if l.outer[o] != 0 {
-			panic("multiply nested outer sym")
-		}
-	} else {
-		delete(l.outer, i)
+// SetCarrierSym declares that 'c' is the carrier or container symbol
+// for 's'. Carrier symbols are used in the linker to as a container
+// for a collection of sub-symbols where the content of the
+// sub-symbols is effectively concatenated to form the content of the
+// carrier. The carrier is given a name in the output symbol table
+// while the sub-symbol names are not. For example, the Go compiler
+// emits named string symbols (type SGOSTRING) when compiling a
+// package; after being deduplicated, these symbols are collected into
+// a single unit by assigning them a new carrier symbol named
+// "go.string.*" (which appears in the final symbol table for the
+// output load module).
+func (l *Loader) SetCarrierSym(s Sym, c Sym) {
+	if c == 0 {
+		panic("invalid carrier in SetCarrierSym")
+	}
+	if s == 0 {
+		panic("invalid sub-symbol in SetCarrierSym")
+	}
+	// Carrier symbols are not expected to have content/data. It is
+	// ok for them to have non-zero size (to allow for use of generator
+	// symbols).
+	if len(l.Data(c)) != 0 {
+		panic("unexpected non-empty carrier symbol")
+	}
+	l.outer[s] = c
+	// relocsym's foldSubSymbolOffset requires that we only
+	// have a single level of containment-- enforce here.
+	if l.outer[c] != 0 {
+		panic("invalid nested carrier sym")
 	}
 }
 
