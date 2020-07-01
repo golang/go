@@ -1013,6 +1013,18 @@ func testNamedEnum(t *testing.T) {
 	}
 }
 
+func testCastToEnum(t *testing.T) {
+	e := C.enum_E(C.Enum1)
+	if e != 1 {
+		t.Error("bad enum", C.Enum1)
+	}
+
+	e = C.enum_E(C.Enum2)
+	if e != 2 {
+		t.Error("bad enum", C.Enum2)
+	}
+}
+
 func testAtol(t *testing.T) {
 	l := Atol("123")
 	if l != 123 {
