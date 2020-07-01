@@ -791,8 +791,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 
 	case *ast.BasicLit:
-		if p.Config.Mode&StdFormat != 0 {
-			x = normalizeNumbers(x)
+		if p.Config.Mode&normalizeNumbers != 0 {
+			x = normalizedNumber(x)
 		}
 		p.print(x)
 
@@ -974,11 +974,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	}
 }
 
-// normalizeNumbers rewrites base prefixes and exponents to
-// use lower-case letters, and removes leading 0's from
-// integer imaginary literals. It leaves hexadecimal digits
-// alone.
-func normalizeNumbers(lit *ast.BasicLit) *ast.BasicLit {
+// normalizedNumber rewrites base prefixes and exponents
+// of numbers to use lower-case letters (0X123 to 0x123 and 1.2E3 to 1.2e3),
+// and removes leading 0's from integer imaginary literals (0765i to 765i).
+// It leaves hexadecimal digits alone.
+//
+// normalizedNumber doesn't modify the ast.BasicLit value lit points to.
+// If lit is not a number or a number in canonical format already,
+// lit is returned as is. Otherwise a new ast.BasicLit is created.
+func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
 	if lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG {
 		return lit // not a number - nothing to do
 	}

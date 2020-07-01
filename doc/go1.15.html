@@ -658,15 +658,18 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- fmt -->
 
-<dl id="go/printer"><dt><a href="/pkg/go/printer/">go/printer</a></dt>
+<dl id="go/format"><dt><a href="/pkg/go/format/">go/format</a></dt>
   <dd>
-    <p><!-- CL 231461 -->
-      The new <a href="/pkg/go/printer/#Mode"><code>Mode</code></a>
-      value <a href="/pkg/go/printer/#StdFormat"><code>StdFormat</code></a>
-      directs the printer to apply standard formatting changes while
-      printing the output.
+    <p><!-- golang.org/issue/37476, CL 231461, CL 240683 -->
+      The <a href="/pkg/go/format/#Source"><code>Source</code></a> and
+      <a href="/pkg/go/format/#Node"><code>Node</code></a> functions
+      now canonicalize number literal prefixes and exponents as part
+      of formatting Go source code. This matches the behavior of the
+      <a href="/pkg/cmd/gofmt/"><code>gofmt</code></a> command as it
+      was implemented <a href="/doc/go1.13#gofmt">since Go 1.13</a>.
+    </p>
   </dd>
-</dl><!-- go/printer -->
+</dl><!-- go/format -->
 
 <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
   <dd>
