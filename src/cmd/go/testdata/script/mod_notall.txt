@@ -18,7 +18,7 @@ stdout '^x/otherdep$'
 ! stdout '^x/fromotherroottest$'
 ! stdout '^y/fromotherdeptest$'
 
-# TODO(#40799): cmp go.mod go.mod.orig
+cmp go.mod go.mod.orig
 
 # With -deps -test, test dependencies of other roots should be included,
 # but test dependencies of non-roots should not.
@@ -33,7 +33,7 @@ stdout '^x/otherdep$'
 stdout '^x/fromotherroottest$'
 ! stdout '^y/fromotherdeptest$'
 
-# TODO(#40799): cmp go.mod go.mod.orig
+cmp go.mod go.mod.orig
 
 -- m.go --
 package m
