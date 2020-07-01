@@ -298,6 +298,32 @@ func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
 
+func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+	stopTheWorld("ReadMetricsSlow")
+
+	// Initialize the metrics beforehand because this could
+	// allocate and skew the stats.
+	semacquire(&metricsSema)
+	initMetrics()
+	semrelease(&metricsSema)
+
+	systemstack(func() {
+		// Read memstats first. It's going to flush
+		// the mcaches which readMetrics does not do, so
+		// going the other way around may result in
+		// inconsistent statistics.
+		readmemstats_m(memStats)
+	})
+
+	// Read metrics off the system stack.
+	//
+	// The only part of readMetrics that could allocate
+	// and skew the stats is initMetrics.
+	readMetrics(samplesp, len, cap)
+
+	startTheWorld()
+}
+
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {

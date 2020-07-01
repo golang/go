@@ -4,6 +4,11 @@
 
 package metrics
 
+import (
+	_ "runtime" // depends on the runtime via a linkname'd function
+	"unsafe"
+)
+
 // Sample captures a single metric sample.
 type Sample struct {
 	// Name is the name of the metric sampled.
@@ -16,6 +21,9 @@ type Sample struct {
 	Value Value
 }
 
+// Implemented in the runtime.
+func runtime_readMetrics(unsafe.Pointer, int, int)
+
 // Read populates each Value field in the given slice of metric samples.
 //
 // Desired metrics should be present in the slice with the appropriate name.
@@ -25,5 +33,5 @@ type Sample struct {
 // will have the value populated as KindBad to indicate that the name is
 // unknown.
 func Read(m []Sample) {
-	panic("unimplemented")
+	runtime_readMetrics(unsafe.Pointer(&m[0]), len(m), cap(m))
 }
