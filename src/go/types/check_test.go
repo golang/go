@@ -128,6 +128,7 @@ var tests = [][]string{
 	{"fixedbugs/issue39664.go2"},
 	{"fixedbugs/issue39680.go2"},
 	{"fixedbugs/issue39693.go2"},
+	{"fixedbugs/issue39699.go2"},
 	{"fixedbugs/issue39711.go2"},
 	{"fixedbugs/issue39723.go2"},
 	{"fixedbugs/issue39725.go2"},

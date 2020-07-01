@@ -42,6 +42,13 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		case 1:
 			check.expr(x, e.Args[0])
 			if x.mode != invalid {
+				if t := T.Interface(); t != nil {
+					check.completeInterface(token.NoPos, t)
+					if t.IsConstraint() {
+						check.errorf(e.Pos(), "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						break
+					}
+				}
 				check.conversion(x, T)
 			}
 		default:
