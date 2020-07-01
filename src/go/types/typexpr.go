@@ -138,7 +138,7 @@ func (check *Checker) varType(e ast.Expr) Type {
 				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints (%s)", t.allTypes)
 				return
 			}
-			if isComparableInterface(t) {
+			if t.IsComparable() {
 				check.softErrorf(e.Pos(), "interface type for variable cannot be (or embed) comparable")
 			}
 		})

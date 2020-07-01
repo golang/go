@@ -85,17 +85,6 @@ func IsInterface(typ Type) bool {
 	return typ.Interface() != nil
 }
 
-// isComparableInterface reports whether typ is an interface
-// that is or embeds that predeclared interface "comparable".
-func isComparableInterface(typ Type) bool {
-	// If the magic method == exists, the type parameter is comparable.
-	if t := typ.Interface(); t != nil {
-		_, m := lookupMethod(t.allMethods, nil, "==")
-		return m != nil
-	}
-	return false
-}
-
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
 	// If T is a type parameter not constraint by any type
@@ -107,7 +96,7 @@ func Comparable(T Type) bool {
 	//
 	// is not comparable because []byte is not comparable.
 	if t := T.TypeParam(); t != nil && optype(t) == theTop {
-		return isComparableInterface(t.Bound())
+		return t.Bound().IsComparable()
 	}
 
 	switch t := optype(T.Under()).(type) {
@@ -129,7 +118,7 @@ func Comparable(T Type) bool {
 	case *Sum:
 		return t.is(Comparable)
 	case *TypeParam:
-		return isComparableInterface(t.Bound())
+		return t.Bound().IsComparable()
 	}
 	return false
 }

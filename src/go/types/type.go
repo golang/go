@@ -517,17 +517,71 @@ func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMe
 func (t *Interface) Empty() bool {
 	if t.allMethods != nil {
 		// interface is complete - quick test
+		// A non-nil allTypes may still be empty and represents the bottom type.
 		return len(t.allMethods) == 0 && t.allTypes == nil
 	}
-	return empty(t, nil)
+	return !t.iterate(func(t *Interface) bool {
+		if len(t.methods) > 0 || t.types != nil {
+			return true
+		}
+		return false
+	}, nil)
 }
 
-// empty reports whether interface t is empty without requiring the
-// interface to be complete. Should only be called by Interface.Empty
-// and itself.
-func empty(t *Interface, seen map[*Interface]bool) bool {
-	if len(t.methods) != 0 || t.types != nil {
+// HasTypeList reports whether interface t has a type list, possibly from an embedded type.
+func (t *Interface) HasTypeList() bool {
+	if t.allMethods != nil {
+		// interface is complete - quick test
+		return t.allTypes != nil
+	}
+
+	return t.iterate(func(t *Interface) bool {
+		if t.types != nil {
+			return true
+		}
 		return false
+	}, nil)
+}
+
+// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+func (t *Interface) IsComparable() bool {
+	if t.allMethods != nil {
+		// interface is complete - quick test
+		_, m := lookupMethod(t.allMethods, nil, "==")
+		return m != nil
+	}
+
+	return t.iterate(func(t *Interface) bool {
+		_, m := lookupMethod(t.methods, nil, "==")
+		return m != nil
+	}, nil)
+}
+
+// IsConstraint reports t.HasTypeList() || t.IsComparable().
+func (t *Interface) IsConstraint() bool {
+	if t.allMethods != nil {
+		// interface is complete - quick test
+		if t.allTypes != nil {
+			return true
+		}
+		_, m := lookupMethod(t.allMethods, nil, "==")
+		return m != nil
+	}
+
+	return t.iterate(func(t *Interface) bool {
+		if t.types != nil {
+			return true
+		}
+		_, m := lookupMethod(t.methods, nil, "==")
+		return m != nil
+	}, nil)
+}
+
+// iterate calls f with t and then with any embedded interface of t, recursively, until f returns true.
+// iterate reports whether any call to f returned true.
+func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) bool {
+	if f(t) {
+		return true
 	}
 	for _, e := range t.embeddeds {
 		// e should be an interface but be careful (it may be invalid)
@@ -541,18 +595,12 @@ func empty(t *Interface, seen map[*Interface]bool) bool {
 				seen = make(map[*Interface]bool)
 			}
 			seen[e] = true
-			if !empty(e, seen) {
-				return false
+			if e.iterate(f, seen) {
+				return true
 			}
 		}
 	}
-	return true
-}
-
-// HasTypeList reports whether the interface has a type list,
-// possibly from an embedded type.
-func (t *Interface) HasTypeList() bool {
-	return t.allTypes != nil
+	return false
 }
 
 // includes reports whether the interface t includes the type typ
