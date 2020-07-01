@@ -35,7 +35,7 @@ Much of this information is filled in for you if you use `gopls bug` to file the
 
 #### VS Code
 
-For VSCode users, the gopls log can be found by navigating to `View` -> `Output` (or `Ctrl+K Ctrl+H`). There will be a drop-down menu titled `Tasks` in the top-right corner. Select the `gopls` item, which will contain the `gopls` logs.
+For VSCode users, the gopls log can be found by navigating to `View` -> `Output` (or `Ctrl+K Ctrl+H`). There will be a drop-down menu titled `Tasks` in the top-right corner. Select the `gopls (server)` item, which will contain the `gopls` logs.
 
 To increase the level of detail in your logs, add the following to your VS Code settings:
 
