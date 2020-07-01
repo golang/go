@@ -7,7 +7,10 @@
 
 package types
 
-import "go/token"
+import (
+	"go/token"
+	"strings"
+)
 
 // infer returns the list of actual type arguments for the given list of type parameters tparams
 // by inferring them from the actual arguments args for the parameters params. If infer fails to
@@ -20,7 +23,23 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
-		targs, _ := u.x.types()
+		targs, failed := u.x.types()
+		if failed == 0 {
+			// The first type parameter couldn't be inferred.
+			// If none of them could be inferred, don't try
+			// to provide the inferred type in the error msg.
+			allFailed := true
+			for _, targ := range targs {
+				if targ != nil {
+					allFailed = false
+					break
+				}
+			}
+			if allFailed {
+				check.errorf(arg.pos(), "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeNamesString(tparams))
+				return
+			}
+		}
 		smap := makeSubstMap(tparams, targs)
 		inferred := check.subst(arg.pos(), tpar, smap)
 		if inferred != tpar {
@@ -106,6 +125,33 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	}
 
 	return targs
+}
+
+// typeNamesString produces a string containing all the
+// type names in list suitable for human consumption.
+func typeNamesString(list []*TypeName) string {
+	// common cases
+	n := len(list)
+	switch n {
+	case 0:
+		return ""
+	case 1:
+		return list[0].name
+	case 2:
+		return list[0].name + " and " + list[1].name
+	}
+
+	// general case (n > 2)
+	var b strings.Builder
+	for i, tname := range list[:n-1] {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(tname.name)
+	}
+	b.WriteString(", and ")
+	b.WriteString(list[n-1].name)
+	return b.String()
 }
 
 // IsParameterized reports whether typ contains any type parameters.
