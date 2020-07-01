@@ -47,8 +47,8 @@ func (b *bug) DetailedHelp(f *flag.FlagSet) {
 	f.PrintDefaults()
 }
 
-const goplsBugPrefix = "x/tools/gopls: "
-const goplsBugHeader = `Please answer these questions before submitting your issue. Thanks!
+const goplsBugPrefix = "x/tools/gopls: <DESCRIBE THE PROBLEM>"
+const goplsBugHeader = `ATTENTION: Please answer these questions BEFORE submitting your issue. Thanks!
 
 #### What did you do?
 If possible, provide a recipe for reproducing the error.
