@@ -64,6 +64,23 @@ func (d *typeDesc) at(i int) Type {
 	return nil
 }
 
+// types returns the list of inferred types (via unification) for the type parameters
+// described by d, and an index. If all types were inferred, the returned index is < 0.
+// Otherwise, it is the index of the first type parameter which couldn't be inferred
+// and for which list[index] is nil.
+func (d *typeDesc) types() (list []Type, index int) {
+	list = make([]Type, len(d.tparams))
+	index = -1
+	for i := range d.tparams {
+		t := d.at(i)
+		list[i] = t
+		if index < 0 && t == nil {
+			index = i
+		}
+	}
+	return
+}
+
 // set sets the type typ inferred (via unification) for the i'th type parameter; typ must not be nil.
 // The index i must be a valid type parameter index: 0 <= i < len(d.tparams).
 func (d *typeDesc) set(i int, typ Type) {

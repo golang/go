@@ -20,13 +20,14 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
-		if tpar, _ := tpar.(*TypeParam); tpar != nil {
-			if inferred := u.x.at(tpar.index); inferred != nil {
-				check.errorf(arg.pos(), "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
-				return
-			}
+		targs, _ := u.x.types()
+		smap := makeSubstMap(tparams, targs)
+		inferred := check.subst(arg.pos(), tpar, smap)
+		if inferred != tpar {
+			check.errorf(arg.pos(), "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+		} else {
+			check.errorf(arg.pos(), "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
-		check.errorf(arg.pos(), "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 	}
 
 	// Terminology: generic parameter = function parameter with a type-parameterized type
@@ -96,24 +97,22 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 
 	// Collect type arguments and check if they all have been determined.
 	// TODO(gri) consider moving this outside this function and then we won't need to pass in pos
-	var targs []Type // lazily allocated
-	for i, tpar := range tparams {
-		targ := u.x.at(i)
-		if targ == nil {
-			ppos := check.fset.Position(tpar.pos).String()
-			check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
-			return nil
-		}
-		if targs == nil {
-			targs = make([]Type, len(tparams))
-		}
-		targs[i] = targ
+	targs, failed := u.x.types()
+	if failed >= 0 {
+		tpar := tparams[failed]
+		ppos := check.fset.Position(tpar.pos).String()
+		check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
+		return nil
 	}
 
 	return targs
 }
 
 // IsParameterized reports whether typ contains any type parameters.
+// TODO(gri) This is not strictly correct. We only want the free
+// type parameters for a given type. (At the moment, the only way
+// to mix free and bound type parameters is through method type parameters
+// on parameterized receiver types - need to investigate.)
 func IsParameterized(typ Type) bool {
 	return isParameterized(typ, make(map[Type]bool))
 }

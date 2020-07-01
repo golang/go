@@ -126,10 +126,11 @@ var tests = [][]string{
 	// TODO(gri) Eliminate the need to enumerate these tests here.
 	//           Should just traverse that directory.
 	{"fixedbugs/issue39664.go2"},
-	{"fixedbugs/issue39693.go2"},
 	{"fixedbugs/issue39680.go2"},
+	{"fixedbugs/issue39693.go2"},
 	{"fixedbugs/issue39711.go2"},
 	{"fixedbugs/issue39723.go2"},
+	{"fixedbugs/issue39725.go2"},
 	{"fixedbugs/issue39754.go2"},
 	{"fixedbugs/issue39755.go2"},
 	{"fixedbugs/issue39768.go2"},
