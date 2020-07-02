@@ -628,6 +628,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
+
+		// TODO(bcmills) What should happen here under lazy loading?
+		// Downgrading may intentionally violate the lazy-loading invariants.
+
 		modload.SetBuildList(buildList)
 		modload.ReloadBuildList() // note: does not update go.mod
 		base.ExitIfErrors()
