@@ -76,6 +76,10 @@ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
 	writeType(buf, typ, qf, make([]Type, 0, 8))
 }
 
+// instanceMarker is the prefix for an instantiated type
+// in "non-evaluated" instance form.
+const instanceMarker = '#'
+
 func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	// Theoretically, this is a quadratic lookup algorithm, but in
 	// practice deeply nested composite types with unnamed component
@@ -281,7 +285,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString(s + subscript(t.id))
 
 	case *instance:
-		buf.WriteByte('#') // indicate "non-evaluated" syntactic instance
+		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
 		writeTypeName(buf, t.base.obj, qf)
 		buf.WriteByte('(')
 		writeTypeList(buf, t.targs, qf, visited)

@@ -127,7 +127,7 @@ func stripAnnotations(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
-		if r != '#' && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
 			b.WriteRune(r)
 		}
 	}

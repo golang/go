@@ -425,7 +425,21 @@ func instantiatedHash(typ *Named, targs []Type) string {
 	buf.WriteByte('(')
 	writeTypeList(&buf, targs, nil, nil)
 	buf.WriteByte(')')
-	return buf.String()
+
+	// With respect to the represented type, whether a
+	// type is fully expanded or stored as instance
+	// does not matter - they are the same types.
+	// Remove the instanceMarkers printed for instances.
+	res := buf.Bytes()
+	i := 0
+	for _, b := range res {
+		if b != instanceMarker {
+			res[i] = b
+			i++
+		}
+	}
+
+	return string(res[:i])
 }
 
 func typeListString(list []Type) string {
