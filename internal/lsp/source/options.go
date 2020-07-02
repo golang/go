@@ -132,7 +132,7 @@ func DefaultOptions() Options {
 		},
 		Hooks: Hooks{
 			ComputeEdits:         myers.ComputeEdits,
-			URLRegexp:            regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
+			URLRegexp:            urlRegexp(),
 			DefaultAnalyzers:     defaultAnalyzers(),
 			TypeErrorAnalyzers:   typeErrorAnalyzers(),
 			ConvenienceAnalyzers: convenienceAnalyzers(),
@@ -701,4 +701,11 @@ func defaultAnalyzers() map[string]Analyzer {
 		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, enabled: true, HighConfidence: true},
 		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, enabled: true, HighConfidence: true},
 	}
+}
+
+func urlRegexp() *regexp.Regexp {
+	// Ensure links are matched as full words, not anywhere.
+	re := regexp.MustCompile(`\b(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?\b`)
+	re.Longest()
+	return re
 }
