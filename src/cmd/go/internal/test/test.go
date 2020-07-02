@@ -487,6 +487,8 @@ var (
 	pkgArgs  []string
 	pkgs     []*load.Package
 
+	testHelp bool // -help option passed to test via -args
+
 	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
 	testCacheExpire time.Time                    // ignore cached test results before this time
 
@@ -532,7 +534,7 @@ func testNeedBinary() bool {
 
 // testShowPass reports whether the output for a passing test should be shown.
 func testShowPass() bool {
-	return testV || (testList != "")
+	return testV || (testList != "") || testHelp
 }
 
 var defaultVetFlags = []string{
