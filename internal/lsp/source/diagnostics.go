@@ -201,7 +201,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, pkg Package, analyses map[string]Analyzer) error {
 	var analyzers []*analysis.Analyzer
 	for _, a := range analyses {
-		if !a.Enabled(snapshot) {
+		if !a.Enabled(snapshot.View()) {
 			continue
 		}
 		analyzers = append(analyzers, a.Analyzer)

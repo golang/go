@@ -84,14 +84,20 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 		snapshot := arg.(*snapshot)
 
 		// Begin loading the direct dependencies, in parallel.
+		var wg sync.WaitGroup
 		for _, dep := range deps {
+			wg.Add(1)
 			go func(dep *packageHandle) {
 				dep.check(ctx, snapshot)
+				wg.Done()
 			}(dep)
 		}
 
 		data := &packageData{}
 		data.pkg, data.err = typeCheck(ctx, snapshot, m, mode, deps)
+		// Make sure that the workers above have finished before we return,
+		// especially in case of cancellation.
+		wg.Wait()
 
 		return data
 	})

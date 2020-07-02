@@ -20,7 +20,8 @@ import (
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
+	defer release()
 	if !ok {
 		return nil, err
 	}
@@ -315,7 +316,7 @@ func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string
 func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *source.Analyzer) {
 	// Make sure that the analyzer we found is enabled.
 	defer func() {
-		if analyzer != nil && !analyzer.Enabled(snapshot) {
+		if analyzer != nil && !analyzer.Enabled(snapshot.View()) {
 			analyzer = nil
 		}
 	}()
@@ -344,7 +345,7 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
-		if !a.Enabled(snapshot) {
+		if !a.Enabled(snapshot.View()) {
 			continue
 		}
 		if a.Command == nil {

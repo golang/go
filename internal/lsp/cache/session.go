@@ -107,20 +107,20 @@ func (s *Session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, error) {
+func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	v, snapshot, err := s.createView(ctx, name, folder, options, 0)
+	view, snapshot, release, err := s.createView(ctx, name, folder, options, 0)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, func() {}, err
 	}
-	s.views = append(s.views, v)
+	s.views = append(s.views, view)
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]*View)
-	return v, snapshot, nil
+	return view, snapshot, release, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options, snapshotID uint64) (*View, *snapshot, error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -155,13 +155,14 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		},
 	}
 	v.snapshot.view = v
+	v.snapshot.active.Add(1)
 
 	if v.session.cache.options != nil {
 		v.session.cache.options(&v.options)
 	}
 	// Set the module-specific information.
 	if err := v.setBuildInformation(ctx, folder, options.Env, v.options.TempModfile); err != nil {
-		return nil, nil, err
+		return nil, nil, func() {}, err
 	}
 
 	// We have v.goEnv now.
@@ -175,7 +176,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel
 	go v.initialize(initCtx, v.snapshot, true)
-	return v, v.snapshot, nil
+
+	v.snapshot.active.Add(1)
+	return v, v.snapshot, v.snapshot.active.Done, nil
 }
 
 // View returns the view by name.
@@ -280,18 +283,19 @@ func (s *Session) removeView(ctx context.Context, view *View) error {
 	return nil
 }
 
-func (s *Session) updateView(ctx context.Context, view *View, options source.Options) (*View, *snapshot, error) {
+func (s *Session) updateView(ctx context.Context, view *View, options source.Options) (*View, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// Preserve the snapshot ID if we are recreating the view.
 	view.snapshotMu.Lock()
 	snapshotID := view.snapshot.id
 	view.snapshotMu.Unlock()
-	v, snapshot, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
+	v, _, release, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
+	release()
 	if err != nil {
 		// we have dropped the old view, but could not create the new one
 		// this should not happen and is very bad, but we still need to clean
@@ -302,7 +306,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options source.Opt
 	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v
-	return v, snapshot, nil
+	return v, nil
 }
 
 func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
@@ -319,18 +323,32 @@ func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
 	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
-func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
+func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
+	_, releases, _, err := s.DidModifyFiles(ctx, changes)
+	for _, release := range releases {
+		release()
+	}
+	return err
+}
+
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, []func(), []span.URI, error) {
 	views := make(map[*View]map[span.URI]source.FileHandle)
+
+	// Keep track of deleted files so that we can clear their diagnostics.
+	// A file might be re-created after deletion, so only mark files that
+	// have truly been deleted.
+	deletions := map[span.URI]struct{}{}
 
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	var forceReloadMetadata bool
 	for _, c := range changes {
 		if c.Action == source.InvalidateMetadata {
 			forceReloadMetadata = true
 		}
+
 		// Look through all of the session's views, invalidating the file for
 		// all of the views to which it is known.
 		for _, view := range s.views {
@@ -341,7 +359,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			}
 			// Make sure that the file is added to the view.
 			if _, err := view.getFile(c.URI); err != nil {
-				return nil, err
+				return nil, nil, nil, err
 			}
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]source.FileHandle)
@@ -353,12 +371,16 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			)
 			if fh, ok = overlays[c.URI]; ok {
 				views[view][c.URI] = fh
+				delete(deletions, c.URI)
 			} else {
 				fh, err = s.cache.getFile(ctx, c.URI)
 				if err != nil {
-					return nil, err
+					return nil, nil, nil, err
 				}
 				views[view][c.URI] = fh
+				if _, err := fh.Read(); err != nil {
+					deletions[c.URI] = struct{}{}
+				}
 			}
 			// If the file change is to a go.mod file, and initialization for
 			// the view has previously failed, we should attempt to retry.
@@ -370,10 +392,17 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		}
 	}
 	var snapshots []source.Snapshot
+	var releases []func()
 	for view, uris := range views {
-		snapshots = append(snapshots, view.invalidateContent(ctx, uris, forceReloadMetadata))
+		snapshot, release := view.invalidateContent(ctx, uris, forceReloadMetadata)
+		snapshots = append(snapshots, snapshot)
+		releases = append(releases, release)
 	}
-	return snapshots, nil
+	var deletionsSlice []span.URI
+	for uri := range deletions {
+		deletionsSlice = append(deletionsSlice, uri)
+	}
+	return snapshots, releases, deletionsSlice, nil
 }
 
 func (s *Session) isOpen(uri span.URI) bool {

@@ -149,10 +149,10 @@ type View interface {
 	SetOptions(context.Context, Options) (View, error)
 
 	// Snapshot returns the current snapshot for the view.
-	Snapshot() Snapshot
+	Snapshot() (Snapshot, func())
 
 	// Rebuild rebuilds the current view, replacing the original view in its session.
-	Rebuild(ctx context.Context) (Snapshot, error)
+	Rebuild(ctx context.Context) (Snapshot, func(), error)
 
 	// InvalidBuildConfiguration returns true if there is some error in the
 	// user's workspace. In particular, if they are both outside of a module
@@ -218,8 +218,8 @@ type TidiedModule struct {
 // of the client.
 // A session may have many active views at any given time.
 type Session interface {
-	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, Snapshot, error)
+	// NewView creates a new View, returning it and its first snapshot.
+	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, Snapshot, func(), error)
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
@@ -241,7 +241,7 @@ type Session interface {
 
 	// DidModifyFile reports a file modification to the session.
 	// It returns the resulting snapshots, a guaranteed one per view.
-	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, error)
+	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, []func(), []span.URI, error)
 
 	// Overlays returns a slice of file overlays for the session.
 	Overlays() []Overlay
@@ -436,8 +436,8 @@ type Analyzer struct {
 	FixesError func(msg string) bool
 }
 
-func (a Analyzer) Enabled(snapshot Snapshot) bool {
-	if enabled, ok := snapshot.View().Options().UserEnabledAnalyses[a.Analyzer.Name]; ok {
+func (a Analyzer) Enabled(view View) bool {
+	if enabled, ok := view.Options().UserEnabledAnalyses[a.Analyzer.Name]; ok {
 		return enabled
 	}
 	return a.enabled

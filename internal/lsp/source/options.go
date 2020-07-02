@@ -660,17 +660,17 @@ func (r *OptionResult) setString(s *string) {
 // snapshot.
 func EnabledAnalyzers(snapshot Snapshot) (analyzers []Analyzer) {
 	for _, a := range snapshot.View().Options().DefaultAnalyzers {
-		if a.Enabled(snapshot) {
+		if a.Enabled(snapshot.View()) {
 			analyzers = append(analyzers, a)
 		}
 	}
 	for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
-		if a.Enabled(snapshot) {
+		if a.Enabled(snapshot.View()) {
 			analyzers = append(analyzers, a)
 		}
 	}
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
-		if a.Enabled(snapshot) {
+		if a.Enabled(snapshot.View()) {
 			analyzers = append(analyzers, a)
 		}
 	}

@@ -17,7 +17,8 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	ctx, done := event.Start(ctx, "lsp.Server.documentSymbol")
 	defer done()
 
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
+	defer release()
 	if !ok {
 		return []interface{}{}, err
 	}

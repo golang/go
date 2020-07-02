@@ -26,17 +26,17 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 	return s.addFolders(ctx, event.Added)
 }
 
-func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.View, source.Snapshot, error) {
+func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source.View, source.Snapshot, func(), error) {
 	s.stateMu.Lock()
 	state := s.state
 	s.stateMu.Unlock()
 	if state < serverInitialized {
-		return nil, nil, errors.Errorf("addView called before server initialized")
+		return nil, nil, func() {}, errors.Errorf("addView called before server initialized")
 	}
 
 	options := s.session.Options()
 	if err := s.fetchConfig(ctx, name, uri, &options); err != nil {
-		return nil, nil, err
+		return nil, nil, func() {}, err
 	}
 	return s.session.NewView(ctx, name, uri, options)
 }
@@ -52,7 +52,11 @@ func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}
 		if err != nil {
 			return err
 		}
-		go s.diagnoseDetached(view.Snapshot())
+		go func() {
+			snapshot, release := view.Snapshot()
+			defer release()
+			s.diagnoseDetached(snapshot)
+		}()
 	}
 	return nil
 }

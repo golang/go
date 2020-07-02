@@ -212,7 +212,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 	}
 	for _, folder := range folders {
 		uri := span.URIFromURI(folder.URI)
-		view, snapshot, err := s.addView(ctx, folder.Name, uri)
+		view, snapshot, release, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
 			continue
@@ -229,6 +229,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		wg.Add(1)
 		go func() {
 			s.diagnoseDetached(snapshot)
+			release()
 			wg.Done()
 		}()
 	}
@@ -304,26 +305,28 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 // it to a snapshot.
 // We don't want to return errors for benign conditions like wrong file type,
 // so callers should do if !ok { return err } rather than if err != nil.
-func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI, expectKind source.FileKind) (source.Snapshot, source.FileHandle, bool, error) {
+func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI, expectKind source.FileKind) (source.Snapshot, source.FileHandle, bool, func(), error) {
 	uri := pURI.SpanURI()
 	if !uri.IsFile() {
 		// Not a file URI. Stop processing the request, but don't return an error.
-		return nil, nil, false, nil
+		return nil, nil, false, func() {}, nil
 	}
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, func() {}, err
 	}
-	snapshot := view.Snapshot()
+	snapshot, release := view.Snapshot()
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
-		return nil, nil, false, err
+		release()
+		return nil, nil, false, func() {}, err
 	}
 	if expectKind != source.UnknownKind && fh.Kind() != expectKind {
 		// Wrong kind of file. Nothing to do.
-		return nil, nil, false, nil
+		release()
+		return nil, nil, false, func() {}, nil
 	}
-	return snapshot, fh, true, nil
+	return snapshot, fh, true, release, nil
 }
 
 func (s *Server) shutdown(ctx context.Context) error {

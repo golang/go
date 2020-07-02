@@ -36,6 +36,8 @@ type snapshot struct {
 	id   uint64
 	view *View
 
+	active sync.WaitGroup
+
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
 

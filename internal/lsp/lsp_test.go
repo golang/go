@@ -54,7 +54,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		options := tests.DefaultOptions()
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
-		view, snapshot, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
+		view, _, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
+		release()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,7 +64,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 		// Enable type error analyses for tests.
 		// TODO(golang/go#38212): Delete this once they are enabled by default.
-		tests.EnableAllAnalyzers(snapshot, &options)
+		tests.EnableAllAnalyzers(view, &options)
 		view.SetOptions(ctx, options)
 
 		// Only run the -modfile specific tests in module mode with Go 1.14 or above.
@@ -83,7 +84,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 				LanguageID: "go",
 			})
 		}
-		if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
+		if err := session.ModifyFiles(ctx, modifications); err != nil {
 			t.Fatal(err)
 		}
 		r := &runner{
@@ -106,7 +107,9 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := mod.CodeLens(r.ctx, v.Snapshot(), uri)
+	snapshot, release := v.Snapshot()
+	defer release()
+	got, err := mod.CodeLens(r.ctx, snapshot, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +124,9 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		v := r.server.session.View(r.data.Config.Dir)
 		// Always run diagnostics with analysis.
-		reports, _ := r.server.diagnose(r.ctx, v.Snapshot(), true)
+		snapshot, release := v.Snapshot()
+		defer release()
+		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
 		for key, diags := range reports {
 			r.diagnostics[key.id.URI] = diags
 		}
@@ -373,7 +378,10 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := view.Snapshot()
+
+	snapshot, release := view.Snapshot()
+	defer release()
+
 	fh, err := snapshot.GetFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
@@ -390,7 +398,9 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if r.diagnostics == nil {
 		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		// Always run diagnostics with analysis.
-		reports, _ := r.server.diagnose(r.ctx, view.Snapshot(), true)
+		snapshot, release := view.Snapshot()
+		defer release()
+		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
 		for key, diags := range reports {
 			r.diagnostics[key.id.URI] = diags
 		}

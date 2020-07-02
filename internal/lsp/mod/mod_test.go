@@ -43,7 +43,9 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), options); err != nil {
+	_, _, release, err := session.NewView(ctx, "diagnostics_test", span.URIFromPath(folder), options)
+	release()
+	if err != nil {
 		t.Fatal(err)
 	}
 	after, err := ioutil.ReadFile(filepath.Join(folder, "go.mod"))

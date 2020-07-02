@@ -286,13 +286,17 @@ func (v *View) SetOptions(ctx context.Context, options source.Options) (source.V
 		return v, nil
 	}
 	v.optionsMu.Unlock()
-	newView, _, err := v.session.updateView(ctx, v, options)
+	newView, err := v.session.updateView(ctx, v, options)
 	return newView, err
 }
 
-func (v *View) Rebuild(ctx context.Context) (source.Snapshot, error) {
-	_, snapshot, err := v.session.updateView(ctx, v, v.Options())
-	return snapshot, err
+func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
+	newView, err := v.session.updateView(ctx, v, v.Options())
+	if err != nil {
+		return nil, func() {}, err
+	}
+	snapshot, release := newView.Snapshot()
+	return snapshot, release, nil
 }
 
 func (v *View) BuiltinPackage(ctx context.Context) (source.BuiltinPackage, error) {
@@ -562,7 +566,10 @@ func (v *View) WorkspaceDirectories(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	pm, err := v.Snapshot().ParseMod(ctx, fh)
+	snapshot, release := v.Snapshot()
+	defer release()
+
+	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
@@ -706,8 +713,10 @@ func checkIgnored(suffix string) bool {
 	return false
 }
 
-func (v *View) Snapshot() source.Snapshot {
-	return v.getSnapshot()
+func (v *View) Snapshot() (source.Snapshot, func()) {
+	s := v.getSnapshot()
+	s.active.Add(1)
+	return s, s.active.Done
 }
 
 func (v *View) getSnapshot() *snapshot {
@@ -764,7 +773,7 @@ func (v *View) awaitInitialized(ctx context.Context) {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle, forceReloadMetadata bool) source.Snapshot {
+func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle, forceReloadMetadata bool) (source.Snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 
@@ -779,8 +788,14 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.F
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, uris, forceReloadMetadata)
-	return v.snapshot
+	oldSnapshot := v.snapshot
+	v.snapshot = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
+	// Move the View's reference from the old snapshot to the new one.
+	oldSnapshot.active.Done()
+	v.snapshot.active.Add(1)
+
+	v.snapshot.active.Add(1)
+	return v.snapshot, v.snapshot.active.Done
 }
 
 func (v *View) cancelBackground() {

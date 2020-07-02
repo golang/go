@@ -47,7 +47,9 @@ func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, style Symb
 	var symbols []protocol.SymbolInformation
 outer:
 	for _, view := range views {
-		knownPkgs, err := view.Snapshot().KnownPackages(ctx)
+		snapshot, release := view.Snapshot()
+		defer release() // TODO: refactor so this runs promptly instead of at the end of the function
+		knownPkgs, err := snapshot.KnownPackages(ctx)
 		if err != nil {
 			return nil, err
 		}

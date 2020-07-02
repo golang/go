@@ -502,22 +502,22 @@ func FormatFolderName(folder string) string {
 	return folder
 }
 
-func EnableAllAnalyzers(snapshot source.Snapshot, opts *source.Options) {
+func EnableAllAnalyzers(view source.View, opts *source.Options) {
 	if opts.UserEnabledAnalyses == nil {
 		opts.UserEnabledAnalyses = make(map[string]bool)
 	}
 	for _, a := range opts.DefaultAnalyzers {
-		if !a.Enabled(snapshot) {
+		if !a.Enabled(view) {
 			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
 		}
 	}
 	for _, a := range opts.TypeErrorAnalyzers {
-		if !a.Enabled(snapshot) {
+		if !a.Enabled(view) {
 			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
 		}
 	}
 	for _, a := range opts.ConvenienceAnalyzers {
-		if !a.Enabled(snapshot) {
+		if !a.Enabled(view) {
 			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
 		}
 	}
