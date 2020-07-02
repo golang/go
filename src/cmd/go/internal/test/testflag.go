@@ -333,6 +333,23 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir)
 	}
 
+	// If the user is explicitly passing -help or -h, show output
+	// of the test binary so that the help output is displayed
+	// even though the test will exit with success.
+	// This loop is imperfect: it will do the wrong thing for a case
+	// like -args -test.outputdir -help. Such cases are probably rare,
+	// and getting this wrong doesn't do too much harm.
+helpLoop:
+	for _, arg := range explicitArgs {
+		switch arg {
+		case "--":
+			break helpLoop
+		case "-h", "-help", "--help":
+			testHelp = true
+			break helpLoop
+		}
+	}
+
 	// Ensure that -race and -covermode are compatible.
 	if testCoverMode == "" {
 		testCoverMode = "set"
