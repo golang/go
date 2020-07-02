@@ -7,3 +7,14 @@ func _() {
 	a = 2
 	_ = a
 }
+
+var (
+	// Hello there.
+	// Foo does the thing.
+	Foo int //@rename("Foo", "Bob")
+)
+
+/*
+Hello description
+*/
+func Hello() {} //@rename("Hello", "Goodbye")

@@ -702,13 +702,11 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		val := res[uri]
 		got += val
 	}
-
-	renamed := string(r.data.Golden(tag, filename, func() ([]byte, error) {
+	want := string(r.data.Golden(tag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-
-	if renamed != got {
-		t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v", newText, renamed, got)
+	if want != got {
+		t.Errorf("rename failed for %s:\n%s", newText, tests.Diff(want, got))
 	}
 }
 
