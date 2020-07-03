@@ -32,10 +32,10 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				if err == io.EOF {
 					break
 				}
-				return names, dirents, infos, &PathError{"readdir", file.name, err}
+				return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: err}
 			}
 			if nb < syscall.STATFIXLEN {
-				return names, dirents, infos, &PathError{"readdir", file.name, syscall.ErrShortStat}
+				return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: syscall.ErrShortStat}
 			}
 		}
 
@@ -43,12 +43,12 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		b := d.buf[d.bufp:]
 		m := int(uint16(b[0])|uint16(b[1])<<8) + 2
 		if m < syscall.STATFIXLEN {
-			return names, dirents, infos, &PathError{"readdir", file.name, syscall.ErrShortStat}
+			return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: syscall.ErrShortStat}
 		}
 
 		dir, err := syscall.UnmarshalDir(b[:m])
 		if err != nil {
-			return names, dirents, infos, &PathError{"readdir", file.name, err}
+			return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: err}
 		}
 
 		if mode == readdirName {
