@@ -447,3 +447,66 @@ func TestStrictDup(t *testing.T) {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }
+
+const testTrampSrc = `
+package main
+import "fmt"
+func main() {
+	fmt.Println("hello")
+
+	defer func(){
+		if e := recover(); e == nil {
+			panic("did not panic")
+		}
+	}()
+	f1()
+}
+
+// Test deferreturn trampolines. See issue #39049.
+func f1() { defer f2() }
+func f2() { panic("XXX") }
+`
+
+func TestTrampoline(t *testing.T) {
+	// Test that trampoline insertion works as expected.
+	// For stress test, we set -debugtramp=2 flag, which sets a very low
+	// threshold for trampoline generation, and essentially all cross-package
+	// calls will use trampolines.
+	switch runtime.GOARCH {
+	case "arm", "ppc64", "ppc64le":
+	default:
+		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
+	}
+	if runtime.GOOS == "aix" {
+		t.Skip("trampolines on AIX doesn't work in Go 1.14") // fixed in Go 1.15
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "hello.go")
+	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "hello.exe")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	cmd = exec.Command(exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "hello\n" {
+		t.Errorf("unexpected output:\n%s", out)
+	}
+}
