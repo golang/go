@@ -101,7 +101,7 @@ func invertPallocBits(b *PallocBits) {
 
 // Ensures two packed summaries are identical, and reports a detailed description
 // of the difference if they're not.
-func checkPallocSum(t *testing.T, got, want PallocSum) {
+func checkPallocSum(t testing.TB, got, want PallocSum) {
 	if got.Start() != want.Start() {
 		t.Errorf("inconsistent start: got %d, want %d", got.Start(), want.Start())
 	}
@@ -297,17 +297,29 @@ func TestPallocBitsSummarize(t *testing.T) {
 
 // Benchmarks how quickly we can summarize a PallocBits.
 func BenchmarkPallocBitsSummarize(b *testing.B) {
-	buf0 := new(PallocBits)
-	buf1 := new(PallocBits)
-	for i := 0; i < len(buf1); i++ {
-		buf1[i] = ^uint64(0)
+	patterns := []uint64{
+		0,
+		^uint64(0),
+		0xaa,
+		0xaaaaaaaaaaaaaaaa,
+		0x80000000aaaaaaaa,
+		0xaaaaaaaa00000001,
+		0xbbbbbbbbbbbbbbbb,
+		0x80000000bbbbbbbb,
+		0xbbbbbbbb00000001,
+		0xcccccccccccccccc,
+		0x4444444444444444,
+		0x4040404040404040,
+		0x4000400040004000,
+		0x1000404044ccaaff,
 	}
-	bufa := new(PallocBits)
-	for i := 0; i < len(bufa); i++ {
-		bufa[i] = 0xaa
-	}
-	for _, buf := range []*PallocBits{buf0, buf1, bufa} {
-		b.Run(fmt.Sprintf("Unpacked%02X", buf[0]), func(b *testing.B) {
+	for _, p := range patterns {
+		buf := new(PallocBits)
+		for i := 0; i < len(buf); i++ {
+			buf[i] = p
+		}
+		b.Run(fmt.Sprintf("Unpacked%02X", p), func(b *testing.B) {
+			checkPallocSum(b, buf.Summarize(), SummarizeSlow(buf))
 			for i := 0; i < b.N; i++ {
 				buf.Summarize()
 			}
