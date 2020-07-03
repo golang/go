@@ -1218,6 +1218,10 @@ func (t *translator) sameType(a, b types.Type) bool {
 	if types.IdenticalIgnoreTags(a, b) {
 		return true
 	}
+	if ap, bp := a.Pointer(), b.Pointer(); ap != nil && bp != nil {
+		a = ap.Elem()
+		b = bp.Elem()
+	}
 	an, ok := a.(*types.Named)
 	if !ok {
 		return false

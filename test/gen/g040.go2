@@ -1,0 +1,19 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type S1(type T) struct{}
+
+type S2(type K comparable) struct{}
+
+type S3(type K comparable) struct {
+	f map[K]*S1(*S2(K))
+}
+
+var V = S3(int){
+	f: make(map[int](*S1(*S2(int)))),
+}
