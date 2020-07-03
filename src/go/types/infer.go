@@ -212,12 +212,24 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
 
 	case *Interface:
-		t.assertCompleteness()
-		for _, m := range t.allMethods {
-			if isParameterized(m.typ, seen) {
-				return true
+		if t.allMethods != nil {
+			// interface is complete - quick test
+			for _, m := range t.allMethods {
+				if isParameterized(m.typ, seen) {
+					return true
+				}
 			}
+			return isParameterizedList(unpack(t.allTypes), seen)
 		}
+
+		return t.iterate(func(t *Interface) bool {
+			for _, m := range t.methods {
+				if isParameterized(m.typ, seen) {
+					return true
+				}
+			}
+			return isParameterizedList(unpack(t.types), seen)
+		}, nil)
 
 	case *Map:
 		return isParameterized(t.key, seen) || isParameterized(t.elem, seen)

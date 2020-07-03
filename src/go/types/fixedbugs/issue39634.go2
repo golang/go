@@ -42,3 +42,7 @@ func F20(type t Z20)() { F20(t /* ERROR invalid composite literal type */ {}) }
 // crash 21
 type Z21 /* ERROR illegal cycle */ interface{ Z21 }
 func F21(type *T Z21)() { ( /* ERROR not used */ F21(Z21)) }
+
+// crash 27
+func e27(type T)() interface{ (x27 /* ERROR not a type */ ) }
+func x27() { e27() /* ERROR cannot infer T */ }
