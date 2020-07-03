@@ -12,7 +12,7 @@ import (
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
 	if !file.isdir() {
-		return nil, nil, nil, &PathError{"readdir", file.name, syscall.ENOTDIR}
+		return nil, nil, nil, &PathError{Op: "readdir", Path: file.name, Err: syscall.ENOTDIR}
 	}
 	wantAll := n <= 0
 	if wantAll {
@@ -27,7 +27,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
 				} else {
-					err = &PathError{"FindNextFile", file.name, e}
+					err = &PathError{Op: "FindNextFile", Path: file.name, Err: e}
 					return
 				}
 			}

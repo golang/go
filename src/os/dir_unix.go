@@ -50,7 +50,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
 			runtime.KeepAlive(f)
 			if errno != nil {
-				return names, dirents, infos, &PathError{"readdirent", f.name, errno}
+				return names, dirents, infos, &PathError{Op: "readdirent", Path: f.name, Err: errno}
 			}
 			if d.nbuf <= 0 {
 				break // EOF
