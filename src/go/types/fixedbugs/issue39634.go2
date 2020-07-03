@@ -1,0 +1,44 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// crash 1
+type nt(type )interface{g /* ERROR undeclared name */ }
+type ph(type e nt,g(d /* ERROR undeclared name */ ))s /* ERROR undeclared name */
+func(*ph(e,e /* ERROR redeclared */ ))h(d /* ERROR undeclared name */ )
+
+// crash 2
+type Numeric2 interface{t /* ERROR not a type */ }
+func t(type T Numeric2)(s[]T){0 /* ERROR not a type */ (){s /* ERROR cannot index */ [0][0]}}
+
+// crash 4
+type Numeric4 interface{t4 /* ERROR not a type */ }
+func t4(type T Numeric4)(s[]T){if( /* ERROR non-boolean */ 0){*s /* ERROR cannot indirect */ [0]}}
+
+// crash 7
+type foo7 interface { bar() }
+type x7(type A) struct{ foo7 }
+func main7() { var _ foo7 = x7(int){} }
+
+// crash 8
+type foo8(type A) interface { type A }
+func bar8(type A foo8(A))(a A) {}
+func main8() {}
+
+// crash 17
+type Y17 interface{ c() }
+type Z17 interface {
+	c() Y17
+	Y17 /* ERROR duplicate method */
+}
+func F17(type T Z17)(T)
+
+// crash 20
+type Z20 /* ERROR illegal cycle */ interface{ Z20 }
+func F20(type t Z20)() { F20(t /* ERROR invalid composite literal type */ {}) }
+
+// crash 21
+type Z21 /* ERROR illegal cycle */ interface{ Z21 }
+func F21(type *T Z21)() { ( /* ERROR not used */ F21(Z21)) }

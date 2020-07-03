@@ -125,6 +125,7 @@ var tests = [][]string{
 	// Go 2 prototype bug fixes
 	// TODO(gri) Eliminate the need to enumerate these tests here.
 	//           Should just traverse that directory.
+	{"fixedbugs/issue39634.go2"},
 	{"fixedbugs/issue39664.go2"},
 	{"fixedbugs/issue39680.go2"},
 	{"fixedbugs/issue39693.go2"},

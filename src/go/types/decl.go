@@ -342,7 +342,6 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 				if tn == t.obj {
 					check.cycleError(path[i:])
 					t.info = invalid
-					t.underlying = Typ[Invalid]
 					return t.info
 				}
 			}
