@@ -6936,12 +6936,12 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
+			c := auxIntToInt32(v_1.AuxInt)
 			if !(int32(c) == -1) {
 				continue
 			}
 			v.reset(OpARMRSBconst)
-			v.AuxInt = 0
+			v.AuxInt = int32ToAuxInt(0)
 			v.AddArg(x)
 			return true
 		}
@@ -6951,11 +6951,11 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 	// result: (MOVWconst [0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 0 {
+			if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 0 {
 				continue
 			}
 			v.reset(OpARMMOVWconst)
-			v.AuxInt = 0
+			v.AuxInt = int32ToAuxInt(0)
 			return true
 		}
 		break
@@ -6965,7 +6965,7 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 1 {
+			if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 1 {
 				continue
 			}
 			v.copyOf(x)
@@ -6974,82 +6974,82 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: isPowerOfTwo(c)
-	// result: (SLLconst [log2(c)] x)
+	// cond: isPowerOfTwo32(c)
+	// result: (SLLconst [int32(log32(c))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(isPowerOfTwo(c)) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(isPowerOfTwo32(c)) {
 				continue
 			}
 			v.reset(OpARMSLLconst)
-			v.AuxInt = log2(c)
+			v.AuxInt = int32ToAuxInt(int32(log32(c)))
 			v.AddArg(x)
 			return true
 		}
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
-	// result: (ADDshiftLL x x [log2(c-1)])
+	// cond: isPowerOfTwo32(c-1) && c >= 3
+	// result: (ADDshiftLL x x [int32(log32(c-1))])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(isPowerOfTwo32(c-1) && c >= 3) {
 				continue
 			}
 			v.reset(OpARMADDshiftLL)
-			v.AuxInt = log2(c - 1)
+			v.AuxInt = int32ToAuxInt(int32(log32(c - 1)))
 			v.AddArg2(x, x)
 			return true
 		}
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
-	// result: (RSBshiftLL x x [log2(c+1)])
+	// cond: isPowerOfTwo32(c+1) && c >= 7
+	// result: (RSBshiftLL x x [int32(log32(c+1))])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(isPowerOfTwo32(c+1) && c >= 7) {
 				continue
 			}
 			v.reset(OpARMRSBshiftLL)
-			v.AuxInt = log2(c + 1)
+			v.AuxInt = int32ToAuxInt(int32(log32(c + 1)))
 			v.AddArg2(x, x)
 			return true
 		}
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
-	// result: (SLLconst [log2(c/3)] (ADDshiftLL <x.Type> x x [1]))
+	// cond: c%3 == 0 && isPowerOfTwo32(c/3)
+	// result: (SLLconst [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(c%3 == 0 && isPowerOfTwo32(c/3)) {
 				continue
 			}
 			v.reset(OpARMSLLconst)
-			v.AuxInt = log2(c / 3)
+			v.AuxInt = int32ToAuxInt(int32(log32(c / 3)))
 			v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-			v0.AuxInt = 1
+			v0.AuxInt = int32ToAuxInt(1)
 			v0.AddArg2(x, x)
 			v.AddArg(v0)
 			return true
@@ -7057,22 +7057,22 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
-	// result: (SLLconst [log2(c/5)] (ADDshiftLL <x.Type> x x [2]))
+	// cond: c%5 == 0 && isPowerOfTwo32(c/5)
+	// result: (SLLconst [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(c%5 == 0 && isPowerOfTwo32(c/5)) {
 				continue
 			}
 			v.reset(OpARMSLLconst)
-			v.AuxInt = log2(c / 5)
+			v.AuxInt = int32ToAuxInt(int32(log32(c / 5)))
 			v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-			v0.AuxInt = 2
+			v0.AuxInt = int32ToAuxInt(2)
 			v0.AddArg2(x, x)
 			v.AddArg(v0)
 			return true
@@ -7080,22 +7080,22 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
-	// result: (SLLconst [log2(c/7)] (RSBshiftLL <x.Type> x x [3]))
+	// cond: c%7 == 0 && isPowerOfTwo32(c/7)
+	// result: (SLLconst [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(c%7 == 0 && isPowerOfTwo32(c/7)) {
 				continue
 			}
 			v.reset(OpARMSLLconst)
-			v.AuxInt = log2(c / 7)
+			v.AuxInt = int32ToAuxInt(int32(log32(c / 7)))
 			v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-			v0.AuxInt = 3
+			v0.AuxInt = int32ToAuxInt(3)
 			v0.AddArg2(x, x)
 			v.AddArg(v0)
 			return true
@@ -7103,22 +7103,22 @@ func rewriteValueARM_OpARMMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL x (MOVWconst [c]))
-	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
-	// result: (SLLconst [log2(c/9)] (ADDshiftLL <x.Type> x x [3]))
+	// cond: c%9 == 0 && isPowerOfTwo32(c/9)
+	// result: (SLLconst [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3]))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
-			c := v_1.AuxInt
-			if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(c%9 == 0 && isPowerOfTwo32(c/9)) {
 				continue
 			}
 			v.reset(OpARMSLLconst)
-			v.AuxInt = log2(c / 9)
+			v.AuxInt = int32ToAuxInt(int32(log32(c / 9)))
 			v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-			v0.AuxInt = 3
+			v0.AuxInt = int32ToAuxInt(3)
 			v0.AddArg2(x, x)
 			v.AddArg(v0)
 			return true
@@ -7151,16 +7151,16 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: int32(c) == -1
+	// cond: c == -1
 	// result: (SUB a x)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(int32(c) == -1) {
+		if !(c == -1) {
 			break
 		}
 		v.reset(OpARMSUB)
@@ -7170,7 +7170,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 	// match: (MULA _ (MOVWconst [0]) a)
 	// result: a
 	for {
-		if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 0 {
+		if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		a := v_2
@@ -7181,7 +7181,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 	// result: (ADD x a)
 	for {
 		x := v_0
-		if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 1 {
+		if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 1 {
 			break
 		}
 		a := v_2
@@ -7190,168 +7190,168 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c)] x) a)
+	// cond: isPowerOfTwo32(c)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c)) {
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c)))
 		v0.AddArg(x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
-	// result: (ADD (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
+	// cond: isPowerOfTwo32(c-1) && c >= 3
+	// result: (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
+		if !(isPowerOfTwo32(c-1) && c >= 3) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v0.AuxInt = log2(c - 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c - 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
-	// result: (ADD (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
+	// cond: isPowerOfTwo32(c+1) && c >= 7
+	// result: (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
+		if !(isPowerOfTwo32(c+1) && c >= 7) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v0.AuxInt = log2(c + 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c + 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
+	// cond: c%3 == 0 && isPowerOfTwo32(c/3)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
+		if !(c%3 == 0 && isPowerOfTwo32(c/3)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 3)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 3)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
+	// cond: c%5 == 0 && isPowerOfTwo32(c/5)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
+		if !(c%5 == 0 && isPowerOfTwo32(c/5)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 5)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 5)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 2
+		v1.AuxInt = int32ToAuxInt(2)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
+	// cond: c%7 == 0 && isPowerOfTwo32(c/7)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
+		if !(c%7 == 0 && isPowerOfTwo32(c/7)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 7)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 7)))
 		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA x (MOVWconst [c]) a)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+	// cond: c%9 == 0 && isPowerOfTwo32(c/9)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
+		if !(c%9 == 0 && isPowerOfTwo32(c/9)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 9)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 9)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: int32(c) == -1
+	// cond: c == -1
 	// result: (SUB a x)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(int32(c) == -1) {
+		if !(c == -1) {
 			break
 		}
 		v.reset(OpARMSUB)
@@ -7361,7 +7361,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 	// match: (MULA (MOVWconst [0]) _ a)
 	// result: a
 	for {
-		if v_0.Op != OpARMMOVWconst || v_0.AuxInt != 0 {
+		if v_0.Op != OpARMMOVWconst || auxIntToInt32(v_0.AuxInt) != 0 {
 			break
 		}
 		a := v_2
@@ -7371,7 +7371,7 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 	// match: (MULA (MOVWconst [1]) x a)
 	// result: (ADD x a)
 	for {
-		if v_0.Op != OpARMMOVWconst || v_0.AuxInt != 1 {
+		if v_0.Op != OpARMMOVWconst || auxIntToInt32(v_0.AuxInt) != 1 {
 			break
 		}
 		x := v_1
@@ -7381,152 +7381,152 @@ func rewriteValueARM_OpARMMULA(v *Value) bool {
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c)] x) a)
+	// cond: isPowerOfTwo32(c)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c)) {
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c)))
 		v0.AddArg(x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
-	// result: (ADD (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
+	// cond: isPowerOfTwo32(c-1) && c >= 3
+	// result: (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
+		if !(isPowerOfTwo32(c-1) && c >= 3) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v0.AuxInt = log2(c - 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c - 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
-	// result: (ADD (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
+	// cond: isPowerOfTwo32(c+1) && c >= 7
+	// result: (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
+		if !(isPowerOfTwo32(c+1) && c >= 7) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v0.AuxInt = log2(c + 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c + 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
+	// cond: c%3 == 0 && isPowerOfTwo32(c/3)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
+		if !(c%3 == 0 && isPowerOfTwo32(c/3)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 3)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 3)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
+	// cond: c%5 == 0 && isPowerOfTwo32(c/5)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
+		if !(c%5 == 0 && isPowerOfTwo32(c/5)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 5)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 5)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 2
+		v1.AuxInt = int32ToAuxInt(2)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
+	// cond: c%7 == 0 && isPowerOfTwo32(c/7)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
+		if !(c%7 == 0 && isPowerOfTwo32(c/7)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 7)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 7)))
 		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULA (MOVWconst [c]) x a)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
-	// result: (ADD (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+	// cond: c%9 == 0 && isPowerOfTwo32(c/9)
+	// result: (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
+		if !(c%9 == 0 && isPowerOfTwo32(c/9)) {
 			break
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 9)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 9)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
@@ -7605,16 +7605,16 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: int32(c) == -1
+	// cond: c == -1
 	// result: (ADD a x)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(int32(c) == -1) {
+		if !(c == -1) {
 			break
 		}
 		v.reset(OpARMADD)
@@ -7624,7 +7624,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 	// match: (MULS _ (MOVWconst [0]) a)
 	// result: a
 	for {
-		if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 0 {
+		if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 0 {
 			break
 		}
 		a := v_2
@@ -7635,7 +7635,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 	// result: (RSB x a)
 	for {
 		x := v_0
-		if v_1.Op != OpARMMOVWconst || v_1.AuxInt != 1 {
+		if v_1.Op != OpARMMOVWconst || auxIntToInt32(v_1.AuxInt) != 1 {
 			break
 		}
 		a := v_2
@@ -7644,168 +7644,168 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c)] x) a)
+	// cond: isPowerOfTwo32(c)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c)) {
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c)))
 		v0.AddArg(x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
-	// result: (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
+	// cond: isPowerOfTwo32(c-1) && c >= 3
+	// result: (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
+		if !(isPowerOfTwo32(c-1) && c >= 3) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v0.AuxInt = log2(c - 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c - 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
-	// result: (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
+	// cond: isPowerOfTwo32(c+1) && c >= 7
+	// result: (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
+		if !(isPowerOfTwo32(c+1) && c >= 7) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v0.AuxInt = log2(c + 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c + 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
+	// cond: c%3 == 0 && isPowerOfTwo32(c/3)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
+		if !(c%3 == 0 && isPowerOfTwo32(c/3)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 3)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 3)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
+	// cond: c%5 == 0 && isPowerOfTwo32(c/5)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
+		if !(c%5 == 0 && isPowerOfTwo32(c/5)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 5)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 5)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 2
+		v1.AuxInt = int32ToAuxInt(2)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
+	// cond: c%7 == 0 && isPowerOfTwo32(c/7)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
+		if !(c%7 == 0 && isPowerOfTwo32(c/7)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 7)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 7)))
 		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS x (MOVWconst [c]) a)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+	// cond: c%9 == 0 && isPowerOfTwo32(c/9)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 	for {
 		x := v_0
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt32(v_1.AuxInt)
 		a := v_2
-		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
+		if !(c%9 == 0 && isPowerOfTwo32(c/9)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 9)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 9)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: int32(c) == -1
+	// cond: c == -1
 	// result: (ADD a x)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(int32(c) == -1) {
+		if !(c == -1) {
 			break
 		}
 		v.reset(OpARMADD)
@@ -7815,7 +7815,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 	// match: (MULS (MOVWconst [0]) _ a)
 	// result: a
 	for {
-		if v_0.Op != OpARMMOVWconst || v_0.AuxInt != 0 {
+		if v_0.Op != OpARMMOVWconst || auxIntToInt32(v_0.AuxInt) != 0 {
 			break
 		}
 		a := v_2
@@ -7825,7 +7825,7 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 	// match: (MULS (MOVWconst [1]) x a)
 	// result: (RSB x a)
 	for {
-		if v_0.Op != OpARMMOVWconst || v_0.AuxInt != 1 {
+		if v_0.Op != OpARMMOVWconst || auxIntToInt32(v_0.AuxInt) != 1 {
 			break
 		}
 		x := v_1
@@ -7835,152 +7835,152 @@ func rewriteValueARM_OpARMMULS(v *Value) bool {
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c)] x) a)
+	// cond: isPowerOfTwo32(c)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c)) {
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c)))
 		v0.AddArg(x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
-	// result: (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
+	// cond: isPowerOfTwo32(c-1) && c >= 3
+	// result: (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
+		if !(isPowerOfTwo32(c-1) && c >= 3) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v0.AuxInt = log2(c - 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c - 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
-	// result: (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
+	// cond: isPowerOfTwo32(c+1) && c >= 7
+	// result: (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
+		if !(isPowerOfTwo32(c+1) && c >= 7) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v0.AuxInt = log2(c + 1)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c + 1)))
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
+	// cond: c%3 == 0 && isPowerOfTwo32(c/3)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
+		if !(c%3 == 0 && isPowerOfTwo32(c/3)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 3)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 3)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
+	// cond: c%5 == 0 && isPowerOfTwo32(c/5)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
+		if !(c%5 == 0 && isPowerOfTwo32(c/5)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 5)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 5)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 2
+		v1.AuxInt = int32ToAuxInt(2)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
+	// cond: c%7 == 0 && isPowerOfTwo32(c/7)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
+		if !(c%7 == 0 && isPowerOfTwo32(c/7)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 7)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 7)))
 		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
 		return true
 	}
 	// match: (MULS (MOVWconst [c]) x a)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
-	// result: (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+	// cond: c%9 == 0 && isPowerOfTwo32(c/9)
+	// result: (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_1
 		a := v_2
-		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
+		if !(c%9 == 0 && isPowerOfTwo32(c/9)) {
 			break
 		}
 		v.reset(OpARMRSB)
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
-		v0.AuxInt = log2(c / 9)
+		v0.AuxInt = int32ToAuxInt(int32(log32(c / 9)))
 		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
-		v1.AuxInt = 3
+		v1.AuxInt = int32ToAuxInt(3)
 		v1.AddArg2(x, x)
 		v0.AddArg(v1)
 		v.AddArg2(v0, a)
@@ -15531,15 +15531,15 @@ func rewriteValueARM_OpSelect0(v *Value) bool {
 		_ = v_0.Args[1]
 		x := v_0.Args[0]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpARMMOVWconst || v_0_1.AuxInt != 1 {
+		if v_0_1.Op != OpARMMOVWconst || auxIntToInt32(v_0_1.AuxInt) != 1 {
 			break
 		}
 		v.copyOf(x)
 		return true
 	}
 	// match: (Select0 (CALLudiv x (MOVWconst [c])))
-	// cond: isPowerOfTwo(c)
-	// result: (SRLconst [log2(c)] x)
+	// cond: isPowerOfTwo32(c)
+	// result: (SRLconst [int32(log32(c))] x)
 	for {
 		if v_0.Op != OpARMCALLudiv {
 			break
@@ -15550,12 +15550,12 @@ func rewriteValueARM_OpSelect0(v *Value) bool {
 		if v_0_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0_1.AuxInt
-		if !(isPowerOfTwo(c)) {
+		c := auxIntToInt32(v_0_1.AuxInt)
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v.AuxInt = log2(c)
+		v.AuxInt = int32ToAuxInt(int32(log32(c)))
 		v.AddArg(x)
 		return true
 	}
@@ -15592,15 +15592,15 @@ func rewriteValueARM_OpSelect1(v *Value) bool {
 		}
 		_ = v_0.Args[1]
 		v_0_1 := v_0.Args[1]
-		if v_0_1.Op != OpARMMOVWconst || v_0_1.AuxInt != 1 {
+		if v_0_1.Op != OpARMMOVWconst || auxIntToInt32(v_0_1.AuxInt) != 1 {
 			break
 		}
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
+		v.AuxInt = int32ToAuxInt(0)
 		return true
 	}
 	// match: (Select1 (CALLudiv x (MOVWconst [c])))
-	// cond: isPowerOfTwo(c)
+	// cond: isPowerOfTwo32(c)
 	// result: (ANDconst [c-1] x)
 	for {
 		if v_0.Op != OpARMCALLudiv {
@@ -15612,12 +15612,12 @@ func rewriteValueARM_OpSelect1(v *Value) bool {
 		if v_0_1.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0_1.AuxInt
-		if !(isPowerOfTwo(c)) {
+		c := auxIntToInt32(v_0_1.AuxInt)
+		if !(isPowerOfTwo32(c)) {
 			break
 		}
 		v.reset(OpARMANDconst)
-		v.AuxInt = c - 1
+		v.AuxInt = int32ToAuxInt(c - 1)
 		v.AddArg(x)
 		return true
 	}
