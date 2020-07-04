@@ -441,18 +441,20 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	return true
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (int64, bool, bool) {
-	const extRelocNeeded = true
-	const extRelocNotNeeded = false
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (int64, int, bool) {
+	const noExtReloc = 0
 	const isOk = true
 
 	rs := ldr.ResolveABIAlias(r.Sym())
 
 	if target.IsExternal() {
-		switch r.Type() {
+		nExtReloc := 0
+		switch rt := r.Type(); rt {
 		default:
 		case objabi.R_ARM64_GOTPCREL,
 			objabi.R_ADDRARM64:
+			nExtReloc = 2 // need two ELF relocations. see elfreloc1
+
 			// set up addend for eventual relocation via outer symbol.
 			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
 			rr.Xadd = r.Add() + off
@@ -494,13 +496,17 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				}
 			}
 
-			return val, extRelocNeeded, isOk
+			return val, nExtReloc, isOk
 		case objabi.R_CALLARM64,
 			objabi.R_ARM64_TLS_LE,
 			objabi.R_ARM64_TLS_IE:
+			nExtReloc = 1
+			if rt == objabi.R_ARM64_TLS_IE {
+				nExtReloc = 2 // need two ELF relocations. see elfreloc1
+			}
 			rr.Xsym = rs
 			rr.Xadd = r.Add()
-			return val, extRelocNeeded, isOk
+			return val, nExtReloc, isOk
 		}
 	}
 
@@ -526,9 +532,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		// when laid out, the instruction order must always be o1, o2.
 		if target.IsBigEndian() {
-			return int64(o0)<<32 | int64(o1), extRelocNotNeeded, true
+			return int64(o0)<<32 | int64(o1), noExtReloc, true
 		}
-		return int64(o1)<<32 | int64(o0), extRelocNotNeeded, true
+		return int64(o1)<<32 | int64(o0), noExtReloc, true
 
 	case objabi.R_ARM64_TLS_LE:
 		if target.IsDarwin() {
@@ -540,7 +546,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		if v < 0 || v >= 32678 {
 			ldr.Errorf(s, "TLS offset out of range %d", v)
 		}
-		return val | (v << 5), extRelocNeeded, true
+		return val | (v << 5), noExtReloc, true
 
 	case objabi.R_ARM64_TLS_IE:
 		if target.IsPIE() && target.IsElf() {
@@ -579,9 +585,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 			// when laid out, the instruction order must always be o0, o1.
 			if target.IsBigEndian() {
-				return int64(o0)<<32 | int64(o1), extRelocNotNeeded, isOk
+				return int64(o0)<<32 | int64(o1), noExtReloc, isOk
 			}
-			return int64(o1)<<32 | int64(o0), extRelocNotNeeded, isOk
+			return int64(o1)<<32 | int64(o0), noExtReloc, isOk
 		} else {
 			log.Fatalf("cannot handle R_ARM64_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 		}
@@ -596,7 +602,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		if t >= 1<<27 || t < -1<<27 {
 			ldr.Errorf(s, "program too large, call relocation distance = %d", t)
 		}
-		return val | ((t >> 2) & 0x03ffffff), extRelocNotNeeded, true
+		return val | ((t >> 2) & 0x03ffffff), noExtReloc, true
 
 	case objabi.R_ARM64_GOT:
 		sData := ldr.Data(s)
@@ -609,7 +615,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			var o0 uint32
 			o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
-			return val | int64(o0), extRelocNotNeeded, isOk
+			return val | int64(o0), noExtReloc, isOk
 		} else if sData[r.Off()+3] == 0xf9 {
 			// R_AARCH64_LD64_GOT_LO12_NC
 			// patch instruction: ldr
@@ -619,7 +625,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			var o1 uint32
 			o1 |= uint32(t&0xfff) << (10 - 3)
-			return val | int64(uint64(o1)), extRelocNotNeeded, isOk
+			return val | int64(uint64(o1)), noExtReloc, isOk
 		} else {
 			ldr.Errorf(s, "unsupported instruction for %v R_GOTARM64", sData[r.Off():r.Off()+4])
 		}
@@ -634,13 +640,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "program too large, address relocation distance = %d", t)
 			}
 			o0 := (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
-			return val | int64(o0), extRelocNotNeeded, isOk
+			return val | int64(o0), noExtReloc, isOk
 		} else if sData[r.Off()+3]&0x91 == 0x91 {
 			// R_AARCH64_ADD_ABS_LO12_NC
 			// patch instruction: add
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			o1 := uint32(t&0xfff) << 10
-			return val | int64(o1), extRelocNotNeeded, isOk
+			return val | int64(o1), noExtReloc, isOk
 		} else {
 			ldr.Errorf(s, "unsupported instruction for %v R_PCRELARM64", sData[r.Off():r.Off()+4])
 		}
@@ -648,7 +654,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_ARM64_LDST8:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 		o0 := uint32(t&0xfff) << 10
-		return val | int64(o0), extRelocNotNeeded, true
+		return val | int64(o0), noExtReloc, true
 
 	case objabi.R_ARM64_LDST32:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -656,7 +662,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			ldr.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST32_ABS_LO12_NC", t)
 		}
 		o0 := (uint32(t&0xfff) >> 2) << 10
-		return val | int64(o0), extRelocNotNeeded, true
+		return val | int64(o0), noExtReloc, true
 
 	case objabi.R_ARM64_LDST64:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -664,7 +670,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			ldr.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST64_ABS_LO12_NC", t)
 		}
 		o0 := (uint32(t&0xfff) >> 3) << 10
-		return val | int64(o0), extRelocNotNeeded, true
+		return val | int64(o0), noExtReloc, true
 
 	case objabi.R_ARM64_LDST128:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -672,10 +678,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			ldr.Errorf(s, "invalid address: %x for relocation type: R_AARCH64_LDST128_ABS_LO12_NC", t)
 		}
 		o0 := (uint32(t&0xfff) >> 4) << 10
-		return val | int64(o0), extRelocNotNeeded, true
+		return val | int64(o0), noExtReloc, true
 	}
 
-	return val, false, false
+	return val, 0, false
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {

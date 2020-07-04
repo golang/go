@@ -528,7 +528,7 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	tramp.AddReloc(r)
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
@@ -549,14 +549,14 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "direct call too far %d", rr.Xadd/4)
 			}
 
-			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(rr.Xadd/4)))), true, true
+			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(rr.Xadd/4)))), 1, true
 		}
 
-		return -1, false, false
+		return -1, 0, false
 	}
 
 	const isOk = true
-	const noExtReloc = false
+	const noExtReloc = 0
 	switch r.Type() {
 	// The following three arch specific relocations are only for generation of
 	// Linux/ARM ELF's PLT entry (3 assembler instruction)
@@ -579,7 +579,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&t))), noExtReloc, isOk
 	}
 
-	return val, false, false
+	return val, 0, false
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
