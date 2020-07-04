@@ -5,13 +5,13 @@
 package p
 
 // crash 1
-type nt(type )interface{g /* ERROR undeclared name */ }
-type ph(type e nt,g(d /* ERROR undeclared name */ ))s /* ERROR undeclared name */
-func(*ph(e,e /* ERROR redeclared */ ))h(d /* ERROR undeclared name */ )
+type nt1(type )interface{g /* ERROR undeclared name */ }
+type ph1(type e nt1,g(d /* ERROR undeclared name */ ))s /* ERROR undeclared name */
+func(*ph1(e,e /* ERROR redeclared */ ))h(d /* ERROR undeclared name */ )
 
 // crash 2
-type Numeric2 interface{t /* ERROR not a type */ }
-func t(type T Numeric2)(s[]T){0 /* ERROR not a type */ (){s /* ERROR cannot index */ [0][0]}}
+type Numeric2 interface{t2 /* ERROR not a type */ }
+func t2(type T Numeric2)(s[]T){0 /* ERROR not a type */ (){s /* ERROR cannot index */ [0][0]}}
 
 // crash 4
 type Numeric4 interface{t4 /* ERROR not a type */ }
@@ -34,6 +34,9 @@ type Z17 interface {
 	Y17 /* ERROR duplicate method */
 }
 func F17(type T Z17)(T)
+
+// crash 19
+type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
 
 // crash 20
 type Z20 /* ERROR illegal cycle */ interface{ Z20 }

@@ -1423,6 +1423,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
+		// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
+		// the element type may be accessed before it's set. Make sure we have
+		// a valid type.
+		if x.typ == nil {
+			x.typ = Typ[Invalid]
+		}
+
 		check.index(e.Index, length)
 		// ok to continue
 
