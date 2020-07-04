@@ -112,7 +112,7 @@ func ParseDate(date string) (time.Time, error) {
 	if ind := strings.IndexAny(p.s, "+-"); ind != -1 && len(p.s) >= ind+5 {
 		date = p.s[:ind+5]
 		p.s = p.s[ind+5:]
-	} else if ind := strings.Index(p.s, "T"); ind != -1 {
+	} else if ind := index(p.s, "T", 1); ind != -1 {
 		// The last letter T of the obsolete time zone is checked when no standard time zone is found.
 		// If T is misplaced, the date to parse is garbage.
 		date = p.s[:ind+1]
@@ -128,6 +128,17 @@ func ParseDate(date string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, errors.New("mail: header could not be parsed")
+}
+
+func index(s, substr string, start int) int {
+	if len(s) < start {
+		return -1
+	}
+	i := strings.Index(s[start:], substr)
+	if i == -1 {
+		return i
+	}
+	return i + start
 }
 
 // A Header represents the key-value pairs in a mail message header.
