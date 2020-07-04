@@ -35,6 +35,9 @@ type Z17 interface {
 }
 func F17(type T Z17)(T)
 
+// crash 18
+type o18(type T) []func(_ o18([]_ /* ERROR cannot use _ */ ))
+
 // crash 19
 type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
 
