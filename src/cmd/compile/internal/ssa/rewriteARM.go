@@ -4730,14 +4730,14 @@ func rewriteValueARM_OpARMMOVBUreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBUreg (MOVWconst [c]))
-	// result: (MOVWconst [int64(uint8(c))])
+	// result: (MOVWconst [int32(uint8(c))])
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(uint8(c))
+		v.AuxInt = int32ToAuxInt(int32(uint8(c)))
 		return true
 	}
 	return false
@@ -4939,14 +4939,14 @@ func rewriteValueARM_OpARMMOVBreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBreg (MOVWconst [c]))
-	// result: (MOVWconst [int64(int8(c))])
+	// result: (MOVWconst [int32(int8(c))])
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int8(c))
+		v.AuxInt = int32ToAuxInt(int32(int8(c)))
 		return true
 	}
 	return false
@@ -5665,14 +5665,14 @@ func rewriteValueARM_OpARMMOVHUreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHUreg (MOVWconst [c]))
-	// result: (MOVWconst [int64(uint16(c))])
+	// result: (MOVWconst [int32(uint16(c))])
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(uint16(c))
+		v.AuxInt = int32ToAuxInt(int32(uint16(c)))
 		return true
 	}
 	return false
@@ -5918,14 +5918,14 @@ func rewriteValueARM_OpARMMOVHreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHreg (MOVWconst [c]))
-	// result: (MOVWconst [int64(int16(c))])
+	// result: (MOVWconst [int32(int16(c))])
 	for {
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int16(c))
+		v.AuxInt = int32ToAuxInt(int32(int16(c)))
 		return true
 	}
 	return false
@@ -13930,18 +13930,18 @@ func rewriteValueARM_OpLsh16x64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Lsh16x64 x (Const64 [c]))
 	// cond: uint64(c) < 16
-	// result: (SLLconst x [c])
+	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
 		v.reset(OpARMSLLconst)
-		v.AuxInt = c
+		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -14027,18 +14027,18 @@ func rewriteValueARM_OpLsh32x64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Lsh32x64 x (Const64 [c]))
 	// cond: uint64(c) < 32
-	// result: (SLLconst x [c])
+	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
 		v.reset(OpARMSLLconst)
-		v.AuxInt = c
+		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -14124,18 +14124,18 @@ func rewriteValueARM_OpLsh8x64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Lsh8x64 x (Const64 [c]))
 	// cond: uint64(c) < 8
-	// result: (SLLconst x [c])
+	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
 		v.reset(OpARMSLLconst)
-		v.AuxInt = c
+		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -14951,20 +14951,20 @@ func rewriteValueARM_OpRsh16Ux64(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh16Ux64 x (Const64 [c]))
 	// cond: uint64(c) < 16
-	// result: (SRLconst (SLLconst <typ.UInt32> x [16]) [c+16])
+	// result: (SRLconst (SLLconst <typ.UInt32> x [16]) [int32(c+16)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v.AuxInt = c + 16
+		v.AuxInt = int32ToAuxInt(int32(c + 16))
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, typ.UInt32)
-		v0.AuxInt = 16
+		v0.AuxInt = int32ToAuxInt(16)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -15054,20 +15054,20 @@ func rewriteValueARM_OpRsh16x64(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh16x64 x (Const64 [c]))
 	// cond: uint64(c) < 16
-	// result: (SRAconst (SLLconst <typ.UInt32> x [16]) [c+16])
+	// result: (SRAconst (SLLconst <typ.UInt32> x [16]) [int32(c+16)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v.AuxInt = c + 16
+		v.AuxInt = int32ToAuxInt(int32(c + 16))
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, typ.UInt32)
-		v0.AuxInt = 16
+		v0.AuxInt = int32ToAuxInt(16)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -15161,18 +15161,18 @@ func rewriteValueARM_OpRsh32Ux64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Rsh32Ux64 x (Const64 [c]))
 	// cond: uint64(c) < 32
-	// result: (SRLconst x [c])
+	// result: (SRLconst x [int32(c)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v.AuxInt = c
+		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -15252,18 +15252,18 @@ func rewriteValueARM_OpRsh32x64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Rsh32x64 x (Const64 [c]))
 	// cond: uint64(c) < 32
-	// result: (SRAconst x [c])
+	// result: (SRAconst x [int32(c)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v.AuxInt = c
+		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
 	}
@@ -15358,20 +15358,20 @@ func rewriteValueARM_OpRsh8Ux64(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh8Ux64 x (Const64 [c]))
 	// cond: uint64(c) < 8
-	// result: (SRLconst (SLLconst <typ.UInt32> x [24]) [c+24])
+	// result: (SRLconst (SLLconst <typ.UInt32> x [24]) [int32(c+24)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v.AuxInt = c + 24
+		v.AuxInt = int32ToAuxInt(int32(c + 24))
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, typ.UInt32)
-		v0.AuxInt = 24
+		v0.AuxInt = int32ToAuxInt(24)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -15461,20 +15461,20 @@ func rewriteValueARM_OpRsh8x64(v *Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Rsh8x64 x (Const64 [c]))
 	// cond: uint64(c) < 8
-	// result: (SRAconst (SLLconst <typ.UInt32> x [24]) [c+24])
+	// result: (SRAconst (SLLconst <typ.UInt32> x [24]) [int32(c+24)])
 	for {
 		x := v_0
 		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v.AuxInt = c + 24
+		v.AuxInt = int32ToAuxInt(int32(c + 24))
 		v0 := b.NewValue0(v.Pos, OpARMSLLconst, typ.UInt32)
-		v0.AuxInt = 24
+		v0.AuxInt = int32ToAuxInt(24)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
