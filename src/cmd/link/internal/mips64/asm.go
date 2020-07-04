@@ -94,13 +94,13 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 	return false
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
 		switch r.Type() {
 		default:
-			return val, false, false
+			return val, 0, false
 
 		case objabi.R_ADDRMIPS,
 			objabi.R_ADDRMIPSU:
@@ -112,19 +112,19 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
 			rr.Xsym = rs
-			return val, true, true
+			return val, 1, true
 
 		case objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
 			objabi.R_JMPMIPS:
 			rr.Xsym = rs
 			rr.Xadd = r.Add()
-			return val, true, true
+			return val, 1, true
 		}
 	}
 
 	const isOk = true
-	const noExtReloc = false
+	const noExtReloc = 0
 	switch r.Type() {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
@@ -150,7 +150,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), noExtReloc, isOk
 	}
 
-	return val, false, false
+	return val, 0, false
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {

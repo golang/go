@@ -32,13 +32,13 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 	return false
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, needExtReloc bool, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	switch r.Type() {
 	case objabi.R_CALLRISCV:
 		// Nothing to do.
-		return val, false, true
+		return val, 0, true
 
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
 		pc := ldr.SymValue(s) + int64(r.Off())
@@ -79,10 +79,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		auipc = (auipc &^ riscv.UTypeImmMask) | int64(uint32(auipcImm))
 		second = (second &^ secondImmMask) | int64(uint32(secondImm))
 
-		return second<<32 | auipc, false, true
+		return second<<32 | auipc, 0, true
 	}
 
-	return val, false, false
+	return val, 0, false
 }
 
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {

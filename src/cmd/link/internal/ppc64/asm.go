@@ -797,30 +797,32 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetData(P)
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (relocatedOffset int64, needExtReloc bool, ok bool) {
-	needExternal := false
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	if target.IsExternal() {
 		// On AIX, relocations (except TLS ones) must be also done to the
 		// value with the current addresses.
-		switch r.Type() {
+		switch rt := r.Type(); rt {
 		default:
 			if target.IsAIX() {
-				return val, needExternal, false
+				return val, nExtReloc, false
 			}
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
 			// check Outer is nil, Type is TLSBSS?
-			needExternal = true
+			nExtReloc = 1
+			if rt == objabi.R_POWER_TLS_IE {
+				nExtReloc = 2 // need two ELF relocations, see elfreloc1
+			}
 			rr.Xadd = r.Add()
 			rr.Xsym = rs
-			return val, needExternal, true
+			return val, nExtReloc, true
 		case objabi.R_ADDRPOWER,
 			objabi.R_ADDRPOWER_DS,
 			objabi.R_ADDRPOWER_TOCREL,
 			objabi.R_ADDRPOWER_TOCREL_DS,
 			objabi.R_ADDRPOWER_GOT,
 			objabi.R_ADDRPOWER_PCREL:
-			needExternal = true
+			nExtReloc = 2 // need two ELF relocations, see elfreloc1
 
 			// set up addend for eventual relocation via outer symbol.
 			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
@@ -832,23 +834,23 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			rr.Xsym = rs
 
 			if !target.IsAIX() {
-				return val, needExternal, true
+				return val, nExtReloc, true
 			}
 		case objabi.R_CALLPOWER:
-			needExternal = true
+			nExtReloc = 1
 			rr.Xsym = rs
 			rr.Xadd = r.Add()
 			if !target.IsAIX() {
-				return val, needExternal, true
+				return val, nExtReloc, true
 			}
 		}
 	}
 
 	switch r.Type() {
 	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
-		return archreloctoc(ldr, target, syms, r, s, val), needExternal, true
+		return archreloctoc(ldr, target, syms, r, s, val), nExtReloc, true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
-		return archrelocaddr(ldr, target, syms, r, s, val), needExternal, true
+		return archrelocaddr(ldr, target, syms, r, s, val), nExtReloc, true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
@@ -862,9 +864,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		if int64(int32(t<<6)>>6) != t {
 			ldr.Errorf(s, "direct call too far: %s %x", ldr.SymName(rs), t)
 		}
-		return val | int64(uint32(t)&^0xfc000003), needExternal, true
+		return val | int64(uint32(t)&^0xfc000003), nExtReloc, true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
-		return ldr.SymValue(rs) + r.Add() - symtoc(ldr, syms, s), needExternal, true
+		return ldr.SymValue(rs) + r.Add() - symtoc(ldr, syms, s), nExtReloc, true
 
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
@@ -880,10 +882,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		if int64(int16(v)) != v {
 			ldr.Errorf(s, "TLS offset out of range %d", v)
 		}
-		return (val &^ 0xffff) | (v & 0xffff), needExternal, true
+		return (val &^ 0xffff) | (v & 0xffff), nExtReloc, true
 	}
 
-	return val, needExternal, false
+	return val, nExtReloc, false
 }
 
 func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {

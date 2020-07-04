@@ -164,6 +164,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		// relocs will require an external reloc
 		extRelocs = st.preallocExtRelocSlice(relocs.Count())
 	}
+	// Extra external host relocations (e.g. ELF relocations).
+	// This is the difference between number of host relocations
+	// and number of Go relocations, as one Go relocation may turn
+	// into multiple host relocations.
+	extraExtReloc := 0
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At2(ri)
 		off := r.Off()
@@ -261,16 +266,21 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			var rp *loader.ExtReloc
 			if target.IsExternal() {
 				// Don't pass &rr directly to Archreloc, which will escape rr
-				// even if this case is not taken. Instead, as Archreloc2 will
+				// even if this case is not taken. Instead, as Archreloc will
 				// likely return true, we speculatively add rr to extRelocs
 				// and use that space to pass to Archreloc.
 				extRelocs = append(extRelocs, rr)
 				rp = &extRelocs[len(extRelocs)-1]
 			}
-			out, needExtReloc1, ok := thearch.Archreloc(target, ldr, syms, r, rp, s, o)
-			if target.IsExternal() && !needExtReloc1 {
-				// Speculation failed. Undo the append.
-				extRelocs = extRelocs[:len(extRelocs)-1]
+			out, nExtReloc, ok := thearch.Archreloc(target, ldr, syms, r, rp, s, o)
+			if target.IsExternal() {
+				if nExtReloc == 0 {
+					// No external relocation needed. Speculation failed. Undo the append.
+					extRelocs = extRelocs[:len(extRelocs)-1]
+				} else {
+					// Account for the difference between host relocations and Go relocations.
+					extraExtReloc += nExtReloc - 1
+				}
 			}
 			needExtReloc = false // already appended
 			if ok {
@@ -320,6 +330,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				o = 0
 				if !target.IsAMD64() {
 					o = r.Add()
+				}
+				if target.Is386() {
+					extraExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
 				}
 				break
 			}
@@ -452,6 +465,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				o += int64(siz)
 				break
 			}
+			if target.Is386() && target.IsExternal() && target.IsELF {
+				extraExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
+			}
 			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
 			if target.IsExternal() && rs != 0 && rst == sym.SUNDEFEXT {
@@ -582,7 +598,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	if len(extRelocs) != 0 {
 		st.finalizeExtRelocSlice(extRelocs)
 		ldr.SetExtRelocs(s, extRelocs)
-		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)))
+		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)+extraExtReloc))
 	}
 }
 

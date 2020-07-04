@@ -206,11 +206,12 @@ type Arch struct {
 	// containing the chunk of data to which the relocation applies, and "off"
 	// is the contents of the to-be-relocated data item (from sym.P). Return
 	// value is the appropriately relocated value (to be written back to the
-	// same spot in sym.P), a boolean indicating if the external relocations'
-	// been used, and a boolean indicating success/failure (a failing value
-	// indicates a fatal error).
+	// same spot in sym.P), number of external _host_ relocations needed (i.e.
+	// ELF/Mach-O/etc. relocations, not Go relocations, this must match Elfreloc1,
+	// etc.), and a boolean indicating success/failure (a failing value indicates
+	// a fatal error).
 	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc,
-		loader.Sym, int64) (relocatedOffset int64, needExtReloc bool, ok bool)
+		loader.Sym, int64) (relocatedOffset int64, nExtReloc int, ok bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
 	// insufficient to describe the relocation (r.Variant !=
@@ -237,7 +238,7 @@ type Arch struct {
 	Asmb2 func(*Link, *loader.Loader)
 
 	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
-	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1. Currently this can be 0, meaning that the size is not fixed (a Go reloc may turn into multiple ELF reloc).
+	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
 	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext      func(*Link, *loader.Loader)
 	Machoreloc1  func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool

@@ -1393,6 +1393,11 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 			}
 		}
 	}
+
+	// sanity check
+	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
+		panic("elfrelocsect: size mismatch")
+	}
 }
 
 func elfEmitReloc(ctxt *Link) {
@@ -1402,29 +1407,25 @@ func elfEmitReloc(ctxt *Link) {
 
 	// Precompute the size needed for the reloc records if we can
 	// Mmap the output buffer with the proper size.
-	//
-	// TODO: on some architectures, one Go relocation may turn to
-	// multiple ELF relocations, which makes the size not fixed.
-	// Handle this case better. Maybe increment the counter by the
-	// number of external reloc records in relocsym.
-	var sz, filesz int64
-	if thearch.ElfrelocSize != 0 {
-		for _, seg := range Segments {
-			for _, sect := range seg.Sections {
-				sect.Reloff = uint64(ctxt.Out.Offset() + sz)
-				sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
-				sz += int64(sect.Rellen)
-			}
-		}
-		filesz = ctxt.Out.Offset() + sz
-		ctxt.Out.Mmap(uint64(filesz))
+	if thearch.ElfrelocSize == 0 {
+		panic("elfEmitReloc: ELF relocation size not set")
 	}
+	var sz int64
+	for _, seg := range Segments {
+		for _, sect := range seg.Sections {
+			sect.Reloff = uint64(ctxt.Out.Offset() + sz)
+			sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
+			sz += int64(sect.Rellen)
+		}
+	}
+	filesz := ctxt.Out.Offset() + sz
+	ctxt.Out.Mmap(uint64(filesz))
 
 	// Now emits the records.
 	var relocSect func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
 	var wg sync.WaitGroup
 	var sem chan int
-	if thearch.ElfrelocSize != 0 && ctxt.Out.isMmapped() {
+	if ctxt.Out.isMmapped() {
 		// Write sections in parallel.
 		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
 		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
@@ -1436,21 +1437,14 @@ func elfEmitReloc(ctxt *Link) {
 			}
 			go func() {
 				elfrelocsect(ctxt, out, sect, syms)
-				// sanity check
-				if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
-					panic("elfEmitReloc: size mismatch")
-				}
 				wg.Done()
 				<-sem
 			}()
 		}
 	} else {
-		// Sizes and offsets are not precomputed, or we cannot Mmap.
-		// We have to write sequentially.
+		// We cannot Mmap. Write sequentially.
 		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
-			sect.Reloff = uint64(ctxt.Out.Offset()) // offset is not precomputed, so fill it in now
 			elfrelocsect(ctxt, ctxt.Out, sect, syms)
-			sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
 		}
 	}
 	for _, sect := range Segtext.Sections {
