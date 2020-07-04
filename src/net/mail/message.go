@@ -117,6 +117,9 @@ func ParseDate(date string) (time.Time, error) {
 		// If T is misplaced, the date to parse is garbage.
 		date = p.s[:ind+1]
 		p.s = p.s[ind+1:]
+		if strings.HasSuffix(date, " UT") {
+			date += "C"
+		}
 	}
 	if !p.skipCFWS() {
 		return time.Time{}, errors.New("mail: misformatted parenthetical comment")

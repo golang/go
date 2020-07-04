@@ -102,6 +102,10 @@ func TestDateParsing(t *testing.T) {
 			"Thu, 20 Nov 97 09:55:06 GMT",
 			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
 		},
+		{
+			"Fri, 21 Nov 97 09:55:06 UT",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("UTC", 0)),
+		},
 		// Commonly found format not specified by RFC 5322.
 		{
 			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
