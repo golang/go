@@ -2,7 +2,7 @@
 
 This branch contains a type checker and a translation tool for
 experimentation with generics in Go.
-This implements the [generics design draft](https://go.googlesource.com/proposal/+/refs/heads/master/design/go2draft-tp.md).
+This implements the [generics design draft](https://go.googlesource.com/proposal/+/refs/heads/master/design/go2draft-type-parameters.md).
 
 You can build this branch [as
 usual](https://golang.org/doc/install/source).
