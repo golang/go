@@ -142,6 +142,14 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// - check only if we have methods
 		check.completeInterface(token.NoPos, iface)
 		if len(iface.allMethods) > 0 {
+			// Break cycle in cases like
+			//
+			//		type constr(type T comparable) T
+			//		type K constr(K)
+			if t1 := typ.Named(); t1 != nil && t1.underlying == t1.orig {
+				break
+			}
+
 			// If the type argument is a type parameter itself, its pointer designation
 			// must match the pointer designation of the callee's type parameter.
 			// If the type argument is a pointer to a type parameter, the type argument's

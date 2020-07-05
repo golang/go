@@ -1,0 +1,10 @@
+package main
+
+// from issue #40037
+type comp(type T comparable) T
+type K /* ERROR illegal cycle */ comp(K) // becomes 'type K K', where K is comparable
+
+// from issue #39634 crash 22
+type T(type _ interface{ a() }) int
+type A(type P) T(A(int))
+
