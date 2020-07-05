@@ -755,6 +755,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 			}
 
 			obj := c.pkg.GetTypesInfo().ObjectOf(node.Name)
+			if obj == nil || obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() {
+				continue
+			}
 
 			// We don't want expandFuncCall inside comments. We add this directly to the
 			// completions list because using c.found sets expandFuncCall to true by default
