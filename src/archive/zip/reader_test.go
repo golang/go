@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -1069,5 +1070,15 @@ func TestIssue12449(t *testing.T) {
 	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
 	if err != nil {
 		t.Errorf("Error reading the archive: %v", err)
+	}
+}
+
+func TestFS(t *testing.T) {
+	z, err := OpenReader("testdata/unix.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fstest.TestFS(z, "hello", "dir/bar", "dir/empty", "readonly"); err != nil {
+		t.Fatal(err)
 	}
 }
