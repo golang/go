@@ -196,6 +196,36 @@ func (t *fsTester) checkDir(dir string) {
 		}
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs third Open+ReadDir(1,2) loop", list, list2)
+
+	// If fsys has ReadDir, check that it matches and is sorted.
+	if fsys, ok := t.fsys.(fs.ReadDirFS); ok {
+		list2, err := fsys.ReadDir(dir)
+		if err != nil {
+			t.errorf("%s: fsys.ReadDir: %v", dir, err)
+			return
+		}
+		t.checkDirList(dir, "first Open+ReadDir(-1) vs fsys.ReadDir", list, list2)
+
+		for i := 0; i+1 < len(list2); i++ {
+			if list2[i].Name() >= list2[i+1].Name() {
+				t.errorf("%s: fsys.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
+			}
+		}
+	}
+
+	// Check fs.ReadDir as well.
+	list2, err = fs.ReadDir(t.fsys, dir)
+	if err != nil {
+		t.errorf("%s: fs.ReadDir: %v", dir, err)
+		return
+	}
+	t.checkDirList(dir, "first Open+ReadDir(-1) vs fs.ReadDir", list, list2)
+
+	for i := 0; i+1 < len(list2); i++ {
+		if list2[i].Name() >= list2[i+1].Name() {
+			t.errorf("%s: fs.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
+		}
+	}
 }
 
 // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
@@ -233,12 +263,22 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
 	}
 
+	einfo, err := entry.Info()
+	if err != nil {
+		t.errorf("%s: entry.Info: %v", path, err)
+		return
+	}
+	fentry = formatInfo(einfo)
+	finfo = formatInfo(info)
+	if fentry != finfo {
+		t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, fentry, finfo)
+	}
+
 	info2, err := fs.Stat(t.fsys, path)
 	if err != nil {
 		t.errorf("%s: fs.Stat: %v", path, err)
 		return
 	}
-	finfo = formatInfo(info)
 	finfo2 := formatInfo(info2)
 	if finfo2 != finfo {
 		t.errorf("%s: fs.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
