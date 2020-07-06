@@ -4,6 +4,8 @@
 
 package os
 
+import "io/fs"
+
 type readdirMode int
 
 const (
@@ -62,27 +64,7 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
 
 // A DirEntry is an entry read from a directory
 // (using the ReadDir function or a File's ReadDir method).
-type DirEntry interface {
-	// Name returns the name of the file (or subdirectory) described by the entry.
-	// This name is only the final element of the path, not the entire path.
-	// For example, Name would return "hello.go" not "/home/gopher/hello.go".
-	Name() string
-
-	// IsDir reports whether the entry describes a subdirectory.
-	IsDir() bool
-
-	// Type returns the type bits for the entry.
-	// The type bits are a subset of the usual FileMode bits, those returned by the FileMode.Type method.
-	Type() FileMode
-
-	// Info returns the FileInfo for the file or subdirectory described by the entry.
-	// The returned FileInfo may be from the time of the original directory read
-	// or from the time of the call to Info. If the file has been removed or renamed
-	// since the directory read, Info may return an error satisfying errors.Is(err, ErrNotExist).
-	// If the entry denotes a symbolic link, Info reports the information about the link itself,
-	// not the link's target.
-	Info() (FileInfo, error)
-}
+type DirEntry = fs.DirEntry
 
 // ReadDir reads the contents of the directory associated with the file f
 // and returns a slice of DirEntry values in directory order.
