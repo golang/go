@@ -468,7 +468,8 @@ var depsRules = `
 
 	# Test-only
 	log
-	< testing/iotest;
+	< testing/iotest
+	< testing/fstest;
 
 	FMT, flag, math/rand
 	< testing/quick;
