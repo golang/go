@@ -25,7 +25,7 @@ var config = printer.Config{
 
 // isParameterizedFuncDecl reports whether fd is a parameterized function.
 func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
-	if fd.Type.TParams != nil {
+	if fd.Type.TParams != nil && len(fd.Type.TParams.List) > 0 {
 		return true
 	}
 	if fd.Recv != nil {
@@ -64,7 +64,7 @@ func isTranslatableType(s ast.Spec, info *types.Info) bool {
 // isParameterizedTypeDecl reports whether s is a parameterized type.
 func isParameterizedTypeDecl(s ast.Spec, info *types.Info) bool {
 	ts := s.(*ast.TypeSpec)
-	if ts.TParams != nil {
+	if ts.TParams != nil && len(ts.TParams.List) > 0 {
 		return true
 	}
 	if ts.Assign == token.NoPos {
@@ -523,7 +523,7 @@ func (t *translator) translateFuncDecl(pd *ast.Decl) {
 		return
 	}
 	fd := (*pd).(*ast.FuncDecl)
-	if fd.Type.TParams != nil {
+	if fd.Type.TParams != nil && len(fd.Type.TParams.List) > 0 {
 		panic("parameterized function")
 	}
 	if fd.Recv != nil {

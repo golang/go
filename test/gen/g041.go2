@@ -1,0 +1,12 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 40015.
+package p
+
+func F1(type)(s []int) {}
+
+func F2() { F1([]int{1, 2}) }
