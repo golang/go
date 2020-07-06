@@ -223,15 +223,97 @@ pkg io, type ReadSeekCloser interface { Close, Read, Seek }
 pkg io, type ReadSeekCloser interface, Close() error
 pkg io, type ReadSeekCloser interface, Read([]uint8) (int, error)
 pkg io, type ReadSeekCloser interface, Seek(int64, int) (int64, error)
+pkg io/fs, const ModeAppend = 1073741824
+pkg io/fs, const ModeAppend FileMode
+pkg io/fs, const ModeCharDevice = 2097152
+pkg io/fs, const ModeCharDevice FileMode
+pkg io/fs, const ModeDevice = 67108864
+pkg io/fs, const ModeDevice FileMode
+pkg io/fs, const ModeDir = 2147483648
+pkg io/fs, const ModeDir FileMode
+pkg io/fs, const ModeExclusive = 536870912
+pkg io/fs, const ModeExclusive FileMode
+pkg io/fs, const ModeIrregular = 524288
+pkg io/fs, const ModeIrregular FileMode
+pkg io/fs, const ModeNamedPipe = 33554432
+pkg io/fs, const ModeNamedPipe FileMode
+pkg io/fs, const ModePerm = 511
+pkg io/fs, const ModePerm FileMode
+pkg io/fs, const ModeSetgid = 4194304
+pkg io/fs, const ModeSetgid FileMode
+pkg io/fs, const ModeSetuid = 8388608
+pkg io/fs, const ModeSetuid FileMode
+pkg io/fs, const ModeSocket = 16777216
+pkg io/fs, const ModeSocket FileMode
+pkg io/fs, const ModeSticky = 1048576
+pkg io/fs, const ModeSticky FileMode
+pkg io/fs, const ModeSymlink = 134217728
+pkg io/fs, const ModeSymlink FileMode
+pkg io/fs, const ModeTemporary = 268435456
+pkg io/fs, const ModeTemporary FileMode
+pkg io/fs, const ModeType = 2401763328
+pkg io/fs, const ModeType FileMode
+pkg io/fs, method (*PathError) Error() string
+pkg io/fs, method (*PathError) Timeout() bool
+pkg io/fs, method (*PathError) Unwrap() error
+pkg io/fs, method (FileMode) IsDir() bool
+pkg io/fs, method (FileMode) IsRegular() bool
+pkg io/fs, method (FileMode) Perm() FileMode
+pkg io/fs, method (FileMode) String() string
+pkg io/fs, method (FileMode) Type() FileMode
+pkg io/fs, type FileInfo interface { IsDir, ModTime, Mode, Name, Size, Sys }
+pkg io/fs, type FileInfo interface, IsDir() bool
+pkg io/fs, type FileInfo interface, ModTime() time.Time
+pkg io/fs, type FileInfo interface, Mode() FileMode
+pkg io/fs, type FileInfo interface, Name() string
+pkg io/fs, type FileInfo interface, Size() int64
+pkg io/fs, type FileInfo interface, Sys() interface{}
+pkg io/fs, type FileMode uint32
+pkg io/fs, type PathError struct
+pkg io/fs, type PathError struct, Err error
+pkg io/fs, type PathError struct, Op string
+pkg io/fs, type PathError struct, Path string
+pkg io/fs, var ErrClosed error
+pkg io/fs, var ErrExist error
+pkg io/fs, var ErrInvalid error
+pkg io/fs, var ErrNotExist error
+pkg io/fs, var ErrPermission error
 pkg net, var ErrClosed error
 pkg net/http, type Transport struct, GetProxyConnectHeader func(context.Context, *url.URL, string) (Header, error)
+pkg os, const ModeAppend fs.FileMode
+pkg os, const ModeCharDevice fs.FileMode
+pkg os, const ModeDevice fs.FileMode
+pkg os, const ModeDir fs.FileMode
+pkg os, const ModeExclusive fs.FileMode
+pkg os, const ModeIrregular fs.FileMode
+pkg os, const ModeNamedPipe fs.FileMode
+pkg os, const ModePerm fs.FileMode
+pkg os, const ModeSetgid fs.FileMode
+pkg os, const ModeSetuid fs.FileMode
+pkg os, const ModeSocket fs.FileMode
+pkg os, const ModeSticky fs.FileMode
+pkg os, const ModeSymlink fs.FileMode
+pkg os, const ModeTemporary fs.FileMode
+pkg os, const ModeType fs.FileMode
+pkg os, func Chmod(string, fs.FileMode) error
+pkg os, func Lstat(string) (fs.FileInfo, error)
+pkg os, func Mkdir(string, fs.FileMode) error
+pkg os, func MkdirAll(string, fs.FileMode) error
+pkg os, func OpenFile(string, int, fs.FileMode) (*File, error)
+pkg os, func SameFile(fs.FileInfo, fs.FileInfo) bool
+pkg os, func Stat(string) (fs.FileInfo, error)
+pkg os, method (*File) Chmod(fs.FileMode) error
 pkg os, method (*File) ReadDir(int) ([]DirEntry, error)
-pkg os, method (FileMode) Type() FileMode
+pkg os, method (*File) Readdir(int) ([]fs.FileInfo, error)
+pkg os, method (*File) Stat() (fs.FileInfo, error)
 pkg os, type DirEntry interface { Info, IsDir, Name, Type }
-pkg os, type DirEntry interface, Info() (FileInfo, error)
+pkg os, type DirEntry interface, Info() (fs.FileInfo, error)
 pkg os, type DirEntry interface, IsDir() bool
 pkg os, type DirEntry interface, Name() string
-pkg os, type DirEntry interface, Type() FileMode
+pkg os, type DirEntry interface, Type() fs.FileMode
+pkg os, type FileInfo = fs.FileInfo
+pkg os, type FileMode = fs.FileMode
+pkg os, type PathError = fs.PathError
 pkg os/signal, func NotifyContext(context.Context, ...os.Signal) (context.Context, context.CancelFunc)
 pkg testing/iotest, func ErrReader(error) io.Reader
 pkg text/template/parse, const NodeComment = 20
