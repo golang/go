@@ -27,6 +27,10 @@ type foo8(type A) interface { type A }
 func bar8(type A foo8(A))(a A) {}
 func main8() {}
 
+// crash 16
+type Foo16(type T) r16 /* ERROR not a type */
+func r16(type T)() Foo16((Foo16(T)))
+
 // crash 17
 type Y17 interface{ c() }
 type Z17 interface {

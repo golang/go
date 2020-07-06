@@ -337,8 +337,6 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		assert(t.underlying != nil)
-
 		if t.tparams == nil {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
@@ -399,7 +397,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
-		named.underlying = subst.typ(t.underlying)
+		named.underlying = subst.typOrNil(t.underlying)
 		named.orig = named.underlying // for cycle detection (Checker.validType)
 
 		return named
