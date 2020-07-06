@@ -123,7 +123,7 @@ var depsRules = `
 	< context
 	< TIME;
 
-	TIME, io, sort
+	TIME, io, path, sort
 	< io/fs;
 
 	# MATH is RUNTIME plus the basic math packages.

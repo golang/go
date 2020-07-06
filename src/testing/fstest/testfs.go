@@ -11,6 +11,8 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"path"
+	"reflect"
 	"sort"
 	"strings"
 	"testing/iotest"
@@ -226,6 +228,8 @@ func (t *fsTester) checkDir(dir string) {
 			t.errorf("%s: fs.ReadDir: list not sorted: %s before %s", dir, list2[i].Name(), list2[i+1].Name())
 		}
 	}
+
+	t.checkGlob(dir, list)
 }
 
 // formatEntry formats an fs.DirEntry into a string for error messages and comparison.
@@ -241,6 +245,98 @@ func formatInfoEntry(info fs.FileInfo) string {
 // formatInfo formats an fs.FileInfo into a string for error messages and comparison.
 func formatInfo(info fs.FileInfo) string {
 	return fmt.Sprintf("%s IsDir=%v Mode=%v Size=%d ModTime=%v", info.Name(), info.IsDir(), info.Mode(), info.Size(), info.ModTime())
+}
+
+// checkGlob checks that various glob patterns work if the file system implements GlobFS.
+func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
+	if _, ok := t.fsys.(fs.GlobFS); !ok {
+		return
+	}
+
+	// Make a complex glob pattern prefix that only matches dir.
+	var glob string
+	if dir != "." {
+		elem := strings.Split(dir, "/")
+		for i, e := range elem {
+			var pattern []rune
+			for j, r := range e {
+				if r == '*' || r == '?' || r == '\\' || r == '[' {
+					pattern = append(pattern, '\\', r)
+					continue
+				}
+				switch (i + j) % 5 {
+				case 0:
+					pattern = append(pattern, r)
+				case 1:
+					pattern = append(pattern, '[', r, ']')
+				case 2:
+					pattern = append(pattern, '[', r, '-', r, ']')
+				case 3:
+					pattern = append(pattern, '[', '\\', r, ']')
+				case 4:
+					pattern = append(pattern, '[', '\\', r, '-', '\\', r, ']')
+				}
+			}
+			elem[i] = string(pattern)
+		}
+		glob = strings.Join(elem, "/") + "/"
+	}
+
+	// Try to find a letter that appears in only some of the final names.
+	c := rune('a')
+	for ; c <= 'z'; c++ {
+		have, haveNot := false, false
+		for _, d := range list {
+			if strings.ContainsRune(d.Name(), c) {
+				have = true
+			} else {
+				haveNot = true
+			}
+		}
+		if have && haveNot {
+			break
+		}
+	}
+	if c > 'z' {
+		c = 'a'
+	}
+	glob += "*" + string(c) + "*"
+
+	var want []string
+	for _, d := range list {
+		if strings.ContainsRune(d.Name(), c) {
+			want = append(want, path.Join(dir, d.Name()))
+		}
+	}
+
+	names, err := t.fsys.(fs.GlobFS).Glob(glob)
+	if err != nil {
+		t.errorf("%s: Glob(%#q): %v", dir, glob, err)
+		return
+	}
+	if reflect.DeepEqual(want, names) {
+		return
+	}
+
+	if !sort.StringsAreSorted(names) {
+		t.errorf("%s: Glob(%#q): unsorted output:\n%s", dir, glob, strings.Join(names, "\n"))
+		sort.Strings(names)
+	}
+
+	var problems []string
+	for len(want) > 0 || len(names) > 0 {
+		switch {
+		case len(want) > 0 && len(names) > 0 && want[0] == names[0]:
+			want, names = want[1:], names[1:]
+		case len(want) > 0 && (len(names) == 0 || want[0] < names[0]):
+			problems = append(problems, "missing: "+want[0])
+			want = want[1:]
+		default:
+			problems = append(problems, "extra: "+names[0])
+			names = names[1:]
+		}
+	}
+	t.errorf("%s: Glob(%#q): wrong output:\n%s", dir, glob, strings.Join(problems, "\n"))
 }
 
 // checkStat checks that a direct stat of path matches entry,
