@@ -124,6 +124,10 @@ func (fsys MapFS) Stat(name string) (fs.FileInfo, error) {
 	return fs.Stat(fsOnly{fsys}, name)
 }
 
+func (fsys MapFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	return fs.ReadDir(fsOnly{fsys}, name)
+}
+
 // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
 type mapFileInfo struct {
 	name string
