@@ -230,7 +230,30 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	fentry := formatEntry(entry)
 	finfo := formatInfoEntry(info)
 	if fentry != finfo {
-		t.errorf("%s: mismatch:\n\tentry = %v\n\tfile.Stat() = %v", path, fentry, finfo)
+		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
+	}
+
+	info2, err := fs.Stat(t.fsys, path)
+	if err != nil {
+		t.errorf("%s: fs.Stat: %v", path, err)
+		return
+	}
+	finfo = formatInfo(info)
+	finfo2 := formatInfo(info2)
+	if finfo2 != finfo {
+		t.errorf("%s: fs.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
+	}
+
+	if fsys, ok := t.fsys.(fs.StatFS); ok {
+		info2, err := fsys.Stat(path)
+		if err != nil {
+			t.errorf("%s: fsys.Stat: %v", path, err)
+			return
+		}
+		finfo2 := formatInfo(info2)
+		if finfo2 != finfo {
+			t.errorf("%s: fsys.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
+		}
 	}
 }
 
