@@ -927,3 +927,15 @@ func deferHeapAndStack(n int) (r int) {
 
 // Pass a value to escapeMe to force it to escape.
 var escapeMe = func(x any) {}
+
+func TestFramePointerAdjust(t *testing.T) {
+	switch GOARCH {
+	case "amd64", "arm64":
+	default:
+		t.Skipf("frame pointer is not supported on %s", GOARCH)
+	}
+	output := runTestProg(t, "testprog", "FramePointerAdjust")
+	if output != "" {
+		t.Errorf("output:\n%s\n\nwant no output", output)
+	}
+}

@@ -537,7 +537,7 @@ var ptrnames = []string{
 // +------------------+ <- frame->argp
 // |  return address  |
 // +------------------+
-// |  caller's BP (*) | (*) if framepointer_enabled && varp < sp
+// |  caller's BP (*) | (*) if framepointer_enabled && varp > sp
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
@@ -549,6 +549,8 @@ var ptrnames = []string{
 // | args from caller |
 // +------------------+ <- frame->argp
 // | caller's retaddr |
+// +------------------+
+// |  caller's FP (*) | (*) on ARM64, if framepointer_enabled && varp > sp
 // +------------------+ <- frame->varp
 // |     locals       |
 // +------------------+
@@ -556,6 +558,9 @@ var ptrnames = []string{
 // +------------------+
 // |  return address  |
 // +------------------+ <- frame->sp
+//
+// varp > sp means that the function has a frame;
+// varp == sp means frameless function.
 
 type adjustinfo struct {
 	old   stack
@@ -673,9 +678,8 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
 	}
 
-	// Adjust saved base pointer if there is one.
-	// TODO what about arm64 frame pointer adjustment?
-	if goarch.ArchFamily == goarch.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
+	// Adjust saved frame pointer if there is one.
+	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -689,6 +693,10 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 				throw("bad frame pointer")
 			}
 		}
+		// On AMD64, this is the caller's frame pointer saved in the current
+		// frame.
+		// On ARM64, this is the frame pointer of the caller's caller saved
+		// by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
@@ -750,7 +758,17 @@ func adjustctxt(gp *g, adjinfo *adjustinfo) {
 			throw("bad top frame pointer")
 		}
 	}
+	oldfp := gp.sched.bp
 	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.bp))
+	if GOARCH == "arm64" {
+		// On ARM64, the frame pointer is saved one word *below* the SP,
+		// which is not copied or adjusted in any frame. Do it explicitly
+		// here.
+		if oldfp == gp.sched.sp-goarch.PtrSize {
+			memmove(unsafe.Pointer(gp.sched.bp), unsafe.Pointer(oldfp), goarch.PtrSize)
+			adjustpointer(adjinfo, unsafe.Pointer(gp.sched.bp))
+		}
+	}
 }
 
 func adjustdefers(gp *g, adjinfo *adjustinfo) {
