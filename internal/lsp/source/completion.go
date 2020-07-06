@@ -836,10 +836,13 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			relevances = imports.ScoreImportPaths(ctx, opts.Env, paths)
-			return nil
-		})
+		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+			var err error
+			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
+			return err
+		}); err != nil {
+			return err
+		}
 	}
 	sort.Slice(paths, func(i, j int) bool {
 		return relevances[paths[i]] > relevances[paths[j]]
@@ -892,7 +895,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		}
 	}
 	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts)
+		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 }
 
@@ -1124,10 +1127,13 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			relevances = imports.ScoreImportPaths(ctx, opts.Env, paths)
-			return nil
-		})
+		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+			var err error
+			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
+			return err
+		}); err != nil {
+			return err
+		}
 	}
 	sort.Slice(paths, func(i, j int) bool {
 		return relevances[paths[i]] > relevances[paths[j]]
@@ -1190,7 +1196,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		count++
 	}
 	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts)
+		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 }
 

@@ -32,25 +32,25 @@ import (
 
 // importToGroup is a list of functions which map from an import path to
 // a group number.
-var importToGroup = []func(env *ProcessEnv, importPath string) (num int, ok bool){
-	func(env *ProcessEnv, importPath string) (num int, ok bool) {
-		if env.LocalPrefix == "" {
+var importToGroup = []func(localPrefix, importPath string) (num int, ok bool){
+	func(localPrefix, importPath string) (num int, ok bool) {
+		if localPrefix == "" {
 			return
 		}
-		for _, p := range strings.Split(env.LocalPrefix, ",") {
+		for _, p := range strings.Split(localPrefix, ",") {
 			if strings.HasPrefix(importPath, p) || strings.TrimSuffix(p, "/") == importPath {
 				return 3, true
 			}
 		}
 		return
 	},
-	func(_ *ProcessEnv, importPath string) (num int, ok bool) {
+	func(_, importPath string) (num int, ok bool) {
 		if strings.HasPrefix(importPath, "appengine") {
 			return 2, true
 		}
 		return
 	},
-	func(_ *ProcessEnv, importPath string) (num int, ok bool) {
+	func(_, importPath string) (num int, ok bool) {
 		firstComponent := strings.Split(importPath, "/")[0]
 		if strings.Contains(firstComponent, ".") {
 			return 1, true
@@ -59,9 +59,9 @@ var importToGroup = []func(env *ProcessEnv, importPath string) (num int, ok bool
 	},
 }
 
-func importGroup(env *ProcessEnv, importPath string) int {
+func importGroup(localPrefix, importPath string) int {
 	for _, fn := range importToGroup {
-		if n, ok := fn(env, importPath); ok {
+		if n, ok := fn(localPrefix, importPath); ok {
 			return n
 		}
 	}
@@ -278,7 +278,12 @@ func (p *pass) loadPackageNames(imports []*ImportInfo) error {
 		unknown = append(unknown, imp.ImportPath)
 	}
 
-	names, err := p.env.GetResolver().loadPackageNames(unknown, p.srcDir)
+	resolver, err := p.env.GetResolver()
+	if err != nil {
+		return err
+	}
+
+	names, err := resolver.loadPackageNames(unknown, p.srcDir)
 	if err != nil {
 		return err
 	}
@@ -640,15 +645,23 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			wrappedCallback.exportsLoaded(pkg, exports)
 		},
 	}
-	return env.GetResolver().scan(ctx, scanFilter)
+	resolver, err := env.GetResolver()
+	if err != nil {
+		return err
+	}
+	return resolver.scan(ctx, scanFilter)
 }
 
-func ScoreImportPaths(ctx context.Context, env *ProcessEnv, paths []string) map[string]int {
+func ScoreImportPaths(ctx context.Context, env *ProcessEnv, paths []string) (map[string]int, error) {
 	result := make(map[string]int)
-	for _, path := range paths {
-		result[path] = env.GetResolver().scoreImportPath(ctx, path)
+	resolver, err := env.GetResolver()
+	if err != nil {
+		return nil, err
 	}
-	return result
+	for _, path := range paths {
+		result[path] = resolver.scoreImportPath(ctx, path)
+	}
+	return result, nil
 }
 
 func PrimeCache(ctx context.Context, env *ProcessEnv) error {
@@ -674,8 +687,9 @@ func candidateImportName(pkg *pkg) string {
 	return ""
 }
 
-// getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
-func getAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
+// GetAllCandidates gets all of the packages starting with prefix that can be
+// imported by filename, sorted by import path.
+func GetAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {
 			return true
@@ -714,7 +728,8 @@ type PackageExport struct {
 	Exports []string
 }
 
-func getPackageExports(ctx context.Context, wrapped func(PackageExport), searchPkg, filename, filePkg string, env *ProcessEnv) error {
+// GetPackageExports returns all known packages with name pkg and their exports.
+func GetPackageExports(ctx context.Context, wrapped func(PackageExport), searchPkg, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {
 			return true
@@ -749,8 +764,6 @@ var RequiredGoEnvVars = []string{"GO111MODULE", "GOFLAGS", "GOINSECURE", "GOMOD"
 // ProcessEnv contains environment variables and settings that affect the use of
 // the go command, the go/build package, etc.
 type ProcessEnv struct {
-	LocalPrefix string
-
 	GocmdRunner *gocommand.Runner
 
 	BuildFlags []string
@@ -830,16 +843,19 @@ func (e *ProcessEnv) env() []string {
 	return env
 }
 
-func (e *ProcessEnv) GetResolver() Resolver {
+func (e *ProcessEnv) GetResolver() (Resolver, error) {
 	if e.resolver != nil {
-		return e.resolver
+		return e.resolver, nil
+	}
+	if err := e.init(); err != nil {
+		return nil, err
 	}
 	if len(e.Env["GOMOD"]) == 0 {
 		e.resolver = newGopathResolver(e)
-		return e.resolver
+		return e.resolver, nil
 	}
 	e.resolver = newModuleResolver(e)
-	return e.resolver
+	return e.resolver, nil
 }
 
 func (e *ProcessEnv) buildContext() *build.Context {
@@ -964,8 +980,11 @@ func addExternalCandidates(pass *pass, refs references, filename string) error {
 			return false // We'll do our own loading after we sort.
 		},
 	}
-	err := pass.env.GetResolver().scan(context.Background(), callback)
+	resolver, err := pass.env.GetResolver()
 	if err != nil {
+		return err
+	}
+	if err = resolver.scan(context.Background(), callback); err != nil {
 		return err
 	}
 
@@ -1408,6 +1427,10 @@ func findImport(ctx context.Context, pass *pass, candidates []pkgDistance, pkgNa
 			pass.env.Logf("%s candidate %d/%d: %v in %v", pkgName, i+1, len(candidates), c.pkg.importPathShort, c.pkg.dir)
 		}
 	}
+	resolver, err := pass.env.GetResolver()
+	if err != nil {
+		return nil, err
+	}
 
 	// Collect exports for packages with matching names.
 	rescv := make([]chan *pkg, len(candidates))
@@ -1446,7 +1469,7 @@ func findImport(ctx context.Context, pass *pass, candidates []pkgDistance, pkgNa
 				}
 				// If we're an x_test, load the package under test's test variant.
 				includeTest := strings.HasSuffix(pass.f.Name.Name, "_test") && c.pkg.dir == pass.srcDir
-				_, exports, err := pass.env.GetResolver().loadExports(ctx, c.pkg, includeTest)
+				_, exports, err := resolver.loadExports(ctx, c.pkg, includeTest)
 				if err != nil {
 					if pass.env.Logf != nil {
 						pass.env.Logf("loading exports in dir %s (seeking package %s): %v", c.pkg.dir, pkgName, err)

@@ -400,21 +400,27 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 			return err
 		}
 		if modFH.Identity() != v.cachedModFileVersion {
-			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
+			if resolver, err := v.processEnv.GetResolver(); err == nil {
+				resolver.(*imports.ModuleResolver).ClearForNewMod()
+			}
 			v.cachedModFileVersion = modFH.Identity()
 		}
 	}
 
+	v.optionsMu.Lock()
+	localPrefix := v.options.LocalPrefix
+	v.optionsMu.Unlock()
 	// Run the user function.
 	opts := &imports.Options{
 		// Defaults.
-		AllErrors:  true,
-		Comments:   true,
-		Fragment:   true,
-		FormatOnly: false,
-		TabIndent:  true,
-		TabWidth:   8,
-		Env:        v.processEnv,
+		AllErrors:   true,
+		Comments:    true,
+		Fragment:    true,
+		FormatOnly:  false,
+		TabIndent:   true,
+		TabWidth:    8,
+		Env:         v.processEnv,
+		LocalPrefix: localPrefix,
 	}
 
 	if err := fn(opts); err != nil {
@@ -439,13 +445,14 @@ func (v *View) refreshProcessEnv() {
 
 	v.importsMu.Lock()
 	env := v.processEnv
-	env.GetResolver().ClearForNewScan()
+	if resolver, err := v.processEnv.GetResolver(); err == nil {
+		resolver.ClearForNewScan()
+	}
 	v.importsMu.Unlock()
 
 	// We don't have a context handy to use for logging, so use the stdlib for now.
 	event.Log(v.baseCtx, "background imports cache refresh starting")
-	err := imports.PrimeCache(context.Background(), env)
-	if err == nil {
+	if err := imports.PrimeCache(context.Background(), env); err == nil {
 		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)))
 	} else {
 		event.Log(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
@@ -464,11 +471,10 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 
 	v.optionsMu.Lock()
 	_, buildFlags := v.envLocked()
-	localPrefix, verboseOutput := v.options.LocalPrefix, v.options.VerboseOutput
+	verboseOutput := v.options.VerboseOutput
 	v.optionsMu.Unlock()
 
 	pe := v.processEnv
-	pe.LocalPrefix = localPrefix
 	pe.GocmdRunner = v.session.gocmdRunner
 	pe.BuildFlags = buildFlags
 	pe.Env = v.goEnv

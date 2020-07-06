@@ -697,10 +697,6 @@ func setup(t *testing.T, main, wd string) *modTest {
 	if *testDebug {
 		env.Logf = log.Printf
 	}
-	if err := env.init(); err != nil {
-		t.Fatal(err)
-	}
-
 	// go mod download gets mad if we don't have a go.mod, so make sure we do.
 	_, err = os.Stat(filepath.Join(mainDir, "go.mod"))
 	if err != nil && !os.IsNotExist(err) {
@@ -712,10 +708,14 @@ func setup(t *testing.T, main, wd string) *modTest {
 		}
 	}
 
+	resolver, err := env.GetResolver()
+	if err != nil {
+		t.Fatal(err)
+	}
 	return &modTest{
 		T:        t,
 		env:      env,
-		resolver: newModuleResolver(env),
+		resolver: resolver.(*ModuleResolver),
 		cleanup:  func() { removeDir(dir) },
 	}
 }
@@ -875,10 +875,10 @@ func TestInvalidModCache(t *testing.T) {
 		GocmdRunner: &gocommand.Runner{},
 		WorkingDir:  dir,
 	}
-	if err := env.init(); err != nil {
+	resolver, err := env.GetResolver()
+	if err != nil {
 		t.Fatal(err)
 	}
-	resolver := newModuleResolver(env)
 	scanToSlice(resolver, nil)
 }
 
@@ -927,7 +927,7 @@ import _ "rsc.io/quote"
 			}
 		}
 	}
-	if err := getAllCandidates(context.Background(), add, "", "foo.go", "foo", mt.env); err != nil {
+	if err := GetAllCandidates(context.Background(), add, "", "foo.go", "foo", mt.env); err != nil {
 		t.Fatalf("getAllCandidates() = %v", err)
 	}
 	sort.Slice(got, func(i, j int) bool {
@@ -948,14 +948,15 @@ func BenchmarkScanModCache(b *testing.B) {
 		GocmdRunner: &gocommand.Runner{},
 		Logf:        log.Printf,
 	}
-	if err := env.init(); err != nil {
+	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
+	resolver, err := env.GetResolver()
+	if err != nil {
 		b.Fatal(err)
 	}
-	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
-	scanToSlice(env.GetResolver(), exclude)
+	scanToSlice(resolver, exclude)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		scanToSlice(env.GetResolver(), exclude)
-		env.GetResolver().(*ModuleResolver).ClearForNewScan()
+		scanToSlice(resolver, exclude)
+		resolver.(*ModuleResolver).ClearForNewScan()
 	}
 }

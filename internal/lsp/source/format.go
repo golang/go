@@ -140,6 +140,7 @@ func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, 
 	}
 
 	options := &imports.Options{
+		LocalPrefix: view.Options().LocalPrefix,
 		// Defaults.
 		AllErrors:  true,
 		Comments:   true,

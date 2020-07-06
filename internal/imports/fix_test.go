@@ -8,6 +8,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/build"
+	"io/ioutil"
 	"log"
 	"path/filepath"
 	"reflect"
@@ -1157,13 +1159,6 @@ func TestSimpleCases(t *testing.T) {
 	const localPrefix = "local.com,github.com/local"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			options := &Options{
-				TabWidth:   8,
-				TabIndent:  true,
-				Comments:   true,
-				Fragment:   true,
-				FormatOnly: tt.formatOnly,
-			}
 			testConfig{
 				modules: []packagestest.Module{
 					{
@@ -1201,7 +1196,14 @@ func TestSimpleCases(t *testing.T) {
 					},
 				},
 			}.test(t, func(t *goimportTest) {
-				t.env.LocalPrefix = localPrefix
+				options := &Options{
+					LocalPrefix: localPrefix,
+					TabWidth:    8,
+					TabIndent:   true,
+					Comments:    true,
+					Fragment:    true,
+					FormatOnly:  tt.formatOnly,
+				}
 				t.assertProcessEquals("golang.org/fake", "x.go", nil, options, tt.out)
 			})
 
@@ -1638,12 +1640,13 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 				},
 				exported: exported,
 			}
-			if err := it.env.init(); err != nil {
-				t.Fatal(err)
-			}
 			if *testDebug {
 				it.env.Logf = log.Printf
 			}
+			// packagestest clears out GOROOT to work around golang/go#32849,
+			// which isn't relevant here. Fill it back in so we can find the standard library.
+			it.env.Env["GOROOT"] = build.Default.GOROOT
+
 			fn(it)
 		})
 	}
@@ -1673,6 +1676,13 @@ func (t *goimportTest) process(module, file string, contents []byte, opts *Optio
 }
 
 func (t *goimportTest) processNonModule(file string, contents []byte, opts *Options) ([]byte, error) {
+	if contents == nil {
+		var err error
+		contents, err = ioutil.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if opts == nil {
 		opts = &Options{Comments: true, TabIndent: true, TabWidth: 8}
 	}
@@ -1869,8 +1879,14 @@ const _ = runtime.GOOS
 					Files: fm{"t.go": tt.src},
 				}}, tt.modules...),
 			}.test(t, func(t *goimportTest) {
-				t.env.LocalPrefix = tt.localPrefix
-				t.assertProcessEquals("test.com", "t.go", nil, nil, tt.want)
+				options := &Options{
+					LocalPrefix: tt.localPrefix,
+					TabWidth:    8,
+					TabIndent:   true,
+					Comments:    true,
+					Fragment:    true,
+				}
+				t.assertProcessEquals("test.com", "t.go", nil, options, tt.want)
 			})
 		})
 	}
@@ -1920,7 +1936,10 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 		if strings.Contains(t.Name(), "GoPackages") {
 			t.Skip("go/packages does not ignore package main")
 		}
-		r := t.env.GetResolver()
+		r, err := t.env.GetResolver()
+		if err != nil {
+			t.Fatal(err)
+		}
 		srcDir := filepath.Dir(t.exported.File("example.net/pkg", "z.go"))
 		names, err := r.loadPackageNames([]string{"example.net/pkg"}, srcDir)
 		if err != nil {
@@ -2577,7 +2596,7 @@ func TestGetCandidates(t *testing.T) {
 				}
 			}
 		}
-		if err := getAllCandidates(context.Background(), add, "", "x.go", "x", t.env); err != nil {
+		if err := GetAllCandidates(context.Background(), add, "", "x.go", "x", t.env); err != nil {
 			t.Fatalf("GetAllCandidates() = %v", err)
 		}
 		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.
@@ -2628,7 +2647,7 @@ func TestGetPackageCompletions(t *testing.T) {
 				}
 			}
 		}
-		if err := getPackageExports(context.Background(), add, "rand", "x.go", "x", t.env); err != nil {
+		if err := GetPackageExports(context.Background(), add, "rand", "x.go", "x", t.env); err != nil {
 			t.Fatalf("getPackageCompletions() = %v", err)
 		}
 		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.
