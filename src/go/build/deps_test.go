@@ -99,6 +99,7 @@ var depsRules = `
 	RUNTIME
 	< io;
 
+	syscall !< io;
 	reflect !< sort;
 
 	RUNTIME, unicode/utf8
@@ -120,6 +121,9 @@ var depsRules = `
 	< time
 	< context
 	< TIME;
+
+	TIME, io, sort
+	< io/fs;
 
 	# MATH is RUNTIME plus the basic math packages.
 	RUNTIME
@@ -150,7 +154,7 @@ var depsRules = `
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.
 	# OS does not include reflection.
-	TIME, io, sort
+	io/fs
 	< internal/testlog
 	< internal/poll
 	< os
