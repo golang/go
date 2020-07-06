@@ -65,6 +65,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		MachorelocSize:   8,
 		PEreloc1:         pereloc1,
 		TLSIEtoLE:        tlsIEtoLE,
 

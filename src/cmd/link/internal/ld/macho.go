@@ -1020,13 +1020,13 @@ func doMachoLink(ctxt *Link) int64 {
 	return Rnd(int64(size), int64(*FlagRound))
 }
 
-func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []loader.Sym) {
+func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return
 	}
+	ldr := ctxt.loader
 
-	sect.Reloff = uint64(ctxt.Out.Offset())
 	for i, s := range syms {
 		if !ldr.AttrReachable(s) {
 			continue
@@ -1055,13 +1055,16 @@ func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []lo
 			if !ldr.AttrReachable(r.Xsym) {
 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
 			}
-			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
 	}
 
-	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+	// sanity check
+	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
+		panic("machorelocsect: size mismatch")
+	}
 }
 
 func machoEmitReloc(ctxt *Link) {
@@ -1069,13 +1072,15 @@ func machoEmitReloc(ctxt *Link) {
 		ctxt.Out.Write8(0)
 	}
 
-	ldr := ctxt.loader
-	machorelocsect(ctxt, ldr, Segtext.Sections[0], ctxt.Textp)
+	sizeExtRelocs(ctxt, thearch.MachorelocSize)
+	relocSect, wg := relocSectFn(ctxt, machorelocsect)
+
+	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, ldr, sect, ctxt.datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, ldr, sect, ctxt.datap)
+		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
@@ -1084,8 +1089,9 @@ func machoEmitReloc(ctxt *Link) {
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
-		machorelocsect(ctxt, ldr, sect, si.syms)
+		relocSect(ctxt, sect, si.syms)
 	}
+	wg.Wait()
 }
 
 // hostobjMachoPlatform returns the first platform load command found
