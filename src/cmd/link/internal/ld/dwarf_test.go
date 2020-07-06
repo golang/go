@@ -1376,6 +1376,8 @@ func TestIssue38192(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	t.Parallel()
+
 	// Build a test program that contains a translation unit whose
 	// text (from am assembly source) contains only a single instruction.
 	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
@@ -1486,6 +1488,8 @@ func TestIssue39757(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
+
+	t.Parallel()
 
 	// In this bug the DWARF line table contents for the last couple of
 	// instructions in a function were incorrect (bad file/line). This

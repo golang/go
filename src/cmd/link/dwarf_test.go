@@ -28,6 +28,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	t.Parallel()
+
 	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, out)
