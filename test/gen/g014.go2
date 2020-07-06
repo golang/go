@@ -24,6 +24,10 @@ type S2 struct {
 	V string
 }
 
+type S3 struct {
+	*T(int)
+}
+
 func main() {
 	var s1 S1
 	if s1.T.V != 0 {
@@ -32,5 +36,9 @@ func main() {
 	var s2 S2
 	if s2.Tint.V != 0 || s2.Tbool.V {
 		panic(s2)
+	}
+	var s3 S3
+	if s3.T != nil {
+		panic(s3)
 	}
 }

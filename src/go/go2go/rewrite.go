@@ -798,6 +798,9 @@ func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 		if typ == nil {
 			typ = f.Type()
 		}
+		if pt := typ.Pointer(); pt != nil {
+			typ = pt.Elem()
+		}
 		named, ok := typ.(*types.Named)
 		if !ok || len(named.TArgs()) == 0 {
 			return
