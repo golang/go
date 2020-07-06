@@ -878,12 +878,6 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
 }
 
 func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
-	for i, s := range syms {
-		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
-			syms = syms[i:]
-			break
-		}
-	}
 
 	st := ctxt.makeRelocSymState()
 
