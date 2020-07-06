@@ -45,6 +45,7 @@ import (
 	"internal/poll"
 	"internal/testlog"
 	"io"
+	"io/fs"
 	"runtime"
 	"syscall"
 	"time"
@@ -607,4 +608,22 @@ func isWindowsNulName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
+func DirFS(dir string) fs.FS {
+	return dirFS(dir)
+}
+
+type dirFS string
+
+func (dir dirFS) Open(name string) (fs.File, error) {
+	if !fs.ValidPath(name) {
+		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	}
+	f, err := Open(string(dir) + "/" + name)
+	if err != nil {
+		return nil, err // nil fs.File
+	}
+	return f, nil
 }
