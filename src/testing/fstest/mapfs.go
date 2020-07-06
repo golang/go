@@ -108,6 +108,18 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
 }
 
+// fsOnly is a wrapper that hides all but the fs.FS methods,
+// to avoid an infinite recursion when implementing special
+// methods in terms of helpers that would use them.
+// (In general, implementing these methods using the package fs helpers
+// is redundant and unnecessary, but having the methods may make
+// MapFS exercise more code paths when used in tests.)
+type fsOnly struct{ fs.FS }
+
+func (fsys MapFS) ReadFile(name string) ([]byte, error) {
+	return fs.ReadFile(fsOnly{fsys}, name)
+}
+
 // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
 type mapFileInfo struct {
 	name string

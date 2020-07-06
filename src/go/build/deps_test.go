@@ -165,7 +165,9 @@ var depsRules = `
 
 	os/signal, STR
 	< path/filepath
-	< io/ioutil, os/exec
+	< io/ioutil, os/exec;
+
+	io/ioutil, os/exec, os/signal
 	< OS;
 
 	reflect !< OS;

@@ -310,6 +310,27 @@ func (t *fsTester) checkFile(file string) {
 	// The return value doesn't matter.
 	f.Close()
 
+	// Check that ReadFile works if present.
+	if fsys, ok := t.fsys.(fs.ReadFileFS); ok {
+		data2, err := fsys.ReadFile(file)
+		if err != nil {
+			t.errorf("%s: fsys.ReadFile: %v", file, err)
+			return
+		}
+		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
+
+		t.checkBadPath(file, "ReadFile",
+			func(name string) error { _, err := fsys.ReadFile(name); return err })
+	}
+
+	// Check that fs.ReadFile works with t.fsys.
+	data2, err := fs.ReadFile(t.fsys, file)
+	if err != nil {
+		t.errorf("%s: fs.ReadFile: %v", file, err)
+		return
+	}
+	t.checkFileRead(file, "ReadAll vs fs.ReadFile", data, data2)
+
 	// Use iotest.TestReader to check small reads, Seek, ReadAt.
 	f, err = t.fsys.Open(file)
 	if err != nil {
@@ -329,8 +350,19 @@ func (t *fsTester) checkFileRead(file, desc string, data1, data2 []byte) {
 	}
 }
 
-// checkOpen checks that various invalid forms of file's name cannot be opened.
+// checkBadPath checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
 func (t *fsTester) checkOpen(file string) {
+	t.checkBadPath(file, "Open", func(file string) error {
+		f, err := t.fsys.Open(file)
+		if err == nil {
+			f.Close()
+		}
+		return err
+	})
+}
+
+// checkBadPath checks that various invalid forms of file's name cannot be opened using open.
+func (t *fsTester) checkBadPath(file string, desc string, open func(string) error) {
 	bad := []string{
 		"/" + file,
 		file + "/.",
@@ -356,9 +388,8 @@ func (t *fsTester) checkOpen(file string) {
 	}
 
 	for _, b := range bad {
-		if f, err := t.fsys.Open(b); err == nil {
-			f.Close()
-			t.errorf("%s: Open(%s) succeeded, want error", file, b)
+		if err := open(b); err == nil {
+			t.errorf("%s: %s(%s) succeeded, want error", file, desc, b)
 		}
 	}
 }
