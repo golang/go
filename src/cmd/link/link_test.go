@@ -119,6 +119,8 @@ func TestIssue28429(t *testing.T) {
 func TestUnresolved(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "unresolved-")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -184,6 +186,8 @@ func TestIssue33979(t *testing.T) {
 	if runtime.GOOS == "aix" {
 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "unresolved-")
 	if err != nil {
@@ -274,6 +278,8 @@ func TestBuildForTvOS(t *testing.T) {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
 	}
 
+	t.Parallel()
+
 	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
 	if err != nil {
 		t.Skip("failed to locate appletvos SDK, skipping")
@@ -324,6 +330,8 @@ func main() { println(X) }
 func TestXFlag(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestXFlag")
 	if err != nil {
 		t.Fatal(err)
@@ -349,6 +357,8 @@ func main() { }
 
 func TestMacOSVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
 	if err != nil {
@@ -427,6 +437,8 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
 	}
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
 	if err != nil {
 		t.Fatal(err)
@@ -486,6 +498,8 @@ TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
 func TestStrictDup(t *testing.T) {
 	// Check that -strictdups flag works.
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
 	if err != nil {
@@ -571,6 +585,8 @@ func TestFuncAlign(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
 	if err != nil {
 		t.Fatal(err)
@@ -637,6 +653,8 @@ func TestTrampoline(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
 	if err != nil {
 		t.Fatal(err)
@@ -670,6 +688,8 @@ func TestIndexMismatch(t *testing.T) {
 	// This shouldn't happen with "go build". We invoke the compiler and the linker
 	// manually, and try to "trick" the linker with an inconsistent object file.
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
 	if err != nil {
@@ -730,6 +750,8 @@ func TestPErsrc(t *testing.T) {
 	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
 		t.Skipf("this is a windows/amd64-only test")
 	}
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
 	if err != nil {

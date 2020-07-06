@@ -230,6 +230,8 @@ func TestPIESize(t *testing.T) {
 		t.Skip("-buildmode=pie not supported")
 	}
 
+	t.Parallel()
+
 	tmpl := template.Must(template.New("pie").Parse(pieSourceTemplate))
 
 	writeGo := func(t *testing.T, dir string) {
