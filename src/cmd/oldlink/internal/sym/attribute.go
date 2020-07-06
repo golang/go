@@ -81,7 +81,10 @@ const (
 	// AttrReadOnly indicates whether the symbol's content (Symbol.P) is backed by
 	// read-only memory.
 	AttrReadOnly
-	// 19 attributes defined so far.
+	// AttrDeferReturnTramp indicates the symbol is a trampoline of a deferreturn
+	// call.
+	AttrDeferReturnTramp
+	// 20 attributes defined so far.
 )
 
 func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
@@ -103,6 +106,7 @@ func (a Attribute) SubSymbol() bool        { return a&AttrSubSymbol != 0 }
 func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
 func (a Attribute) TopFrame() bool         { return a&AttrTopFrame != 0 }
 func (a Attribute) ReadOnly() bool         { return a&AttrReadOnly != 0 }
+func (a Attribute) DeferReturnTramp() bool { return a&AttrDeferReturnTramp != 0 }
 
 func (a Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()
