@@ -6,7 +6,10 @@ package ld
 
 import (
 	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 	"fmt"
+	"runtime"
 	"sync"
 )
 
@@ -162,4 +165,55 @@ func asmbPlan9(ctxt *Link) {
 	}
 	ctxt.Out.SeekSet(0)
 	writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+}
+
+// sizeExtRelocs precomputes the size needed for the reloc records,
+// sets the size and offset for relocation records in each section,
+// and mmap the output buffer with the proper size.
+func sizeExtRelocs(ctxt *Link, relsize uint32) {
+	if relsize == 0 {
+		panic("sizeExtRelocs: relocation size not set")
+	}
+	var sz int64
+	for _, seg := range Segments {
+		for _, sect := range seg.Sections {
+			sect.Reloff = uint64(ctxt.Out.Offset() + sz)
+			sect.Rellen = uint64(relsize * sect.Relcount)
+			sz += int64(sect.Rellen)
+		}
+	}
+	filesz := ctxt.Out.Offset() + sz
+	ctxt.Out.Mmap(uint64(filesz))
+}
+
+// relocSectFn wraps the function writing relocations of a section
+// for parallel execution. Returns the wrapped function and a wait
+// group for which the caller should wait.
+func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []loader.Sym)) (func(*Link, *sym.Section, []loader.Sym), *sync.WaitGroup) {
+	var fn func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
+	var wg sync.WaitGroup
+	var sem chan int
+	if ctxt.Out.isMmapped() {
+		// Write sections in parallel.
+		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
+		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+			wg.Add(1)
+			sem <- 1
+			out, err := ctxt.Out.View(sect.Reloff)
+			if err != nil {
+				panic(err)
+			}
+			go func() {
+				relocSect(ctxt, out, sect, syms)
+				wg.Done()
+				<-sem
+			}()
+		}
+	} else {
+		// We cannot Mmap. Write sequentially.
+		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+			relocSect(ctxt, ctxt.Out, sect, syms)
+		}
+	}
+	return fn, &wg
 }

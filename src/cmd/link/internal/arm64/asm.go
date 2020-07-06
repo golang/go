@@ -453,7 +453,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		default:
 		case objabi.R_ARM64_GOTPCREL,
 			objabi.R_ADDRARM64:
-			nExtReloc = 2 // need two ELF relocations. see elfreloc1
 
 			// set up addend for eventual relocation via outer symbol.
 			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
@@ -463,6 +462,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
 			rr.Xsym = rs
+
+			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
+			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && rr.Xadd != 0 {
+				nExtReloc = 4 // need another two relocations for non-zero addend
+			}
 
 			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
 			// will make the linking fail because it thinks the code is not PIC even though

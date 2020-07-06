@@ -13,10 +13,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
-	"sync"
 )
 
 /*
@@ -1405,48 +1403,9 @@ func elfEmitReloc(ctxt *Link) {
 		ctxt.Out.Write8(0)
 	}
 
-	// Precompute the size needed for the reloc records if we can
-	// Mmap the output buffer with the proper size.
-	if thearch.ElfrelocSize == 0 {
-		panic("elfEmitReloc: ELF relocation size not set")
-	}
-	var sz int64
-	for _, seg := range Segments {
-		for _, sect := range seg.Sections {
-			sect.Reloff = uint64(ctxt.Out.Offset() + sz)
-			sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
-			sz += int64(sect.Rellen)
-		}
-	}
-	filesz := ctxt.Out.Offset() + sz
-	ctxt.Out.Mmap(uint64(filesz))
+	sizeExtRelocs(ctxt, thearch.ElfrelocSize)
+	relocSect, wg := relocSectFn(ctxt, elfrelocsect)
 
-	// Now emits the records.
-	var relocSect func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
-	var wg sync.WaitGroup
-	var sem chan int
-	if ctxt.Out.isMmapped() {
-		// Write sections in parallel.
-		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
-		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
-			wg.Add(1)
-			sem <- 1
-			out, err := ctxt.Out.View(sect.Reloff)
-			if err != nil {
-				panic(err)
-			}
-			go func() {
-				elfrelocsect(ctxt, out, sect, syms)
-				wg.Done()
-				<-sem
-			}()
-		}
-	} else {
-		// We cannot Mmap. Write sequentially.
-		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
-			elfrelocsect(ctxt, ctxt.Out, sect, syms)
-		}
-	}
 	for _, sect := range Segtext.Sections {
 		if sect.Name == ".text" {
 			relocSect(ctxt, sect, ctxt.Textp)

@@ -55,6 +55,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		MachorelocSize:   8,
 
 		Androiddynld: "/system/bin/linker64",
 		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
