@@ -326,6 +326,18 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 	return
 }
 
+// aliasReplacer applies type aliases to earlier API files,
+// to avoid misleading negative results.
+// This makes all the references to os.FileInfo in go1.txt
+// be read as if they said fs.FileInfo, since os.FileInfo is now an alias.
+// If there are many of these, we could do a more general solution,
+// but for now the replacer is fine.
+var aliasReplacer = strings.NewReplacer(
+	"os.FileInfo", "fs.FileInfo",
+	"os.FileMode", "fs.FileMode",
+	"os.PathError", "fs.PathError",
+)
+
 func fileFeatures(filename string) []string {
 	if filename == "" {
 		return nil
@@ -334,7 +346,9 @@ func fileFeatures(filename string) []string {
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
 	}
-	lines := strings.Split(string(bs), "\n")
+	s := string(bs)
+	s = aliasReplacer.Replace(s)
+	lines := strings.Split(s, "\n")
 	var nonblank []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -856,6 +870,10 @@ func (w *Walker) emitObj(obj types.Object) {
 func (w *Walker) emitType(obj *types.TypeName) {
 	name := obj.Name()
 	typ := obj.Type()
+	if obj.IsAlias() {
+		w.emitf("type %s = %s", name, w.typeString(typ))
+		return
+	}
 	switch typ := typ.Underlying().(type) {
 	case *types.Struct:
 		w.emitStructType(name, typ)
