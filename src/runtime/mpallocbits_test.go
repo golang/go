@@ -504,10 +504,9 @@ func TestFindBitRange64(t *testing.T) {
 			t.Errorf("case (%016x, %d): got %d, want %d", x, n, i, result)
 		}
 	}
-	for i := uint(0); i <= 64; i++ {
+	for i := uint(1); i <= 64; i++ {
 		check(^uint64(0), i, 0)
 	}
-	check(0, 0, 0)
 	for i := uint(1); i <= 64; i++ {
 		check(0, i, ^uint(0))
 	}
@@ -519,4 +518,34 @@ func TestFindBitRange64(t *testing.T) {
 	check(0xffff03ff01070000, 16, 48)
 	check(0xffff03ff0107ffff, 16, 0)
 	check(0x0fff03ff01079fff, 16, ^uint(0))
+}
+
+func BenchmarkFindBitRange64(b *testing.B) {
+	patterns := []uint64{
+		0,
+		^uint64(0),
+		0xaa,
+		0xaaaaaaaaaaaaaaaa,
+		0x80000000aaaaaaaa,
+		0xaaaaaaaa00000001,
+		0xbbbbbbbbbbbbbbbb,
+		0x80000000bbbbbbbb,
+		0xbbbbbbbb00000001,
+		0xcccccccccccccccc,
+		0x4444444444444444,
+		0x4040404040404040,
+		0x4000400040004000,
+	}
+	sizes := []uint{
+		2, 8, 32,
+	}
+	for _, pattern := range patterns {
+		for _, size := range sizes {
+			b.Run(fmt.Sprintf("Pattern%02XSize%d", pattern, size), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					FindBitRange64(pattern, size)
+				}
+			})
+		}
+	}
 }

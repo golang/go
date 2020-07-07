@@ -218,7 +218,7 @@ outer:
 // find searches for npages contiguous free pages in pallocBits and returns
 // the index where that run starts, as well as the index of the first free page
 // it found in the search. searchIdx represents the first known free page and
-// where to begin the search from.
+// where to begin the next search from.
 //
 // If find fails to find any free space, it returns an index of ^uint(0) and
 // the new searchIdx should be ignored.
@@ -239,9 +239,10 @@ func (b *pallocBits) find(npages uintptr, searchIdx uint) (uint, uint) {
 //
 // See find for an explanation of the searchIdx parameter.
 func (b *pallocBits) find1(searchIdx uint) uint {
+	_ = b[0] // lift nil check out of loop
 	for i := searchIdx / 64; i < uint(len(b)); i++ {
 		x := b[i]
-		if x == ^uint64(0) {
+		if ^x == 0 {
 			continue
 		}
 		return i*64 + uint(sys.TrailingZeros64(^x))
@@ -263,18 +264,18 @@ func (b *pallocBits) findSmallN(npages uintptr, searchIdx uint) (uint, uint) {
 	end, newSearchIdx := uint(0), ^uint(0)
 	for i := searchIdx / 64; i < uint(len(b)); i++ {
 		bi := b[i]
-		if bi == ^uint64(0) {
+		if ^bi == 0 {
 			end = 0
 			continue
 		}
 		// First see if we can pack our allocation in the trailing
 		// zeros plus the end of the last 64 bits.
-		start := uint(sys.TrailingZeros64(bi))
 		if newSearchIdx == ^uint(0) {
 			// The new searchIdx is going to be at these 64 bits after any
 			// 1s we file, so count trailing 1s.
 			newSearchIdx = i*64 + uint(sys.TrailingZeros64(^bi))
 		}
+		start := uint(sys.TrailingZeros64(bi))
 		if end+start >= uint(npages) {
 			return i*64 - end, newSearchIdx
 		}
@@ -369,15 +370,33 @@ func (b *pallocBits) pages64(i uint) uint64 {
 // findBitRange64 returns the bit index of the first set of
 // n consecutive 1 bits. If no consecutive set of 1 bits of
 // size n may be found in c, then it returns an integer >= 64.
+// n must be > 0.
 func findBitRange64(c uint64, n uint) uint {
-	i := uint(0)
-	cont := uint(sys.TrailingZeros64(^c))
-	for cont < n && i < 64 {
-		i += cont
-		i += uint(sys.TrailingZeros64(c >> i))
-		cont = uint(sys.TrailingZeros64(^(c >> i)))
+	// This implementation is based on shrinking the length of
+	// runs of contiguous 1 bits. We remove the top n-1 1 bits
+	// from each run of 1s, then look for the first remaining 1 bit.
+	p := n - 1   // number of 1s we want to remove.
+	k := uint(1) // current minimum width of runs of 0 in c.
+	for p > 0 {
+		if p <= k {
+			// Shift p 0s down into the top of each run of 1s.
+			c &= c >> (p & 63)
+			break
+		}
+		// Shift k 0s down into the top of each run of 1s.
+		c &= c >> (k & 63)
+		if c == 0 {
+			return 64
+		}
+		p -= k
+		// We've just doubled the minimum length of 0-runs.
+		// This allows us to shift farther in the next iteration.
+		k *= 2
 	}
-	return i
+	// Find first remaining 1.
+	// Since we shrunk from the top down, the first 1 is in
+	// its correct original position.
+	return uint(sys.TrailingZeros64(c))
 }
 
 // pallocData encapsulates pallocBits and a bitmap for
