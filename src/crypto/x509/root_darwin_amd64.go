@@ -8,7 +8,7 @@ package x509
 
 import (
 	"bytes"
-	"crypto/x509/internal/macOS"
+	macOS "crypto/x509/internal/macos"
 	"fmt"
 	"os"
 	"strings"
