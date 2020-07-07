@@ -402,6 +402,7 @@ func openSymlink(path string) (syscall.Handle, error) {
 //  \??\C:\foo\bar into C:\foo\bar
 //  \??\UNC\foo\bar into \\foo\bar
 //  \??\Volume{abc}\ into C:\
+//  \??\Volume{abc}\ into \\?\Volume{abc} if GetFinalPathNameByHandle(,,,VOLUME_NAME_DOS) returns PATH_NOT_FOUND (3)
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
 		// unexpected path, return it as is
@@ -431,8 +432,15 @@ func normaliseLinkPath(path string) (string, error) {
 	defer syscall.CloseHandle(h)
 
 	buf := make([]uint16, 100)
+	isVolumeNameGUID := false
 	for {
 		n, err := windows.GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), windows.VOLUME_NAME_DOS)
+		if errors.Is(err, ErrNotExist) {
+			n, err = windows.GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), windows.VOLUME_NAME_GUID)
+			if err == nil {
+				isVolumeNameGUID = true
+			}
+		}
 		if err != nil {
 			return "", err
 		}
@@ -443,7 +451,9 @@ func normaliseLinkPath(path string) (string, error) {
 	}
 	s = syscall.UTF16ToString(buf)
 	if len(s) > 4 && s[:4] == `\\?\` {
-		s = s[4:]
+		if !isVolumeNameGUID {
+			s = s[4:]
+		}
 		if len(s) > 3 && s[:3] == `UNC` {
 			// return path like \\server\share\...
 			return `\` + s[3:], nil
