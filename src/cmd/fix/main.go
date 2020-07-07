@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -235,7 +236,7 @@ func walkDir(path string) {
 	filepath.Walk(path, visitFile)
 }
 
-func visitFile(path string, f os.FileInfo, err error) error {
+func visitFile(path string, f fs.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, false)
 	}
@@ -245,7 +246,7 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
-func isGoFile(f os.FileInfo) bool {
+func isGoFile(f fs.FileInfo) bool {
 	// ignore non-Go files
 	name := f.Name()
 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")

@@ -7,6 +7,7 @@
 package x509
 
 import (
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -83,7 +84,7 @@ func loadSystemRoots() (*CertPool, error) {
 
 // readUniqueDirectoryEntries is like ioutil.ReadDir but omits
 // symlinks that point within the directory.
-func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
+func readUniqueDirectoryEntries(dir string) ([]fs.FileInfo, error) {
 	fis, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -99,8 +100,8 @@ func readUniqueDirectoryEntries(dir string) ([]os.FileInfo, error) {
 
 // isSameDirSymlink reports whether fi in dir is a symlink with a
 // target not containing a slash.
-func isSameDirSymlink(fi os.FileInfo, dir string) bool {
-	if fi.Mode()&os.ModeSymlink == 0 {
+func isSameDirSymlink(fi fs.FileInfo, dir string) bool {
+	if fi.Mode()&fs.ModeSymlink == 0 {
 		return false
 	}
 	target, err := os.Readlink(filepath.Join(dir, fi.Name()))

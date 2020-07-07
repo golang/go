@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -210,7 +211,7 @@ var readFileTests = []struct {
 		repo: gitrepo1,
 		rev:  "v2.3.4",
 		file: "another.txt",
-		err:  os.ErrNotExist.Error(),
+		err:  fs.ErrNotExist.Error(),
 	},
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"math"
 	"os"
@@ -338,7 +339,7 @@ func TestRoundTrip(t *testing.T) {
 
 type headerRoundTripTest struct {
 	h  *Header
-	fm os.FileMode
+	fm fs.FileMode
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
@@ -361,7 +362,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360600852, 0),
 			Typeflag: TypeSymlink,
 		},
-		fm: 0777 | os.ModeSymlink,
+		fm: 0777 | fs.ModeSymlink,
 	}, {
 		// character device node.
 		h: &Header{
@@ -371,7 +372,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578951, 0),
 			Typeflag: TypeChar,
 		},
-		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		fm: 0666 | fs.ModeDevice | fs.ModeCharDevice,
 	}, {
 		// block device node.
 		h: &Header{
@@ -381,7 +382,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578954, 0),
 			Typeflag: TypeBlock,
 		},
-		fm: 0660 | os.ModeDevice,
+		fm: 0660 | fs.ModeDevice,
 	}, {
 		// directory.
 		h: &Header{
@@ -391,7 +392,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360601116, 0),
 			Typeflag: TypeDir,
 		},
-		fm: 0755 | os.ModeDir,
+		fm: 0755 | fs.ModeDir,
 	}, {
 		// fifo node.
 		h: &Header{
@@ -401,7 +402,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578949, 0),
 			Typeflag: TypeFifo,
 		},
-		fm: 0600 | os.ModeNamedPipe,
+		fm: 0600 | fs.ModeNamedPipe,
 	}, {
 		// setuid.
 		h: &Header{
@@ -411,7 +412,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1355405093, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0755 | os.ModeSetuid,
+		fm: 0755 | fs.ModeSetuid,
 	}, {
 		// setguid.
 		h: &Header{
@@ -421,7 +422,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602346, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0750 | os.ModeSetgid,
+		fm: 0750 | fs.ModeSetgid,
 	}, {
 		// sticky.
 		h: &Header{
@@ -431,7 +432,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602540, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0600 | os.ModeSticky,
+		fm: 0600 | fs.ModeSticky,
 	}, {
 		// hard link.
 		h: &Header{

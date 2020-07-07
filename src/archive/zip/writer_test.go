@@ -9,9 +9,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"math/rand"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +23,7 @@ type WriteTest struct {
 	Name   string
 	Data   []byte
 	Method uint16
-	Mode   os.FileMode
+	Mode   fs.FileMode
 }
 
 var writeTests = []WriteTest{
@@ -43,19 +43,19 @@ var writeTests = []WriteTest{
 		Name:   "setuid",
 		Data:   []byte("setuid file"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSetuid,
+		Mode:   0755 | fs.ModeSetuid,
 	},
 	{
 		Name:   "setgid",
 		Data:   []byte("setgid file"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSetgid,
+		Mode:   0755 | fs.ModeSetgid,
 	},
 	{
 		Name:   "symlink",
 		Data:   []byte("../link/target"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSymlink,
+		Mode:   0755 | fs.ModeSymlink,
 	},
 }
 

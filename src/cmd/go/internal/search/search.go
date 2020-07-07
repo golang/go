@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/fsys"
 	"fmt"
 	"go/build"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -128,7 +129,7 @@ func (m *Match) MatchPackages() {
 		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
-		err := fsys.Walk(root, func(path string, fi os.FileInfo, err error) error {
+		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
 			}
@@ -154,7 +155,7 @@ func (m *Match) MatchPackages() {
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&os.ModeSymlink != 0 && want {
+				if fi.Mode()&fs.ModeSymlink != 0 && want {
 					if target, err := os.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
@@ -264,7 +265,7 @@ func (m *Match) MatchDirs() {
 		}
 	}
 
-	err := fsys.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
 		}

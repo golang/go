@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"internal/singleflight"
+	"io/fs"
 	"log"
 	urlpkg "net/url"
 	"os"
@@ -404,9 +405,9 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 	if len(args) >= 2 && args[0] == "-go-internal-mkdir" {
 		var err error
 		if filepath.IsAbs(args[1]) {
-			err = os.Mkdir(args[1], os.ModePerm)
+			err = os.Mkdir(args[1], fs.ModePerm)
 		} else {
-			err = os.Mkdir(filepath.Join(dir, args[1]), os.ModePerm)
+			err = os.Mkdir(filepath.Join(dir, args[1]), fs.ModePerm)
 		}
 		if err != nil {
 			return nil, err

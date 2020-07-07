@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"internal/lazyregexp"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -377,7 +378,7 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 
 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
 	if err != nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return out, nil
 }

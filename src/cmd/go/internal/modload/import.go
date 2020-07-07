@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/goroot"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -347,7 +348,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 
 	candidates, err := QueryPattern(ctx, path, "latest", Selected, CheckAllowed)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
 			// low-level error QueryPattern produced.
 			return module.Version{}, &ImportMissingError{Path: path, QueryErr: err}
