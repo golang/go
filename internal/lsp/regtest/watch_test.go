@@ -304,15 +304,19 @@ func _() {
 	x := X{}
 	b.SayHello(x)
 }`
+
 	// Add the new method before the implementation. Expect diagnostics.
 	t.Run("method before implementation", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.Await(
-				NoDiagnostics("a/a.go"),
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
 			)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
-				DiagnosticAt("a/a.go", 12, 12),
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					DiagnosticAt("a/a.go", 12, 12),
+				),
 			)
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.Await(
@@ -324,11 +328,14 @@ func _() {
 	t.Run("implementation before method", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.Await(
-				NoDiagnostics("a/a.go"),
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
 			)
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.Await(
-				NoDiagnostics("a/a.go"),
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					NoDiagnostics("a/a.go"),
+				),
 			)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
@@ -340,15 +347,18 @@ func _() {
 	t.Run("implementation and method simultaneously", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.Await(
-				NoDiagnostics("a/a.go"),
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
 			)
 			env.WriteWorkspaceFiles(map[string]string{
 				"a/a.go": implementation,
 				"b/b.go": newMethod,
 			})
 			env.Await(
-				NoDiagnostics("a/a.go"),
-				NoDiagnostics("a/a.go"),
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					NoDiagnostics("a/a.go"),
+				),
+				NoDiagnostics("b/b.go"),
 			)
 		})
 	})
