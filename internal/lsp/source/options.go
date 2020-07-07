@@ -659,7 +659,7 @@ func convenienceAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillstruct.Analyzer.Name: {
 			Analyzer: fillstruct.Analyzer,
-			enabled:  true,
+			enabled:  false,
 		},
 	}
 }
