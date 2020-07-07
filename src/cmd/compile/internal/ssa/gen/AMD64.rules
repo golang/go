@@ -1463,14 +1463,14 @@
 (MULQconst [c] (NEGQ x)) && c != -(1<<31) -> (MULQconst [-c] x)
 
 // checking AND against 0.
-(CMPQconst (ANDQ x y) [0]) -> (TESTQ x y)
-(CMPLconst (ANDL x y) [0]) -> (TESTL x y)
-(CMPWconst (ANDL x y) [0]) -> (TESTW x y)
-(CMPBconst (ANDL x y) [0]) -> (TESTB x y)
-(CMPQconst (ANDQconst [c] x) [0]) -> (TESTQconst [c] x)
-(CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
-(CMPWconst (ANDLconst [c] x) [0]) -> (TESTWconst [int64(int16(c))] x)
-(CMPBconst (ANDLconst [c] x) [0]) -> (TESTBconst [int64(int8(c))] x)
+(CMPQconst a:(ANDQ x y) [0]) && a.Uses == 1 -> (TESTQ x y)
+(CMPLconst a:(ANDL x y) [0]) && a.Uses == 1 -> (TESTL x y)
+(CMPWconst a:(ANDL x y) [0]) && a.Uses == 1 -> (TESTW x y)
+(CMPBconst a:(ANDL x y) [0]) && a.Uses == 1 -> (TESTB x y)
+(CMPQconst a:(ANDQconst [c] x) [0]) && a.Uses == 1 -> (TESTQconst [c] x)
+(CMPLconst a:(ANDLconst [c] x) [0]) && a.Uses == 1 -> (TESTLconst [c] x)
+(CMPWconst a:(ANDLconst [c] x) [0]) && a.Uses == 1 -> (TESTWconst [int64(int16(c))] x)
+(CMPBconst a:(ANDLconst [c] x) [0]) && a.Uses == 1 -> (TESTBconst [int64(int8(c))] x)
 
 // Convert TESTx to TESTxconst if possible.
 (TESTQ (MOVQconst [c]) x) && is32Bit(c) -> (TESTQconst [c] x)
