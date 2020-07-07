@@ -2247,37 +2247,52 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 
 	// Only break at outermost syms.
 
-	if ctxt.Arch.InFamily(sys.PPC64) && ldr.OuterSym(s) == 0 && ctxt.IsExternal() && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(ldr, s, isTramp) > 0x1c00000 {
-		// Set the length for the previous text section
-		sect.Length = va - sect.Vaddr
+	// For debugging purposes, allow text size limit to be cranked down,
+	// so as to stress test the code that handles multiple text sections.
+	var textSizelimit uint64 = 0x1c00000
+	if *FlagDebugTextSize != 0 {
+		textSizelimit = uint64(*FlagDebugTextSize)
+	}
 
-		// Create new section, set the starting Vaddr
-		sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
-		sect.Vaddr = va
-		ldr.SetSymSect(s, sect)
-
-		// Create a symbol for the start of the secondary text sections
-		ntext := ldr.CreateSymForUpdate(fmt.Sprintf("runtime.text.%d", n), 0)
-		ntext.SetSect(sect)
-		if ctxt.IsAIX() {
-			// runtime.text.X must be a real symbol on AIX.
-			// Assign its address directly in order to be the
-			// first symbol of this new section.
-			ntext.SetType(sym.STEXT)
-			ntext.SetSize(int64(MINFUNC))
-			ntext.SetOnList(true)
-			ctxt.tramps = append(ctxt.tramps, ntext.Sym())
-
-			ntext.SetValue(int64(va))
-			va += uint64(ntext.Size())
-
-			if align := ldr.SymAlign(s); align != 0 {
-				va = uint64(Rnd(int64(va), int64(align)))
-			} else {
-				va = uint64(Rnd(int64(va), int64(Funcalign)))
-			}
+	if ctxt.Arch.InFamily(sys.PPC64) && ldr.OuterSym(s) == 0 && ctxt.IsExternal() {
+		// Sanity check: make sure the limit is larger than any
+		// individual text symbol.
+		if funcsize > textSizelimit {
+			panic(fmt.Sprintf("error: ppc64 text size limit %d less than text symbol %s size of %d", textSizelimit, ldr.SymName(s), funcsize))
 		}
-		n++
+
+		if va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(ldr, s, isTramp) > textSizelimit {
+			// Set the length for the previous text section
+			sect.Length = va - sect.Vaddr
+
+			// Create new section, set the starting Vaddr
+			sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
+			sect.Vaddr = va
+			ldr.SetSymSect(s, sect)
+
+			// Create a symbol for the start of the secondary text sections
+			ntext := ldr.CreateSymForUpdate(fmt.Sprintf("runtime.text.%d", n), 0)
+			ntext.SetSect(sect)
+			if ctxt.IsAIX() {
+				// runtime.text.X must be a real symbol on AIX.
+				// Assign its address directly in order to be the
+				// first symbol of this new section.
+				ntext.SetType(sym.STEXT)
+				ntext.SetSize(int64(MINFUNC))
+				ntext.SetOnList(true)
+				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
+
+				ntext.SetValue(int64(va))
+				va += uint64(ntext.Size())
+
+				if align := ldr.SymAlign(s); align != 0 {
+					va = uint64(Rnd(int64(va), int64(align)))
+				} else {
+					va = uint64(Rnd(int64(va), int64(Funcalign)))
+				}
+			}
+			n++
+		}
 	}
 
 	ldr.SetSymValue(s, 0)
