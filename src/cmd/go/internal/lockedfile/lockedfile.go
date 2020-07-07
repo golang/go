@@ -9,6 +9,7 @@ package lockedfile
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -35,7 +36,7 @@ type osFile struct {
 // OpenFile is like os.OpenFile, but returns a locked file.
 // If flag includes os.O_WRONLY or os.O_RDWR, the file is write-locked;
 // otherwise, it is read-locked.
-func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
+func OpenFile(name string, flag int, perm fs.FileMode) (*File, error) {
 	var (
 		f   = new(File)
 		err error
@@ -82,10 +83,10 @@ func Edit(name string) (*File, error) {
 // non-nil error.
 func (f *File) Close() error {
 	if f.closed {
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   "close",
 			Path: f.Name(),
-			Err:  os.ErrClosed,
+			Err:  fs.ErrClosed,
 		}
 	}
 	f.closed = true
@@ -108,7 +109,7 @@ func Read(name string) ([]byte, error) {
 
 // Write opens the named file (creating it with the given permissions if needed),
 // then write-locks it and overwrites it with the given content.
-func Write(name string, content io.Reader, perm os.FileMode) (err error) {
+func Write(name string, content io.Reader, perm fs.FileMode) (err error) {
 	f, err := OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err

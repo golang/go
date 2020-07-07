@@ -7,9 +7,9 @@ package suffixarray
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -503,7 +503,7 @@ func makeText(name string) ([]byte, error) {
 			return nil, err
 		}
 	case "go":
-		err := filepath.Walk("../..", func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk("../..", func(path string, info fs.FileInfo, err error) error {
 			if err == nil && strings.HasSuffix(path, ".go") && !info.IsDir() {
 				file, err := ioutil.ReadFile(path)
 				if err != nil {

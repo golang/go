@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -121,7 +122,7 @@ func main() {
 			{Name: ".info", Data: info},
 		}
 		dir = filepath.Clean(dir)
-		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 			if !info.Mode().IsRegular() {
 				return nil
 			}

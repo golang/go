@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
@@ -629,9 +630,9 @@ func (f *fakeFileInfo) Sys() interface{}   { return nil }
 func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
 func (f *fakeFileInfo) IsDir() bool        { return f.dir }
 func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }
-func (f *fakeFileInfo) Mode() os.FileMode {
+func (f *fakeFileInfo) Mode() fs.FileMode {
 	if f.dir {
-		return 0755 | os.ModeDir
+		return 0755 | fs.ModeDir
 	}
 	return 0644
 }
@@ -644,12 +645,12 @@ type fakeFile struct {
 }
 
 func (f *fakeFile) Close() error               { return nil }
-func (f *fakeFile) Stat() (os.FileInfo, error) { return f.fi, nil }
-func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
+func (f *fakeFile) Stat() (fs.FileInfo, error) { return f.fi, nil }
+func (f *fakeFile) Readdir(count int) ([]fs.FileInfo, error) {
 	if !f.fi.dir {
-		return nil, os.ErrInvalid
+		return nil, fs.ErrInvalid
 	}
-	var fis []os.FileInfo
+	var fis []fs.FileInfo
 
 	limit := f.entpos + count
 	if count <= 0 || limit > len(f.fi.ents) {
@@ -668,11 +669,11 @@ func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
 
 type fakeFS map[string]*fakeFileInfo
 
-func (fs fakeFS) Open(name string) (File, error) {
+func (fsys fakeFS) Open(name string) (File, error) {
 	name = path.Clean(name)
-	f, ok := fs[name]
+	f, ok := fsys[name]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	if f.err != nil {
 		return nil, f.err
@@ -747,7 +748,7 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	res.Body.Close()
 }
 
-func mustStat(t *testing.T, fileName string) os.FileInfo {
+func mustStat(t *testing.T, fileName string) fs.FileInfo {
 	fi, err := os.Stat(fileName)
 	if err != nil {
 		t.Fatal(err)
@@ -1081,7 +1082,7 @@ func (issue12991FS) Open(string) (File, error) { return issue12991File{}, nil }
 
 type issue12991File struct{ File }
 
-func (issue12991File) Stat() (os.FileInfo, error) { return nil, os.ErrPermission }
+func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
 func (issue12991File) Close() error               { return nil }
 
 func TestServeContentErrorMessages(t *testing.T) {
@@ -1091,7 +1092,7 @@ func TestServeContentErrorMessages(t *testing.T) {
 			err: errors.New("random error"),
 		},
 		"/403": &fakeFileInfo{
-			err: &os.PathError{Err: os.ErrPermission},
+			err: &fs.PathError{Err: fs.ErrPermission},
 		},
 	}
 	ts := httptest.NewServer(FileServer(fs))
@@ -1289,7 +1290,7 @@ func (d fileServerCleanPathDir) Open(path string) (File, error) {
 		// Just return back something that's a directory.
 		return Dir(".").Open(".")
 	}
-	return nil, os.ErrNotExist
+	return nil, fs.ErrNotExist
 }
 
 type panicOnSeek struct{ io.ReadSeeker }

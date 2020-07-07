@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net"
@@ -335,7 +336,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if testing.Verbose() {
 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
 		}
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
 		} else {
 			http.Error(w, "cannot load archive", 500)
@@ -443,7 +444,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
 		return a
 	}).(*txtar.Archive)
 	if a == nil {
-		return nil, os.ErrNotExist
+		return nil, fs.ErrNotExist
 	}
 	return a, nil
 }

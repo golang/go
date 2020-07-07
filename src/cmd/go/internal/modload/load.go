@@ -98,6 +98,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"io/fs"
 	"os"
 	"path"
 	pathpkg "path"
@@ -364,7 +365,7 @@ func resolveLocalPackage(dir string) (string, error) {
 			if os.IsNotExist(err) {
 				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
 				// messages will be easier for users to search for.
-				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
+				return "", &fs.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
 			}
 			return "", err
 		}

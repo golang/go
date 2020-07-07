@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"internal/bytealg"
+	"io/fs"
 	"os"
 	"syscall"
 )
@@ -164,7 +165,7 @@ func fixErr(err error) {
 	if nonNilInterface(oe.Addr) {
 		oe.Addr = nil
 	}
-	if pe, ok := oe.Err.(*os.PathError); ok {
+	if pe, ok := oe.Err.(*fs.PathError); ok {
 		if _, ok = pe.Err.(syscall.ErrorString); ok {
 			oe.Err = pe.Err
 		}

@@ -13,12 +13,13 @@
 package modload
 
 import (
+	"io/fs"
 	"os"
 )
 
 // hasWritePerm reports whether the current user has permission to write to the
 // file with the given info.
-func hasWritePerm(path string, _ os.FileInfo) bool {
+func hasWritePerm(path string, _ fs.FileInfo) bool {
 	if f, err := os.OpenFile(path, os.O_WRONLY, 0); err == nil {
 		f.Close()
 		return true

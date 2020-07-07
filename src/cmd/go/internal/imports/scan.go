@@ -6,6 +6,7 @@ package imports
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -26,7 +27,7 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
 
 		// If the directory entry is a symlink, stat it to obtain the info for the
 		// link target instead of the link itself.
-		if info.Mode()&os.ModeSymlink != 0 {
+		if info.Mode()&fs.ModeSymlink != 0 {
 			info, err = os.Stat(filepath.Join(dir, name))
 			if err != nil {
 				continue // Ignore broken symlinks.

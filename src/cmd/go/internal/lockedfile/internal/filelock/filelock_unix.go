@@ -7,7 +7,7 @@
 package filelock
 
 import (
-	"os"
+	"io/fs"
 	"syscall"
 )
 
@@ -26,7 +26,7 @@ func lock(f File, lt lockType) (err error) {
 		}
 	}
 	if err != nil {
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   lt.String(),
 			Path: f.Name(),
 			Err:  err,

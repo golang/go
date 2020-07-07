@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -500,7 +501,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi os.FileInfo, err error) error {
+	walkFn := func(path string, fi fs.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() || path == src {
 			return nil
 		}

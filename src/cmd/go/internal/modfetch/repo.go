@@ -7,6 +7,7 @@ package modfetch
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"sort"
 	"strconv"
@@ -432,7 +433,7 @@ func (r errRepo) Latest() (*RevInfo, error)                         { return nil
 func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
 func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
 
-// A notExistError is like os.ErrNotExist, but with a custom message
+// A notExistError is like fs.ErrNotExist, but with a custom message
 type notExistError struct {
 	err error
 }
@@ -446,7 +447,7 @@ func (e notExistError) Error() string {
 }
 
 func (notExistError) Is(target error) bool {
-	return target == os.ErrNotExist
+	return target == fs.ErrNotExist
 }
 
 func (e notExistError) Unwrap() error {
