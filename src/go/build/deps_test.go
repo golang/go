@@ -318,7 +318,6 @@ var depsRules = `
 	# so large dependencies must be kept out.
 	# This is a long-looking list but most of these
 	# are small with few dependencies.
-	# math/rand should probably be removed at some point.
 	CGO,
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
@@ -327,11 +326,11 @@ var depsRules = `
 	internal/poll,
 	internal/singleflight,
 	internal/race,
-	math/rand,
 	os
 	< net;
 
 	fmt, unicode !< net;
+	math/rand !< net; # net uses runtime instead
 
 	# NET is net plus net-helper packages.
 	FMT, net
@@ -479,7 +478,7 @@ var depsRules = `
 	CGO, OS, fmt
 	< os/signal/internal/pty;
 
-	NET, testing
+	NET, testing, math/rand
 	< golang.org/x/net/nettest;
 
 	FMT, container/heap, math/rand
