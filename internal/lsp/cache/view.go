@@ -71,10 +71,12 @@ type View struct {
 	// TODO(suzmue): the state cached in the process env is specific to each view,
 	// however, there is state that can be shared between views that is not currently
 	// cached, like the module cache.
-	processEnv           *imports.ProcessEnv
-	cacheRefreshDuration time.Duration
-	cacheRefreshTimer    *time.Timer
-	cachedModFileVersion source.FileIdentity
+	processEnv              *imports.ProcessEnv
+	cleanupProcessEnv       func()
+	cacheRefreshDuration    time.Duration
+	cacheRefreshTimer       *time.Timer
+	cachedModFileIdentifier string
+	cachedBuildFlags        []string
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -363,53 +365,56 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	v.importsMu.Lock()
 	defer v.importsMu.Unlock()
 
-	// The resolver cached in the process env is reused, but some fields need
-	// to be repopulated for each use.
-	if v.processEnv == nil {
-		v.processEnv = &imports.ProcessEnv{}
-	}
-
+	// Use temporary go.mod files, but always go to disk for the contents.
+	// Rebuilding the cache is expensive, and we don't want to do it for
+	// transient changes.
 	var modFH, sumFH source.FileHandle
-	if v.tmpMod {
-		var err error
-		// Use temporary go.mod files, but always go to disk for the contents.
-		// Rebuilding the cache is expensive, and we don't want to do it for
-		// transient changes.
+	var modFileIdentifier string
+	var err error
+	if v.modURI != "" {
 		modFH, err = v.session.cache.getFile(ctx, v.modURI)
 		if err != nil {
 			return err
 		}
-		if v.sumURI != "" {
-			sumFH, err = v.session.cache.getFile(ctx, v.sumURI)
-			if err != nil {
-				return err
-			}
-		}
+		modFileIdentifier = modFH.Identity().Identifier
 	}
-
-	cleanup, err := v.populateProcessEnv(ctx, modFH, sumFH)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
-	// If the go.mod file has changed, clear the cache.
-	if v.modURI != "" {
-		modFH, err := v.session.cache.getFile(ctx, v.modURI)
+	if v.sumURI != "" {
+		sumFH, err = v.session.cache.getFile(ctx, v.sumURI)
 		if err != nil {
 			return err
 		}
-		if modFH.Identity() != v.cachedModFileVersion {
+	}
+	// v.goEnv is immutable -- changes make a new view. Options can change.
+	// We can't compare build flags directly because we may add -modfile.
+	v.optionsMu.Lock()
+	localPrefix := v.options.LocalPrefix
+	currentBuildFlags := v.options.BuildFlags
+	changed := !reflect.DeepEqual(currentBuildFlags, v.cachedBuildFlags) ||
+		v.options.VerboseOutput != (v.processEnv.Logf != nil) ||
+		modFileIdentifier != v.cachedModFileIdentifier
+	v.optionsMu.Unlock()
+
+	// If anything relevant to imports has changed, clear caches and
+	// update the processEnv. Clearing caches blocks on any background
+	// scans.
+	if changed {
+		// As a special case, skip cleanup the first time -- we haven't fully
+		// initialized the environment yet and calling GetResolver will do
+		// unnecessary work and potentially mess up the go.mod file.
+		if v.cleanupProcessEnv != nil {
 			if resolver, err := v.processEnv.GetResolver(); err == nil {
 				resolver.(*imports.ModuleResolver).ClearForNewMod()
 			}
-			v.cachedModFileVersion = modFH.Identity()
+			v.cleanupProcessEnv()
+		}
+		v.cachedModFileIdentifier = modFH.Identity().Identifier
+		v.cachedBuildFlags = currentBuildFlags
+		v.cleanupProcessEnv, err = v.populateProcessEnv(ctx, modFH, sumFH)
+		if err != nil {
+			return err
 		}
 	}
 
-	v.optionsMu.Lock()
-	localPrefix := v.options.LocalPrefix
-	v.optionsMu.Unlock()
 	// Run the user function.
 	opts := &imports.Options{
 		// Defaults.
@@ -464,24 +469,24 @@ func (v *View) refreshProcessEnv() {
 }
 
 // populateProcessEnv sets the dynamically configurable fields for the view's
-// process environment. It operates on a snapshot because it needs to access
-// file contents. Assumes that the caller is holding the s.view.importsMu.
+// process environment. Assumes that the caller is holding the s.view.importsMu.
 func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileHandle) (cleanup func(), err error) {
 	cleanup = func() {}
+	pe := v.processEnv
 
 	v.optionsMu.Lock()
-	_, buildFlags := v.envLocked()
-	verboseOutput := v.options.VerboseOutput
+	pe.BuildFlags = append([]string(nil), v.options.BuildFlags...)
+	if v.options.VerboseOutput {
+		pe.Logf = func(format string, args ...interface{}) {
+			event.Log(ctx, fmt.Sprintf(format, args...))
+		}
+	} else {
+		pe.Logf = nil
+	}
 	v.optionsMu.Unlock()
 
-	pe := v.processEnv
-	pe.GocmdRunner = v.session.gocmdRunner
-	pe.BuildFlags = buildFlags
-	pe.Env = v.goEnv
-	pe.WorkingDir = v.folder.Filename()
-
 	// Add -modfile to the build flags, if we are using it.
-	if modFH != nil {
+	if v.tmpMod && modFH != nil {
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
@@ -490,11 +495,6 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 		pe.BuildFlags = append(pe.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
 
-	if verboseOutput {
-		pe.Logf = func(format string, args ...interface{}) {
-			event.Log(ctx, fmt.Sprintf(format, args...))
-		}
-	}
 	return cleanup, nil
 }
 

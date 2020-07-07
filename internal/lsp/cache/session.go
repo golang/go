@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
@@ -158,6 +159,13 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// Set the module-specific information.
 	if err := v.setBuildInformation(ctx, folder, options.Env, v.options.TempModfile); err != nil {
 		return nil, nil, err
+	}
+
+	// We have v.goEnv now.
+	v.processEnv = &imports.ProcessEnv{
+		GocmdRunner: s.gocmdRunner,
+		WorkingDir:  folder.Filename(),
+		Env:         v.goEnv,
 	}
 
 	// Initialize the view without blocking.
