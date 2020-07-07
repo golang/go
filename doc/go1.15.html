@@ -335,6 +335,11 @@ Do not send CLs removing the interior tags from such phrases.
   improvements expected in future releases.
 </p>
 
+<p><!-- CL 207877 -->
+  TODO: <a href="https://golang.org/cl/207877">https://golang.org/cl/207877</a>: Revert -buildmode=pie to internal linking.
+  The linker defaults to internal linking mode for PIE on linux/amd64 and linux/arm64, which does require a C linker.
+</p>
+
 <h2 id="objdump">Objdump</h2>
 
 <p><!-- CL 225459 -->
@@ -937,6 +942,10 @@ Do not send CLs removing the interior tags from such phrases.
        <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a>
        return temporary directories that are automatically cleaned up
        at the end of the test.
+    </p>
+
+    <p><!-- CL 229085 -->
+      TODO: <a href="https://golang.org/cl/229085">https://golang.org/cl/229085</a>: reformat test chatty output
     </p>
   </dd>
 </dl><!-- testing -->
