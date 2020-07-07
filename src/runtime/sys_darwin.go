@@ -129,7 +129,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
 
 // syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
 
-//go:linkname crypto_x509_syscall crypto/x509/internal/macOS.syscall
+//go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
 //go:nosplit
 //go:cgo_unsafe_args
 func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
