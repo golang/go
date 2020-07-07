@@ -571,6 +571,43 @@ func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 
 func TestServeIndexHtml(t *testing.T) {
 	defer afterTest(t)
+
+	for i := 0; i < 2; i++ {
+		var h Handler
+		var name string
+		switch i {
+		case 0:
+			h = FileServer(Dir("."))
+			name = "Dir"
+		case 1:
+			h = FileServer(FS(os.DirFS(".")))
+			name = "DirFS"
+		}
+		t.Run(name, func(t *testing.T) {
+			const want = "index.html says hello\n"
+			ts := httptest.NewServer(h)
+			defer ts.Close()
+
+			for _, path := range []string{"/testdata/", "/testdata/index.html"} {
+				res, err := Get(ts.URL + path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				b, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					t.Fatal("reading Body:", err)
+				}
+				if s := string(b); s != want {
+					t.Errorf("for path %q got %q, want %q", path, s, want)
+				}
+				res.Body.Close()
+			}
+		})
+	}
+}
+
+func TestServeIndexHtmlFS(t *testing.T) {
+	defer afterTest(t)
 	const want = "index.html says hello\n"
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
