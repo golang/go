@@ -245,7 +245,7 @@ func (imp *Importer) importGo1Package(importPath, dir string, mode types.ImportM
 		Importer: imp,
 		Error:    merr.add,
 	}
-	tpkg, err := conf.Check(apkg.Name, fset, asts, imp.info)
+	tpkg, err := conf.Check(importPath, fset, asts, imp.info)
 	if err != nil {
 		return nil, merr
 	}
