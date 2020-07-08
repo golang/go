@@ -142,6 +142,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 		symtoc := c.ctxt.LookupInit("TOC."+sym.Name, func(s *obj.LSym) {
 			s.Type = objabi.SDATA
 			s.Set(obj.AttrDuplicateOK, true)
+			s.Set(obj.AttrStatic, true)
 			c.ctxt.Data = append(c.ctxt.Data, s)
 			s.WriteAddr(c.ctxt, 0, 8, sym, 0)
 		})
@@ -223,6 +224,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func(s *obj.LSym) {
 		s.Type = objabi.SDATA
 		s.Set(obj.AttrDuplicateOK, true)
+		s.Set(obj.AttrStatic, true)
 		c.ctxt.Data = append(c.ctxt.Data, s)
 		s.WriteAddr(c.ctxt, 0, 8, source.Sym, 0)
 	})
