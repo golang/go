@@ -879,14 +879,17 @@ Found:
 
 		if info.parseErr != nil {
 			badFile(name, info.parseErr)
-			continue
+			// Fall through: we might still have a partial AST in info.parsed,
+			// and we want to list files with parse errors anyway.
 		}
-		pf := info.parsed
 
-		pkg := pf.Name.Name
-		if pkg == "documentation" {
-			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
-			continue
+		var pkg string
+		if info.parsed != nil {
+			pkg = info.parsed.Name.Name
+			if pkg == "documentation" {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+				continue
+			}
 		}
 
 		isTest := strings.HasSuffix(name, "_test.go")
@@ -910,8 +913,8 @@ Found:
 			})
 		}
 		// Grab the first package comment as docs, provided it is not from a test file.
-		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
-			p.Doc = doc.Synopsis(pf.Doc.Text())
+		if info.parsed != nil && info.parsed.Doc != nil && p.Doc == "" && !isTest && !isXTest {
+			p.Doc = doc.Synopsis(info.parsed.Doc.Text())
 		}
 
 		if mode&ImportComment != 0 {
