@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/testenv"
@@ -152,5 +151,5 @@ var _, _ = x.X, y.Y
 		if !strings.HasPrefix(path, filepath.ToSlash(modcache)) {
 			t.Errorf("found module dependency outside of GOMODCACHE: got %v, wanted subdir of %v", path, filepath.ToSlash(modcache))
 		}
-	}, WithProxy(proxy), WithEditorConfig(fake.EditorConfig{Env: []string{"GOMODCACHE=" + modcache}}), WithTimeout(5*time.Second))
+	}, WithProxy(proxy), WithEditorConfig(fake.EditorConfig{Env: []string{"GOMODCACHE=" + modcache}}))
 }
