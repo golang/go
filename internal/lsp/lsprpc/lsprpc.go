@@ -38,6 +38,8 @@ var serverIndex int64
 // streams as a new LSP session, using a shared cache.
 type StreamServer struct {
 	cache *cache.Cache
+	// logConnections controls whether or not to log new connections.
+	logConnections bool
 
 	// serverForTest may be set to a test fake for testing.
 	serverForTest protocol.Server
@@ -46,8 +48,8 @@ type StreamServer struct {
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache *cache.Cache) *StreamServer {
-	return &StreamServer{cache: cache}
+func NewStreamServer(cache *cache.Cache, logConnections bool) *StreamServer {
+	return &StreamServer{cache: cache, logConnections: logConnections}
 }
 
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
@@ -78,6 +80,10 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 			handshaker(session, executable,
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
+	if s.logConnections {
+		log.Printf("Session %s: connected", session.ID())
+		defer log.Printf("Session %s: exited", session.ID())
+	}
 	<-conn.Done()
 	return conn.Err()
 }
@@ -146,7 +152,6 @@ func NewForwarder(network, addr string, opts ...ForwarderOption) *Forwarder {
 		goplsPath:           gp,
 		dialTimeout:         1 * time.Second,
 		retries:             5,
-		remoteLogfile:       "auto",
 		remoteListenTimeout: 1 * time.Minute,
 	}
 	for _, opt := range opts {
@@ -295,7 +300,9 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		args := []string{"serve",
 			"-listen", fmt.Sprintf(`%s;%s`, network, address),
 			"-listen.timeout", f.remoteListenTimeout.String(),
-			"-logfile", f.remoteLogfile,
+		}
+		if f.remoteLogfile != "" {
+			args = append(args, "-logfile", f.remoteLogfile)
 		}
 		if f.remoteDebug != "" {
 			args = append(args, "-debug", f.remoteDebug)
@@ -466,11 +473,16 @@ func handshaker(session *cache.Session, goplsPath string, handler jsonrpc2.Handl
 	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 		switch r.Method() {
 		case handshakeMethod:
+			// We log.Printf in this handler, rather than event.Log when we want logs
+			// to go to the daemon log rather than being reflected back to the
+			// client.
 			var req handshakeRequest
 			if err := json.Unmarshal(r.Params(), &req); err != nil {
+				log.Printf("Error processing handshake for session %s: %v", session.ID(), err)
 				sendError(ctx, reply, err)
 				return nil
 			}
+			log.Printf("Session %s: got handshake. Logfile: %q, Debug addr: %q", session.ID(), req.Logfile, req.DebugAddr)
 			event.Log(ctx, "Handshake session update",
 				cache.KeyUpdateSession.Of(session),
 				tag.DebugAddress.Of(req.DebugAddr),

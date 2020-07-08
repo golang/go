@@ -116,11 +116,15 @@ servers and clients.
 
 ### Using logfiles
 
-The gopls daemon is started with `-logfile=auto` by default. To customize this,
-pass `-remote.logfile` to the gopls forwarder.
+The gopls daemon is started with logging disabled by default. To customize
+this, pass `-remote.logfile` to the gopls forwarder. Using
+`-remote.logfile=auto`, the daemon will log to a default location (on posix
+systems: `/tmp/gopls-daemon-<pid>.log`).
 
-By default, the gopls daemon is not started with the `-rpc.trace` flag, so its
-logfile will only contain actual debug logs from the gopls process.
+The gopls daemon does not log session-scoped messages: those are instead
+reflected back to the forwarder so that they can be accessed by the editor.
+Daemon logs will only contain global messages, for example logs when sessions
+connect and disconnect.
 
 It is recommended to start the forwarder gopls process with `-rpc.trace`, so
 that its logfile will contain rpc trace logs specific to the LSP session.

@@ -323,14 +323,18 @@ func WithInstance(ctx context.Context, workdir, agent string) context.Context {
 }
 
 // SetLogFile sets the logfile for use with this instance.
-func (i *Instance) SetLogFile(logfile string) (func(), error) {
+func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 	// TODO: probably a better solution for deferring closure to the caller would
 	// be for the debug instance to itself be closed, but this fixes the
 	// immediate bug of logs not being captured.
 	closeLog := func() {}
 	if logfile != "" {
 		if logfile == "auto" {
-			logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
+			if isDaemon {
+				logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-daemon-%d.log", os.Getpid()))
+			} else {
+				logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
+			}
 		}
 		f, err := os.Create(logfile)
 		if err != nil {

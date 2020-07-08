@@ -92,7 +92,6 @@ func New(name, wd string, env []string, options func(*source.Options)) *Applicat
 
 		Serve: Serve{
 			RemoteListenTimeout: 1 * time.Minute,
-			RemoteLogfile:       "auto",
 		},
 	}
 	return app

@@ -237,7 +237,7 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 }
 
 func singletonServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(ctx, nil))
+	return lsprpc.NewStreamServer(cache.New(ctx, nil), false)
 }
 
 func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
@@ -245,15 +245,15 @@ func (r *Runner) forwardedServer(ctx context.Context, t *testing.T) jsonrpc2.Str
 	return lsprpc.NewForwarder("tcp", ts.Addr)
 }
 
-// getTestServer gets the test server instance to connect to, or creates one if
-// it doesn't exist.
+// getTestServer gets the shared test server instance to connect to, or creates
+// one if it doesn't exist.
 func (r *Runner) getTestServer() *servertest.TCPServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.ts == nil {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "")
-		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
+		ss := lsprpc.NewStreamServer(cache.New(ctx, nil), false)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	}
 	return r.ts

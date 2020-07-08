@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -62,8 +63,9 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 
 	di := debug.GetInstance(ctx)
+	isDaemon := s.Address != "" || s.Port != 0
 	if di != nil {
-		closeLog, err := di.SetLogFile(s.Logfile)
+		closeLog, err := di.SetLogFile(s.Logfile, isDaemon)
 		if err != nil {
 			return err
 		}
@@ -82,16 +84,21 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 			lsprpc.RemoteLogfile(s.RemoteLogfile),
 		)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options))
+		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options), isDaemon)
 	}
 
+	var network, addr string
 	if s.Address != "" {
-		network, addr := parseAddr(s.Address)
-		return jsonrpc2.ListenAndServe(ctx, network, addr, ss, s.IdleTimeout)
+		network, addr = parseAddr(s.Address)
 	}
 	if s.Port != 0 {
-		addr := fmt.Sprintf(":%v", s.Port)
-		return jsonrpc2.ListenAndServe(ctx, "tcp", addr, ss, s.IdleTimeout)
+		network = "tcp"
+		addr = fmt.Sprintf(":%v", s.Port)
+	}
+	if addr != "" {
+		log.Printf("Gopls daemon: listening on %s network, address %s...", network, addr)
+		defer log.Printf("Gopls daemon: exiting")
+		return jsonrpc2.ListenAndServe(ctx, network, addr, ss, s.IdleTimeout)
 	}
 	stream := jsonrpc2.NewHeaderStream(fakenet.NewConn("stdio", os.Stdin, os.Stdout))
 	if s.Trace && di != nil {
