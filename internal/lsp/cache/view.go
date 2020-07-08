@@ -407,7 +407,7 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 			}
 			v.cleanupProcessEnv()
 		}
-		v.cachedModFileIdentifier = modFH.Identity().Identifier
+		v.cachedModFileIdentifier = modFileIdentifier
 		v.cachedBuildFlags = currentBuildFlags
 		v.cleanupProcessEnv, err = v.populateProcessEnv(ctx, modFH, sumFH)
 		if err != nil {
