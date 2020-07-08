@@ -954,3 +954,42 @@ func _() {
 		)
 	}, WithoutWorkspaceFolders())
 }
+
+// Reproduces the case described in
+// https://github.com/golang/go/issues/39296#issuecomment-652058883.
+func TestPkgm(t *testing.T) {
+	const basic = `
+-- go.mod --
+module mod.com
+
+go 1.15
+-- foo/foo.go --
+package foo
+
+import "fmt"
+
+func Foo() {
+	fmt.Println("")
+}
+`
+	runner.Run(t, basic, func(t *testing.T, env *Env) {
+		testenv.NeedsGo1Point(t, 15)
+
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.WriteWorkspaceFile("foo/foo_test.go", `package main
+
+func main() {
+
+}`)
+		env.OpenFile("foo/foo_test.go")
+		env.RegexpReplace("foo/foo_test.go", `package main`, `package foo`)
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoDiagnostics("foo/foo.go"),
+			),
+		)
+	})
+}
