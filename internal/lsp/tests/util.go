@@ -516,6 +516,11 @@ func EnableAllAnalyzers(snapshot source.Snapshot, opts *source.Options) {
 			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
 		}
 	}
+	for _, a := range opts.ConvenienceAnalyzers {
+		if !a.Enabled(snapshot) {
+			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
+		}
+	}
 }
 
 func Diff(want, got string) string {

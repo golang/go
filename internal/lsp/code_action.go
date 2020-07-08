@@ -356,6 +356,9 @@ func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
+		if !a.Enabled(snapshot) {
+			continue
+		}
 		analyzers = append(analyzers, a.Analyzer)
 	}
 	diagnostics, err := snapshot.Analyze(ctx, ph.ID(), analyzers...)
