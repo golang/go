@@ -52,7 +52,7 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
 	if archive != "" {
@@ -136,6 +136,12 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 			return "", nil, err
 		}
 		args = append(args, "-importcfg", objdir+"importcfg")
+	}
+	if embedcfg != nil {
+		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
+			return "", nil, err
+		}
+		args = append(args, "-embedcfg", objdir+"embedcfg")
 	}
 	if ofile == archive {
 		args = append(args, "-pack")
