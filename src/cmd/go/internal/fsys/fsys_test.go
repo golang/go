@@ -918,7 +918,7 @@ contents`,
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			initOverlay(t, tc.overlay)
-			got, err := lstat(tc.path)
+			got, err := Lstat(tc.path)
 			if tc.wantErr {
 				if err == nil {
 					t.Errorf("lstat(%q): got no error, want error", tc.path)

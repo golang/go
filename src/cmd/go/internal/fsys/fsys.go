@@ -426,7 +426,7 @@ func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
 // Walk walks the file tree rooted at root, calling walkFn for each file or
 // directory in the tree, including root.
 func Walk(root string, walkFn filepath.WalkFunc) error {
-	info, err := lstat(root)
+	info, err := Lstat(root)
 	if err != nil {
 		err = walkFn(root, nil, err)
 	} else {
@@ -439,7 +439,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 }
 
 // lstat implements a version of os.Lstat that operates on the overlay filesystem.
-func lstat(path string) (fs.FileInfo, error) {
+func Lstat(path string) (fs.FileInfo, error) {
 	return overlayStat(path, os.Lstat, "lstat")
 }
 
@@ -523,7 +523,7 @@ func Glob(pattern string) (matches []string, err error) {
 		return nil, err
 	}
 	if !hasMeta(pattern) {
-		if _, err = lstat(pattern); err != nil {
+		if _, err = Lstat(pattern); err != nil {
 			return nil, nil
 		}
 		return []string{pattern}, nil
