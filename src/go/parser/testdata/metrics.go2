@@ -16,12 +16,7 @@ func (m *Metric1(T)) Add(v T) {
 	m[v]++
 }
 
-contract cmp2(T1, T2) {
-	comparable(T1)
-	comparable(T2)
-}
-
-type key2(type T1, T2 cmp2) struct {
+type key2(type T1, T2 comparable) struct {
 	f1 T1
 	f2 T2
 }
@@ -40,19 +35,13 @@ func (m *Metric2(T1, T2)) Add(v1 T1, v2 T2) {
 	m[key(T1, T2){v1, v2}]++
 }
 
-contract cmp3(T1, T2, T3) {
-	comparable(T1)
-	comparable(T2)
-	comparable(T3)
-}
-
-type key3(type T1, T2, T3 cmp3) struct {
+type key3(type T1, T2, T3 comparable) struct {
 	f1 T1
 	f2 T2
 	f3 T3
 }
 
-type Metric3(type T1, T2, T3 cmp3) struct {
+type Metric3(type T1, T2, T3 comparable) struct {
 	mu sync.Mutex
 	m  map[key3(T1, T2, T3)]int
 }

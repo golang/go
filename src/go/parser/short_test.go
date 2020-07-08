@@ -87,26 +87,11 @@ var valids = []string{
 	`package p; type _ interface { _(type A, B C)(a A) B }`,
 	`package p; type _ interface { _(type A, B C(A, B))(a A) B }`,
 
-	// contracts
-	`package p; contract C(){}`,
-	`package p; contract C(T, S, R,){}`,
-	`package p; contract C(T){ T (m(x, int)); }`,
-	`package p; contract (C1(){}; C2(){})`,
-	`package p; contract C(T){ T int, float64, string }`,
-	`package p; contract C(T){ T int,
-		float64,
-		string
-	}`,
-	`package p; contract C(T){ T m(int), n() float64, o(x string) rune }`,
-	`package p; contract C(T){ T int, m(int), float64, n() float64, o(x string) rune }`,
-	`package p; contract C(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
-	`package p; contract C(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
-	`package p; contract C(T){ (C(T)); (((imported.T))) }`,
-	`package p; contract C(T){ *T m() }`,
+	// type bounds
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 
-	// interfaces with (contract) type lists
+	// interfaces with type lists
 	`package p; type _ interface{type int}`,
 	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
 
@@ -117,11 +102,6 @@ var valids = []string{
 }
 
 func TestValid(t *testing.T) {
-	// enable contract parsing for this test
-	saved := contractsOk
-	contractsOk = true
-	defer func() { contractsOk = saved }()
-
 	for _, src := range valids {
 		checkErrors(t, src, src)
 	}
@@ -186,13 +166,6 @@ var invalids = []string{
 	`package p; func _() ( /* ERROR "no type parameters" */ type T)(T)`,
 	`package p; func ( /* ERROR "no type parameters" */ type T)(T) _()`,
 
-	// contracts
-	`package p; contract C(T, T /* ERROR "T redeclared" */ ) {}`,
-	`package p; contract C(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
-	`package p; contract C(T) { * /* ERROR "requires a method" */ C(T) }`,
-	`package p; contract C(T) { * /* ERROR "requires a method" */ T int }`,
-	`package p; func _() { contract /* ERROR "cannot be inside function" */ C(T) { T m(); type int, float32 } }`,
-
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
 
@@ -219,11 +192,6 @@ var invalids = []string{
 }
 
 func TestInvalid(t *testing.T) {
-	// enable contract parsing for this test
-	saved := contractsOk
-	contractsOk = true
-	defer func() { contractsOk = saved }()
-
 	for _, src := range invalids {
 		checkErrors(t, src, src)
 	}

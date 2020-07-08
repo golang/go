@@ -174,11 +174,6 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 }
 
 func TestErrors(t *testing.T) {
-	// enable contract parsing for this test
-	saved := contractsOk
-	contractsOk = true
-	defer func() { contractsOk = saved }()
-
 	list, err := ioutil.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)

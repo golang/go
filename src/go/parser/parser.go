@@ -28,8 +28,6 @@ import (
 
 const methodTParamsOk = true
 
-var contractsOk = false // changed by tests
-
 // The parser structure holds the parser's internal state.
 type parser struct {
 	file    *token.File
@@ -975,7 +973,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	p.expect(token.TYPE)
 	fields := p.parseParameterList(scope, true)
 	// determine which form we have (list of type parameters with optional
-	// contract, or type parameters, all with interfaces as type bounds)
+	// type bound, or type parameters, all with interfaces as type bounds)
 	for _, f := range fields {
 		if len(f.Names) == 0 {
 			assert(f.Type != nil, "expected non-nil type")
@@ -1874,23 +1872,6 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 	}
 
 	switch p.tok {
-	case token.IDENT:
-		if !contractsOk {
-			break
-		}
-
-		// possibly a local contract declaration - accept but complain
-		// Note: This still doesn't catch local grouped contract declarations
-		//       since they look like a function call at first. But those will
-		//       be exceedingly rare, and syntax errors will lead a writer to
-		//       trying ungrouped contracts which will be caught here.
-		if ident, isIdent := x[0].(*ast.Ident); isIdent && ident.Name == "contract" {
-			pos := ident.Pos()
-			c := p.parseContractSpec(nil, pos, token.ILLEGAL, 0)
-			p.error(pos, "contract declaration cannot be inside function")
-			return &ast.BadStmt{From: pos, To: c.End()}, false
-		}
-
 	case token.COLON:
 		// labeled statement
 		colon := p.pos
@@ -2614,121 +2595,6 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	return spec
 }
 
-// Constraint   = [ "*" ] TypeParam TypeOrMethod { "," TypeOrMethod } | ContractName "(" [ TypeList [ "," ] ] ")" .
-// TypeParam    = Ident .
-// TypeOrMethod = Type | MethodName Signature .
-// ContractName = TypeName.
-func (p *parser) parseConstraint() *ast.Constraint {
-	if p.trace {
-		defer un(trace(p, "Constraint"))
-	}
-
-	if p.tok == token.LPAREN {
-		// embedded, possibly parameterized contract
-		// (It's never a type but it looks like a possibly instantiated type, so
-		// let's parse it as such and have the type-checker complain if need be.)
-		return &ast.Constraint{Types: []ast.Expr{p.parseType(true)}}
-	}
-
-	var star token.Pos
-	if p.tok == token.MUL {
-		star = p.pos
-		p.next()
-	}
-
-	tname := p.parseTypeName(nil)
-	if p.tok == token.LPAREN {
-		// ContractName "(" [ TypeList [ "," ] ] ")"
-		if star.IsValid() {
-			p.error(star, "pointer type requires a method")
-		}
-		return &ast.Constraint{Types: []ast.Expr{p.parseTypeInstance(tname)}}
-	}
-
-	param, isIdent := tname.(*ast.Ident)
-	if !isIdent {
-		p.errorExpected(tname.Pos(), "type parameter name")
-		param = &ast.Ident{NamePos: tname.Pos(), Name: "_"}
-	}
-
-	// list of type constraints or methods
-	// invariant: len(mnames) == len(types)
-	// TODO(gri) We probably can simplify this again and only accept either
-	//           a (single) method or a type list. It seems unlikely that
-	//           people insist on writing T m1(), m2() .
-	var mnames []*ast.Ident
-	var types []ast.Expr
-	for {
-		var mname *ast.Ident
-		typ := p.parseType(false)
-		if ident, isIdent := typ.(*ast.Ident); isIdent && p.tok == token.LPAREN {
-			// method
-			mname = ident
-			scope := ast.NewScope(nil) // method scope
-			tparams, params := p.parseParameters(scope, methodTParamsOk, "method")
-			results := p.parseResult(scope, true)
-			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
-		} else if star.IsValid() {
-			// type with (invalid) starred type parameter
-			p.error(star, "pointer type requires a method")
-			star = token.NoPos // suppress further errors
-		}
-		mnames = append(mnames, mname)
-		types = append(types, typ)
-
-		if p.tok != token.COMMA {
-			break
-		}
-		p.next()
-	}
-
-	// param != nil
-	return &ast.Constraint{Star: star, Param: param, MNames: mnames, Types: types}
-}
-
-// ContractSpec = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
-func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, _ int) ast.Spec {
-	if p.trace {
-		defer un(trace(p, "ContractSpec"))
-	}
-
-	ident := p.parseIdent()
-
-	var tparams []*ast.Ident
-	p.expect(token.LPAREN)
-	scope := ast.NewScope(nil) // contract scope
-	for p.tok != token.RPAREN && p.tok != token.EOF {
-		tparams = append(tparams, p.parseIdent())
-		if !p.atComma("contract parameter list", token.RPAREN) {
-			break
-		}
-		p.next()
-	}
-	p.declare(nil, nil, scope, ast.Typ, tparams...) // this should be something other that ast.Typ but we don't care (never used)
-	p.expect(token.RPAREN)
-
-	var constraints []*ast.Constraint
-	lbrace := p.expect(token.LBRACE)
-	for p.tok != token.RBRACE && p.tok != token.EOF {
-		constraints = append(constraints, p.parseConstraint())
-		p.expectSemi()
-	}
-	rbrace := p.expect(token.RBRACE)
-
-	spec := &ast.ContractSpec{Doc: doc, Name: ident, TParams: tparams, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
-	if keyword == token.ILLEGAL {
-		// parseContract was called from parseSimpleStmt; it is invalid and
-		// a semicolon will be expected externally => don't parse semicolon
-		// and ignore the comment.
-		return spec
-	}
-	p.declare(spec, nil, p.topScope, ast.Typ, ident) // TODO(gri) should really be something other that ast.Typ
-	p.expectSemi()                                   // call before accessing p.linecomment
-	spec.Comment = p.lineComment
-
-	return spec
-}
-
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
 	if p.trace {
 		defer un(trace(p, "GenDecl("+keyword.String()+")"))
@@ -2839,14 +2705,6 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 
 	case token.FUNC:
 		return p.parseFuncDecl()
-
-	case token.IDENT:
-		// TODO(gri) we need to be smarter about this to avoid problems with existing code
-		if contractsOk && p.lit == "contract" {
-			f = p.parseContractSpec
-			break
-		}
-		fallthrough
 
 	default:
 		pos := p.pos

@@ -1038,8 +1038,6 @@ func getDoc(n ast.Node) *ast.CommentGroup {
 		return n.Doc
 	case *ast.TypeSpec:
 		return n.Doc
-	case *ast.ContractSpec:
-		return n.Doc
 	case *ast.GenDecl:
 		return n.Doc
 	case *ast.FuncDecl:
@@ -1059,8 +1057,6 @@ func getLastComment(n ast.Node) *ast.CommentGroup {
 	case *ast.ValueSpec:
 		return n.Comment
 	case *ast.TypeSpec:
-		return n.Comment
-	case *ast.ContractSpec:
 		return n.Comment
 	case *ast.GenDecl:
 		if len(n.Specs) > 0 {

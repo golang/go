@@ -1105,30 +1105,6 @@ func (p *printer) expr(x ast.Expr) {
 	p.expr1(x, token.LowestPrec, depth)
 }
 
-func (p *printer) constraint(x *ast.Constraint) {
-	p.print(x.Pos())
-	if x.Star.IsValid() {
-		p.print(token.MUL)
-	}
-	if x.Param == nil {
-		// embedded contract
-		p.expr(x.Types[0])
-		return
-	}
-	// method or list of types
-	p.print(x.Param, vtab)
-	if len(x.MNames) > 0 && x.MNames[0] != nil {
-		// single method
-		// For now we only support a single method
-		// even though the parser is more relaxed.
-		p.print(x.MNames[0])
-		p.signature(x.Types[0].(*ast.FuncType))
-		return
-	}
-	// list of types
-	p.exprList(token.NoPos, x.Types, 1, 0, token.NoPos, false)
-}
-
 // ----------------------------------------------------------------------------
 // Statements
 
@@ -1661,31 +1637,6 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		p.expr(s.Type)
 		p.setComment(s.Comment)
 
-	case *ast.ContractSpec:
-		p.setComment(s.Doc)
-		p.expr(s.Name)
-		p.print(token.LPAREN)
-		for i, par := range s.TParams {
-			if i > 0 {
-				p.print(token.COMMA, blank)
-			}
-			p.print(par)
-		}
-		p.print(token.RPAREN)
-		if len(s.Constraints) > 0 {
-			p.print(blank, s.Lbrace, token.LBRACE, indent)
-			for _, c := range s.Constraints {
-				p.linebreak(p.lineFor(c.Pos()), 1, ignore, false)
-				p.constraint(c)
-			}
-			p.print(unindent)
-			p.linebreak(p.lineFor(s.Rbrace), 1, ignore, true)
-			p.print(s.Rbrace, token.RBRACE)
-		} else {
-			p.print(s.Lbrace, token.LBRACE, s.Rbrace, token.RBRACE)
-		}
-		p.setComment(s.Comment)
-
 	default:
 		panic("unreachable")
 	}
@@ -1693,14 +1644,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 
 func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setComment(d.Doc)
-	// Contract declarations rely on the pseudo-keyword (identifier) "contract";
-	// in the AST the respective token is ast.IDENT. Catch and correct this here.
-	if d.Tok == token.IDENT {
-		p.print(&ast.Ident{NamePos: d.Pos(), Name: "contract"})
-	} else {
-		p.print(d.Pos(), d.Tok)
-	}
-	p.print(blank)
+	p.print(d.Pos(), d.Tok, blank)
 
 	if d.Lparen.IsValid() || len(d.Specs) > 1 {
 		// group of parenthesized declarations

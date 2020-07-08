@@ -133,7 +133,7 @@ func typeEmbedsComparable(typ types.Type) bool {
 	return false
 }
 
-// A translator is used to translate a file from Go with contracts to Go 1.
+// A translator is used to translate a file from generic Go to Go 1.
 type translator struct {
 	fset         *token.FileSet
 	importer     *Importer
@@ -439,7 +439,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 	return t.err
 }
 
-// translate translates the AST for a file from Go with contracts to Go 1.
+// translate translates the AST for a file from generic Go to Go 1.
 func (t *translator) translate(file *ast.File) {
 	declsToDo := file.Decls
 	file.Decls = nil
@@ -480,9 +480,6 @@ func (t *translator) translate(file *ast.File) {
 					for j := range decl.Specs {
 						t.translateValueSpec(&decl.Specs[j])
 					}
-				case token.IDENT:
-					// A contract.
-					decl = nil
 				}
 				if decl != nil {
 					newDecls = append(newDecls, decl)
@@ -497,7 +494,7 @@ func (t *translator) translate(file *ast.File) {
 	}
 }
 
-// translateTypeSpec translates a type from Go with contracts to Go 1.
+// translateTypeSpec translates a type from generic Go to Go 1.
 func (t *translator) translateTypeSpec(ps *ast.Spec) {
 	ts := (*ps).(*ast.TypeSpec)
 	if ts.TParams != nil {
@@ -507,8 +504,7 @@ func (t *translator) translateTypeSpec(ps *ast.Spec) {
 	t.translateExpr(&ts.Type)
 }
 
-// translateValueSpec translates a variable or constant from Go with
-// contracts to Go 1.
+// translateValueSpec translates a variable or constant from generic Go to Go 1.
 func (t *translator) translateValueSpec(ps *ast.Spec) {
 	vs := (*ps).(*ast.ValueSpec)
 	t.translateExpr(&vs.Type)
@@ -517,7 +513,7 @@ func (t *translator) translateValueSpec(ps *ast.Spec) {
 	}
 }
 
-// translateFuncDecl translates a function from Go with contracts to Go 1.
+// translateFuncDecl translates a function from generic Go to Go 1.
 func (t *translator) translateFuncDecl(pd *ast.Decl) {
 	if t.err != nil {
 		return
@@ -534,8 +530,7 @@ func (t *translator) translateFuncDecl(pd *ast.Decl) {
 	t.translateBlockStmt(fd.Body)
 }
 
-// translateBlockStmt translates a block statement from Go with
-// contracts to Go 1.
+// translateBlockStmt translates a block statement from generic Go to Go 1.
 func (t *translator) translateBlockStmt(pbs *ast.BlockStmt) {
 	if pbs == nil {
 		return
@@ -545,7 +540,7 @@ func (t *translator) translateBlockStmt(pbs *ast.BlockStmt) {
 	}
 }
 
-// translateStmt translates a statement from Go with contracts to Go 1.
+// translateStmt translates a statement from generic Go to Go 1.
 func (t *translator) translateStmt(ps *ast.Stmt) {
 	if t.err != nil {
 		return
@@ -630,15 +625,14 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 	}
 }
 
-// translateStmtList translates a list of statements from Go with
-// contracts to Go 1.
+// translateStmtList translates a list of statements generic Go to Go 1.
 func (t *translator) translateStmtList(sl []ast.Stmt) {
 	for i := range sl {
 		t.translateStmt(&sl[i])
 	}
 }
 
-// translateExpr translates an expression from Go with contracts to Go 1.
+// translateExpr translates an expression from generic Go to Go 1.
 func (t *translator) translateExpr(pe *ast.Expr) {
 	if t.err != nil {
 		return
@@ -716,8 +710,8 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	}
 }
 
-// translateIdent translates a simple identifier from Go with
-// contracts to Go 1. These are usually fine as is, but a reference
+// translateIdent translates a simple identifier generic Go to Go 1.
+// These are usually fine as is, but a reference
 // to a non-generic name in another package may need a package qualifier.
 func (t *translator) translateIdent(pe *ast.Expr) {
 	e := (*pe).(*ast.Ident)
@@ -749,7 +743,7 @@ func (t *translator) translateIdent(pe *ast.Expr) {
 }
 
 // translateSelectorExpr translates a selector expression
-// from Go with contracts to Go 1.
+// from generic Go to Go 1.
 func (t *translator) translateSelectorExpr(pe *ast.Expr) {
 	e := (*pe).(*ast.SelectorExpr)
 
@@ -852,15 +846,14 @@ func mergeFieldList(methods *ast.FieldList, types []ast.Expr) (fl *ast.FieldList
 	return
 }
 
-// translateExprList translate an expression list from Go with
-// contracts to Go 1.
+// translateExprList translate an expression list generic Go to Go 1.
 func (t *translator) translateExprList(el []ast.Expr) {
 	for i := range el {
 		t.translateExpr(&el[i])
 	}
 }
 
-// translateFieldList translates a field list from Go with contracts to Go 1.
+// translateFieldList translates a field list generic Go to Go 1.
 func (t *translator) translateFieldList(fl *ast.FieldList) {
 	if fl == nil {
 		return
@@ -870,7 +863,7 @@ func (t *translator) translateFieldList(fl *ast.FieldList) {
 	}
 }
 
-// translateField translates a field from Go with contracts to Go 1.
+// translateField translates a field generic Go to Go 1.
 func (t *translator) translateField(f *ast.Field) {
 	t.translateExpr(&f.Type)
 }

@@ -1,12 +1,18 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package linalg
 
-// Numeric is a contract that matches any numeric type.
-// It would likely be in a contracts package in the standard library.
-contract Numeric(T) {
-	T int; T int8; T int16; T int32; T int64
-	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
-	T float32; T float64
-	T complex64; T complex128
+import "math"
+
+// Numeric is type bound that matches any numeric type.
+// It would likely be in a constraints package in the standard library.
+type Numeric interface {
+	type int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64,
+		complex64, complex128
 }
 
 func DotProduct(type T Numeric)(s1, s2 []T) T {
@@ -21,9 +27,10 @@ func DotProduct(type T Numeric)(s1, s2 []T) T {
 }
 
 // NumericAbs matches numeric types with an Abs method.
-contract NumericAbs(T) {
-	Numeric(T)
-	T Abs() T
+type NumericAbs(type T) interface {
+	Numeric
+
+	Abs() T
 }
 
 // AbsDifference computes the absolute value of the difference of
@@ -33,16 +40,16 @@ func AbsDifference(type T NumericAbs)(a, b T) T {
 	return d.Abs()
 }
 
-// OrderedNumeric matches numeric types that support the < operator.
-contract OrderedNumeric(T) {
-	T int; T int8; T int16; T int32; T int64
-	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
-	T float32; T float64
+// OrderedNumeric is a type bound that matches numeric types that support the < operator.
+type OrderedNumeric interface {
+	type int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64
 }
 
-// Complex matches the two complex types, which do not have a < operator.
-contract Complex(T) {
-	T complex64; T complex128
+// Complex is a type bound that matches the two complex types, which do not have a < operator.
+type Complex interface {
+	type complex64, complex128
 }
 
 // OrderedAbs is a helper type that defines an Abs method for
@@ -60,11 +67,11 @@ func (a OrderedAbs(T)) Abs() OrderedAbs(T) {
 // complex types.
 type ComplexAbs(type T Complex) T
 
-func (a ComplexAbs(T)) Abs() T {
+func (a ComplexAbs(T)) Abs() ComplexAbs(T) {
 	r := float64(real(a))
 	i := float64(imag(a))
 	d := math.Sqrt(r * r + i * i)
-	return T(complex(d, 0))
+	return (ComplexAbs(T))(complex(d, 0))
 }
 
 func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {

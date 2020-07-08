@@ -206,7 +206,6 @@ var data = []entry{
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
 	{"go2numbers.input", "go2numbers.stdfmt", stdFormat | idempotent},
-	// {"contracts.input", "contracts.golden", idempotent}, // disabled
 }
 
 func TestFiles(t *testing.T) {

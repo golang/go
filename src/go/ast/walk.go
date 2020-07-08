@@ -39,16 +39,6 @@ func walkDeclList(v Visitor, list []Decl) {
 	}
 }
 
-func walkConstraintList(v Visitor, constraints []*Constraint) {
-	for _, x := range constraints {
-		if x.Param != nil {
-			Walk(v, x.Param)
-		}
-		walkIdentList(v, x.MNames)
-		walkExprList(v, x.Types)
-	}
-}
-
 // TODO(gri): Investigate if providing a closure to Walk leads to
 //            simpler use (and may help eliminate Inspect in turn).
 
@@ -334,16 +324,6 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.TParams)
 		}
 		Walk(v, n.Type)
-		if n.Comment != nil {
-			Walk(v, n.Comment)
-		}
-
-	case *ContractSpec:
-		if n.Doc != nil {
-			Walk(v, n.Doc)
-		}
-		walkIdentList(v, n.TParams)
-		walkConstraintList(v, n.Constraints)
 		if n.Comment != nil {
 			Walk(v, n.Comment)
 		}
