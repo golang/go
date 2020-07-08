@@ -38,6 +38,7 @@ func TestEverything(t *testing.T) {
 	String("test_string", "0", "string value")
 	Float64("test_float64", 0, "float64 value")
 	Duration("test_duration", 0, "time.Duration value")
+	Func("test_func", "func value", func(string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -52,6 +53,8 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_duration" && f.Value.String() == desired+"s":
 				ok = true
+			case f.Name == "test_func" && f.Value.String() == "":
+				ok = true
 			}
 			if !ok {
 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
@@ -59,7 +62,7 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	VisitAll(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("VisitAll misses some flags")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -82,9 +85,10 @@ func TestEverything(t *testing.T) {
 	Set("test_string", "1")
 	Set("test_float64", "1")
 	Set("test_duration", "1s")
+	Set("test_func", "1")
 	desired = "1"
 	Visit(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("Visit fails after set")
 		for k, v := range m {
 			t.Log(k, *v)
