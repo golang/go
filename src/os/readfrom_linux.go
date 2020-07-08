@@ -32,6 +32,11 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	if !ok {
 		return 0, false, nil
 	}
+	if src.checkValid("ReadFrom") != nil {
+		// Avoid returning the error as we report handled as false,
+		// leave further error handling as the responsibility of the caller.
+		return 0, false, nil
+	}
 
 	written, handled, err = pollCopyFileRange(&f.pfd, &src.pfd, remain)
 	if lr != nil {
