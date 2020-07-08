@@ -180,12 +180,31 @@ func putelfsectionsym(ctxt *Link, out *OutBuf, s loader.Sym, shndx int) {
 func genelfsym(ctxt *Link, elfbind int) {
 	ldr := ctxt.loader
 
-	// Text symbols.
+	// runtime.text marker symbol(s).
 	s := ldr.Lookup("runtime.text", 0)
 	putelfsym(ctxt, s, STT_FUNC, elfbind)
+	for k, sect := range Segtext.Sections[1:] {
+		n := k + 1
+		if sect.Name != ".text" || (ctxt.IsAIX() && ctxt.IsExternal()) {
+			// On AIX, runtime.text.X are symbols already in the symtab.
+			break
+		}
+		s = ldr.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
+		if s == 0 {
+			break
+		}
+		if ldr.SymType(s) != sym.STEXT {
+			panic("unexpected type for runtime.text symbol")
+		}
+		putelfsym(ctxt, s, STT_FUNC, elfbind)
+	}
+
+	// Text symbols.
 	for _, s := range ctxt.Textp {
 		putelfsym(ctxt, s, STT_FUNC, elfbind)
 	}
+
+	// runtime.etext marker symbol.
 	s = ldr.Lookup("runtime.etext", 0)
 	if ldr.SymType(s) == sym.STEXT {
 		putelfsym(ctxt, s, STT_FUNC, elfbind)
