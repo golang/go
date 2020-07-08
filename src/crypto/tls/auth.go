@@ -155,9 +155,9 @@ var rsaSignatureSchemes = []struct {
 	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
 	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
 	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
-	// PKCS#1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
+	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
 	//    emLen >= len(prefix) + hLen + 11
-	// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
+	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
 	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
 	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
 	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
