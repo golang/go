@@ -726,6 +726,20 @@ var (
 	}
 )
 
+// cleanup returns the posets to the free list
+func (ft *factsTable) cleanup(f *Func) {
+	for _, po := range []*poset{ft.orderS, ft.orderU} {
+		// Make sure it's empty as it should be. A non-empty poset
+		// might cause errors and miscompilations if reused.
+		if checkEnabled {
+			if err := po.CheckEmpty(); err != nil {
+				f.Fatalf("poset not empty after function %s: %v", f.Name, err)
+			}
+		}
+		f.retPoset(po)
+	}
+}
+
 // prove removes redundant BlockIf branches that can be inferred
 // from previous dominating comparisons.
 //
@@ -917,17 +931,7 @@ func prove(f *Func) {
 
 	ft.restore()
 
-	// Return the posets to the free list
-	for _, po := range []*poset{ft.orderS, ft.orderU} {
-		// Make sure it's empty as it should be. A non-empty poset
-		// might cause errors and miscompilations if reused.
-		if checkEnabled {
-			if err := po.CheckEmpty(); err != nil {
-				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
-			}
-		}
-		f.retPoset(po)
-	}
+	ft.cleanup(f)
 }
 
 // getBranch returns the range restrictions added by p
