@@ -125,23 +125,7 @@ func writebarrier(f *Func) {
 			// lazily initialize global values for write barrier test and calls
 			// find SB and SP values in entry block
 			initpos := f.Entry.Pos
-			for _, v := range f.Entry.Values {
-				if v.Op == OpSB {
-					sb = v
-				}
-				if v.Op == OpSP {
-					sp = v
-				}
-				if sb != nil && sp != nil {
-					break
-				}
-			}
-			if sb == nil {
-				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
-			}
-			if sp == nil {
-				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
-			}
+			sp, sb = f.spSb()
 			wbsym := f.fe.Syslook("writeBarrier")
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
