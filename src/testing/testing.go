@@ -219,9 +219,12 @@
 // directly. TestMain runs in the main goroutine and can do whatever setup
 // and teardown is necessary around a call to m.Run. m.Run will return an exit
 // code that may be passed to os.Exit. If TestMain returns, the test wrapper
-// will pass the result of m.Run to os.Exit itself. When TestMain is called,
-// flag.Parse has not been run. If TestMain depends on command-line flags,
-// including those of the testing package, it should call flag.Parse explicitly.
+// will pass the result of m.Run to os.Exit itself.
+//
+// When TestMain is called, flag.Parse has not been run. If TestMain depends on
+// command-line flags, including those of the testing package, it should call
+// flag.Parse explicitly. Command line flags are always parsed by the time test
+// or benchmark functions run.
 //
 // A simple implementation of TestMain is:
 //
@@ -322,6 +325,7 @@ var (
 	cpuListStr           *string
 	parallel             *int
 	testlog              *string
+	printer              *testPrinter
 
 	haveExamples bool // are there examples?
 
@@ -330,6 +334,48 @@ var (
 
 	numFailed uint32 // number of test failures
 )
+
+type testPrinter struct {
+	chatty bool
+
+	lastNameMu sync.Mutex // guards lastName
+	lastName   string     // last printed test name in chatty mode
+}
+
+func newTestPrinter(chatty bool) *testPrinter {
+	return &testPrinter{
+		chatty: chatty,
+	}
+}
+
+func (p *testPrinter) Print(testName, out string) {
+	p.Fprint(os.Stdout, testName, out)
+}
+
+func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
+	p.lastNameMu.Lock()
+	defer p.lastNameMu.Unlock()
+
+	if !p.chatty ||
+		strings.HasPrefix(out, "--- PASS") ||
+		strings.HasPrefix(out, "--- FAIL") ||
+		strings.HasPrefix(out, "=== CONT") ||
+		strings.HasPrefix(out, "=== RUN") {
+		p.lastName = testName
+		fmt.Fprint(w, out)
+		return
+	}
+
+	if p.lastName == "" {
+		p.lastName = testName
+	} else if p.lastName != testName {
+		// Always printed as-is, with 0 decoration or indentation. So, we skip
+		// printing to w.
+		fmt.Printf("=== CONT  %s\n", testName)
+		p.lastName = testName
+	}
+	fmt.Fprint(w, out)
+}
 
 // The maximum number of stack frames to go through when skipping helper functions for
 // the purpose of decorating log messages.
@@ -351,10 +397,11 @@ type common struct {
 	cleanupPc   []uintptr           // The stack trace at the point where Cleanup was called.
 
 	chatty     bool   // A copy of the chatty flag.
+	bench      bool   // Whether the current test is a benchmark.
 	finished   bool   // Test function has completed.
-	hasSub     int32  // written atomically
-	raceErrors int    // number of races detected during test
-	runner     string // function name of tRunner running the test
+	hasSub     int32  // Written atomically.
+	raceErrors int    // Number of races detected during test.
+	runner     string // Function name of tRunner running the test.
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
@@ -369,6 +416,7 @@ type common struct {
 	tempDirOnce sync.Once
 	tempDir     string
 	tempDirErr  error
+	tempDirSeq  int32
 }
 
 // Short reports whether the -test.short flag is set.
@@ -492,9 +540,6 @@ func (c *common) decorate(s string, skip int) string {
 	buf := new(strings.Builder)
 	// Every line is indented at least 4 spaces.
 	buf.WriteString("    ")
-	if c.chatty {
-		fmt.Fprintf(buf, "%s: ", c.name)
-	}
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
 	lines := strings.Split(s, "\n")
 	if l := len(lines); l > 1 && lines[l-1] == "" {
@@ -513,12 +558,12 @@ func (c *common) decorate(s string, skip int) string {
 
 // flushToParent writes c.output to the parent after first writing the header
 // with the given format and arguments.
-func (c *common) flushToParent(format string, args ...interface{}) {
+func (c *common) flushToParent(testName, format string, args ...interface{}) {
 	p := c.parent
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	fmt.Fprintf(p.w, format, args...)
+	printer.Fprint(p.w, testName, fmt.Sprintf(format, args...))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -693,7 +738,14 @@ func (c *common) logDepth(s string, depth int) {
 		panic("Log in goroutine after " + c.name + " has completed")
 	} else {
 		if c.chatty {
-			fmt.Print(c.decorate(s, depth+1))
+			if c.bench {
+				// Benchmarks don't print === CONT, so we should skip the test
+				// printer and just print straight to stdout.
+				fmt.Print(c.decorate(s, depth+1))
+			} else {
+				printer.Print(c.name, c.decorate(s, depth+1))
+			}
+
 			return
 		}
 		c.output = append(c.output, c.decorate(s, depth+1)...)
@@ -818,12 +870,13 @@ var tempDirReplacer struct {
 }
 
 // TempDir returns a temporary directory for the test to use.
-// It is lazily created on first access, and calls t.Fatal if the directory
-// creation fails.
-// Subsequent calls to t.TempDir return the same directory.
 // The directory is automatically removed by Cleanup when the test and
 // all its subtests complete.
+// Each subsequent call to t.TempDir returns a unique directory;
+// if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
+	// Use a single parent directory for all the temporary directories
+	// created by a test, each numbered sequentially.
 	c.tempDirOnce.Do(func() {
 		c.Helper()
 
@@ -846,7 +899,12 @@ func (c *common) TempDir() string {
 	if c.tempDirErr != nil {
 		c.Fatalf("TempDir: %v", c.tempDirErr)
 	}
-	return c.tempDir
+	seq := atomic.AddInt32(&c.tempDirSeq, 1)
+	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
+	if err := os.Mkdir(dir, 0777); err != nil {
+		c.Fatalf("TempDir: %v", err)
+	}
+	return dir
 }
 
 // panicHanding is an argument to runCleanup.
@@ -932,7 +990,7 @@ func (t *T) Parallel() {
 		for ; root.parent != nil; root = root.parent {
 		}
 		root.mu.Lock()
-		fmt.Fprintf(root.w, "=== CONT  %s\n", t.name)
+		printer.Fprint(root.w, t.name, fmt.Sprintf("=== CONT  %s\n", t.name))
 		root.mu.Unlock()
 	}
 
@@ -991,7 +1049,7 @@ func tRunner(t *T, fn func(t *T)) {
 				root.duration += time.Since(root.start)
 				d := root.duration
 				root.mu.Unlock()
-				root.flushToParent("--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
 				}
@@ -1090,7 +1148,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		for ; root.parent != nil; root = root.parent {
 		}
 		root.mu.Lock()
-		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
+		printer.Fprint(root.w, t.name, fmt.Sprintf("=== RUN   %s\n", t.name))
 		root.mu.Unlock()
 	}
 	// Instead of reducing the running count of this test before calling the
@@ -1256,6 +1314,8 @@ func (m *M) Run() (code int) {
 		flag.Parse()
 	}
 
+	printer = newTestPrinter(Verbose())
+
 	if *parallel < 1 {
 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
 		flag.Usage()
@@ -1299,12 +1359,12 @@ func (t *T) report() {
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
 	if t.Failed() {
-		t.flushToParent(format, "FAIL", t.name, dstr)
+		t.flushToParent(t.name, format, "FAIL", t.name, dstr)
 	} else if t.chatty {
 		if t.Skipped() {
-			t.flushToParent(format, "SKIP", t.name, dstr)
+			t.flushToParent(t.name, format, "SKIP", t.name, dstr)
 		} else {
-			t.flushToParent(format, "PASS", t.name, dstr)
+			t.flushToParent(t.name, format, "PASS", t.name, dstr)
 		}
 	}
 }

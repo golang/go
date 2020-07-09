@@ -7,6 +7,7 @@ package testing_test
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -55,8 +56,11 @@ func testTempDir(t *testing.T) {
 		t.Fatal("expected dir")
 	}
 	dir2 := t.TempDir()
-	if dir != dir2 {
-		t.Fatal("directory changed between calls")
+	if dir == dir2 {
+		t.Fatal("subsequent calls to TempDir returned the same directory")
+	}
+	if filepath.Dir(dir) != filepath.Dir(dir2) {
+		t.Fatalf("calls to TempDir do not share a parent; got %q, %q", dir, dir2)
 	}
 	dirCh <- dir
 	fi, err := os.Stat(dir)

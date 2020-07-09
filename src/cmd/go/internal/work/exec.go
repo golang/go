@@ -2434,13 +2434,25 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	if b.flagCache == nil {
 		b.flagCache = make(map[[2]string]bool)
 	}
+
+	tmp := os.DevNull
+	if runtime.GOOS == "windows" {
+		f, err := ioutil.TempFile(b.WorkDir, "")
+		if err != nil {
+			return false
+		}
+		f.Close()
+		tmp = f.Name()
+		defer os.Remove(tmp)
+	}
+
 	// We used to write an empty C file, but that gets complicated with
 	// go build -n. We tried using a file that does not exist, but that
 	// fails on systems with GCC version 4.2.1; that is the last GPLv2
 	// version of GCC, so some systems have frozen on it.
 	// Now we pass an empty file on stdin, which should work at least for
 	// GCC and clang.
-	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", os.DevNull)
+	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", tmp)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
 		if cfg.BuildN {

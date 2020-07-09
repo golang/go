@@ -629,10 +629,23 @@ func TestFuncAlign(t *testing.T) {
 	}
 }
 
-const helloSrc = `
+const testTrampSrc = `
 package main
 import "fmt"
-func main() { fmt.Println("hello") }
+func main() {
+	fmt.Println("hello")
+
+	defer func(){
+		if e := recover(); e == nil {
+			panic("did not panic")
+		}
+	}()
+	f1()
+}
+
+// Test deferreturn trampolines. See issue #39049.
+func f1() { defer f2() }
+func f2() { panic("XXX") }
 `
 
 func TestTrampoline(t *testing.T) {
@@ -655,7 +668,7 @@ func TestTrampoline(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	src := filepath.Join(tmpdir, "hello.go")
-	err = ioutil.WriteFile(src, []byte(helloSrc), 0666)
+	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,5 +744,39 @@ func TestIndexMismatch(t *testing.T) {
 	}
 	if !bytes.Contains(out, []byte("fingerprint mismatch")) {
 		t.Errorf("did not see expected error message. out:\n%s", out)
+	}
+}
+
+func TestPErsrc(t *testing.T) {
+	// Test that PE rsrc section is handled correctly (issue 39658).
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOARCH != "amd64" || runtime.GOOS != "windows" {
+		t.Skipf("this is a windows/amd64-only test")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	pkgdir := filepath.Join("testdata", "testPErsrc")
+	exe := filepath.Join(tmpdir, "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = pkgdir
+	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building failed: %v, output:\n%s", err, out)
+	}
+
+	// Check that the binary contains the rsrc data
+	b, err := ioutil.ReadFile(exe)
+	if err != nil {
+		t.Fatalf("reading output failed: %v", err)
+	}
+	if !bytes.Contains(b, []byte("Hello Gophers!")) {
+		t.Fatalf("binary does not contain expected content")
 	}
 }

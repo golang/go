@@ -956,6 +956,70 @@ func negIndex2(n int) {
 	useSlice(c)
 }
 
+// Check that prove is zeroing these right shifts of positive ints by bit-width - 1.
+// e.g (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) && ft.isNonNegative(n) -> 0
+func sh64(n int64) int64 {
+	if n < 0 {
+		return n
+	}
+	return n >> 63 // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func sh32(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n >> 31 // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
+func sh32x64(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n >> uint64(31) // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
+func sh16(n int16) int16 {
+	if n < 0 {
+		return n
+	}
+	return n >> 15 // ERROR "Proved Rsh16x64 shifts to zero"
+}
+
+func sh64noopt(n int64) int64 {
+	return n >> 63 // not optimized; n could be negative
+}
+
+// These cases are division of a positive signed integer by a power of 2.
+// The opt pass doesnt have sufficient information to see that n is positive.
+// So, instead, opt rewrites the division with a less-than-optimal replacement.
+// Prove, which can see that n is nonnegative, cannot see the division because
+// opt, an earlier pass, has already replaced it.
+// The fix for this issue allows prove to zero a right shift that was added as
+// part of the less-than-optimal reqwrite. That change by prove then allows
+// lateopt to clean up all the unneccesary parts of the original division
+// replacement. See issue #36159.
+func divShiftClean(n int) int {
+	if n < 0 {
+		return n
+	}
+	return n / int(8) // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func divShiftClean64(n int64) int64 {
+	if n < 0 {
+		return n
+	}
+	return n / int64(16) // ERROR "Proved Rsh64x64 shifts to zero"
+}
+
+func divShiftClean32(n int32) int32 {
+	if n < 0 {
+		return n
+	}
+	return n / int32(16) // ERROR "Proved Rsh32x64 shifts to zero"
+}
+
 //go:noinline
 func useInt(a int) {
 }

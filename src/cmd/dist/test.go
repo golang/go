@@ -178,15 +178,6 @@ func (t *tester) run() {
 		return
 	}
 
-	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
-	// correct access to source code, so if we have GOROOT_FINAL in effect,
-	// at least runtime/debug test will fail.
-	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
-	// Nothing we can do about that other than not checking them below.
-	// (We call checkNotStale but only with "std" not "cmd".)
-	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
-	os.Unsetenv("GOROOT_FINAL")
-
 	for _, name := range t.runNames {
 		if !t.isRegisteredTestName(name) {
 			fatalf("unknown test %q", name)
@@ -465,6 +456,18 @@ func (t *tester) registerTests() {
 			heading: "crypto/x509 without bundled roots",
 			fn: func(dt *distTest) error {
 				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=x509omitbundledroots", "-run=OmitBundledRoots", "crypto/x509")
+				return nil
+			},
+		})
+	}
+
+	// Test the ios build tag on darwin/amd64 for the iOS simulator.
+	if goos == "darwin" && !t.iOS() {
+		t.tests = append(t.tests, distTest{
+			name:    "amd64ios",
+			heading: "ios tag on darwin/amd64",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=ios", "-run=SystemRoots", "crypto/x509")
 				return nil
 			},
 		})

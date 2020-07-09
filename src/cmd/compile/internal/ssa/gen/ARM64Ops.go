@@ -587,18 +587,12 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// Constant flag values. For any comparison, there are 5 possible
-		// outcomes: the three from the signed total order (<,==,>) and the
-		// three from the unsigned total order. The == cases overlap.
-		// Note: there's a sixth "unordered" outcome for floating-point
+		// Constant flag value.
+		// Note: there's an "unordered" outcome for floating-point
 		// comparisons, but we don't use such a beast yet.
-		// These ops are for temporary use by rewrite rules. They
+		// This op is for temporary use by rewrite rules. It
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},     // equal
-		{name: "FlagLT_ULT"}, // signed < and unsigned <
-		{name: "FlagLT_UGT"}, // signed < and unsigned >
-		{name: "FlagGT_UGT"}, // signed > and unsigned <
-		{name: "FlagGT_ULT"}, // signed > and unsigned >
+		{name: "FlagConstant", aux: "FlagConstant"},
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -701,6 +695,10 @@ func init() {
 		{name: "FLE", controls: 1},
 		{name: "FGT", controls: 1},
 		{name: "FGE", controls: 1},
+		{name: "LTnoov", controls: 1}, // 'LT' but without honoring overflow
+		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
+		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
+		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
 	}
 
 	archs = append(archs, arch{

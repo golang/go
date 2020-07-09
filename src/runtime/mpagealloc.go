@@ -81,19 +81,13 @@ const (
 	// there should this change.
 	pallocChunksL2Bits  = heapAddrBits - logPallocChunkBytes - pallocChunksL1Bits
 	pallocChunksL1Shift = pallocChunksL2Bits
-
-	// Maximum searchAddr value, which indicates that the heap has no free space.
-	//
-	// We subtract arenaBaseOffset because we want this to represent the maximum
-	// value in the shifted address space, but searchAddr is stored as a regular
-	// memory address. See arenaBaseOffset for details.
-	maxSearchAddr = ^uintptr(0) - arenaBaseOffset
-
-	// Minimum scavAddr value, which indicates that the scavenger is done.
-	//
-	// minScavAddr + arenaBaseOffset == 0
-	minScavAddr = (^arenaBaseOffset + 1) & uintptrMask
 )
+
+// Maximum searchAddr value, which indicates that the heap has no free space.
+//
+// We alias maxOffAddr just to make it clear that this is the maximum address
+// for the page allocator's search space. See maxOffAddr for details.
+var maxSearchAddr = maxOffAddr
 
 // Global chunk index.
 //
@@ -105,12 +99,12 @@ type chunkIdx uint
 // chunkIndex returns the global index of the palloc chunk containing the
 // pointer p.
 func chunkIndex(p uintptr) chunkIdx {
-	return chunkIdx((p + arenaBaseOffset) / pallocChunkBytes)
+	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
 }
 
 // chunkIndex returns the base address of the palloc chunk at index ci.
 func chunkBase(ci chunkIdx) uintptr {
-	return uintptr(ci)*pallocChunkBytes - arenaBaseOffset
+	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
 }
 
 // chunkPageIndex computes the index of the page that contains p,
@@ -139,6 +133,18 @@ func (i chunkIdx) l2() uint {
 	}
 }
 
+// offAddrToLevelIndex converts an address in the offset address space
+// to the index into summary[level] containing addr.
+func offAddrToLevelIndex(level int, addr offAddr) int {
+	return int((addr.a - arenaBaseOffset) >> levelShift[level])
+}
+
+// levelIndexToOffAddr converts an index into summary[level] into
+// the corresponding address in the offset address space.
+func levelIndexToOffAddr(level, idx int) offAddr {
+	return offAddr{(uintptr(idx) << levelShift[level]) + arenaBaseOffset}
+}
+
 // addrsToSummaryRange converts base and limit pointers into a range
 // of entries for the given summary level.
 //
@@ -153,8 +159,8 @@ func addrsToSummaryRange(level int, base, limit uintptr) (lo int, hi int) {
 	// of a summary's max page count boundary for this level
 	// (1 << levelLogPages[level]). So, make limit an inclusive upper bound
 	// then shift, then add 1, so we get an exclusive upper bound at the end.
-	lo = int((base + arenaBaseOffset) >> levelShift[level])
-	hi = int(((limit-1)+arenaBaseOffset)>>levelShift[level]) + 1
+	lo = int((base - arenaBaseOffset) >> levelShift[level])
+	hi = int(((limit-1)-arenaBaseOffset)>>levelShift[level]) + 1
 	return
 }
 
@@ -237,16 +243,7 @@ type pageAlloc struct {
 	// Note that adding in arenaBaseOffset transforms addresses
 	// to a new address space with a linear view of the full address
 	// space on architectures with segmented address spaces.
-	searchAddr uintptr
-
-	// The address to start a scavenge candidate search with. It
-	// need not point to memory contained in inUse.
-	scavAddr uintptr
-
-	// The amount of memory scavenged since the last scavtrace print.
-	//
-	// Read and updated atomically.
-	scavReleased uintptr
+	searchAddr offAddr
 
 	// start and end represent the chunk indices
 	// which pageAlloc knows about. It assumes
@@ -266,6 +263,33 @@ type pageAlloc struct {
 	//
 	// All access is protected by the mheapLock.
 	inUse addrRanges
+
+	// scav stores the scavenger state.
+	//
+	// All fields are protected by mheapLock.
+	scav struct {
+		// inUse is a slice of ranges of address space which have not
+		// yet been looked at by the scavenger.
+		inUse addrRanges
+
+		// gen is the scavenge generation number.
+		gen uint32
+
+		// reservationBytes is how large of a reservation should be made
+		// in bytes of address space for each scavenge iteration.
+		reservationBytes uintptr
+
+		// released is the amount of memory released this generation.
+		released uintptr
+
+		// scavLWM is the lowest (offset) address that the scavenger reached this
+		// scavenge generation.
+		scavLWM offAddr
+
+		// freeHWM is the highest (offset) address of a page that was freed to
+		// the page allocator this scavenge generation.
+		freeHWM offAddr
+	}
 
 	// mheap_.lock. This level of indirection makes it possible
 	// to test pageAlloc indepedently of the runtime allocator.
@@ -299,34 +323,11 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 	// Start with the searchAddr in a state indicating there's no free memory.
 	s.searchAddr = maxSearchAddr
 
-	// Start with the scavAddr in a state indicating there's nothing more to do.
-	s.scavAddr = minScavAddr
-
 	// Set the mheapLock.
 	s.mheapLock = mheapLock
-}
 
-// compareSearchAddrTo compares an address against s.searchAddr in a linearized
-// view of the address space on systems with discontinuous process address spaces.
-// This linearized view is the same one generated by chunkIndex and arenaIndex,
-// done by adding arenaBaseOffset.
-//
-// On systems without a discontinuous address space, it's just a normal comparison.
-//
-// Returns < 0 if addr is less than s.searchAddr in the linearized address space.
-// Returns > 0 if addr is greater than s.searchAddr in the linearized address space.
-// Returns 0 if addr and s.searchAddr are equal.
-func (s *pageAlloc) compareSearchAddrTo(addr uintptr) int {
-	// Compare with arenaBaseOffset added because it gives us a linear, contiguous view
-	// of the heap on architectures with signed address spaces.
-	lAddr := addr + arenaBaseOffset
-	lSearchAddr := s.searchAddr + arenaBaseOffset
-	if lAddr < lSearchAddr {
-		return -1
-	} else if lAddr > lSearchAddr {
-		return 1
-	}
-	return 0
+	// Initialize scavenge tracking state.
+	s.scav.scavLWM = maxSearchAddr
 }
 
 // chunkOf returns the chunk at the given chunk index.
@@ -362,13 +363,13 @@ func (s *pageAlloc) grow(base, size uintptr) {
 	// Note that [base, limit) will never overlap with any existing
 	// range inUse because grow only ever adds never-used memory
 	// regions to the page allocator.
-	s.inUse.add(addrRange{base, limit})
+	s.inUse.add(makeAddrRange(base, limit))
 
 	// A grow operation is a lot like a free operation, so if our
-	// chunk ends up below the (linearized) s.searchAddr, update
-	// s.searchAddr to the new address, just like in free.
-	if s.compareSearchAddrTo(base) < 0 {
-		s.searchAddr = base
+	// chunk ends up below s.searchAddr, update s.searchAddr to the
+	// new address, just like in free.
+	if b := (offAddr{base}); b.lessThan(s.searchAddr) {
+		s.searchAddr = b
 	}
 
 	// Add entries into chunks, which is sparse, if needed. Then,
@@ -532,7 +533,7 @@ func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
 // searchAddr returned is invalid and must be ignored.
 //
 // s.mheapLock must be held.
-func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
+func (s *pageAlloc) find(npages uintptr) (uintptr, offAddr) {
 	// Search algorithm.
 	//
 	// This algorithm walks each level l of the radix tree from the root level
@@ -572,13 +573,13 @@ func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
 	// firstFree is updated by calling foundFree each time free space in the
 	// heap is discovered.
 	//
-	// At the end of the search, base-arenaBaseOffset is the best new
+	// At the end of the search, base.addr() is the best new
 	// searchAddr we could deduce in this search.
 	firstFree := struct {
-		base, bound uintptr
+		base, bound offAddr
 	}{
-		base:  0,
-		bound: (1<<heapAddrBits - 1),
+		base:  minOffAddr,
+		bound: maxOffAddr,
 	}
 	// foundFree takes the given address range [addr, addr+size) and
 	// updates firstFree if it is a narrower range. The input range must
@@ -589,17 +590,17 @@ func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
 	// pages on the root level and narrow that down if we descend into
 	// that summary. But as soon as we need to iterate beyond that summary
 	// in a level to find a large enough range, we'll stop narrowing.
-	foundFree := func(addr, size uintptr) {
-		if firstFree.base <= addr && addr+size-1 <= firstFree.bound {
+	foundFree := func(addr offAddr, size uintptr) {
+		if firstFree.base.lessEqual(addr) && addr.add(size-1).lessEqual(firstFree.bound) {
 			// This range fits within the current firstFree window, so narrow
 			// down the firstFree window to the base and bound of this range.
 			firstFree.base = addr
-			firstFree.bound = addr + size - 1
-		} else if !(addr+size-1 < firstFree.base || addr > firstFree.bound) {
+			firstFree.bound = addr.add(size - 1)
+		} else if !(addr.add(size-1).lessThan(firstFree.base) || firstFree.bound.lessThan(addr)) {
 			// This range only partially overlaps with the firstFree range,
 			// so throw.
-			print("runtime: addr = ", hex(addr), ", size = ", size, "\n")
-			print("runtime: base = ", hex(firstFree.base), ", bound = ", hex(firstFree.bound), "\n")
+			print("runtime: addr = ", hex(addr.addr()), ", size = ", size, "\n")
+			print("runtime: base = ", hex(firstFree.base.addr()), ", bound = ", hex(firstFree.bound.addr()), "\n")
 			throw("range partially overlaps")
 		}
 	}
@@ -629,7 +630,7 @@ nextLevel:
 		// searchAddr on the previous level or we're on the root leve, in which
 		// case the searchAddr should be the same as i after levelShift.
 		j0 := 0
-		if searchIdx := int((s.searchAddr + arenaBaseOffset) >> levelShift[l]); searchIdx&^(entriesPerBlock-1) == i {
+		if searchIdx := offAddrToLevelIndex(l, s.searchAddr); searchIdx&^(entriesPerBlock-1) == i {
 			j0 = searchIdx & (entriesPerBlock - 1)
 		}
 
@@ -655,7 +656,7 @@ nextLevel:
 
 			// We've encountered a non-zero summary which means
 			// free memory, so update firstFree.
-			foundFree(uintptr((i+j)<<levelShift[l]), (uintptr(1)<<logMaxPages)*pageSize)
+			foundFree(levelIndexToOffAddr(l, i+j), (uintptr(1)<<logMaxPages)*pageSize)
 
 			s := sum.start()
 			if size+s >= uint(npages) {
@@ -693,8 +694,8 @@ nextLevel:
 		if size >= uint(npages) {
 			// We found a sufficiently large run of free pages straddling
 			// some boundary, so compute the address and return it.
-			addr := uintptr(i<<levelShift[l]) - arenaBaseOffset + uintptr(base)*pageSize
-			return addr, firstFree.base - arenaBaseOffset
+			addr := levelIndexToOffAddr(l, i).add(uintptr(base) * pageSize).addr()
+			return addr, firstFree.base
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
@@ -706,7 +707,7 @@ nextLevel:
 		// lied to us. In either case, dump some useful state and throw.
 		print("runtime: summary[", l-1, "][", lastSumIdx, "] = ", lastSum.start(), ", ", lastSum.max(), ", ", lastSum.end(), "\n")
 		print("runtime: level = ", l, ", npages = ", npages, ", j0 = ", j0, "\n")
-		print("runtime: s.searchAddr = ", hex(s.searchAddr), ", i = ", i, "\n")
+		print("runtime: s.searchAddr = ", hex(s.searchAddr.addr()), ", i = ", i, "\n")
 		print("runtime: levelShift[level] = ", levelShift[l], ", levelBits[level] = ", levelBits[l], "\n")
 		for j := 0; j < len(entries); j++ {
 			sum := entries[j]
@@ -739,8 +740,8 @@ nextLevel:
 	// Since we actually searched the chunk, we may have
 	// found an even narrower free window.
 	searchAddr := chunkBase(ci) + uintptr(searchIdx)*pageSize
-	foundFree(searchAddr+arenaBaseOffset, chunkBase(ci+1)-searchAddr)
-	return addr, firstFree.base - arenaBaseOffset
+	foundFree(offAddr{searchAddr}, chunkBase(ci+1)-searchAddr)
+	return addr, firstFree.base
 }
 
 // alloc allocates npages worth of memory from the page heap, returning the base
@@ -754,25 +755,25 @@ nextLevel:
 func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
-	if chunkIndex(s.searchAddr) >= s.end {
+	if chunkIndex(s.searchAddr.addr()) >= s.end {
 		return 0, 0
 	}
 
 	// If npages has a chance of fitting in the chunk where the searchAddr is,
 	// search it directly.
-	searchAddr := uintptr(0)
-	if pallocChunkPages-chunkPageIndex(s.searchAddr) >= uint(npages) {
+	searchAddr := minOffAddr
+	if pallocChunkPages-chunkPageIndex(s.searchAddr.addr()) >= uint(npages) {
 		// npages is guaranteed to be no greater than pallocChunkPages here.
-		i := chunkIndex(s.searchAddr)
+		i := chunkIndex(s.searchAddr.addr())
 		if max := s.summary[len(s.summary)-1][i].max(); max >= uint(npages) {
-			j, searchIdx := s.chunkOf(i).find(npages, chunkPageIndex(s.searchAddr))
+			j, searchIdx := s.chunkOf(i).find(npages, chunkPageIndex(s.searchAddr.addr()))
 			if j == ^uint(0) {
 				print("runtime: max = ", max, ", npages = ", npages, "\n")
-				print("runtime: searchIdx = ", chunkPageIndex(s.searchAddr), ", s.searchAddr = ", hex(s.searchAddr), "\n")
+				print("runtime: searchIdx = ", chunkPageIndex(s.searchAddr.addr()), ", s.searchAddr = ", hex(s.searchAddr.addr()), "\n")
 				throw("bad summary data")
 			}
 			addr = chunkBase(i) + uintptr(j)*pageSize
-			searchAddr = chunkBase(i) + uintptr(searchIdx)*pageSize
+			searchAddr = offAddr{chunkBase(i) + uintptr(searchIdx)*pageSize}
 			goto Found
 		}
 	}
@@ -794,10 +795,10 @@ Found:
 	// Go ahead and actually mark the bits now that we have an address.
 	scav = s.allocRange(addr, npages)
 
-	// If we found a higher (linearized) searchAddr, we know that all the
-	// heap memory before that searchAddr in a linear address space is
+	// If we found a higher searchAddr, we know that all the
+	// heap memory before that searchAddr in an offset address space is
 	// allocated, so bump s.searchAddr up to the new one.
-	if s.compareSearchAddrTo(searchAddr) > 0 {
+	if s.searchAddr.lessThan(searchAddr) {
 		s.searchAddr = searchAddr
 	}
 	return addr, scav
@@ -807,9 +808,14 @@ Found:
 //
 // s.mheapLock must be held.
 func (s *pageAlloc) free(base, npages uintptr) {
-	// If we're freeing pages below the (linearized) s.searchAddr, update searchAddr.
-	if s.compareSearchAddrTo(base) < 0 {
-		s.searchAddr = base
+	// If we're freeing pages below the s.searchAddr, update searchAddr.
+	if b := (offAddr{base}); b.lessThan(s.searchAddr) {
+		s.searchAddr = b
+	}
+	// Update the free high watermark for the scavenger.
+	limit := base + npages*pageSize - 1
+	if offLimit := (offAddr{limit}); s.scav.freeHWM.lessThan(offLimit) {
+		s.scav.freeHWM = offLimit
 	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly
@@ -818,7 +824,6 @@ func (s *pageAlloc) free(base, npages uintptr) {
 		s.chunkOf(i).free1(chunkPageIndex(base))
 	} else {
 		// Slow path: we're clearing more bits so we may need to iterate.
-		limit := base + npages*pageSize - 1
 		sc, ec := chunkIndex(base), chunkIndex(limit)
 		si, ei := chunkPageIndex(base), chunkPageIndex(limit)
 

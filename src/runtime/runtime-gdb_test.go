@@ -19,6 +19,12 @@ import (
 	"testing"
 )
 
+// NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
+// Some runtime tests send SIGWINCH to the entire process group, so those tests
+// must never run in parallel with GDB tests.
+//
+// See issue 39021 and https://sourceware.org/bugzilla/show_bug.cgi?id=26056.
+
 func checkGdbEnvironment(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
@@ -108,10 +114,18 @@ import "fmt"
 import "runtime"
 var gslice []string
 func main() {
-	go func() { select{} }() // ensure a second goroutine is running
 	mapvar := make(map[string]string, 13)
+	slicemap := make(map[string][]string,11)
+    chanint := make(chan int, 10)
+    chanstr := make(chan string, 10)
+    chanint <- 99
+	chanint <- 11
+    chanstr <- "spongepants"
+    chanstr <- "squarebob"
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
+	slicemap["a"] = []string{"b","c","d"}
+    slicemap["e"] = []string{"f","g","h"}
 	strvar := "abc"
 	ptrvar := &strvar
 	slicevar := make([]string, 0, 16)
@@ -120,6 +134,7 @@ func main() {
 	runtime.KeepAlive(ptrvar)
 	_ = ptrvar // set breakpoint here
 	gslice = slicevar
+	fmt.Printf("%v, %v, %v\n", slicemap, <-chanint, <-chanstr)
 	runtime.KeepAlive(mapvar)
 }  // END_OF_PROGRAM
 `
@@ -222,17 +237,23 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print slicemap\n",
+		"-ex", "print slicemap",
+		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print strvar\n",
 		"-ex", "print strvar",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print chanint\n",
+		"-ex", "print chanint",
+		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print chanstr\n",
+		"-ex", "print chanstr",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN info locals\n",
 		"-ex", "info locals",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine 1 bt\n",
 		"-ex", "goroutine 1 bt",
-		"-ex", "echo END\n",
-		"-ex", "echo BEGIN goroutine 2 bt\n",
-		"-ex", "goroutine 2 bt",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN goroutine all bt\n",
 		"-ex", "goroutine all bt",
@@ -245,8 +266,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
 	)
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
-	t.Logf("gdb output: %s\n", got)
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
 	if string(firstLine) != "Loading Go Runtime support." {
@@ -285,6 +309,23 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("print mapvar failed: %s", bl)
 	}
 
+	// 2 orders, and possible differences in spacing.
+	sliceMapSfx1 := `map[string][]string = {["e"] = []string = {"f", "g", "h"}, ["a"] = []string = {"b", "c", "d"}}`
+	sliceMapSfx2 := `map[string][]string = {["a"] = []string = {"b", "c", "d"}, ["e"] = []string = {"f", "g", "h"}}`
+	if bl := strings.ReplaceAll(blocks["print slicemap"], "  ", " "); !strings.HasSuffix(bl, sliceMapSfx1) && !strings.HasSuffix(bl, sliceMapSfx2) {
+		t.Fatalf("print slicemap failed: %s", bl)
+	}
+
+	chanIntSfx := `chan int = {99, 11}`
+	if bl := strings.ReplaceAll(blocks["print chanint"], "  ", " "); !strings.HasSuffix(bl, chanIntSfx) {
+		t.Fatalf("print chanint failed: %s", bl)
+	}
+
+	chanStrSfx := `chan string = {"spongepants", "squarebob"}`
+	if bl := strings.ReplaceAll(blocks["print chanstr"], "  ", " "); !strings.HasSuffix(bl, chanStrSfx) {
+		t.Fatalf("print chanstr failed: %s", bl)
+	}
+
 	strVarRe := regexp.MustCompile(`^\$[0-9]+ = (0x[0-9a-f]+\s+)?"abc"$`)
 	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print strvar failed: %s", bl)
@@ -310,7 +351,6 @@ func testGdbPython(t *testing.T, cgo bool) {
 
 	// Check that the backtraces are well formed.
 	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
-	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
 	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
 
 	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
@@ -318,12 +358,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("goroutine 1 bt failed: %s", bl)
 	}
 
-	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
-	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
-		t.Fatalf("goroutine 2 bt failed: %s", bl)
-	}
-
-	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) || !btGoroutine2Re.MatchString(bl) {
+	if bl := blocks["goroutine all bt"]; !btGoroutine1Re.MatchString(bl) {
 		t.Fatalf("goroutine all bt failed: %s", bl)
 	}
 
@@ -398,7 +433,11 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches the source code.
 	bt := []string{
@@ -413,8 +452,7 @@ func TestGdbBacktrace(t *testing.T) {
 		s := fmt.Sprintf("#%v.*main\\.%v", i, name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }
@@ -473,7 +511,11 @@ func TestGdbAutotmpTypes(t *testing.T) {
 		"-ex", "info types astruct",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	sgot := string(got)
 
@@ -487,8 +529,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
-			t.Errorf("could not find %s in 'info typrs astruct' output", name)
-			t.Fatalf("gdb output:\n%v", sgot)
+			t.Fatalf("could not find %s in 'info typrs astruct' output", name)
 		}
 	}
 }
@@ -542,11 +583,13 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
-
-	t.Logf("output %q", sgot)
 
 	if !strings.Contains(sgot, "\n$1 = 42\n$2 = 18446744073709551615\n$3 = -1\n$4 = 1 '\\001'\n$5 = 8192") {
 		t.Fatalf("output mismatch")
@@ -602,7 +645,11 @@ func TestGdbPanic(t *testing.T) {
 		"-ex", "backtrace",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches the source code.
 	bt := []string{
@@ -613,8 +660,7 @@ func TestGdbPanic(t *testing.T) {
 		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }
@@ -681,7 +727,11 @@ func TestGdbInfCallstack(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, _ := exec.Command("gdb", args...).CombinedOutput()
+	got, err := exec.Command("gdb", args...).CombinedOutput()
+	t.Logf("gdb output:\n%s", got)
+	if err != nil {
+		t.Fatalf("gdb exited with error: %v", err)
+	}
 
 	// Check that the backtrace matches
 	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
@@ -694,8 +744,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		s := fmt.Sprintf("#%v.*%v", i, name)
 		re := regexp.MustCompile(s)
 		if found := re.Find(got) != nil; !found {
-			t.Errorf("could not find '%v' in backtrace", s)
-			t.Fatalf("gdb output:\n%v", string(got))
+			t.Fatalf("could not find '%v' in backtrace", s)
 		}
 	}
 }

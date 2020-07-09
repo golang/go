@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -160,7 +160,12 @@ func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType
 	pkg := pkgname(ctxt, lib)
 
 	// already loaded?
-	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+	if l := ctxt.LibraryByPkg[pkg]; l != nil && !l.Fingerprint.IsZero() {
+		// Normally, packages are loaded in dependency order, and if l != nil
+		// l is already loaded with the actual fingerprint. In shared build mode,
+		// however, packages may be added not in dependency order, and it is
+		// possible that l's fingerprint is not yet loaded -- exclude it in
+		// checking.
 		checkFingerprint(l, l.Fingerprint, src, fingerprint)
 		return l
 	}

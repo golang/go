@@ -152,14 +152,13 @@ func (s *HashSet) addS_seed(x string, seed uintptr) {
 	s.add(StringHash(x, seed))
 }
 func (s *HashSet) check(t *testing.T) {
-	const SLOP = 10.0
+	const SLOP = 50.0
 	collisions := s.n - len(s.m)
-	//fmt.Printf("%d/%d\n", len(s.m), s.n)
 	pairs := int64(s.n) * int64(s.n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
 	if float64(collisions) > expected+SLOP*(3*stddev+1) {
-		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
+		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f threshold=%f", collisions, expected, stddev, expected+SLOP*(3*stddev+1))
 	}
 }
 
@@ -564,8 +563,11 @@ func avalancheTest1(t *testing.T, k Key) {
 
 // All bit rotations of a set of distinct keys
 func TestSmhasherWindowed(t *testing.T) {
+	t.Logf("32 bit keys")
 	windowed(t, &Int32Key{})
+	t.Logf("64 bit keys")
 	windowed(t, &Int64Key{})
+	t.Logf("string keys")
 	windowed(t, &BytesKey{make([]byte, 128)})
 }
 func windowed(t *testing.T, k Key) {

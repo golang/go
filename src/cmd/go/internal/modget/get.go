@@ -350,11 +350,15 @@ func runGet(cmd *base.Command, args []string) {
 			// package in the main module. If the path contains wildcards but
 			// matches no packages, we'll warn after package loading.
 			if !strings.Contains(path, "...") {
-				var pkgs []string
+				m := search.NewMatch(path)
 				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
-					pkgs = modload.TargetPackages(pkgPath)
+					m = modload.TargetPackages(pkgPath)
 				}
-				if len(pkgs) == 0 {
+				if len(m.Pkgs) == 0 {
+					for _, err := range m.Errs {
+						base.Errorf("go get %s: %v", arg, err)
+					}
+
 					abs, err := filepath.Abs(path)
 					if err != nil {
 						abs = path
@@ -394,7 +398,7 @@ func runGet(cmd *base.Command, args []string) {
 		default:
 			// The argument is a package or module path.
 			if modload.HasModRoot() {
-				if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+				if m := modload.TargetPackages(path); len(m.Pkgs) != 0 {
 					// The path is in the main module. Nothing to query.
 					if vers != "upgrade" && vers != "patch" {
 						base.Errorf("go get %s: can't request explicit version of path in main module", arg)

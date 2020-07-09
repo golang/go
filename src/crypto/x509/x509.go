@@ -3,10 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package x509 parses X.509-encoded keys and certificates.
-//
-// On UNIX systems the environment variables SSL_CERT_FILE and SSL_CERT_DIR
-// can be used to override the system default locations for the SSL certificate
-// file and SSL certificate files directory, respectively.
 package x509
 
 import (
@@ -2100,7 +2096,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: no SerialNumber given")
 	}
 
-	if template.BasicConstraintsValid && !template.IsCA && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
+	if template.BasicConstraintsValid && !template.IsCA && template.MaxPathLen != -1 && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
 		return nil, errors.New("x509: only CAs are allowed to specify MaxPathLen")
 	}
 
@@ -2129,16 +2125,13 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		authorityKeyId = parent.SubjectKeyId
 	}
 
-	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
-	pki := publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey}
 	subjectKeyId := template.SubjectKeyId
 	if len(subjectKeyId) == 0 && template.IsCA {
-		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2
-		b, err := asn1.Marshal(pki)
-		if err != nil {
-			return nil, err
-		}
-		h := sha1.Sum(b)
+		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
+		//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+		//   value of the BIT STRING subjectPublicKey (excluding the tag,
+		//   length, and number of unused bits).
+		h := sha1.Sum(publicKeyBytes)
 		subjectKeyId = h[:]
 	}
 
@@ -2147,6 +2140,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return
 	}
 
+	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
 	c := tbsCertificate{
 		Version:            2,
 		SerialNumber:       template.SerialNumber,
@@ -2154,7 +2148,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
-		PublicKey:          pki,
+		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
 		Extensions:         extensions,
 	}
 

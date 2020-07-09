@@ -184,7 +184,9 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--enable-new-dtags`),
 	re(`-Wl,--end-group`),
 	re(`-Wl,--(no-)?export-dynamic`),
+	re(`-Wl,-E`),
 	re(`-Wl,-framework,[^,@\-][^,]+`),
+	re(`-Wl,--hash-style=(sysv|gnu|both)`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
 	re(`-Wl,-R([^@\-][^,@]*$)`),
@@ -200,6 +202,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-undefined[=,]([^,@\-][^,]+)`),
 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
 	re(`-Wl,--(no-)?warn-([^,]+)`),
+	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
 	re(`-Wl,-z,(no)?execstack`),
 	re(`-Wl,-z,relro`),
 

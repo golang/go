@@ -355,7 +355,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareMountNameSpaceHelper", d)
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 
 	o, err := cmd.CombinedOutput()
@@ -406,7 +406,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	}
 
 	cmd = exec.Command("/syscall.test", "-test.run=TestUnshareMountNameSpaceHelper", "/")
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
 
 	o, err := cmd.CombinedOutput()
@@ -621,7 +621,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 	}
 
 	cmd := exec.Command(f.Name(), "-test.run=TestAmbientCapsHelper")
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin,arm64,x509omitbundledroots
+// +build darwin,arm64 darwin,amd64,ios
+// +build x509omitbundledroots
 
 // This file provides the loadSystemRoots func when the
 // "x509omitbundledroots" build tag has disabled bundling a copy,
@@ -19,3 +20,10 @@ import "errors"
 func loadSystemRoots() (*CertPool, error) {
 	return nil, errors.New("x509: system root bundling disabled")
 }
+
+func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	return nil, nil
+}
+
+// loadSystemRootsWithCgo is not available on iOS.
+var loadSystemRootsWithCgo func() (*CertPool, error)

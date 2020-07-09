@@ -885,11 +885,11 @@ var blockJump = [...]struct {
 	ssa.Block386NAN: {x86.AJPS, x86.AJPC},
 }
 
-var eqfJumps = [2][2]gc.FloatingEQNEJump{
+var eqfJumps = [2][2]gc.IndexJump{
 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPS, Index: 1}}, // next == b.Succs[0]
 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPC, Index: 0}}, // next == b.Succs[1]
 }
-var nefJumps = [2][2]gc.FloatingEQNEJump{
+var nefJumps = [2][2]gc.IndexJump{
 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPC, Index: 1}}, // next == b.Succs[0]
 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
 }
@@ -929,10 +929,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.Block386EQF:
-		s.FPJump(b, next, &eqfJumps)
+		s.CombJump(b, next, &eqfJumps)
 
 	case ssa.Block386NEF:
-		s.FPJump(b, next, &nefJumps)
+		s.CombJump(b, next, &nefJumps)
 
 	case ssa.Block386EQ, ssa.Block386NE,
 		ssa.Block386LT, ssa.Block386GE,

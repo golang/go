@@ -5,11 +5,13 @@
 package srcimporter
 
 import (
+	"flag"
 	"go/build"
 	"go/token"
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -17,6 +19,14 @@ import (
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if goTool, err := testenv.GoTool(); err == nil {
+		os.Setenv("PATH", filepath.Dir(goTool)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	os.Exit(m.Run())
+}
 
 const maxTime = 2 * time.Second
 

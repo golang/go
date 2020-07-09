@@ -1,6 +1,6 @@
 // Derived from Inferno utils/6l/obj.c and utils/6l/span.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/obj.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/span.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/obj.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/span.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -1730,7 +1730,7 @@ func (state *dodataState) allocateDataSections2(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
 
 	// Coverage instrumentation counters for libfuzzer.
-	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+	if len(state.data2[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
 		state.allocateNamedSectionAndAssignSyms2(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
 	}
 
@@ -2177,7 +2177,7 @@ func (ctxt *Link) textaddress() {
 
 	// merge tramps into Textp, keeping Textp in address order
 	if ntramps != 0 {
-		newtextp := make([]loader.Sym, 0, len(ctxt.Textp)+ntramps)
+		newtextp := make([]loader.Sym, 0, len(ctxt.Textp2)+ntramps)
 		i := 0
 		for _, s := range ctxt.Textp2 {
 			for ; i < ntramps && ldr.SymValue(ctxt.tramps[i]) < ldr.SymValue(s); i++ {

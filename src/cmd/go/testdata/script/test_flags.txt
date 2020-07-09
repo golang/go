@@ -30,23 +30,23 @@ exists ./cover.out
 # with the 'test.' prefix in the GOFLAGS entry...
 env GOFLAGS='-test.timeout=24h0m0s -count=1'
 go test -v -x ./x
-stdout 'TestLogTimeout: .*: 24h0m0s$'
+stdout '.*: 24h0m0s$'
 stderr '-test.count=1'
 
 # ...or without.
 env GOFLAGS='-timeout=24h0m0s -count=1'
 go test -v -x ./x
-stdout 'TestLogTimeout: .*: 24h0m0s$'
+stdout '.*: 24h0m0s$'
 stderr '-test.count=1'
 
 # Arguments from the command line should override GOFLAGS...
 go test -v -x -timeout=25h0m0s ./x
-stdout 'TestLogTimeout: .*: 25h0m0s$'
+stdout '.*: 25h0m0s$'
 stderr '-test.count=1'
 
 # ...even if they use a different flag name.
 go test -v -x -test.timeout=26h0m0s ./x
-stdout 'TestLogTimeout: .*: 26h0m0s$'
+stdout '.*: 26h0m0s$'
 stderr '-test\.timeout=26h0m0s'
 ! stderr 'timeout=24h0m0s'
 stderr '-test.count=1'
@@ -56,6 +56,10 @@ stderr '-test.count=1'
 stderr -count=1 'invalid value "walrus" for flag -covermode: valid modes are .*$'
 stderr '^usage: go test .*$'
 stderr '^Run ''go help test'' and ''go help testflag'' for details.$'
+
+# Passing -help to the test binary should show flag help.
+go test ./x -args -help
+stdout 'usage_message'
 
 # -covermode, -coverpkg, and -coverprofile should imply -cover
 go test -covermode=set ./x
@@ -97,6 +101,8 @@ import (
 	"flag"
 	"testing"
 )
+
+var _ = flag.String("usage_message", "", "dummy flag to check usage message")
 
 func TestLogTimeout(t *testing.T) {
 	t.Log(flag.Lookup("test.timeout").Value)

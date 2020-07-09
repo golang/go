@@ -22,7 +22,8 @@ using different register names.
 
   Examples:
     MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
-    MOVB.W 16(R16), R10        <=>      ldr x10, [x16,#16]!
+    MOVB.W 16(R16), R10        <=>      ldrsb x10, [x16,#16]!
+    MOVBU.W 16(R16), R10       <=>      ldrb x10, [x16,#16]!
 
 3. Go uses a series of MOV instructions as load and store.
 
@@ -57,7 +58,7 @@ must be a power of 2 and in the range of [8, 2048].
     PCALIGN $1024
     MOVD $3, R1          // This instruction is aligned with 1024 bytes.
 
-PCALING also changes the function alignment. If a function has one or more PCALIGN directives,
+PCALIGN also changes the function alignment. If a function has one or more PCALIGN directives,
 its address will be aligned to the same or coarser boundary, which is the maximum of all the
 alignment values.
 

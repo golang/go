@@ -150,4 +150,3 @@ set GOBUILDFAIL=1
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
 
 :end
-

@@ -1496,12 +1496,8 @@ var getConfigForClientTests = []struct {
 		},
 		"",
 		func(config *Config) error {
-			// The value of SessionTicketKey should have been
-			// duplicated into the per-connection Config.
-			for i := range config.SessionTicketKey {
-				if b := config.SessionTicketKey[i]; b != byte(i) {
-					return fmt.Errorf("SessionTicketKey was not duplicated from original Config: byte %d has value %d", i, b)
-				}
+			if config.SessionTicketKey == [32]byte{} {
+				return fmt.Errorf("expected SessionTicketKey to be set")
 			}
 			return nil
 		},
@@ -1522,10 +1518,8 @@ var getConfigForClientTests = []struct {
 		},
 		"",
 		func(config *Config) error {
-			// The session ticket keys should have been duplicated
-			// into the per-connection Config.
-			if l := len(config.sessionTicketKeys); l != 1 {
-				return fmt.Errorf("got len(sessionTicketKeys) == %d, wanted 1", l)
+			if config.SessionTicketKey == [32]byte{} {
+				return fmt.Errorf("expected SessionTicketKey to be set")
 			}
 			return nil
 		},

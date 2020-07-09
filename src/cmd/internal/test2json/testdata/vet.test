@@ -58,11 +58,11 @@
 === CONT  TestVet/2
 --- PASS: TestTags (0.00s)
     --- PASS: TestTags/x_testtag_y (0.04s)
-    	vet_test.go:187: -tags=x testtag y
+        vet_test.go:187: -tags=x testtag y
     --- PASS: TestTags/x,testtag,y (0.04s)
-    	vet_test.go:187: -tags=x,testtag,y
+        vet_test.go:187: -tags=x,testtag,y
     --- PASS: TestTags/testtag (0.04s)
-    	vet_test.go:187: -tags=testtag
+        vet_test.go:187: -tags=testtag
 === CONT  TestVet/1
 === CONT  TestVetDirs/testingpkg
 === CONT  TestVetDirs/buildtag
@@ -71,21 +71,21 @@
 === CONT  TestVetDirs/cgo
 --- PASS: TestVet (0.39s)
     --- PASS: TestVet/5 (0.07s)
-    	vet_test.go:114: files: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
+        vet_test.go:114: files: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
     --- PASS: TestVet/3 (0.07s)
-    	vet_test.go:114: files: ["testdata/composite.go" "testdata/nilfunc.go"]
+        vet_test.go:114: files: ["testdata/composite.go" "testdata/nilfunc.go"]
     --- PASS: TestVet/6 (0.07s)
-    	vet_test.go:114: files: ["testdata/copylock_range.go" "testdata/shadow.go"]
+        vet_test.go:114: files: ["testdata/copylock_range.go" "testdata/shadow.go"]
     --- PASS: TestVet/2 (0.07s)
-    	vet_test.go:114: files: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
+        vet_test.go:114: files: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
     --- PASS: TestVet/0 (0.13s)
-    	vet_test.go:114: files: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
+        vet_test.go:114: files: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
     --- PASS: TestVet/4 (0.16s)
-    	vet_test.go:114: files: ["testdata/copylock.go" "testdata/print.go"]
+        vet_test.go:114: files: ["testdata/copylock.go" "testdata/print.go"]
     --- PASS: TestVet/1 (0.07s)
-    	vet_test.go:114: files: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
+        vet_test.go:114: files: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
     --- PASS: TestVet/7 (0.19s)
-    	vet_test.go:114: files: ["testdata/deadcode.go" "testdata/shift.go"]
+        vet_test.go:114: files: ["testdata/deadcode.go" "testdata/shift.go"]
 --- PASS: TestVetDirs (0.01s)
     --- PASS: TestVetDirs/testingpkg (0.06s)
     --- PASS: TestVetDirs/divergent (0.05s)

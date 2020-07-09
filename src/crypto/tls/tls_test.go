@@ -734,7 +734,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 5
+	const expectedCount = 6
 	called := 0
 
 	c1 := Config{
@@ -758,6 +758,10 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 4
 			return nil
 		},
+		VerifyConnection: func(ConnectionState) error {
+			called |= 1 << 5
+			return nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -767,6 +771,7 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.GetClientCertificate(nil)
 	c2.GetConfigForClient(nil)
 	c2.VerifyPeerCertificate(nil, nil)
+	c2.VerifyConnection(ConnectionState{})
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -780,17 +785,12 @@ func TestCloneNonFuncFields(t *testing.T) {
 	typ := v.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		f := v.Field(i)
-		if !f.CanSet() {
-			// unexported field; not cloned.
-			continue
-		}
-
 		// testing/quick can't handle functions or interfaces and so
 		// isn't used here.
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "GetClientCertificate":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is
@@ -825,17 +825,17 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
 		case "Renegotiation":
 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
+		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
+			continue // these are unexported fields that are handled separately
 		default:
 			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
 		}
 	}
+	// Set the unexported fields related to session ticket keys, which are copied with Clone().
+	c1.autoSessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
+	c1.sessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
 
 	c2 := c1.Clone()
-	// DeepEqual also compares unexported fields, thus c2 needs to have run
-	// serverInit in order to be DeepEqual to c1. Cloning it and discarding
-	// the result is sufficient.
-	c2.Clone()
-
 	if !reflect.DeepEqual(&c1, c2) {
 		t.Errorf("clone failed to copy a field")
 	}
@@ -1116,8 +1116,8 @@ func TestConnectionState(t *testing.T) {
 			if ss.ServerName != serverName {
 				t.Errorf("Got server name %q, expected %q", ss.ServerName, serverName)
 			}
-			if cs.ServerName != "" {
-				t.Errorf("Got unexpected server name on the client side")
+			if cs.ServerName != serverName {
+				t.Errorf("Got server name on client connection %q, expected %q", cs.ServerName, serverName)
 			}
 
 			if len(ss.PeerCertificates) != 1 || len(cs.PeerCertificates) != 1 {

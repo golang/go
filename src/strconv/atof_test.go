@@ -480,7 +480,7 @@ func initAtofOnce() {
 }
 
 func TestParseFloatPrefix(t *testing.T) {
-	for i := 0; i < len(atoftests); i++ {
+	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {
 			continue
