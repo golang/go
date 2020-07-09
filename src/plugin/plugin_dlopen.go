@@ -141,6 +141,13 @@ func lookup(p *Plugin, symName string) (Symbol, error) {
 	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.pluginpath)
 }
 
+func symbols(p *Plugin) (map[string]interface{}, error) {
+  if len(p.syms) > 0 {
+    return p.syms, nil
+  }
+  return nil, errors.New("plugin: not symbols found in plugin " + p.pluginpath)
+}
+
 var (
 	pluginsMu sync.Mutex
 	plugins   map[string]*Plugin
