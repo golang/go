@@ -127,6 +127,19 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
 	return
 }
 
+// syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
+
+//go:linkname crypto_x509_syscall crypto/x509/internal/macOS.syscall
+//go:nosplit
+//go:cgo_unsafe_args
+func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
+	entersyscall()
+	libcCall(unsafe.Pointer(funcPC(syscallNoErr)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscallNoErr()
+
 // The *_trampoline functions convert from the Go calling convention to the C calling convention
 // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
 
@@ -477,6 +490,8 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
-// Magic incantation to get libSystem actually dynamically linked.
+// Magic incantation to get libSystem and friends actually dynamically linked.
 // TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
 //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"

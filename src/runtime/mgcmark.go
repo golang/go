@@ -1627,11 +1627,21 @@ func gcDumpObject(label string, obj, off uintptr) {
 //
 //go:nowritebarrier
 //go:nosplit
-func gcmarknewobject(obj, size, scanSize uintptr) {
+func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
 	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
-	markBitsForAddr(obj).setMarked()
+
+	// Mark object.
+	objIndex := span.objIndex(obj)
+	span.markBitsForIndex(objIndex).setMarked()
+
+	// Mark span.
+	arena, pageIdx, pageMask := pageIndexOf(span.base())
+	if arena.pageMarks[pageIdx]&pageMask == 0 {
+		atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+	}
+
 	gcw := &getg().m.p.ptr().gcw
 	gcw.bytesMarked += uint64(size)
 	gcw.scanWork += int64(scanSize)

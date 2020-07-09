@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"bytes"
-	"context"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -114,12 +113,6 @@ var testGo string
 var testTmpDir string
 var testBin string
 
-// testCtx is canceled when the test binary is about to time out.
-//
-// If https://golang.org/issue/28135 is accepted, uses of this variable in test
-// functions should be replaced by t.Context().
-var testCtx = context.Background()
-
 // The TestMain function creates a go command for testing purposes and
 // deletes it after the tests have been run.
 func TestMain(m *testing.M) {
@@ -131,22 +124,8 @@ func TestMain(m *testing.M) {
 		fmt.Printf("SKIP\n")
 		return
 	}
-	os.Unsetenv("GOROOT_FINAL")
 
 	flag.Parse()
-
-	timeoutFlag := flag.Lookup("test.timeout")
-	if timeoutFlag != nil {
-		// TODO(golang.org/issue/28147): The go command does not pass the
-		// test.timeout flag unless either -timeout or -test.timeout is explicitly
-		// set on the command line.
-		if d := timeoutFlag.Value.(flag.Getter).Get().(time.Duration); d != 0 {
-			aBitShorter := d * 95 / 100
-			var cancel context.CancelFunc
-			testCtx, cancel = context.WithTimeout(testCtx, aBitShorter)
-			defer cancel()
-		}
-	}
 
 	if *proxyAddr != "" {
 		StartProxy()
@@ -200,6 +179,11 @@ func TestMain(m *testing.M) {
 		}
 		testGOROOT = goEnv("GOROOT")
 		os.Setenv("TESTGO_GOROOT", testGOROOT)
+		// Ensure that GOROOT is set explicitly.
+		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
+		// yet been moved to its final location, programs that invoke runtime.GOROOT
+		// may accidentally use the wrong path.
+		os.Setenv("GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
 		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
@@ -236,8 +220,10 @@ func TestMain(m *testing.M) {
 		}
 		testCC = strings.TrimSpace(string(out))
 
-		if out, err := exec.Command(testGo, "env", "CGO_ENABLED").Output(); err != nil {
-			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
+		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
+		cmd.Stderr = new(strings.Builder)
+		if out, err := cmd.Output(); err != nil {
+			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
 			canRun = false
 		} else {
 			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
@@ -829,10 +815,9 @@ func removeAll(dir string) error {
 	// module cache has 0444 directories;
 	// make them writable in order to remove content.
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // ignore errors walking in file system
-		}
-		if info.IsDir() {
+		// chmod not only directories, but also things that we couldn't even stat
+		// due to permission errors: they may also be unreadable directories.
+		if err != nil || info.IsDir() {
 			os.Chmod(path, 0777)
 		}
 		return nil

@@ -1,5 +1,5 @@
 // Inferno utils/8l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/8l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -66,7 +66,7 @@ import (
 // Data layout and relocation.
 
 // Derived from Inferno utils/6l/l.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -2010,7 +2010,9 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot open shared library: %s", libpath)
 		return
 	}
-	defer f.Close()
+	// Keep the file open as decodetypeGcprog needs to read from it.
+	// TODO: fix. Maybe mmap the file.
+	//defer f.Close()
 
 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
 	if err != nil {

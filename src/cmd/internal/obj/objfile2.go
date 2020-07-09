@@ -159,6 +159,14 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 		}
 	}
 
+	// Blocks used only by tools (objdump, nm).
+
+	// Referenced symbol names from other packages
+	h.Offsets[goobj2.BlkRefName] = w.Offset()
+	w.refNames()
+
+	h.Offsets[goobj2.BlkEnd] = w.Offset()
+
 	// Fix up block offsets in the header
 	end := start + int64(w.Offset())
 	b.MustSeek(start, 0)
@@ -191,6 +199,9 @@ func (w *writer) StringTable() {
 		w.AddString(pkg)
 	}
 	w.ctxt.traverseSyms(traverseAll, func(s *LSym) {
+		// TODO: this includes references of indexed symbols from other packages,
+		// for which the linker doesn't need the name. Consider moving them to
+		// a separate block (for tools only).
 		if w.pkgpath != "" {
 			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
 		}
@@ -314,6 +325,34 @@ func (w *writer) Aux(s *LSym) {
 			w.aux1(goobj2.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
 		}
 	}
+}
+
+// Emits names of referenced indexed symbols, used by tools (objdump, nm)
+// only.
+func (w *writer) refNames() {
+	seen := make(map[goobj2.SymRef]bool)
+	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
+		switch rs.PkgIdx {
+		case goobj2.PkgIdxNone, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
+			return
+		case goobj2.PkgIdxInvalid:
+			panic("unindexed symbol reference")
+		}
+		symref := makeSymRef(rs)
+		if seen[symref] {
+			return
+		}
+		seen[symref] = true
+		var o goobj2.RefName
+		o.SetSym(symref)
+		o.SetName(rs.Name, w.Writer)
+		o.Write(w.Writer)
+	})
+	// TODO: output in sorted order?
+	// Currently tools (cmd/internal/goobj package) doesn't use mmap,
+	// and it just read it into a map in memory upfront. If it uses
+	// mmap, if the output is sorted, it probably could avoid reading
+	// into memory and just do lookups in the mmap'd object file.
 }
 
 // return the number of aux symbols s have.

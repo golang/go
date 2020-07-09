@@ -533,6 +533,7 @@ func cpuinit() {
 // The new G calls runtime·main.
 func schedinit() {
 	lockInit(&sched.lock, lockRankSched)
+	lockInit(&sched.sysmonlock, lockRankSysmon)
 	lockInit(&sched.deferlock, lockRankDefer)
 	lockInit(&sched.sudoglock, lockRankSudog)
 	lockInit(&deadlock, lockRankDeadlock)
@@ -760,6 +761,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		dumpgstatus(gp)
 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
 	}
+	releaseLockRank(lockRankGscan)
 }
 
 // This will return false if the gp is not in the expected status and the cas fails.
@@ -771,7 +773,12 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 		_Gwaiting,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
-			return atomic.Cas(&gp.atomicstatus, oldval, newval)
+			r := atomic.Cas(&gp.atomicstatus, oldval, newval)
+			if r {
+				acquireLockRank(lockRankGscan)
+			}
+			return r
+
 		}
 	}
 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
@@ -791,6 +798,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
 			throw("casgstatus: bad incoming values")
 		})
 	}
+
+	acquireLockRank(lockRankGscan)
+	releaseLockRank(lockRankGscan)
 
 	// See https://golang.org/cl/21503 for justification of the yield delay.
 	const yieldDelay = 5 * 1000
@@ -842,6 +852,7 @@ func casGToPreemptScan(gp *g, old, new uint32) {
 	if old != _Grunning || new != _Gscan|_Gpreempted {
 		throw("bad g transition")
 	}
+	acquireLockRank(lockRankGscan)
 	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
 	}
 }
@@ -1691,8 +1702,7 @@ func lockextra(nilokay bool) *m {
 	for {
 		old := atomic.Loaduintptr(&extram)
 		if old == locked {
-			yield := osyield
-			yield()
+			osyield()
 			continue
 		}
 		if old == 0 && !nilokay {
@@ -1709,8 +1719,7 @@ func lockextra(nilokay bool) *m {
 		if atomic.Casuintptr(&extram, old, locked) {
 			return (*m)(unsafe.Pointer(old))
 		}
-		yield := osyield
-		yield()
+		osyield()
 		continue
 	}
 }
@@ -1811,10 +1820,16 @@ func startTemplateThread() {
 	if GOARCH == "wasm" { // no threads on wasm yet
 		return
 	}
+
+	// Disable preemption to guarantee that the template thread will be
+	// created before a park once haveTemplateThread is set.
+	mp := acquirem()
 	if !atomic.Cas(&newmHandoff.haveTemplateThread, 0, 1) {
+		releasem(mp)
 		return
 	}
 	newm(templateThread, nil)
+	releasem(mp)
 }
 
 // templateThread is a thread in a known-good state that exists solely
@@ -2216,11 +2231,14 @@ top:
 			// Consider stealing timers from p2.
 			// This call to checkTimers is the only place where
 			// we hold a lock on a different P's timers.
-			// Lock contention can be a problem here, so avoid
-			// grabbing the lock if p2 is running and not marked
-			// for preemption. If p2 is running and not being
-			// preempted we assume it will handle its own timers.
-			if i > 2 && shouldStealTimers(p2) {
+			// Lock contention can be a problem here, so
+			// initially avoid grabbing the lock if p2 is running
+			// and is not marked for preemption. If p2 is running
+			// and not being preempted we assume it will handle its
+			// own timers.
+			// If we're still looking for work after checking all
+			// the P's, then go ahead and steal from an active P.
+			if i > 2 || (i > 1 && shouldStealTimers(p2)) {
 				tnow, w, ran := checkTimers(p2, now)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
@@ -2271,9 +2289,17 @@ stop:
 
 	// wasm only:
 	// If a callback returned and no other goroutine is awake,
-	// then pause execution until a callback was triggered.
-	if beforeIdle(delta) {
-		// At least one goroutine got woken.
+	// then wake event handler goroutine which pauses execution
+	// until a callback was triggered.
+	gp, otherReady := beforeIdle(delta)
+	if gp != nil {
+		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.enabled {
+			traceGoUnpark(gp, 0)
+		}
+		return gp, false
+	}
+	if otherReady {
 		goto top
 	}
 
@@ -4605,6 +4631,18 @@ func sysmon() {
 			}
 			unlock(&sched.lock)
 		}
+		lock(&sched.sysmonlock)
+		{
+			// If we spent a long time blocked on sysmonlock
+			// then we want to update now and next since it's
+			// likely stale.
+			now1 := nanotime()
+			if now1-now > 50*1000 /* 50µs */ {
+				next, _ = timeSleepUntil()
+			}
+			now = now1
+		}
+
 		// trigger libc interceptors if needed
 		if *cgo_yield != nil {
 			asmcgocall(*cgo_yield, nil)
@@ -4657,6 +4695,7 @@ func sysmon() {
 			lasttrace = now
 			schedtrace(debug.scheddetail > 0)
 		}
+		unlock(&sched.sysmonlock)
 	}
 }
 

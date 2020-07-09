@@ -208,12 +208,16 @@ func (n *Node) MarkNonNil() {
 // SetBounded indicates whether operation n does not need safety checks.
 // When n is an index or slice operation, n does not need bounds checks.
 // When n is a dereferencing operation, n does not need nil checks.
+// When n is a makeslice+copy operation, n does not need length and cap checks.
 func (n *Node) SetBounded(b bool) {
 	switch n.Op {
 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		// No bounds checks needed.
 	case ODOTPTR, ODEREF:
 		// No nil check needed.
+	case OMAKESLICECOPY:
+		// No length and cap checks needed
+		// since new slice and copied over slice data have same length.
 	default:
 		Fatalf("SetBounded(%v)", n)
 	}
@@ -714,30 +718,38 @@ const (
 	ODCLCONST // const pi = 3.14
 	ODCLTYPE  // type Int int or type Int = int
 
-	ODELETE      // delete(Left, Right)
-	ODOT         // Left.Sym (Left is of struct type)
-	ODOTPTR      // Left.Sym (Left is of pointer to struct type)
-	ODOTMETH     // Left.Sym (Left is non-interface, Right is method name)
-	ODOTINTER    // Left.Sym (Left is interface, Right is method name)
-	OXDOT        // Left.Sym (before rewrite to one of the preceding)
-	ODOTTYPE     // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
-	ODOTTYPE2    // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
-	OEQ          // Left == Right
-	ONE          // Left != Right
-	OLT          // Left < Right
-	OLE          // Left <= Right
-	OGE          // Left >= Right
-	OGT          // Left > Right
-	ODEREF       // *Left
-	OINDEX       // Left[Right] (index of array or slice)
-	OINDEXMAP    // Left[Right] (index of map)
-	OKEY         // Left:Right (key:value in struct/array/map literal)
-	OSTRUCTKEY   // Sym:Left (key:value in struct literal, after type checking)
-	OLEN         // len(Left)
-	OMAKE        // make(List) (before type checking converts to one of the following)
-	OMAKECHAN    // make(Type, Left) (type is chan)
-	OMAKEMAP     // make(Type, Left) (type is map)
-	OMAKESLICE   // make(Type, Left, Right) (type is slice)
+	ODELETE        // delete(Left, Right)
+	ODOT           // Left.Sym (Left is of struct type)
+	ODOTPTR        // Left.Sym (Left is of pointer to struct type)
+	ODOTMETH       // Left.Sym (Left is non-interface, Right is method name)
+	ODOTINTER      // Left.Sym (Left is interface, Right is method name)
+	OXDOT          // Left.Sym (before rewrite to one of the preceding)
+	ODOTTYPE       // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
+	ODOTTYPE2      // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
+	OEQ            // Left == Right
+	ONE            // Left != Right
+	OLT            // Left < Right
+	OLE            // Left <= Right
+	OGE            // Left >= Right
+	OGT            // Left > Right
+	ODEREF         // *Left
+	OINDEX         // Left[Right] (index of array or slice)
+	OINDEXMAP      // Left[Right] (index of map)
+	OKEY           // Left:Right (key:value in struct/array/map literal)
+	OSTRUCTKEY     // Sym:Left (key:value in struct literal, after type checking)
+	OLEN           // len(Left)
+	OMAKE          // make(List) (before type checking converts to one of the following)
+	OMAKECHAN      // make(Type, Left) (type is chan)
+	OMAKEMAP       // make(Type, Left) (type is map)
+	OMAKESLICE     // make(Type, Left, Right) (type is slice)
+	OMAKESLICECOPY // makeslicecopy(Type, Left, Right) (type is slice; Left is length and Right is the copied from slice)
+	// OMAKESLICECOPY is created by the order pass and corresponds to:
+	//  s = make(Type, Left); copy(s, Right)
+	//
+	// Bounded can be set on the node when Left == len(Right) is known at compile time.
+	//
+	// This node is created so the walk pass can optimize this pattern which would
+	// otherwise be hard to detect after the order pass.
 	OMUL         // Left * Right
 	ODIV         // Left / Right
 	OMOD         // Left % Right

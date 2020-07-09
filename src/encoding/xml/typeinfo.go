@@ -344,15 +344,25 @@ func (e *TagPathError) Error() string {
 	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
 }
 
+const (
+	initNilPointers     = true
+	dontInitNilPointers = false
+)
+
 // value returns v's field value corresponding to finfo.
-// It's equivalent to v.FieldByIndex(finfo.idx), but initializes
-// and dereferences pointers as necessary.
-func (finfo *fieldInfo) value(v reflect.Value) reflect.Value {
+// It's equivalent to v.FieldByIndex(finfo.idx), but when passed
+// initNilPointers, it initializes and dereferences pointers as necessary.
+// When passed dontInitNilPointers and a nil pointer is reached, the function
+// returns a zero reflect.Value.
+func (finfo *fieldInfo) value(v reflect.Value, shouldInitNilPointers bool) reflect.Value {
 	for i, x := range finfo.idx {
 		if i > 0 {
 			t := v.Type()
 			if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct {
 				if v.IsNil() {
+					if !shouldInitNilPointers {
+						return reflect.Value{}
+					}
 					v.Set(reflect.New(v.Type().Elem()))
 				}
 				v = v.Elem()

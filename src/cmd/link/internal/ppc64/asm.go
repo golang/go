@@ -1,5 +1,5 @@
 // Inferno utils/5l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -686,16 +686,20 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
 				// distinct trampolines.
 
-				name := ldr.SymName(rs)
+				oName := ldr.SymName(rs)
+				name := oName
 				if r.Add() == 0 {
-					name = name + fmt.Sprintf("-tramp%d", i)
+					name += fmt.Sprintf("-tramp%d", i)
 				} else {
-					name = name + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
+					name += fmt.Sprintf("%+x-tramp%d", r.Add(), i)
 				}
 
 				// Look up the trampoline in case it already exists
 
 				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				if oName == "runtime.deferreturn" {
+					ldr.SetIsDeferReturnTramp(tramp, true)
+				}
 				if ldr.SymValue(tramp) == 0 {
 					break
 				}
@@ -1096,11 +1100,6 @@ func asmb(ctxt *ld.Link, _ *loader.Loader) {
 		} else {
 			ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
 		}
-	}
-
-	for _, sect := range ld.Segtext.Sections[1:] {
-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
 	}
 
 	if ld.Segrodata.Filelen > 0 {

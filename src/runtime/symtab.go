@@ -563,8 +563,8 @@ func moduledataverify1(datap *moduledata) {
 // given program counter address, or else nil.
 //
 // If pc represents multiple functions because of inlining, it returns
-// the a *Func describing the innermost function, but with an entry
-// of the outermost function.
+// the *Func describing the innermost function, but with an entry of
+// the outermost function.
 func FuncForPC(pc uintptr) *Func {
 	f := findfunc(pc)
 	if !f.valid() {

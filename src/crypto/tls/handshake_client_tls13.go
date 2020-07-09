@@ -338,6 +338,8 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 	c.didResume = true
 	c.peerCertificates = hs.session.serverCertificates
 	c.verifiedChains = hs.session.verifiedChains
+	c.ocspResponse = hs.session.ocspResponse
+	c.scts = hs.session.scts
 	return nil
 }
 
@@ -411,6 +413,15 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	// Either a PSK or a certificate is always used, but not both.
 	// See RFC 8446, Section 4.1.1.
 	if hs.usingPSK {
+		// Make sure the connection is still being verified whether or not this
+		// is a resumption. Resumptions currently don't reverify certificates so
+		// they don't call verifyServerCertificate. See Issue 31641.
+		if c.config.VerifyConnection != nil {
+			if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -661,6 +672,8 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		nonce:              msg.nonce,
 		useBy:              c.config.time().Add(lifetime),
 		ageAdd:             msg.ageAdd,
+		ocspResponse:       c.ocspResponse,
+		scts:               c.scts,
 	}
 
 	cacheKey := clientSessionCacheKey(c.conn.RemoteAddr(), c.config)

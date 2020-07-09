@@ -349,12 +349,9 @@ type sudog struct {
 
 	g *g
 
-	// isSelect indicates g is participating in a select, so
-	// g.selectDone must be CAS'd to win the wake-up race.
-	isSelect bool
-	next     *sudog
-	prev     *sudog
-	elem     unsafe.Pointer // data element (may point to stack)
+	next *sudog
+	prev *sudog
+	elem unsafe.Pointer // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -364,10 +361,15 @@ type sudog struct {
 	acquiretime int64
 	releasetime int64
 	ticket      uint32
-	parent      *sudog // semaRoot binary tree
-	waitlink    *sudog // g.waiting list or semaRoot
-	waittail    *sudog // semaRoot
-	c           *hchan // channel
+
+	// isSelect indicates g is participating in a select, so
+	// g.selectDone must be CAS'd to win the wake-up race.
+	isSelect bool
+
+	parent   *sudog // semaRoot binary tree
+	waitlink *sudog // g.waiting list or semaRoot
+	waittail *sudog // semaRoot
+	c        *hchan // channel
 }
 
 type libcall struct {
@@ -766,6 +768,12 @@ type schedt struct {
 
 	procresizetime int64 // nanotime() of last change to gomaxprocs
 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
+
+	// sysmonlock protects sysmon's actions on the runtime.
+	//
+	// Acquire and hold this mutex to block sysmon from interacting
+	// with the rest of the runtime.
+	sysmonlock mutex
 }
 
 // Values for the flags field of a sigTabT.

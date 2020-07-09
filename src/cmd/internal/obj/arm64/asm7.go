@@ -460,7 +460,6 @@ var optab = []Optab{
 	{AFCVTZSD, C_FREG, C_NONE, C_NONE, C_REG, 29, 4, 0, 0, 0},
 	{ASCVTFD, C_REG, C_NONE, C_NONE, C_FREG, 29, 4, 0, 0, 0},
 	{AFCVTSD, C_FREG, C_NONE, C_NONE, C_FREG, 29, 4, 0, 0, 0},
-	{AVCNT, C_ARNG, C_NONE, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_REG, 73, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_ELEM, 92, 4, 0, 0, 0},
 	{AVMOV, C_ELEM, C_NONE, C_NONE, C_VREG, 80, 4, 0, 0, 0},
@@ -1639,12 +1638,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 	}
 	if isaddcon(int64(v)) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(uint64(a.Offset)) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_ABCON
 		}
 		if movcon(int64(v)) >= 0 {
@@ -1658,7 +1657,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t := movcon(int64(v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
@@ -1666,13 +1665,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 
 	t = movcon(int64(^v))
 	if t >= 0 {
-		if isbitcon(uint64(v)) {
+		if isbitcon(uint64(a.Offset)) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	if isbitcon(uint64(v)) {
+	if isbitcon(uint64(a.Offset)) {
 		return C_BITCON
 	}
 
@@ -2773,6 +2772,7 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVSRI, t)
 
 		case AVREV32:
+			oprangeset(AVCNT, t)
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 			oprangeset(AVREV16, t)
@@ -4523,7 +4523,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
 
-		if (p.As == AVMOV || p.As == AVRBIT) && (af != ARNG_16B && af != ARNG_8B) {
+		if (p.As == AVMOV || p.As == AVRBIT || p.As == AVCNT) && (af != ARNG_16B && af != ARNG_8B) {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 

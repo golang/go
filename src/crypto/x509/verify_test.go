@@ -374,7 +374,7 @@ var verifyTests = []verifyTest{
 		systemSkip:  true,
 		ignoreCN:    true,
 
-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+		errorCallback: expectHostnameError("not valid for any names"),
 	},
 	{
 		leaf:        validCNWithoutSAN,
@@ -384,7 +384,7 @@ var verifyTests = []verifyTest{
 		systemSkip:  true,
 		ignoreCN:    true,
 
-		errorCallback: expectHostnameError("not valid for any names"),
+		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
 	},
 	{
 		// A certificate with an AKID should still chain to a parent without SKID.
@@ -1987,26 +1987,31 @@ CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
 
 func TestValidHostname(t *testing.T) {
 	tests := []struct {
-		host string
-		want bool
+		host                     string
+		validInput, validPattern bool
 	}{
-		{"example.com", true},
-		{"eXample123-.com", true},
-		{"-eXample123-.com", false},
-		{"", false},
-		{".", false},
-		{"example..com", false},
-		{".example.com", false},
-		{"*.example.com", true},
-		{"*foo.example.com", false},
-		{"foo.*.example.com", false},
-		{"exa_mple.com", true},
-		{"foo,bar", false},
-		{"project-dev:us-central1:main", true},
+		{host: "example.com", validInput: true, validPattern: true},
+		{host: "eXample123-.com", validInput: true, validPattern: true},
+		{host: "-eXample123-.com"},
+		{host: ""},
+		{host: "."},
+		{host: "example..com"},
+		{host: ".example.com"},
+		{host: "example.com.", validInput: true},
+		{host: "*.example.com."},
+		{host: "*.example.com", validPattern: true},
+		{host: "*foo.example.com"},
+		{host: "foo.*.example.com"},
+		{host: "exa_mple.com", validInput: true, validPattern: true},
+		{host: "foo,bar"},
+		{host: "project-dev:us-central1:main"},
 	}
 	for _, tt := range tests {
-		if got := validHostname(tt.host); got != tt.want {
-			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
+		if got := validHostnamePattern(tt.host); got != tt.validPattern {
+			t.Errorf("validHostnamePattern(%q) = %v, want %v", tt.host, got, tt.validPattern)
+		}
+		if got := validHostnameInput(tt.host); got != tt.validInput {
+			t.Errorf("validHostnameInput(%q) = %v, want %v", tt.host, got, tt.validInput)
 		}
 	}
 }

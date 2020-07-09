@@ -550,18 +550,12 @@ func init() {
 		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
 		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
 
-		// Constant flag values. For any comparison, there are 5 possible
-		// outcomes: the three from the signed total order (<,==,>) and the
-		// three from the unsigned total order. The == cases overlap.
-		// Note: there's a sixth "unordered" outcome for floating-point
+		// Constant flag value.
+		// Note: there's an "unordered" outcome for floating-point
 		// comparisons, but we don't use such a beast yet.
-		// These ops are for temporary use by rewrite rules. They
+		// This op is for temporary use by rewrite rules. It
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},     // equal
-		{name: "FlagLT_ULT"}, // signed < and unsigned <
-		{name: "FlagLT_UGT"}, // signed < and unsigned >
-		{name: "FlagGT_UGT"}, // signed > and unsigned <
-		{name: "FlagGT_ULT"}, // signed > and unsigned >
+		{name: "FlagConstant", aux: "FlagConstant"},
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -584,6 +578,10 @@ func init() {
 		{name: "ULE", controls: 1},
 		{name: "UGT", controls: 1},
 		{name: "UGE", controls: 1},
+		{name: "LTnoov", controls: 1}, // 'LT' but without honoring overflow
+		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
+		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
+		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
 	}
 
 	archs = append(archs, arch{

@@ -1,5 +1,5 @@
 // Inferno utils/8l/asm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/8l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -65,7 +65,7 @@ import (
 // Data layout and relocation.
 
 // Derived from Inferno utils/6l/l.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -157,6 +157,7 @@ const AfterLoadlibFull = 2
 func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss **sym.Symbol) {
 	if which == BeforeLoadlibFull {
 		*ls = ctxt.loader.LookupOrCreateSym(name, ver)
+		ctxt.loader.SetAttrReachable(*ls, true)
 	} else {
 		*ss = ctxt.loader.Syms[*ls]
 	}
@@ -167,6 +168,7 @@ func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss 
 func (ctxt *Link) mkArchSymVec(which int, name string, ver int, ls []loader.Sym, ss []*sym.Symbol) {
 	if which == BeforeLoadlibFull {
 		ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+		ctxt.loader.SetAttrReachable(ls[ver], true)
 	} else if ls[ver] != 0 {
 		ss[ver] = ctxt.loader.Syms[ls[ver]]
 	}
@@ -1467,6 +1469,7 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
+	var altLinker string
 	if ctxt.IsELF && ctxt.DynlinkingGo() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
@@ -1478,6 +1481,11 @@ func (ctxt *Link) hostlink() {
 		// from the beginning of the section (like sym.STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
+		if objabi.GOOS == "android" {
+			// Use lld to avoid errors from default linker (issue #38838)
+			altLinker = "lld"
+		}
+
 		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && objabi.GOOS == "linux" {
 			// On ARM, the GNU linker will generate COPY relocations
 			// even with -znocopyreloc set.
@@ -1487,7 +1495,7 @@ func (ctxt *Link) hostlink() {
 			// generating COPY relocations.
 			//
 			// In both cases, switch to gold.
-			argv = append(argv, "-fuse-ld=gold")
+			altLinker = "gold"
 
 			// If gold is not installed, gcc will silently switch
 			// back to ld.bfd. So we parse the version information
@@ -1500,10 +1508,9 @@ func (ctxt *Link) hostlink() {
 			}
 		}
 	}
-
 	if ctxt.Arch.Family == sys.ARM64 && objabi.GOOS == "freebsd" {
 		// Switch to ld.bfd on freebsd/arm64.
-		argv = append(argv, "-fuse-ld=bfd")
+		altLinker = "bfd"
 
 		// Provide a useful error if ld.bfd is missing.
 		cmd := exec.Command(*flagExtld, "-fuse-ld=bfd", "-Wl,--version")
@@ -1512,6 +1519,9 @@ func (ctxt *Link) hostlink() {
 				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
 			}
 		}
+	}
+	if altLinker != "" {
+		argv = append(argv, "-fuse-ld="+altLinker)
 	}
 
 	if ctxt.IsELF && len(buildinfo) > 0 {
@@ -1549,7 +1559,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
-	if ctxt.compressDWARF && linkerFlagSupported(argv[0], compressDWARF) {
+	if ctxt.compressDWARF && linkerFlagSupported(argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
 	}
 
@@ -1639,7 +1649,7 @@ func (ctxt *Link) hostlink() {
 	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
-			if linkerFlagSupported(argv[0], nopie) {
+			if linkerFlagSupported(argv[0], altLinker, nopie) {
 				argv = append(argv, nopie)
 				break
 			}
@@ -1740,7 +1750,7 @@ func (ctxt *Link) hostlink() {
 
 var createTrivialCOnce sync.Once
 
-func linkerFlagSupported(linker, flag string) bool {
+func linkerFlagSupported(linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
@@ -1800,6 +1810,9 @@ func linkerFlagSupported(linker, flag string) bool {
 		}
 	}
 
+	if altLinker != "" {
+		flags = append(flags, "-fuse-ld="+altLinker)
+	}
 	flags = append(flags, flag, "trivial.c")
 
 	cmd := exec.Command(linker, flags...)
@@ -2114,7 +2127,9 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot open shared library: %s", libpath)
 		return
 	}
-	defer f.Close()
+	// Keep the file open as decodetypeGcprog needs to read from it.
+	// TODO: fix. Maybe mmap the file.
+	//defer f.Close()
 
 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
 	if err != nil {

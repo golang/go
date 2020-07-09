@@ -1189,15 +1189,38 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				}
 				v.Op = ctzNonZeroOp[v.Op]
 			}
-
+		case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
+			// Check whether, for a >> b, we know that a is non-negative
+			// and b is all of a's bits except the MSB. If so, a is shifted to zero.
+			bits := 8 * v.Type.Size()
+			if v.Args[1].isGenericIntConst() && v.Args[1].AuxInt >= bits-1 && ft.isNonNegative(v.Args[0]) {
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
+				}
+				switch bits {
+				case 64:
+					v.reset(OpConst64)
+				case 32:
+					v.reset(OpConst32)
+				case 16:
+					v.reset(OpConst16)
+				case 8:
+					v.reset(OpConst8)
+				default:
+					panic("unexpected integer size")
+				}
+				v.AuxInt = 0
+				continue // Be sure not to fallthrough - this is no longer OpRsh.
+			}
+			// If the Rsh hasn't been replaced with 0, still check if it is bounded.
+			fallthrough
 		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
 			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
 			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
 			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
-			OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
-			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
-			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
-			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64,
 			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
 			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
 			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,

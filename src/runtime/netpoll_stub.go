@@ -49,6 +49,9 @@ func netpoll(delay int64) gList {
 
 		notetsleep(&netpollNote, delay)
 		unlock(&netpollStubLock)
+		// Guard against starvation in case the lock is contended
+		// (eg when running TestNetpollBreak).
+		osyield()
 	}
 	return gList{}
 }

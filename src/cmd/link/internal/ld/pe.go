@@ -1470,6 +1470,7 @@ func setpersrc(ctxt *Link, sym loader.Sym) {
 	}
 
 	rsrcsym = sym
+	ctxt.loader.SetAttrReachable(rsrcsym, true)
 }
 
 func addpersrc(ctxt *Link) {
@@ -1477,18 +1478,18 @@ func addpersrc(ctxt *Link) {
 		return
 	}
 
-	data := ctxt.loader.Data(rsrcsym)
+	rsrc := ctxt.loader.Syms[rsrcsym]
+	data := rsrc.P
 	size := len(data)
 	h := pefile.addSection(".rsrc", size, size)
 	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	relocs := ctxt.loader.Relocs(rsrcsym)
-	for i := 0; i < relocs.Count(); i++ {
-		r := relocs.At2(i)
-		p := data[r.Off():]
-		val := uint32(int64(h.virtualAddress) + r.Add())
+	for ri := range rsrc.R {
+		r := &rsrc.R[ri]
+		p := data[r.Off:]
+		val := uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
 		p[0] = byte(val)

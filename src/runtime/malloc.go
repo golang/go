@@ -302,7 +302,9 @@ const (
 	//
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
-	arenaBaseOffset = sys.GoarchAmd64*(1<<47) + (^0x0a00000000000000+1)&uintptrMask*sys.GoosAix
+	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*sys.GoosAix
+	// A typed version of this constant that will make it into DWARF (for viewcore).
+	arenaBaseOffsetUintptr = uintptr(arenaBaseOffset)
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
@@ -604,7 +606,7 @@ func mallocinit() {
 			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
 			if a != nil {
 				mheap_.arena.init(uintptr(a), size)
-				p = uintptr(a) + size // For hint below
+				p = mheap_.arena.end // For hint below
 				break
 			}
 		}
@@ -976,6 +978,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			throw("malloc called with no P")
 		}
 	}
+	var span *mspan
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
 	if size <= maxSmallSize {
@@ -1028,10 +1031,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				return x
 			}
 			// Allocate a new maxTinySize block.
-			span := c.alloc[tinySpanClass]
+			span = c.alloc[tinySpanClass]
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, _, shouldhelpgc = c.nextFree(tinySpanClass)
+				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -1052,7 +1055,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)
-			span := c.alloc[spc]
+			span = c.alloc[spc]
 			v := nextFreeFast(span)
 			if v == 0 {
 				v, span, shouldhelpgc = c.nextFree(spc)
@@ -1063,15 +1066,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 		}
 	} else {
-		var s *mspan
 		shouldhelpgc = true
 		systemstack(func() {
-			s = largeAlloc(size, needzero, noscan)
+			span = largeAlloc(size, needzero, noscan)
 		})
-		s.freeindex = 1
-		s.allocCount = 1
-		x = unsafe.Pointer(s.base())
-		size = s.elemsize
+		span.freeindex = 1
+		span.allocCount = 1
+		x = unsafe.Pointer(span.base())
+		size = span.elemsize
 	}
 
 	var scanSize uintptr
@@ -1112,7 +1114,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(uintptr(x), size, scanSize)
+		gcmarknewobject(span, uintptr(x), size, scanSize)
 	}
 
 	if raceenabled {
@@ -1423,6 +1425,13 @@ type linearAlloc struct {
 }
 
 func (l *linearAlloc) init(base, size uintptr) {
+	if base+size < base {
+		// Chop off the last byte. The runtime isn't prepared
+		// to deal with situations where the bounds could overflow.
+		// Leave that memory reserved, though, so we don't map it
+		// later.
+		size -= 1
+	}
 	l.next, l.mapped = base, base
 	l.end = base + size
 }

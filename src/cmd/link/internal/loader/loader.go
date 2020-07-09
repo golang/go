@@ -236,7 +236,8 @@ type Loader struct {
 	outdata   [][]byte     // symbol's data in the output buffer
 	extRelocs [][]ExtReloc // symbol's external relocations
 
-	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+	deferReturnTramp map[Sym]bool     // whether the symbol is a trampoline of a deferreturn call
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
@@ -362,6 +363,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		itablink:             make(map[Sym]struct{}),
+		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
@@ -632,15 +634,15 @@ func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
 	}
 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
 
-	// For the moment, whitelist DWARF subprogram DIEs for
+	// For the moment, allow DWARF subprogram DIEs for
 	// auto-generated wrapper functions. What seems to happen
 	// here is that we get different line numbers on formal
 	// params; I am guessing that the pos is being inherited
 	// from the spot where the wrapper is needed.
-	whitelist := strings.HasPrefix(name, "go.info.go.interface") ||
+	allowed := strings.HasPrefix(name, "go.info.go.interface") ||
 		strings.HasPrefix(name, "go.info.go.builtin") ||
 		strings.HasPrefix(name, "go.debuglines")
-	if !whitelist {
+	if !allowed {
 		l.strictDupMsgs++
 	}
 }
@@ -1060,6 +1062,16 @@ func (l *Loader) IsItabLink(i Sym) bool {
 		return true
 	}
 	return false
+}
+
+// Return whether this is a trampoline of a deferreturn call.
+func (l *Loader) IsDeferReturnTramp(i Sym) bool {
+	return l.deferReturnTramp[i]
+}
+
+// Set that i is a trampoline of a deferreturn call.
+func (l *Loader) SetIsDeferReturnTramp(i Sym, v bool) {
+	l.deferReturnTramp[i] = v
 }
 
 // growValues grows the slice used to store symbol values.
@@ -1902,7 +1914,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 // Does not read symbol data.
 // Returns the fingerprint of the object.
 func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
-	roObject, readonly, err := f.Slice(uint64(length))
+	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
 	}

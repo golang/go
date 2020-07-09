@@ -49,7 +49,7 @@ func main() {
 	if err := ioutil.WriteFile(filepath.Join(td, "x.go"), []byte(prog), 0644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("go", "build", "-o", "x.exe", "x.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "x.exe", "x.go")
 	cmd.Dir = td
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v, %s", err, out)

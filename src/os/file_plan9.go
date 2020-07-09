@@ -233,10 +233,10 @@ func (f *File) Sync() error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{"sync", f.name, err}
 	}
 	return nil
 }

@@ -194,12 +194,12 @@ func init() {
 		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB"},   // arg0*arg1 - arg2
 		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS"}, // arg0*arg1 - arg2
 
-		{name: "SRAD", argLength: 2, reg: gp21, asm: "SRAD"}, // arg0 >>a arg1, 64 bits (all sign if arg1 & 64 != 0)
-		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"}, // arg0 >>a arg1, 32 bits (all sign if arg1 & 32 != 0)
-		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},   // arg0 >> arg1, 64 bits  (0 if arg1 & 64 != 0)
-		{name: "SRW", argLength: 2, reg: gp21, asm: "SRW"},   // arg0 >> arg1, 32 bits  (0 if arg1 & 32 != 0)
-		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << arg1, 64 bits  (0 if arg1 & 64 != 0)
-		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << arg1, 32 bits  (0 if arg1 & 32 != 0)
+		{name: "SRAD", argLength: 2, reg: gp21, asm: "SRAD"}, // signed arg0 >> (arg1&127), 64 bit width (note: 127, not 63!)
+		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"}, // signed arg0 >> (arg1&63), 32 bit width
+		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},   // unsigned arg0 >> (arg1&127), 64 bit width
+		{name: "SRW", argLength: 2, reg: gp21, asm: "SRW"},   // unsigned arg0 >> (arg1&63), 32 bit width
+		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << (arg1&127), 64 bit width
+		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << (arg1&63), 32 bit width
 
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
@@ -208,12 +208,12 @@ func init() {
 		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + auxint
 		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
 
-		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // arg0 >>a aux, 64 bits
-		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // arg0 >>a aux, 32 bits
-		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},   // arg0 >> aux, 64 bits
-		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int64"},   // arg0 >> aux, 32 bits
-		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},   // arg0 << aux, 64 bits
-		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},   // arg0 << aux, 32 bits
+		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},   // unsigned arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int64"},   // unsigned arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
+		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},   // arg0 << auxInt, 0 <= auxInt < 64, 64 bit width
+		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},   // arg0 << auxInt, 0 <= auxInt < 32, 32 bit width
 
 		{name: "ROTLconst", argLength: 1, reg: gp11, asm: "ROTL", aux: "Int64"},   // arg0 rotate left by auxInt bits
 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits

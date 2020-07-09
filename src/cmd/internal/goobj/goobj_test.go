@@ -17,7 +17,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -151,14 +150,6 @@ func buildGoobj() error {
 	return nil
 }
 
-// Check that a symbol has a given name, accepting both
-// new and old objects.
-// TODO(go115newobj): remove.
-func matchSymName(symname, want string) bool {
-	return symname == want ||
-		strings.HasPrefix(symname, want+"#") // new style, with index
-}
-
 func TestParseGoobj(t *testing.T) {
 	path := go1obj
 
@@ -177,7 +168,7 @@ func TestParseGoobj(t *testing.T) {
 	}
 	var found bool
 	for _, s := range p.Syms {
-		if matchSymName(s.Name, "mypkg.go1") {
+		if s.Name == "mypkg.go1" {
 			found = true
 			break
 		}
@@ -206,10 +197,10 @@ func TestParseArchive(t *testing.T) {
 	var found1 bool
 	var found2 bool
 	for _, s := range p.Syms {
-		if matchSymName(s.Name, "mypkg.go1") {
+		if s.Name == "mypkg.go1" {
 			found1 = true
 		}
-		if matchSymName(s.Name, "mypkg.go2") {
+		if s.Name == "mypkg.go2" {
 			found2 = true
 		}
 	}
@@ -242,10 +233,10 @@ func TestParseCGOArchive(t *testing.T) {
 	var found1 bool
 	var found2 bool
 	for _, s := range p.Syms {
-		if matchSymName(s.Name, "mycgo.go1") {
+		if s.Name == "mycgo.go1" {
 			found1 = true
 		}
-		if matchSymName(s.Name, "mycgo.go2") {
+		if s.Name == "mycgo.go2" {
 			found2 = true
 		}
 	}
