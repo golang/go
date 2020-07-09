@@ -11,8 +11,8 @@ import (
 // fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange).
 func fuseEarly(f *Func) { fuse(f, fuseTypePlain|fuseTypeIntInRange) }
 
-// fuseLate runs fuse(f, fuseTypePlain|fuseTypeIf).
-func fuseLate(f *Func) { fuse(f, fuseTypePlain|fuseTypeIf) }
+// fuseLate runs fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect).
+func fuseLate(f *Func) { fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect) }
 
 type fuseType uint8
 
@@ -20,6 +20,7 @@ const (
 	fuseTypePlain fuseType = 1 << iota
 	fuseTypeIf
 	fuseTypeIntInRange
+	fuseTypeBranchRedirect
 	fuseTypeShortCircuit
 )
 
@@ -42,6 +43,9 @@ func fuse(f *Func, typ fuseType) {
 			if typ&fuseTypeShortCircuit != 0 {
 				changed = shortcircuitBlock(b) || changed
 			}
+		}
+		if typ&fuseTypeBranchRedirect != 0 {
+			changed = fuseBranchRedirect(f) || changed
 		}
 		if changed {
 			f.invalidateCFG()
