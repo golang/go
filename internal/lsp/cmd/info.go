@@ -32,7 +32,7 @@ func (v *version) DetailedHelp(f *flag.FlagSet) {
 
 // Run prints version information to stdout.
 func (v *version) Run(ctx context.Context, args ...string) error {
-	debug.PrintVersionInfo(ctx, os.Stdout, v.app.Verbose, debug.PlainText)
+	debug.PrintVersionInfo(ctx, os.Stdout, v.app.verbose(), debug.PlainText)
 	return nil
 }
 

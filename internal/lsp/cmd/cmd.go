@@ -57,11 +57,14 @@ type Application struct {
 	// The environment variables to use.
 	env []string
 
-	// Support for remote lsp server
+	// Support for remote LSP server.
 	Remote string `flag:"remote" help:"forward all commands to a remote lsp specified by this flag. With no special prefix, this is assumed to be a TCP address. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. If 'auto', or prefixed by 'auto;', the remote address is automatically resolved based on the executing environment."`
 
-	// Enable verbose logging
+	// Verbose enables verbose logging.
 	Verbose bool `flag:"v" help:"verbose output"`
+
+	// VeryVerbose enables a higher level of verbosity in logging output.
+	VeryVerbose bool `flag:"vv" help:"very verbose output"`
 
 	// Control ocagent export of telemetry
 	OCAgent string `flag:"ocagent" help:"the address of the ocagent (e.g. http://localhost:55678), or off"`
@@ -69,6 +72,10 @@ type Application struct {
 	// PrepareOptions is called to update the options when a new view is built.
 	// It is primarily to allow the behavior of gopls to be modified by hooks.
 	PrepareOptions func(*source.Options)
+}
+
+func (a *Application) verbose() bool {
+	return a.Verbose || a.VeryVerbose
 }
 
 // New returns a new Application ready to run.
@@ -339,15 +346,15 @@ func (c *cmdClient) LogMessage(ctx context.Context, p *protocol.LogMessageParams
 	case protocol.Warning:
 		log.Print("Warning:", p.Message)
 	case protocol.Info:
-		if c.app.Verbose {
+		if c.app.verbose() {
 			log.Print("Info:", p.Message)
 		}
 	case protocol.Log:
-		if c.app.Verbose {
+		if c.app.verbose() {
 			log.Print("Log:", p.Message)
 		}
 	default:
-		if c.app.Verbose {
+		if c.app.verbose() {
 			log.Print(p.Message)
 		}
 	}
@@ -382,7 +389,7 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 			}
 			env[l[0]] = l[1]
 		}
-		results[i] = map[string]interface{}{
+		m := map[string]interface{}{
 			"env": env,
 			"analyses": map[string]bool{
 				"fillreturns":    true,
@@ -391,6 +398,10 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 				"undeclaredname": true,
 			},
 		}
+		if c.app.VeryVerbose {
+			m["verboseOutput"] = true
+		}
+		results[i] = m
 	}
 	return results, nil
 }
