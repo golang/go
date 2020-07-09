@@ -775,3 +775,25 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 func DebugNameMatch(evname, name string) bool {
 	return os.Getenv(evname) == name
 }
+
+func (f *Func) spSb() (sp, sb *Value) {
+	initpos := f.Entry.Pos
+	for _, v := range f.Entry.Values {
+		if v.Op == OpSB {
+			sb = v
+		}
+		if v.Op == OpSP {
+			sp = v
+		}
+		if sb != nil && sp != nil {
+			break
+		}
+	}
+	if sb == nil {
+		sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
+	}
+	if sp == nil {
+		sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+	}
+	return
+}
