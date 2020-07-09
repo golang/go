@@ -143,7 +143,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := pmh.Parse(ctx)
+	_, m, _, err := pmh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,17 +154,19 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string
 	}
 	textDocumentEdits := make(map[string]protocol.TextDocumentEdit)
 	for dep, req := range missingDeps {
-		// Calculate the quick fix edits that need to be made to the go.mod file.
-		if err := file.AddRequire(req.Mod.Path, req.Mod.Version); err != nil {
-			return nil, err
-		}
-		file.Cleanup()
-		newContents, err := file.Format()
+		// We need a private copy of the parsed go.mod file, since we're going to
+		// modify it.
+		copied, err := modfile.Parse("", oldContents, nil)
 		if err != nil {
 			return nil, err
 		}
-		// Reset the *modfile.File back to before we added the dependency.
-		if err := file.DropRequire(req.Mod.Path); err != nil {
+		// Calculate the quick fix edits that need to be made to the go.mod file.
+		if err := copied.AddRequire(req.Mod.Path, req.Mod.Version); err != nil {
+			return nil, err
+		}
+		copied.SortBlocks()
+		newContents, err := copied.Format()
+		if err != nil {
 			return nil, err
 		}
 		// Calculate the edits to be made due to the change.

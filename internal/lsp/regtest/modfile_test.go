@@ -103,3 +103,70 @@ require example.com v1.2.3
 		}
 	}, WithProxy(proxy))
 }
+
+// Test to reproduce golang/go#39041. It adds a new require to a go.mod file
+// that already has an unused require.
+func TestNewDepWithUnusedDep(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const proxy = `
+-- github.com/esimov/caire@v1.2.5/go.mod --
+module github.com/esimov/caire
+
+go 1.12
+-- github.com/esimov/caire@v1.2.5/caire.go --
+package caire
+
+func RemoveTempImage() {}
+-- google.golang.org/protobuf@v1.20.0/go.mod --
+module google.golang.org/protobuf
+
+go 1.12
+-- google.golang.org/protobuf@v1.20.0/hello/hello.go --
+package hello
+`
+	const repro = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+require google.golang.org/protobuf v1.20.0
+-- main.go --
+package main
+
+import (
+    "github.com/esimov/caire"
+)
+
+func _() {
+    caire.RemoveTempImage()
+}`
+	runner.Run(t, repro, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.OpenFile("main.go")
+		d := env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/esimov/caire"`),
+		)
+		if len(d) == 0 {
+			t.Fatalf("no diagnostics")
+		}
+		params, ok := d[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("expected diagnostic of type PublishDiagnosticParams, got %T", d[0])
+		}
+		env.ApplyQuickFixes("main.go", params.Diagnostics)
+		want := `module mod.com
+
+go 1.14
+
+require (
+	github.com/esimov/caire v1.2.5
+	google.golang.org/protobuf v1.20.0
+)
+`
+		if got := env.Editor.BufferText("go.mod"); got != want {
+			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", tests.Diff(want, got))
+		}
+	}, WithProxy(proxy))
+}

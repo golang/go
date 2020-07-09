@@ -150,7 +150,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 				missingDeps[req.Mod.Path] = req
 			}
 		}
-		diagnostics, err := modRequireErrors(pmh.Mod().URI(), original, m, missingDeps, unusedDeps, options)
+		diagnostics, err := modRequireErrors(pmh.Mod().URI(), m, missingDeps, unusedDeps, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -175,7 +175,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 
 // modRequireErrors extracts the errors that occur on the require directives.
 // It checks for directness issues and unused dependencies.
-func modRequireErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapper, missingDeps, unusedDeps map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
+func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unusedDeps map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
 	var errors []source.Error
 	for dep, req := range unusedDeps {
 		if req.Syntax == nil {
@@ -183,7 +183,7 @@ func modRequireErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapp
 		}
 		// Handle dependencies that are incorrectly labeled indirect and vice versa.
 		if missingDeps[dep] != nil && req.Indirect != missingDeps[dep].Indirect {
-			directErr, err := modDirectnessErrors(uri, parsed, m, req, options)
+			directErr, err := modDirectnessErrors(uri, m, req, options)
 			if err != nil {
 				return nil, err
 			}
@@ -195,7 +195,7 @@ func modRequireErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapp
 			if err != nil {
 				return nil, err
 			}
-			edits, err := dropDependencyEdits(uri, parsed, m, req, options)
+			edits, err := dropDependencyEdits(uri, m, req, options)
 			if err != nil {
 				return nil, err
 			}
@@ -219,7 +219,7 @@ func modRequireErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapp
 const ModTidyError = "go mod tidy"
 
 // modDirectnessErrors extracts errors when a dependency is labeled indirect when it should be direct and vice versa.
-func modDirectnessErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) (source.Error, error) {
+func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) (source.Error, error) {
 	rng, err := rangeFromPositions(uri, m, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return source.Error{}, err
@@ -235,7 +235,7 @@ func modDirectnessErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnM
 				return source.Error{}, err
 			}
 		}
-		edits, err := changeDirectnessEdits(uri, parsed, m, req, false, options)
+		edits, err := changeDirectnessEdits(uri, m, req, false, options)
 		if err != nil {
 			return source.Error{}, err
 		}
@@ -253,7 +253,7 @@ func modDirectnessErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnM
 		}, nil
 	}
 	// If the dependency should be indirect, add the // indirect.
-	edits, err := changeDirectnessEdits(uri, parsed, m, req, true, options)
+	edits, err := changeDirectnessEdits(uri, m, req, true, options)
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -283,19 +283,23 @@ func modDirectnessErrors(uri span.URI, parsed *modfile.File, m *protocol.ColumnM
 // 	module t
 //
 // 	go 1.11
-func dropDependencyEdits(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) ([]protocol.TextEdit, error) {
-	if err := parsed.DropRequire(req.Mod.Path); err != nil {
-		return nil, err
-	}
-	parsed.Cleanup()
-	newContents, err := parsed.Format()
+func dropDependencyEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) ([]protocol.TextEdit, error) {
+	// We need a private copy of the parsed go.mod file, since we're going to
+	// modify it.
+	copied, err := modfile.Parse("", m.Content, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Reset the *modfile.File back to before we dropped the dependency.
-	parsed.AddNewRequire(req.Mod.Path, req.Mod.Version, req.Indirect)
+	if err := copied.DropRequire(req.Mod.Path); err != nil {
+		return nil, err
+	}
+	copied.Cleanup()
+	newContent, err := copied.Format()
+	if err != nil {
+		return nil, err
+	}
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(uri, string(m.Content), string(newContents))
+	diff := options.ComputeEdits(uri, string(m.Content), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err
@@ -317,33 +321,34 @@ func dropDependencyEdits(uri span.URI, parsed *modfile.File, m *protocol.ColumnM
 // 	go 1.11
 //
 // 	require golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee // indirect
-func changeDirectnessEdits(uri span.URI, parsed *modfile.File, m *protocol.ColumnMapper, req *modfile.Require, indirect bool, options source.Options) ([]protocol.TextEdit, error) {
-	var newReq []*modfile.Require
-	prevIndirect := false
-	// Change the directness in the matching require statement.
-	for _, r := range parsed.Require {
-		if req.Mod.Path == r.Mod.Path {
-			prevIndirect = req.Indirect
-			req.Indirect = indirect
-		}
-		newReq = append(newReq, r)
-	}
-	parsed.SetRequire(newReq)
-	parsed.Cleanup()
-	newContents, err := parsed.Format()
+func changeDirectnessEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, indirect bool, options source.Options) ([]protocol.TextEdit, error) {
+	// We need a private copy of the parsed go.mod file, since we're going to
+	// modify it.
+	copied, err := modfile.Parse("", m.Content, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Change the dependency back to the way it was before we got the newContents.
-	for _, r := range parsed.Require {
-		if req.Mod.Path == r.Mod.Path {
-			req.Indirect = prevIndirect
+	// Change the directness in the matching require statement. To avoid
+	// reordering the require statements, rewrite all of them.
+	var requires []*modfile.Require
+	for _, r := range copied.Require {
+		if r.Mod.Path == req.Mod.Path {
+			requires = append(requires, &modfile.Require{
+				Mod:      r.Mod,
+				Syntax:   r.Syntax,
+				Indirect: indirect,
+			})
+			continue
 		}
-		newReq = append(newReq, r)
+		requires = append(requires, r)
 	}
-	parsed.SetRequire(newReq)
+	copied.SetRequire(requires)
+	newContent, err := copied.Format()
+	if err != nil {
+		return nil, err
+	}
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(uri, string(m.Content), string(newContents))
+	diff := options.ComputeEdits(uri, string(m.Content), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err
