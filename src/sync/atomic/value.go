@@ -28,7 +28,7 @@ type ifaceWords struct {
 func (v *Value) Load() (val interface{}) {
 	vp := (*ifaceWords)(unsafe.Pointer(v))
 	typ := LoadPointer(&vp.typ)
-	if typ == nil || uintptr(typ) == ^uintptr(0) {
+	if typ == nil || typ == unsafe.Pointer(&firstStoreInProgress) {
 		// First store not yet completed.
 		return nil
 	}
@@ -38,6 +38,8 @@ func (v *Value) Load() (val interface{}) {
 	vlp.data = data
 	return
 }
+
+var firstStoreInProgress byte
 
 // Store sets the value of the Value to x.
 // All calls to Store for a given Value must use values of the same concrete type.
@@ -53,10 +55,9 @@ func (v *Value) Store(val interface{}) {
 		if typ == nil {
 			// Attempt to start first store.
 			// Disable preemption so that other goroutines can use
-			// active spin wait to wait for completion; and so that
-			// GC does not see the fake type accidentally.
+			// active spin wait to wait for completion.
 			runtime_procPin()
-			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(^uintptr(0))) {
+			if !CompareAndSwapPointer(&vp.typ, nil, unsafe.Pointer(&firstStoreInProgress)) {
 				runtime_procUnpin()
 				continue
 			}
@@ -66,7 +67,7 @@ func (v *Value) Store(val interface{}) {
 			runtime_procUnpin()
 			return
 		}
-		if uintptr(typ) == ^uintptr(0) {
+		if typ == unsafe.Pointer(&firstStoreInProgress) {
 			// First store in progress. Wait.
 			// Since we disable preemption around the first store,
 			// we can wait with active spinning.
