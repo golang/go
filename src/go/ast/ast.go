@@ -464,6 +464,16 @@ type (
 		Dir   ChanDir   // channel direction
 		Value Expr      // value type
 	}
+
+	// An InstantiatedType node represents an instantiated type.
+	// Appears only if syntax uses square brackets for type parameters
+	// (otherwise CallExpr nodes are used instead).
+	InstantiatedType struct {
+		Base   Expr      // generic type that is instantiated
+		Lbrack token.Pos // position of "["
+		TArgs  []Expr    // type arguments
+		Rbrack token.Pos // position of "]"
+	}
 )
 
 // Pos and End implementations for expression/type nodes.
@@ -497,9 +507,10 @@ func (x *FuncType) Pos() token.Pos {
 	}
 	return x.Params.Pos() // interface method declarations have no "func" keyword
 }
-func (x *InterfaceType) Pos() token.Pos { return x.Interface }
-func (x *MapType) Pos() token.Pos       { return x.Map }
-func (x *ChanType) Pos() token.Pos      { return x.Begin }
+func (x *InterfaceType) Pos() token.Pos    { return x.Interface }
+func (x *MapType) Pos() token.Pos          { return x.Map }
+func (x *ChanType) Pos() token.Pos         { return x.Begin }
+func (x *InstantiatedType) Pos() token.Pos { return x.Base.Pos() }
 
 func (x *BadExpr) End() token.Pos { return x.To }
 func (x *Ident) End() token.Pos   { return token.Pos(int(x.NamePos) + len(x.Name)) }
@@ -530,9 +541,10 @@ func (x *FuncType) End() token.Pos {
 	}
 	return x.Params.End()
 }
-func (x *InterfaceType) End() token.Pos { return x.Methods.End() }
-func (x *MapType) End() token.Pos       { return x.Value.End() }
-func (x *ChanType) End() token.Pos      { return x.Value.End() }
+func (x *InterfaceType) End() token.Pos    { return x.Methods.End() }
+func (x *MapType) End() token.Pos          { return x.Value.End() }
+func (x *ChanType) End() token.Pos         { return x.Value.End() }
+func (x *InstantiatedType) End() token.Pos { return x.Rbrack }
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an Expr.
@@ -554,12 +566,13 @@ func (*UnaryExpr) exprNode()      {}
 func (*BinaryExpr) exprNode()     {}
 func (*KeyValueExpr) exprNode()   {}
 
-func (*ArrayType) exprNode()     {}
-func (*StructType) exprNode()    {}
-func (*FuncType) exprNode()      {}
-func (*InterfaceType) exprNode() {}
-func (*MapType) exprNode()       {}
-func (*ChanType) exprNode()      {}
+func (*ArrayType) exprNode()        {}
+func (*StructType) exprNode()       {}
+func (*FuncType) exprNode()         {}
+func (*InterfaceType) exprNode()    {}
+func (*MapType) exprNode()          {}
+func (*ChanType) exprNode()         {}
+func (*InstantiatedType) exprNode() {}
 
 // ----------------------------------------------------------------------------
 // Convenience functions for Idents
@@ -1038,14 +1051,15 @@ func (*FuncDecl) declNode() {}
 // are "free-floating" (see also issues #18593, #20744).
 //
 type File struct {
-	Doc        *CommentGroup   // associated documentation; or nil
-	Package    token.Pos       // position of "package" keyword
-	Name       *Ident          // package name
-	Decls      []Decl          // top-level declarations; or nil
-	Scope      *Scope          // package scope (this file only)
-	Imports    []*ImportSpec   // imports in this file
-	Unresolved []*Ident        // unresolved identifiers in this file
-	Comments   []*CommentGroup // list of all comments in the source file
+	Doc         *CommentGroup   // associated documentation; or nil
+	Package     token.Pos       // position of "package" keyword
+	Name        *Ident          // package name
+	Decls       []Decl          // top-level declarations; or nil
+	Scope       *Scope          // package scope (this file only)
+	Imports     []*ImportSpec   // imports in this file
+	Unresolved  []*Ident        // unresolved identifiers in this file
+	Comments    []*CommentGroup // list of all comments in the source file
+	UseBrackets bool            // indicates that type parameters use []'s
 }
 
 func (f *File) Pos() token.Pos { return f.Package }

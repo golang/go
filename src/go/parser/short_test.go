@@ -60,21 +60,64 @@ var valids = []string{
 	`package p; type T(type P comparable) struct { P }`,
 	`package p; type T(type P comparable(P)) struct { P }`,
 	`package p; type T(type P1, P2) struct { P1; f []P2 }`,
+	`package p; type _ []T(int)`,
 
-	`package p; var _ = [](T(int)){}`,
+	`package p; type T[type P] struct { P }`,
+	`package p; type T[type P comparable] struct { P }`,
+	`package p; type T[type P comparable[P]] struct { P }`,
+	`package p; type T[type P1, P2] struct { P1; f []P2 }`,
+	`package p; type _[type] int; type _ []T[int]`,
+
 	`package p; var _ = func()T(nil)`,
 	`package p; func _(type)()`,
 	`package p; func _(type)()()`,
 	`package p; func _(T (P))`,
-	`package p; func _((T(P)))`,
 	`package p; func _(T []E)`,
 	`package p; func _(T [P]E)`,
 	`package p; func _(x T(P1, P2, P3))`,
+
+	`package p; var _ = func()T(nil)`,
+	`package p; type _[type] int; func _[type]()`,
+	`package p; type _[type] int; func _[type]()()`,
+	`package p; type _[type] int; func _(T (P))`,
+	`package p; type _[type] int; func _(T []E)`,
+	`package p; type _[type] int; func _(T [P]E)`,
+	`package p; type _[type] int; func _(x T[P1, P2, P3])`,
+
+	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
+	`package p; type _[type] int; var _ T[chan int]`,
+
+	// need for parentheses to disambiguate
+	`package p; var _ = [](T(int)){}`,
+	`package p; var _ = [10](T(int)){}`,
+	`package p; var _ = func()(T(int)){}`,
+	`package p; var _ = map[T(int)](T(int)){}`,
+	`package p; var _ = chan (T(int))(x)`,
+	`package p; func _((T(P)))`,
 	`package p; func _((T(P1, P2, P3)))`,
 
 	`package p; func _(type *P)()`,
 	`package p; func _(type *P B)()`,
 	`package p; func _(type P, *Q interface{})()`,
+
+	`package p; func _((T(P))) T(P)`,
+	`package p; func _(_ T(P), T (P)) T(P)`,
+
+	// no need for parentheses to disambiguate
+	`package p; type _[type] int; var _ = []T[int]{}`,
+	`package p; type _[type] int; var _ = [10]T[int]{}`,
+	`package p; type _[type] int; var _ = func()T[int]{}`,
+	`package p; type _[type] int; var _ = map[T[int]]T[int]{}`,
+	`package p; type _[type] int; var _ = chan T[int](x)`,
+	`package p; type _[type] int; func _(T[P])`,
+	`package p; type _[type] int; func _(T[P1, P2, P3])`,
+
+	`package p; type _[type] int; func _[type *P]()`,
+	`package p; type _[type] int; func _[type *P B]()`,
+	`package p; type _[type] int; func _[type P, *Q interface{}]()`,
+
+	`package p; type _[type] int; func _(T[P]) T[P]`,
+	`package p; type _[type] int; func _(_ T[P], T (P)) T[P]`,
 
 	// method type parameters (if methodTypeParamsOk)
 	`package p; func _(type A, B)(a A) B`,
@@ -87,18 +130,49 @@ var valids = []string{
 	`package p; type _ interface { _(type A, B C)(a A) B }`,
 	`package p; type _ interface { _(type A, B C(A, B))(a A) B }`,
 
+	`package p; type _[type] int; func _[type A, B](a A) B`,
+	`package p; type _[type] int; func _[type A, B C](a A) B`,
+	`package p; type _[type] int; func _[type A, B C[A, B]](a A) B`,
+	`package p; type _[type] int; func (T) _[type A, B](a A) B`,
+	`package p; type _[type] int; func (T) _[type A, B C](a A) B`,
+	`package p; type _[type] int; func (T) _[type A, B C[A, B]](a A) B`,
+	`package p; type _[type] int; type _ interface { _[type A, B](a A) B }`,
+	`package p; type _[type] int; type _ interface { _[type A, B C](a A) B }`,
+	`package p; type _[type] int; type _ interface { _[type A, B C[A, B]](a A) B }`,
+
 	// type bounds
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
+
+	`package p; type _[type] int; func _[type T1, T2 interface{}](x T1) T2`,
+	`package p; type _[type] int; func _[type T1 interface{ m() }, T2, T3 interface{}](x T1, y T3) T2`,
+
+	// embedded types
+	`package p; type _ struct{ (T(P)) }`,
+	`package p; type _ struct{ (T(struct{a, b, c int})) }`,
+	`package p; type _ struct{ f [n]E }`,
+	`package p; type _ struct{ f [a+b+c+d]E }`,
+
+	`package p; type _[type] int; type _ struct{ T[P] }`,
+	`package p; type _[type] int; type _ struct{ T[struct{a, b, c int}] }`,
+	`package p; type _[type] int; type _ struct{ f [n]E }`,
+	`package p; type _[type] int; type _ struct{ f [a+b+c+d]E }`,
 
 	// interfaces with type lists
 	`package p; type _ interface{type int}`,
 	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
 
+	`package p; type _[type] int; type _ interface{type int}`,
+	`package p; type _[type] int; type _ interface{type int, float32; type bool; m(); type string;}`,
+
 	// interfaces with parenthesized embedded and possibly parameterized interfaces
 	`package p; type I1 interface{}; type I2 interface{ (I1) }`,
 	`package p; type I1(type T) interface{}; type I2 interface{ (I1(int)) }`,
 	`package p; type I1(type T) interface{}; type I2(type T) interface{ (I1(T)) }`,
+
+	`package p; type _[type] int; type I1 interface{}; type I2 interface{ (I1) }`,
+	`package p; type I1[type T] interface{}; type I2 interface{ I1[int] }`,
+	`package p; type I1[type T] interface{}; type I2[type T] interface{ I1[T] }`,
 }
 
 func TestValid(t *testing.T) {
@@ -162,9 +236,9 @@ var invalids = []string{
 	//`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
 
 	// type parameters
-	`package p; var _ func( /* ERROR "no type parameters" */ type T)(T)`,
-	`package p; func _() ( /* ERROR "no type parameters" */ type T)(T)`,
-	`package p; func ( /* ERROR "no type parameters" */ type T)(T) _()`,
+	`package p; var _ func( /* ERROR "cannot have type parameters" */ type T)(T)`,
+	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
+	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
