@@ -136,6 +136,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	objabi.Flagparse(usage)
 
+	if ctxt.Debugvlog > 0 {
+		// dump symbol info on crash
+		defer func() { ctxt.loader.Dump() }()
+	}
+
 	switch *flagHeadType {
 	case "":
 	case "windowsgui":
