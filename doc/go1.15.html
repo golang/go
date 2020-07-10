@@ -553,11 +553,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="crypto/x509/pkix"><dt><a href="/pkg/crypto/x509/pkix/">crypto/x509/pkix</a></dt>
   <dd>
-    <p><!-- CL 229864 -->
+    <p><!-- CL 229864, CL 240543 -->
       <a href="/pkg/crypto/x509/pkix/#Name.String"><code>Name.String</code></a>
       now prints non-standard attributes from
       <a href="/pkg/crypto/x509/pkix/#Name.Names"><code>Names</code></a> if
-      <a href="/pkg/crypto/x509/pkix/#Name.ExtraNames"><code>ExtraNames</code></a> is empty.
+      <a href="/pkg/crypto/x509/pkix/#Name.ExtraNames"><code>ExtraNames</code></a> is nil.
     </p>
   </dd>
 </dl><!-- crypto/x509/pkix -->
@@ -665,6 +665,17 @@ Do not send CLs removing the interior tags from such phrases.
       printing the output.
   </dd>
 </dl><!-- go/printer -->
+
+<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      The package now uses Unicode escapes (<code>\uNNNN</code>) in all
+      JavaScript and JSON contexts. This fixes escaping errors in
+      <code>application/ld+json</code> and <code>application/json</code>
+      contexts.
+    </p>
+  </dd>
+</dl><!-- html/template -->
 
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
@@ -949,6 +960,16 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 226097 -->
+      <a href="/pkg/text/template/#JSEscape"><code>JSEscape</code></a> now
+      consistently uses Unicode escapes (<code>\u00XX</code>), which are
+      compatible with JSON.
+    </p>
+  </dd>
+</dl><!-- text/template -->
 
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>

@@ -67,7 +67,7 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	return addr, p, nil
 }
 
-func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+func readPlan9Addr(net, filename string) (addr Addr, err error) {
 	var buf [128]byte
 
 	f, err := os.Open(filename)
@@ -83,13 +83,19 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	if err != nil {
 		return
 	}
-	switch proto {
-	case "tcp":
+	switch net {
+	case "tcp4", "udp4":
+		if ip.Equal(IPv6zero) {
+			ip = ip[:IPv4len]
+		}
+	}
+	switch net {
+	case "tcp", "tcp4", "tcp6":
 		addr = &TCPAddr{IP: ip, Port: port}
-	case "udp":
+	case "udp", "udp4", "udp6":
 		addr = &UDPAddr{IP: ip, Port: port}
 	default:
-		return nil, UnknownNetworkError(proto)
+		return nil, UnknownNetworkError(net)
 	}
 	return addr, nil
 }
@@ -213,7 +219,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 		f.Close()
 		return nil, err
 	}
-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		data.Close()
 		f.Close()
@@ -233,7 +239,7 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 		f.Close()
 		return nil, &OpError{Op: "announce", Net: net, Source: laddr, Addr: nil, Err: err}
 	}
-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
 		return nil, err

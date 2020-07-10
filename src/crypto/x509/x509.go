@@ -2349,7 +2349,7 @@ type certificateRequest struct {
 	SignatureValue     asn1.BitString
 }
 
-// oidExtensionRequest is a PKCS#9 OBJECT IDENTIFIER that indicates requested
+// oidExtensionRequest is a PKCS #9 OBJECT IDENTIFIER that indicates requested
 // extensions in a CSR.
 var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
 
