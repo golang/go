@@ -334,7 +334,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("hostlink")
 	ctxt.hostlink()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%d symbols, %d reachable\n", ctxt.loader.NSym(), ctxt.loader.NReachableSym())
+		ctxt.Logf("%s", ctxt.loader.Stat())
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
 	bench.Start("Flush")
