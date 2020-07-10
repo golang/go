@@ -738,7 +738,7 @@ func TestInvalidFilesBeforeOverlayContains(t *testing.T) {
 	packagestest.TestAll(t, testInvalidFilesBeforeOverlayContains)
 }
 func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.Exporter) {
-	testenv.NeedsGo1Point(t, 14)
+	testenv.NeedsGo1Point(t, 15)
 
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
 		{
@@ -760,23 +760,39 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 		name    string
 		overlay map[string][]byte
 		want    string // expected value of d.D
-
+		wantID  string // expected value for the package ID
 	}{
 		// Overlay with a test variant.
-		{"test_variant",
+		{
+			"test_variant",
 			map[string][]byte{
-				filepath.Join(dir, "d", "d_test.go"): []byte(`package d; import "testing"; const D = Get + "_test"; func TestD(t *testing.T) {};`)},
-			`"GET_test"`},
+				filepath.Join(dir, "d", "d_test.go"): []byte(`package d; import "testing"; const D = Get + "_test"; func TestD(t *testing.T) {};`),
+			},
+			`"GET_test"`, "golang.org/fake/d [golang.org/fake/d.test]",
+		},
 		// Overlay in package.
-		{"second_file",
+		{
+			"second_file",
 			map[string][]byte{
-				filepath.Join(dir, "d", "util.go"): []byte(`package d; const D = Get + "_util";`)},
-			`"GET_util"`},
+				filepath.Join(dir, "d", "util.go"): []byte(`package d; const D = Get + "_util";`),
+			},
+			`"GET_util"`, "golang.org/fake/d",
+		},
 		// Overlay on the main file.
-		{"main",
+		{
+			"main",
 			map[string][]byte{
-				filepath.Join(dir, "main.go"): []byte(`package main; import "golang.org/fake/d"; const D = d.Get + "_main"; func main() {};`)},
-			`"GET_main"`},
+				filepath.Join(dir, "main.go"): []byte(`package main; import "golang.org/fake/d"; const D = d.Get + "_main"; func main() {};`),
+			},
+			`"GET_main"`, "golang.org/fake",
+		},
+		{
+			"xtest",
+			map[string][]byte{
+				filepath.Join(dir, "d", "d_test.go"): []byte(`package d_test; import "golang.org/fake/d"; import "testing"; const D = d.Get + "_xtest"; func TestD(t *testing.T) {};`),
+			},
+			`"GET_xtest"`, "golang.org/fake/d_test [golang.org/fake/d.test]",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			exported.Config.Overlay = tt.overlay
@@ -789,6 +805,9 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 					t.Fatal(err)
 				}
 				pkg := initial[0]
+				if pkg.ID != tt.wantID {
+					t.Fatalf("expected package ID %q, got %q", tt.wantID, pkg.ID)
+				}
 				var containsFile bool
 				for _, goFile := range pkg.CompiledGoFiles {
 					if f == goFile {
