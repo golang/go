@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support twelve instruction sets:
+The Go compilers support the following instruction sets:
 
 <dl>
 <dt>
@@ -49,22 +49,28 @@ The Go compilers support twelve instruction sets:
   The <code>ARM</code> instruction set, 64-bit (<code>AArch64</code>) and 32-bit.
 </dd>
 <dt>
+  <code>mips64</code>, <code>mips64le</code>, <code>mips</code>,  <code>mipsle</code>
+</dt>
+<dd>
+  The <code>MIPS</code> instruction set, big- and little-endian, 64- and 32-bit.
+</dd>
+<dt>
   <code>ppc64</code>, <code>ppc64le</code>
 </dt>
 <dd>
   The 64-bit PowerPC instruction set, big- and little-endian.
 </dd>
 <dt>
+  <code>riscv64</code>
+</dt>
+<dd>
+  The 64-bit RISC-V instruction set.
+</dd>
+<dt>
   <code>s390x</code>
 </dt>
 <dd>
   The IBM z/Architecture.
-</dd>
-<dt>
-  <code>mips64</code>, <code>mips64le</code>, <code>mips</code>,  <code>mipsle</code>
-</dt>
-<dd>
-  The <code>MIPS</code> instruction set, big- and little-endian, 64- and 32-bit.
 </dd>
 <dt>
   <code>wasm</code>

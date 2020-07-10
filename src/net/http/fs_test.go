@@ -849,6 +849,15 @@ func TestServeContent(t *testing.T) {
 			wantStatus:      200,
 			wantContentType: "text/css; charset=utf-8",
 		},
+		"if_none_match_malformed": {
+			file:      "testdata/style.css",
+			serveETag: `"foo"`,
+			reqHeader: map[string]string{
+				"If-None-Match": `,`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+		},
 		"range_good": {
 			file:      "testdata/style.css",
 			serveETag: `"A"`,

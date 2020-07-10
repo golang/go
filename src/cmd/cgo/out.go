@@ -98,6 +98,11 @@ func (p *Package) writeDefs() {
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
+		if name == "_Ctype_void" {
+			// We provide an appropriate declaration for
+			// _Ctype_void below (#39877).
+			continue
+		}
 		typedefNames = append(typedefNames, name)
 	}
 	sort.Strings(typedefNames)
