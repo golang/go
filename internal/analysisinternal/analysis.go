@@ -16,6 +16,11 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+var (
+	GetTypeErrors func(p interface{}) []types.Error
+	SetTypeErrors func(p interface{}, errors []types.Error)
+)
+
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
 	// Get the end position for the type error.
 	offset, end := fset.PositionFor(start, false).Offset, start
@@ -113,9 +118,6 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		return nil // TODO: anonymous structs, but who does that
 	}
 }
-
-var GetTypeErrors = func(p interface{}) []types.Error { return nil }
-var SetTypeErrors = func(p interface{}, errors []types.Error) {}
 
 type TypeErrorPass string
 
