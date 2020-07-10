@@ -407,3 +407,20 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 	}
 	return 0
 }
+func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
+	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
+	// arm64: -`(CMPW|CMP|BHS|BLO)`
+	if a < 0 || b < 0 || c < 0 || d < 0 {
+		return 1
+	}
+	return 0
+}
+
+func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
+	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCS|JCC)`
+	// arm64: -`(CMPW|CMP|BLO|BHS)`
+	if a >= 0 || b >= 0 || c >= 0 || d >= 0 {
+		return 1
+	}
+	return 0
+}
