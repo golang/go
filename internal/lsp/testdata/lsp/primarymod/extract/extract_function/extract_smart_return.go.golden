@@ -1,0 +1,18 @@
+-- functionextraction_extract_smart_return_6_2 --
+package extract
+
+func _() {
+	var b []int
+	var a int
+	b = x0(a, b) //@mark(e2, ")")
+	b[0] = 1
+	//@extractfunc(s2, e2)
+}
+
+func x0(a int, b []int) []int {
+	a = 2
+	b = []int{}
+	b = append(b, a)
+	return b
+}
+

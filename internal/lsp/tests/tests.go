@@ -57,6 +57,7 @@ type FoldingRanges []span.Span
 type Formats []span.Span
 type Imports []span.Span
 type SuggestedFixes map[span.Span][]string
+type FunctionExtractions map[span.Span]span.Span
 type Definitions map[span.Span]Definition
 type Implementations map[span.Span][]span.Span
 type Highlights map[span.Span][]span.Span
@@ -87,6 +88,7 @@ type Data struct {
 	Formats                       Formats
 	Imports                       Imports
 	SuggestedFixes                SuggestedFixes
+	FunctionExtractions           FunctionExtractions
 	Definitions                   Definitions
 	Implementations               Implementations
 	Highlights                    Highlights
@@ -128,6 +130,7 @@ type Tests interface {
 	Format(*testing.T, span.Span)
 	Import(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span, []string)
+	FunctionExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
 	Implementation(*testing.T, span.Span, []span.Span)
 	Highlight(*testing.T, span.Span, []span.Span)
@@ -288,6 +291,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			Renames:                       make(Renames),
 			PrepareRenames:                make(PrepareRenames),
 			SuggestedFixes:                make(SuggestedFixes),
+			FunctionExtractions:           make(FunctionExtractions),
 			Symbols:                       make(Symbols),
 			symbolsChildren:               make(SymbolsChildren),
 			symbolInformation:             make(SymbolInformation),
@@ -420,6 +424,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			"signature":       datum.collectSignatures,
 			"link":            datum.collectLinks,
 			"suggestedfix":    datum.collectSuggestedFixes,
+			"extractfunc":     datum.collectFunctionExtractions,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -607,6 +612,20 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.SuggestedFix(t, spn, actionKinds)
+			})
+		}
+	})
+
+	t.Run("FunctionExtraction", func(t *testing.T) {
+		t.Helper()
+		for start, end := range data.FunctionExtractions {
+			// Check if we should skip this spn if the -modfile flag is not available.
+			if shouldSkip(data, start.URI()) {
+				continue
+			}
+			t.Run(SpanName(start), func(t *testing.T) {
+				t.Helper()
+				tests.FunctionExtraction(t, start, end)
 			})
 		}
 	})
@@ -801,6 +820,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "FormatCount = %v\n", len(data.Formats))
 	fmt.Fprintf(buf, "ImportCount = %v\n", len(data.Imports))
 	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
+	fmt.Fprintf(buf, "FunctionExtractionCount = %v\n", len(data.FunctionExtractions))
 	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
 	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
 	fmt.Fprintf(buf, "HighlightsCount = %v\n", len(data.Highlights))
@@ -1021,6 +1041,12 @@ func (data *Data) collectSuggestedFixes(spn span.Span, actionKind string) {
 		data.SuggestedFixes[spn] = []string{}
 	}
 	data.SuggestedFixes[spn] = append(data.SuggestedFixes[spn], actionKind)
+}
+
+func (data *Data) collectFunctionExtractions(start span.Span, end span.Span) {
+	if _, ok := data.FunctionExtractions[start]; !ok {
+		data.FunctionExtractions[start] = end
+	}
 }
 
 func (data *Data) collectDefinitions(src, target span.Span) {

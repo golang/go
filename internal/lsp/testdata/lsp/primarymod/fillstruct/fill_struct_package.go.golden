@@ -27,8 +27,10 @@ func unexported() {
 	a := data.A{}   //@suggestedfix("}", "refactor.rewrite")
 	_ = h2.Client{
 		Transport: nil,
-		Jar:       nil,
-		Timeout:   0,
+		CheckRedirect: func(req *h2.Request, via []*h2.Request) error {
+		},
+		Jar:     nil,
+		Timeout: 0,
 	} //@suggestedfix("}", "refactor.rewrite")
 }
 

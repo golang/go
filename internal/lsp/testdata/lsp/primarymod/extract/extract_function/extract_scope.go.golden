@@ -1,0 +1,16 @@
+-- functionextraction_extract_scope_5_2 --
+package extract
+
+func _() {
+	x0 := 1
+	x2(x0) //@extractfunc("a", "x0")
+}
+
+func x2(x0 int) {
+	a := x0
+}
+
+func x1() int {
+	return 1
+}
+

@@ -12,6 +12,7 @@ FoldingRangesCount = 0
 FormatCount = 0
 ImportCount = 0
 SuggestedFixCount = 0
+FunctionExtractionCount = 0
 DefinitionsCount = 0
 TypeDefinitionsCount = 0
 HighlightsCount = 0

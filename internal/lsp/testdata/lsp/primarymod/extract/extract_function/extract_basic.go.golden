@@ -1,0 +1,13 @@
+-- functionextraction_extract_basic_4_2 --
+package extract
+
+func _() {
+	x0() //@mark(e0, "4")
+	//@extractfunc(s0, e0)
+}
+
+func x0() {
+	a := 1
+	var _ = 3 + 4
+}
+

@@ -361,22 +361,34 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, ph source.Pa
 	if err != nil {
 		return nil, nil
 	}
+	var actions []protocol.CodeAction
 	edits, err := source.ExtractVariable(ctx, snapshot, fh, rng)
 	if err != nil {
 		return nil, err
 	}
-	if len(edits) == 0 {
-		return nil, nil
-	}
-	return []protocol.CodeAction{
-		{
+	if len(edits) > 0 {
+		actions = append(actions, protocol.CodeAction{
 			Title: "Extract to variable",
 			Kind:  protocol.RefactorExtract,
 			Edit: protocol.WorkspaceEdit{
 				DocumentChanges: documentChanges(fh, edits),
 			},
-		},
-	}, nil
+		})
+	}
+	edits, err = source.ExtractFunction(ctx, snapshot, fh, rng)
+	if err != nil {
+		return nil, err
+	}
+	if len(edits) > 0 {
+		actions = append(actions, protocol.CodeAction{
+			Title: "Extract to function",
+			Kind:  protocol.RefactorExtract,
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: documentChanges(fh, edits),
+			},
+		})
+	}
+	return actions, nil
 }
 
 func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {

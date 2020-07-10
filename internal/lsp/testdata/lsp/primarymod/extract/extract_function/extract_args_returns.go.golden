@@ -1,0 +1,17 @@
+-- functionextraction_extract_args_returns_5_2 --
+package extract
+
+func _() {
+	a := 1
+	a = x0(a) //@mark(e1, "2")
+	//@extractfunc(s1, e1)
+	b := a * 2
+	var _ = 3 + 4
+}
+
+func x0(a int) int {
+	a = 5
+	a = a + 2
+	return a
+}
+

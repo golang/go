@@ -84,9 +84,95 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		default:
 			return ast.NewIdent(t.Name())
 		}
+	case *types.Pointer:
+		x := TypeExpr(fset, f, pkg, t.Elem())
+		if x == nil {
+			return nil
+		}
+		return &ast.UnaryExpr{
+			Op: token.MUL,
+			X:  x,
+		}
+	case *types.Array:
+		elt := TypeExpr(fset, f, pkg, t.Elem())
+		if elt == nil {
+			return nil
+		}
+		return &ast.ArrayType{
+			Len: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: fmt.Sprintf("%d", t.Len()),
+			},
+			Elt: elt,
+		}
+	case *types.Slice:
+		elt := TypeExpr(fset, f, pkg, t.Elem())
+		if elt == nil {
+			return nil
+		}
+		return &ast.ArrayType{
+			Elt: elt,
+		}
+	case *types.Map:
+		key := TypeExpr(fset, f, pkg, t.Key())
+		value := TypeExpr(fset, f, pkg, t.Elem())
+		if key == nil || value == nil {
+			return nil
+		}
+		return &ast.MapType{
+			Key:   key,
+			Value: value,
+		}
+	case *types.Chan:
+		dir := ast.ChanDir(t.Dir())
+		if t.Dir() == types.SendRecv {
+			dir = ast.SEND | ast.RECV
+		}
+		value := TypeExpr(fset, f, pkg, t.Elem())
+		if value == nil {
+			return nil
+		}
+		return &ast.ChanType{
+			Dir:   dir,
+			Value: value,
+		}
+	case *types.Signature:
+		var params []*ast.Field
+		for i := 0; i < t.Params().Len(); i++ {
+			p := TypeExpr(fset, f, pkg, t.Params().At(i).Type())
+			if p == nil {
+				return nil
+			}
+			params = append(params, &ast.Field{
+				Type: p,
+				Names: []*ast.Ident{
+					{
+						Name: t.Params().At(i).Name(),
+					},
+				},
+			})
+		}
+		var returns []*ast.Field
+		for i := 0; i < t.Results().Len(); i++ {
+			r := TypeExpr(fset, f, pkg, t.Results().At(i).Type())
+			if r == nil {
+				return nil
+			}
+			returns = append(returns, &ast.Field{
+				Type: r,
+			})
+		}
+		return &ast.FuncType{
+			Params: &ast.FieldList{
+				List: params,
+			},
+			Results: &ast.FieldList{
+				List: returns,
+			},
+		}
 	case *types.Named:
 		if t.Obj().Pkg() == nil {
-			return nil
+			return ast.NewIdent(t.Obj().Name())
 		}
 		if t.Obj().Pkg() == pkg {
 			return ast.NewIdent(t.Obj().Name())
@@ -108,11 +194,6 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 		return &ast.SelectorExpr{
 			X:   ast.NewIdent(pkgName),
 			Sel: ast.NewIdent(t.Obj().Name()),
-		}
-	case *types.Pointer:
-		return &ast.UnaryExpr{
-			Op: token.MUL,
-			X:  TypeExpr(fset, f, pkg, t.Elem()),
 		}
 	default:
 		return nil // TODO: anonymous structs, but who does that

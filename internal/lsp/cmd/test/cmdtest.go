@@ -133,6 +133,10 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	//TODO: add command line completions tests when it works
 }
 
+func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
+	//TODO: function extraction not supported on command line
+}
+
 func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
