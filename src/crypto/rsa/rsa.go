@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rsa implements RSA encryption as specified in PKCS#1 and RFC 8017.
+// Package rsa implements RSA encryption as specified in PKCS #1 and RFC 8017.
 //
 // RSA is a single, fundamental operation that is used in this package to
 // implement either public-key encryption or public-key signatures.
 //
-// The original specification for encryption and signatures with RSA is PKCS#1
+// The original specification for encryption and signatures with RSA is PKCS #1
 // and the terms "RSA encryption" and "RSA signatures" by default refer to
-// PKCS#1 version 1.5. However, that specification has flaws and new designs
+// PKCS #1 version 1.5. However, that specification has flaws and new designs
 // should use version 2, usually called by just OAEP and PSS, where
 // possible.
 //
@@ -134,7 +134,7 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
+// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
 // be used. digest must be the result of hashing the input message using
 // opts.HashFunc().
 //
@@ -150,7 +150,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 }
 
 // Decrypt decrypts ciphertext with priv. If opts is nil or of type
-// *PKCS1v15DecryptOptions then PKCS#1 v1.5 decryption is performed. Otherwise
+// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
 // opts must have type *OAEPOptions and OAEP decryption is done.
 func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
 	if opts == nil {
@@ -186,7 +186,7 @@ type PrecomputedValues struct {
 
 	// CRTValues is used for the 3rd and subsequent primes. Due to a
 	// historical accident, the CRT for the first two primes is handled
-	// differently in PKCS#1 and interoperability is sufficiently
+	// differently in PKCS #1 and interoperability is sufficiently
 	// important that we mirror this.
 	CRTValues []CRTValue
 }
@@ -360,7 +360,7 @@ func incCounter(c *[4]byte) {
 }
 
 // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
-// specified in PKCS#1 v2.1.
+// specified in PKCS #1 v2.1.
 func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	var counter [4]byte
 	var digest []byte

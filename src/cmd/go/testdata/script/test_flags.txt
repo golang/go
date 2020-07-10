@@ -57,6 +57,10 @@ stderr -count=1 'invalid value "walrus" for flag -covermode: valid modes are .*$
 stderr '^usage: go test .*$'
 stderr '^Run ''go help test'' and ''go help testflag'' for details.$'
 
+# Passing -help to the test binary should show flag help.
+go test ./x -args -help
+stdout 'usage_message'
+
 # -covermode, -coverpkg, and -coverprofile should imply -cover
 go test -covermode=set ./x
 stdout '\s+coverage:\s+'
@@ -97,6 +101,8 @@ import (
 	"flag"
 	"testing"
 )
+
+var _ = flag.String("usage_message", "", "dummy flag to check usage message")
 
 func TestLogTimeout(t *testing.T) {
 	t.Log(flag.Lookup("test.timeout").Value)

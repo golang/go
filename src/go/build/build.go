@@ -16,7 +16,6 @@ import (
 	"internal/goversion"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	pathpkg "path"
@@ -924,7 +923,7 @@ Found:
 				quoted := spec.Path.Value
 				path, err := strconv.Unquote(quoted)
 				if err != nil {
-					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+					panic(fmt.Sprintf("%s: parser returned invalid quoted string: <%s>", filename, quoted))
 				}
 				fileImports = append(fileImports, importPos{path, spec.Pos()})
 				if path == "C" {

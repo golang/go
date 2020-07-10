@@ -164,7 +164,7 @@ type Signer interface {
 
 	// Sign signs digest with the private key, possibly using entropy from
 	// rand. For an RSA key, the resulting signature should be either a
-	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+	// PKCS #1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
 	// key, it should be a DER-serialised, ASN.1 signature structure.
 	//
 	// Hash implements the SignerOpts interface and, in most cases, one can

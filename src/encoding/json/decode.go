@@ -177,7 +177,8 @@ func (d *decodeState) unmarshal(v interface{}) error {
 	d.scanWhile(scanSkipSpace)
 	// We decode rv not rv.Elem because the Unmarshaler interface
 	// test must be applied at the top level of the value.
-	if err := d.value(rv); err != nil {
+	err := d.value(rv)
+	if err != nil {
 		return d.addErrorContext(err)
 	}
 	return d.savedError
@@ -507,7 +508,6 @@ func (d *decodeState) array(v reflect.Value) error {
 		return nil
 	}
 	v = pv
-	initialSliceCap := 0
 
 	// Check type of target.
 	switch v.Kind() {
@@ -524,9 +524,8 @@ func (d *decodeState) array(v reflect.Value) error {
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
 		d.skip()
 		return nil
-	case reflect.Slice:
-		initialSliceCap = v.Cap()
-	case reflect.Array:
+	case reflect.Array, reflect.Slice:
+		break
 	}
 
 	i := 0
@@ -537,6 +536,7 @@ func (d *decodeState) array(v reflect.Value) error {
 			break
 		}
 
+		// Get element of array, growing if necessary.
 		if v.Kind() == reflect.Slice {
 			// Grow slice if necessary
 			if i >= v.Cap() {
@@ -552,22 +552,19 @@ func (d *decodeState) array(v reflect.Value) error {
 				v.SetLen(i + 1)
 			}
 		}
-		var into reflect.Value
+
 		if i < v.Len() {
-			into = v.Index(i)
-			if i < initialSliceCap {
-				// Reusing an element from the slice's original
-				// backing array; zero it before decoding.
-				into.Set(reflect.Zero(v.Type().Elem()))
+			// Decode into element.
+			if err := d.value(v.Index(i)); err != nil {
+				return err
+			}
+		} else {
+			// Ran out of fixed array: skip.
+			if err := d.value(reflect.Value{}); err != nil {
+				return err
 			}
 		}
 		i++
-		// Note that we decode the value even if we ran past the end of
-		// the fixed array. In that case, we decode into an empty value
-		// and do nothing with it.
-		if err := d.value(into); err != nil {
-			return err
-		}
 
 		// Next token must be , or ].
 		if d.opcode == scanSkipSpace {
@@ -583,17 +580,16 @@ func (d *decodeState) array(v reflect.Value) error {
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
-			// Zero the remaining elements.
-			zero := reflect.Zero(v.Type().Elem())
+			// Array. Zero the rest.
+			z := reflect.Zero(v.Type().Elem())
 			for ; i < v.Len(); i++ {
-				v.Index(i).Set(zero)
+				v.Index(i).Set(z)
 			}
 		} else {
 			v.SetLen(i)
 		}
 	}
-	if v.Kind() == reflect.Slice && v.IsNil() {
-		// Don't allow the resulting slice to be nil.
+	if i == 0 && v.Kind() == reflect.Slice {
 		v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	}
 	return nil
