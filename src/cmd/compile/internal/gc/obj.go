@@ -356,6 +356,7 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 		// string data
 		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		symdata.Set(obj.AttrContentAddressable, true)
 	}
 
 	return symdata

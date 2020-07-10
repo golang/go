@@ -176,11 +176,20 @@ func (ctxt *Link) NumberSyms() {
 
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}
+	ctxt.hasheddefs = []*LSym{}
 	ctxt.nonpkgdefs = []*LSym{}
 
-	var idx, nonpkgidx int32 = 0, 0
+	var idx, hashedidx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if isNonPkgSym(ctxt, s) {
+		if s.ContentAddressable() {
+			s.PkgIdx = goobj2.PkgIdxHashed
+			s.SymIdx = hashedidx
+			if hashedidx != int32(len(ctxt.hasheddefs)) {
+				panic("bad index")
+			}
+			ctxt.hasheddefs = append(ctxt.hasheddefs, s)
+			hashedidx++
+		} else if isNonPkgSym(ctxt, s) {
 			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
@@ -218,6 +227,10 @@ func (ctxt *Link) NumberSyms() {
 			}
 		}
 		pkg := rs.Pkg
+		if rs.ContentAddressable() {
+			// for now, only support content-addressable symbols that are always locally defined.
+			panic("hashed refs unsupported for now")
+		}
 		if pkg == "" || pkg == "\"\"" || pkg == "_" || !rs.Indexed() {
 			rs.PkgIdx = goobj2.PkgIdxNone
 			rs.SymIdx = nonpkgidx

@@ -520,6 +520,9 @@ const (
 	// Used by the linker to determine what methods can be pruned.
 	AttrUsedInIface
 
+	// ContentAddressable indicates this is a content-addressable symbol.
+	AttrContentAddressable
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -528,23 +531,24 @@ const (
 	attrABIBase
 )
 
-func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
-func (a Attribute) MakeTypelink() bool  { return a&AttrMakeTypelink != 0 }
-func (a Attribute) CFunc() bool         { return a&AttrCFunc != 0 }
-func (a Attribute) NoSplit() bool       { return a&AttrNoSplit != 0 }
-func (a Attribute) Leaf() bool          { return a&AttrLeaf != 0 }
-func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
-func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
-func (a Attribute) ReflectMethod() bool { return a&AttrReflectMethod != 0 }
-func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
-func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
-func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
-func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
-func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
-func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
-func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
-func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
-func (a Attribute) UsedInIface() bool   { return a&AttrUsedInIface != 0 }
+func (a Attribute) DuplicateOK() bool        { return a&AttrDuplicateOK != 0 }
+func (a Attribute) MakeTypelink() bool       { return a&AttrMakeTypelink != 0 }
+func (a Attribute) CFunc() bool              { return a&AttrCFunc != 0 }
+func (a Attribute) NoSplit() bool            { return a&AttrNoSplit != 0 }
+func (a Attribute) Leaf() bool               { return a&AttrLeaf != 0 }
+func (a Attribute) SeenGlobl() bool          { return a&AttrSeenGlobl != 0 }
+func (a Attribute) OnList() bool             { return a&AttrOnList != 0 }
+func (a Attribute) ReflectMethod() bool      { return a&AttrReflectMethod != 0 }
+func (a Attribute) Local() bool              { return a&AttrLocal != 0 }
+func (a Attribute) Wrapper() bool            { return a&AttrWrapper != 0 }
+func (a Attribute) NeedCtxt() bool           { return a&AttrNeedCtxt != 0 }
+func (a Attribute) NoFrame() bool            { return a&AttrNoFrame != 0 }
+func (a Attribute) Static() bool             { return a&AttrStatic != 0 }
+func (a Attribute) WasInlined() bool         { return a&AttrWasInlined != 0 }
+func (a Attribute) TopFrame() bool           { return a&AttrTopFrame != 0 }
+func (a Attribute) Indexed() bool            { return a&AttrIndexed != 0 }
+func (a Attribute) UsedInIface() bool        { return a&AttrUsedInIface != 0 }
+func (a Attribute) ContentAddressable() bool { return a&AttrContentAddressable != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -580,6 +584,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrWasInlined, s: ""},
 	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
+	{bit: AttrContentAddressable, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -704,6 +709,7 @@ type Link struct {
 	pkgIdx map[string]int32
 
 	defs       []*LSym // list of defined symbols in the current package
+	hasheddefs []*LSym // list of defined hashed (content-addressable) symbols
 	nonpkgdefs []*LSym // list of defined non-package symbols
 	nonpkgrefs []*LSym // list of referenced non-package symbols
 
