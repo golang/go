@@ -92,6 +92,7 @@ type Checker struct {
 	// maps and lists are allocated on demand)
 	files            []*ast.File                       // package files
 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+	useBrackets      bool                              // if set, [] are used instead of () for type parameters
 
 	firstErr error                 // first error encountered
 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
@@ -267,6 +268,17 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	print := func(msg string) {
 		if check.conf.Trace {
 			fmt.Println(msg)
+		}
+	}
+
+	print("=== check consistent use of () or [] for type parameters ===")
+	if len(files) > 0 {
+		check.useBrackets = files[0].UseBrackets
+		for _, file := range files[1:] {
+			if check.useBrackets != file.UseBrackets {
+				check.errorf(file.Package, "inconsistent use of () or [] for type parameters")
+				return // cannot type-check properly
+			}
 		}
 	}
 

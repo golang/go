@@ -110,6 +110,15 @@ var tests = [][]string{
 	{"testdata/issues.go2"},
 	{"testdata/todos.go2"},
 
+	{"testdata/tmpB.go2"}, // used for ad-hoc tests - file contents transient
+	{"testdata/typeargsB.go2"},
+	{"testdata/typeparamsB.go2"},
+	{"testdata/mtypeparamsB.go2"},
+	{"testdata/typeinstB.go2"},
+	{"testdata/typeinst2B.go2"},
+	{"testdata/issuesB.go2"},
+	{"testdata/todosB.go2"},
+
 	// Go 2 examples from design doc
 	{"testdata/slices.go2"},
 	{"testdata/chans.go2"},
@@ -117,10 +126,20 @@ var tests = [][]string{
 	{"testdata/map2.go2"},
 	{"testdata/linalg.go2"},
 
+	{"testdata/slicesB.go2"},
+	{"testdata/chansB.go2"},
+	{"testdata/mapB.go2"},
+	{"testdata/map2B.go2"},
+	{"testdata/linalgB.go2"},
+
 	// Go 2 prototype examples
 	{"examples/functions.go2"},
 	{"examples/methods.go2"},
 	{"examples/types.go2"},
+
+	{"examples/functionsB.go2"},
+	{"examples/methodsB.go2"},
+	{"examples/typesB.go2"},
 
 	// Go 2 prototype bug fixes
 	// TODO(gri) Eliminate the need to enumerate these tests here.

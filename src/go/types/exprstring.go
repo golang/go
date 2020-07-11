@@ -8,6 +8,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 )
 
@@ -31,7 +32,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	switch x := x.(type) {
 	default:
-		buf.WriteString("(ast: bad expr)") // nil, ast.BadExpr, ast.KeyValueExpr
+		buf.WriteString(fmt.Sprintf("(ast: %T)", x)) // nil, ast.BadExpr, ast.KeyValueExpr
 
 	case *ast.Ident:
 		buf.WriteString(x.Name)
@@ -180,6 +181,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		}
 		buf.WriteString(s)
 		WriteExpr(buf, x.Value)
+
+	case *ast.InstantiatedType:
+		WriteExpr(buf, x.Base)
+		buf.WriteByte('[')
+		writeExprList(buf, x.TArgs)
+		buf.WriteByte(']')
 	}
 }
 
