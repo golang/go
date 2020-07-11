@@ -595,15 +595,20 @@ func (e *Editor) Symbol(ctx context.Context, query string) ([]SymbolInformation,
 
 // OrganizeImports requests and performs the source.organizeImports codeAction.
 func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
-	return e.codeAction(ctx, path, nil, protocol.SourceOrganizeImports)
+	return e.codeAction(ctx, path, nil, nil, protocol.SourceOrganizeImports)
+}
+
+// RefactorRewrite requests and performs the source.refactorRewrite codeAction.
+func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol.Range) error {
+	return e.codeAction(ctx, path, rng, nil, protocol.RefactorRewrite)
 }
 
 // ApplyQuickFixes requests and performs the quickfix codeAction.
-func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, diagnostics []protocol.Diagnostic) error {
-	return e.codeAction(ctx, path, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
+func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) error {
+	return e.codeAction(ctx, path, rng, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
 }
 
-func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) error {
+func (e *Editor) codeAction(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) error {
 	if e.Server == nil {
 		return nil
 	}
@@ -613,12 +618,13 @@ func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []prot
 	if diagnostics != nil {
 		params.Context.Diagnostics = diagnostics
 	}
+	if rng != nil {
+		params.Range = *rng
+	}
 	actions, err := e.Server.CodeAction(ctx, params)
 	if err != nil {
 		return fmt.Errorf("textDocument/codeAction: %w", err)
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	for _, action := range actions {
 		var match bool
 		for _, o := range only {
@@ -637,8 +643,18 @@ func (e *Editor) codeAction(ctx context.Context, path string, diagnostics []prot
 				continue
 			}
 			edits := convertEdits(change.Edits)
-			if err := e.editBufferLocked(ctx, path, edits); err != nil {
+			if err := e.EditBuffer(ctx, path, edits); err != nil {
 				return fmt.Errorf("editing buffer %q: %w", path, err)
+			}
+		}
+		// Execute any commands. The specification says that commands are
+		// executed after edits are applied.
+		if action.Command != nil {
+			if _, err := e.Server.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{
+				Command:   action.Command.Command,
+				Arguments: action.Command.Arguments,
+			}); err != nil {
+				return err
 			}
 		}
 	}
@@ -734,7 +750,7 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 }
 
 // CodeAction executes a codeAction request on the server.
-func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAction, error) {
+func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Range) ([]protocol.CodeAction, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
@@ -746,6 +762,9 @@ func (e *Editor) CodeAction(ctx context.Context, path string) ([]protocol.CodeAc
 	}
 	params := &protocol.CodeActionParams{
 		TextDocument: e.textDocumentIdentifier(path),
+	}
+	if rng != nil {
+		params.Range = *rng
 	}
 	lens, err := e.Server.CodeAction(ctx, params)
 	if err != nil {

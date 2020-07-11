@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -51,23 +53,12 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	switch fh.Kind() {
 	case source.Mod:
-		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
+		if diagnostics := params.Context.Diagnostics; wanted[protocol.SourceOrganizeImports] || len(diagnostics) > 0 {
 			modFixes, err := mod.SuggestedFixes(ctx, snapshot, diagnostics)
 			if err != nil {
 				return nil, err
 			}
 			codeActions = append(codeActions, modFixes...)
-		}
-		if wanted[protocol.SourceOrganizeImports] {
-			codeActions = append(codeActions, protocol.CodeAction{
-				Title: "Tidy",
-				Kind:  protocol.SourceOrganizeImports,
-				Command: &protocol.Command{
-					Title:     "Tidy",
-					Command:   "tidy",
-					Arguments: []interface{}{fh.URI()},
-				},
-			})
 		}
 	case source.Go:
 		// Don't suggest fixes for generated files, since they are generally
@@ -336,22 +327,30 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		if d.Range.Start.Line != rng.Start.Line {
 			continue
 		}
-		for _, fix := range d.SuggestedFixes {
-			action := protocol.CodeAction{
-				Title: fix.Title,
-				Kind:  protocol.RefactorRewrite,
-				Edit:  protocol.WorkspaceEdit{},
+		// The fix depends on the category of the analyzer.
+		switch d.Category {
+		case fillstruct.Analyzer.Name:
+			arg, err := json.Marshal(CommandRangeArgument{
+				URI:   protocol.URIFromSpanURI(d.URI),
+				Range: rng,
+			})
+			if err != nil {
+				return nil, err
 			}
-			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetFile(ctx, uri)
-				if err != nil {
-					return nil, err
-				}
-				docChanges := documentChanges(fh, edits)
-				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, docChanges...)
+			action := protocol.CodeAction{
+				Title: d.Message,
+				Kind:  protocol.RefactorRewrite,
+				Command: &protocol.Command{
+					Command: source.CommandFillStruct,
+					Title:   d.Message,
+					Arguments: []interface{}{
+						string(arg),
+					},
+				},
 			}
 			codeActions = append(codeActions, action)
 		}
+
 	}
 	return codeActions, nil
 }

@@ -111,7 +111,9 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 	for _, change := range params.Edit.DocumentChanges {
 		path := c.editor.sandbox.Workdir.URIToPath(change.TextDocument.URI)
 		edits := convertEdits(change.Edits)
-		c.editor.EditBuffer(ctx, path, edits)
+		if err := c.editor.EditBuffer(ctx, path, edits); err != nil {
+			return nil, err
+		}
 	}
 	return &protocol.ApplyWorkspaceEditResponse{Applied: true}, nil
 }

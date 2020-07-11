@@ -1,0 +1,4201 @@
+-- suggestedfix_a_100_30 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{
+	b: new(bool),
+	s: new(string),
+	i: new(int),
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_102_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{
+	ValuePos: 0,
+	Kind:     0,
+	Value:    "",
+}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_103_3 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{
+		ValuePos: 0,
+		Kind:     0,
+		Value:    "",
+	}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_106_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{
+	ValuePos: 0,
+	Kind:     0,
+	Value:    "",
+}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_18_21 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{
+	foo: 0,
+} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_22_21 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{
+	foo: 0,
+} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_25_22 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{
+	foo: 0,
+	bar: "",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_29_1 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	foo: 0,
+	bar: "",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_29_22 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{
+	foo: 0,
+	bar: "",
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_32_22 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{
+	bar:   "",
+	basic: basicStruct{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_33_1 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	foo: 0,
+	bar: "",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_34_16 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{
+	ExportedInt: 0,
+} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_36_22 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{
+	bar:   "",
+	basic: basicStruct{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_38_16 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{
+	ExportedInt: 0,
+} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_40_22 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{
+	bar:   "",
+	basic: basicStruct{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_42_16 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{
+	ExportedInt: 0,
+} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_44_21 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{
+	m:  map[string]int{},
+	s:  []int{},
+	c:  make(chan int),
+	c1: make(<-chan int),
+	a:  [2]string{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_48_21 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{
+	m:  map[string]int{},
+	s:  []int{},
+	c:  make(chan int),
+	c1: make(<-chan int),
+	a:  [2]string{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_50_19 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{
+	fn: func(i int) int {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_52_21 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{
+	m:  map[string]int{},
+	s:  []int{},
+	c:  make(chan int),
+	c1: make(<-chan int),
+	a:  [2]string{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_54_19 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{
+	fn: func(i int) int {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_56_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{
+	fn: func(i int, s string) (string, int) {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_58_19 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{
+	fn: func(i int) int {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_60_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{
+	fn: func(i int, s string) (string, int) {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_62_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{
+	fn: func() {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_64_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{
+	fn: func(i int, s string) (string, int) {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_66_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{
+	fn: func() {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_70_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{
+	fn: func() {
+	},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_73_13 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{
+	X: &Foo{},
+	Y: &Foo{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_77_13 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{
+	X: &Foo{},
+	Y: &Foo{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_81_13 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{
+	X: &Foo{},
+	Y: &Foo{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_84_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{
+	m: map[*ast.CompositeLit]ast.Field{},
+	s: []ast.BadExpr{},
+	a: [3]token.Token{},
+	c: make(chan ast.EmptyStmt),
+	fn: func(ast_decl ast.DeclStmt) ast.Ellipsis {
+	},
+	st: ast.CompositeLit{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_88_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{
+	m: map[*ast.CompositeLit]ast.Field{},
+	s: []ast.BadExpr{},
+	a: [3]token.Token{},
+	c: make(chan ast.EmptyStmt),
+	fn: func(ast_decl ast.DeclStmt) ast.Ellipsis {
+	},
+	st: ast.CompositeLit{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_92_24 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type emptyStruct struct{}
+
+var _ = emptyStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{
+	m: map[*ast.CompositeLit]ast.Field{},
+	s: []ast.BadExpr{},
+	a: [3]token.Token{},
+	c: make(chan ast.EmptyStmt),
+	fn: func(ast_decl ast.DeclStmt) ast.Ellipsis {
+	},
+	st: ast.CompositeLit{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_92_30 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{
+	b: new(bool),
+	s: new(string),
+	i: new(int),
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_95_3 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{
+		ValuePos: 0,
+		Kind:     0,
+		Value:    "",
+	}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_96_30 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{
+	b: new(bool),
+	s: new(string),
+	i: new(int),
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_98_25 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{
+	ValuePos: 0,
+	Kind:     0,
+	Value:    "",
+}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a_99_3 --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+
+	"golang.org/x/tools/internal/lsp/fillstruct/data"
+)
+
+type basicStruct struct {
+	foo int
+}
+
+var _ = basicStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type twoArgStruct struct {
+	foo int
+	bar string
+}
+
+var _ = twoArgStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = twoArgStruct{
+	bar: "bar",
+} //@suggestedfix("}", "refactor.rewrite")
+
+type nestedStruct struct {
+	bar   string
+	basic basicStruct
+}
+
+var _ = nestedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = data.B{} //@suggestedfix("}", "refactor.rewrite")
+
+type typedStruct struct {
+	m  map[string]int
+	s  []int
+	c  chan int
+	c1 <-chan int
+	a  [2]string
+}
+
+var _ = typedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStruct struct {
+	fn func(i int) int
+}
+
+var _ = funStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructCompex struct {
+	fn func(i int, s string) (string, int)
+}
+
+var _ = funStructCompex{} //@suggestedfix("}", "refactor.rewrite")
+
+type funStructEmpty struct {
+	fn func()
+}
+
+var _ = funStructEmpty{} //@suggestedfix("}", "refactor.rewrite")
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{
+		ValuePos: 0,
+		Kind:     0,
+		Value:    "",
+	}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+

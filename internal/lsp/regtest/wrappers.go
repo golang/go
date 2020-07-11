@@ -165,7 +165,7 @@ func (e *Env) OrganizeImports(name string) {
 // ApplyQuickFixes processes the quickfix codeAction, calling t.Fatal on any error.
 func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
 	e.T.Helper()
-	if err := e.Editor.ApplyQuickFixes(e.Ctx, path, diagnostics); err != nil {
+	if err := e.Editor.ApplyQuickFixes(e.Ctx, path, nil, diagnostics); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -242,7 +242,7 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 // t.Fatal if there are errors.
 func (e *Env) CodeAction(path string) []protocol.CodeAction {
 	e.T.Helper()
-	actions, err := e.Editor.CodeAction(e.Ctx, path)
+	actions, err := e.Editor.CodeAction(e.Ctx, path, nil)
 	if err != nil {
 		e.T.Fatal(err)
 	}

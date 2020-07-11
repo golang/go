@@ -474,7 +474,60 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {}
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
+	var refactorRewrite bool
+	for _, actionKind := range actionKinds {
+		if actionKind == "refactor.rewrite" {
+			refactorRewrite = true
+			break
+		}
+	}
+	// Only test refactor rewrite code actions.
+	if !refactorRewrite {
+		return
+	}
+	snapshot := r.view.Snapshot()
+	fh, err := snapshot.GetFile(r.ctx, spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	edits, err := source.FillStruct(r.ctx, snapshot, fh, protocol.Range{
+		Start: protocol.Position{
+			Line:      float64(spn.Start().Line() - 1),
+			Character: float64(spn.Start().Column() - 1),
+		},
+		End: protocol.Position{
+			Line:      float64(spn.End().Line() - 1),
+			Character: float64(spn.End().Column() - 1),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := r.data.Mapper(fh.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edits) == 0 || len(edits) > 1 {
+		t.Fatalf("expected 1 edit, got %v", len(edits))
+	}
+	diffEdits, err := source.FromProtocolEdits(m, edits[0].Edits)
+	if err != nil {
+		t.Error(err)
+	}
+	data, err := fh.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := diff.ApplyEdits(string(data), diffEdits)
+	want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), fh.URI().Filename(), func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if want != got {
+		d := myers.ComputeEdits(spn.URI(), want, got)
+		t.Errorf("import failed for %s: %s", spn.URI().Filename(), diff.ToUnified("want", "got", want, d))
+	}
+}
 
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {}
 

@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -18,6 +19,11 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
+
+type CommandRangeArgument struct {
+	URI   protocol.DocumentURI `json:"uri,omitempty"`
+	Range protocol.Range       `json:"range,omitempty"`
+}
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
 	var found bool
@@ -89,6 +95,40 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		deps := params.Arguments[1].(string)
 		err := s.directGoModCommand(ctx, uri, "get", strings.Split(deps, " ")...)
 		return nil, err
+	case source.CommandFillStruct:
+		if len(params.Arguments) != 1 {
+			return nil, fmt.Errorf("expected 1 arguments, got %v: %v", len(params.Arguments), params.Arguments)
+		}
+		var arg CommandRangeArgument
+		str, ok := params.Arguments[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string, got %v (%T)", params.Arguments[0], params.Arguments[0])
+		}
+		if err := json.Unmarshal([]byte(str), &arg); err != nil {
+			return nil, err
+		}
+		snapshot, fh, ok, err := s.beginFileRequest(ctx, arg.URI, source.Go)
+		if !ok {
+			return nil, err
+		}
+		edits, err := source.FillStruct(ctx, snapshot, fh, arg.Range)
+		if err != nil {
+			return nil, err
+		}
+		r, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: edits,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !r.Applied {
+			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("fillstruct failed: %v", r.FailureReason),
+			})
+		}
 	}
 	return nil, nil
 }

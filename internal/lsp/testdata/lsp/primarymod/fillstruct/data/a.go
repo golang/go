@@ -1,6 +1,6 @@
 package data
 
-type A struct {
+type B struct {
 	ExportedInt   int
 	unexportedInt int
 }

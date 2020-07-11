@@ -72,6 +72,10 @@ const (
 
 	// CommandRegenerateCfgo is a gopls command to regenerate cgo definitions.
 	CommandRegenerateCgo = "regenerate_cgo"
+
+	// CommandFillStruct is a gopls command to fill a struct with default
+	// values.
+	CommandFillStruct = "fill_struct"
 )
 
 // DefaultOptions is the options that are used for Gopls execution independent
@@ -104,6 +108,7 @@ func DefaultOptions() Options {
 			},
 			SupportedCommands: []string{
 				CommandGenerate,
+				CommandFillStruct,
 				CommandRegenerateCgo,
 				CommandTest,
 				CommandTidy,
@@ -708,7 +713,7 @@ func convenienceAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillstruct.Analyzer.Name: {
 			Analyzer: fillstruct.Analyzer,
-			enabled:  false,
+			enabled:  true,
 		},
 	}
 }

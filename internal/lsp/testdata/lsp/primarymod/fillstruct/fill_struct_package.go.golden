@@ -8,7 +8,7 @@ import (
 )
 
 func unexported() {
-	a := data.A{
+	a := data.B{
 		ExportedInt: 0,
 	}   //@suggestedfix("}", "refactor.rewrite")
 	_ = h2.Client{} //@suggestedfix("}", "refactor.rewrite")
@@ -24,7 +24,7 @@ import (
 )
 
 func unexported() {
-	a := data.A{}   //@suggestedfix("}", "refactor.rewrite")
+	a := data.B{}   //@suggestedfix("}", "refactor.rewrite")
 	_ = h2.Client{
 		Transport: nil,
 		CheckRedirect: func(req *h2.Request, via []*h2.Request) error {
