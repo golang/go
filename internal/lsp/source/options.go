@@ -102,11 +102,12 @@ func DefaultOptions() Options {
 				Sum: {},
 			},
 			SupportedCommands: []string{
+				CommandGenerate,
+				CommandRegenerateCgo,
 				CommandTest,
 				CommandTidy,
 				CommandUpgradeDependency,
-				CommandGenerate,
-				CommandRegenerateCgo,
+				CommandVendor,
 			},
 		},
 		UserOptions: UserOptions{

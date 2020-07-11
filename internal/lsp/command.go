@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 
@@ -17,6 +18,16 @@ import (
 )
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
+	var found bool
+	for _, command := range s.session.Options().SupportedCommands {
+		if command == params.Command {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("unsupported command detected: %s", params.Command)
+	}
 	switch params.Command {
 	case source.CommandTest:
 		unsaved := false
