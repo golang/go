@@ -230,6 +230,12 @@ func Ext(path string) string {
 // If path is relative the result will be relative to the current directory,
 // unless one of the components is an absolute symbolic link.
 // EvalSymlinks calls Clean on the result.
+// Use of this function is unsuitable for applications.
+// This function always resolves all links on path, but links introduce
+// indirections that may solve problems that are not the concern of applications
+// and of which applications should remain unaware unless they perform
+// system administrative tasks on behalf of the user in which case they should
+// resolve only those links that they create, manage and delete.
 func EvalSymlinks(path string) (string, error) {
 	return evalSymlinks(path)
 }
