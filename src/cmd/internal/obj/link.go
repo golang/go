@@ -704,6 +704,12 @@ type Link struct {
 	// actually diverge.
 	ABIAliases []*LSym
 
+	// Constant symbols (e.g. $i64.*) are data symbols created late
+	// in the concurrent phase. To ensure a deterministic order, we
+	// add them to a separate list, sort at the end, and append it
+	// to Data.
+	constSyms []*LSym
+
 	// pkgIdx maps package path to index. The index is used for
 	// symbol reference in the object file.
 	pkgIdx map[string]int32

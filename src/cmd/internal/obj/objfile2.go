@@ -292,6 +292,25 @@ func (w *writer) Sym(s *LSym) {
 	if s.Func != nil {
 		align = uint32(s.Func.Align)
 	}
+	if s.ContentAddressable() {
+		// We generally assume data symbols are natually aligned,
+		// except for strings. If we dedup a string symbol and a
+		// non-string symbol with the same content, we should keep
+		// the largest alignment.
+		// TODO: maybe the compiler could set the alignment for all
+		// data symbols more carefully.
+		if s.Size != 0 && !strings.HasPrefix(s.Name, "go.string.") {
+			switch {
+			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
+				align = 8
+			case s.Size%4 == 0:
+				align = 4
+			case s.Size%2 == 0:
+				align = 2
+			}
+			// don't bother setting align to 1.
+		}
+	}
 	var o goobj2.Sym
 	o.SetName(name, w.Writer)
 	o.SetABI(abi)

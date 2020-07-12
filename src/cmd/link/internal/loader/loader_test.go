@@ -6,6 +6,7 @@ package loader
 
 import (
 	"bytes"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -20,7 +21,7 @@ import (
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := uint32(len(ldr.objSyms))
-	s, ok := ldr.AddSym(name, 0, or, idx, nonPkgDef, false, sym.SRODATA)
+	s, ok := ldr.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
 	if !ok {
 		t.Errorf("AddrSym failed for '" + name + "'")
 	}
