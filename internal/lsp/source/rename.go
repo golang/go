@@ -104,6 +104,19 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		to:           newName,
 		packages:     make(map[*types.Package]Package),
 	}
+
+	// A renaming initiated at an interface method indicates the
+	// intention to rename abstract and concrete methods as needed
+	// to preserve assignability.
+	for _, ref := range refs {
+		if obj, ok := ref.obj.(*types.Func); ok {
+			recv := obj.Type().(*types.Signature).Recv()
+			if recv != nil && isInterface(recv.Type().Underlying()) {
+				r.changeMethods = true
+				break
+			}
+		}
+	}
 	for _, from := range refs {
 		r.packages[from.pkg.GetTypes()] = from.pkg
 	}

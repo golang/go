@@ -1,0 +1,15 @@
+-- G-rename --
+package another
+
+type (
+	I interface{ G() }
+	C struct{ I }
+)
+
+func (C) g()
+
+func _() {
+	var x I = C{}
+	x.G() //@rename("F", "G")
+}
+

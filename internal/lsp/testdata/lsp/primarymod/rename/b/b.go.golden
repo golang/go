@@ -1,27 +1,3 @@
--- error-rename --
-package b
-
-var c int //@rename("int", "uint")
-
-func _() {
-	error := 1 //@rename("a", "error")
-	error = 2
-	_ = error
-}
-
-var (
-	// Hello there.
-	// Foo does the thing.
-	Foo int //@rename("Foo", "Bob")
-)
-
-/*
-Hello description
-*/
-func Hello() {} //@rename("Hello", "Goodbye")
-
--- uint-rename --
-builtin object "int"
 -- Bob-rename --
 package b
 
@@ -66,3 +42,27 @@ Goodbye description
 */
 func Goodbye() {} //@rename("Hello", "Goodbye")
 
+-- error-rename --
+package b
+
+var c int //@rename("int", "uint")
+
+func _() {
+	error := 1 //@rename("a", "error")
+	error = 2
+	_ = error
+}
+
+var (
+	// Hello there.
+	// Foo does the thing.
+	Foo int //@rename("Foo", "Bob")
+)
+
+/*
+Hello description
+*/
+func Hello() {} //@rename("Hello", "Goodbye")
+
+-- uint-rename --
+builtin object "int"

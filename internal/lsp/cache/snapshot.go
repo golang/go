@@ -615,6 +615,7 @@ func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	scope, ok := s.workspacePackages[id]
 	return scope, ok
 }
+
 func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 	f, err := s.view.getFile(uri)
 	if err != nil {

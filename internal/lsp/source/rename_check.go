@@ -502,7 +502,6 @@ func (r *renamer) checkSelections(from types.Object) {
 					r.selectionConflict(from, delta, syntax, obj)
 					return
 				}
-
 			} else if sel.Obj().Name() == r.to {
 				if obj, indices, _ := types.LookupFieldOrMethod(sel.Recv(), isAddressable, from.Pkg(), from.Name()); obj == from {
 					// Renaming 'from' may cause this existing
@@ -845,7 +844,7 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 // The zero value is returned if not found.
 //
 func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, path []ast.Node, exact bool) {
-	var pkgs = []Package{pkg}
+	pkgs := []Package{pkg}
 	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {
 			if imp == nil {
