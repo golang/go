@@ -322,3 +322,78 @@ require (
 		}
 	}, WithProxy(badModule))
 }
+
+// Reproduces golang/go#38232.
+func TestUnknownRevision(t *testing.T) {
+	const unknown = `
+-- go.mod --
+module mod.com
+
+require (
+	example.com v1.2.2
+)
+-- main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	var x = blah.Name
+}
+`
+
+	// Start from a bad state/bad IWL, and confirm that we recover.
+	t.Run("bad", func(t *testing.T) {
+		runner.Run(t, unknown, func(t *testing.T, env *Env) {
+			env.Await(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+			)
+			env.OpenFile("go.mod")
+			env.Await(
+				SomeShowMessage("failed to load workspace packages, skipping diagnostics"),
+			)
+			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
+			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "x = "),
+			)
+		}, WithProxy(proxy))
+	})
+
+	const known = `
+-- go.mod --
+module mod.com
+
+require (
+	example.com v1.2.3
+)
+-- main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	var x = blah.Name
+}
+`
+	// Start from a good state, transform to a bad state, and confirm that we
+	// still recover.
+	t.Run("good", func(t *testing.T) {
+		runner.Run(t, known, func(t *testing.T, env *Env) {
+			env.OpenFile("go.mod")
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "x = "),
+			)
+			env.RegexpReplace("go.mod", "v1.2.3", "v1.2.2")
+			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Await(
+				SomeShowMessage("failed to load workspace packages, skipping diagnostics"),
+			)
+			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
+			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "x = "),
+			)
+		}, WithProxy(proxy))
+	})
+}

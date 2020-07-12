@@ -28,7 +28,7 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	ctx = xcontext.Detach(ctx)
 	reports, shows := s.diagnose(ctx, snapshot, false)
 	if shows != nil {
-		// If a view has been created or the configuration changed, warn the user
+		// If a view has been created or the configuration changed, warn the user.
 		s.client.ShowMessage(ctx, shows)
 	}
 	s.publishReports(ctx, snapshot, reports)
@@ -36,7 +36,8 @@ func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
-	// Ignore possible workspace configuration warnings in the normal flow
+
+	// Ignore possible workspace configuration warnings in the normal flow.
 	reports, _ := s.diagnose(ctx, snapshot, false)
 	s.publishReports(ctx, snapshot, reports)
 }
@@ -67,7 +68,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	if ctx.Err() != nil {
 		return nil, nil
 	}
-	modURI := snapshot.View().ModFile()
 	for id, diags := range reports {
 		if id.URI == "" {
 			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
@@ -82,27 +82,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	// Diagnose all of the packages in the workspace.
 	wsPackages, err := snapshot.WorkspacePackages(ctx)
-	if err == source.InconsistentVendoring {
-		item, err := s.client.ShowMessageRequest(ctx, &protocol.ShowMessageRequestParams{
-			Type: protocol.Error,
-			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
-See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
-			Actions: []protocol.MessageActionItem{
-				{Title: "go mod vendor"},
-			},
-		})
-		if item == nil || err != nil {
-			return nil, nil
-		}
-		if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
-			return nil, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
-			}
-		}
-		return nil, nil
-	} else if err != nil {
-		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+	if err != nil {
+		s.handleFatalErrors(ctx, snapshot, err)
 		return nil, nil
 	}
 	var shows *protocol.ShowMessageParams
@@ -246,4 +227,40 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 		})
 	}
 	return reports
+}
+
+func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, err error) {
+	switch err {
+	case source.InconsistentVendoring:
+		item, err := s.client.ShowMessageRequest(ctx, &protocol.ShowMessageRequestParams{
+			Type: protocol.Error,
+			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
+See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
+			Actions: []protocol.MessageActionItem{
+				{Title: "go mod vendor"},
+			},
+		})
+		if item == nil || err != nil {
+			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder()))
+			return
+		}
+		modURI := snapshot.View().ModFile()
+		if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
+			}); err != nil {
+				event.Error(ctx, "ShowMessage failed", err)
+			}
+		}
+	default:
+		msg := "failed to load workspace packages, skipping diagnostics"
+		event.Error(ctx, msg, err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+		if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: fmt.Sprintf("%s: %v", msg, err),
+		}); err != nil {
+			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
+		}
+	}
 }

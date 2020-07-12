@@ -86,17 +86,30 @@ type View struct {
 	snapshotMu sync.Mutex
 	snapshot   *snapshot
 
-	// initialized is closed when the view has been fully initialized.
-	// On initialization, the view's workspace packages are loaded.
-	// All of the fields below are set as part of initialization.
-	// If we failed to load, we don't re-try to avoid too many go/packages calls.
-	initializeOnce sync.Once
-	initialized    chan struct{}
-	initCancel     context.CancelFunc
+	// initialized is closed when the view has been fully initialized. On
+	// initialization, the view's workspace packages are loaded. All of the
+	// fields below are set as part of initialization. If we failed to load, we
+	// only retry if the go.mod file changes, to avoid too many go/packages
+	// calls.
+	//
+	// When the view is created, initializeOnce is non-nil, initialized is
+	// open, and initCancelFirstAttempt can be used to terminate
+	// initialization. Once initialization completes, initializedErr may be set
+	// and initializeOnce becomes nil. If initializedErr is non-nil,
+	// initialization may be retried (depending on how files are changed). To
+	// indicate that initialization should be retried, initializeOnce will be
+	// set. The next time a caller requests workspace packages, the
+	// initialization will retry.
+	initialized            chan struct{}
+	initCancelFirstAttempt context.CancelFunc
 
-	// initializedErr needs no mutex, since any access to it happens after it
-	// has been set.
-	initializedErr error
+	// initializationSema is used as a mutex to guard initializeOnce and
+	// initializedErr, which will be updated after each attempt to initialize
+	// the view. We use a channel instead of a mutex to avoid blocking when a
+	// context is canceled.
+	initializationSema chan struct{}
+	initializeOnce     *sync.Once
+	initializedErr     error
 
 	// builtin pins the AST and package for builtin.go in memory.
 	builtin *builtinPackageHandle
@@ -639,7 +652,7 @@ func (v *View) Shutdown(ctx context.Context) {
 
 func (v *View) shutdown(ctx context.Context) {
 	// Cancel the initial workspace load if it is still running.
-	v.initCancel()
+	v.initCancelFirstAttempt()
 
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -702,25 +715,48 @@ func (v *View) getSnapshot() *snapshot {
 	return v.snapshot
 }
 
-func (v *View) initialize(ctx context.Context, s *snapshot) {
-	v.initializeOnce.Do(func() {
-		defer close(v.initialized)
+func (v *View) initialize(ctx context.Context, s *snapshot, firstAttempt bool) {
+	select {
+	case <-ctx.Done():
+		return
+	case v.initializationSema <- struct{}{}:
+	}
 
-		if err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
-			if ctx.Err() != nil {
-				return
+	defer func() {
+		<-v.initializationSema
+	}()
+
+	if v.initializeOnce == nil {
+		return
+	}
+	v.initializeOnce.Do(func() {
+		defer func() {
+			v.initializeOnce = nil
+			if firstAttempt {
+				close(v.initialized)
 			}
-			v.initializedErr = err
+		}()
+
+		err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin"))
+		if ctx.Err() != nil {
+			return
+		}
+		if err != nil {
 			event.Error(ctx, "initial workspace load failed", err)
 		}
+		v.initializedErr = err
 	})
 }
 
 func (v *View) awaitInitialized(ctx context.Context) {
 	select {
 	case <-ctx.Done():
+		return
 	case <-v.initialized:
 	}
+	// We typically prefer to run something as intensive as the IWL without
+	// blocking. I'm not sure if there is a way to do that here.
+	v.initialize(ctx, v.getSnapshot(), false)
 }
 
 // invalidateContent invalidates the content of a Go file,
@@ -754,6 +790,19 @@ func (v *View) cancelBackground() {
 	}
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
+}
+
+func (v *View) maybeReinitialize() {
+	v.initializationSema <- struct{}{}
+	defer func() {
+		<-v.initializationSema
+	}()
+
+	if v.initializedErr == nil {
+		return
+	}
+	var once sync.Once
+	v.initializeOnce = &once
 }
 
 func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []string, modfileFlagEnabled bool) error {

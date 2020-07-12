@@ -128,17 +128,19 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
 	v := &View{
-		session:       s,
-		initialized:   make(chan struct{}),
-		id:            strconv.FormatInt(index, 10),
-		options:       options,
-		baseCtx:       baseCtx,
-		backgroundCtx: backgroundCtx,
-		cancel:        cancel,
-		name:          name,
-		folder:        folder,
-		filesByURI:    make(map[span.URI]*fileBase),
-		filesByBase:   make(map[string][]*fileBase),
+		session:            s,
+		initialized:        make(chan struct{}),
+		initializationSema: make(chan struct{}, 1),
+		initializeOnce:     &sync.Once{},
+		id:                 strconv.FormatInt(index, 10),
+		options:            options,
+		baseCtx:            baseCtx,
+		backgroundCtx:      backgroundCtx,
+		cancel:             cancel,
+		name:               name,
+		folder:             folder,
+		filesByURI:         make(map[span.URI]*fileBase),
+		filesByBase:        make(map[string][]*fileBase),
 		snapshot: &snapshot{
 			id:                snapshotID,
 			packages:          make(map[packageKey]*packageHandle),
@@ -171,8 +173,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
-	v.initCancel = initCancel
-	go v.initialize(initCtx, v.snapshot)
+	v.initCancelFirstAttempt = initCancel
+	go v.initialize(initCtx, v.snapshot, true)
 	return v, v.snapshot, nil
 }
 
@@ -324,7 +326,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	if err != nil {
 		return nil, err
 	}
-	forceReloadMetadata := false
+	var forceReloadMetadata bool
 	for _, c := range changes {
 		if c.Action == source.InvalidateMetadata {
 			forceReloadMetadata = true
@@ -344,14 +346,26 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]source.FileHandle)
 			}
-			if o, ok := overlays[c.URI]; ok {
-				views[view][c.URI] = o
+			var (
+				fh  source.FileHandle
+				ok  bool
+				err error
+			)
+			if fh, ok = overlays[c.URI]; ok {
+				views[view][c.URI] = fh
 			} else {
-				fh, err := s.cache.getFile(ctx, c.URI)
+				fh, err = s.cache.getFile(ctx, c.URI)
 				if err != nil {
 					return nil, err
 				}
 				views[view][c.URI] = fh
+			}
+			// If the file change is to a go.mod file, and initialization for
+			// the view has previously failed, we should attempt to retry.
+			// TODO(rstambler): We can use unsaved contents with -modfile, so
+			// maybe we should do that and retry on any change?
+			if fh.Kind() == source.Mod && (c.OnDisk || c.Action == source.Save) {
+				view.maybeReinitialize()
 			}
 		}
 	}

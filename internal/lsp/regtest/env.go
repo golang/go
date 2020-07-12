@@ -364,11 +364,13 @@ func EmptyShowMessage(title string) SimpleExpectation {
 	}
 }
 
-// SomeShowMessage asserts that the editor has received a ShowMessage.
+// SomeShowMessage asserts that the editor has received a ShowMessage with the given title.
 func SomeShowMessage(title string) SimpleExpectation {
 	check := func(s State) (Verdict, interface{}) {
-		if len(s.showMessage) > 0 {
-			return Met, title
+		for _, m := range s.showMessage {
+			if strings.Contains(m.Message, title) {
+				return Met, m
+			}
 		}
 		return Unmet, nil
 	}
