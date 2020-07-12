@@ -1715,6 +1715,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
 			duint8(lsym, i, x)
 		}
 		ggloblsym(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		lsym.Set(obj.AttrContentAddressable, true)
 	}
 	return lsym
 }
