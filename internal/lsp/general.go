@@ -171,7 +171,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 					Method: "workspace/didChangeWatchedFiles",
 					RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
 						Watchers: []protocol.FileSystemWatcher{{
-							GlobPattern: fmt.Sprintf("%s/**.go", dir),
+							GlobPattern: fmt.Sprintf("%s/**.{go,mod,sum}", dir),
 							Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
 						}},
 					},
@@ -199,7 +199,6 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 				wg.Wait()
 				work.End(ctx, "Done.")
 			}()
-
 		}()
 	}
 	for _, folder := range folders {

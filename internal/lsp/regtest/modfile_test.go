@@ -7,6 +7,7 @@ package regtest
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
@@ -168,5 +169,40 @@ require (
 		if got := env.Editor.BufferText("go.mod"); got != want {
 			t.Fatalf("TestNewDepWithUnusedDep failed:\n%s", tests.Diff(want, got))
 		}
+	}, WithProxy(proxy))
+}
+
+// TODO: For this test to be effective, the sandbox's file watcher must respect
+// the file watching GlobPattern in the capability registration. See
+// golang/go#39384.
+func TestModuleChangesOnDisk(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require example.com v1.2.3
+-- main.go --
+package main
+
+func main() {
+	fmt.Println(blah.Name)
+`
+	const want = `module mod.com
+
+go 1.12
+`
+	runner.Run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+			env.DiagnosticAtRegexp("go.mod", "require"),
+		)
+		env.Sandbox.RunGoCommand(env.Ctx, "mod", "tidy")
+		env.Await(
+			EmptyDiagnostics("go.mod"),
+		)
 	}, WithProxy(proxy))
 }
