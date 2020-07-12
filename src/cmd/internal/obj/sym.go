@@ -139,7 +139,11 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
 	name := fmt.Sprintf("$f32.%08x", i)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
+		s.WriteFloat32(ctxt, 0, f)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
@@ -148,7 +152,11 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 	name := fmt.Sprintf("$f64.%016x", i)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.WriteFloat64(ctxt, 0, f)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
@@ -156,7 +164,11 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i64.%016x", uint64(i))
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.WriteInt(ctxt, 0, 8, i)
+		s.Type = objabi.SRODATA
 		s.Set(AttrLocal, true)
+		s.Set(AttrContentAddressable, true)
+		ctxt.constSyms = append(ctxt.constSyms, s)
 	})
 }
 
@@ -173,6 +185,14 @@ func (ctxt *Link) NumberSyms() {
 			return ctxt.Data[i].Name < ctxt.Data[j].Name
 		})
 	}
+
+	// Constant symbols are created late in the concurrent phase. Sort them
+	// to ensure a deterministic order.
+	sort.Slice(ctxt.constSyms, func(i, j int) bool {
+		return ctxt.constSyms[i].Name < ctxt.constSyms[j].Name
+	})
+	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
+	ctxt.constSyms = nil
 
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}

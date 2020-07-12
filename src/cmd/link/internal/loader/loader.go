@@ -18,7 +18,6 @@ import (
 	"math/bits"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -190,6 +189,12 @@ func growBitmap(reqLen int, b Bitmap) Bitmap {
 	return b
 }
 
+type symSizeAlign struct {
+	sym   Sym
+	size  uint32
+	align uint32
+}
+
 // A Loader loads new object files and resolves indexed symbol references.
 //
 // Notes on the layout of global symbol index space:
@@ -217,9 +222,9 @@ type Loader struct {
 
 	objSyms []objSym // global index mapping to local index
 
-	hashedSyms    map[goobj2.HashType]Sym // hashed (content-addressable) symbols, keyed by content hash
-	symsByName    [2]map[string]Sym       // map symbol name to index, two maps are for ABI0 and ABIInternal
-	extStaticSyms map[nameVer]Sym         // externally defined static symbols, keyed by name
+	hashedSyms    map[goobj2.HashType]symSizeAlign // hashed (content-addressable) symbols, keyed by content hash
+	symsByName    [2]map[string]Sym                // map symbol name to index, two maps are for ABI0 and ABIInternal
+	extStaticSyms map[nameVer]Sym                  // externally defined static symbols, keyed by name
 
 	extReader    *oReader // a dummy oReader, for external symbols
 	payloadBatch []extSymPayload
@@ -344,7 +349,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
 		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
 		extReader:            extReader,
-		hashedSyms:           make(map[goobj2.HashType]Sym, 20000),                                        // TODO: adjust preallocation sizes
+		hashedSyms:           make(map[goobj2.HashType]symSizeAlign, 20000),                               // TODO: adjust preallocation sizes
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]*oReader),
 		outer:                make(map[Sym]Sym),
@@ -396,9 +401,9 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 
 // Add a symbol from an object file, return the global index and whether it is added.
 // If the symbol already exist, it returns the index of that symbol.
-func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
+func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj2.Sym) (Sym, bool) {
 	if l.extStart != 0 {
-		panic("AddSym called after external symbol is created")
+		panic("addSym called after external symbol is created")
 	}
 	i := Sym(len(l.objSyms))
 	addToGlobal := func() {
@@ -431,14 +436,21 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
 		// referenced by name. Also no need to do overwriting
 		// check, as same hash indicates same content.
 		hash := r.Hash(li - uint32(r.ndef))
-		if oldi, existed := l.hashedSyms[*hash]; existed {
-			// TODO: check symbol size for extra safety against collision?
-			if l.flags&FlagStrictDups != 0 {
-				l.checkdup(name, r, li, oldi)
+		if s, existed := l.hashedSyms[*hash]; existed {
+			if s.size != osym.Siz() {
+				fmt.Printf("hash collision: %v (size %d) and %v (size %d), hash %x\n", l.SymName(s.sym), s.size, osym.Name(r.Reader), osym.Siz(), *hash)
+				panic("hash collision")
 			}
-			return oldi, false
+			if l.flags&FlagStrictDups != 0 {
+				l.checkdup(name, r, li, s.sym)
+			}
+			if a := osym.Align(); a > s.align { // we need to use the biggest alignment
+				l.SetSymAlign(s.sym, int32(a))
+				l.hashedSyms[*hash] = symSizeAlign{s.sym, s.size, a}
+			}
+			return s.sym, false
 		}
-		l.hashedSyms[*hash] = i
+		l.hashedSyms[*hash] = symSizeAlign{i, osym.Siz(), osym.Align()}
 		addToGlobal()
 		return i, true
 	}
@@ -451,7 +463,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
 		return i, true
 	}
 	// symbol already exists
-	if dupok {
+	if osym.Dupok() {
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
@@ -472,6 +484,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
 		l.objSyms[oldi] = objSym{r.objidx, li}
 	} else {
 		// old symbol overwrites new symbol.
+		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !typ.IsData() { // only allow overwriting data symbol
 			log.Fatalf("duplicated definition of symbol " + name)
 		}
@@ -2104,20 +2117,14 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		osym := r.Sym(i)
 		var name string
 		var v int
-		var dupok bool
-		var typ sym.SymKind
 		if kind != hashedDef { // we don't need the name, etc. for hashed symbols
 			name = osym.Name(r.Reader)
 			if needNameExpansion {
 				name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
 			}
 			v = abiToVer(osym.ABI(), r.version)
-			if kind == nonPkgDef {
-				dupok = osym.Dupok()
-				typ = sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
-			}
 		}
-		gi, added := l.AddSym(name, v, r, i, kind, dupok, typ)
+		gi, added := l.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
 		if !added {
 			continue
@@ -2179,7 +2186,6 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		if osym.UsedInIface() {
 			l.SetAttrUsedInIface(gi, true)
 		}
-		l.preprocess(arch, gi, name)
 	}
 }
 
@@ -2195,33 +2201,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 		log.Fatalf("invalid symbol ABI: %d", abi)
 	}
 	return v
-}
-
-// preprocess looks for integer/floating point constant symbols whose
-// content is encoded into the symbol name, and promotes them into
-// real symbols with RODATA type and a payload that matches the
-// encoded content.
-func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
-	if name != "" && name[0] == '$' && len(name) > 5 && l.SymType(s) == 0 && len(l.Data(s)) == 0 {
-		x, err := strconv.ParseUint(name[5:], 16, 64)
-		if err != nil {
-			log.Panicf("failed to parse $-symbol %s: %v", name, err)
-		}
-		su := l.MakeSymbolUpdater(s)
-		su.SetType(sym.SRODATA)
-		su.SetLocal(true)
-		switch name[:5] {
-		case "$f32.":
-			if uint64(uint32(x)) != x {
-				log.Panicf("$-symbol %s too large: %d", name, x)
-			}
-			su.AddUint32(arch, uint32(x))
-		case "$f64.", "$i64.":
-			su.AddUint64(arch, x)
-		default:
-			log.Panicf("unrecognized $-symbol: %s", name)
-		}
-	}
 }
 
 // ResolveABIAlias given a symbol returns the ABI alias target of that
