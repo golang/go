@@ -7,6 +7,7 @@
 package types
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 )
@@ -43,8 +44,16 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			}
 			target = Default(x.typ)
 		}
-		check.convertUntyped(x, target)
-		if x.mode == invalid {
+		if err := check.canConvertUntyped(x, target); err != nil {
+			var internalErr Error
+			var msg string
+			if errors.As(err, &internalErr) {
+				msg = internalErr.Msg
+			} else {
+				msg = err.Error()
+			}
+			check.errorf(x.pos(), "cannot use %s as %s value in %s: %v", x, target, context, msg)
+			x.mode = invalid
 			return
 		}
 	}
