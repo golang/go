@@ -5,6 +5,7 @@
 package source
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -235,6 +236,9 @@ type UserOptions struct {
 	// Placeholders adds placeholders to parameters and structs in completion
 	// results.
 	Placeholders bool
+
+	// Gofumpt indicates if we should run gofumpt formatting.
+	Gofumpt bool
 }
 
 type completionOptions struct {
@@ -257,6 +261,7 @@ type Hooks struct {
 	DefaultAnalyzers     map[string]Analyzer
 	TypeErrorAnalyzers   map[string]Analyzer
 	ConvenienceAnalyzers map[string]Analyzer
+	GofumptFormat        func(ctx context.Context, src []byte) ([]byte, error)
 }
 
 func (o Options) AddDefaultAnalyzer(a *analysis.Analyzer) {
@@ -529,6 +534,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "tempModfile":
 		result.setBool(&o.TempModfile)
+
+	case "gofumpt":
+		result.setBool(&o.Gofumpt)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

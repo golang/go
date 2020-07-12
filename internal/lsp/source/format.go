@@ -43,16 +43,27 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	}
 
 	fset := snapshot.View().Session().Cache().FileSet()
-	buf := &bytes.Buffer{}
 
 	// format.Node changes slightly from one release to another, so the version
 	// of Go used to build the LSP server will determine how it formats code.
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
+	buf := &bytes.Buffer{}
 	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, buf.String())
+	formatted := buf.String()
+
+	// Apply additional formatting, if any is supported. Currently, the only
+	// supported additional formatter is gofumpt.
+	if format := snapshot.View().Options().Hooks.GofumptFormat; snapshot.View().Options().Gofumpt && format != nil {
+		b, err := format(ctx, buf.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		formatted = string(b)
+	}
+	return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, formatted)
 }
 
 func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
