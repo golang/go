@@ -78,6 +78,10 @@ type mstats struct {
 		nfree   uint64
 	}
 
+	// Add an uint32 for even number of size classes to align below fields
+	// to 64 bits for atomic operations on 32 bit platforms.
+	_ [1 - _NumSizeClasses%2]uint32
+
 	// Statistics below here are not exported to MemStats directly.
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
