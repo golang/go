@@ -714,10 +714,11 @@ type Link struct {
 	// symbol reference in the object file.
 	pkgIdx map[string]int32
 
-	defs       []*LSym // list of defined symbols in the current package
-	hasheddefs []*LSym // list of defined hashed (content-addressable) symbols
-	nonpkgdefs []*LSym // list of defined non-package symbols
-	nonpkgrefs []*LSym // list of referenced non-package symbols
+	defs         []*LSym // list of defined symbols in the current package
+	hashed64defs []*LSym // list of defined short (64-bit or less) hashed (content-addressable) symbols
+	hasheddefs   []*LSym // list of defined hashed (content-addressable) symbols
+	nonpkgdefs   []*LSym // list of defined non-package symbols
+	nonpkgrefs   []*LSym // list of referenced non-package symbols
 
 	Fingerprint goobj2.FingerprintType // fingerprint of symbol indices, to catch index mismatch
 }

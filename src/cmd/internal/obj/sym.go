@@ -196,19 +196,30 @@ func (ctxt *Link) NumberSyms() {
 
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}
+	ctxt.hashed64defs = []*LSym{}
 	ctxt.hasheddefs = []*LSym{}
 	ctxt.nonpkgdefs = []*LSym{}
 
-	var idx, hashedidx, nonpkgidx int32
+	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
 		if s.ContentAddressable() {
-			s.PkgIdx = goobj2.PkgIdxHashed
-			s.SymIdx = hashedidx
-			if hashedidx != int32(len(ctxt.hasheddefs)) {
-				panic("bad index")
+			if len(s.P) <= 8 {
+				s.PkgIdx = goobj2.PkgIdxHashed64
+				s.SymIdx = hashed64idx
+				if hashed64idx != int32(len(ctxt.hashed64defs)) {
+					panic("bad index")
+				}
+				ctxt.hashed64defs = append(ctxt.hashed64defs, s)
+				hashed64idx++
+			} else {
+				s.PkgIdx = goobj2.PkgIdxHashed
+				s.SymIdx = hashedidx
+				if hashedidx != int32(len(ctxt.hasheddefs)) {
+					panic("bad index")
+				}
+				ctxt.hasheddefs = append(ctxt.hasheddefs, s)
+				hashedidx++
 			}
-			ctxt.hasheddefs = append(ctxt.hasheddefs, s)
-			hashedidx++
 		} else if isNonPkgSym(ctxt, s) {
 			s.PkgIdx = goobj2.PkgIdxNone
 			s.SymIdx = nonpkgidx
