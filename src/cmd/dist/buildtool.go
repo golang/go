@@ -124,11 +124,11 @@ var ignoreSuffixes = []string{
 }
 
 func bootstrapBuildTools() {
-	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
-	if goroot_bootstrap == "" {
-		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
+	gorootBootstrap := os.Getenv("GOROOT_BOOTSTRAP")
+	if gorootBootstrap == "" {
+		gorootBootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
 	}
-	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
+	xprintf("Building Go toolchain1 using %s.\n", gorootBootstrap)
 
 	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
 
@@ -154,16 +154,15 @@ func bootstrapBuildTools() {
 			// and for later in the main build.
 			mkzdefaultcc("", pathf("%s/zdefaultcc.go", src))
 		}
-	Dir:
 		for _, name := range xreaddirfiles(src) {
 			for _, pre := range ignorePrefixes {
 				if strings.HasPrefix(name, pre) {
-					continue Dir
+					continue
 				}
 			}
 			for _, suf := range ignoreSuffixes {
 				if strings.HasSuffix(name, suf) {
-					continue Dir
+					continue 
 				}
 			}
 			srcFile := pathf("%s/%s", src, name)
@@ -184,7 +183,7 @@ func bootstrapBuildTools() {
 	// because setup will take care of those when bootstrapBuildTools returns.
 
 	defer os.Setenv("GOROOT", os.Getenv("GOROOT"))
-	os.Setenv("GOROOT", goroot_bootstrap)
+	os.Setenv("GOROOT", gorootBootstrap)
 
 	defer os.Setenv("GOPATH", os.Getenv("GOPATH"))
 	os.Setenv("GOPATH", workspace)
@@ -206,7 +205,7 @@ func bootstrapBuildTools() {
 	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
 	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
 	cmd := []string{
-		pathf("%s/bin/go", goroot_bootstrap),
+		pathf("%s/bin/go", gorootBootstrap),
 		"install",
 		"-gcflags=-l",
 		"-tags=math_big_pure_go compiler_bootstrap",
