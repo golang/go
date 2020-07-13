@@ -711,6 +711,17 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		return
 	}
 
+	if t.Etype == types.TRESULTS {
+		tys := t.Extra.(*types.Results).Types
+		for i, et := range tys {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(et.String())
+		}
+		return
+	}
+
 	flag, mode = flag.update(mode)
 	if mode == FTypeIdName {
 		flag |= FmtUnsigned
