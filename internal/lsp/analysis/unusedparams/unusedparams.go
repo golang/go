@@ -120,21 +120,20 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if nObj := pass.TypesInfo.ObjectOf(n); nObj != param.typObj {
 				return false
 			}
-			if _, ok := unused[param]; ok {
-				delete(unused, param)
-			}
+			delete(unused, param)
 			return false
 		})
 
 		// Create the reports for the unused parameters.
-		for u, _ := range unused {
+		for u := range unused {
 			start, end := u.field.Pos(), u.field.End()
 			if len(u.field.Names) > 1 {
 				start, end = u.ident.Pos(), u.ident.End()
 			}
-			// TODO(golang/go#36602): add suggested fixes to automatically remove the unused parameter,
-			// to start, just remove it from the function declaration,
-			// later, remove from every use of this function
+			// TODO(golang/go#36602): Add suggested fixes to automatically
+			// remove the unused parameter. To start, just remove it from the
+			// function declaration. Later, remove it from every use of this
+			// function.
 			pass.Report(analysis.Diagnostic{
 				Pos:     start,
 				End:     end,

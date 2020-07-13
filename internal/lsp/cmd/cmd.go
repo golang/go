@@ -74,8 +74,8 @@ type Application struct {
 	PrepareOptions func(*source.Options)
 }
 
-func (a *Application) verbose() bool {
-	return a.Verbose || a.VeryVerbose
+func (app *Application) verbose() bool {
+	return app.Verbose || app.VeryVerbose
 }
 
 // New returns a new Application ready to run.
@@ -188,7 +188,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&references{app: app},
 		&rename{app: app},
 		&signature{app: app},
-		&suggestedfix{app: app},
+		&suggestedFix{app: app},
 		&symbols{app: app},
 		&workspaceSymbol{app: app},
 	}

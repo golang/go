@@ -100,7 +100,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		err := s.directGoModCommand(ctx, uri, "get", deps...)
 		return nil, err
-	case source.CommandFillStruct:
+	case source.CommandFillStruct, source.CommandUndeclaredName:
 		var uri protocol.DocumentURI
 		var rng protocol.Range
 		if err := source.DecodeArgs(params.Arguments, &uri, &rng); err != nil {
@@ -110,7 +110,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
-		edits, err := source.FillStruct(ctx, snapshot, fh, rng)
+		edits, err := commandToEdits(ctx, snapshot, fh, rng, params.Command)
 		if err != nil {
 			return nil, err
 		}
@@ -125,13 +125,30 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !r.Applied {
 			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
-				Message: fmt.Sprintf("fillstruct failed: %v", r.FailureReason),
+				Message: fmt.Sprintf("%s failed: %v", params.Command, r.FailureReason),
 			})
 		}
 	default:
 		return nil, fmt.Errorf("unknown command: %s", params.Command)
 	}
 	return nil, nil
+}
+
+func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, rng protocol.Range, cmd string) ([]protocol.TextDocumentEdit, error) {
+	var analyzer *source.Analyzer
+	for _, a := range source.EnabledAnalyzers(snapshot) {
+		if cmd == a.Command {
+			analyzer = &a
+			break
+		}
+	}
+	if analyzer == nil {
+		return nil, fmt.Errorf("no known analyzer for %s", cmd)
+	}
+	if analyzer.SuggestedFix == nil {
+		return nil, fmt.Errorf("no fix function for %s", cmd)
+	}
+	return source.CommandSuggestedFixes(ctx, snapshot, fh, rng, analyzer.SuggestedFix)
 }
 
 func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {

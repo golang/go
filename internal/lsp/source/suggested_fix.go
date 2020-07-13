@@ -7,13 +7,26 @@ package source
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/token"
+	"go/types"
 
-	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
 
-func FillStruct(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
+// SuggestedFixFunc is a function used to get the suggested fixes for a given
+// go/analysis.Analyzer. Some of the analyzers in internal/lsp/analysis are not
+// efficient enough to include suggested fixes with their diagnostics, so we
+// have to compute them separately. Such analyzers should provide a function
+// with a signature of SuggestedFixFunc.
+type SuggestedFixFunc func(*token.FileSet, token.Pos, []byte, *ast.File, *types.Package, *types.Info) (*analysis.SuggestedFix, error)
+
+// CommandSuggestedFixes returns the text edits for a given file and
+// SuggestedFixFunc. It can be used to execute any command that provides its
+// edits through a SuggestedFixFunc.
+func CommandSuggestedFixes(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range, fn SuggestedFixFunc) ([]protocol.TextDocumentEdit, error) {
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
@@ -35,7 +48,7 @@ func FillStruct(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng prot
 		return nil, err
 	}
 	fset := snapshot.View().Session().Cache().FileSet()
-	fix, err := fillstruct.SuggestedFix(fset, rng.Start, content, file, pkg.GetTypes(), pkg.GetTypesInfo())
+	fix, err := fn(fset, rng.Start, content, file, pkg.GetTypes(), pkg.GetTypesInfo())
 	if err != nil {
 		return nil, err
 	}

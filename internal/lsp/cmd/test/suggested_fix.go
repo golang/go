@@ -22,11 +22,14 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		}
 	}
 	args = append(args, actionKinds...)
-	got, _ := r.NormalizeGoplsCmd(t, args...)
+	got, stderr := r.NormalizeGoplsCmd(t, args...)
+	if stderr == "ExecuteCommand is not yet supported on the command line" {
+		t.Skipf(stderr)
+	}
 	want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
 	if want != got {
-		t.Errorf("suggested fixes failed for %s: %s", filename, tests.Diff(want, got))
+		t.Errorf("suggested fixes failed for %s:\n%s", filename, tests.Diff(want, got))
 	}
 }

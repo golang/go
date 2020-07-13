@@ -13,7 +13,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -242,13 +241,23 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.Pack
 	if len(diagnostics) == 0 {
 		return nil, nil, nil
 	}
-
-	var codeActions []protocol.CodeAction
-	var sourceFixAllEdits []protocol.TextDocumentEdit
-
+	var (
+		codeActions       []protocol.CodeAction
+		sourceFixAllEdits []protocol.TextDocumentEdit
+	)
 	for _, diag := range diagnostics {
 		srcErr, analyzer, ok := findSourceError(ctx, snapshot, ph.ID(), diag)
 		if !ok {
+			continue
+		}
+		// If the suggested fix for the diagnostic is expected to be separate,
+		// see if there are any supported commands available.
+		if analyzer.SuggestedFix != nil {
+			action, err := diagnosticToCommandCodeAction(ctx, snapshot, srcErr, &diag, protocol.QuickFix)
+			if err != nil {
+				return nil, nil, err
+			}
+			codeActions = append(codeActions, *action)
 			continue
 		}
 		for _, fix := range srcErr.SuggestedFixes {
@@ -276,24 +285,8 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.Pack
 }
 
 func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string, diag protocol.Diagnostic) (*source.Error, source.Analyzer, bool) {
-	var analyzer *source.Analyzer
-
-	// If the source is "compiler", we expect a type error analyzer.
-	if diag.Source == "compiler" {
-		for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
-			if a.FixesError(diag.Message) {
-				analyzer = &a
-				break
-			}
-		}
-	} else {
-		// This code assumes that the analyzer name is the Source of the diagnostic.
-		// If this ever changes, this will need to be addressed.
-		if a, ok := snapshot.View().Options().DefaultAnalyzers[diag.Source]; ok {
-			analyzer = &a
-		}
-	}
-	if analyzer == nil || !analyzer.Enabled(snapshot) {
+	analyzer := diagnosticToAnalyzer(snapshot, diag.Source, diag.Message)
+	if analyzer == nil {
 		return nil, source.Analyzer{}, false
 	}
 	analysisErrors, err := snapshot.Analyze(ctx, pkgID, analyzer.Analyzer)
@@ -316,10 +309,46 @@ func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string
 	return nil, source.Analyzer{}, false
 }
 
+// diagnosticToAnalyzer return the analyzer associated with a given diagnostic.
+// It assumes that the diagnostic's source will be the name of the analyzer.
+// If this changes, this approach will need to be reworked.
+func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *source.Analyzer) {
+	// Make sure that the analyzer we found is enabled.
+	defer func() {
+		if analyzer != nil && !analyzer.Enabled(snapshot) {
+			analyzer = nil
+		}
+	}()
+	if a, ok := snapshot.View().Options().DefaultAnalyzers[src]; ok {
+		return &a
+	}
+	if a, ok := snapshot.View().Options().ConvenienceAnalyzers[src]; ok {
+		return &a
+	}
+	// Hack: We publish diagnostics with the source "compiler" for type errors,
+	// but these analyzers have different names. Try both possibilities.
+	if a, ok := snapshot.View().Options().TypeErrorAnalyzers[src]; ok {
+		return &a
+	}
+	if src != "compiler" {
+		return nil
+	}
+	for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
+		if a.FixesError(msg) {
+			return &a
+		}
+	}
+	return nil
+}
+
 func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
 		if !a.Enabled(snapshot) {
+			continue
+		}
+		if a.SuggestedFix == nil {
+			event.Error(ctx, "convenienceFixes", fmt.Errorf("no suggested fixes for convenience analyzer %s", a.Analyzer.Name))
 			continue
 		}
 		analyzers = append(analyzers, a.Analyzer)
@@ -338,27 +367,43 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		if d.Range.Start.Line != rng.Start.Line {
 			continue
 		}
-		// The fix depends on the category of the analyzer.
-		switch d.Category {
-		case fillstruct.Analyzer.Name:
-			jsonArgs, err := source.EncodeArgs(d.URI, d.Range)
-			if err != nil {
-				return nil, err
-			}
-			action := protocol.CodeAction{
-				Title: d.Message,
-				Kind:  protocol.RefactorRewrite,
-				Command: &protocol.Command{
-					Command:   source.CommandFillStruct,
-					Title:     d.Message,
-					Arguments: jsonArgs,
-				},
-			}
-			codeActions = append(codeActions, action)
+		action, err := diagnosticToCommandCodeAction(ctx, snapshot, d, nil, protocol.RefactorRewrite)
+		if err != nil {
+			return nil, err
 		}
-
+		codeActions = append(codeActions, *action)
 	}
 	return codeActions, nil
+}
+
+func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot, e *source.Error, d *protocol.Diagnostic, kind protocol.CodeActionKind) (*protocol.CodeAction, error) {
+	// The fix depends on the category of the analyzer. The diagnostic may be
+	// nil, so use the error's category.
+	analyzer := diagnosticToAnalyzer(snapshot, e.Category, e.Message)
+	if analyzer == nil {
+		return nil, fmt.Errorf("no convenience analyzer for category %s", e.Category)
+	}
+	if analyzer.Command == "" {
+		return nil, fmt.Errorf("no command for convenience analyzer %s", analyzer.Analyzer.Name)
+	}
+	jsonArgs, err := source.EncodeArgs(e.URI, e.Range)
+	if err != nil {
+		return nil, err
+	}
+	var diagnostics []protocol.Diagnostic
+	if d != nil {
+		diagnostics = append(diagnostics, *d)
+	}
+	return &protocol.CodeAction{
+		Title:       e.Message,
+		Kind:        kind,
+		Diagnostics: diagnostics,
+		Command: &protocol.Command{
+			Command:   analyzer.Command,
+			Title:     e.Message,
+			Arguments: jsonArgs,
+		},
+	}, nil
 }
 
 func extractionFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {

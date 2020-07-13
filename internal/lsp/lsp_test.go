@@ -352,7 +352,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 	got := string(m.Content)
 	if len(actions) > 0 {
-		res, err := applyWorkspaceEdits(r, actions[0].Edit)
+		res, err := applyTextDocumentEdits(r, actions[0].Edit.DocumentChanges)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -370,6 +370,11 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := view.Snapshot()
+	fh, err := snapshot.GetFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,17 +422,37 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if err != nil {
 		t.Fatalf("CodeAction %s failed: %v", spn, err)
 	}
-	// Hack: We assume that we only get one code action per range.
-	// TODO(rstambler): Support multiple code actions per test.
-	if len(actions) == 0 || len(actions) > 1 {
-		t.Fatalf("unexpected number of code actions, want 1, got %v (%v)", len(actions), actions)
+	if len(actions) != 1 {
+		// Hack: We assume that we only get one code action per range.
+		// TODO(rstambler): Support multiple code actions per test.
+		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
 	}
-	if actions[0].Command != nil {
-		t.Skip("no tests for code action commands")
+	action := actions[0]
+	var match bool
+	for _, k := range codeActionKinds {
+		if action.Kind == k {
+			match = true
+			break
+		}
 	}
-	res, err := applyWorkspaceEdits(r, actions[0].Edit)
-	if err != nil {
-		t.Fatal(err)
+	if !match {
+		t.Fatalf("unexpected kind for code action %s, expected one of %v, got %v", action.Title, codeActionKinds, action.Kind)
+	}
+	var res map[span.URI]string
+	if cmd := action.Command; cmd != nil {
+		edits, err := commandToEdits(r.ctx, snapshot, fh, rng, action.Command.Command)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err = applyTextDocumentEdits(r, edits)
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		res, err = applyTextDocumentEdits(r, action.Edit.DocumentChanges)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	for u, got := range res {
 		want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
@@ -471,7 +496,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	if len(actions) == 0 || len(actions) > 1 {
 		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
 	}
-	res, err := applyWorkspaceEdits(r, actions[0].Edit)
+	res, err := applyTextDocumentEdits(r, actions[0].Edit.DocumentChanges)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +756,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		}
 		return
 	}
-	res, err := applyWorkspaceEdits(r, *wedit)
+	res, err := applyTextDocumentEdits(r, wedit.DocumentChanges)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,9 +827,9 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	}
 }
 
-func applyWorkspaceEdits(r *runner, wedit protocol.WorkspaceEdit) (map[span.URI]string, error) {
+func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
-	for _, docEdits := range wedit.DocumentChanges {
+	for _, docEdits := range edits {
 		uri := docEdits.TextDocument.URI.SpanURI()
 		m, err := r.data.Mapper(uri)
 		if err != nil {

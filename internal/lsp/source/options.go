@@ -76,6 +76,10 @@ const (
 	// CommandFillStruct is a gopls command to fill a struct with default
 	// values.
 	CommandFillStruct = "fill_struct"
+
+	// CommandUndeclaredName is a gopls command to add a variable declaration
+	// for an undeclared name.
+	CommandUndeclaredName = "undeclared_name"
 )
 
 // DefaultOptions is the options that are used for Gopls execution independent
@@ -112,6 +116,7 @@ func DefaultOptions() Options {
 				CommandRegenerateCgo,
 				CommandTest,
 				CommandTidy,
+				CommandUndeclaredName,
 				CommandUpgradeDependency,
 				CommandVendor,
 			},
@@ -683,28 +688,51 @@ func (r *OptionResult) setString(s *string) {
 	}
 }
 
+// EnabledAnalyzers returns all of the analyzers enabled for the given
+// snapshot.
+func EnabledAnalyzers(snapshot Snapshot) (analyzers []Analyzer) {
+	for _, a := range snapshot.View().Options().DefaultAnalyzers {
+		if a.Enabled(snapshot) {
+			analyzers = append(analyzers, a)
+		}
+	}
+	for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
+		if a.Enabled(snapshot) {
+			analyzers = append(analyzers, a)
+		}
+	}
+	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
+		if a.Enabled(snapshot) {
+			analyzers = append(analyzers, a)
+		}
+	}
+	return analyzers
+}
+
 func typeErrorAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillreturns.Analyzer.Name: {
 			Analyzer:       fillreturns.Analyzer,
-			enabled:        true,
 			FixesError:     fillreturns.FixesError,
 			HighConfidence: true,
+			enabled:        true,
 		},
 		nonewvars.Analyzer.Name: {
 			Analyzer:   nonewvars.Analyzer,
-			enabled:    true,
 			FixesError: nonewvars.FixesError,
+			enabled:    true,
 		},
 		noresultvalues.Analyzer.Name: {
 			Analyzer:   noresultvalues.Analyzer,
-			enabled:    true,
 			FixesError: noresultvalues.FixesError,
+			enabled:    true,
 		},
 		undeclaredname.Analyzer.Name: {
-			Analyzer:   undeclaredname.Analyzer,
-			enabled:    true,
-			FixesError: undeclaredname.FixesError,
+			Analyzer:     undeclaredname.Analyzer,
+			FixesError:   undeclaredname.FixesError,
+			SuggestedFix: undeclaredname.SuggestedFix,
+			Command:      CommandUndeclaredName,
+			enabled:      true,
 		},
 	}
 }
@@ -712,8 +740,10 @@ func typeErrorAnalyzers() map[string]Analyzer {
 func convenienceAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillstruct.Analyzer.Name: {
-			Analyzer: fillstruct.Analyzer,
-			enabled:  true,
+			Analyzer:     fillstruct.Analyzer,
+			SuggestedFix: fillstruct.SuggestedFix,
+			Command:      CommandFillStruct,
+			enabled:      true,
 		},
 	}
 }
