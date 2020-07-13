@@ -506,8 +506,6 @@ func (check *Checker) canConvertUntyped(x *operand, target Type) error {
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return nil
 	}
-	// TODO(gri) Sloppy code - clean up. This function is central
-	//           to assignment and expression checking.
 
 	if isUntyped(target) {
 		// both x and target are untyped
@@ -519,80 +517,91 @@ func (check *Checker) canConvertUntyped(x *operand, target Type) error {
 				check.updateExprType(x.expr, target, false)
 			}
 		} else if xkind != tkind {
-			goto Error
+			return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
 		}
 		return nil
 	}
 
-	// typed target
+	if t, ok := target.Underlying().(*Basic); ok && x.mode == constant_ {
+		if err := check.isRepresentable(x, t); err != nil {
+			return err
+		}
+		// Expression value may have been rounded - update if needed.
+		check.updateExprVal(x.expr, x.val)
+	} else {
+		newTarget := check.implicitType(x, target)
+		if newTarget == nil {
+			return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
+		}
+		target = newTarget
+	}
+	x.typ = target
+	// Even though implicitType can return UntypedNil, this value is final: the
+	// predeclared identifier nil has no type.
+	check.updateExprType(x.expr, target, true)
+	return nil
+}
+
+// implicitType returns the implicit type of x when used in a context where the
+// target type is expected. If no such implicit conversion is possible, it
+// returns nil.
+func (check *Checker) implicitType(x *operand, target Type) Type {
+	assert(isUntyped(x.typ))
 	switch t := target.Underlying().(type) {
 	case *Basic:
-		if x.mode == constant_ {
-			if err := check.isRepresentable(x, t); err != nil {
-				return err
+		assert(x.mode != constant_)
+		// Non-constant untyped values may appear as the
+		// result of comparisons (untyped bool), intermediate
+		// (delayed-checked) rhs operands of shifts, and as
+		// the value nil.
+		switch x.typ.(*Basic).kind {
+		case UntypedBool:
+			if !isBoolean(target) {
+				return nil
 			}
-			// expression value may have been rounded - update if needed
-			check.updateExprVal(x.expr, x.val)
-		} else {
-			// Non-constant untyped values may appear as the
-			// result of comparisons (untyped bool), intermediate
-			// (delayed-checked) rhs operands of shifts, and as
-			// the value nil.
-			switch x.typ.(*Basic).kind {
-			case UntypedBool:
-				if !isBoolean(target) {
-					goto Error
-				}
-			case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
-				if !isNumeric(target) {
-					goto Error
-				}
-			case UntypedString:
-				// Non-constant untyped string values are not
-				// permitted by the spec and should not occur.
-				unreachable()
-			case UntypedNil:
-				// Unsafe.Pointer is a basic type that includes nil.
-				if !hasNil(target) {
-					goto Error
-				}
-			default:
-				goto Error
+		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+			if !isNumeric(target) {
+				return nil
 			}
+		case UntypedString:
+			// Non-constant untyped string values are not permitted by the spec and
+			// should not occur during normal typechecking passes, but this path is
+			// reachable via the AssignableTo API.
+			if !isString(target) {
+				return nil
+			}
+		case UntypedNil:
+			// Unsafe.Pointer is a basic type that includes nil.
+			if !hasNil(target) {
+				return nil
+			}
+		default:
+			return nil
 		}
 	case *Interface:
-		// Update operand types to the default type rather then
-		// the target (interface) type: values must have concrete
-		// dynamic types. If the value is nil, keep it untyped
-		// (this is important for tools such as go vet which need
-		// the dynamic type for argument checking of say, print
+		// Values must have concrete dynamic types. If the value is nil,
+		// keep it untyped (this is important for tools such as go vet which
+		// need the dynamic type for argument checking of say, print
 		// functions)
 		if x.isNil() {
-			target = Typ[UntypedNil]
-		} else {
-			// cannot assign untyped values to non-empty interfaces
-			check.completeInterface(t)
-			if !t.Empty() {
-				goto Error
-			}
-			target = Default(x.typ)
+			return Typ[UntypedNil]
 		}
+		// cannot assign untyped values to non-empty interfaces
+		check.completeInterface(t)
+		if !t.Empty() {
+			return nil
+		}
+		return Default(x.typ)
 	case *Pointer, *Signature, *Slice, *Map, *Chan:
 		if !x.isNil() {
-			goto Error
+			return nil
 		}
-		// keep nil untyped - see comment for interfaces, above
-		target = Typ[UntypedNil]
+		// Keep nil untyped - see comment for interfaces, above.
+		return Typ[UntypedNil]
 	default:
-		goto Error
+		return nil
 	}
-
-	x.typ = target
-	check.updateExprType(x.expr, target, true) // UntypedNils are final
-	return nil
-
-Error:
-	return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
+	return target
 }
 
 func (check *Checker) comparison(x, y *operand, op token.Token) {

@@ -34,8 +34,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
 		// bool, rune, int, float64, complex128 or string respectively, depending
-		// on whether the value is a boolean, rune, integer, floating-point, complex,
-		// or string constant."
+		// on whether the value is a boolean, rune, integer, floating-point,
+		// complex, or string constant."
 		if T == nil || IsInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
 				check.errorf(x.pos(), "use of untyped nil in %s", context)
