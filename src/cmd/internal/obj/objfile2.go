@@ -79,6 +79,12 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 		w.Sym(s)
 	}
 
+	// Short hashed symbol definitions
+	h.Offsets[goobj2.BlkHashed64def] = w.Offset()
+	for _, s := range ctxt.hashed64defs {
+		w.Sym(s)
+	}
+
 	// Hashed symbol definitions
 	h.Offsets[goobj2.BlkHasheddef] = w.Offset()
 	for _, s := range ctxt.hasheddefs {
@@ -98,6 +104,10 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	}
 
 	// Hashes
+	h.Offsets[goobj2.BlkHash64] = w.Offset()
+	for _, s := range ctxt.hashed64defs {
+		w.Hash64(s)
+	}
 	h.Offsets[goobj2.BlkHash] = w.Offset()
 	for _, s := range ctxt.hasheddefs {
 		w.Hash(s)
@@ -107,7 +117,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	// Reloc indexes
 	h.Offsets[goobj2.BlkRelocIdx] = w.Offset()
 	nreloc := uint32(0)
-	lists := [][]*LSym{ctxt.defs, ctxt.hasheddefs, ctxt.nonpkgdefs}
+	lists := [][]*LSym{ctxt.defs, ctxt.hashed64defs, ctxt.hasheddefs, ctxt.nonpkgdefs}
 	for _, list := range lists {
 		for _, s := range list {
 			w.Uint32(nreloc)
@@ -322,6 +332,15 @@ func (w *writer) Sym(s *LSym) {
 	o.Write(w.Writer)
 }
 
+func (w *writer) Hash64(s *LSym) {
+	if !s.ContentAddressable() {
+		panic("Hash of non-content-addresable symbol")
+	}
+	var b goobj2.Hash64Type
+	copy(b[:], s.P)
+	w.Bytes(b[:])
+}
+
 func (w *writer) Hash(s *LSym) {
 	if !s.ContentAddressable() {
 		panic("Hash of non-content-addresable symbol")
@@ -390,7 +409,7 @@ func (w *writer) refNames() {
 	seen := make(map[goobj2.SymRef]bool)
 	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
 		switch rs.PkgIdx {
-		case goobj2.PkgIdxNone, goobj2.PkgIdxHashed, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
+		case goobj2.PkgIdxNone, goobj2.PkgIdxHashed64, goobj2.PkgIdxHashed, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
 			return
 		case goobj2.PkgIdxInvalid:
 			panic("unindexed symbol reference")
