@@ -23,11 +23,11 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 }
 
 -- AImport-hover --
-[`a` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a)
-
 ```go
 package a ("golang.org/x/tools/internal/lsp/godef/a")
 ```
+
+[`a` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a)
 -- AString-definition --
 godef/a/a.go:26:6-7: defined here as ```go
 A string //@mark(AString, "A")
@@ -54,12 +54,12 @@ A string //@mark(AString, "A")
 }
 
 -- AString-hover --
-[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)
-
 ```go
 A string //@mark(AString, "A")
 
 ```
+
+[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)
 -- AStuff-definition --
 godef/a/a.go:28:6-12: defined here as ```go
 func a.AStuff()
@@ -85,11 +85,11 @@ func a.AStuff()
 }
 
 -- AStuff-hover --
-[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
-
 ```go
 func a.AStuff()
 ```
+
+[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
 -- S1-definition --
 godef/b/b.go:8:6-8: defined here as ```go
 S1 struct {
@@ -119,8 +119,6 @@ S1 struct {
 }
 
 -- S1-hover --
-[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)
-
 ```go
 S1 struct {
 	F1  int //@mark(S1F1, "F1")
@@ -128,6 +126,8 @@ S1 struct {
 	a.A     //@godef("A", AString)
 }
 ```
+
+[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)
 -- S1F1-definition --
 godef/b/b.go:9:2-4: defined here as ```go
 field F1 int
@@ -155,13 +155,13 @@ field F1 int
 }
 
 -- S1F1-hover --
-\@mark\(S1F1, \"F1\"\)
-
-[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
-
 ```go
 field F1 int
 ```
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
+
+\@mark\(S1F1, \"F1\"\)
 -- S1S2-definition --
 godef/b/b.go:10:2-4: defined here as ```go
 field S2 S2
@@ -189,13 +189,13 @@ field S2 S2
 }
 
 -- S1S2-hover --
-\@godef\(\"S2\", S2\), mark\(S1S2, \"S2\"\)
-
-[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)
-
 ```go
 field S2 S2
 ```
+
+[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)
+
+\@godef\(\"S2\", S2\), mark\(S1S2, \"S2\"\)
 -- S2-definition --
 godef/b/b.go:14:6-8: defined here as ```go
 S2 struct {
@@ -225,8 +225,6 @@ S2 struct {
 }
 
 -- S2-hover --
-[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)
-
 ```go
 S2 struct {
 	F1   string //@mark(S2F1, "F1")
@@ -234,6 +232,8 @@ S2 struct {
 	*a.A        //@godef("A", AString),godef("a",AImport)
 }
 ```
+
+[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)
 -- S2F1-definition --
 godef/b/b.go:15:2-4: defined here as ```go
 field F1 string
@@ -261,13 +261,13 @@ field F1 string
 }
 
 -- S2F1-hover --
-\@mark\(S2F1, \"F1\"\)
-
-[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F1)
-
 ```go
 field F1 string
 ```
+
+[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F1)
+
+\@mark\(S2F1, \"F1\"\)
 -- S2F2-definition --
 godef/b/b.go:16:2-4: defined here as ```go
 field F2 int
@@ -295,13 +295,13 @@ field F2 int
 }
 
 -- S2F2-hover --
-\@mark\(S2F2, \"F2\"\)
-
-[`(b.S1).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F2)
-
 ```go
 field F2 int
 ```
+
+[`(b.S1).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F2)
+
+\@mark\(S2F2, \"F2\"\)
 -- bX-definition --
 godef/b/b.go:37:7-8: defined here as ```go
 const X untyped int = 0
@@ -329,13 +329,13 @@ const X untyped int = 0
 }
 
 -- bX-hover --
-\@mark\(bX, \"X\"\),godef\(\"X\", bX\)
-
-[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)
-
 ```go
 const X untyped int = 0
 ```
+
+[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)
+
+\@mark\(bX, \"X\"\),godef\(\"X\", bX\)
 -- myFoo-definition --
 godef/b/b.go:4:2-7: defined here as ```go
 package myFoo ("golang.org/x/tools/internal/lsp/foo")
@@ -361,8 +361,8 @@ package myFoo ("golang.org/x/tools/internal/lsp/foo")
 }
 
 -- myFoo-hover --
-[`myFoo` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/foo)
-
 ```go
 package myFoo ("golang.org/x/tools/internal/lsp/foo")
 ```
+
+[`myFoo` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/foo)

@@ -381,7 +381,7 @@ func FormatHover(h *HoverInformation, options Options) (string, error) {
 	switch options.HoverKind {
 	case SynopsisDocumentation:
 		doc := formatDoc(h.Synopsis, options)
-		return formatHover(options, doc, link, signature), nil
+		return formatHover(options, signature, link, doc), nil
 	case FullDocumentation:
 		doc := formatDoc(h.FullDocumentation, options)
 		return formatHover(options, signature, link, doc), nil

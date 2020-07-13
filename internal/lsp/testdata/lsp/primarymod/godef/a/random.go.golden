@@ -23,11 +23,11 @@ func (*Pos).Sum() int
 }
 
 -- PosSum-hover --
-[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
-
 ```go
 func (*Pos).Sum() int
 ```
+
+[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
 -- PosX-definition --
 godef/a/random.go:13:2-3: defined here as ```go
 field x int
@@ -53,11 +53,11 @@ field x int
 }
 
 -- PosX-hover --
-\@mark\(PosX, \"x\"\),mark\(PosY, \"y\"\)
-
 ```go
 field x int
 ```
+
+\@mark\(PosX, \"x\"\),mark\(PosY, \"y\"\)
 -- RandomParamY-definition --
 godef/a/random.go:8:14-15: defined here as ```go
 var y int

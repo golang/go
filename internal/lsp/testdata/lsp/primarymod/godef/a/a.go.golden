@@ -1,19 +1,19 @@
 -- Lock-hover --
-Lock locks m\.
-
-[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync#Mutex.Lock)
-
 ```go
 func (*sync.Mutex).Lock()
 ```
+
+[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync#Mutex.Lock)
+
+Lock locks m\.
 -- Name-hover --
-Name returns the object\'s \(package\-local, unqualified\) name\.
-
-[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types#TypeName.Name)
-
 ```go
 func (*types.object).Name() string
 ```
+
+[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types#TypeName.Name)
+
+Name returns the object\'s \(package\-local, unqualified\) name\.
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as ```go
 func Random() int
@@ -39,11 +39,11 @@ func Random() int
 }
 
 -- Random-hover --
-[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
-
 ```go
 func Random() int
 ```
+
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 -- Random2-definition --
 godef/a/random.go:8:6-13: defined here as ```go
 func Random2(y int) int
@@ -69,11 +69,11 @@ func Random2(y int) int
 }
 
 -- Random2-hover --
-[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
-
 ```go
 func Random2(y int) int
 ```
+
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
 -- a-hover --
 ```go
 
@@ -105,50 +105,50 @@ var err error
 }
 
 -- err-hover --
-\@err
-
 ```go
 var err error
 ```
--- g-hover --
-When I hover on g, I should see this comment\.
 
+\@err
+-- g-hover --
 ```go
 const g untyped int = 1
 ```
--- h-hover --
-Constant block\.
 
+When I hover on g, I should see this comment\.
+-- h-hover --
 ```go
 const h untyped int = 2
 ```
+
+Constant block\.
 -- make-hover --
-The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
-
-[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)
-
 ```go
 func(t Type, size ...IntegerType) Type
 ```
+
+[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)
+
+The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
 -- string-hover --
 ```go
 string
 ```
 -- typesImport-hover --
-[`types` on pkg.go.dev](https://pkg.go.dev/go/types)
-
 ```go
 package types ("go/types")
 ```
--- x-hover --
-x is a variable\.
 
+[`types` on pkg.go.dev](https://pkg.go.dev/go/types)
+-- x-hover --
 ```go
 var x string
 ```
--- z-hover --
-z is a variable too\.
 
+x is a variable\.
+-- z-hover --
 ```go
 var z string
 ```
+
+z is a variable too\.

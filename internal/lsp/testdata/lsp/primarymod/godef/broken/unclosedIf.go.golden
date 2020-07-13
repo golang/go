@@ -23,8 +23,8 @@ var myUnclosedIf string
 }
 
 -- myUnclosedIf-hover --
-\@myUnclosedIf
-
 ```go
 var myUnclosedIf string
 ```
+
+\@myUnclosedIf

@@ -25,13 +25,13 @@ field Member string
 }
 
 -- Member-hover --
-\@Member
-
-[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
-
 ```go
 field Member string
 ```
+
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
+
+\@Member
 -- Method-definition --
 godef/a/d.go:15:16-22: defined here as ```go
 func (Thing).Method(i int) string
@@ -57,11 +57,11 @@ func (Thing).Method(i int) string
 }
 
 -- Method-hover --
-[`(a.Thing).Method` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Method)
-
 ```go
 func (Thing).Method(i int) string
 ```
+
+[`(a.Thing).Method` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Method)
 -- Other-definition --
 godef/a/d.go:9:5-10: defined here as ```go
 var Other Thing
@@ -89,13 +89,13 @@ var Other Thing
 }
 
 -- Other-hover --
-\@Other
-
-[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
-
 ```go
 var Other Thing
 ```
+
+[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+
+\@Other
 -- Thing-definition --
 godef/a/d.go:5:6-11: defined here as ```go
 Thing struct {
@@ -123,13 +123,13 @@ Thing struct {
 }
 
 -- Thing-hover --
-[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
-
 ```go
 Thing struct {
 	Member string //@Member
 }
 ```
+
+[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
 -- Things-definition --
 godef/a/d.go:11:6-12: defined here as ```go
 func Things(val []string) []Thing
@@ -155,10 +155,10 @@ func Things(val []string) []Thing
 }
 
 -- Things-hover --
-[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
-
 ```go
 func Things(val []string) []Thing
 ```
+
+[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
 -- a-hover --
 Package a is a package for testing go to definition\.

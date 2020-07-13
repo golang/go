@@ -23,8 +23,8 @@ func Example()
 }
 
 -- funccgoexample-hover --
-[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)
-
 ```go
 func Example()
 ```
+
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)
