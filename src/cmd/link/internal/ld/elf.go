@@ -1372,22 +1372,50 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 			break
 		}
 
-		relocs := ldr.ExtRelocs(s)
-		for ri := 0; ri < relocs.Count(); ri++ {
-			r := relocs.At(ri)
-			if r.Xsym == 0 {
-				ldr.Errorf(s, "missing xsym in relocation")
-				continue
+		if ctxt.IsAMD64() {
+			// Compute external relocations on the go, and pass to Elfreloc1
+			// to stream out.
+			relocs := ldr.Relocs(s)
+			for ri := 0; ri < relocs.Count(); ri++ {
+				r := relocs.At2(ri)
+				rr, ok := extreloc(ctxt, ldr, s, r, ri)
+				if !ok {
+					continue
+				}
+				if rr.Xsym == 0 {
+					ldr.Errorf(s, "missing xsym in relocation")
+					continue
+				}
+				esr := ElfSymForReloc(ctxt, rr.Xsym)
+				if esr == 0 {
+					ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
+				}
+				if !ldr.AttrReachable(rr.Xsym) {
+					ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
+				}
+				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
+				if !thearch.Elfreloc1(ctxt, out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+					ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+				}
 			}
-			esr := ElfSymForReloc(ctxt, r.Xsym)
-			if esr == 0 {
-				ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
-			}
-			if !ldr.AttrReachable(r.Xsym) {
-				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
-			}
-			if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
-				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+		} else {
+			relocs := ldr.ExtRelocs(s)
+			for ri := 0; ri < relocs.Count(); ri++ {
+				r := relocs.At(ri)
+				if r.Xsym == 0 {
+					ldr.Errorf(s, "missing xsym in relocation")
+					continue
+				}
+				esr := ElfSymForReloc(ctxt, r.Xsym)
+				if esr == 0 {
+					ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
+				}
+				if !ldr.AttrReachable(r.Xsym) {
+					ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
+				}
+				if !thearch.Elfreloc1(ctxt, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+					ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+				}
 			}
 		}
 	}
