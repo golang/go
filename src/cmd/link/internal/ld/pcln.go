@@ -19,28 +19,51 @@ import (
 	"strings"
 )
 
-// pclnState holds state information used during pclntab generation.
-// Here 'ldr' is just a pointer to the context's loader, 'container'
-// is a bitmap holding whether a given symbol index is an outer or
-// container symbol, 'deferReturnSym' is the index for the symbol
-// "runtime.deferreturn", 'nameToOffset' is a helper function for
-// capturing function names, 'numberedFiles' records the file number
-// assigned to a given file symbol, 'filepaths' is a slice of
-// expanded paths (indexed by file number).
-type pclnState struct {
+// oldPclnState holds state information used during pclntab generation.  Here
+// 'ldr' is just a pointer to the context's loader, 'deferReturnSym' is the
+// index for the symbol "runtime.deferreturn", 'nameToOffset' is a helper
+// function for capturing function names, 'numberedFiles' records the file
+// number assigned to a given file symbol, 'filepaths' is a slice of expanded
+// paths (indexed by file number).
+//
+// NB: This is deprecated, and will be eliminated when pclntab_old is
+// eliminated.
+type oldPclnState struct {
 	ldr            *loader.Loader
-	container      loader.Bitmap
 	deferReturnSym loader.Sym
 	nameToOffset   func(name string) int32
 	numberedFiles  map[loader.Sym]int64
 	filepaths      []string
 }
 
-func makepclnState(ctxt *Link) pclnState {
+// pclntab holds the state needed for pclntab generation.
+type pclntab struct {
+	// The first and last functions found.
+	firstFunc, lastFunc loader.Sym
+
+	// The offset to the filetab.
+	filetabOffset int32
+
+	// runtime.pclntab's symbols
+	carrier     loader.Sym
+	pclntab     loader.Sym
+	pcheader    loader.Sym
+	findfunctab loader.Sym
+
+	// The number of functions + number of TEXT sections - 1. This is such an
+	// unexpected value because platforms that have more than one TEXT section
+	// get a dummy function inserted between because the external linker can place
+	// functions in those areas. We mark those areas as not covered by the Go
+	// runtime.
+	//
+	// On most platforms this is the number of reachable functions.
+	nfunc int32
+}
+
+func makeOldPclnState(ctxt *Link) *oldPclnState {
 	ldr := ctxt.loader
 	drs := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
-	return pclnState{
-		container:      loader.MakeBitmap(ldr.NSym()),
+	state := &oldPclnState{
 		ldr:            ldr,
 		deferReturnSym: drs,
 		numberedFiles:  make(map[loader.Sym]int64),
@@ -49,9 +72,42 @@ func makepclnState(ctxt *Link) pclnState {
 		// return a value slot in filepaths.
 		filepaths: []string{""},
 	}
+
+	return state
 }
 
-func (state *pclnState) ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
+// makePclntab makes a pclnState object.
+func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
+	ldr := ctxt.loader
+
+	state := &pclntab{}
+
+	// Gather some basic stats and info.
+	prevSect := ldr.SymSect(ctxt.Textp[0])
+	for _, s := range ctxt.Textp {
+		if !emitPcln(ctxt, s, container) {
+			continue
+		}
+		state.nfunc++
+		if state.firstFunc == 0 {
+			state.firstFunc = s
+		}
+		state.lastFunc = s
+		ss := ldr.SymSect(s)
+		if ss != prevSect {
+			// With multiple text sections, the external linker may
+			// insert functions between the sections, which are not
+			// known by Go. This leaves holes in the PC range covered
+			// by the func table. We need to generate an entry to mark
+			// the hole.
+			state.nfunc++
+			prevSect = ss
+		}
+	}
+	return state
+}
+
+func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
 	start := len(ftab.Data())
 	ftab.Grow(int64(start + len(s) + 1)) // make room for s plus trailing NUL
 	ftd := ftab.Data()
@@ -60,7 +116,7 @@ func (state *pclnState) ftabaddstring(ftab *loader.SymbolBuilder, s string) int3
 }
 
 // numberfile assigns a file number to the file if it hasn't been assigned already.
-func (state *pclnState) numberfile(file loader.Sym) int64 {
+func (state *oldPclnState) numberfile(file loader.Sym) int64 {
 	if val, ok := state.numberedFiles[file]; ok {
 		return val
 	}
@@ -72,14 +128,14 @@ func (state *pclnState) numberfile(file loader.Sym) int64 {
 	return val
 }
 
-func (state *pclnState) fileVal(file loader.Sym) int64 {
+func (state *oldPclnState) fileVal(file loader.Sym) int64 {
 	if val, ok := state.numberedFiles[file]; ok {
 		return val
 	}
 	panic("should have been numbered first")
 }
 
-func (state *pclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.Pcdata) {
+func (state *oldPclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.Pcdata) {
 	// Give files numbers.
 	nf := fi.NumFile()
 	for i := uint32(0); i < nf; i++ {
@@ -146,7 +202,7 @@ func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
 	return !container.Has(s)
 }
 
-func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 {
+func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 {
 	deferreturn := uint32(0)
 	lastWasmAddr := uint32(0)
 
@@ -194,7 +250,7 @@ func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 
 
 // genInlTreeSym generates the InlTree sym for a function with the
 // specified FuncInfo.
-func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader.Sym {
+func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader.Sym {
 	ldr := state.ldr
 	its := ldr.CreateExtSym("", 0)
 	inlTreeSym := ldr.MakeSymbolUpdater(its)
@@ -229,16 +285,16 @@ func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader
 
 // generatePCHeader creates the runtime.pcheader symbol, setting it up as a
 // generator to fill in its data later.
-func generatePCHeader(ctxt *Link, carrier *loader.SymbolBuilder, pclntabSym loader.Sym) {
+func (state *pclntab) generatePCHeader(ctxt *Link) {
 	ldr := ctxt.loader
 	writeHeader := func(ctxt *Link, s loader.Sym) {
 		ldr := ctxt.loader
 		header := ctxt.loader.MakeSymbolUpdater(s)
 
 		// Check symbol order.
-		diff := ldr.SymValue(pclntabSym) - ldr.SymValue(s)
+		diff := ldr.SymValue(state.pclntab) - ldr.SymValue(s)
 		if diff <= 0 {
-			panic(fmt.Sprintf("expected runtime.pcheader(%x) to be placed before runtime.pclntab(%x)", ldr.SymValue(s), ldr.SymValue(pclntabSym)))
+			panic(fmt.Sprintf("expected runtime.pcheader(%x) to be placed before runtime.pclntab(%x)", ldr.SymValue(s), ldr.SymValue(state.pclntab)))
 		}
 
 		// Write header.
@@ -246,30 +302,21 @@ func generatePCHeader(ctxt *Link, carrier *loader.SymbolBuilder, pclntabSym load
 		header.SetUint32(ctxt.Arch, 0, 0xfffffffa)
 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
-		off := header.SetUint(ctxt.Arch, 8, uint64(pclntabNfunc))
+		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
 		header.SetUintptr(ctxt.Arch, off, uintptr(diff))
 	}
 
 	size := int64(8 + 2*ctxt.Arch.PtrSize)
-	s := ctxt.createGeneratorSymbol("runtime.pcheader", 0, sym.SPCLNTAB, size, writeHeader)
-	ldr.SetAttrReachable(s, true)
-	ldr.SetCarrierSym(s, carrier.Sym())
+	state.pcheader = ctxt.createGeneratorSymbol("runtime.pcheader", 0, sym.SPCLNTAB, size, writeHeader)
+	ldr.SetAttrReachable(state.pcheader, true)
+	ldr.SetCarrierSym(state.pcheader, state.carrier)
 }
 
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
-// These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
-var pclntabNfunc int32
-var pclntabFiletabOffset int32
-var pclntabFirstFunc loader.Sym
-var pclntabLastFunc loader.Sym
-
-// pclntab generates the pcln table for the link output. Return value
-// is a bitmap indexed by global symbol that marks 'container' text
-// symbols, e.g. the set of all symbols X such that Outer(S) = X for
-// some other text symbol S.
-func (ctxt *Link) pclntab() loader.Bitmap {
+// pclntab generates the pcln table for the link output.
+func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	// Go 1.2's symtab layout is documented in golang.org/s/go12symtab, but the
 	// layout and data has changed since that time.
 	//
@@ -291,70 +338,39 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	//        func structures, function names, pcdata tables.
 	//        filetable
 
+	oldState := makeOldPclnState(ctxt)
+	state := makePclntab(ctxt, container)
+
 	ldr := ctxt.loader
-	carrier := ldr.CreateSymForUpdate("runtime.pclntab", 0)
-	carrier.SetType(sym.SPCLNTAB)
-	carrier.SetReachable(true)
+	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
+	ldr.MakeSymbolUpdater(state.carrier).SetType(sym.SPCLNTAB)
+	ldr.SetAttrReachable(state.carrier, true)
 
 	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
 	// It contains the pieces of runtime.pclntab that haven't moved to a more
 	// ration form.
-	pclntabSym := ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
-	generatePCHeader(ctxt, carrier, pclntabSym)
+	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
+	state.generatePCHeader(ctxt)
 
 	funcdataBytes := int64(0)
-	ldr.SetCarrierSym(pclntabSym, carrier.Sym())
-	ftab := ldr.MakeSymbolUpdater(pclntabSym)
+	ldr.SetCarrierSym(state.pclntab, state.carrier)
+	ftab := ldr.MakeSymbolUpdater(state.pclntab)
 	ftab.SetType(sym.SPCLNTAB)
 	ftab.SetReachable(true)
 
-	state := makepclnState(ctxt)
-
-	// Find container symbols and mark them as such.
-	for _, s := range ctxt.Textp {
-		outer := ldr.OuterSym(s)
-		if outer != 0 {
-			state.container.Set(outer)
-		}
-	}
-
-	// Gather some basic stats and info.
-	var nfunc int32
-	prevSect := ldr.SymSect(ctxt.Textp[0])
-	for _, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s, state.container) {
-			continue
-		}
-		nfunc++
-		if pclntabFirstFunc == 0 {
-			pclntabFirstFunc = s
-		}
-		ss := ldr.SymSect(s)
-		if ss != prevSect {
-			// With multiple text sections, the external linker may
-			// insert functions between the sections, which are not
-			// known by Go. This leaves holes in the PC range covered
-			// by the func table. We need to generate an entry to mark
-			// the hole.
-			nfunc++
-			prevSect = ss
-		}
-	}
-
-	pclntabNfunc = nfunc
-	ftab.Grow(int64(nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
+	ftab.Grow(int64(state.nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
 
 	szHint := len(ctxt.Textp) * 2
 	funcnameoff := make(map[string]int32, szHint)
 	nameToOffset := func(name string) int32 {
 		nameoff, ok := funcnameoff[name]
 		if !ok {
-			nameoff = state.ftabaddstring(ftab, name)
+			nameoff = ftabaddstring(ftab, name)
 			funcnameoff[name] = nameoff
 		}
 		return nameoff
 	}
-	state.nameToOffset = nameToOffset
+	oldState.nameToOffset = nameToOffset
 
 	pctaboff := make(map[string]uint32, szHint)
 	writepctab := func(off int32, p []byte) int32 {
@@ -392,10 +408,10 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	funcdata := []loader.Sym{}
 	funcdataoff := []int64{}
 
-	nfunc = 0 // repurpose nfunc as a running index
+	var nfunc int32
 	prevFunc := ctxt.Textp[0]
 	for _, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s, state.container) {
+		if !emitPcln(ctxt, s, container) {
 			continue
 		}
 
@@ -489,20 +505,20 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
 
 		// deferreturn
-		deferreturn := state.computeDeferReturn(&ctxt.Target, s)
+		deferreturn := oldState.computeDeferReturn(&ctxt.Target, s)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
 		if fi.Valid() {
 			pcsp = sym.Pcdata{P: fi.Pcsp()}
 			pcfile = sym.Pcdata{P: fi.Pcfile()}
 			pcline = sym.Pcdata{P: fi.Pcline()}
-			state.renumberfiles(ctxt, fi, &pcfile)
+			oldState.renumberfiles(ctxt, fi, &pcfile)
 			if false {
 				// Sanity check the new numbering
 				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 				for it.Init(pcfile.P); !it.Done; it.Next() {
-					if it.Value < 1 || it.Value > int32(len(state.numberedFiles)) {
-						ctxt.Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.Value, len(state.numberedFiles))
+					if it.Value < 1 || it.Value > int32(len(oldState.numberedFiles)) {
+						ctxt.Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.Value, len(oldState.numberedFiles))
 						errorexit()
 					}
 				}
@@ -510,7 +526,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
-			its := state.genInlTreeSym(fi, ctxt.Arch)
+			its := oldState.genInlTreeSym(fi, ctxt.Arch)
 			funcdata[objabi.FUNCDATA_InlTree] = its
 			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
 		}
@@ -567,36 +583,34 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		nfunc++
 	}
 
-	last := ctxt.Textp[len(ctxt.Textp)-1]
-	pclntabLastFunc = last
 	// Final entry of table is just end pc.
-	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
+	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), state.lastFunc, ldr.SymSize(state.lastFunc))
 
 	// Start file table.
 	dSize := len(ftab.Data())
 	start := int32(dSize)
 	start += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1)
-	pclntabFiletabOffset = start
+	state.filetabOffset = start
 	ftab.SetUint32(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
 
-	nf := len(state.numberedFiles)
+	nf := len(oldState.numberedFiles)
 	ftab.Grow(int64(start) + int64((nf+1)*4))
 	ftab.SetUint32(ctxt.Arch, int64(start), uint32(nf+1))
 	for i := nf; i > 0; i-- {
-		path := state.filepaths[i]
+		path := oldState.filepaths[i]
 		val := int64(i)
-		ftab.SetUint32(ctxt.Arch, int64(start)+val*4, uint32(state.ftabaddstring(ftab, path)))
+		ftab.SetUint32(ctxt.Arch, int64(start)+val*4, uint32(ftabaddstring(ftab, path)))
 	}
 
 	ftab.SetSize(int64(len(ftab.Data())))
 
-	ctxt.NumFilesyms = len(state.numberedFiles)
+	ctxt.NumFilesyms = len(oldState.numberedFiles)
 
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size(), funcdataBytes)
 	}
 
-	return state.container
+	return state
 }
 
 func gorootFinal() string {
@@ -624,9 +638,7 @@ const (
 
 // findfunctab generates a lookup table to quickly find the containing
 // function for a pc. See src/runtime/symtab.go:findfunc for details.
-// 'container' is a bitmap indexed by global symbol holding whether
-// a given text symbols is a container (outer sym).
-func (ctxt *Link) findfunctab(container loader.Bitmap) {
+func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 	ldr := ctxt.loader
 
 	// find min and max address
@@ -705,7 +717,22 @@ func (ctxt *Link) findfunctab(container loader.Bitmap) {
 		}
 	}
 
-	s := ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SRODATA, size, writeFindFuncTab)
-	ldr.SetAttrReachable(s, true)
-	ldr.SetAttrLocal(s, true)
+	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SRODATA, size, writeFindFuncTab)
+	ldr.SetAttrReachable(state.findfunctab, true)
+	ldr.SetAttrLocal(state.findfunctab, true)
+}
+
+// findContainerSyms returns a bitmap, indexed by symbol number, where there's
+// a 1 for every container symbol.
+func (ctxt *Link) findContainerSyms() loader.Bitmap {
+	ldr := ctxt.loader
+	container := loader.MakeBitmap(ldr.NSym())
+	// Find container symbols and mark them as such.
+	for _, s := range ctxt.Textp {
+		outer := ldr.OuterSym(s)
+		if outer != 0 {
+			container.Set(outer)
+		}
+	}
+	return container
 }

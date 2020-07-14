@@ -401,7 +401,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 	return t.Sym(), uint32(n)
 }
 
-func (ctxt *Link) symtab() []sym.SymKind {
+func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ldr := ctxt.loader
 
 	if !ctxt.IsAIX() {
@@ -608,25 +608,24 @@ func (ctxt *Link) symtab() []sym.SymKind {
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
 	// The pcHeader
-	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.pcheader", 0))
+	moduledata.AddAddr(ctxt.Arch, pcln.pcheader)
 	// The pclntab slice
-	pclntab := ldr.Lookup("runtime.pclntab_old", 0)
-	moduledata.AddAddr(ctxt.Arch, pclntab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
+	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))
 	// The ftab slice
-	moduledata.AddAddr(ctxt.Arch, pclntab)
-	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
-	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
+	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
+	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
+	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
 	// The filetab slice
-	moduledata.AddAddrPlus(ctxt.Arch, pclntab, int64(pclntabFiletabOffset))
+	moduledata.AddAddrPlus(ctxt.Arch, pcln.pclntab, int64(pcln.filetabOffset))
 	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
 	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
 	// findfunctab
-	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.findfunctab", 0))
+	moduledata.AddAddr(ctxt.Arch, pcln.findfunctab)
 	// minpc, maxpc
-	moduledata.AddAddr(ctxt.Arch, pclntabFirstFunc)
-	moduledata.AddAddrPlus(ctxt.Arch, pclntabLastFunc, ldr.SymSize(pclntabLastFunc))
+	moduledata.AddAddr(ctxt.Arch, pcln.firstFunc)
+	moduledata.AddAddrPlus(ctxt.Arch, pcln.lastFunc, ldr.SymSize(pcln.lastFunc))
 	// pointers to specific parts of the module
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.text", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etext", 0))
