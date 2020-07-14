@@ -417,3 +417,23 @@ func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	// Request more data.
 	return start, nil, nil
 }
+
+// SplitAt is a function that take a spliter and return  each
+// spliter-separated part of text
+func SplitAt(spliter string) func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	return func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+		if i := bytes.Index(data, []byte(spliter)); i >= 0 {
+			// We have a full spliter-terminated line.
+			return i + len(spliter), dropCR(data[0:i]), nil
+		}
+		// If we're at EOF, we have a final, non-terminated line. Return it.
+		if atEOF {
+			return len(data), dropCR(data), nil
+		}
+		// Request more data.
+		return 0, nil, nil
+	}
+}
