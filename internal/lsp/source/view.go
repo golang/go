@@ -516,4 +516,7 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
 }
 
-var InconsistentVendoring = errors.New("inconsistent vendoring")
+var (
+	InconsistentVendoring = errors.New("inconsistent vendoring")
+	PackagesLoadError     = errors.New("packages.Load error")
+)

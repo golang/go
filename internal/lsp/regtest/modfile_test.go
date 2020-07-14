@@ -325,6 +325,8 @@ require (
 
 // Reproduces golang/go#38232.
 func TestUnknownRevision(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
 	const unknown = `
 -- go.mod --
 module mod.com
@@ -350,7 +352,7 @@ func main() {
 			)
 			env.OpenFile("go.mod")
 			env.Await(
-				SomeShowMessage("failed to load workspace packages, skipping diagnostics"),
+				env.DiagnosticAtRegexp("go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
 			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
@@ -387,7 +389,7 @@ func main() {
 			env.RegexpReplace("go.mod", "v1.2.3", "v1.2.2")
 			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk
 			env.Await(
-				SomeShowMessage("failed to load workspace packages, skipping diagnostics"),
+				env.DiagnosticAtRegexp("go.mod", "example.com v1.2.2"),
 			)
 			env.RegexpReplace("go.mod", "v1.2.2", "v1.2.3")
 			env.Editor.SaveBufferWithoutActions(env.Ctx, "go.mod") // go.mod changes must be on disk

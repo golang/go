@@ -8,11 +8,17 @@ package mod
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, error) {
@@ -32,15 +38,15 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err == source.ErrTmpModfileUnsupported {
 		return nil, nil
 	}
+	reports := map[source.FileIdentity][]*source.Diagnostic{
+		fh.Identity(): {},
+	}
 	if err != nil {
 		return nil, err
 	}
 	diagnostics, err := mth.Tidy(ctx)
 	if err != nil {
 		return nil, err
-	}
-	reports := map[source.FileIdentity][]*source.Diagnostic{
-		fh.Identity(): {},
 	}
 	for _, e := range diagnostics {
 		diag := &source.Diagnostic{
@@ -118,4 +124,91 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, diags []proto
 
 func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
 	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
+}
+
+var moduleAtVersionRe = regexp.MustCompile(`(?P<module>.*)@(?P<version>.*)`)
+
+// ExtractGoCommandError tries to parse errors that come from the go command
+// and shape them into go.mod diagnostics.
+func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, loadErr error) (*source.Diagnostic, error) {
+	// We try to match module versions in error messages. Some examples:
+	//
+	//  err: exit status 1: stderr: go: example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
+	//  exit status 1: go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
+	//
+	// We split on colons and attempt to match on something that matches
+	// module@version. If we're able to find a match, we try to find anything
+	// that matches it in the go.mod file.
+	var v module.Version
+	for _, s := range strings.Split(loadErr.Error(), ":") {
+		s = strings.TrimSpace(s)
+		match := moduleAtVersionRe.FindStringSubmatch(s)
+		if match == nil || len(match) < 3 {
+			continue
+		}
+		v.Path = match[1]
+		v.Version = match[2]
+		if err := module.Check(v.Path, v.Version); err == nil {
+			break
+		}
+	}
+	pmh, err := snapshot.ParseModHandle(ctx, fh)
+	if err != nil {
+		return nil, err
+	}
+	parsed, m, _, err := pmh.Parse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	toDiagnostic := func(line *modfile.Line) (*source.Diagnostic, error) {
+		rng, err := rangeFromPositions(fh.URI(), m, line.Start, line.End)
+		if err != nil {
+			return nil, err
+		}
+		return &source.Diagnostic{
+			Message:  loadErr.Error(),
+			Range:    rng,
+			Severity: protocol.SeverityError,
+		}, nil
+	}
+	// Check if there are any require, exclude, or replace statements that
+	// match this module version.
+	for _, req := range parsed.Require {
+		if req.Mod != v {
+			continue
+		}
+		return toDiagnostic(req.Syntax)
+	}
+	for _, ex := range parsed.Exclude {
+		if ex.Mod != v {
+			continue
+		}
+		return toDiagnostic(ex.Syntax)
+	}
+	for _, rep := range parsed.Replace {
+		if rep.New != v && rep.Old != v {
+			continue
+		}
+		return toDiagnostic(rep.Syntax)
+	}
+	return nil, fmt.Errorf("no diagnostics for %v", loadErr)
+}
+
+func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {
+	toPoint := func(offset int) (span.Point, error) {
+		l, c, err := m.Converter.ToPosition(offset)
+		if err != nil {
+			return span.Point{}, err
+		}
+		return span.NewPoint(l, c, offset), nil
+	}
+	start, err := toPoint(s.Byte)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	end, err := toPoint(e.Byte)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return m.Range(span.New(uri, start, end))
 }

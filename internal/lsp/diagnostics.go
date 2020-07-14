@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/xcontext"
+	"golang.org/x/xerrors"
 )
 
 type diagnosticKey struct {
@@ -61,12 +62,12 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	var wg sync.WaitGroup
 
 	// Diagnose the go.mod file.
-	reports, err := mod.Diagnostics(ctx, snapshot)
-	if err != nil {
-		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
-	}
+	reports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
 		return nil, nil
+	}
+	if modErr != nil {
+		event.Error(ctx, "warning: diagnose go.mod", modErr, tag.Directory.Of(snapshot.View().Folder().Filename()))
 	}
 	for id, diags := range reports {
 		if id.URI == "" {
@@ -83,7 +84,19 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// Diagnose all of the packages in the workspace.
 	wsPackages, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
-		s.handleFatalErrors(ctx, snapshot, err)
+		// Try constructing a more helpful error message out of this error.
+		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
+			return nil, nil
+		}
+		msg := `The code in the workspace failed to compile (see the error message below).
+If you believe this is a mistake, please file an issue: https://github.com/golang/go/issues/new.`
+		event.Error(ctx, msg, err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+		if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: fmt.Sprintf("%s\n%v", msg, err),
+		}); err != nil {
+			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
+		}
 		return nil, nil
 	}
 	var shows *protocol.ShowMessageParams
@@ -229,8 +242,15 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 	return reports
 }
 
-func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, err error) {
-	switch err {
+func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, modErr, loadErr error) bool {
+	modURI := snapshot.View().ModFile()
+
+	// We currently only have workarounds for errors associated with modules.
+	if modURI == "" {
+		return false
+	}
+
+	switch loadErr {
 	case source.InconsistentVendoring:
 		item, err := s.client.ShowMessageRequest(ctx, &protocol.ShowMessageRequestParams{
 			Type: protocol.Error,
@@ -240,27 +260,45 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 				{Title: "go mod vendor"},
 			},
 		})
-		if item == nil || err != nil {
-			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder()))
-			return
+		// If the user closes the pop-up, don't show them further errors.
+		if item == nil {
+			return true
 		}
-		modURI := snapshot.View().ModFile()
+		if err != nil {
+			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder()))
+			return true
+		}
 		if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
 			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
 			}); err != nil {
-				event.Error(ctx, "ShowMessage failed", err)
+				if err != nil {
+					event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
+				}
 			}
 		}
-	default:
-		msg := "failed to load workspace packages, skipping diagnostics"
-		event.Error(ctx, msg, err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-			Type:    protocol.Error,
-			Message: fmt.Sprintf("%s: %v", msg, err),
-		}); err != nil {
-			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
-		}
+		return true
 	}
+	// If there is a go.mod-related error, as well as a workspace load error,
+	// there is likely an issue with the go.mod file. Try to parse the error
+	// message and create a diagnostic.
+	if modErr == nil {
+		return false
+	}
+	if xerrors.Is(loadErr, source.PackagesLoadError) {
+		fh, err := snapshot.GetFile(ctx, modURI)
+		if err != nil {
+			return false
+		}
+		diag, err := mod.ExtractGoCommandError(ctx, snapshot, fh, loadErr)
+		if err != nil {
+			return false
+		}
+		s.publishReports(ctx, snapshot, map[diagnosticKey][]*source.Diagnostic{
+			{id: fh.Identity()}: {diag},
+		})
+		return true
+	}
+	return false
 }

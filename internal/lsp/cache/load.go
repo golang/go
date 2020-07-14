@@ -124,7 +124,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
 	if len(pkgs) == 0 {
-		return err
+		return errors.Errorf("%v: %w", err, source.PackagesLoadError)
 	}
 
 	for _, pkg := range pkgs {
