@@ -87,6 +87,11 @@ const (
 	StampMilli = "Jan _2 15:04:05.000"
 	StampMicro = "Jan _2 15:04:05.000000"
 	StampNano  = "Jan _2 15:04:05.000000000"
+	// common time stamps
+	StampCommon      = "2006-01-02 15:04:05"
+	StampCommonMilli = "2006-01-02 15:04:05.000"
+	StampCommonMicro = "2006-01-02 15:04:05.000000"
+	StampCommonNano  = "2006-01-02 15:04:05.000000000"
 )
 
 const (
