@@ -10,6 +10,7 @@ type data struct {
 
 func TestImportPrefix(t *testing.T) {
 	var tdata = []data{
+		{"package foo", "package foo"},
 		{"package foo\n", "package foo\n"},
 		{"package foo\n\nfunc f(){}\n", "package foo\n"},
 		{"package foo\n\nimport \"fmt\"\n", "package foo\n\nimport \"fmt\""},
@@ -24,7 +25,7 @@ func TestImportPrefix(t *testing.T) {
 	for i, x := range tdata {
 		got := importPrefix([]byte(x.input))
 		if got != x.want {
-			t.Errorf("%d: got\n%q, wanted\n%q", i, got, x.want)
+			t.Errorf("%d: got\n%q, wanted\n%q for %q", i, got, x.want, x.input)
 		}
 	}
 }

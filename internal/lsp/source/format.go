@@ -214,6 +214,9 @@ func importPrefix(src []byte) string {
 	}
 	if importEnd == 0 {
 		importEnd = pkgEnd
+		if importEnd > len(src) {
+			importEnd-- // pkgEnd is off by 1 because Pos is 1-based
+		}
 	}
 	for _, c := range f.Comments {
 		if int(c.End()) > importEnd {
