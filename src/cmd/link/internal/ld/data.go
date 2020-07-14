@@ -159,7 +159,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	target := st.target
 	syms := st.syms
 	var extRelocs []loader.ExtReloc
-	if target.IsExternal() {
+	if target.IsExternal() && !(target.IsAMD64() && target.IsELF) {
 		// preallocate a slice conservatively assuming that all
 		// relocs will require an external reloc
 		extRelocs = st.preallocExtRelocSlice(relocs.Count())
@@ -592,14 +592,135 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 	addExtReloc:
 		if needExtReloc {
-			extRelocs = append(extRelocs, rr)
+			if target.IsAMD64() && target.IsELF {
+				extraExtReloc++
+			} else {
+				extRelocs = append(extRelocs, rr)
+			}
 		}
 	}
-	if len(extRelocs) != 0 {
+	if target.IsExternal() && target.IsAMD64() && target.IsELF {
+		// On AMD64 ELF, we'll stream out the external relocations in elfrelocsect
+		// and we only need the count here.
+		// TODO: just count, but not compute the external relocations. For now it
+		// is still needed on other platforms, and this keeps the code simple.
+		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(extraExtReloc))
+	} else if len(extRelocs) != 0 {
 		st.finalizeExtRelocSlice(extRelocs)
 		ldr.SetExtRelocs(s, extRelocs)
 		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)+extraExtReloc))
 	}
+}
+
+// Convert a Go relocation to an external relocation.
+func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri int) (loader.ExtReloc, bool) {
+	var rr loader.ExtReloc
+	target := ctxt.Target
+	siz := int32(r.Siz())
+	if siz == 0 { // informational relocation - no work to do
+		return rr, false
+	}
+
+	rt := r.Type()
+	if rt >= objabi.ElfRelocOffset {
+		return rr, false
+	}
+
+	rr.Idx = ri
+
+	// TODO(mundaym): remove this special case - see issue 14218.
+	if target.IsS390X() {
+		switch rt {
+		case objabi.R_PCRELDBL:
+			rt = objabi.R_PCREL
+		}
+	}
+
+	switch rt {
+	default:
+		// TODO: handle arch-specific relocations
+		panic("unsupported")
+
+	case objabi.R_TLS_LE, objabi.R_TLS_IE:
+		if target.IsElf() {
+			rs := ldr.ResolveABIAlias(r.Sym())
+			rr.Xsym = rs
+			if rr.Xsym == 0 {
+				rr.Xsym = ctxt.Tlsg
+			}
+			rr.Xadd = r.Add()
+			break
+		}
+		return rr, false
+
+	case objabi.R_ADDR:
+		// set up addend for eventual relocation via outer symbol.
+		rs := ldr.ResolveABIAlias(r.Sym())
+		rs, off := FoldSubSymbolOffset(ldr, rs)
+		rr.Xadd = r.Add() + off
+		rst := ldr.SymType(rs)
+		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+			ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
+		}
+		rr.Xsym = rs
+
+	case objabi.R_DWARFSECREF:
+		// On most platforms, the external linker needs to adjust DWARF references
+		// as it combines DWARF sections. However, on Darwin, dsymutil does the
+		// DWARF linking, and it understands how to follow section offsets.
+		// Leaving in the relocation records confuses it (see
+		// https://golang.org/issue/22068) so drop them for Darwin.
+		if target.IsDarwin() {
+			return rr, false
+		}
+		rs := ldr.ResolveABIAlias(r.Sym())
+		rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
+		rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
+
+	// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
+	case objabi.R_GOTPCREL, objabi.R_CALL, objabi.R_PCREL:
+		rs := ldr.ResolveABIAlias(r.Sym())
+		if rt == objabi.R_GOTPCREL && target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 {
+			rr.Xadd = r.Add()
+			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
+			rr.Xsym = rs
+			break
+		}
+		if rs != 0 && ldr.SymType(rs) == sym.SUNDEFEXT {
+			// pass through to the external linker.
+			rr.Xadd = 0
+			if target.IsElf() {
+				rr.Xadd -= int64(siz)
+			}
+			rr.Xsym = rs
+			break
+		}
+		if rs != 0 && (ldr.SymSect(rs) != ldr.SymSect(s) || rt == objabi.R_GOTPCREL) {
+			// set up addend for eventual relocation via outer symbol.
+			rs := rs
+			rs, off := FoldSubSymbolOffset(ldr, rs)
+			rr.Xadd = r.Add() + off
+			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
+			rst := ldr.SymType(rs)
+			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+				ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
+			}
+			rr.Xsym = rs
+			break
+		}
+		return rr, false
+
+	case objabi.R_XCOFFREF:
+		rs := ldr.ResolveABIAlias(r.Sym())
+		rr.Xsym = rs
+		rr.Xadd = r.Add()
+
+	// These reloc types don't need external relocations.
+	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
+		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
+		return rr, false
+	}
+	return rr, true
 }
 
 const extRelocSlabSize = 2048

@@ -19,7 +19,7 @@ import (
 // This function handles the first part.
 func asmb(ctxt *Link) {
 	ctxt.loader.InitOutData()
-	if ctxt.IsExternal() {
+	if ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF) {
 		ctxt.loader.InitExtRelocs()
 	}
 

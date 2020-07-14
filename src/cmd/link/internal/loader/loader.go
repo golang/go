@@ -60,7 +60,7 @@ type ExtReloc struct {
 // It is not the data structure used to store the payload internally.
 type ExtRelocView struct {
 	Reloc2
-	*ExtReloc
+	ExtReloc
 }
 
 // Reloc2 holds a "handle" to access a relocation record from an
@@ -1909,7 +1909,7 @@ func (ers ExtRelocs) Count() int { return len(ers.es) }
 
 func (ers ExtRelocs) At(j int) ExtRelocView {
 	i := ers.es[j].Idx
-	return ExtRelocView{ers.rs.At2(i), &ers.es[j]}
+	return ExtRelocView{ers.rs.At2(i), ers.es[j]}
 }
 
 // RelocByOff implements sort.Interface for sorting relocations by offset.
