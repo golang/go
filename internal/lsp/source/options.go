@@ -206,8 +206,13 @@ type UserOptions struct {
 	// StaticCheck enables additional analyses from staticcheck.io.
 	StaticCheck bool
 
-	// LinkTarget is the website used for documentation.
+	// LinkTarget is the website used for documentation. If empty, no link is
+	// provided.
 	LinkTarget string
+
+	// ImportShortcut specifies whether import statements should link to
+	// documentation or go to definitions. The default is both.
+	ImportShortcut ImportShortcut
 
 	// LocalPrefix is used to specify goimports's -local behavior.
 	LocalPrefix string
@@ -239,6 +244,22 @@ type UserOptions struct {
 
 	// Gofumpt indicates if we should run gofumpt formatting.
 	Gofumpt bool
+}
+
+type ImportShortcut int
+
+const (
+	Both ImportShortcut = iota
+	Link
+	Definition
+)
+
+func (s ImportShortcut) ShowLinks() bool {
+	return s == Both || s == Link
+}
+
+func (s ImportShortcut) ShowDefinition() bool {
+	return s == Both || s == Definition
 }
 
 type completionOptions struct {
@@ -504,6 +525,18 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "linkTarget":
 		result.setString(&o.LinkTarget)
+
+	case "importShortcut":
+		var s string
+		result.setString(&s)
+		switch s {
+		case "both":
+			o.ImportShortcut = Both
+		case "link":
+			o.ImportShortcut = Link
+		case "definition":
+			o.ImportShortcut = Definition
+		}
 
 	case "analyses":
 		result.setBoolMap(&o.UserEnabledAnalyses)

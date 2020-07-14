@@ -130,28 +130,31 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 		return true
 	})
 	var links []protocol.DocumentLink
-	for _, imp := range imports {
-		// For import specs, provide a link to a documentation website, like https://pkg.go.dev.
-		target, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			continue
+	// For import specs, provide a link to a documentation website, like
+	// https://pkg.go.dev.
+	if view.Options().ImportShortcut.ShowLinks() {
+		for _, imp := range imports {
+			target, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				continue
+			}
+			// See golang/go#36998: don't link to modules matching GOPRIVATE.
+			if view.IsGoPrivatePath(target) {
+				continue
+			}
+			if mod, version, ok := moduleAtVersion(ctx, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
+				target = strings.Replace(target, mod, mod+"@"+version, 1)
+			}
+			// Account for the quotation marks in the positions.
+			start := imp.Path.Pos() + 1
+			end := imp.Path.End() - 1
+			target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
+			l, err := toProtocolLink(view, m, target, start, end, source.Go)
+			if err != nil {
+				return nil, err
+			}
+			links = append(links, l)
 		}
-		// See golang/go#36998: don't link to modules matching GOPRIVATE.
-		if view.IsGoPrivatePath(target) {
-			continue
-		}
-		if mod, version, ok := moduleAtVersion(ctx, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
-			target = strings.Replace(target, mod, mod+"@"+version, 1)
-		}
-		// Account for the quotation marks in the positions.
-		start := imp.Path.Pos() + 1
-		end := imp.Path.End() - 1
-		target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
-		l, err := toProtocolLink(view, m, target, start, end, source.Go)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
 	}
 	for _, s := range str {
 		l, err := findLinksInString(ctx, view, s.Value, s.Pos(), m, source.Go)

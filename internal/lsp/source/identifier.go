@@ -73,9 +73,12 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 var ErrNoIdentFound = errors.New("no identifier found")
 
 func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
-	// Handle import specs separately, as there is no formal position for a package declaration.
-	if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
-		return result, err
+	// Handle import specs separately, as there is no formal position for a
+	// package declaration.
+	if s.View().Options().ImportShortcut.ShowDefinition() {
+		if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
+			return result, err
+		}
 	}
 	path := pathEnclosingObjNode(file, pos)
 	if path == nil {
