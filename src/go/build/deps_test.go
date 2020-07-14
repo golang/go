@@ -101,6 +101,11 @@ var depsRules = `
 
 	reflect !< sort;
 
+	RUNTIME, unicode/utf8
+	< path;
+
+	unicode !< path;
+
 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
 	RUNTIME, unicode/utf8, unicode/utf16
 	< internal/syscall/windows/sysdll, syscall/js
@@ -137,7 +142,7 @@ var depsRules = `
 	# STR is basic string and buffer manipulation.
 	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
 	< bytes, strings
-	< bufio, path;
+	< bufio;
 
 	bufio, path, strconv
 	< STR;
