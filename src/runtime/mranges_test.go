@@ -9,6 +9,109 @@ import (
 	"testing"
 )
 
+func validateAddrRanges(t *testing.T, a *AddrRanges, want ...AddrRange) {
+	ranges := a.Ranges()
+	if len(ranges) != len(want) {
+		t.Errorf("want %v, got %v", want, ranges)
+		t.Fatal("different lengths")
+	}
+	gotTotalBytes := uintptr(0)
+	wantTotalBytes := uintptr(0)
+	for i := range ranges {
+		gotTotalBytes += ranges[i].Size()
+		wantTotalBytes += want[i].Size()
+		if ranges[i].Base() >= ranges[i].Limit() {
+			t.Error("empty range found")
+		}
+		// Ensure this is equivalent to what we want.
+		if !ranges[i].Equals(want[i]) {
+			t.Errorf("range %d: got [0x%x, 0x%x), want [0x%x, 0x%x)", i,
+				ranges[i].Base(), ranges[i].Limit(),
+				want[i].Base(), want[i].Limit(),
+			)
+		}
+		if i != 0 {
+			// Ensure the ranges are sorted.
+			if ranges[i-1].Base() >= ranges[i].Base() {
+				t.Errorf("ranges %d and %d are out of sorted order", i-1, i)
+			}
+			// Check for a failure to coalesce.
+			if ranges[i-1].Limit() == ranges[i].Base() {
+				t.Errorf("ranges %d and %d should have coalesced", i-1, i)
+			}
+			// Check if any ranges overlap. Because the ranges are sorted
+			// by base, it's sufficient to just check neighbors.
+			if ranges[i-1].Limit() > ranges[i].Base() {
+				t.Errorf("ranges %d and %d overlap", i-1, i)
+			}
+		}
+	}
+	if wantTotalBytes != gotTotalBytes {
+		t.Errorf("expected %d total bytes, got %d", wantTotalBytes, gotTotalBytes)
+	}
+	if b := a.TotalBytes(); b != gotTotalBytes {
+		t.Errorf("inconsistent total bytes: want %d, got %d", gotTotalBytes, b)
+	}
+	if t.Failed() {
+		t.Errorf("addrRanges: %v", ranges)
+		t.Fatal("detected bad addrRanges")
+	}
+}
+
+func TestAddrRangesAdd(t *testing.T) {
+	a := NewAddrRanges()
+
+	// First range.
+	a.Add(MakeAddrRange(512, 1024))
+	validateAddrRanges(t, &a,
+		MakeAddrRange(512, 1024),
+	)
+
+	// Coalesce up.
+	a.Add(MakeAddrRange(1024, 2048))
+	validateAddrRanges(t, &a,
+		MakeAddrRange(512, 2048),
+	)
+
+	// Add new independent range.
+	a.Add(MakeAddrRange(4096, 8192))
+	validateAddrRanges(t, &a,
+		MakeAddrRange(512, 2048),
+		MakeAddrRange(4096, 8192),
+	)
+
+	// Coalesce down.
+	a.Add(MakeAddrRange(3776, 4096))
+	validateAddrRanges(t, &a,
+		MakeAddrRange(512, 2048),
+		MakeAddrRange(3776, 8192),
+	)
+
+	// Coalesce up and down.
+	a.Add(MakeAddrRange(2048, 3776))
+	validateAddrRanges(t, &a,
+		MakeAddrRange(512, 8192),
+	)
+
+	// Push a bunch of independent ranges to the end to try and force growth.
+	expectedRanges := []AddrRange{MakeAddrRange(512, 8192)}
+	for i := uintptr(0); i < 64; i++ {
+		dRange := MakeAddrRange(8192+(i+1)*2048, 8192+(i+1)*2048+10)
+		a.Add(dRange)
+		expectedRanges = append(expectedRanges, dRange)
+		validateAddrRanges(t, &a, expectedRanges...)
+	}
+
+	// Push a bunch of independent ranges to the beginning to try and force growth.
+	var bottomRanges []AddrRange
+	for i := uintptr(0); i < 63; i++ {
+		dRange := MakeAddrRange(8+i*8, 8+i*8+4)
+		a.Add(dRange)
+		bottomRanges = append(bottomRanges, dRange)
+		validateAddrRanges(t, &a, append(bottomRanges, expectedRanges...)...)
+	}
+}
+
 func TestAddrRangesFindSucc(t *testing.T) {
 	var large []AddrRange
 	for i := 0; i < 100; i++ {

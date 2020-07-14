@@ -785,28 +785,86 @@ func (a AddrRange) Equals(b AddrRange) bool {
 	return a == b
 }
 
+// Size returns the size in bytes of the address range.
+func (a AddrRange) Size() uintptr {
+	return a.addrRange.size()
+}
+
 // AddrRanges is a wrapper around addrRanges for testing.
 type AddrRanges struct {
 	addrRanges
+	mutable bool
+}
+
+// NewAddrRanges creates a new empty addrRanges.
+//
+// Note that this initializes addrRanges just like in the
+// runtime, so its memory is persistentalloc'd. Call this
+// function sparingly since the memory it allocates is
+// leaked.
+//
+// This AddrRanges is mutable, so we can test methods like
+// Add.
+func NewAddrRanges() AddrRanges {
+	r := addrRanges{}
+	r.init(new(uint64))
+	return AddrRanges{r, true}
 }
 
 // MakeAddrRanges creates a new addrRanges populated with
 // the ranges in a.
+//
+// The returned AddrRanges is immutable, so methods like
+// Add will fail.
 func MakeAddrRanges(a ...AddrRange) AddrRanges {
 	// Methods that manipulate the backing store of addrRanges.ranges should
 	// not be used on the result from this function (e.g. add) since they may
-	// trigger reallocation.
+	// trigger reallocation. That would normally be fine, except the new
+	// backing store won't come from the heap, but from persistentalloc, so
+	// we'll leak some memory implicitly.
 	ranges := make([]addrRange, 0, len(a))
+	total := uintptr(0)
 	for _, r := range a {
 		ranges = append(ranges, r.addrRange)
+		total += r.Size()
 	}
-	return AddrRanges{addrRanges{ranges: ranges, sysStat: new(uint64)}}
+	return AddrRanges{addrRanges{
+		ranges:     ranges,
+		totalBytes: total,
+		sysStat:    new(uint64),
+	}, false}
+}
+
+// Ranges returns a copy of the ranges described by the
+// addrRanges.
+func (a *AddrRanges) Ranges() []AddrRange {
+	result := make([]AddrRange, 0, len(a.addrRanges.ranges))
+	for _, r := range a.addrRanges.ranges {
+		result = append(result, AddrRange{r})
+	}
+	return result
 }
 
 // FindSucc returns the successor to base. See addrRanges.findSucc
 // for more details.
 func (a *AddrRanges) FindSucc(base uintptr) int {
 	return a.findSucc(base)
+}
+
+// Add adds a new AddrRange to the AddrRanges.
+//
+// The AddrRange must be mutable (i.e. created by NewAddrRanges),
+// otherwise this method will throw.
+func (a *AddrRanges) Add(r AddrRange) {
+	if !a.mutable {
+		throw("attempt to mutate immutable AddrRanges")
+	}
+	a.add(r.addrRange)
+}
+
+// TotalBytes returns the totalBytes field of the addrRanges.
+func (a *AddrRanges) TotalBytes() uintptr {
+	return a.addrRanges.totalBytes
 }
 
 // BitRange represents a range over a bitmap.
