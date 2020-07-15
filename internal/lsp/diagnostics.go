@@ -89,7 +89,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	}
 
 	// Diagnose all of the packages in the workspace.
-	wsPackages, err := snapshot.WorkspacePackages(ctx)
+	wsHandles, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
 		// Try constructing a more helpful error message out of this error.
 		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
@@ -110,21 +110,26 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		showMsg *protocol.ShowMessageParams
 		wg      sync.WaitGroup
 	)
-	for _, ph := range wsPackages {
+	for _, ph := range wsHandles {
 		wg.Add(1)
 		go func(ph source.PackageHandle) {
 			defer wg.Done()
 
+			pkg, err := ph.Check(ctx)
+			if err != nil {
+				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
+				return
+			}
 			// Only run analyses for packages with open files.
 			withAnalysis := alwaysAnalyze
-			for _, pgh := range ph.CompiledGoFiles() {
+			for _, pgh := range pkg.CompiledGoFiles() {
 				if snapshot.IsOpen(pgh.File().URI()) {
 					withAnalysis = true
 					break
 				}
 			}
 
-			pkgReports, warn, err := source.Diagnostics(ctx, snapshot, ph, withAnalysis)
+			pkgReports, warn, err := source.Diagnostics(ctx, snapshot, pkg, withAnalysis)
 
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.

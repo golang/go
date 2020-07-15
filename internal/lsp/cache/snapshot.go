@@ -548,7 +548,7 @@ func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 	key := actionKey{
 		analyzer: ah.analyzer,
 		pkg: packageKey{
-			id:   ah.pkg.id,
+			id:   ah.pkg.m.id,
 			mode: ah.pkg.mode,
 		},
 	}

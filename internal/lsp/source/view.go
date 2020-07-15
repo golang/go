@@ -104,17 +104,14 @@ type PackageHandle interface {
 	// ID returns the ID of the package associated with the PackageHandle.
 	ID() string
 
-	// CompiledGoFiles returns the ParseGoHandles composing the package.
-	CompiledGoFiles() []ParseGoHandle
+	// CompiledGoFiles returns the URIs of the files composing the package.
+	CompiledGoFiles() []span.URI
 
 	// Check returns the type-checked Package for the PackageHandle.
 	Check(ctx context.Context) (Package, error)
 
 	// Cached returns the Package for the PackageHandle if it has already been stored.
 	Cached() (Package, error)
-
-	// MissingDependencies reports any unresolved imports.
-	MissingDependencies() []string
 }
 
 // View represents a single workspace.
@@ -499,6 +496,7 @@ type Package interface {
 	IsIllTyped() bool
 	ForTest() string
 	GetImport(pkgPath string) (Package, error)
+	MissingDependencies() []string
 	Imports() []Package
 	Module() *packages.Module
 }

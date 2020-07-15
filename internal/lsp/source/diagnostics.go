@@ -38,9 +38,9 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool) (map[FileIdentity][]*Diagnostic, bool, error) {
+func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalysis bool) (map[FileIdentity][]*Diagnostic, bool, error) {
 	onlyIgnoredFiles := true
-	for _, pgh := range ph.CompiledGoFiles() {
+	for _, pgh := range pkg.CompiledGoFiles() {
 		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.View().IgnoredFile(pgh.File().URI())
 	}
 	if onlyIgnoredFiles {
@@ -50,12 +50,8 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
 	var warn bool
-	if len(ph.MissingDependencies()) > 0 {
+	if len(pkg.MissingDependencies()) > 0 {
 		warn = true
-	}
-	pkg, err := ph.Check(ctx)
-	if err != nil {
-		return nil, false, err
 	}
 	// If we have a package with a single file and errors about "undeclared" symbols,
 	// we may have an ad-hoc package with multiple files. Show a warning message.
@@ -85,7 +81,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 		clearReports(ctx, snapshot, reports, e.URI)
 	}
 	// Run diagnostics for the package that this URI belongs to.
-	hadDiagnostics, hadTypeErrors, err := diagnostics(ctx, snapshot, reports, pkg, len(ph.MissingDependencies()) > 0)
+	hadDiagnostics, hadTypeErrors, err := diagnostics(ctx, snapshot, reports, pkg, len(pkg.MissingDependencies()) > 0)
 	if err != nil {
 		return nil, warn, err
 	}
@@ -99,8 +95,8 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 	}
 	// If we don't have any list or parse errors, run analyses.
 	analyzers := pickAnalyzers(snapshot, hadTypeErrors)
-	if err := analyses(ctx, snapshot, reports, ph, analyzers); err != nil {
-		event.Error(ctx, "analyses failed", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
+	if err := analyses(ctx, snapshot, reports, pkg, analyzers); err != nil {
+		event.Error(ctx, "analyses failed", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 		if ctx.Err() != nil {
 			return nil, warn, ctx.Err()
 		}
@@ -141,7 +137,11 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
-	reports, _, err := Diagnostics(ctx, snapshot, ph, true)
+	pkg, err := ph.Check(ctx)
+	if err != nil {
+		return FileIdentity{}, nil, err
+	}
+	reports, _, err := Diagnostics(ctx, snapshot, pkg, true)
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
@@ -206,7 +206,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 	return nonEmptyDiagnostics, hasTypeErrors, nil
 }
 
-func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, ph PackageHandle, analyses map[string]Analyzer) error {
+func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, pkg Package, analyses map[string]Analyzer) error {
 	var analyzers []*analysis.Analyzer
 	for _, a := range analyses {
 		if !a.Enabled(snapshot) {
@@ -214,7 +214,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 		}
 		analyzers = append(analyzers, a.Analyzer)
 	}
-	analysisErrors, err := snapshot.Analyze(ctx, ph.ID(), analyzers...)
+	analysisErrors, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
 	if err != nil {
 		return err
 	}

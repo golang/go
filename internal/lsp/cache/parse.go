@@ -256,15 +256,6 @@ func buildASTCache(ctx context.Context, parseHandle *memoize.Handle) *astCacheDa
 	return data
 }
 
-func hashParseKeys(pghs []*parseGoHandle) string {
-	b := bytes.NewBuffer(nil)
-	for _, pgh := range pghs {
-		b.WriteString(pgh.file.Identity().String())
-		b.WriteByte(byte(pgh.Mode()))
-	}
-	return hashContents(b.Bytes())
-}
-
 func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
 	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.URI().Filename()))
 	defer done()

@@ -158,16 +158,22 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		deps[depHandle.m.pkgPath] = depHandle
 		depKeys = append(depKeys, depHandle.key)
 	}
-	ph.key = checkPackageKey(ctx, ph.m.id, ph.compiledGoFiles, m.config, depKeys)
+	ph.key = checkPackageKey(ctx, ph.m.id, compiledGoFiles, m.config, depKeys, mode)
 	return ph, deps, nil
 }
 
-func checkPackageKey(ctx context.Context, id packageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey) packageHandleKey {
-	var depBytes []byte
+func checkPackageKey(ctx context.Context, id packageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey, mode source.ParseMode) packageHandleKey {
+	b := bytes.NewBuffer(nil)
+	b.WriteString(string(id))
+	b.WriteString(hashConfig(cfg))
+	b.WriteByte(byte(mode))
 	for _, dep := range deps {
-		depBytes = append(depBytes, []byte(dep)...)
+		b.WriteString(string(dep))
 	}
-	return packageHandleKey(hashContents([]byte(fmt.Sprintf("%s%s%s%s", id, hashParseKeys(pghs), hashConfig(cfg), hashContents(depBytes)))))
+	for _, cgf := range pghs {
+		b.WriteString(cgf.file.Identity().String())
+	}
+	return packageHandleKey(hashContents(b.Bytes()))
 }
 
 // hashConfig returns the hash for the *packages.Config.
@@ -200,24 +206,12 @@ func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
 	return data.pkg, data.err
 }
 
+func (ph *packageHandle) CompiledGoFiles() []span.URI {
+	return ph.m.compiledGoFiles
+}
+
 func (ph *packageHandle) ID() string {
 	return string(ph.m.id)
-}
-
-func (ph *packageHandle) CompiledGoFiles() []source.ParseGoHandle {
-	var files []source.ParseGoHandle
-	for _, f := range ph.compiledGoFiles {
-		files = append(files, f)
-	}
-	return files
-}
-
-func (ph *packageHandle) MissingDependencies() []string {
-	var md []string
-	for i := range ph.m.missingDeps {
-		md = append(md, string(i))
-	}
-	return md
 }
 
 func (ph *packageHandle) Cached() (source.Package, error) {
@@ -255,9 +249,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	}
 
 	pkg := &pkg{
-		id:              m.id,
-		name:            m.name,
-		pkgPath:         m.pkgPath,
+		m:               m,
 		mode:            mode,
 		goFiles:         goFiles,
 		compiledGoFiles: compiledGoFiles,
@@ -272,7 +264,6 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
-		forTest: m.forTest,
 	}
 	var (
 		files        = make([]*ast.File, len(pkg.compiledGoFiles))
@@ -325,7 +316,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	files = files[:i]
 
 	// Use the default type information for the unsafe package.
-	if pkg.pkgPath == "unsafe" {
+	if pkg.m.pkgPath == "unsafe" {
 		pkg.types = types.Unsafe
 		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
 		// race to Unsafe.completed.
@@ -344,7 +335,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		if found {
 			return pkg, nil
 		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v, list errors: %v", pkg.pkgPath, pkg.compiledGoFiles, actualErrors, rawErrors)
+		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, actualErrors, rawErrors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
 	}
@@ -374,7 +365,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			if err != nil {
 				return nil, err
 			}
-			pkg.imports[depPkg.pkgPath] = depPkg
+			pkg.imports[depPkg.m.pkgPath] = depPkg
 			return depPkg.types, nil
 		}),
 	}
