@@ -255,12 +255,9 @@ type ConnBeginTx interface {
 // SessionResetter may be implemented by Conn to allow drivers to reset the
 // session state associated with the connection and to signal a bad connection.
 type SessionResetter interface {
-	// ResetSession is called while a connection is in the connection
-	// pool. No queries will run on this connection until this method returns.
-	//
-	// If the connection is bad this should return driver.ErrBadConn to prevent
-	// the connection from being returned to the connection pool. Any other
-	// error will be discarded.
+	// ResetSession is called prior to executing a query on the connection
+	// if the connection has been used before. If the driver returns ErrBadConn
+	// the connection is discarded.
 	ResetSession(ctx context.Context) error
 }
 
