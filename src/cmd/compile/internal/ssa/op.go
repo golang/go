@@ -83,22 +83,27 @@ type AuxCall struct {
 func (a *AuxCall) OffsetOfResult(which int64) int64 {
 	return int64(a.results[which].Offset)
 }
+
 // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
 func (a *AuxCall) OffsetOfArg(which int64) int64 {
 	return int64(a.args[which].Offset)
 }
+
 // TypeOfResult returns the type of result which (indexed 0, 1, etc).
 func (a *AuxCall) TypeOfResult(which int64) *types.Type {
 	return a.results[which].Type
 }
+
 // TypeOfArg returns the type of argument which (indexed 0, 1, etc).
 func (a *AuxCall) TypeOfArg(which int64) *types.Type {
 	return a.args[which].Type
 }
+
 // SizeOfResult returns the size of result which (indexed 0, 1, etc).
 func (a *AuxCall) SizeOfResult(which int64) int64 {
 	return a.TypeOfResult(which).Width
 }
+
 // SizeOfArg returns the size of argument which (indexed 0, 1, etc).
 func (a *AuxCall) SizeOfArg(which int64) int64 {
 	return a.TypeOfArg(which).Width

@@ -68,7 +68,7 @@ const (
 	// SSA backend types
 	TSSA     // internal types used by SSA backend (flags, memory, etc.)
 	TTUPLE   // a pair of types, used by SSA backend
-	TRESULTS // multiuple types; the resulting of calling a function or method, plus a memory at the end.
+	TRESULTS // multiple types; the result of calling a function or method, with a memory at the end.
 
 	NTYPE
 )
@@ -331,9 +331,9 @@ type Tuple struct {
 	// Any tuple with a memory type must put that memory type second.
 }
 
+// Results are the output from calls that will be late-expanded.
 type Results struct {
-	Types []*Type
-	// Any Results with a memory type must put that memory type last.
+	Types []*Type // Last element is memory output from call.
 }
 
 // Array contains Type fields specific to array types.
