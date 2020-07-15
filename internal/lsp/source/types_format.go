@@ -79,7 +79,11 @@ func newBuiltinSignature(ctx context.Context, view View, name string) (*signatur
 	if err != nil {
 		return nil, err
 	}
-	decl, ok := builtin.Package().Scope.Lookup(name).Decl.(*ast.FuncDecl)
+	obj := builtin.Package().Scope.Lookup(name)
+	if obj == nil {
+		return nil, fmt.Errorf("no builtin object for %s", name)
+	}
+	decl, ok := obj.Decl.(*ast.FuncDecl)
 	if !ok {
 		return nil, fmt.Errorf("no function declaration for builtin: %s", name)
 	}
