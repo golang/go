@@ -60,17 +60,12 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	var wg sync.WaitGroup
 
 	// Diagnose the go.mod file.
-	reports, missingModules, err := mod.Diagnostics(ctx, snapshot)
+	reports, err := mod.Diagnostics(ctx, snapshot)
 	if err != nil {
 		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 	}
 	if ctx.Err() != nil {
 		return nil, nil
-	}
-	// Ensure that the reports returned from mod.Diagnostics are only related
-	// to the go.mod file for the module.
-	if len(reports) > 1 {
-		panic(fmt.Sprintf("expected 1 report from mod.Diagnostics, got %v: %v", len(reports), reports))
 	}
 	modURI := snapshot.View().ModFile()
 	for id, diags := range reports {
@@ -78,11 +73,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			event.Error(ctx, "missing URI for module diagnostics", fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
 			continue
 		}
-		if id.URI != modURI {
-			panic(fmt.Sprintf("expected module diagnostics report for %q, got %q", modURI, id.URI))
-		}
 		key := diagnosticKey{
-			id: id,
+			id:           id,
+			withAnalysis: true, // treat go.mod diagnostics like analyses
 		}
 		allReports[key] = diags
 	}
@@ -124,7 +117,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 					withAnalyses = true
 				}
 			}
-			reports, warn, err := source.Diagnostics(ctx, snapshot, ph, missingModules, withAnalyses)
+			reports, warn, err := source.Diagnostics(ctx, snapshot, ph, withAnalyses)
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.
 			if warn && !snapshot.View().ValidBuildConfiguration() {
@@ -143,7 +136,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 					id:           id,
 					withAnalysis: withAnalyses,
 				}
-				allReports[key] = diags
+				allReports[key] = append(allReports[key], diags...)
 			}
 			reportsMu.Unlock()
 		}(ph)

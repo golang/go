@@ -9,17 +9,16 @@ package mod
 import (
 	"context"
 
-	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 )
 
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, map[string]*modfile.Require, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, error) {
 	uri := snapshot.View().ModFile()
 	if uri == "" {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	ctx, done := event.Start(ctx, "mod.Diagnostics", tag.URI.Of(uri))
@@ -27,18 +26,18 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	mth, err := snapshot.ModTidyHandle(ctx)
 	if err == source.ErrTmpModfileUnsupported {
-		return nil, nil, nil
+		return nil, nil
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	missingDeps, diagnostics, err := mth.Tidy(ctx)
+	diagnostics, err := mth.Tidy(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	reports := map[source.FileIdentity][]*source.Diagnostic{
 		fh.Identity(): {},
@@ -54,12 +53,16 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		} else {
 			diag.Severity = protocol.SeverityWarning
 		}
+		fh, err := snapshot.GetFile(ctx, e.URI)
+		if err != nil {
+			return nil, err
+		}
 		reports[fh.Identity()] = append(reports[fh.Identity()], diag)
 	}
-	return reports, missingDeps, nil
+	return reports, nil
 }
 
-func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	mth, err := snapshot.ModTidyHandle(ctx)
 	if err == source.ErrTmpModfileUnsupported {
 		return nil, nil
@@ -67,7 +70,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 	if err != nil {
 		return nil, err
 	}
-	_, diagnostics, err := mth.Tidy(ctx)
+	diagnostics, err := mth.Tidy(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -111,81 +114,6 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 		}
 	}
 	return actions, nil
-}
-
-func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string]protocol.TextDocumentEdit, error) {
-	uri := snapshot.View().ModFile()
-	if uri == "" {
-		return nil, nil
-	}
-	ctx, done := event.Start(ctx, "mod.SuggestedGoFixes", tag.URI.Of(uri))
-	defer done()
-
-	fh, err := snapshot.GetFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	mth, err := snapshot.ModTidyHandle(ctx)
-	if err == source.ErrTmpModfileUnsupported {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	missingDeps, _, err := mth.Tidy(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(missingDeps) == 0 {
-		return nil, nil
-	}
-	pmh, err := snapshot.ParseModHandle(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	_, m, _, err := pmh.Parse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Get the contents of the go.mod file before we make any changes.
-	oldContents, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-	textDocumentEdits := make(map[string]protocol.TextDocumentEdit)
-	for dep, req := range missingDeps {
-		// We need a private copy of the parsed go.mod file, since we're going to
-		// modify it.
-		copied, err := modfile.Parse("", oldContents, nil)
-		if err != nil {
-			return nil, err
-		}
-		// Calculate the quick fix edits that need to be made to the go.mod file.
-		if err := copied.AddRequire(req.Mod.Path, req.Mod.Version); err != nil {
-			return nil, err
-		}
-		copied.SortBlocks()
-		newContents, err := copied.Format()
-		if err != nil {
-			return nil, err
-		}
-		// Calculate the edits to be made due to the change.
-		diff := snapshot.View().Options().ComputeEdits(fh.URI(), string(oldContents), string(newContents))
-		edits, err := source.ToProtocolEdits(m, diff)
-		if err != nil {
-			return nil, err
-		}
-		textDocumentEdits[dep] = protocol.TextDocumentEdit{
-			TextDocument: protocol.VersionedTextDocumentIdentifier{
-				Version: fh.Version(),
-				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.URIFromSpanURI(fh.URI()),
-				},
-			},
-			Edits: edits,
-		}
-	}
-	return textDocumentEdits, nil
 }
 
 func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {

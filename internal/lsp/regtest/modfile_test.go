@@ -206,3 +206,89 @@ go 1.12
 		)
 	}, WithProxy(proxy))
 }
+
+func TestBadlyVersionedModule(t *testing.T) {
+	t.Skipf("not fixed yet, see golang/go#39784")
+
+	const badModule = `
+-- example.com/blah/@v/list --
+v1.0.0
+-- example.com/blah/@v/v1.0.0.mod --
+module example.com
+
+go 1.12
+-- example.com/blah@v1.0.0/blah.go --
+package blah
+
+const Name = "Blah"
+-- example.com/blah@v1.0.0/blah_test.go --
+package blah_test
+
+import (
+	"testing"
+)
+
+func TestBlah(t *testing.T) {}
+
+-- example.com/blah/v2/@v/list --
+v2.0.0
+-- example.com/blah/v2/@v/v2.0.0.mod --
+module example.com
+
+go 1.12
+-- example.com/blah/v2@v2.0.0/blah.go --
+package blah
+
+const Name = "Blah"
+-- example.com/blah/v2@v2.0.0/blah_test.go --
+package blah_test
+
+import (
+	"testing"
+
+	"example.com/blah"
+)
+
+func TestBlah(t *testing.T) {}
+`
+	const pkg = `
+-- go.mod --
+module mod.com
+
+require (
+	example.com/blah/v2 v2.0.0
+)
+-- main.go --
+package main
+
+import "example.com/blah/v2"
+
+func main() {
+	fmt.Println(blah.Name)
+}
+`
+	runner.Run(t, pkg, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.OpenFile("go.mod")
+		metBy := env.Await(
+			env.DiagnosticAtRegexp("go.mod", "example.com/blah/v2"),
+			NoDiagnostics("main.go"),
+		)
+		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("unexpected type for metBy (%T)", metBy)
+		}
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		const want = `
+module mod.com
+
+require (
+	example.com/blah v1.0.0
+	example.com/blah/v2 v2.0.0
+)
+`
+		if got := env.Editor.BufferText("go.mod"); got != want {
+			t.Fatalf("suggested fixes failed:\n%s", tests.Diff(want, got))
+		}
+	}, WithProxy(badModule))
+}

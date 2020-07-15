@@ -200,6 +200,10 @@ func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
 	return data.pkg, data.err
 }
 
+func (ph *packageHandle) ID() string {
+	return string(ph.m.id)
+}
+
 func (ph *packageHandle) CompiledGoFiles() []source.ParseGoHandle {
 	var files []source.ParseGoHandle
 	for _, f := range ph.compiledGoFiles {
@@ -208,38 +212,12 @@ func (ph *packageHandle) CompiledGoFiles() []source.ParseGoHandle {
 	return files
 }
 
-func (ph *packageHandle) ID() string {
-	return string(ph.m.id)
-}
-
 func (ph *packageHandle) MissingDependencies() []string {
 	var md []string
 	for i := range ph.m.missingDeps {
 		md = append(md, string(i))
 	}
 	return md
-}
-
-func hashImports(ctx context.Context, wsPackages []source.PackageHandle) (string, error) {
-	results := make(map[string]bool)
-	var imports []string
-	for _, ph := range wsPackages {
-		// Check package since we do not always invalidate the metadata.
-		pkg, err := ph.Check(ctx)
-		if err != nil {
-			return "", err
-		}
-		for _, path := range pkg.Imports() {
-			imp := path.PkgPath()
-			if _, ok := results[imp]; !ok {
-				results[imp] = true
-				imports = append(imports, imp)
-			}
-		}
-	}
-	sort.Strings(imports)
-	hashed := strings.Join(imports, ",")
-	return hashContents([]byte(hashed)), nil
 }
 
 func (ph *packageHandle) Cached() (source.Package, error) {

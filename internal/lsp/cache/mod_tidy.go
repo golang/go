@@ -7,7 +7,12 @@ package cache
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/token"
 	"io/ioutil"
+	"sort"
+	"strconv"
+	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
@@ -37,10 +42,6 @@ type modTidyHandle struct {
 type modTidyData struct {
 	memoize.NoCopy
 
-	// missingDeps contains dependencies that should be added to the view's
-	// go.mod file.
-	missingDeps map[string]*modfile.Require
-
 	// diagnostics are any errors and associated suggested fixes for
 	// the go.mod file.
 	diagnostics []source.Error
@@ -48,13 +49,13 @@ type modTidyData struct {
 	err error
 }
 
-func (mth *modTidyHandle) Tidy(ctx context.Context) (map[string]*modfile.Require, []source.Error, error) {
+func (mth *modTidyHandle) Tidy(ctx context.Context) ([]source.Error, error) {
 	v, err := mth.handle.Get(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	data := v.(*modTidyData)
-	return data.missingDeps, data.diagnostics, data.err
+	return data.diagnostics, data.err
 }
 
 func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, error) {
@@ -72,14 +73,22 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 	if err != nil {
 		return nil, err
 	}
-	wsPackages, err := s.WorkspacePackages(ctx)
+	wsPhs, err := s.WorkspacePackages(ctx)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	if err != nil {
 		return nil, err
 	}
-	imports, err := hashImports(ctx, wsPackages)
+	var workspacePkgs []source.Package
+	for _, ph := range wsPhs {
+		pkg, err := ph.Check(ctx)
+		if err != nil {
+			return nil, err
+		}
+		workspacePkgs = append(workspacePkgs, pkg)
+	}
+	importHash, err := hashImports(ctx, workspacePkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +102,12 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		modURI  = s.view.modURI
 		cfg     = s.config(ctx)
 		options = s.view.Options()
+		fset    = s.view.session.cache.fset
 	)
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
 		view:            folder.Filename(),
-		imports:         imports,
+		imports:         importHash,
 		unsavedOverlays: overlayHash,
 		gomod:           pmh.Mod().Identity().String(),
 		cfg:             hashConfig(cfg),
@@ -150,7 +160,10 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 				missingDeps[req.Mod.Path] = req
 			}
 		}
-		diagnostics, err := modRequireErrors(pmh.Mod().URI(), m, missingDeps, unusedDeps, options)
+		// First, compute any errors specific to the go.mod file. These include
+		// unused dependencies and modules with incorrect // indirect comments.
+		/// Both the diagnostic and the fix will appear on the go.mod file.
+		modRequireErrs, err := modRequireErrors(pmh.Mod().URI(), m, missingDeps, unusedDeps, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -159,9 +172,15 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 				delete(missingDeps, req.Mod.Path)
 			}
 		}
+		// Next, compute any diagnostics for modules that are missing from the
+		// go.mod file. The fixes will be for the go.mod file, but the
+		// diagnostics should appear on the import statements in the Go files.
+		missingModuleErrs, err := missingModuleErrors(ctx, fset, m, workspacePkgs, missingDeps, options)
+		if err != nil {
+			return &modTidyData{err: err}
+		}
 		return &modTidyData{
-			missingDeps: missingDeps,
-			diagnostics: diagnostics,
+			diagnostics: append(modRequireErrs, missingModuleErrs...),
 		}
 	})
 	s.mu.Lock()
@@ -171,6 +190,23 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		pmh:    pmh,
 	}
 	return s.modTidyHandle, nil
+}
+
+func hashImports(ctx context.Context, wsPackages []source.Package) (string, error) {
+	results := make(map[string]bool)
+	var imports []string
+	for _, pkg := range wsPackages {
+		for _, path := range pkg.Imports() {
+			imp := path.PkgPath()
+			if _, ok := results[imp]; !ok {
+				results[imp] = true
+				imports = append(imports, imp)
+			}
+		}
+	}
+	sort.Strings(imports)
+	hashed := strings.Join(imports, ",")
+	return hashContents([]byte(hashed)), nil
 }
 
 // modRequireErrors extracts the errors that occur on the require directives.
@@ -241,7 +277,7 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 		}
 		return source.Error{
 			Category: ModTidyError,
-			Message:  fmt.Sprintf("%s should be a direct dependency.", req.Mod.Path),
+			Message:  fmt.Sprintf("%s should be a direct dependency", req.Mod.Path),
 			Range:    rng,
 			URI:      uri,
 			SuggestedFixes: []source.SuggestedFix{{
@@ -259,7 +295,7 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 	}
 	return source.Error{
 		Category: ModTidyError,
-		Message:  fmt.Sprintf("%s should be an indirect dependency.", req.Mod.Path),
+		Message:  fmt.Sprintf("%s should be an indirect dependency", req.Mod.Path),
 		Range:    rng,
 		URI:      uri,
 		SuggestedFixes: []source.SuggestedFix{{
@@ -373,4 +409,127 @@ func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Pos
 		return protocol.Range{}, err
 	}
 	return m.Range(span.New(uri, start, end))
+}
+
+// missingModuleErrors returns diagnostics for each file in each workspace
+// package that has dependencies that are not reflected in the go.mod file.
+func missingModuleErrors(ctx context.Context, fset *token.FileSet, modMapper *protocol.ColumnMapper, pkgs []source.Package, missingMods map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
+	for _, pkg := range pkgs {
+		missingPkgs := map[string]*modfile.Require{}
+		for _, imp := range pkg.Imports() {
+			if req, ok := missingMods[imp.PkgPath()]; ok {
+				missingPkgs[imp.PkgPath()] = req
+				break
+			}
+			for dep, req := range missingMods {
+				// If the import is a package of the dependency, then add the
+				// package to the map, this will eliminate the need to do this
+				// prefix package search on each import for each file.
+				// Example:
+				//
+				// import (
+				//   "golang.org/x/tools/go/expect"
+				//   "golang.org/x/tools/go/packages"
+				// )
+				// They both are related to the same module: "golang.org/x/tools".
+				if req != nil && strings.HasPrefix(imp.PkgPath(), dep) {
+					missingPkgs[imp.PkgPath()] = req
+					break
+				}
+			}
+		}
+		if len(missingPkgs) > 0 {
+			errors, err := missingModules(ctx, fset, modMapper, pkg, missingPkgs, options)
+			if err != nil {
+				return nil, err
+			}
+			return errors, nil
+		}
+	}
+	return nil, nil
+}
+
+func missingModules(ctx context.Context, fset *token.FileSet, modMapper *protocol.ColumnMapper, pkg source.Package, missing map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
+	var errors []source.Error
+	for _, pgh := range pkg.CompiledGoFiles() {
+		file, _, m, _, err := pgh.Parse(ctx)
+		if err != nil {
+			return nil, err
+		}
+		imports := make(map[string]*ast.ImportSpec)
+		for _, imp := range file.Imports {
+			if imp.Path == nil {
+				continue
+			}
+			if target, err := strconv.Unquote(imp.Path.Value); err == nil {
+				imports[target] = imp
+			}
+		}
+		if len(imports) == 0 {
+			continue
+		}
+		for mod, req := range missing {
+			if req.Syntax == nil {
+				continue
+			}
+			imp, ok := imports[mod]
+			if !ok {
+				continue
+			}
+			spn, err := span.NewRange(fset, imp.Path.Pos(), imp.Path.End()).Span()
+			if err != nil {
+				return nil, err
+			}
+			rng, err := m.Range(spn)
+			if err != nil {
+				return nil, err
+			}
+			edits, err := addRequireFix(modMapper, req, options)
+			if err != nil {
+				return nil, err
+			}
+			errors = append(errors, source.Error{
+				URI:      pgh.File().URI(),
+				Range:    rng,
+				Message:  fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
+				Category: "go mod tidy",
+				Kind:     source.ModTidyError,
+				SuggestedFixes: []source.SuggestedFix{
+					{
+						Title: "Add %s to your go.mod file",
+						Edits: edits,
+					},
+				},
+			})
+		}
+	}
+	return errors, nil
+}
+
+// addRequireFix creates edits for adding a given require to a go.mod file.
+func addRequireFix(m *protocol.ColumnMapper, req *modfile.Require, options source.Options) (map[span.URI][]protocol.TextEdit, error) {
+	// We need a private copy of the parsed go.mod file, since we're going to
+	// modify it.
+	copied, err := modfile.Parse("", m.Content, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Calculate the quick fix edits that need to be made to the go.mod file.
+	if err := copied.AddRequire(req.Mod.Path, req.Mod.Version); err != nil {
+		return nil, err
+	}
+	copied.SortBlocks()
+	newContents, err := copied.Format()
+	if err != nil {
+		return nil, err
+	}
+	// Calculate the edits to be made due to the change.
+	diff := options.ComputeEdits(m.URI, string(m.Content), string(newContents))
+	edits, err := source.ToProtocolEdits(m, diff)
+	if err != nil {
+		return nil, err
+	}
+	return map[span.URI][]protocol.TextEdit{
+		m.URI: edits,
+	}, nil
 }

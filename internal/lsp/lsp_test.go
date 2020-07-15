@@ -412,7 +412,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		},
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("CodeAction %s failed: %v", spn, err)
 	}
 	// Hack: We assume that we only get one code action per range.
 	// TODO(rstambler): Support multiple code actions per test.
@@ -646,7 +646,6 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 				}
 			}
 		})
-
 	}
 }
 

@@ -345,7 +345,7 @@ type ModWhyHandle interface {
 
 type ModTidyHandle interface {
 	// Tidy returns the results of `go mod tidy` for the module.
-	Tidy(ctx context.Context) (map[string]*modfile.Require, []Error, error)
+	Tidy(ctx context.Context) ([]Error, error)
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")
@@ -487,6 +487,7 @@ const (
 	ListError
 	ParseError
 	TypeError
+	ModTidyError
 	Analysis
 )
 

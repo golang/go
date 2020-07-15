@@ -7,12 +7,13 @@ package lsp
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -51,7 +52,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	switch fh.Kind() {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			modFixes, err := mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)
+			modFixes, err := mod.SuggestedFixes(ctx, snapshot, diagnostics)
 			if err != nil {
 				return nil, err
 			}
@@ -135,9 +136,10 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 				// If there are any diagnostics relating to the go.mod file,
 				// add their corresponding quick fixes.
-				moduleQuickFixes, err := getModuleQuickFixes(ctx, snapshot, diagnostics)
+				moduleQuickFixes, err := mod.SuggestedFixes(ctx, snapshot, diagnostics)
 				if err != nil {
-					return nil, err
+					// Not a fatal error.
+					event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
 				}
 				codeActions = append(codeActions, moduleQuickFixes...)
 			}
@@ -172,47 +174,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	default:
 		// Unsupported file kind for a code action.
 		return nil, nil
-	}
-	return codeActions, nil
-}
-
-var missingRequirementRe = regexp.MustCompile(`(.+) is not in your go.mod file`)
-
-func getModuleQuickFixes(ctx context.Context, snapshot source.Snapshot, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	// Don't bother getting quick fixes if we have no relevant diagnostics.
-	var missingDeps map[string]protocol.Diagnostic
-	for _, diagnostic := range diagnostics {
-		matches := missingRequirementRe.FindStringSubmatch(diagnostic.Message)
-		if len(matches) != 2 {
-			continue
-		}
-		if missingDeps == nil {
-			missingDeps = make(map[string]protocol.Diagnostic)
-		}
-		missingDeps[matches[1]] = diagnostic
-	}
-	if len(missingDeps) == 0 {
-		return nil, nil
-	}
-	// Get suggested fixes for each missing dependency.
-	edits, err := mod.SuggestedGoFixes(ctx, snapshot)
-	if err != nil {
-		return nil, err
-	}
-	var codeActions []protocol.CodeAction
-	for dep, diagnostic := range missingDeps {
-		edit, ok := edits[dep]
-		if !ok {
-			continue
-		}
-		codeActions = append(codeActions, protocol.CodeAction{
-			Title:       fmt.Sprintf("Add %s to go.mod", dep),
-			Diagnostics: []protocol.Diagnostic{diagnostic},
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: []protocol.TextDocumentEdit{edit},
-			},
-			Kind: protocol.QuickFix,
-		})
 	}
 	return codeActions, nil
 }
