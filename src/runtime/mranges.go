@@ -218,7 +218,7 @@ func (a *addrRanges) contains(addr uintptr) bool {
 
 // add inserts a new address range to a.
 //
-// r must not overlap with any address range in a.
+// r must not overlap with any address range in a and r.size() must be > 0.
 func (a *addrRanges) add(r addrRange) {
 	// The copies in this function are potentially expensive, but this data
 	// structure is meant to represent the Go heap. At worst, copying this
@@ -229,6 +229,12 @@ func (a *addrRanges) add(r addrRange) {
 	// of 16) and Go heaps are usually mostly contiguous, so the chance that
 	// an addrRanges even grows to that size is extremely low.
 
+	// An empty range has no effect on the set of addresses represented
+	// by a, but passing a zero-sized range is almost always a bug.
+	if r.size() == 0 {
+		print("runtime: range = {", hex(r.base.addr()), ", ", hex(r.limit.addr()), "}\n")
+		throw("attempted to add zero-sized address range")
+	}
 	// Because we assume r is not currently represented in a,
 	// findSucc gives us our insertion index.
 	i := a.findSucc(r.base.addr())
