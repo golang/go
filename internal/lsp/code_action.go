@@ -6,7 +6,6 @@ package lsp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -330,10 +329,7 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		// The fix depends on the category of the analyzer.
 		switch d.Category {
 		case fillstruct.Analyzer.Name:
-			arg, err := json.Marshal(CommandRangeArgument{
-				URI:   protocol.URIFromSpanURI(d.URI),
-				Range: d.Range,
-			})
+			jsonArgs, err := source.EncodeArgs(d.URI, d.Range)
 			if err != nil {
 				return nil, err
 			}
@@ -341,11 +337,9 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 				Title: d.Message,
 				Kind:  protocol.RefactorRewrite,
 				Command: &protocol.Command{
-					Command: source.CommandFillStruct,
-					Title:   d.Message,
-					Arguments: []interface{}{
-						string(arg),
-					},
+					Command:   source.CommandFillStruct,
+					Title:     d.Message,
+					Arguments: jsonArgs,
 				},
 			}
 			codeActions = append(codeActions, action)

@@ -3,7 +3,6 @@ package mod
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
@@ -60,12 +59,16 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
+		jsonArgs, err := source.EncodeArgs(uri, dep)
+		if err != nil {
+			return nil, err
+		}
 		codelens = append(codelens, protocol.CodeLens{
 			Range: rng,
 			Command: protocol.Command{
 				Title:     fmt.Sprintf("Upgrade dependency to %s", latest),
 				Command:   source.CommandUpgradeDependency,
-				Arguments: []interface{}{uri, dep},
+				Arguments: jsonArgs,
 			},
 		})
 		allUpgrades = append(allUpgrades, dep)
@@ -77,12 +80,16 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
+		jsonArgs, err := source.EncodeArgs(uri, append([]string{"-u"}, allUpgrades...))
+		if err != nil {
+			return nil, err
+		}
 		codelens = append(codelens, protocol.CodeLens{
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "Upgrade all dependencies",
 				Command:   source.CommandUpgradeDependency,
-				Arguments: []interface{}{uri, strings.Join(append([]string{"-u"}, allUpgrades...), " ")},
+				Arguments: jsonArgs,
 			},
 		})
 	}

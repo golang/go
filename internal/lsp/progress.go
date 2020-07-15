@@ -149,14 +149,11 @@ func (s *Server) newProgressWriter(ctx context.Context, title, beginMsg, msg str
 	return mw
 }
 
-// messageWriter implements progressWriter
-// and only tells the user that "go generate"
-// has started through window/showMessage but does not
-// report anything afterwards. This is because each
-// log shows up as a separate window and therefore
-// would be obnoxious to show every incoming line.
-// Request cancellation happens synchronously through
-// the ShowMessageRequest response.
+// messageWriter implements progressWriter and only tells the user that
+// a command has started through window/showMessage, but does not report
+// anything afterwards. This is because each log shows up as a separate window
+// and therefore would be obnoxious to show every incoming line. Request
+// cancellation happens synchronously through the ShowMessageRequest response.
 type messageWriter struct {
 	ctx    context.Context
 	cancel func()

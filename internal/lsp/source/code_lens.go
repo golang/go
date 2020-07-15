@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 )
 
 type lensFunc func(context.Context, Snapshot, FileHandle) ([]protocol.CodeLens, error)
@@ -67,12 +68,16 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		if err != nil {
 			return nil, err
 		}
+		jsonArgs, err := EncodeArgs(fh.URI(), fn.Name.Name)
+		if err != nil {
+			return nil, err
+		}
 		codeLens = append(codeLens, protocol.CodeLens{
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "run test",
 				Command:   CommandTest,
-				Arguments: []interface{}{fn.Name.Name, fh.URI()},
+				Arguments: jsonArgs,
 			},
 		})
 	}
@@ -141,14 +146,22 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 			if err != nil {
 				return nil, err
 			}
-			dir := filepath.Dir(fh.URI().Filename())
+			dir := span.URIFromPath(filepath.Dir(fh.URI().Filename()))
+			nonRecursiveArgs, err := EncodeArgs(dir, false)
+			if err != nil {
+				return nil, err
+			}
+			recursiveArgs, err := EncodeArgs(dir, true)
+			if err != nil {
+				return nil, err
+			}
 			return []protocol.CodeLens{
 				{
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate",
 						Command:   CommandGenerate,
-						Arguments: []interface{}{dir, false},
+						Arguments: nonRecursiveArgs,
 					},
 				},
 				{
@@ -156,7 +169,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 					Command: protocol.Command{
 						Title:     "run go generate ./...",
 						Command:   CommandGenerate,
-						Arguments: []interface{}{dir, true},
+						Arguments: recursiveArgs,
 					},
 				},
 			}, nil
@@ -186,13 +199,17 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	if err != nil {
 		return nil, err
 	}
+	jsonArgs, err := EncodeArgs(fh.URI())
+	if err != nil {
+		return nil, err
+	}
 	return []protocol.CodeLens{
 		{
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "regenerate cgo definitions",
 				Command:   CommandRegenerateCgo,
-				Arguments: []interface{}{fh.URI()},
+				Arguments: jsonArgs,
 			},
 		},
 	}, nil

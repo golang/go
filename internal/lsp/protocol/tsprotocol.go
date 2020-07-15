@@ -4,6 +4,8 @@
 // last fetched Tue Jun 09 2020 11:22:02 GMT-0400 (Eastern Daylight Time)
 package protocol
 
+import "encoding/json"
+
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
 /**
@@ -523,7 +525,7 @@ type Command struct {
 	 * Arguments that the command handler should be
 	 * invoked with.
 	 */
-	Arguments []interface{} `json:"arguments,omitempty"`
+	Arguments []json.RawMessage `json:"arguments,omitempty"`
 }
 
 /**
@@ -1661,7 +1663,7 @@ type ExecuteCommandParams struct {
 	/**
 	 * Arguments that the command should be invoked with.
 	 */
-	Arguments []interface{} `json:"arguments,omitempty"`
+	Arguments []json.RawMessage `json:"arguments,omitempty"`
 	WorkDoneProgressParams
 }
 

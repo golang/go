@@ -16,6 +16,8 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 // Editor is a fake editor client.  It keeps track of client state and can be
@@ -714,9 +716,13 @@ func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 		return nil
 	}
 	absDir := e.sandbox.Workdir.filePath(dir)
+	jsonArgs, err := source.EncodeArgs(span.URIFromPath(absDir), false)
+	if err != nil {
+		return err
+	}
 	params := &protocol.ExecuteCommandParams{
-		Command:   "generate",
-		Arguments: []interface{}{absDir, false},
+		Command:   source.CommandGenerate,
+		Arguments: jsonArgs,
 	}
 	if _, err := e.Server.ExecuteCommand(ctx, params); err != nil {
 		return fmt.Errorf("running generate: %v", err)

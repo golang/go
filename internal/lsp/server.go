@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -91,21 +90,6 @@ type sentDiagnostics struct {
 	sorted       []*source.Diagnostic
 	withAnalysis bool
 	snapshotID   uint64
-}
-
-func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
-	if !ok {
-		return nil, err
-	}
-	switch fh.Kind() {
-	case source.Mod:
-		return mod.CodeLens(ctx, snapshot, fh.URI())
-	case source.Go:
-		return source.CodeLens(ctx, snapshot, fh)
-	}
-	// Unsupported file kind for a code action.
-	return nil, nil
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
