@@ -120,7 +120,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			return
 		}
 		mod := module.Version{Path: m.Path, Version: m.Version}
-		m.Zip, err = modfetch.DownloadZip(mod)
+		m.Zip, err = modfetch.DownloadZip(ctx, mod)
 		if err != nil {
 			m.Error = err.Error()
 			return
