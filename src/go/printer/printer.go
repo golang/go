@@ -1272,11 +1272,12 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 type Mode uint
 
 const (
-	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
-	TabIndent                  // use tabs for indentation independent of UseSpaces
-	UseSpaces                  // use spaces instead of tabs for alignment
-	SourcePos                  // emit //line directives to preserve original source positions
-	StdFormat                  // apply standard formatting changes (exact byte output may change between versions of Go)
+	RawFormat   Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
+	TabIndent                    // use tabs for indentation independent of UseSpaces
+	UseSpaces                    // use spaces instead of tabs for alignment
+	SourcePos                    // emit //line directives to preserve original source positions
+	StdFormat                    // apply standard formatting changes (exact byte output may change between versions of Go)
+	UseBrackets                  // use square brackets instead of parentheses for type parameters
 )
 
 // A Config node controls the output of Fprint.
@@ -1349,6 +1350,9 @@ type CommentedNode struct {
 // or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+	if file, _ := node.(*ast.File); file != nil && file.UseBrackets {
+		cfg.Mode |= UseBrackets
+	}
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 

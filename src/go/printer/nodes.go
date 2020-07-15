@@ -320,7 +320,11 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 }
 
 func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
-	p.print(fields.Opening, token.LPAREN)
+	openTok, closeTok := token.LPAREN, token.RPAREN
+	if isTypeParam && p.Mode&UseBrackets != 0 {
+		openTok, closeTok = token.LBRACK, token.RBRACK
+	}
+	p.print(fields.Opening, openTok)
 	if isTypeParam {
 		p.print(token.TYPE)
 	}
@@ -366,7 +370,18 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 			}
 			// parameter type
 			if par.Type != nil {
-				p.expr(stripParensAlways(par.Type))
+				typ := stripParensAlways(par.Type)
+				// If we don't have a parameter name and the parameter type is an
+				// instantiated type (using parentheses), then we need to parenthesize
+				// the type otherwise it is interpreted as a parameter name followed
+				// by a parenthesized type name.
+				if _, ok := typ.(*ast.CallExpr); ok && len(par.Names) == 0 {
+					p.print(token.LPAREN)
+					p.expr(typ)
+					p.print(token.RPAREN)
+				} else {
+					p.expr(typ)
+				}
 			}
 			prevLine = parLineEnd
 		}
@@ -381,7 +396,7 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 			p.print(unindent)
 		}
 	}
-	p.print(fields.Closing, token.RPAREN)
+	p.print(fields.Closing, closeTok)
 }
 
 func (p *printer) signature(sig *ast.FuncType) {
@@ -941,6 +956,18 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
 		}
 		p.print(x.Rparen, token.RPAREN)
+		if wasIndented {
+			p.print(unindent)
+		}
+
+	case *ast.InstantiatedType:
+		if len(x.TArgs) > 1 {
+			depth++
+		}
+		wasIndented := p.possibleSelectorExpr(x.Base, token.HighestPrec, depth)
+		p.print(x.Lbrack, token.LBRACK)
+		p.exprList(x.Lbrack, x.TArgs, depth, commaTerm, x.Rbrack, false)
+		p.print(x.Rbrack, token.RBRACK)
 		if wasIndented {
 			p.print(unindent)
 		}
