@@ -1040,7 +1040,6 @@ func (p *parser) parseTypeParams(scope *ast.Scope, closing token.Token) *ast.Fie
 		defer un(trace(p, "TypeParams"))
 	}
 
-	p.expect(token.TYPE)
 	fields := p.parseParameterList(scope, closing, true)
 
 	// determine which form we have (list of type parameters with optional
@@ -1066,6 +1065,9 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 	if acceptTParams {
 		if p.brack && opening.tok == token.LBRACK {
 			// assume [type T](params) syntax
+			if p.tok == token.TYPE {
+				p.next()
+			}
 			tparams = p.parseTypeParams(scope, token.RBRACK)
 			tparams.Opening = opening.pos
 			tparams.Closing = p.expect(token.RBRACK)
@@ -1077,6 +1079,7 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 				p.errorExpected(opening.pos, "'('")
 			}
 			if !p.brack && p.tok == token.TYPE {
+				p.next()
 				tparams = p.parseTypeParams(scope, token.RPAREN)
 				rparen := p.expect(token.RPAREN)
 
@@ -2771,6 +2774,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 		p.next()
 		if p.tok == token.TYPE {
 			// parameterized type
+			p.next()
 			p.brack = true // switch to using []'s instead of ()'s from now on
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope, token.RBRACK)
@@ -2797,6 +2801,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 		p.next()
 		if !p.brack && p.tok == token.TYPE {
 			// parameterized type
+			p.next()
 			p.openScope()
 			tparams := p.parseTypeParams(p.topScope, token.RPAREN)
 			tparams.Opening = lparen

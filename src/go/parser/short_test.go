@@ -87,6 +87,17 @@ var valids = []string{
 	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
 	`package p; type _[type] int; var _ T[chan int]`,
 
+	// optional "type" keyword for generic functions using square brackets
+	`package p; type _[type] int; func _[]()`,
+	`package p; type _[type] int; func _[T]()`,
+	`package p; type _[type] int; func _[T](x T)`,
+	`package p; type _[type] int; func _[T1, T2](x T)`,
+
+	`package p; type _[type] int; func (R) _[]()`,
+	`package p; type _[type] int; func (R[P]) _[T]()`,
+	`package p; type _[type] int; func (_ R[P]) _[T](x T)`,
+	`package p; type _[type] int; func (_ R[P, Q]) _[T1, T2](x T)`,
+
 	// need for parentheses to disambiguate
 	`package p; var _ = [](T(int)){}`,
 	`package p; var _ = [10](T(int)){}`,
