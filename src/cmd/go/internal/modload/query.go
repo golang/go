@@ -19,6 +19,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -77,6 +78,9 @@ func (queryDisabledError) Error() string {
 }
 
 func queryProxy(ctx context.Context, proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
+	defer span.Done()
+
 	if current != "" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
 	}
@@ -403,6 +407,9 @@ func QueryPackage(ctx context.Context, path, query string, allowed func(module.V
 // the main module and only the version "latest", without checking for other
 // possible modules.
 func QueryPattern(ctx context.Context, pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
+	defer span.Done()
+
 	base := pattern
 
 	firstError := func(m *search.Match) error {
@@ -470,7 +477,10 @@ func QueryPattern(ctx context.Context, pattern, query string, allowed func(modul
 	}
 
 	err := modfetch.TryProxies(func(proxy string) error {
-		queryModule := func(path string) (r QueryResult, err error) {
+		queryModule := func(ctx context.Context, path string) (r QueryResult, err error) {
+			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
+			defer span.Done()
+
 			current := findCurrentVersion(path)
 			r.Mod.Path = path
 			r.Rev, err = queryProxy(ctx, proxy, path, query, current, allowed)
@@ -499,7 +509,7 @@ func QueryPattern(ctx context.Context, pattern, query string, allowed func(modul
 		}
 
 		var err error
-		results, err = queryPrefixModules(candidateModules, queryModule)
+		results, err = queryPrefixModules(ctx, candidateModules, queryModule)
 		return err
 	})
 
@@ -543,7 +553,10 @@ type prefixResult struct {
 	err error
 }
 
-func queryPrefixModules(candidateModules []string, queryModule func(path string) (QueryResult, error)) (found []QueryResult, err error) {
+func queryPrefixModules(ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryPrefixModules")
+	defer span.Done()
+
 	// If the path we're attempting is not in the module cache and we don't have a
 	// fetch result cached either, we'll end up making a (potentially slow)
 	// request to the proxy or (often even slower) the origin server.
@@ -556,8 +569,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 	var wg sync.WaitGroup
 	wg.Add(len(candidateModules))
 	for i, p := range candidateModules {
+		ctx := trace.StartGoroutine(ctx)
 		go func(p string, r *result) {
-			r.QueryResult, r.err = queryModule(p)
+			r.QueryResult, r.err = queryModule(ctx, p)
 			wg.Done()
 		}(p, &results[i])
 	}
