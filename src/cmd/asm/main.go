@@ -41,6 +41,7 @@ func main() {
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
 	ctxt.IsAsm = true
+	ctxt.Pkgpath = *flags.Importpath
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
@@ -97,7 +98,7 @@ func main() {
 	}
 	if ok && !*flags.SymABIs {
 		ctxt.NumberSyms()
-		obj.WriteObjFile(ctxt, buf, *flags.Importpath)
+		obj.WriteObjFile(ctxt, buf)
 	}
 	if !ok || diag {
 		if failedFile != "" {

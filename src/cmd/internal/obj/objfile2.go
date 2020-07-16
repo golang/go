@@ -12,13 +12,15 @@ import (
 	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 )
 
 // Entry point of writing new object file.
-func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
+func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
 	debugAsmEmit(ctxt)
 
@@ -27,7 +29,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	w := writer{
 		Writer:  goobj2.NewWriter(b),
 		ctxt:    ctxt,
-		pkgpath: objabi.PathToPrefix(pkgpath),
+		pkgpath: objabi.PathToPrefix(ctxt.Pkgpath),
 	}
 
 	start := b.Offset()
@@ -39,7 +41,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer, pkgpath string) {
 	if ctxt.Flag_shared {
 		flags |= goobj2.ObjFlagShared
 	}
-	if pkgpath == "" {
+	if w.pkgpath == "" {
 		flags |= goobj2.ObjFlagNeedNameExpansion
 	}
 	if ctxt.IsAsm {
@@ -336,17 +338,78 @@ func (w *writer) Hash64(s *LSym) {
 	if !s.ContentAddressable() || len(s.R) != 0 {
 		panic("Hash of non-content-addresable symbol")
 	}
-	var b goobj2.Hash64Type
-	copy(b[:], s.P)
+	b := contentHash64(s)
 	w.Bytes(b[:])
 }
 
 func (w *writer) Hash(s *LSym) {
-	if !s.ContentAddressable() || len(s.R) != 0 { // TODO: currently we don't support content-addressable symbols with relocations
+	if !s.ContentAddressable() {
 		panic("Hash of non-content-addresable symbol")
 	}
-	b := goobj2.HashType(sha1.Sum(s.P))
+	b := w.contentHash(s)
 	w.Bytes(b[:])
+}
+
+func contentHash64(s *LSym) goobj2.Hash64Type {
+	var b goobj2.Hash64Type
+	copy(b[:], s.P)
+	return b
+}
+
+// Compute the content hash for a content-addressable symbol.
+// We build a content hash based on its content and relocations.
+// Depending on the category of the referenced symbol, we choose
+// different hash algorithms such that the hash is globally
+// consistent.
+// - For referenced content-addressable symbol, its content hash
+//   is globally consistent.
+// - For package symbol, its local index is globally consistent.
+// - For non-package symbol, its fully-expanded name is globally
+//   consistent. For now, we require we know the current package
+//   path so we can always expand symbol names. (Otherwise,
+//   symbols with relocations are not considered hashable.)
+//
+// For now, we assume there is no circular dependencies among
+// hashed symbols.
+func (w *writer) contentHash(s *LSym) goobj2.HashType {
+	h := sha1.New()
+	h.Write(s.P)
+	var tmp [14]byte
+	for i := range s.R {
+		r := &s.R[i]
+		binary.LittleEndian.PutUint32(tmp[:4], uint32(r.Off))
+		tmp[4] = r.Siz
+		tmp[5] = uint8(r.Type)
+		binary.LittleEndian.PutUint64(tmp[6:14], uint64(r.Add))
+		h.Write(tmp[:])
+		rs := r.Sym
+		switch rs.PkgIdx {
+		case goobj2.PkgIdxHashed64:
+			h.Write([]byte{0})
+			t := contentHash64(rs)
+			h.Write(t[:])
+		case goobj2.PkgIdxHashed:
+			h.Write([]byte{1})
+			t := w.contentHash(rs)
+			h.Write(t[:])
+		case goobj2.PkgIdxBuiltin:
+			panic("unsupported")
+		case goobj2.PkgIdxNone:
+			h.Write([]byte{2})
+			io.WriteString(h, rs.Name) // name is already expanded at this point
+		case goobj2.PkgIdxSelf:
+			io.WriteString(h, w.pkgpath)
+			binary.LittleEndian.PutUint32(tmp[:4], uint32(rs.SymIdx))
+			h.Write(tmp[:4])
+		default:
+			io.WriteString(h, rs.Pkg)
+			binary.LittleEndian.PutUint32(tmp[:4], uint32(rs.SymIdx))
+			h.Write(tmp[:4])
+		}
+	}
+	var b goobj2.HashType
+	copy(b[:], h.Sum(nil))
+	return b
 }
 
 func makeSymRef(s *LSym) goobj2.SymRef {

@@ -166,7 +166,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	obj.WriteObjFile(Ctxt, bout, myimportpath)
+	obj.WriteObjFile(Ctxt, bout)
 }
 
 func addptabs() {

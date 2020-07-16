@@ -202,8 +202,10 @@ func (ctxt *Link) NumberSyms() {
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if s.ContentAddressable() && len(s.R) == 0 { // TODO: currently we don't support content-addressable symbols with relocations
-			if len(s.P) <= 8 {
+		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+		// may reference named symbols whose names are not fully expanded.
+		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+			if len(s.P) <= 8 && len(s.R) == 0 { // we can use short hash only for symbols without relocations
 				s.PkgIdx = goobj2.PkgIdxHashed64
 				s.SymIdx = hashed64idx
 				if hashed64idx != int32(len(ctxt.hashed64defs)) {
