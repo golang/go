@@ -39,7 +39,7 @@ import "example.com/blah"
 func main() {
 	fmt.Println(blah.Name)
 }`
-	runner.Run(t, untidyModule, func(t *testing.T, env *Env) {
+	withOptions(WithProxy(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
 		// Open the file and make sure that the initial workspace load does not
 		// modify the go.mod file.
 		goModContent := env.ReadWorkspaceFile("go.mod")
@@ -59,7 +59,7 @@ func main() {
 		if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
 			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
 		}
-	}, WithProxy(proxy))
+	})
 }
 
 func TestIndirectDependencyFix(t *testing.T) {

@@ -27,6 +27,22 @@ var (
 
 var runner *Runner
 
+func run(t *testing.T, files string, f TestFunc) {
+	runner.Run(t, files, f)
+}
+
+func withOptions(opts ...RunOption) configuredRunner {
+	return configuredRunner{opts: opts}
+}
+
+type configuredRunner struct {
+	opts []RunOption
+}
+
+func (r configuredRunner) run(t *testing.T, files string, f TestFunc) {
+	runner.Run(t, files, f, r.opts...)
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if os.Getenv("_GOPLS_TEST_BINARY_RUN_AS_GOPLS") == "true" {

@@ -140,10 +140,12 @@ func InGOPATH() RunOption {
 	})
 }
 
+type TestFunc func(t *testing.T, env *Env)
+
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
-func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *Env), opts ...RunOption) {
+func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOption) {
 	t.Helper()
 	config := r.defaultConfig()
 	for _, opt := range opts {
