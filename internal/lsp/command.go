@@ -10,6 +10,8 @@ import (
 	"io"
 	"strings"
 
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -57,7 +59,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		go s.runGenerate(xcontext.Detach(ctx), dir, recursive)
+		go s.runGoGenerate(xcontext.Detach(ctx), dir, recursive)
 	case source.CommandRegenerateCgo:
 		mod := source.FileModification{
 			URI:    protocol.DocumentURI(params.Arguments[0].(string)).SpanURI(),
@@ -104,7 +106,8 @@ func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, funcName
 	defer cancel()
 
 	ew := &eventWriter{ctx: ctx, operation: "test"}
-	wc := s.newProgressWriter(ctx, "test", "running "+funcName, cancel)
+	msg := fmt.Sprintf("testing %s", funcName)
+	wc := s.newProgressWriter(ctx, "test", msg, msg, cancel)
 	defer wc.Close()
 
 	messageType := protocol.Info
@@ -122,6 +125,42 @@ func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, funcName
 		Type:    messageType,
 		Message: message,
 	})
+}
+
+// GenerateWorkDoneTitle is the title used in progress reporting for go
+// generate commands. It is exported for testing purposes.
+const GenerateWorkDoneTitle = "generate"
+
+func (s *Server) runGoGenerate(ctx context.Context, dir string, recursive bool) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	er := &eventWriter{ctx: ctx, operation: "generate"}
+	wc := s.newProgressWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", cancel)
+	defer wc.Close()
+	args := []string{"-x"}
+	if recursive {
+		args = append(args, "./...")
+	}
+
+	stderr := io.MultiWriter(er, wc)
+	uri := span.URIFromPath(dir)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return err
+	}
+	snapshot := view.Snapshot()
+	if err := snapshot.RunGoCommandPiped(ctx, "generate", args, er, stderr); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		event.Error(ctx, "generate: command error", err, tag.Directory.Of(uri.Filename()))
+		return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Error,
+			Message: "go generate exited with an error, check gopls logs",
+		})
+	}
+	return nil
 }
 
 func getRunTestArguments(args []interface{}) (string, span.URI, error) {

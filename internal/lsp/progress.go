@@ -7,10 +7,12 @@ package lsp
 import (
 	"context"
 	"errors"
+	"io"
 	"math/rand"
 	"strconv"
 
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -120,4 +122,91 @@ func (wd *WorkDone) End(ctx context.Context, message string) error {
 		wd.cleanup()
 	}
 	return err
+}
+
+// eventWriter writes every incoming []byte to
+// event.Print with the operation=generate tag
+// to distinguish its logs from others.
+type eventWriter struct {
+	ctx       context.Context
+	operation string
+}
+
+func (ew *eventWriter) Write(p []byte) (n int, err error) {
+	event.Log(ew.ctx, string(p), tag.Operation.Of(ew.operation))
+	return len(p), nil
+}
+
+// newProgressWriter returns an io.WriterCloser that can be used
+// to report progress on a command based on the client capabilities.
+func (s *Server) newProgressWriter(ctx context.Context, title, beginMsg, msg string, cancel func()) io.WriteCloser {
+	if s.supportsWorkDoneProgress {
+		wd := s.StartWork(ctx, title, beginMsg, cancel)
+		return &workDoneWriter{ctx, wd}
+	}
+	mw := &messageWriter{ctx, cancel, s.client}
+	mw.start(msg)
+	return mw
+}
+
+// messageWriter implements progressWriter
+// and only tells the user that "go generate"
+// has started through window/showMessage but does not
+// report anything afterwards. This is because each
+// log shows up as a separate window and therefore
+// would be obnoxious to show every incoming line.
+// Request cancellation happens synchronously through
+// the ShowMessageRequest response.
+type messageWriter struct {
+	ctx    context.Context
+	cancel func()
+	client protocol.Client
+}
+
+func (lw *messageWriter) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func (lw *messageWriter) start(msg string) {
+	go func() {
+		const cancel = "Cancel"
+		item, err := lw.client.ShowMessageRequest(lw.ctx, &protocol.ShowMessageRequestParams{
+			Type:    protocol.Log,
+			Message: msg,
+			Actions: []protocol.MessageActionItem{{
+				Title: "Cancel",
+			}},
+		})
+		if err != nil {
+			event.Error(lw.ctx, "error sending message request", err)
+			return
+		}
+		if item != nil && item.Title == "Cancel" {
+			lw.cancel()
+		}
+	}()
+}
+
+func (lw *messageWriter) Close() error {
+	return lw.client.ShowMessage(lw.ctx, &protocol.ShowMessageParams{
+		Type:    protocol.Info,
+		Message: "go generate has finished",
+	})
+}
+
+// workDoneWriter implements progressWriter by sending $/progress notifications
+// to the client. Request cancellations happens separately through the
+// window/workDoneProgress/cancel request, in which case the given context will
+// be rendered done.
+type workDoneWriter struct {
+	ctx context.Context
+	wd  *WorkDone
+}
+
+func (wdw *workDoneWriter) Write(p []byte) (n int, err error) {
+	return len(p), wdw.wd.Progress(wdw.ctx, string(p), 0)
+}
+
+func (wdw *workDoneWriter) Close() error {
+	return wdw.wd.End(wdw.ctx, "finished")
 }
