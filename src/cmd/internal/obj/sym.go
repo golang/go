@@ -202,7 +202,7 @@ func (ctxt *Link) NumberSyms() {
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if s.ContentAddressable() {
+		if s.ContentAddressable() && len(s.R) == 0 { // TODO: currently we don't support content-addressable symbols with relocations
 			if len(s.P) <= 8 {
 				s.PkgIdx = goobj2.PkgIdxHashed64
 				s.SymIdx = hashed64idx

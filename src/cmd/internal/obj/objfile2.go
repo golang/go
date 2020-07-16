@@ -333,7 +333,7 @@ func (w *writer) Sym(s *LSym) {
 }
 
 func (w *writer) Hash64(s *LSym) {
-	if !s.ContentAddressable() {
+	if !s.ContentAddressable() || len(s.R) != 0 {
 		panic("Hash of non-content-addresable symbol")
 	}
 	var b goobj2.Hash64Type
@@ -342,7 +342,7 @@ func (w *writer) Hash64(s *LSym) {
 }
 
 func (w *writer) Hash(s *LSym) {
-	if !s.ContentAddressable() {
+	if !s.ContentAddressable() || len(s.R) != 0 { // TODO: currently we don't support content-addressable symbols with relocations
 		panic("Hash of non-content-addresable symbol")
 	}
 	b := goobj2.HashType(sha1.Sum(s.P))
