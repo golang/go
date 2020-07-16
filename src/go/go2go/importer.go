@@ -61,7 +61,7 @@ type Importer struct {
 
 	// Record whether files seen so far use square brackets rather
 	// than parentheses for generics.
-	useBrackets bool
+	UseBrackets bool
 }
 
 var _ types.ImporterFrom = &Importer{}

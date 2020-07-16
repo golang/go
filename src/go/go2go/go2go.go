@@ -221,7 +221,7 @@ func parseFiles(importer *Importer, dir string, go2files []string, fset *token.F
 	pkgs := make(map[string]*ast.Package)
 	for _, go2f := range go2files {
 		var mode parser.Mode
-		if importer.useBrackets {
+		if importer.UseBrackets {
 			mode = parser.UseBrackets
 		}
 
@@ -242,7 +242,7 @@ func parseFiles(importer *Importer, dir string, go2files []string, fset *token.F
 		}
 		pkg.Files[filename] = pf
 		if pf.UseBrackets {
-			importer.useBrackets = true
+			importer.UseBrackets = true
 		}
 	}
 
