@@ -49,16 +49,18 @@ type LineTable struct {
 	version version
 
 	// Go 1.2/1.16 state
-	binary   binary.ByteOrder
-	quantum  uint32
-	ptrsize  uint32
-	funcdata []byte
-	functab  []byte
-	nfunctab uint32
-	filetab  []byte
-	nfiletab uint32
-	fileMap  map[string]uint32
-	strings  map[uint32]string // interned substrings of Data, keyed by offset
+	binary      binary.ByteOrder
+	quantum     uint32
+	ptrsize     uint32
+	funcnametab []byte
+	funcdata    []byte
+	functab     []byte
+	nfunctab    uint32
+	filetab     []byte
+	nfiletab    uint32
+	fileMap     map[string]uint32
+	funcNames   map[uint32]string // cache the function names
+	strings     map[uint32]string // interned substrings of Data, keyed by offset
 }
 
 // NOTE(rsc): This is wrong for GOARCH=arm, which uses a quantum of 4,
@@ -139,7 +141,7 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 // Text must be the start address of the
 // corresponding text segment.
 func NewLineTable(data []byte, text uint64) *LineTable {
-	return &LineTable{Data: data, PC: text, Line: 0, strings: make(map[uint32]string)}
+	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
 }
 
 // Go 1.2 symbol table format.
@@ -222,6 +224,8 @@ func (t *LineTable) parsePclnTab() {
 	case ver116:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
 		offset := t.uintptr(t.Data[8+t.ptrsize:])
+		t.funcnametab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+2*t.ptrsize:])
 		t.funcdata = t.Data[offset:]
 		t.functab = t.Data[offset:]
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
@@ -233,6 +237,7 @@ func (t *LineTable) parsePclnTab() {
 	case ver12:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
 		t.funcdata = t.Data
+		t.funcnametab = t.Data
 		t.functab = t.Data[8+t.ptrsize:]
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
 		fileoff := t.binary.Uint32(t.functab[functabsize:])
@@ -265,7 +270,7 @@ func (t *LineTable) go12Funcs() []Func {
 		f.Sym = &Sym{
 			Value:  f.Entry,
 			Type:   'T',
-			Name:   t.string(t.binary.Uint32(info[t.ptrsize:])),
+			Name:   t.funcName(t.binary.Uint32(info[t.ptrsize:])),
 			GoType: 0,
 			Func:   f,
 		}
@@ -312,6 +317,17 @@ func (t *LineTable) readvarint(pp *[]byte) uint32 {
 	}
 	*pp = p
 	return v
+}
+
+// funcName returns the name of the function found at off.
+func (t *LineTable) funcName(off uint32) string {
+	if s, ok := t.funcNames[off]; ok {
+		return s
+	}
+	i := bytes.IndexByte(t.funcnametab[off:], 0)
+	s := string(t.funcnametab[off : off+uint32(i)])
+	t.funcNames[off] = s
+	return s
 }
 
 // string returns a Go string found at off.

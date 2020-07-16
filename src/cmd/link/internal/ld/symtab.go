@@ -609,6 +609,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
 	// The pcHeader
 	moduledata.AddAddr(ctxt.Arch, pcln.pcheader)
+	// The function name slice
+	moduledata.AddAddr(ctxt.Arch, pcln.funcnametab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
 	// The pclntab slice
 	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))

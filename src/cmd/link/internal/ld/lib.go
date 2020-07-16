@@ -2367,14 +2367,19 @@ const (
 	DeletedAutoSym = 'x'
 )
 
-func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) loader.Sym {
-	ldr := ctxt.loader
-	s := ldr.CreateSymForUpdate(p, 0)
+// defineInternal defines a symbol used internally by the go runtime.
+func (ctxt *Link) defineInternal(p string, t sym.SymKind) loader.Sym {
+	s := ctxt.loader.CreateSymForUpdate(p, 0)
 	s.SetType(t)
-	s.SetValue(v)
 	s.SetSpecial(true)
 	s.SetLocal(true)
 	return s.Sym()
+}
+
+func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) loader.Sym {
+	s := ctxt.defineInternal(p, t)
+	ctxt.loader.SetSymValue(s, v)
+	return s
 }
 
 func datoff(ldr *loader.Loader, s loader.Sym, addr int64) int64 {
