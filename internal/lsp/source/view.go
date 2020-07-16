@@ -285,6 +285,9 @@ type Cache interface {
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
+	// GetFile returns a file handle for the given URI.
+	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+
 	// ParseGoHandle returns a ParseGoHandle for the given file handle.
 	ParseGoHandle(ctx context.Context, fh FileHandle, mode ParseMode) ParseGoHandle
 }

@@ -237,7 +237,10 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	if snapshot == nil {
 		return errors.Errorf("no snapshot for %s", uri)
 	}
-	fh, err := snapshot.GetFile(ctx, uri)
+	// Check if the file exists on disk after it has been closed. Calling
+	// snapshot.GetFile will add it back to the snapshot even if it doesn't
+	// exist, which will cause problems.
+	fh, err := snapshot.View().Session().Cache().GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}

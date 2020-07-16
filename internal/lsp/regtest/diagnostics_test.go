@@ -211,6 +211,7 @@ func TestRmTest38878Close(t *testing.T) {
 		env.Await(EmptyDiagnostics("a_test.go"))
 	})
 }
+
 func TestRmTest38878(t *testing.T) {
 	log.SetFlags(log.Lshortfile)
 	runner.Run(t, test38878, func(t *testing.T, env *Env) {
@@ -1005,6 +1006,35 @@ func main() {
 			OnceMet(
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
 				NoDiagnostics("foo/foo.go"),
+			),
+		)
+	})
+}
+
+func TestClosingBuffer(t *testing.T) {
+	const basic = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main.go --
+package main
+
+func main() {}
+`
+	runner.Run(t, basic, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.Editor.OpenFileWithContent(env.Ctx, "foo.go", `package main`)
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+		)
+		env.CloseBuffer("foo.go")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidClose), 1),
+				NoLogMatching(protocol.Info, "packages=0"),
 			),
 		)
 	})
