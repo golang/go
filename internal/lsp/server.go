@@ -23,10 +23,11 @@ const concurrentAnalyses = 1
 // messages on on the supplied stream.
 func NewServer(session source.Session, client protocol.Client) *Server {
 	return &Server{
-		delivered:       make(map[span.URI]sentDiagnostics),
-		session:         session,
-		client:          client,
-		diagnosticsSema: make(chan struct{}, concurrentAnalyses),
+		delivered:            make(map[span.URI]sentDiagnostics),
+		gcOptimizatonDetails: make(map[span.URI]bool),
+		session:              session,
+		client:               client,
+		diagnosticsSema:      make(chan struct{}, concurrentAnalyses),
 	}
 }
 
@@ -72,6 +73,10 @@ type Server struct {
 	// delivered is a cache of the diagnostics that the server has sent.
 	deliveredMu sync.Mutex
 	delivered   map[span.URI]sentDiagnostics
+
+	// gcOptimizationDetails describes which packages we want optimization details
+	// included in the diagnostics. The key is the directory of the package.
+	gcOptimizatonDetails map[span.URI]bool
 
 	// diagnosticsSema limits the concurrency of diagnostics runs, which can be expensive.
 	diagnosticsSema chan struct{}

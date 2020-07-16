@@ -86,14 +86,24 @@ Example Usage:
 ### **codelens** *map[string]bool*
 
 Overrides the enabled/disabled state of various code lenses. Currently, we
-support two code lenses:
+support several code lenses:
 
 * `generate`: [default: enabled] run `go generate` as specified by a `//go:generate` directive.
-* `upgrade.dependency`: [default: enabled] upgrade a dependency listed in a `go.mod` file.
+* `upgrade_dependency`: [default: enabled] upgrade a dependency listed in a `go.mod` file.
 * `test`: [default: disabled] run `go test -run` for a test func.
+* `gc_details`: [default: disabled] Show the gc compiler's choices for inline analysis and escaping.
 
-By default, both of these code lenses are enabled.
-
+Example Usage:
+```json5
+"gopls": {
+...
+  "codelens": {
+    "generate": false,  // Don't run `go generate`.
+    "gc_details": true  // Show a code lens toggling the display of gc's choices.
+  }
+...
+}
+```
 ### **completionDocumentation** *boolean*
 
 If false, indicates that the user does not want documentation with completion results.

@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
 	"golang.org/x/xerrors"
 )
@@ -115,16 +117,32 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		go func(pkg source.Package) {
 			defer wg.Done()
 
+			detailsDir := ""
 			// Only run analyses for packages with open files.
 			withAnalysis := alwaysAnalyze
 			for _, pgf := range pkg.CompiledGoFiles() {
 				if snapshot.IsOpen(pgf.URI) {
 					withAnalysis = true
-					break
+				}
+				if detailsDir == "" {
+					dir := filepath.Dir(pgf.URI.Filename())
+					if s.gcOptimizatonDetails[span.URI(dir)] {
+						detailsDir = dir
+					}
 				}
 			}
 
 			pkgReports, warn, err := source.Diagnostics(ctx, snapshot, pkg, withAnalysis)
+			if detailsDir != "" {
+				var more map[source.FileIdentity][]*source.Diagnostic
+				more, err = source.DoGcDetails(ctx, snapshot, detailsDir)
+				if err != nil {
+					event.Error(ctx, "warning: gcdetails", err, tag.Snapshot.Of(snapshot.ID()))
+				}
+				for k, v := range more {
+					pkgReports[k] = append(pkgReports[k], v...)
+				}
+			}
 
 			// Check if might want to warn the user about their build configuration.
 			// Our caller decides whether to send the message.

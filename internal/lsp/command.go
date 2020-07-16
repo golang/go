@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 
 	"golang.org/x/tools/internal/event"
@@ -50,8 +51,9 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 	}
 	if unsaved {
-		switch command {
-		case source.CommandTest, source.CommandGenerate:
+		switch params.Command {
+		case source.CommandTest.Name, source.CommandGenerate.Name, source.CommandToggleDetails.Name:
+			// TODO(PJW): for Toggle, not an error if it is being disabled
 			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf("cannot run command %s: unsaved files in the view", params.Command),
@@ -145,6 +147,29 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		return nil, err
 	default:
 		return nil, fmt.Errorf("unknown command: %s", params.Command)
+	case source.CommandToggleDetails:
+		var fileURI span.URI
+		if err := source.UnmarshalArgs(params.Arguments, &fileURI); err != nil {
+			return nil, err
+		}
+		pkgDir := span.URI(path.Dir(fileURI.Filename()))
+		s.deliveredMu.Lock()
+		if s.gcOptimizatonDetails[pkgDir] {
+			delete(s.gcOptimizatonDetails, pkgDir)
+		} else {
+			s.gcOptimizatonDetails[pkgDir] = true
+		}
+		event.Log(ctx, fmt.Sprintf("PJW details %s now %v %v", pkgDir, s.gcOptimizatonDetails[pkgDir],
+			s.gcOptimizatonDetails))
+		s.deliveredMu.Unlock()
+		// need to recompute diagnostics.
+		// so find the snapshot
+		sv, err := s.session.ViewOf(fileURI)
+		if err != nil {
+			return nil, err
+		}
+		s.diagnoseSnapshot(sv.Snapshot())
+		return nil, nil
 	}
 	return nil, nil
 }

@@ -23,6 +23,7 @@ var lensFuncs = map[string]lensFunc{
 	CommandGenerate.Name:      goGenerateCodeLens,
 	CommandTest.Name:          runTestCodeLens,
 	CommandRegenerateCgo.Name: regenerateCgoLens,
+	CommandToggleDetails.Name: toggleDetailsCodeLens,
 }
 
 // CodeLens computes code lens for Go source code.
@@ -216,6 +217,29 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 			Command: protocol.Command{
 				Title:     "regenerate cgo definitions",
 				Command:   CommandRegenerateCgo.Name,
+				Arguments: jsonArgs,
+			},
+		},
+	}, nil
+}
+
+func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
+	_, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackage)
+	fset := snapshot.View().Session().Cache().FileSet()
+	rng, err := newMappedRange(fset, pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
+	if err != nil {
+		return nil, err
+	}
+	jsonArgs, err := MarshalArgs(fh.URI())
+	if err != nil {
+		return nil, err
+	}
+	return []protocol.CodeLens{
+		{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "Toggle gc annotation details",
+				Command:   CommandToggleDetails.Name,
 				Arguments: jsonArgs,
 			},
 		},

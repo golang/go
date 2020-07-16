@@ -53,6 +53,7 @@ var Commands = []*Command{
 	CommandVendor,
 	CommandExtractVariable,
 	CommandExtractFunction,
+	CommandToggleDetails,
 }
 
 var (
@@ -84,6 +85,11 @@ var (
 	// CommandRegenerateCgo regenerates cgo definitions.
 	CommandRegenerateCgo = &Command{
 		Name: "regenerate_cgo",
+	}
+
+	// CommandToggleDetails controls calculation of gc annotations.
+	CommandToggleDetails = &Command{
+		Name: "gc_details",
 	}
 
 	// CommandFillStruct is a gopls command to fill a struct with default

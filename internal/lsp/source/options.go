@@ -102,6 +102,7 @@ func DefaultOptions() Options {
 				CommandGenerate.Name:          true,
 				CommandUpgradeDependency.Name: true,
 				CommandRegenerateCgo.Name:     true,
+				CommandToggleDetails.Name:     false,
 			},
 		},
 		DebuggingOptions: DebuggingOptions{
