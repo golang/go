@@ -1360,7 +1360,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 	}
 
 	eaddr := int32(sect.Vaddr + sect.Length)
-	for _, s := range syms {
+	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
 		}
@@ -1368,7 +1368,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			break
 		}
 		for ri := range s.R {
-			r := &s.R[ri]
+			r := &syms[i].R[ri]
 			if r.Done {
 				continue
 			}
