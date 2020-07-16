@@ -75,10 +75,11 @@ var ErrNoIdentFound = errors.New("no identifier found")
 func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
-	if s.View().Options().ImportShortcut.ShowDefinition() {
-		if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
+	if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
+		if s.View().Options().ImportShortcut.ShowDefinition() {
 			return result, err
 		}
+		return nil, nil
 	}
 	path := pathEnclosingObjNode(file, pos)
 	if path == nil {
