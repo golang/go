@@ -8,14 +8,14 @@ package main
 
 import "fmt"
 
-func Print(type T)(s []T) {
+func Print[type T](s []T) {
 	for _, v := range s {
 		fmt.Println(v)
 	}
 }
 
 func PrintInts(s []int) {
-	Print(int)(s)
+	Print[int](s)
 }
 
 func main() {

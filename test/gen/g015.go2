@@ -6,7 +6,7 @@
 
 package p
 
-func F1(type T)(x T) {}
+func F1[type T](x T) {}
 
 func F2(c <-chan int) {
 	F1(c)

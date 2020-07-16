@@ -6,17 +6,17 @@
 
 package main
 
-type T(type A) struct {
+type T[type A] struct {
 	V A
 }
 
 type S1 struct {
-	(T(int))
+	T[int]
 	V string
 }
 
-type Tint = T(int)
-type Tbool = T(bool)
+type Tint = T[int]
+type Tbool = T[bool]
 
 type S2 struct {
 	Tint
@@ -25,7 +25,7 @@ type S2 struct {
 }
 
 type S3 struct {
-	*T(int)
+	*T[int]
 }
 
 func main() {

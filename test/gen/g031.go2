@@ -7,7 +7,7 @@
 // Issue 39737.
 package p
 
-func F1(type T)() {}
+func F1[type T]() {}
 
 func F2() {
 	F1(struct { F string `json:"f"` })()

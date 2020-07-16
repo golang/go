@@ -6,9 +6,9 @@
 
 package main
 
-type Gen(type A) func() (A, bool)
+type Gen[type A] func() (A, bool)
 
-func combine(type T1, T2, T)(g1 Gen(T1), g2 Gen(T2), join func(T1, T2) T) Gen(T) {
+func combine[type T1, T2, T](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T] {
     return func() (T, bool) {
         var t T
         t1, ok := g1()
@@ -23,21 +23,21 @@ func combine(type T1, T2, T)(g1 Gen(T1), g2 Gen(T2), join func(T1, T2) T) Gen(T)
     }
 }
 
-type Pair(type A, B) struct {
+type Pair[type A, B] struct {
 	A A
 	B B
 }
 
-func NewPair(type A, B)(a A, b B) Pair(A, B) { return Pair(A, B){a, b} }
+func NewPair[type A, B](a A, b B) Pair[A, B] { return Pair[A, B]{a, b} }
 
-func Combine2(type A, B)(ga Gen(A), gb Gen(B)) Gen(Pair(A, B)) {
+func Combine2[type A, B](ga Gen[A], gb Gen[B]) Gen[Pair[A, B]] {
     return combine(ga, gb, NewPair(A, B))
 }
 
 func main() {
-	var g1 Gen(int) = func() (int, bool) { return 3, true }
-	var g2 Gen(string) = func() (string, bool) { return "x", false }
-	gc := combine(g1, g2, NewPair(int, string))
+	var g1 Gen[int] = func() (int, bool) { return 3, true }
+	var g2 Gen[string] = func() (string, bool) { return "x", false }
+	gc := combine(g1, g2, NewPair[int, string])
 	gc2 := Combine2(g1, g2)
 	if got, ok := gc(); ok {
 		panic(got)

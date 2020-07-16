@@ -9,13 +9,13 @@ package p
 
 type E struct{}
 
-type N(type T) struct {
+type N[type T] struct {
 	i int
 	n T
 }
 
-func F1(type T)(i int, n T) N(T) {
-	return N(T){i: i, n: n}
+func F1[type T](i int, n T) N[T] {
+	return N[T]{i: i, n: n}
 }
 
 func F2() {

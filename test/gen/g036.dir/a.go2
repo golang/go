@@ -4,10 +4,10 @@
 
 package a
 
-type S(type T) struct {
+type S[type T] struct {
 	F T
 }
 
-func NewS(type T)(v T) S(T) {
-	return S(T){F: v}
+func NewS[type T](v T) S[T] {
+	return S[T]{F: v}
 }

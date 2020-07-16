@@ -9,7 +9,7 @@ package p
 
 import "net/http"
 
-func F1(type T)(f func() T) { f() }
+func F1[type T](f func() T) { f() }
 
 func F2() {
 	F1(func() *http.Request { return nil })

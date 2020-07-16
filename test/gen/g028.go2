@@ -7,8 +7,8 @@
 // Issue 39688.
 package p
 
-type S(type T) T
+type S[type T] T
 
-func (*S(T)) M() {}
+func (*S[T]) M() {}
 
-var V S(int)
+var V S[int]

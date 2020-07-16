@@ -9,7 +9,7 @@ package main
 
 import "io/ioutil"
 
-func F(type T1, T2)(f func(T1) (T2, error)) {}
+func F[type T1, T2](f func(T1) (T2, error)) {}
 
 func main() {
 	F(ioutil.ReadAll)

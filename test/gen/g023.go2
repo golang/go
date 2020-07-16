@@ -8,10 +8,10 @@ package p
 
 import "net/url"
 
-type S(type T) struct {
+type S[type T] struct {
 	f T
 }
 
-func F() S(url.Error) {
-	return S(url.Error){}
+func F() S[url.Error] {
+	return S[url.Error]{}
 }

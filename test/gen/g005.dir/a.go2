@@ -4,13 +4,13 @@
 
 package a
 
-type Stack(type E) []E
+type Stack[type E] []E
 
-func (s *Stack(E)) Push(e E) {
+func (s *Stack[E]) Push(e E) {
 	*s = append(*s, e)
 }
 
-func (s *Stack(E)) Pop() (E, bool) {
+func (s *Stack[E]) Pop() (E, bool) {
 	l := len(*s)
 	if l == 0 {
 		var zero E
@@ -21,10 +21,10 @@ func (s *Stack(E)) Pop() (E, bool) {
 	return r, true
 }
 
-func (s *Stack(E)) IsEmpty() bool {
+func (s *Stack[E]) IsEmpty() bool {
 	return len(*s) == 0
 }
 
-func (s *Stack(E)) Len() int {
+func (s *Stack[E]) Len() int {
 	return len(*s)
 }

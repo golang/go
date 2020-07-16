@@ -13,7 +13,7 @@ func (*S1) M() {}
 type S2 struct{}
 func (S2) M() {}
 
-func F1(type T interface{ M() })(t T) {
+func F1[type T interface{ M() }](t T) {
 	_ = T.M
 }
 

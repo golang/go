@@ -4,7 +4,7 @@
 
 package main
 
-func Len(type T)(s []T) int {
+func Len[type T](s []T) int {
 	return len(s)
 }
 

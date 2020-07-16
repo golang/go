@@ -6,24 +6,24 @@
 
 package p
 
-type top(type T, T2) struct {
-	p *parent(T, T2)
+type top[type T, T2] struct {
+	p *parent[T, T2]
 }
 
-type parent(type T, T2) struct {
-	(child(T, T2))
+type parent[type T, T2] struct {
+	child[T, T2]
 }
 
-type child(type T, T2) struct {
+type child[type T, T2] struct {
 	T2
 }
 
-func (d *top(T, T2)) foo() *T {
+func (d *top[T, T2]) foo() *T {
 	return d.p.child.foo()
 }
 
-func (rb *child(T, T2)) foo() *T {
+func (rb *child[T, T2]) foo() *T {
 	return nil
 }
 
-var V top(int, int)
+var V top[int, int]

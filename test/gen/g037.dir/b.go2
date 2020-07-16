@@ -7,5 +7,5 @@ package main
 import "./a"
 
 func main() {
-	a.G(int)()
+	a.G[int]()
 }

@@ -16,14 +16,14 @@ type Numeric interface {
 }
 
 // NumericAbs matches numeric types with an Abs method.
-type NumericAbs(type T) interface {
+type NumericAbs[type T] interface {
 	Numeric
 	Abs() T
 }
 
 // AbsDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
-func AbsDifference(type T NumericAbs)(a, b T) T {
+func AbsDifference[type T NumericAbs](a, b T) T {
 	d := a - b
 	return d.Abs()
 }
@@ -42,9 +42,9 @@ type Complex interface {
 
 // OrderedAbs is a helper type that defines an Abs method for
 // ordered numeric types.
-type OrderedAbs(type T OrderedNumeric) T
+type OrderedAbs[type T OrderedNumeric] T
 
-func (a OrderedAbs(T)) Abs() OrderedAbs(T) {
+func (a OrderedAbs[T]) Abs() OrderedAbs[T] {
 	if a < 0 {
 		return -a
 	}
@@ -53,9 +53,9 @@ func (a OrderedAbs(T)) Abs() OrderedAbs(T) {
 
 // ComplexAbs is a helper type that defines an Abs method for
 // complex types.
-type ComplexAbs(type T Complex) T
+type ComplexAbs[type T Complex] T
 
-func (a ComplexAbs(T)) Abs() ComplexAbs(T) {
+func (a ComplexAbs[T]) Abs() ComplexAbs[T] {
 	r := float64(real(a))
 	i := float64(imag(a))
 	d := math.Sqrt(r * r + i * i)
@@ -64,13 +64,13 @@ func (a ComplexAbs(T)) Abs() ComplexAbs(T) {
 
 // OrderedAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of an ordered type.
-func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {
+func OrderedAbsDifference[type T OrderedNumeric](a, b T) T {
 	return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
 }
 
 // ComplexAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of a complex type.
-func ComplexAbsDifference(type T Complex)(a, b T) T {
+func ComplexAbsDifference[type T Complex](a, b T) T {
 	return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
 }
 

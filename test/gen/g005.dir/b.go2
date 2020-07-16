@@ -7,7 +7,7 @@ package main
 import "./a"
 
 func main() {
-	var s a.Stack(string)
+	var s a.Stack[string]
 	s.Push("hi")
 	s.Push("bye")
 	if s.IsEmpty() {

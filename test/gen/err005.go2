@@ -7,9 +7,9 @@
 // Issue 39738.
 package p
 
-func F1(type T)() {}
+func F1[type T]() {}
 
 func F2() {
      type s struct{}
-     F1(s)() // ERROR "locally defined type"
+     F1[s]() // ERROR "locally defined type"
 }

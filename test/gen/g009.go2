@@ -11,12 +11,12 @@ import (
 	"strconv"
 )
 
-type Setter2(type B) interface {
+type Setter2[type B] interface {
 	Set(string)
 	type *B
 }
 
-func FromStrings2(type T interface{}, PT Setter2(T))(s []string) []T {
+func FromStrings2[type T interface{}, PT Setter2[T]](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
 		p := PT(&result[i])
@@ -36,7 +36,7 @@ func (p *Settable) Set(s string) {
 }
 
 func main() {
-	s := FromStrings2(Settable, *Settable)([]string{"1"})
+	s := FromStrings2[Settable, *Settable]([]string{"1"})
 	if len(s) != 1 || s[0] != 1 {
 		log.Fatalf("got %v, want %v", s, []int{1})
 	}

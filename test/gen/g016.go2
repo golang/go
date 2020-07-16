@@ -10,7 +10,7 @@ import "fmt"
 
 type Any interface{}
 
-type Function(type a Any, b Any) interface {
+type Function[type a Any, b Any] interface {
 	Apply(x a) b
 }
 
@@ -26,16 +26,16 @@ func (this pos) Apply(x int) bool {
 	return x > 0
 }
 
-type compose(type a Any, b Any, c Any) struct {
-	f Function(a, b)
-	g Function(b, c)
+type compose[type a Any, b Any, c Any] struct {
+	f Function[a, b]
+	g Function[b, c]
 }
 
-func (this compose(a, b, c)) Apply(x a) c {
+func (this compose[a, b, c]) Apply(x a) c {
 	return this.g.Apply(this.f.Apply(x))
 }
 
-type Eq(type a) interface {
+type Eq[type a] interface {
 	Equal(a) bool
 }
 
@@ -45,47 +45,47 @@ func (this Int) Equal(that int) bool {
 	return int(this) == that
 }
 
-type List(type a Any) interface {
-	Match(casenil Function(Nil(a), Any), casecons Function(Cons(a), Any)) Any
+type List[type a Any] interface {
+	Match(casenil Function[Nil[a], Any], casecons Function[Cons[a], Any]) Any
 }
 
-type Nil(type a Any) struct{}
+type Nil[type a Any] struct{}
 
-func (xs Nil(a)) Match(casenil Function(Nil(a), Any), casecons Function(Cons(a), Any)) Any {
+func (xs Nil[a]) Match(casenil Function[Nil[a], Any], casecons Function[Cons[a], Any]) Any {
 	return casenil.Apply(xs)
 }
 
-type Cons(type a Any) struct {
+type Cons[type a Any] struct {
 	Head a
-	Tail List(a)
+	Tail List[a]
 }
 
-func (xs Cons(a)) Match(casenil Function(Nil(a), Any), casecons Function(Cons(a), Any)) Any {
+func (xs Cons[a]) Match(casenil Function[Nil[a], Any], casecons Function[Cons[a], Any]) Any {
 	return casecons.Apply(xs)
 }
 
-type mapNil(type a Any, b Any) struct{}
+type mapNil[type a Any, b Any] struct{}
 
-func (m mapNil(a, b)) Apply(_ Nil(a)) Any {
-	return Nil(b){}
+func (m mapNil[a, b]) Apply(_ Nil[a]) Any {
+	return Nil[b]{}
 }
 
-type mapCons(type a Any, b Any) struct {
-	f Function(a, b)
+type mapCons[type a Any, b Any] struct {
+	f Function[a, b]
 }
 
-func (m mapCons(a, b)) Apply(xs Cons(a)) Any {
-	return Cons(b){m.f.Apply(xs.Head), Map(a, b)(m.f, xs.Tail)}
+func (m mapCons[a, b]) Apply(xs Cons[a]) Any {
+	return Cons[b]{m.f.Apply(xs.Head), Map[a, b](m.f, xs.Tail)}
 }
 
-func Map(type a, b Any)(f Function(a, b), xs List(a)) List(b) {
-	return xs.Match(mapNil(a, b){}, mapCons(a, b){f}).(List(b))
+func Map[type a, b Any](f Function[a, b], xs List[a]) List[b] {
+	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(List[b])
 }
 
 func main() {
-	var xs List(int) = Cons(int){3, Cons(int){6, Nil(int){}}}
-	var ys List(int) = Map(int, int)(incr{-5}, xs)
-	var xz List(bool) = Map(int, bool)(pos{}, ys)
+	var xs List[int] = Cons[int]{3, Cons[int]{6, Nil[int]{}}}
+	var ys List[int] = Map[int, int](incr{-5}, xs)
+	var xz List[bool] = Map[int, bool](pos{}, ys)
 	if fmt.Sprint(xz) != "{false {true {}}}" {
 		panic(xz)
 	}

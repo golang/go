@@ -9,12 +9,12 @@
 
 package p
 
-type S(type T) struct {
+type S[type T] struct {
 	f T
 }
 
-func SliceS(type T)() S([]T) {
-	return S([]T){nil}
+func SliceS[type T]() S[[]T] {
+	return S[[]T]{nil}
 }
 
-var V = SliceS(int)()
+var V = SliceS[int]()

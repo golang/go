@@ -6,7 +6,7 @@
 
 package main
 
-func F(type T comparable)(a T) bool {
+func F[type T comparable](a T) bool {
 	return a == a
 }
 

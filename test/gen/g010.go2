@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func FromStrings3(type T)(s []string, set func(*T, string)) []T {
+func FromStrings3[type T](s []string, set func(*T, string)) []T {
 	results := make([]T, len(s))
 	for i, v := range s {
 		set(&results[i], v)
@@ -30,7 +30,7 @@ func (p *Settable) Set(s string) {
 }
 
 func main() {
-	s := FromStrings3(Settable)([]string{"1"},
+	s := FromStrings3[Settable]([]string{"1"},
 		func(p *Settable, s string) { p.Set(s) })
 	if len(s) != 1 || s[0] != 1 {
 		log.Fatalf("got %v, want %v", s, []int{1})

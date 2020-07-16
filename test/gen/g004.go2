@@ -8,20 +8,20 @@ package main
 
 import "fmt"
 
-type Value(type T) struct {
+type Value[type T] struct {
 	val T
 }
 
-func (v *Value(T)) Get() T {
+func (v *Value[T]) Get() T {
 	return v.val
 }
 
-func (v *Value(T)) Set(val T) {
+func (v *Value[T]) Set(val T) {
 	v.val = val
 }
 
 func main() {
-	var v1 Value(int)
+	var v1 Value[int]
 	v1.Set(1)
 	if got, want := v1.Get(), 1; got != want {
 		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
@@ -31,7 +31,7 @@ func main() {
 		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
 	}
 
-	var v2 Value(string)
+	var v2 Value[string]
 	v2.Set("a")
 	if got, want := v2.Get(), "a"; got != want {
 		panic(fmt.Sprintf("Get() == %q, want %q", got, want))

@@ -7,10 +7,10 @@
 // Issue 39743.
 package p
 
-type S(type T) struct{}
+type S[type T] struct{}
 
-func (s S(_)) M() {}	// ERROR "_"
+func (s S[_]) M() {}	// ERROR "_"
 
 func F() {
-	S(int){}.M()
+	S[int]{}.M()
 }

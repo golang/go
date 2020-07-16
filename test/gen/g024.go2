@@ -7,16 +7,16 @@
 // Issue 39672
 package p
 
-type S(type T) T
+type S[type T] T
 
-func (r S(T)) M()
+func (r S[T]) M()
 
 func F() {
-	var x S(int)
+	var x S[int]
 	_ = x
 }
 
-func G(type T)(v T)
+func G[type T](v T)
 
 func F2() {
 	G(0)

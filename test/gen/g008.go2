@@ -10,7 +10,7 @@ type Setter interface {
 	Set(string)
 }
 
-func FromStrings(type T Setter)(s []string) []T {
+func FromStrings[type T Setter](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
 		result[i].Set(v)

@@ -7,7 +7,7 @@
 // Issue 39678, 39881.
 package p
 
-type B(type T) struct {
+type B[type T] struct {
 	T
 }
 
@@ -15,20 +15,20 @@ type C struct {
 	F int
 }
 
-type BC B(C)
+type BC B[C]
 
 func F(s BC) {
 	s.F = 7
 }
 
-type Pair(type T, U) struct {
+type Pair[type T, U] struct {
 	T
 	U
 }
 
-func (p Pair(T, U)) M() {
+func (p Pair[T, U]) M() {
 	_, _ = p.T, p.U
 }
 
-var V1 Pair(Pair(int, int), int)
-var V2 Pair(struct { p Pair(int, int) }, int)
+var V1 Pair[Pair[int, int], int]
+var V2 Pair[struct { p Pair[int, int] }, int]

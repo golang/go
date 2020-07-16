@@ -6,6 +6,6 @@
 
 package p
 
-type F(type T) func(T) error
+type F[type T] func(T) error
 
-type instF = F(int)
+type instF = F[int]

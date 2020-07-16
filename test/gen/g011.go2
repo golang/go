@@ -15,7 +15,7 @@ type Setter interface {
 	Set(string)
 }
 
-func FromStrings(type *T Setter)(s []string) []T {
+func FromStrings[type *T Setter](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
 		// result[i] is an addressable value of type T,
@@ -36,7 +36,7 @@ func (p *Settable) Set(s string) {
 }
 
 func main() {
-	s := FromStrings(Settable)([]string{"1"})
+	s := FromStrings[Settable]([]string{"1"})
 	if len(s) != 1 || s[0] != 1 {
 		log.Fatalf("got %v, want %v", s, []int{1})
 	}

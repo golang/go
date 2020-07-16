@@ -7,10 +7,10 @@
 // Issue 39741.
 package p
 
-func F(type T)() {
+func F[type T]() {
 	type S struct{}
 }
 
 func G() {
-	F(int)()
+	F[int]()
 }

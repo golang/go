@@ -6,17 +6,17 @@
 
 package p
 
-func F1(type T comparable)() {}
-func F2() { F1([]int)() } // ERROR "\[\]int does not satisfy comparable$"
+func F1[type T comparable]() {}
+func F2() { F1[[]int]() } // ERROR "\[\]int does not satisfy comparable$"
 
 type C interface {
 	M()
 }
 
-func F3(type T C)() {}
-func F4() { F3(int)() } // ERROR "int does not satisfy C.*method M"
+func F3[type T C]() {}
+func F4() { F3[int]() } // ERROR "int does not satisfy C.*method M"
 
-func F5(type T)() { F3(T)() } // ERROR "T does not satisfy C.*method M"
+func F5[type T]() { F3[T]() } // ERROR "T does not satisfy C.*method M"
 
 type signed interface {
 	type int, int8, int16, int32, int64
@@ -27,9 +27,9 @@ type integer interface {
 		uint, uint8, uint16, uint32, uint64, uintptr
 }
 
-func F6(type T signed)(a T) bool { return a < 0 }
-func F7(type T)(a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T has no type constraints"
-func F8(type T integer)(a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T type constraint uint not found in"
+func F6[type T signed](a T) bool { return a < 0 }
+func F7[type T](a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T has no type constraints"
+func F8[type T integer](a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T type constraint uint not found in"
 func F9(a uint) bool { return F6(a) } // ERROR "uint does not satisfy signed.*uint not found in"
 
 type MyInt int
@@ -43,7 +43,7 @@ type C2 interface {
 	signed
 }
 
-func F20(type T C2)(a T) bool {
+func F20[type T C2](a T) bool {
 	a.M()
 	return a < 0
 }
@@ -57,8 +57,8 @@ func (S) M() {}
 
 func F21() bool { return F20(MyInt(0)) }
 func F22() bool { return F20(0) } // ERROR "int does not satisfy C2.*(missing method M)"
-func F23(type T)(a T) bool { return F20(a) } // ERROR "T does not satisfy C2.*(missing method M)"
-func F24(type T integer)(a T) bool { return F20(a) } // ERROR "T does not satisfy C2.*(missing method M)"
+func F23[type T](a T) bool { return F20(a) } // ERROR "T does not satisfy C2.*(missing method M)"
+func F24[type T integer](a T) bool { return F20(a) } // ERROR "T does not satisfy C2.*(missing method M)"
 func F25(a uint) bool { return F20(a) } // ERROR "uint does not satisfy C2.*(missing method M)"
 func F26(a MyUint) bool { return F20(a) } // ERROR "MyUint does not satisfy C2.*uint not found in"
 func F27(a S) bool { return F20(a) } // ERROR "S does not satisfy C2.*struct{} not found in"

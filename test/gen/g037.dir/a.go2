@@ -6,6 +6,6 @@ package a
 
 func F() {}
 
-func G(type T)() {
+func G[type T]() {
 	F()
 }

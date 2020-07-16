@@ -8,13 +8,13 @@ package main
 
 import "fmt"
 
-func Print1(type T)(s []T) {
+func Print1[type T](s []T) {
 	for _, v := range s {
 		fmt.Println(v)
 	}
 }
 
-func Print2(type T)(s []T) {
+func Print2[type T](s []T) {
 	Print1(T)(s)
 }
 

@@ -7,5 +7,5 @@
 package p
 
 func F() {
-     type t(type T) T // ERROR "parameterized type"
+     type t[type T] T // ERROR "parameterized type"
 }

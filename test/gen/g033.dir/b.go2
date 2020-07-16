@@ -9,7 +9,7 @@ import "./a"
 type S = a.S
 
 func main() {
-	var s S(int)
+	var s S[int]
 	if s.F != 0 {
 		panic(s.F)
 	}

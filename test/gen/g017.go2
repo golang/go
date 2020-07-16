@@ -8,11 +8,11 @@ package main
 
 type Recv <-chan int
 
-type sliceOf(type E) interface {
+type sliceOf[type E] interface {
 	type []E
 }
 
-func Append(type S sliceOf(T), T interface{})(s S, t ...T) S {
+func Append[type S sliceOf[T], T interface{}](s S, t ...T) S {
 	return append(s, t...)
 }
 

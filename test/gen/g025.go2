@@ -7,23 +7,23 @@
 // Issue 39692
 package p
 
-type S1(type T1, T2) struct {
+type S1[type T1, T2] struct {
 	f1 T1
 	f2 T2
 }
 
-type S2(type T1, T2) struct {
+type S2[type T1, T2] struct {
 	f1 T1
 	f2 T2
 }
 
-func F1(type T)(v T) T {
+func F1[type T](v T) T {
 	return v
 }
 
 func F() {
-	_ = S2(int, S1(S1(int, int), S1(int, int))){
+	_ = S2[int, S1[S1[int, int], S1[int, int]]]{
 		f1: 0,
-		f2: S1(S1(int, int), S1(int, int)){},
+		f2: S1[S1[int, int], S1[int, int]]{},
 	}
 }

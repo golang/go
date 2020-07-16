@@ -11,13 +11,13 @@ import (
 	"unsafe"
 )
 
-type Pair(type F1, F2) struct {
+type Pair[type F1, F2] struct {
 	f1 F1
 	f2 F2
 }
 
 func main() {
-	p := Pair(int32, int64){1, 2}
+	p := Pair[int32, int64]{1, 2}
 	if got, want := unsafe.Sizeof(p.f1), uintptr(4); got != want {
 		panic(fmt.Sprintf("unexpected f1 size == %d want %d", got, want))
 	}
