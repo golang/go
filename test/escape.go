@@ -127,7 +127,7 @@ func range_escapes2(x, y int) (*int, *int) {
 	a[0] = x
 	a[1] = y
 	for k, v := range a {
-		p[k] = &v
+		p[k] = &a[k]
 	}
 	return p[0], p[1]
 }
