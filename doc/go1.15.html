@@ -94,6 +94,16 @@ Do not send CLs removing the interior tags from such phrases.
   preemption.
 </p>
 
+<h3 id="386">386</h3>
+
+<p><!-- golang.org/issue/40255 -->
+  Go 1.15 is the last release to support x87-only floating-point
+  hardware (<code>GO386=387</code>). Future releases will require at
+  least SSE2 support on 386, raising Go's
+  minimum <code>GOARCH=386</code> requirement to the Intel Pentium 4
+  (released in 2000) or AMD Opteron/Athlon 64 (released in 2003).
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="go-command">Go command</h3>
