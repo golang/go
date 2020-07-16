@@ -195,7 +195,17 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 				X: newRtype,
 			}
 		}
-		tparams := rtyp.(*ast.CallExpr).Args
+		var tparams []ast.Expr
+		switch rtyp := rtyp.(type) {
+		case *ast.CallExpr:
+			tparams = rtyp.Args
+		case *ast.IndexExpr:
+			tparams = []ast.Expr{rtyp.Index}
+		case *ast.InstantiatedType:
+			tparams = rtyp.TArgs
+		default:
+			panic("unexpected AST type")
+		}
 		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
 		var names []*ast.Ident
 		if mnames := mast.Recv.List[0].Names; len(mnames) > 0 {
@@ -928,6 +938,18 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Arrow: e.Arrow,
 			Dir:   e.Dir,
 			Value: value,
+		}
+	case *ast.InstantiatedType:
+		base := t.instantiateExpr(ta, e.Base)
+		targs, targsChanged := t.instantiateExprList(ta, e.TArgs)
+		if base == e.Base && !targsChanged {
+			return e
+		}
+		r = &ast.InstantiatedType{
+			Base:   base,
+			Lbrack: e.Lbrack,
+			TArgs:  targs,
+			Rbrack: e.Rbrack,
 		}
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))

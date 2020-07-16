@@ -60,7 +60,7 @@ func RewriteFiles(importer *Importer, dir string, go2files []string) ([]*types.P
 // rewriteFilesInPath rewrites a set of .go2 files in dir for importPath.
 func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []string) ([]*types.Package, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parseFiles(dir, go2files, fset)
+	pkgs, err := parseFiles(importer, dir, go2files, fset)
 	if err != nil {
 		return nil, err
 	}
@@ -217,11 +217,16 @@ func checkGoFile(dir, f string) error {
 }
 
 // parseFiles parses a list of .go2 files.
-func parseFiles(dir string, go2files []string, fset *token.FileSet) ([]*ast.Package, error) {
+func parseFiles(importer *Importer, dir string, go2files []string, fset *token.FileSet) ([]*ast.Package, error) {
 	pkgs := make(map[string]*ast.Package)
 	for _, go2f := range go2files {
+		var mode parser.Mode
+		if importer.useBrackets {
+			mode = parser.UseBrackets
+		}
+
 		filename := filepath.Join(dir, go2f)
-		pf, err := parser.ParseFile(fset, filename, nil, 0)
+		pf, err := parser.ParseFile(fset, filename, nil, mode)
 		if err != nil {
 			return nil, err
 		}
@@ -236,6 +241,9 @@ func parseFiles(dir string, go2files []string, fset *token.FileSet) ([]*ast.Pack
 			pkgs[name] = pkg
 		}
 		pkg.Files[filename] = pf
+		if pf.UseBrackets {
+			importer.useBrackets = true
+		}
 	}
 
 	rpkgs := make([]*ast.Package, 0, len(pkgs))
