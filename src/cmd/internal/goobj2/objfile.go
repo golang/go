@@ -286,6 +286,11 @@ const (
 	SymFlagUsedInIface = 1 << iota
 )
 
+// Returns the length of the name of the symbol.
+func (s *Sym) NameLen(r *Reader) int {
+	return int(binary.LittleEndian.Uint32(s[:]))
+}
+
 func (s *Sym) Name(r *Reader) string {
 	len := binary.LittleEndian.Uint32(s[:])
 	off := binary.LittleEndian.Uint32(s[4:])

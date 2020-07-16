@@ -336,12 +336,13 @@ const (
 
 // PCHeader holds data used by the pclntab lookups.
 type pcHeader struct {
-	magic      uint32  // 0xFFFFFFFA
-	pad1, pad2 uint8   // 0,0
-	minLC      uint8   // min instruction size
-	ptrSize    uint8   // size of a ptr in bytes
-	nfunc      int     // number of functions in the module
-	pclnOffset uintptr // offset to the pclntab variable from pcHeader
+	magic          uint32  // 0xFFFFFFFA
+	pad1, pad2     uint8   // 0,0
+	minLC          uint8   // min instruction size
+	ptrSize        uint8   // size of a ptr in bytes
+	nfunc          int     // number of functions in the module
+	funcnameOffset uintptr // offset to the funcnametab variable from pcHeader
+	pclnOffset     uintptr // offset to the pclntab variable from pcHeader
 }
 
 // moduledata records information about the layout of the executable
@@ -351,6 +352,7 @@ type pcHeader struct {
 // none of the pointers here are visible to the garbage collector.
 type moduledata struct {
 	pcHeader     *pcHeader
+	funcnametab  []byte
 	pclntable    []byte
 	ftab         []functab
 	filetab      []uint32
@@ -826,7 +828,7 @@ func cfuncname(f funcInfo) *byte {
 	if !f.valid() || f.nameoff == 0 {
 		return nil
 	}
-	return &f.datap.pclntable[f.nameoff]
+	return &f.datap.funcnametab[f.nameoff]
 }
 
 func funcname(f funcInfo) string {
@@ -837,7 +839,7 @@ func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
 	if !f.valid() {
 		return nil
 	}
-	return &f.datap.pclntable[nameoff]
+	return &f.datap.funcnametab[nameoff]
 }
 
 func funcnameFromNameoff(f funcInfo, nameoff int32) string {
