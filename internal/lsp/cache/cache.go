@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,15 +27,15 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 func New(ctx context.Context, options func(*source.Options)) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &Cache{
-		id:      strconv.FormatInt(index, 10),
-		fset:    token.NewFileSet(),
-		options: options,
+		id:          strconv.FormatInt(index, 10),
+		fset:        token.NewFileSet(),
+		options:     options,
+		fileContent: map[span.URI]*fileHandle{},
 	}
 	return c
 }
@@ -45,15 +46,14 @@ type Cache struct {
 	options func(*source.Options)
 
 	store memoize.Store
-}
 
-type fileKey struct {
-	uri     span.URI
-	modTime time.Time
+	fileMu      sync.Mutex
+	fileContent map[span.URI]*fileHandle
 }
 
 type fileHandle struct {
-	uri span.URI
+	modTime time.Time
+	uri     span.URI
 	memoize.NoCopy
 	bytes []byte
 	hash  string
@@ -65,52 +65,52 @@ func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, e
 }
 
 func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) {
-	var modTime time.Time
-	if fi, err := os.Stat(uri.Filename()); err == nil {
-		modTime = fi.ModTime()
+	fi, statErr := os.Stat(uri.Filename())
+	if statErr != nil {
+		return &fileHandle{err: statErr}, nil
 	}
 
-	key := fileKey{
-		uri:     uri,
-		modTime: modTime,
+	c.fileMu.Lock()
+	fh, ok := c.fileContent[uri]
+	c.fileMu.Unlock()
+	if ok && fh.modTime.Equal(fi.ModTime()) {
+		return fh, nil
 	}
-	h := c.store.Bind(key, func(ctx context.Context) interface{} {
-		return readFile(ctx, uri, modTime)
-	})
-	v, err := h.Get(ctx)
-	if err != nil {
-		return nil, err
+
+	select {
+	case ioLimit <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return v.(*fileHandle), nil
+	defer func() { <-ioLimit }()
+
+	fh = readFile(ctx, uri, fi.ModTime())
+	c.fileMu.Lock()
+	c.fileContent[uri] = fh
+	c.fileMu.Unlock()
+	return fh, nil
 }
 
 // ioLimit limits the number of parallel file reads per process.
 var ioLimit = make(chan struct{}, 128)
 
-func readFile(ctx context.Context, uri span.URI, origTime time.Time) *fileHandle {
-	ctx, done := event.Start(ctx, "cache.getFile", tag.File.Of(uri.Filename()))
+func readFile(ctx context.Context, uri span.URI, modTime time.Time) *fileHandle {
+	ctx, done := event.Start(ctx, "cache.readFile", tag.File.Of(uri.Filename()))
 	_ = ctx
 	defer done()
 
-	ioLimit <- struct{}{}
-	defer func() { <-ioLimit }()
-
-	var modTime time.Time
-	if fi, err := os.Stat(uri.Filename()); err == nil {
-		modTime = fi.ModTime()
-	}
-
-	if modTime != origTime {
-		return &fileHandle{err: errors.Errorf("%s: file has been modified", uri.Filename())}
-	}
 	data, err := ioutil.ReadFile(uri.Filename())
 	if err != nil {
-		return &fileHandle{err: err}
+		return &fileHandle{
+			modTime: modTime,
+			err:     err,
+		}
 	}
 	return &fileHandle{
-		uri:   uri,
-		bytes: data,
-		hash:  hashContents(data),
+		modTime: modTime,
+		uri:     uri,
+		bytes:   data,
+		hash:    hashContents(data),
 	}
 }
 
