@@ -19,8 +19,6 @@
 
 package p
 
-type _[type] int // switch to using [] for type parameters
-
 func e[type T]() {
 	e[T]()
 	e[*T]()

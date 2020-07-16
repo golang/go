@@ -1,8 +1,6 @@
 // Package slices implements various slice algorithms.
 package slices
 
-type _[type] int // switch to using []'s for type parameters
-
 // Map turns a []T1 to a []T2 using a mapping function.
 func Map[type T1, T2](s []T1, f func(T1) T2) []T2 {
 	r := make([]T2, len(s))

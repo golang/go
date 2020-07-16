@@ -6,8 +6,6 @@ package p
 
 // import "io" // for type assertion tests
 
-type _[type] int // switch to using [] for type parameters
-
 func identity[type T](x T) T { return x }
 
 func _[type](x int) int

@@ -6,8 +6,6 @@ package linalg
 
 import "math"
 
-type _[type] int // switch to using [] for type parameters
-
 // Numeric is type bound that matches any numeric type.
 // It would likely be in a constraints package in the standard library.
 type Numeric interface {

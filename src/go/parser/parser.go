@@ -35,7 +35,7 @@ type parser struct {
 	// Tracing/debugging
 	mode   Mode // parsing mode
 	trace  bool // == (mode&Trace != 0)
-	brack  bool // == (Mode&p.brack != 0)
+	brack  bool // use square brackets to enclose type parameters
 	indent int  // indentation used for tracing output
 
 	// Comments
@@ -1063,8 +1063,9 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 	opening.consume(p)
 	lparen := opening.pos
 	if acceptTParams {
-		if p.brack && opening.tok == token.LBRACK {
+		if opening.tok == token.LBRACK {
 			// assume [type T](params) syntax
+			p.brack = true
 			if p.tok == token.TYPE {
 				p.next()
 			}

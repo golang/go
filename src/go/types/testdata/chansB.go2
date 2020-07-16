@@ -2,8 +2,6 @@ package chans
 
 import "runtime"
 
-type _[type] int // switch to using [] for type parameters
-
 // Ranger returns a Sender and a Receiver. The Receiver provides a
 // Next method to retrieve values. The Sender provides a Send method
 // to send values and a Close method to stop sending values. The Next

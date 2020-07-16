@@ -9,8 +9,6 @@ package p
 import "io"
 import "context"
 
-type _[type] int // switch to using [] for type parameters
-
 // Interfaces are always comparable (though the comparison may panic at runtime).
 func eql[type T comparable](x, y T) bool {
 	return x == y

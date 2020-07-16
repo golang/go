@@ -77,26 +77,26 @@ var valids = []string{
 	`package p; func _(x T(P1, P2, P3))`,
 
 	`package p; var _ = func()T(nil)`,
-	`package p; type _[type] int; func _[type]()`,
-	`package p; type _[type] int; func _[type]()()`,
-	`package p; type _[type] int; func _(T (P))`,
-	`package p; type _[type] int; func _(T []E)`,
-	`package p; type _[type] int; func _(T [P]E)`,
-	`package p; type _[type] int; func _(x T[P1, P2, P3])`,
+	`package p; func _[type]()`,
+	`package p; func _[type]()()`,
+	`package p; func _(T (P))`,
+	`package p; func _[type](); func _(T []E)`,
+	`package p; func _[type](); func _(T [P]E)`,
+	`package p; func _[type](); func _(x T[P1, P2, P3])`,
 
 	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
 	`package p; type _[type] int; var _ T[chan int]`,
 
 	// optional "type" keyword for generic functions using square brackets
-	`package p; type _[type] int; func _[]()`,
-	`package p; type _[type] int; func _[T]()`,
-	`package p; type _[type] int; func _[T](x T)`,
-	`package p; type _[type] int; func _[T1, T2](x T)`,
+	`package p; func _[]()`,
+	`package p; func _[T]()`,
+	`package p; func _[T](x T)`,
+	`package p; func _[T1, T2](x T)`,
 
-	`package p; type _[type] int; func (R) _[]()`,
-	`package p; type _[type] int; func (R[P]) _[T]()`,
-	`package p; type _[type] int; func (_ R[P]) _[T](x T)`,
-	`package p; type _[type] int; func (_ R[P, Q]) _[T1, T2](x T)`,
+	`package p; func _[](); func (R) _[]()`,
+	`package p; func _[](); func (R[P]) _[T]()`,
+	`package p; func _[](); func (_ R[P]) _[T](x T)`,
+	`package p; func _[](); func (_ R[P, Q]) _[T1, T2](x T)`,
 
 	// need for parentheses to disambiguate
 	`package p; var _ = [](T(int)){}`,

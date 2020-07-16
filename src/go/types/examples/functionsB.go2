@@ -6,8 +6,6 @@
 
 package p
 
-type _[type] int // switch to using [] for type parameters
-
 // Reverse is a generic function that takes a []T argument and
 // reverses that slice in place.
 func Reverse[type T](list []T) {
