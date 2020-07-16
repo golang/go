@@ -26,6 +26,12 @@ var cmds = map[string]bool{
 	"translate": true,
 }
 
+var useBrackets bool
+
+func init() {
+	flag.BoolVar(&useBrackets, "brackets", false, "expect square brackets for generics")
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -46,6 +52,9 @@ func main() {
 	defer os.RemoveAll(importerTmpdir)
 
 	importer := go2go.NewImporter(importerTmpdir)
+	if useBrackets {
+		importer.UseBrackets = true
+	}
 
 	var rundir string
 	if args[0] == "run" {
