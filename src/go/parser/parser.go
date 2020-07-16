@@ -82,6 +82,7 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+	p.brack = mode&UseBrackets != 0
 
 	p.next()
 }
