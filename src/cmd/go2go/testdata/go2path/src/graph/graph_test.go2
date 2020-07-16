@@ -127,7 +127,7 @@ func TestShortestPath(t *testing.T) {
 		mridx.index = idx
 		nodes = append(nodes, mridx)
 	}
-	g := New(mazeRoom, mazeEdge)(nodes)
+	g := New[mazeRoom, mazeEdge](nodes)
 	path, err := g.ShortestPath(zork[11], zork[30])
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestShortestPathP(t *testing.T) {
 			stop = mr
 		}
 	}
-	g := NewP(mazeRoomP, mazeEdgeP)(nodes)
+	g := NewP[mazeRoomP, mazeEdgeP](nodes)
 	path, err := g.ShortestPath(start, stop)
 	if err != nil {
 		t.Fatal(err)

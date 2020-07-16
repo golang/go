@@ -13,13 +13,13 @@ import (
 )
 
 // Metric1 tracks metrics of values of some type.
-type Metric1(type T comparable) struct {
+type Metric1[type T comparable] struct {
 	mu sync.Mutex
 	m  map[T]int
 }
 
 // Add adds another instance of some value.
-func (m *Metric1(T)) Add(v T) {
+func (m *Metric1[T]) Add(v T) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.m == nil {
@@ -29,47 +29,47 @@ func (m *Metric1(T)) Add(v T) {
 }
 
 // Count returns the number of instances we've seen of v.
-func (m *Metric1(T)) Count(v T) int {
+func (m *Metric1[T]) Count(v T) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.m[v]
 }
 
 // Metrics returns all the values we've seen, in an indeterminate order.
-func (m *Metric1(T)) Metrics() []T {
+func (m *Metric1[T]) Metrics() []T {
 	return maps.Keys(m.m)
 }
 
-type key2(type T1, T2 comparable) struct {
+type key2[type T1, T2 comparable] struct {
 	f1 T1
 	f2 T2
 }
 
 // Metric2 tracks metrics of pairs of values.
-type Metric2(type T1, T2 comparable) struct {
+type Metric2[type T1, T2 comparable] struct {
 	mu sync.Mutex
-	m  map[key2(T1, T2)]int
+	m  map[key2[T1, T2]]int
 }
 
 // Add adds another instance of some pair of values.
-func (m *Metric2(T1, T2)) Add(v1 T1, v2 T2) {
+func (m *Metric2[T1, T2]) Add(v1 T1, v2 T2) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.m == nil {
-		m.m = make(map[key2(T1, T2)]int)
+		m.m = make(map[key2[T1, T2]]int)
 	}
-	m.m[key2(T1, T2){v1, v2}]++
+	m.m[key2[T1, T2]{v1, v2}]++
 }
 
 // Count returns the number of instances we've seen of v1/v2.
-func (m *Metric2(T1, T2)) Count(v1 T1, v2 T2) int {
+func (m *Metric2[T1, T2]) Count(v1 T1, v2 T2) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.m[key2(T1, T2){v1, v2}]
+	return m.m[key2[T1, T2]{v1, v2}]
 }
 
 // Metrics returns all the values we've seen, in an indeterminate order.
-func (m *Metric2(T1, T2)) Metrics() (r1 []T1, r2 []T2) {
+func (m *Metric2[T1, T2]) Metrics() (r1 []T1, r2 []T2) {
 	for _, k := range maps.Keys(m.m) {
 		r1 = append(r1, k.f1)
 		r2 = append(r2, k.f2)
@@ -77,37 +77,37 @@ func (m *Metric2(T1, T2)) Metrics() (r1 []T1, r2 []T2) {
 	return r1, r2
 }
 
-type key3(type T1, T2, T3 comparable) struct {
+type key3[type T1, T2, T3 comparable] struct {
 	f1 T1
 	f2 T2
 	f3 T3
 }
 
 // Metric3 tracks metrics of triplets of values.
-type Metric3(type T1, T2, T3 comparable) struct {
+type Metric3[type T1, T2, T3 comparable] struct {
 	mu sync.Mutex
-	m  map[key3(T1, T2, T3)]int
+	m  map[key3[T1, T2, T3]]int
 }
 
 // Add adds another instance of some triplet of values.
-func (m *Metric3(T1, T2, T3)) Add(v1 T1, v2 T2, v3 T3) {
+func (m *Metric3[T1, T2, T3]) Add(v1 T1, v2 T2, v3 T3) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.m == nil {
-		m.m = make(map[key3(T1, T2, T3)]int)
+		m.m = make(map[key3[T1, T2, T3]]int)
 	}
-	m.m[key3(T1, T2, T3){v1, v2, v3}]++
+	m.m[key3[T1, T2, T3]{v1, v2, v3}]++
 }
 
 // Count returns the number of instances we've seen of v1/v2/v3.
-func (m *Metric3(T1, T2, T3)) Count(v1 T1, v2 T2, v3 T3) int {
+func (m *Metric3[T1, T2, T3]) Count(v1 T1, v2 T2, v3 T3) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.m[key3(T1, T2, T3){v1, v2, v3}]
+	return m.m[key3[T1, T2, T3]{v1, v2, v3}]
 }
 
 // Metrics returns all the values we've seen, in an indeterminate order.
-func (m *Metric3(T1, T2, T3)) Metrics() (r1 []T1, r2 []T2, r3 []T3) {
+func (m *Metric3[T1, T2, T3]) Metrics() (r1 []T1, r2 []T2, r3 []T3) {
 	for k := range m.m {
 		r1 = append(r1, k.f1)
 		r2 = append(r2, k.f2)

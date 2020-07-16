@@ -13,7 +13,7 @@ import (
 
 // Equal reports whether two slices are equal: the same length and all
 // elements equal. All floating point NaNs are considered equal.
-func Equal(type Elem comparable)(s1, s2 []Elem) bool {
+func Equal[type Elem comparable](s1, s2 []Elem) bool {
 	if len(s1) != len(s2) {
 		return false
 	}
@@ -31,7 +31,7 @@ func Equal(type Elem comparable)(s1, s2 []Elem) bool {
 
 // EqualFn reports whether two slices are equal using a comparision
 // function on each element.
-func EqualFn(type Elem)(s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
+func EqualFn[type Elem](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
 	if len(s1) != len(s2) {
 		return false
 	}
@@ -45,7 +45,7 @@ func EqualFn(type Elem)(s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
 }
 
 // Map turns a []Elem1 to a []Elem2 using a mapping function.
-func Map(type Elem1, Elem2)(s []Elem1, f func(Elem1) Elem2) []Elem2 {
+func Map[type Elem1, Elem2](s []Elem1, f func(Elem1) Elem2) []Elem2 {
 	r := make([]Elem2, len(s))
 	for i, v := range s {
 		r[i] = f(v)
@@ -55,7 +55,7 @@ func Map(type Elem1, Elem2)(s []Elem1, f func(Elem1) Elem2) []Elem2 {
 
 // Reduce reduces a []Elem1 to a single value of type Elem2 using
 // a reduction function.
-func Reduce(type Elem1, Elem2)(s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 {
+func Reduce[type Elem1, Elem2](s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 {
 	r := initializer
 	for _, v := range s {
 		r = f(r, v)
@@ -64,7 +64,7 @@ func Reduce(type Elem1, Elem2)(s []Elem1, initializer Elem2, f func(Elem2, Elem1
 }
 
 // Filter filters values from a slice using a filter function.
-func Filter(type Elem)(s []Elem, f func(Elem) bool) []Elem {
+func Filter[type Elem](s []Elem, f func(Elem) bool) []Elem {
 	var r []Elem
 	for _, v := range s {
 		if f(v) {
@@ -76,7 +76,7 @@ func Filter(type Elem)(s []Elem, f func(Elem) bool) []Elem {
 
 // Max returns the maximum element in a slice of some ordered type.
 // If the slice is empty it returns the zero value of the element type.
-func Max(type Elem constraints.Ordered)(s []Elem) Elem {
+func Max[type Elem constraints.Ordered](s []Elem) Elem {
 	if len(s) == 0 {
 		var zero Elem
 		return zero
@@ -86,7 +86,7 @@ func Max(type Elem constraints.Ordered)(s []Elem) Elem {
 
 // Min returns the minimum element in a slice of some ordered type.
 // If the slice is empty it returns the zero value of the element type.
-func Min(type Elem constraints.Ordered)(s []Elem) Elem {
+func Min[type Elem constraints.Ordered](s []Elem) Elem {
 	if len(s) == 0 {
 		var zero Elem
 		return zero
@@ -99,7 +99,7 @@ func Min(type Elem constraints.Ordered)(s []Elem) Elem {
 // of how to write it using generics. We used to write code like
 // this before append was added to the language, but we had to write
 // a separate copy for each type.
-func Append(type T)(s []T, t ...T) []T {
+func Append[type T](s []T, t ...T) []T {
 	lens := len(s)
 	tot := lens + len(t)
 	if tot <= cap(s) {
@@ -116,7 +116,7 @@ func Append(type T)(s []T, t ...T) []T {
 // Copy copies values from t to s, stopping when either slice is full,
 // returning the number of values copied. This is like the predeclared
 // copy function; it's an example of how to write it using generics.
-func Copy(type T)(s, t []T) int {
+func Copy[type T](s, t []T) int {
 	i := 0
 	for ; i < len(s) && i < len(t); i++ {
 		s[i] = t[i]

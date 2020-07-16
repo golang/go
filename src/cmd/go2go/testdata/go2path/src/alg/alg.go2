@@ -8,7 +8,7 @@ package alg
 import "constraints"
 
 // Max returns the maximum of two values of some ordered type.
-func Max(type T constraints.Ordered)(a, b T) T {
+func Max[type T constraints.Ordered](a, b T) T {
 	if a < b {
 		return b
 	}
@@ -16,7 +16,7 @@ func Max(type T constraints.Ordered)(a, b T) T {
 }
 
 // Min returns the minimum of two values of some ordered type.
-func Min(type T constraints.Ordered)(a, b T) T {
+func Min[type T constraints.Ordered](a, b T) T {
 	if a < b {
 		return a
 	}

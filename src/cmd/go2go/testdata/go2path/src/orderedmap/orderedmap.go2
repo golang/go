@@ -15,30 +15,30 @@ import (
 )
 
 // Map is an ordered map.
-type Map(type K, V) struct {
-	root    *node(K, V)
+type Map[type K, V] struct {
+	root    *node[K, V]
 	compare func(K, K) int
 }
 
 // node is the type of a node in the binary tree.
-type node(type K, V) struct {
+type node[type K, V] struct {
 	key         K
 	val         V
-	left, right *node(K, V)
+	left, right *node[K, V]
 }
 
 // New returns a new map. It takes a comparison function that compares two
 // keys and returns < 0 if the first is less, == 0 if they are equal,
 // > 0 if the first is greater.
-func New(type K, V)(compare func(K, K) int) *Map(K, V) {
-	return &Map(K, V){compare: compare}
+func New[type K, V](compare func(K, K) int) *Map[K, V] {
+	return &Map[K, V]{compare: compare}
 }
 
 // NewOrdered returns a new map whose key is an ordered type.
 // This is like New, but does not require providing a compare function.
 // The map compare function uses the obvious key ordering.
-func NewOrdered(type K constraints.Ordered, V interface{})() *Map(K, V) {
-	return New(K, V)(func(k1, k2 K) int {
+func NewOrdered[type K constraints.Ordered, V interface{}]() *Map[K, V] {
+	return New[K, V](func(k1, k2 K) int {
 		switch {
 		case k1 < k2:
 			return -1
@@ -52,7 +52,7 @@ func NewOrdered(type K constraints.Ordered, V interface{})() *Map(K, V) {
 
 // find looks up key in the map, returning either a pointer to the slot of the
 // node holding key, or a pointer to the slot where should a node would go.
-func (m *Map(K, V)) find(key K) **node(K, V) {
+func (m *Map[K, V]) find(key K) **node[K, V] {
 	pn := &m.root
 	for *pn != nil {
 		switch cmp := m.compare(key, (*pn).key); {
@@ -70,19 +70,19 @@ func (m *Map(K, V)) find(key K) **node(K, V) {
 // Insert inserts a new key/value into the map.
 // If the key is already present, the value is replaced.
 // Reports whether this is a new key.
-func (m *Map(K, V)) Insert(key K, val V) bool {
+func (m *Map[K, V]) Insert(key K, val V) bool {
 	pn := m.find(key)
 	if *pn != nil {
 		(*pn).val = val
 		return false
 	}
-	*pn = &node(K, V){key: key, val: val}
+	*pn = &node[K, V]{key: key, val: val}
 	return true
 }
 
 // Find returns the value associated with a key, or the zero value
 // if not present. The found result reports whether the key was found.
-func (m *Map(K, V)) Find(key K) (V, bool) {
+func (m *Map[K, V]) Find(key K) (V, bool) {
 	pn := m.find(key)
 	if *pn == nil {
 		var zero V
@@ -92,40 +92,40 @@ func (m *Map(K, V)) Find(key K) (V, bool) {
 }
 
 // keyValue is a pair of key and value used while iterating.
-type keyValue(type K, V) struct {
+type keyValue[type K, V] struct {
 	key K
 	val V
 }
 
 // iterate returns an iterator that traverses the map.
-func (m *Map(K, V)) Iterate() *Iterator(K, V) {
-	sender, receiver := chans.Ranger(keyValue(K, V))()
-	var f func(*node(K, V)) bool
-	f = func(n *node(K, V)) bool {
+func (m *Map[K, V]) Iterate() *Iterator[K, V] {
+	sender, receiver := chans.Ranger(keyValue[K, V])()
+	var f func(*node[K, V]) bool
+	f = func(n *node[K, V]) bool {
 		if n == nil {
 			return true
 		}
 		// Stop the traversal if Send fails, which means that
 		// nothing is listening to the receiver.
 		return f(n.left) &&
-			sender.Send(context.Background(), keyValue(K, V){n.key, n.val}) &&
+			sender.Send(context.Background(), keyValue[K, V]{n.key, n.val}) &&
 			f(n.right)
 	}
 	go func() {
 		f(m.root)
 		sender.Close()
 	}()
-	return &Iterator(K, V){receiver}
+	return &Iterator[K, V]{receiver}
 }
 
 // Iterator is used to iterate over the map.
-type Iterator(type K, V) struct {
-	r *chans.Receiver(keyValue(K, V))
+type Iterator[type K, V] struct {
+	r *chans.Receiver[keyValue[K, V]]
 }
 
 // Next returns the next key and value pair, and a boolean that reports
 // whether they are valid. If not valid, we have reached the end of the map.
-func (it *Iterator(K, V)) Next() (K, V, bool) {
+func (it *Iterator[K, V]) Next() (K, V, bool) {
 	keyval, ok := it.r.Next(context.Background())
 	if !ok {
 		var zerok K

@@ -109,7 +109,7 @@ func TestGO2PATH(t *testing.T) {
 
 	for _, dir := range dirs {
 		t.Run(dir, func(t *testing.T) {
-			cmd := exec.Command(testGo2go, "test")
+			cmd := exec.Command(testGo2go, "-brackets", "test")
 			cmd.Dir = filepath.Join(testTempDir, "testdata", "go2path", "src", dir)
 			cmd.Env = append(os.Environ(), "GO2PATH="+filepath.Join(testTempDir, "testdata", "go2path"))
 			t.Logf("running [%s test] in %s", testGo2go, cmd.Dir)

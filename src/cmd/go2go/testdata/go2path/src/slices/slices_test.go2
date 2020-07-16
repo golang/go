@@ -42,7 +42,7 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func offByOne(type Elem constraints.Integer)(a, b Elem) bool {
+func offByOne[type Elem constraints.Integer](a, b Elem) bool {
 	return a == b + 1 || a == b - 1
 }
 

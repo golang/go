@@ -12,7 +12,7 @@ import (
 )
 
 func TestSet(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	if got := s1.Len(); got != 0 {
 		t.Errorf("Len of empty set = %d, want 0", got)
 	}
@@ -43,8 +43,8 @@ func TestSet(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
-	s1 := Make(string)()
-	s2 := Make(string)()
+	s1 := Make[string]()
+	s2 := Make[string]()
 	if !Equal(s1, s2) {
 		t.Errorf("Equal(%v, %v) = false, want true", s1, s2)
 	}
@@ -59,7 +59,7 @@ func TestEqual(t *testing.T) {
 }
 
 func TestCopy(t *testing.T) {
-	s1 := Make(float64)()
+	s1 := Make[float64]()
 	s1.Add(0)
 	s2 := s1.Copy()
 	if !Equal(s1, s2) {
@@ -72,10 +72,10 @@ func TestCopy(t *testing.T) {
 }
 
 func TestAddSet(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	s1.Add(1)
 	s1.Add(2)
-	s2 := Make(int)()
+	s2 := Make[int]()
 	s2.Add(2)
 	s2.Add(3)
 	s1.AddSet(s2)
@@ -89,10 +89,10 @@ func TestAddSet(t *testing.T) {
 }
 
 func TestSubSet(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	s1.Add(1)
 	s1.Add(2)
-	s2 := Make(int)()
+	s2 := Make[int]()
 	s2.Add(2)
 	s2.Add(3)
 	s1.SubSet(s2)
@@ -105,10 +105,10 @@ func TestSubSet(t *testing.T) {
 }
 
 func TestIntersect(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	s1.Add(1)
 	s1.Add(2)
-	s2 := Make(int)()
+	s2 := Make[int]()
 	s2.Add(2)
 	s2.Add(3)
 	s1.Intersect(s2)
@@ -121,7 +121,7 @@ func TestIntersect(t *testing.T) {
 }
 
 func TestIterate(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	s1.Add(1)
 	s1.Add(2)
 	s1.Add(3)
@@ -134,7 +134,7 @@ func TestIterate(t *testing.T) {
 }
 
 func TestFilter(t *testing.T) {
-	s1 := Make(int)()
+	s1 := Make[int]()
 	s1.Add(1)
 	s1.Add(2)
 	s1.Add(3)

@@ -12,7 +12,7 @@ import (
 )
 
 func TestMap(t *testing.T) {
-	m := New([]byte, int)(bytes.Compare)
+	m := New[[]byte, int](bytes.Compare)
 
 	if _, found := m.Find([]byte("a")); found {
 		t.Errorf("unexpectedly found %q in empty map", []byte("a"))
@@ -45,7 +45,7 @@ func TestMap(t *testing.T) {
 		t.Errorf("unexpectedly found %q", []byte("d"))
 	}
 
-	gather := func(it *Iterator([]byte, int)) []int {
+	gather := func(it *Iterator[[]byte, int]) []int {
 		var r []int
 		for {
 			_, v, ok := it.Next()

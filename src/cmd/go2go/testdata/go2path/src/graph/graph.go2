@@ -10,31 +10,31 @@ import "errors"
 // A Graph is a collection of nodes. A node may have an arbitrary number
 // of edges. An edge connects two nodes. Both nodes and edges must be
 // comparable. This is an undirected simple graph.
-type Graph(type Node NodeC(Edge), Edge EdgeC(Node)) struct {
+type Graph[type Node NodeC[Edge], Edge EdgeC[Node]] struct {
 	nodes []Node
 }
 
 // NodeC is the contraints on a node in a graph, given the Edge type.
-type NodeC(type Edge) interface {
+type NodeC[type Edge] interface {
 	comparable
 	Edges() []Edge
 }
 
 // Edgec is the constraints on an edge in a graph, given the Node type.
-type EdgeC(type Node) interface {
+type EdgeC[type Node] interface {
 	comparable
 	Nodes() (a, b Node)
 }
 
 // New creates a new Graph from a collection of Nodes.
-func New(type Node NodeC(Edge), Edge EdgeC(Node))(nodes []Node) *Graph(Node, Edge) {
-	return &Graph(Node, Edge){nodes: nodes}
+func New[type Node NodeC[Edge], Edge EdgeC[Node]](nodes []Node) *Graph[Node, Edge] {
+	return &Graph[Node, Edge]{nodes: nodes}
 }
 
 // nodePath holds the path to a node during ShortestPath.
 // This should ideally be a type defined inside ShortestPath,
 // but the translator tool doesn't support that.
-type nodePath(type Node NodeC(Edge), Edge EdgeC(Node)) struct {
+type nodePath[type Node NodeC[Edge], Edge EdgeC[Node]] struct {
 	node Node
 	path []Edge
 }
@@ -42,10 +42,10 @@ type nodePath(type Node NodeC(Edge), Edge EdgeC(Node)) struct {
 // ShortestPath returns the shortest path between two nodes,
 // as an ordered list of edges. If there are multiple shortest paths,
 // which one is returned is unpredictable.
-func (g *Graph(Node, Edge)) ShortestPath(from, to Node) ([]Edge, error) {
+func (g *Graph[Node, Edge]) ShortestPath(from, to Node) ([]Edge, error) {
 	visited := make(map[Node]bool)
 	visited[from] = true
-	workqueue := [](nodePath(Node, Edge)){nodePath(Node, Edge){from, nil}}
+	workqueue := []nodePath[Node, Edge]{nodePath[Node, Edge]{from, nil}}
 	for len(workqueue) > 0 {
 		current := workqueue
 		workqueue = nil
@@ -62,7 +62,7 @@ func (g *Graph(Node, Edge)) ShortestPath(from, to Node) ([]Edge, error) {
 					if a == to {
 						return ve, nil
 					}
-					workqueue = append(workqueue, nodePath(Node, Edge){a, ve})
+					workqueue = append(workqueue, nodePath[Node, Edge]{a, ve})
 					visited[a] = true
 				}
 			}
@@ -74,29 +74,29 @@ func (g *Graph(Node, Edge)) ShortestPath(from, to Node) ([]Edge, error) {
 // GraphP is a version of Graph that uses pointers. This is for testing.
 // I'm not sure which approach will be better in practice, or whether
 // this indicates a problem with the draft design.
-type GraphP(type *Node NodeCP(Edge), *Edge EdgeCP(Node)) struct {
+type GraphP[type *Node NodeCP[Edge], *Edge EdgeCP[Node]] struct {
 	nodes []*Node
 }
 
 // NodeCP is the contraint on a Node in a GraphP.
-type NodeCP(type Edge) interface {
+type NodeCP[type Edge] interface {
 	Edges() []*Edge
 }
 
 // EdgeCP is the contraint on an Edge in a GraphP.
-type EdgeCP(type Node) interface {
+type EdgeCP[type Node] interface {
 	Nodes() (a, b *Node)
 }
 
 // NewP creates a new GraphP from a collection of Nodes.
-func NewP(type *Node NodeCP(Edge), *Edge EdgeCP(Node))(nodes []*Node) *GraphP(Node, Edge) {
-	return &GraphP(Node, Edge){nodes: nodes}
+func NewP[type *Node NodeCP[Edge], *Edge EdgeCP[Node]](nodes []*Node) *GraphP[Node, Edge] {
+	return &GraphP[Node, Edge]{nodes: nodes}
 }
 
 // nodePathP holds the path to a node during ShortestPath.
 // This should ideally be a type defined inside ShortestPath,
 // but the translator tool doesn't support that.
-type nodePathP(type *Node NodeCP(Edge), *Edge EdgeCP(Node)) struct {
+type nodePathP[type *Node NodeCP[Edge], *Edge EdgeCP[Node]] struct {
 	node *Node
 	path []*Edge
 }
@@ -104,10 +104,10 @@ type nodePathP(type *Node NodeCP(Edge), *Edge EdgeCP(Node)) struct {
 // ShortestPath returns the shortest path between two nodes,
 // as an ordered list of edges. If there are multiple shortest paths,
 // which one is returned is unpredictable.
-func (g *GraphP(Node, Edge)) ShortestPath(from, to *Node) ([]*Edge, error) {
+func (g *GraphP[Node, Edge]) ShortestPath(from, to *Node) ([]*Edge, error) {
 	visited := make(map[*Node]bool)
 	visited[from] = true
-	workqueue := [](nodePathP(Node, Edge)){nodePathP(Node, Edge){from, nil}}
+	workqueue := [](nodePathP[Node, Edge]){nodePathP[Node, Edge]{from, nil}}
 	for len(workqueue) > 0 {
 		current := workqueue
 		workqueue = nil
@@ -124,7 +124,7 @@ func (g *GraphP(Node, Edge)) ShortestPath(from, to *Node) ([]*Edge, error) {
 					if a == to {
 						return ve, nil
 					}
-					workqueue = append(workqueue, nodePathP(Node, Edge){a, ve})
+					workqueue = append(workqueue, nodePathP[Node, Edge]{a, ve})
 					visited[a] = true
 				}
 			}

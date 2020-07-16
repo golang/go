@@ -31,7 +31,7 @@ func TestSortOrderedStrings(t *testing.T) {
 	testOrdered(t, strs, sort.Strings)
 }
 
-func testOrdered(type Elem constraints.Ordered)(t *testing.T, s []Elem, sorter func([]Elem)) {
+func testOrdered[type Elem constraints.Ordered](t *testing.T, s []Elem, sorter func([]Elem)) {
 	s1 := make([]Elem, len(s))
 	copy(s1, s)
 	s2 := make([]Elem, len(s))

@@ -14,7 +14,7 @@ import (
 type S struct{ a, b, c string }
 
 func TestMetrics(t *testing.T) {
-	m1 := Metric1(string){}
+	m1 := Metric1[string]{}
 	if got := m1.Count("a"); got != 0 {
 		t.Errorf("Count(%q) = %d, want 0", "a", got)
 	}
@@ -27,7 +27,7 @@ func TestMetrics(t *testing.T) {
 		t.Errorf("Metrics = %v, want %v", got, want)
 	}
 
-	m2 := Metric2(int, float64){}
+	m2 := Metric2[int, float64]{}
 	m2.Add(1, 1)
 	m2.Add(2, 2)
 	m2.Add(3, 3)
@@ -46,7 +46,7 @@ func TestMetrics(t *testing.T) {
 		t.Errorf("Metric2.Metrics first slice = %v, want %v", k2, w2)
 	}
 
-	m3 := Metric3(string, S, S){}
+	m3 := Metric3[string, S, S]{}
 	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
 	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
 	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
