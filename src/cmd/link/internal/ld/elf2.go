@@ -54,7 +54,7 @@ func elfrelocsect2(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 			break
 		}
 		for ri := range s.R {
-			r := &syms[i].R[ri]
+			r := &syms[i].s.R[ri]
 			if r.Done {
 				continue
 			}
