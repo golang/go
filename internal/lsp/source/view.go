@@ -108,7 +108,7 @@ type PackageHandle interface {
 	CompiledGoFiles() []span.URI
 
 	// Check returns the type-checked Package for the PackageHandle.
-	Check(ctx context.Context) (Package, error)
+	Check(ctx context.Context, snapshot Snapshot) (Package, error)
 
 	// Cached returns the Package for the PackageHandle if it has already been stored.
 	Cached() (Package, error)
@@ -320,7 +320,7 @@ type ParseGoHandle interface {
 
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
+	Parse(ctx context.Context, view View) (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
 
 	// Cached returns the AST for this handle, if it has already been stored.
 	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
@@ -329,12 +329,12 @@ type ParseGoHandle interface {
 	// to quickly find corresponding *ast.Field node given a *types.Var.
 	// We must refer to the AST to render type aliases properly when
 	// formatting signatures and other types.
-	PosToField(context.Context) (map[token.Pos]*ast.Field, error)
+	PosToField(ctx context.Context, view View) (map[token.Pos]*ast.Field, error)
 
 	// PosToDecl maps certain objects' positions to their surrounding
 	// ast.Decl. This mapping is used when building the documentation
 	// string for the objects.
-	PosToDecl(context.Context) (map[token.Pos]ast.Decl, error)
+	PosToDecl(ctx context.Context, view View) (map[token.Pos]ast.Decl, error)
 }
 
 type ParseModHandle interface {
@@ -346,19 +346,19 @@ type ParseModHandle interface {
 
 	// Parse returns the parsed go.mod file, a column mapper, and a list of
 	// parse for the go.mod file.
-	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
+	Parse(ctx context.Context, snapshot Snapshot) (*modfile.File, *protocol.ColumnMapper, []Error, error)
 }
 
 type ModUpgradeHandle interface {
 	// Upgrades returns the latest versions for each of the module's
 	// dependencies.
-	Upgrades(ctx context.Context) (map[string]string, error)
+	Upgrades(ctx context.Context, snapshot Snapshot) (map[string]string, error)
 }
 
 type ModWhyHandle interface {
 	// Why returns the results of `go mod why` for every dependency of the
 	// module.
-	Why(ctx context.Context) (map[string]string, error)
+	Why(ctx context.Context, snapshot Snapshot) (map[string]string, error)
 }
 
 type ModTidyHandle interface {
@@ -366,10 +366,10 @@ type ModTidyHandle interface {
 	ParseModHandle() ParseModHandle
 
 	// Tidy returns the results of `go mod tidy` for the module.
-	Tidy(ctx context.Context) ([]Error, error)
+	Tidy(ctx context.Context, snapshot Snapshot) ([]Error, error)
 
 	// TidiedContent is the content of the tidied go.mod file.
-	TidiedContent(ctx context.Context) ([]byte, error)
+	TidiedContent(ctx context.Context, snapshot Snapshot) ([]byte, error)
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")

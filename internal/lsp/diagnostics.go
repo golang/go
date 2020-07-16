@@ -115,7 +115,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		go func(ph source.PackageHandle) {
 			defer wg.Done()
 
-			pkg, err := ph.Check(ctx)
+			pkg, err := ph.Check(ctx, snapshot)
 			if err != nil {
 				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
 				return

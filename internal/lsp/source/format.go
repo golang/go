@@ -27,7 +27,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	defer done()
 
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
-	file, _, m, parseErrors, err := pgh.Parse(ctx)
+	file, _, m, parseErrors, err := pgh.Parse(ctx, snapshot.View())
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 	if err != nil {
 		return nil, nil, err
 	}
-	_, _, origMapper, _, err := ph.Parse(ctx)
+	_, _, origMapper, _, err := ph.Parse(ctx, view)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,7 +145,7 @@ func computeOneImportFixEdits(ctx context.Context, view View, ph ParseGoHandle, 
 	if err != nil {
 		return nil, err
 	}
-	_, _, origMapper, _, err := ph.Parse(ctx) // ph.Parse returns values never used
+	_, _, origMapper, _, err := ph.Parse(ctx, view) // ph.Parse returns values never used
 	if err != nil {
 		return nil, err
 	}

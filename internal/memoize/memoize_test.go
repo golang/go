@@ -83,7 +83,7 @@ end @3 =  G !fail H
 `[1:],
 		},
 	} {
-		s.Bind(test.key, generate(s, test.key)).Get(ctx)
+		s.Bind(test.key, generate(s, test.key)).Get(ctx, nil)
 		got := logBuffer.String()
 		if got != test.want {
 			t.Errorf("at %q expected:\n%v\ngot:\n%s", test.name, test.want, got)
@@ -103,7 +103,7 @@ end @3 =  G !fail H
 	var pins []*memoize.Handle
 	for _, key := range pinned {
 		h := s.Bind(key, generate(s, key))
-		h.Get(ctx)
+		h.Get(ctx, nil)
 		pins = append(pins, h)
 	}
 
@@ -175,7 +175,7 @@ func asValue(v interface{}) *stringOrError {
 }
 
 func generate(s *memoize.Store, key interface{}) memoize.Function {
-	return func(ctx context.Context) interface{} {
+	return func(ctx context.Context, _ memoize.Arg) interface{} {
 		name := key.(string)
 		switch name {
 		case "":
@@ -217,7 +217,7 @@ func joinValues(ctx context.Context, s *memoize.Store, name string, keys ...stri
 	fmt.Fprintf(w, "start %v\n", name)
 	value := ""
 	for _, key := range keys {
-		i, err := s.Bind(key, generate(s, key)).Get(ctx)
+		i, err := s.Bind(key, generate(s, key)).Get(ctx, nil)
 		if err != nil {
 			return &stringOrError{err: err}
 		}

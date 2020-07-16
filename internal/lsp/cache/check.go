@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"path"
 	"sort"
@@ -83,18 +82,19 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	goFiles := ph.goFiles
 	compiledGoFiles := ph.compiledGoFiles
 	key := ph.key
-	fset := s.view.session.cache.fset
 
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		snapshot := arg.(*snapshot)
+
 		// Begin loading the direct dependencies, in parallel.
 		for _, dep := range deps {
 			go func(dep *packageHandle) {
-				dep.check(ctx)
+				dep.check(ctx, snapshot)
 			}(dep)
 		}
 
 		data := &packageData{}
-		data.pkg, data.err = typeCheck(ctx, fset, m, mode, goFiles, compiledGoFiles, deps)
+		data.pkg, data.err = typeCheck(ctx, snapshot, m, mode, goFiles, compiledGoFiles, deps)
 
 		return data
 	})
@@ -193,12 +193,12 @@ func hashConfig(config *packages.Config) string {
 	return hashContents(b.Bytes())
 }
 
-func (ph *packageHandle) Check(ctx context.Context) (source.Package, error) {
-	return ph.check(ctx)
+func (ph *packageHandle) Check(ctx context.Context, s source.Snapshot) (source.Package, error) {
+	return ph.check(ctx, s.(*snapshot))
 }
 
-func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
-	v, err := ph.handle.Get(ctx)
+func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
+	v, err := ph.handle.Get(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 	return pghs, nil
 }
 
-func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles, compiledGoFiles []*parseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
+func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, goFiles, compiledGoFiles []*parseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
 	ctx, done := event.Start(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
@@ -248,6 +248,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		rawErrors = append(rawErrors, err)
 	}
 
+	fset := snapshot.view.session.cache.fset
 	pkg := &pkg{
 		m:               m,
 		mode:            mode,
@@ -278,7 +279,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		wg.Add(1)
 		go func(i int, ph *parseGoHandle) {
 			defer wg.Done()
-			data, err := ph.parse(ctx)
+			data, err := ph.parse(ctx, snapshot.view)
 			if err != nil {
 				actualErrors[i] = err
 				return
@@ -294,7 +295,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		wg.Add(1)
 		// We need to parse the non-compiled go files, but we don't care about their errors.
 		go func(ph source.ParseGoHandle) {
-			ph.Parse(ctx)
+			ph.Parse(ctx, snapshot.view)
 			wg.Done()
 		}(ph)
 	}
@@ -325,7 +326,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		// Try to attach errors messages to the file as much as possible.
 		var found bool
 		for _, e := range rawErrors {
-			srcErr, err := sourceError(ctx, fset, pkg, e)
+			srcErr, err := sourceError(ctx, snapshot, pkg, e)
 			if err != nil {
 				continue
 			}
@@ -361,7 +362,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			if !isValidImport(m.pkgPath, dep.m.pkgPath) {
 				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
 			}
-			depPkg, err := dep.check(ctx)
+			depPkg, err := dep.check(ctx, snapshot)
 			if err != nil {
 				return nil, err
 			}
@@ -386,7 +387,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	// We don't care about a package's errors unless we have parsed it in full.
 	if mode == source.ParseFull {
 		for _, e := range rawErrors {
-			srcErr, err := sourceError(ctx, fset, pkg, e)
+			srcErr, err := sourceError(ctx, snapshot, pkg, e)
 			if err != nil {
 				event.Error(ctx, "unable to compute error positions", err, tag.Package.Of(pkg.ID()))
 				continue

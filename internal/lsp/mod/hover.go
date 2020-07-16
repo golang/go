@@ -30,7 +30,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	file, m, _, err := pmh.Parse(ctx)
+	file, m, _, err := pmh.Parse(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, err
 	}
-	why, err := mwh.Why(ctx)
+	why, err := mwh.Why(ctx, snapshot)
 	if err != nil {
 		return nil, fmt.Errorf("running go mod why: %w", err)
 	}

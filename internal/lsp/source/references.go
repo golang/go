@@ -77,7 +77,7 @@ func references(ctx context.Context, s Snapshot, qos []qualifiedObject, includeD
 				return nil, err
 			}
 			for _, ph := range reverseDeps {
-				pkg, err := ph.Check(ctx)
+				pkg, err := ph.Check(ctx, s)
 				if err != nil {
 					return nil, err
 				}

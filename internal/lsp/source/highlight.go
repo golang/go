@@ -26,7 +26,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Highlight: %w", err)
 	}
-	file, _, m, _, err := pgh.Parse(ctx)
+	file, _, m, _, err := pgh.Parse(ctx, snapshot.View())
 	if err != nil {
 		return nil, err
 	}

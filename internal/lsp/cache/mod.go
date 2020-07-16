@@ -54,8 +54,8 @@ func (mh *parseModHandle) Sum() source.FileHandle {
 	return mh.sum
 }
 
-func (mh *parseModHandle) Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []source.Error, error) {
-	v, err := mh.handle.Get(ctx)
+func (mh *parseModHandle) Parse(ctx context.Context, s source.Snapshot) (*modfile.File, *protocol.ColumnMapper, []source.Error, error) {
+	v, err := mh.handle.Get(ctx, s.(*snapshot))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -67,7 +67,7 @@ func (s *snapshot) ParseModHandle(ctx context.Context, modFH source.FileHandle) 
 	if handle := s.getModHandle(modFH.URI()); handle != nil {
 		return handle, nil
 	}
-	h := s.view.session.cache.store.Bind(modFH.Identity().String(), func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(modFH.Identity().String(), func(ctx context.Context, _ memoize.Arg) interface{} {
 		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
 		defer done()
 
@@ -187,8 +187,6 @@ const (
 
 type modWhyHandle struct {
 	handle *memoize.Handle
-
-	pmh source.ParseModHandle
 }
 
 type modWhyData struct {
@@ -199,8 +197,8 @@ type modWhyData struct {
 	err error
 }
 
-func (mwh *modWhyHandle) Why(ctx context.Context) (map[string]string, error) {
-	v, err := mwh.handle.Get(ctx)
+func (mwh *modWhyHandle) Why(ctx context.Context, s source.Snapshot) (map[string]string, error) {
+	v, err := mwh.handle.Get(ctx, s.(*snapshot))
 	if err != nil {
 		return nil, err
 	}
@@ -216,26 +214,26 @@ func (s *snapshot) ModWhyHandle(ctx context.Context) (source.ModWhyHandle, error
 	if err != nil {
 		return nil, err
 	}
-	pmh, err := s.ParseModHandle(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	var (
-		cfg    = s.config(ctx)
-		tmpMod = s.view.tmpMod
-	)
+	cfg := s.config(ctx)
 	key := modKey{
 		sessionID: s.view.session.id,
-		cfg:       hashConfig(cfg),
-		mod:       pmh.Mod().Identity().String(),
+		cfg:       hashConfig(s.config(ctx)),
+		mod:       fh.Identity().String(),
 		view:      s.view.root.Filename(),
 		verb:      why,
 	}
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModHandle", tag.URI.Of(pmh.Mod().URI()))
+	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		ctx, done := event.Start(ctx, "cache.ModWhyHandle", tag.URI.Of(fh.URI()))
 		defer done()
 
-		parsed, _, _, err := pmh.Parse(ctx)
+		snapshot := arg.(*snapshot)
+
+		pmh, err := snapshot.ParseModHandle(ctx, fh)
+		if err != nil {
+			return &modWhyData{err: err}
+		}
+
+		parsed, _, _, err := pmh.Parse(ctx, snapshot)
 		if err != nil {
 			return &modWhyData{err: err}
 		}
@@ -248,7 +246,7 @@ func (s *snapshot) ModWhyHandle(ctx context.Context) (source.ModWhyHandle, error
 		for _, req := range parsed.Require {
 			args = append(args, req.Mod.Path)
 		}
-		_, stdout, err := runGoCommand(ctx, cfg, pmh, tmpMod, "mod", args)
+		_, stdout, err := runGoCommand(ctx, cfg, pmh, snapshot.view.tmpMod, "mod", args)
 		if err != nil {
 			return &modWhyData{err: err}
 		}
@@ -268,15 +266,12 @@ func (s *snapshot) ModWhyHandle(ctx context.Context) (source.ModWhyHandle, error
 	defer s.mu.Unlock()
 	s.modWhyHandle = &modWhyHandle{
 		handle: h,
-		pmh:    pmh,
 	}
 	return s.modWhyHandle, nil
 }
 
 type modUpgradeHandle struct {
 	handle *memoize.Handle
-
-	pmh source.ParseModHandle
 }
 
 type modUpgradeData struct {
@@ -286,8 +281,8 @@ type modUpgradeData struct {
 	err error
 }
 
-func (muh *modUpgradeHandle) Upgrades(ctx context.Context) (map[string]string, error) {
-	v, err := muh.handle.Get(ctx)
+func (muh *modUpgradeHandle) Upgrades(ctx context.Context, s source.Snapshot) (map[string]string, error) {
+	v, err := muh.handle.Get(ctx, s.(*snapshot))
 	if v == nil {
 		return nil, err
 	}
@@ -303,26 +298,26 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 	if err != nil {
 		return nil, err
 	}
-	pmh, err := s.ParseModHandle(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	var (
-		cfg    = s.config(ctx)
-		tmpMod = s.view.tmpMod
-	)
+	cfg := s.config(ctx)
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
-		mod:       pmh.Mod().Identity().String(),
+		mod:       fh.Identity().String(),
 		view:      s.view.root.Filename(),
 		verb:      upgrade,
 	}
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModUpgradeHandle", tag.URI.Of(pmh.Mod().URI()))
+	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		ctx, done := event.Start(ctx, "cache.ModUpgradeHandle", tag.URI.Of(fh.URI()))
 		defer done()
 
-		parsed, _, _, err := pmh.Parse(ctx)
+		snapshot := arg.(*snapshot)
+
+		pmh, err := s.ParseModHandle(ctx, fh)
+		if err != nil {
+			return &modUpgradeData{err: err}
+		}
+
+		parsed, _, _, err := pmh.Parse(ctx, snapshot)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}
@@ -333,12 +328,12 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 		// Run "go list -mod readonly -u -m all" to be able to see which deps can be
 		// upgraded without modifying mod file.
 		args := []string{"-u", "-m", "all"}
-		if !tmpMod || containsVendor(pmh.Mod().URI()) {
+		if !snapshot.view.tmpMod || containsVendor(pmh.Mod().URI()) {
 			// Use -mod=readonly if the module contains a vendor directory
 			// (see golang/go#38711).
 			args = append([]string{"-mod", "readonly"}, args...)
 		}
-		_, stdout, err := runGoCommand(ctx, cfg, pmh, tmpMod, "list", args)
+		_, stdout, err := runGoCommand(ctx, cfg, pmh, snapshot.view.tmpMod, "list", args)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}
@@ -370,7 +365,6 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 	defer s.mu.Unlock()
 	s.modUpgradeHandle = &modUpgradeHandle{
 		handle: h,
-		pmh:    pmh,
 	}
 	return s.modUpgradeHandle, nil
 }

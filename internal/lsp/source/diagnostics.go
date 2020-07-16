@@ -137,7 +137,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
-	pkg, err := ph.Check(ctx)
+	pkg, err := ph.Check(ctx, snapshot)
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}

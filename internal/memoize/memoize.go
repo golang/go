@@ -32,9 +32,13 @@ type Store struct {
 	entries map[interface{}]uintptr
 }
 
+// Arg is a marker interface that can be embedded to indicate a type is
+// intended for use as a Function argument.
+type Arg interface{ memoizeArg() }
+
 // Function is the type for functions that can be memoized.
 // The result must be a pointer.
-type Function func(ctx context.Context) interface{}
+type Function func(ctx context.Context, arg Arg) interface{}
 
 type state int
 
@@ -203,14 +207,14 @@ func (h *Handle) Cached() interface{} {
 // If the value is not yet ready, the underlying function will be invoked.
 // This activates the handle, and it will remember the value for as long as it exists.
 // If ctx is cancelled, Get returns nil.
-func (h *Handle) Get(ctx context.Context) (interface{}, error) {
+func (h *Handle) Get(ctx context.Context, arg Arg) (interface{}, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	h.mu.Lock()
 	switch h.state {
 	case stateIdle:
-		return h.run(ctx)
+		return h.run(ctx, arg)
 	case stateRunning:
 		return h.wait(ctx)
 	case stateCompleted:
@@ -222,7 +226,7 @@ func (h *Handle) Get(ctx context.Context) (interface{}, error) {
 }
 
 // run starts h.function and returns the result. h.mu must be locked.
-func (h *Handle) run(ctx context.Context) (interface{}, error) {
+func (h *Handle) run(ctx context.Context, arg Arg) (interface{}, error) {
 	childCtx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	h.cancel = cancel
 	h.state = stateRunning
@@ -234,7 +238,7 @@ func (h *Handle) run(ctx context.Context) (interface{}, error) {
 		if childCtx.Err() != nil {
 			return
 		}
-		v := function(childCtx)
+		v := function(childCtx, arg)
 		if childCtx.Err() != nil {
 			return
 		}

@@ -16,7 +16,7 @@ func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle)
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := pmh.Parse(ctx)
+	file, m, _, err := pmh.Parse(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}

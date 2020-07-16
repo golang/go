@@ -461,7 +461,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, diagnostics
 	if err != nil {
 		return nil, err
 	}
-	errors, err := mth.Tidy(ctx)
+	errors, err := mth.Tidy(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +515,7 @@ func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAct
 		return nil, err
 	}
 	uri := mth.ParseModHandle().Mod().URI()
-	_, m, _, err := mth.ParseModHandle().Parse(ctx)
+	_, m, _, err := mth.ParseModHandle().Parse(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAct
 	if err != nil {
 		return nil, err
 	}
-	right, err := mth.TidiedContent(ctx)
+	right, err := mth.TidiedContent(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}

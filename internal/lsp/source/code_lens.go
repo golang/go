@@ -144,7 +144,7 @@ func matchTestFunc(fn *ast.FuncDecl, pkg Package, nameRe *regexp.Regexp, paramID
 
 func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
-	file, _, m, _, err := pgh.Parse(ctx)
+	file, _, m, _, err := pgh.Parse(ctx, snapshot.View())
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 
 func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
-	file, _, m, _, err := pgh.Parse(ctx)
+	file, _, m, _, err := pgh.Parse(ctx, snapshot.View())
 	if err != nil {
 		return nil, err
 	}

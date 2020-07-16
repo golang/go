@@ -204,7 +204,7 @@ func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	expr, err := varType(ctx, ph, obj)
+	expr, err := varType(ctx, s, ph, obj)
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
@@ -224,8 +224,8 @@ func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast
 }
 
 // varType returns the type expression for a *types.Var.
-func varType(ctx context.Context, ph ParseGoHandle, obj *types.Var) (ast.Expr, error) {
-	posToField, err := ph.PosToField(ctx)
+func varType(ctx context.Context, snapshot Snapshot, ph ParseGoHandle, obj *types.Var) (ast.Expr, error) {
+	posToField, err := ph.PosToField(ctx, snapshot.View())
 	if err != nil {
 		return nil, err
 	}

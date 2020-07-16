@@ -25,7 +25,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface{}) (*source.Error, error) {
+func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{}) (*source.Error, error) {
+	fset := snapshot.view.session.cache.fset
 	var (
 		spn           span.Span
 		err           error
@@ -38,7 +39,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	case packages.Error:
 		kind = toSourceErrorKind(e.Kind)
 		var ok bool
-		if msg, spn, ok = parseGoListImportCycleError(ctx, fset, e, pkg); ok {
+		if msg, spn, ok = parseGoListImportCycleError(ctx, snapshot, e, pkg); ok {
 			kind = source.TypeError
 			break
 		}
@@ -254,7 +255,7 @@ func parseGoListError(input string) span.Span {
 	return span.Parse(input[:msgIndex])
 }
 
-func parseGoListImportCycleError(ctx context.Context, fset *token.FileSet, e packages.Error, pkg *pkg) (string, span.Span, bool) {
+func parseGoListImportCycleError(ctx context.Context, snapshot *snapshot, e packages.Error, pkg *pkg) (string, span.Span, bool) {
 	re := regexp.MustCompile(`(.*): import stack: \[(.+)\]`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(e.Msg))
 	if len(matches) < 3 {
@@ -270,14 +271,14 @@ func parseGoListImportCycleError(ctx context.Context, fset *token.FileSet, e pac
 	// Imports have quotation marks around them.
 	circImp := strconv.Quote(importList[1])
 	for _, ph := range pkg.compiledGoFiles {
-		fh, _, _, _, err := ph.Parse(ctx)
+		fh, _, _, _, err := ph.Parse(ctx, snapshot.view)
 		if err != nil {
 			continue
 		}
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range fh.Imports {
 			if imp.Path.Value == circImp {
-				spn, err := span.NewRange(fset, imp.Pos(), imp.End()).Span()
+				spn, err := span.NewRange(snapshot.view.session.cache.fset, imp.Pos(), imp.End()).Span()
 				if err != nil {
 					return msg, span.Span{}, false
 				}

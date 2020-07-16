@@ -193,7 +193,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		return item, nil
 	}
 
-	posToDecl, err := ph.PosToDecl(ctx)
+	posToDecl, err := ph.PosToDecl(ctx, c.snapshot.View())
 	if err != nil {
 		return CompletionItem{}, err
 	}

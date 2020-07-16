@@ -32,7 +32,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := pmh.Parse(ctx)
+	file, m, _, err := pmh.Parse(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil {
 		return nil, err
 	}
-	upgrades, err := muh.Upgrades(ctx)
+	upgrades, err := muh.Upgrades(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}

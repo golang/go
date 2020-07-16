@@ -65,18 +65,21 @@ func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode so
 		file: fh.Identity(),
 		mode: mode,
 	}
-	fset := c.fset
-	h := c.store.Bind(key, func(ctx context.Context) interface{} {
-		return parseGo(ctx, fset, fh, mode)
+	parseHandle := c.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+		view := arg.(*View)
+		return parseGo(ctx, view.session.cache.fset, fh, mode)
+	})
+
+	astHandle := c.store.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
+		view := arg.(*View)
+		return buildASTCache(ctx, view, parseHandle)
 	})
 
 	return &parseGoHandle{
-		handle: h,
-		file:   fh,
-		mode:   mode,
-		astCacheHandle: c.store.Bind(astCacheKey(key), func(ctx context.Context) interface{} {
-			return buildASTCache(ctx, h)
-		}),
+		handle:         parseHandle,
+		file:           fh,
+		mode:           mode,
+		astCacheHandle: astHandle,
 	}
 }
 
@@ -92,20 +95,20 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 	return pgh.mode
 }
 
-func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
-	data, err := pgh.parse(ctx)
+func (pgh *parseGoHandle) Parse(ctx context.Context, v source.View) (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
+	data, err := pgh.parse(ctx, v.(*View))
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return data.ast, data.src, data.mapper, data.parseError, data.err
 }
 
-func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
-	v, err := pgh.handle.Get(ctx)
+func (pgh *parseGoHandle) parse(ctx context.Context, v *View) (*parseGoData, error) {
+	d, err := pgh.handle.Get(ctx, v)
 	if err != nil {
 		return nil, err
 	}
-	data, ok := v.(*parseGoData)
+	data, ok := d.(*parseGoData)
 	if !ok {
 		return nil, errors.Errorf("no parsed file for %s", pgh.File().URI())
 	}
@@ -129,13 +132,13 @@ func (pgh *parseGoHandle) cached() (*parseGoData, error) {
 	return data, nil
 }
 
-func (pgh *parseGoHandle) PosToDecl(ctx context.Context) (map[token.Pos]ast.Decl, error) {
-	v, err := pgh.astCacheHandle.Get(ctx)
+func (pgh *parseGoHandle) PosToDecl(ctx context.Context, v source.View) (map[token.Pos]ast.Decl, error) {
+	d, err := pgh.astCacheHandle.Get(ctx, v.(*View))
 	if err != nil || v == nil {
 		return nil, err
 	}
 
-	data := v.(*astCacheData)
+	data := d.(*astCacheData)
 	if data.err != nil {
 		return nil, data.err
 	}
@@ -143,13 +146,13 @@ func (pgh *parseGoHandle) PosToDecl(ctx context.Context) (map[token.Pos]ast.Decl
 	return data.posToDecl, nil
 }
 
-func (pgh *parseGoHandle) PosToField(ctx context.Context) (map[token.Pos]*ast.Field, error) {
-	v, err := pgh.astCacheHandle.Get(ctx)
-	if err != nil || v == nil {
+func (pgh *parseGoHandle) PosToField(ctx context.Context, v source.View) (map[token.Pos]*ast.Field, error) {
+	d, err := pgh.astCacheHandle.Get(ctx, v.(*View))
+	if err != nil || d == nil {
 		return nil, err
 	}
 
-	data := v.(*astCacheData)
+	data := d.(*astCacheData)
 	if data.err != nil {
 		return nil, data.err
 	}
@@ -168,7 +171,7 @@ type astCacheData struct {
 
 // buildASTCache builds caches to aid in quickly going from the typed
 // world to the syntactic world.
-func buildASTCache(ctx context.Context, parseHandle *memoize.Handle) *astCacheData {
+func buildASTCache(ctx context.Context, view *View, parseHandle *memoize.Handle) *astCacheData {
 	var (
 		// path contains all ancestors, including n.
 		path []ast.Node
@@ -176,7 +179,7 @@ func buildASTCache(ctx context.Context, parseHandle *memoize.Handle) *astCacheDa
 		decls []ast.Decl
 	)
 
-	v, err := parseHandle.Get(ctx)
+	v, err := parseHandle.Get(ctx, view)
 	if err != nil || v == nil || v.(*parseGoData).ast == nil {
 		return &astCacheData{err: err}
 	}

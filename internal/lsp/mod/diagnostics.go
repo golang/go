@@ -44,7 +44,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, err
 	}
-	diagnostics, err := mth.Tidy(ctx)
+	diagnostics, err := mth.Tidy(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 	if err != nil {
 		return nil, err
 	}
-	parsed, m, _, err := pmh.Parse(ctx)
+	parsed, m, _, err := pmh.Parse(ctx, snapshot)
 	if err != nil {
 		return nil, err
 	}

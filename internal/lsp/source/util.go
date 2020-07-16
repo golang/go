@@ -77,7 +77,7 @@ func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, select
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg, err := ph.Check(ctx)
+	pkg, err := ph.Check(ctx, snapshot)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -148,7 +148,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 		return false
 	}
 	ph := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseHeader)
-	parsed, _, _, _, err := ph.Parse(ctx)
+	parsed, _, _, _, err := ph.Parse(ctx, snapshot.View())
 	if err != nil {
 		return false
 	}

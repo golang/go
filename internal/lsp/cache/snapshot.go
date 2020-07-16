@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
@@ -31,6 +32,8 @@ import (
 )
 
 type snapshot struct {
+	memoize.Arg // allow as a memoize.Function arg
+
 	id   uint64
 	view *View
 
@@ -1004,8 +1007,8 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		return originalFH.URI() == s.view.modURI
 	}
 	// Get the original and current parsed files in order to check package name and imports.
-	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(ctx, originalFH, source.ParseHeader).Parse(ctx)
-	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(ctx, currentFH, source.ParseHeader).Parse(ctx)
+	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(ctx, originalFH, source.ParseHeader).Parse(ctx, s.view)
+	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(ctx, currentFH, source.ParseHeader).Parse(ctx, s.view)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}

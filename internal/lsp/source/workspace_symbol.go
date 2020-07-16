@@ -52,7 +52,7 @@ outer:
 			return nil, err
 		}
 		for _, ph := range knownPkgs {
-			pkg, err := ph.Check(ctx)
+			pkg, err := ph.Check(ctx, view.Snapshot())
 			symbolMatcher := makePackageSymbolMatcher(style, pkg, queryMatcher)
 			if err != nil {
 				return nil, err

@@ -293,7 +293,7 @@ func objToDecl(ctx context.Context, v View, srcPkg Package, obj types.Object) (a
 	if err != nil {
 		return nil, err
 	}
-	posToDecl, err := ph.PosToDecl(ctx)
+	posToDecl, err := ph.PosToDecl(ctx, v)
 	if err != nil {
 		return nil, err
 	}

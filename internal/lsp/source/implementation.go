@@ -95,7 +95,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 			return nil, err
 		}
 		for _, ph := range knownPkgs {
-			pkg, err := ph.Check(ctx)
+			pkg, err := ph.Check(ctx, s)
 			if err != nil {
 				return nil, err
 			}
@@ -212,7 +212,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 	// Check all the packages that the file belongs to.
 	var qualifiedObjs []qualifiedObject
 	for _, ph := range phs {
-		searchpkg, err := ph.Check(ctx)
+		searchpkg, err := ph.Check(ctx, s)
 		if err != nil {
 			return nil, err
 		}
