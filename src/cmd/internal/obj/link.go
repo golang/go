@@ -671,6 +671,7 @@ type Link struct {
 	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string
+	Pkgpath            string           // the current package's import path, "" if unknown
 	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
 	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms

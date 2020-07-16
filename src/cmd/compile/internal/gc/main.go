@@ -789,6 +789,7 @@ func Main(archInit func(*Arch)) {
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpdata()
+	Ctxt.Pkgpath = myimportpath
 	Ctxt.NumberSyms()
 	dumpobj()
 	if asmhdr != "" {
