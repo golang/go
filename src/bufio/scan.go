@@ -427,11 +427,11 @@ func SplitAt(spliter string) func(data []byte, atEOF bool) (advance int, token [
 		}
 		if i := bytes.Index(data, []byte(spliter)); i >= 0 {
 			// We have a full spliter-terminated line.
-			return i + len(spliter), dropCR(data[0:i]), nil
+			return i + len(spliter), data[0:i], nil
 		}
 		// If we're at EOF, we have a final, non-terminated line. Return it.
 		if atEOF {
-			return len(data), dropCR(data), nil
+			return len(data), data, nil
 		}
 		// Request more data.
 		return 0, nil, nil
