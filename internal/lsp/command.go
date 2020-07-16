@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -50,15 +51,16 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	switch params.Command {
 	case source.CommandTest:
 		var uri protocol.DocumentURI
+		var flag string
 		var funcName string
-		if err := source.DecodeArgs(params.Arguments, &uri, &funcName); err != nil {
+		if err := source.DecodeArgs(params.Arguments, &uri, &flag, &funcName); err != nil {
 			return nil, err
 		}
 		snapshot, _, ok, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
 		if !ok {
 			return nil, err
 		}
-		go s.runGoTest(ctx, snapshot, funcName)
+		go s.runTest(ctx, snapshot, []string{flag, funcName})
 	case source.CommandGenerate:
 		var uri protocol.DocumentURI
 		var recursive bool
@@ -140,12 +142,12 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	return view.Snapshot().RunGoCommandDirect(ctx, verb, args)
 }
 
-func (s *Server) runGoTest(ctx context.Context, snapshot source.Snapshot, funcName string) error {
+func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	ew := &eventWriter{ctx: ctx, operation: "test"}
-	msg := fmt.Sprintf("testing %s", funcName)
+	msg := fmt.Sprintf("running `go test %s`", strings.Join(args, " "))
 	wc := s.newProgressWriter(ctx, "test", msg, msg, cancel)
 	defer wc.Close()
 
@@ -153,7 +155,7 @@ func (s *Server) runGoTest(ctx context.Context, snapshot source.Snapshot, funcNa
 	message := "test passed"
 	stderr := io.MultiWriter(ew, wc)
 
-	if err := snapshot.RunGoCommandPiped(ctx, "test", []string{"-run", funcName}, ew, stderr); err != nil {
+	if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return err
 		}

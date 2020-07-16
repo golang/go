@@ -41,6 +41,9 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 	return result, nil
 }
 
+var testRe = regexp.MustCompile("^Test[^a-z]")
+var benchmarkRe = regexp.MustCompile("^Benchmark[^a-z]")
+
 func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	codeLens := make([]protocol.CodeLens, 0)
 
@@ -60,38 +63,48 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		if !ok {
 			continue
 		}
-		if !isTestFunc(fn, pkg) {
-			continue
-		}
 		fset := snapshot.View().Session().Cache().FileSet()
 		rng, err := newMappedRange(fset, m, d.Pos(), d.Pos()).Range()
 		if err != nil {
 			return nil, err
 		}
-		jsonArgs, err := EncodeArgs(fh.URI(), fn.Name.Name)
-		if err != nil {
-			return nil, err
+
+		if matchTestFunc(fn, pkg, testRe, "T") {
+			jsonArgs, err := EncodeArgs(fh.URI(), "-run", fn.Name.Name)
+			if err != nil {
+				return nil, err
+			}
+			codeLens = append(codeLens, protocol.CodeLens{
+				Range: rng,
+				Command: protocol.Command{
+					Title:     "run test",
+					Command:   CommandTest,
+					Arguments: jsonArgs,
+				},
+			})
 		}
-		codeLens = append(codeLens, protocol.CodeLens{
-			Range: rng,
-			Command: protocol.Command{
-				Title:     "run test",
-				Command:   CommandTest,
-				Arguments: jsonArgs,
-			},
-		})
+
+		if matchTestFunc(fn, pkg, benchmarkRe, "B") {
+			jsonArgs, err := EncodeArgs(fh.URI(), "-bench", fn.Name.Name)
+			if err != nil {
+				return nil, err
+			}
+			codeLens = append(codeLens, protocol.CodeLens{
+				Range: rng,
+				Command: protocol.Command{
+					Title:     "run benchmark",
+					Command:   CommandTest,
+					Arguments: jsonArgs,
+				},
+			})
+		}
 	}
 	return codeLens, nil
 }
 
-var (
-	testRe      = regexp.MustCompile("^Test[^a-z]")
-	benchmarkRe = regexp.MustCompile("^Benchmark[^a-z]")
-)
-
-func isTestFunc(fn *ast.FuncDecl, pkg Package) bool {
-	// Make sure that the function name matches either a test or benchmark function.
-	if !(testRe.MatchString(fn.Name.Name) || benchmarkRe.MatchString(fn.Name.Name)) {
+func matchTestFunc(fn *ast.FuncDecl, pkg Package, nameRe *regexp.Regexp, paramID string) bool {
+	// Make sure that the function name matches a test function.
+	if !nameRe.MatchString(fn.Name.Name) {
 		return false
 	}
 	info := pkg.GetTypesInfo()
@@ -111,8 +124,7 @@ func isTestFunc(fn *ast.FuncDecl, pkg Package) bool {
 		return false
 	}
 
-	// Check the type of the only parameter to confirm that it is *testing.T
-	// or *testing.B.
+	// Check the type of the only parameter
 	paramTyp, ok := sig.Params().At(0).Type().(*types.Pointer)
 	if !ok {
 		return false
@@ -125,8 +137,7 @@ func isTestFunc(fn *ast.FuncDecl, pkg Package) bool {
 	if namedObj.Pkg().Path() != "testing" {
 		return false
 	}
-	paramName := namedObj.Id()
-	return paramName == "T" || paramName == "B"
+	return namedObj.Id() == paramID
 }
 
 func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
