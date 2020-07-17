@@ -390,7 +390,7 @@ func FormatHover(h *HoverInformation, options Options) (string, error) {
 }
 
 func formatLink(h *HoverInformation, options Options) string {
-	if options.LinkTarget == "" || h.Link == "" {
+	if !options.LinksInHover || options.LinkTarget == "" || h.Link == "" {
 		return ""
 	}
 	plainLink := fmt.Sprintf("https://%s/%s", options.LinkTarget, h.Link)
@@ -403,6 +403,7 @@ func formatLink(h *HoverInformation, options Options) string {
 		return plainLink
 	}
 }
+
 func formatDoc(doc string, options Options) string {
 	if options.PreferredContentFormat == protocol.Markdown {
 		return CommentToMarkdown(doc)

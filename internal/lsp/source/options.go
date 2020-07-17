@@ -115,6 +115,7 @@ func DefaultOptions() Options {
 			Env:                     os.Environ(),
 			HoverKind:               FullDocumentation,
 			LinkTarget:              "pkg.go.dev",
+			LinksInHover:            true,
 			Matcher:                 Fuzzy,
 			SymbolMatcher:           SymbolFuzzy,
 			DeepCompletion:          true,
@@ -209,6 +210,9 @@ type UserOptions struct {
 	// LinkTarget is the website used for documentation. If empty, no link is
 	// provided.
 	LinkTarget string
+
+	// LinksInHover toggles the presence of links to documentation in hover.
+	LinksInHover bool
 
 	// ImportShortcut specifies whether import statements should link to
 	// documentation or go to definitions. The default is both.
@@ -525,6 +529,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "linkTarget":
 		result.setString(&o.LinkTarget)
+
+	case "linksInHover":
+		result.setBool(&o.LinksInHover)
 
 	case "importShortcut":
 		var s string
