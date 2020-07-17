@@ -1700,6 +1700,8 @@
 // 	GOCACHE
 // 		The directory where the go command will store cached
 // 		information for reuse in future builds.
+// 	GOMODCACHE
+// 		The directory where the go command will store downloaded modules.
 // 	GODEBUG
 // 		Enable various debugging facilities. See 'go doc runtime'
 // 		for details.

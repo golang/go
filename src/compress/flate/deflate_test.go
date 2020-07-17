@@ -512,33 +512,57 @@ func TestWriterReset(t *testing.T) {
 			t.Errorf("level %d Writer not reset after Reset", level)
 		}
 	}
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, NoCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, DefaultCompression) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriter(w, BestCompression) })
-	dict := []byte("we are the world")
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, NoCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, DefaultCompression, dict) })
-	testResetOutput(t, func(w io.Writer) (*Writer, error) { return NewWriterDict(w, BestCompression, dict) })
+
+	levels := []int{0, 1, 2, 5, 9}
+	for _, level := range levels {
+		t.Run(fmt.Sprint(level), func(t *testing.T) {
+			testResetOutput(t, level, nil)
+		})
+	}
+
+	t.Run("dict", func(t *testing.T) {
+		for _, level := range levels {
+			t.Run(fmt.Sprint(level), func(t *testing.T) {
+				testResetOutput(t, level, nil)
+			})
+		}
+	})
 }
 
-func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error)) {
+func testResetOutput(t *testing.T, level int, dict []byte) {
+	writeData := func(w *Writer) {
+		msg := []byte("now is the time for all good gophers")
+		w.Write(msg)
+		w.Flush()
+
+		hello := []byte("hello world")
+		for i := 0; i < 1024; i++ {
+			w.Write(hello)
+		}
+
+		fill := bytes.Repeat([]byte("x"), 65000)
+		w.Write(fill)
+	}
+
 	buf := new(bytes.Buffer)
-	w, err := newWriter(buf)
+	var w *Writer
+	var err error
+	if dict == nil {
+		w, err = NewWriter(buf, level)
+	} else {
+		w, err = NewWriterDict(buf, level, dict)
+	}
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
 	}
-	b := []byte("hello world")
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+
+	writeData(w)
 	w.Close()
 	out1 := buf.Bytes()
 
 	buf2 := new(bytes.Buffer)
 	w.Reset(buf2)
-	for i := 0; i < 1024; i++ {
-		w.Write(b)
-	}
+	writeData(w)
 	w.Close()
 	out2 := buf2.Bytes()
 
