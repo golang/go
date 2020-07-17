@@ -425,6 +425,16 @@ type response struct {
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
 
+	// canWriteContinue is a boolean value accessed as an atomic int32
+	// that says whether or not a 100 Continue header can be written
+	// to the connection.
+	// writeContinueMu must be held while writing the header.
+	// These two fields together synchronize the body reader
+	// (the expectContinueReader, which wants to write 100 Continue)
+	// against the main writer.
+	canWriteContinue atomicBool
+	writeContinueMu  sync.Mutex
+
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
 
@@ -515,6 +525,7 @@ type atomicBool int32
 
 func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
 func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
+func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
 
 // declareTrailer is called for each Trailer header when the
 // response header is written. It notes that a header will need to be
@@ -878,21 +889,27 @@ type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
 	closed     bool
-	sawEOF     bool
+	sawEOF     atomicBool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	if ecr.closed {
 		return 0, ErrBodyReadAfterClose
 	}
-	if !ecr.resp.wroteContinue && !ecr.resp.conn.hijacked() {
-		ecr.resp.wroteContinue = true
-		ecr.resp.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
-		ecr.resp.conn.bufw.Flush()
+	w := ecr.resp
+	if !w.wroteContinue && w.canWriteContinue.isSet() && !w.conn.hijacked() {
+		w.wroteContinue = true
+		w.writeContinueMu.Lock()
+		if w.canWriteContinue.isSet() {
+			w.conn.bufw.WriteString("HTTP/1.1 100 Continue\r\n\r\n")
+			w.conn.bufw.Flush()
+			w.canWriteContinue.setFalse()
+		}
+		w.writeContinueMu.Unlock()
 	}
 	n, err = ecr.readCloser.Read(p)
 	if err == io.EOF {
-		ecr.sawEOF = true
+		ecr.sawEOF.setTrue()
 	}
 	return
 }
@@ -1311,7 +1328,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// because we don't know if the next bytes on the wire will be
 	// the body-following-the-timer or the subsequent request.
 	// See Issue 11549.
-	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF {
+	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF.isSet() {
 		w.closeAfterReply = true
 	}
 
@@ -1561,6 +1578,17 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 		}
 		return 0, ErrHijacked
 	}
+
+	if w.canWriteContinue.isSet() {
+		// Body reader wants to write 100 Continue but hasn't yet.
+		// Tell it not to. The store must be done while holding the lock
+		// because the lock makes sure that there is not an active write
+		// this very moment.
+		w.writeContinueMu.Lock()
+		w.canWriteContinue.setFalse()
+		w.writeContinueMu.Unlock()
+	}
+
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
@@ -1872,6 +1900,7 @@ func (c *conn) serve(ctx context.Context) {
 			if req.ProtoAtLeast(1, 1) && req.ContentLength != 0 {
 				// Wrap the Body reader with one that replies on the connection
 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+				w.canWriteContinue.setTrue()
 			}
 		} else if req.Header.get("Expect") != "" {
 			w.sendExpectationFailed()

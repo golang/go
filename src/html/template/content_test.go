@@ -401,11 +401,11 @@ func TestTypedContent(t *testing.T) {
 }
 
 // Test that we print using the String method. Was issue 3073.
-type stringer struct {
+type myStringer struct {
 	v int
 }
 
-func (s *stringer) String() string {
+func (s *myStringer) String() string {
 	return fmt.Sprintf("string=%d", s.v)
 }
 
@@ -418,7 +418,7 @@ func (s *errorer) Error() string {
 }
 
 func TestStringer(t *testing.T) {
-	s := &stringer{3}
+	s := &myStringer{3}
 	b := new(bytes.Buffer)
 	tmpl := Must(New("x").Parse("{{.}}"))
 	if err := tmpl.Execute(b, s); err != nil {
