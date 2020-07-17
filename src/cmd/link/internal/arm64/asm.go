@@ -456,15 +456,14 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 			// set up addend for eventual relocation via outer symbol.
 			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-			rr.Xadd = r.Add() + off
+			xadd := r.Add() + off
 			rst := ldr.SymType(rs)
 			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
 				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
-			rr.Xsym = rs
 
 			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
-			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && rr.Xadd != 0 {
+			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && xadd != 0 {
 				nExtReloc = 4 // need another two relocations for non-zero addend
 			}
 
@@ -488,9 +487,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				// can only encode 24-bit of signed addend, but the instructions
 				// supports 33-bit of signed addend, so we always encode the
 				// addend in place.
-				o0 |= (uint32((rr.Xadd>>12)&3) << 29) | (uint32((rr.Xadd>>12>>2)&0x7ffff) << 5)
-				o1 |= uint32(rr.Xadd&0xfff) << 10
-				rr.Xadd = 0
+				o0 |= (uint32((xadd>>12)&3) << 29) | (uint32((xadd>>12>>2)&0x7ffff) << 5)
+				o1 |= uint32(xadd&0xfff) << 10
 
 				// when laid out, the instruction order must always be o1, o2.
 				if target.IsBigEndian() {
@@ -508,8 +506,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if rt == objabi.R_ARM64_TLS_IE {
 				nExtReloc = 2 // need two ELF relocations. see elfreloc1
 			}
-			rr.Xsym = rs
-			rr.Xadd = r.Add()
 			return val, nExtReloc, isOk
 		}
 	}
@@ -691,6 +687,42 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
+}
+
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+	rs := ldr.ResolveABIAlias(r.Sym())
+	var rr loader.ExtReloc
+	switch rt := r.Type(); rt {
+	case objabi.R_ARM64_GOTPCREL,
+		objabi.R_ADDRARM64:
+
+		// set up addend for eventual relocation via outer symbol.
+		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+		rr.Xadd = r.Add() + off
+		rr.Xsym = rs
+
+		// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
+		// will make the linking fail because it thinks the code is not PIC even though
+		// the BR26 relocation should be fully resolved at link time.
+		// That is the reason why the next if block is disabled. When the bug in ld64
+		// is fixed, we can enable this block and also enable duff's device in cmd/7g.
+		if false && target.IsDarwin() {
+			// Mach-O wants the addend to be encoded in the instruction
+			// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
+			// can only encode 24-bit of signed addend, but the instructions
+			// supports 33-bit of signed addend, so we always encode the
+			// addend in place.
+			rr.Xadd = 0
+		}
+		return rr, true
+	case objabi.R_CALLARM64,
+		objabi.R_ARM64_TLS_LE,
+		objabi.R_ARM64_TLS_IE:
+		rr.Xsym = rs
+		rr.Xadd = r.Add()
+		return rr, true
+	}
+	return rr, false
 }
 
 func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {

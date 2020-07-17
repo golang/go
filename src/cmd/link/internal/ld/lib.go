@@ -239,6 +239,11 @@ type Arch struct {
 	Asmb  func(*Link, *loader.Loader)
 	Asmb2 func(*Link, *loader.Loader)
 
+	// Extreloc is an arch-specific hook that converts a Go relocation to an
+	// external relocation. Return the external relocation and whether it is
+	// needed.
+	Extreloc func(*Target, *loader.Loader, loader.Reloc2, loader.Sym) (loader.ExtReloc, bool)
+
 	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
 	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
 	Elfsetupplt    func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)

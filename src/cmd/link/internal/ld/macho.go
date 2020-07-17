@@ -1045,17 +1045,25 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
 		if ldr.SymValue(s) >= int64(eaddr) {
 			break
 		}
-		relocs := ldr.ExtRelocs(s)
+
+		// Compute external relocations on the go, and pass to Machoreloc1
+		// to stream out.
+		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
-			r := relocs.At(ri)
-			if r.Xsym == 0 {
+			r := relocs.At2(ri)
+			rr, ok := extreloc(ctxt, ldr, s, r, ri)
+			if !ok {
+				continue
+			}
+			if rr.Xsym == 0 {
 				ldr.Errorf(s, "missing xsym in relocation")
 				continue
 			}
-			if !ldr.AttrReachable(r.Xsym) {
-				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
+			if !ldr.AttrReachable(rr.Xsym) {
+				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
 			}
-			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
+			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
