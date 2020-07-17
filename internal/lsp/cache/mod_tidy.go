@@ -178,7 +178,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		// First, compute any errors specific to the go.mod file. These include
 		// unused dependencies and modules with incorrect // indirect comments.
 		/// Both the diagnostic and the fix will appear on the go.mod file.
-		modRequireErrs, err := modRequireErrors(pmh.Mod().URI(), m, missingDeps, unusedDeps, options)
+		modRequireErrs, err := modRequireErrors(m, missingDeps, unusedDeps, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -189,8 +189,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		}
 		// Next, compute any diagnostics for modules that are missing from the
 		// go.mod file. The fixes will be for the go.mod file, but the
-		// diagnostics should appear on the import statements in the Go files.
-		missingModuleErrs, err := missingModuleErrors(ctx, fset, m, workspacePkgs, missingDeps, options)
+		// diagnostics should appear on the import statements in the Go or
+		// go.mod files.
+		missingModuleErrs, err := missingModuleErrors(ctx, fset, m, workspacePkgs, ideal.Require, missingDeps, original, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -227,7 +228,7 @@ func hashImports(ctx context.Context, wsPackages []source.Package) (string, erro
 
 // modRequireErrors extracts the errors that occur on the require directives.
 // It checks for directness issues and unused dependencies.
-func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unusedDeps map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
+func modRequireErrors(m *protocol.ColumnMapper, missingDeps, unusedDeps map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
 	var errors []source.Error
 	for dep, req := range unusedDeps {
 		if req.Syntax == nil {
@@ -235,7 +236,7 @@ func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unuse
 		}
 		// Handle dependencies that are incorrectly labeled indirect and vice versa.
 		if missingDeps[dep] != nil && req.Indirect != missingDeps[dep].Indirect {
-			directErr, err := modDirectnessErrors(uri, m, req, options)
+			directErr, err := modDirectnessErrors(m, req, options)
 			if err != nil {
 				return nil, err
 			}
@@ -243,11 +244,11 @@ func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unuse
 		}
 		// Handle unused dependencies.
 		if missingDeps[dep] == nil {
-			rng, err := rangeFromPositions(uri, m, req.Syntax.Start, req.Syntax.End)
+			rng, err := rangeFromPositions(m, req.Syntax.Start, req.Syntax.End)
 			if err != nil {
 				return nil, err
 			}
-			edits, err := dropDependencyEdits(uri, m, req, options)
+			edits, err := dropDependencyEdits(m, req, options)
 			if err != nil {
 				return nil, err
 			}
@@ -255,11 +256,11 @@ func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unuse
 				Category: ModTidyError,
 				Message:  fmt.Sprintf("%s is not used in this module.", dep),
 				Range:    rng,
-				URI:      uri,
+				URI:      m.URI,
 				SuggestedFixes: []source.SuggestedFix{{
 					Title: fmt.Sprintf("Remove dependency: %s", dep),
 					Edits: map[span.URI][]protocol.TextEdit{
-						uri: edits,
+						m.URI: edits,
 					},
 				}},
 			})
@@ -271,8 +272,8 @@ func modRequireErrors(uri span.URI, m *protocol.ColumnMapper, missingDeps, unuse
 const ModTidyError = "go mod tidy"
 
 // modDirectnessErrors extracts errors when a dependency is labeled indirect when it should be direct and vice versa.
-func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) (source.Error, error) {
-	rng, err := rangeFromPositions(uri, m, req.Syntax.Start, req.Syntax.End)
+func modDirectnessErrors(m *protocol.ColumnMapper, req *modfile.Require, options source.Options) (source.Error, error) {
+	rng, err := rangeFromPositions(m, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -282,12 +283,12 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 			end := comments.Suffix[0].Start
 			end.LineRune += len(comments.Suffix[0].Token)
 			end.Byte += len([]byte(comments.Suffix[0].Token))
-			rng, err = rangeFromPositions(uri, m, comments.Suffix[0].Start, end)
+			rng, err = rangeFromPositions(m, comments.Suffix[0].Start, end)
 			if err != nil {
 				return source.Error{}, err
 			}
 		}
-		edits, err := changeDirectnessEdits(uri, m, req, false, options)
+		edits, err := changeDirectnessEdits(m, req, false, options)
 		if err != nil {
 			return source.Error{}, err
 		}
@@ -295,17 +296,17 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 			Category: ModTidyError,
 			Message:  fmt.Sprintf("%s should be a direct dependency", req.Mod.Path),
 			Range:    rng,
-			URI:      uri,
+			URI:      m.URI,
 			SuggestedFixes: []source.SuggestedFix{{
 				Title: fmt.Sprintf("Make %s direct", req.Mod.Path),
 				Edits: map[span.URI][]protocol.TextEdit{
-					uri: edits,
+					m.URI: edits,
 				},
 			}},
 		}, nil
 	}
 	// If the dependency should be indirect, add the // indirect.
-	edits, err := changeDirectnessEdits(uri, m, req, true, options)
+	edits, err := changeDirectnessEdits(m, req, true, options)
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -313,11 +314,11 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 		Category: ModTidyError,
 		Message:  fmt.Sprintf("%s should be an indirect dependency", req.Mod.Path),
 		Range:    rng,
-		URI:      uri,
+		URI:      m.URI,
 		SuggestedFixes: []source.SuggestedFix{{
 			Title: fmt.Sprintf("Make %s indirect", req.Mod.Path),
 			Edits: map[span.URI][]protocol.TextEdit{
-				uri: edits,
+				m.URI: edits,
 			},
 		}},
 	}, nil
@@ -335,7 +336,7 @@ func modDirectnessErrors(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 // 	module t
 //
 // 	go 1.11
-func dropDependencyEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, options source.Options) ([]protocol.TextEdit, error) {
+func dropDependencyEdits(m *protocol.ColumnMapper, req *modfile.Require, options source.Options) ([]protocol.TextEdit, error) {
 	// We need a private copy of the parsed go.mod file, since we're going to
 	// modify it.
 	copied, err := modfile.Parse("", m.Content, nil)
@@ -351,7 +352,7 @@ func dropDependencyEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(uri, string(m.Content), string(newContent))
+	diff := options.ComputeEdits(m.URI, string(m.Content), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err
@@ -373,7 +374,7 @@ func dropDependencyEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Re
 // 	go 1.11
 //
 // 	require golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee // indirect
-func changeDirectnessEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.Require, indirect bool, options source.Options) ([]protocol.TextEdit, error) {
+func changeDirectnessEdits(m *protocol.ColumnMapper, req *modfile.Require, indirect bool, options source.Options) ([]protocol.TextEdit, error) {
 	// We need a private copy of the parsed go.mod file, since we're going to
 	// modify it.
 	copied, err := modfile.Parse("", m.Content, nil)
@@ -400,7 +401,7 @@ func changeDirectnessEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.
 		return nil, err
 	}
 	// Calculate the edits to be made due to the change.
-	diff := options.ComputeEdits(uri, string(m.Content), string(newContent))
+	diff := options.ComputeEdits(m.URI, string(m.Content), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {
 		return nil, err
@@ -408,7 +409,7 @@ func changeDirectnessEdits(uri span.URI, m *protocol.ColumnMapper, req *modfile.
 	return edits, nil
 }
 
-func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {
+func rangeFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {
 	toPoint := func(offset int) (span.Point, error) {
 		l, c, err := m.Converter.ToPosition(offset)
 		if err != nil {
@@ -424,12 +425,14 @@ func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Pos
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	return m.Range(span.New(uri, start, end))
+	return m.Range(span.New(m.URI, start, end))
 }
 
 // missingModuleErrors returns diagnostics for each file in each workspace
 // package that has dependencies that are not reflected in the go.mod file.
-func missingModuleErrors(ctx context.Context, fset *token.FileSet, modMapper *protocol.ColumnMapper, pkgs []source.Package, missingMods map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
+func missingModuleErrors(ctx context.Context, fset *token.FileSet, modMapper *protocol.ColumnMapper, pkgs []source.Package, modules []*modfile.Require, missingMods map[string]*modfile.Require, original *modfile.File, options source.Options) ([]source.Error, error) {
+	var moduleErrs []source.Error
+	matchedMissingMods := make(map[*modfile.Require]struct{})
 	for _, pkg := range pkgs {
 		missingPkgs := map[string]*modfile.Require{}
 		for _, imp := range pkg.Imports() {
@@ -437,32 +440,63 @@ func missingModuleErrors(ctx context.Context, fset *token.FileSet, modMapper *pr
 				missingPkgs[imp.PkgPath()] = req
 				break
 			}
-			for dep, req := range missingMods {
-				// If the import is a package of the dependency, then add the
-				// package to the map, this will eliminate the need to do this
-				// prefix package search on each import for each file.
-				// Example:
-				//
-				// import (
-				//   "golang.org/x/tools/go/expect"
-				//   "golang.org/x/tools/go/packages"
-				// )
-				// They both are related to the same module: "golang.org/x/tools".
-				if req != nil && strings.HasPrefix(imp.PkgPath(), dep) {
-					missingPkgs[imp.PkgPath()] = req
-					break
+			// If the import is a package of the dependency, then add the
+			// package to the map, this will eliminate the need to do this
+			// prefix package search on each import for each file.
+			// Example:
+			//
+			// import (
+			//   "golang.org/x/tools/go/expect"
+			//   "golang.org/x/tools/go/packages"
+			// )
+			// They both are related to the same module: "golang.org/x/tools".
+			var match string
+			for _, mod := range modules {
+				if strings.HasPrefix(imp.PkgPath(), mod.Mod.Path) && len(mod.Mod.Path) > len(match) {
+					match = mod.Mod.Path
 				}
+			}
+			if req, ok := missingMods[match]; ok {
+				missingPkgs[imp.PkgPath()] = req
+				matchedMissingMods[req] = struct{}{}
 			}
 		}
 		if len(missingPkgs) > 0 {
-			errors, err := missingModules(ctx, fset, modMapper, pkg, missingPkgs, options)
+			errs, err := missingModules(ctx, fset, modMapper, pkg, missingPkgs, options)
 			if err != nil {
 				return nil, err
 			}
-			return errors, nil
+			moduleErrs = append(moduleErrs, errs...)
 		}
 	}
-	return nil, nil
+	for _, req := range missingMods {
+		if _, ok := matchedMissingMods[req]; ok {
+			continue
+		}
+		s, e := original.Module.Syntax.Span()
+		rng, err := rangeFromPositions(modMapper, s, e)
+		if err != nil {
+			return nil, err
+		}
+		edits, err := addRequireFix(modMapper, req, options)
+		if err != nil {
+			return nil, err
+		}
+		moduleErrs = append(moduleErrs, source.Error{
+			URI:      modMapper.URI,
+			Range:    rng,
+			Message:  fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
+			Category: "go mod tidy",
+			Kind:     source.ModTidyError,
+			SuggestedFixes: []source.SuggestedFix{
+				{
+					Title: "Add %s to your go.mod file",
+					Edits: edits,
+				},
+			},
+		})
+	}
+	return moduleErrs, nil
 }
 
 func missingModules(ctx context.Context, fset *token.FileSet, modMapper *protocol.ColumnMapper, pkg source.Package, missing map[string]*modfile.Require, options source.Options) ([]source.Error, error) {

@@ -246,7 +246,7 @@ go 1.12
 }
 
 func TestBadlyVersionedModule(t *testing.T) {
-	t.Skipf("not fixed yet, see golang/go#39784")
+	testenv.NeedsGo1Point(t, 14)
 
 	const badModule = `
 -- example.com/blah/@v/list --
@@ -302,14 +302,14 @@ package main
 import "example.com/blah/v2"
 
 func main() {
-	fmt.Println(blah.Name)
+	println(blah.Name)
 }
 `
 	runner.Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 		metBy := env.Await(
-			env.DiagnosticAtRegexp("go.mod", "example.com/blah/v2"),
+			DiagnosticAt("go.mod", 0, 0),
 			NoDiagnostics("main.go"),
 		)
 		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
@@ -317,8 +317,7 @@ func main() {
 			t.Fatalf("unexpected type for metBy (%T)", metBy)
 		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		const want = `
-module mod.com
+		const want = `module mod.com
 
 require (
 	example.com/blah v1.0.0

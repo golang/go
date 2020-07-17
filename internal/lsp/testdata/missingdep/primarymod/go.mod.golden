@@ -5,3 +5,10 @@ go 1.12
 
 require example.com/extramodule v1.0.0
 
+-- suggestedfix_hello_6_2 --
+module missingdep
+
+go 1.12
+
+require example.com/extramodule v1.0.0
+
