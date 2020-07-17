@@ -319,8 +319,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// TODO(khr): issue only the -1 fixup code we need.
 			// For instance, if only the quotient is used, no point in zeroing the remainder.
 
-			j1.To.Val = n1
-			j2.To.Val = s.Pc()
+			j1.To.SetTarget(n1)
+			j2.To.SetTarget(s.Pc())
 		}
 
 	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU:

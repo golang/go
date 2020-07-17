@@ -765,7 +765,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		// Set jne branch target.
-		jne.Pcond = p
+		jne.To.SetTarget(p)
 
 		// CMPQ panic_argp(BX), DI
 		p = obj.Appendp(p, newprog)
@@ -783,7 +783,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = AJNE
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// MOVQ SP, panic_argp(BX)
 		p = obj.Appendp(p, newprog)
@@ -801,7 +801,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p = obj.Appendp(p, newprog)
 		p.As = obj.AJMP
 		p.To.Type = obj.TYPE_BRANCH
-		p.Pcond = end
+		p.To.SetTarget(end)
 
 		// Reset p for following code.
 		p = end
@@ -1144,12 +1144,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.Pcond = cursym.Func.Text.Link
+	jmp.To.SetTarget(cursym.Func.Text.Link)
 	jmp.Spadj = +framesize
 
-	jls.Pcond = call
+	jls.To.SetTarget(call)
 	if q1 != nil {
-		q1.Pcond = call
+		q1.To.SetTarget(call)
 	}
 
 	return end
