@@ -1528,6 +1528,10 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 	return nil
 }
 
+type erringRoundTripper interface {
+	RoundTripErr() error
+}
+
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *persistConn, err error) {
 	pconn = &persistConn{
 		t:             t,
@@ -1694,9 +1698,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
 			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
-			if e, ok := alt.(http2erringRoundTripper); ok {
+			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransport.upgradeFn).
-				return nil, e.err
+				return nil, e.RoundTripErr()
 			}
 			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
 		}
