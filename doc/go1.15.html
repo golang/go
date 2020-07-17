@@ -386,6 +386,23 @@ Do not send CLs removing the interior tags from such phrases.
   documentation</a> for more information.
 </p>
 
+<h3 id="commonname">X.509 CommonName deprecation</h3>
+
+<p><!-- CL 231379 -->
+  The deprecated, legacy behavior of treating the <code>CommonName</code>
+  field on X.509 certificates as a host name when no Subject Alternative Names
+  are present is now disabled by default. It can be temporarily re-enabled by
+  adding the value <code>x509ignoreCN=0</code> to the <code>GODEBUG</code>
+  environment variable.
+</p>
+
+<p>
+  Note that if the <code>CommonName</code> is an invalid host name, it's always
+  ignored, regardless of <code>GODEBUG</code> settings. Invalid names include
+  those with any characters other than letters, digits, hyphens and underscores,
+  and those with empty labels or trailing dots.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -521,15 +538,6 @@ Do not send CLs removing the interior tags from such phrases.
       Invalid names include those with any characters other than letters,
       digits, hyphens and underscores, those with empty labels, and names on
       certificates with trailing dots.
-    </p>
-
-    <p><!-- CL 231379 -->
-      The deprecated, legacy behavior of treating the <code>CommonName</code>
-      field as a hostname when no Subject Alternative Names are present is now
-      disabled by default. It can be temporarily re-enabled by adding the value
-      <code>x509ignoreCN=0</code> to the <code>GODEBUG</code> environment
-      variable. If the <code>CommonName</code> is an invalid hostname, it's
-      always ignored.
     </p>
 
     <p><!-- CL 217298 -->
