@@ -982,7 +982,7 @@ var (
 
 func http2getDataBufferChunk(size int64) []byte {
 	i := 0
-	for ; i < len(http2dataChunkSizeClasses)-1; i++ {
+	for ; i < len(http2dataChunkSizeClasses); i++ {
 		if size <= int64(http2dataChunkSizeClasses[i]) {
 			break
 		}
