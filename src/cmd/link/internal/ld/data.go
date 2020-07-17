@@ -264,7 +264,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
 			}
 			var rp *loader.ExtReloc
-			if target.IsExternal() {
+			if target.IsExternal() && !target.StreamExtRelocs() {
 				// Don't pass &rr directly to Archreloc, which will escape rr
 				// even if this case is not taken. Instead, as Archreloc will
 				// likely return true, we speculatively add rr to extRelocs
@@ -274,12 +274,16 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 			out, nExtReloc, ok := thearch.Archreloc(target, ldr, syms, r, rp, s, o)
 			if target.IsExternal() {
-				if nExtReloc == 0 {
-					// No external relocation needed. Speculation failed. Undo the append.
-					extRelocs = extRelocs[:len(extRelocs)-1]
+				if target.StreamExtRelocs() {
+					extraExtReloc += nExtReloc
 				} else {
-					// Account for the difference between host relocations and Go relocations.
-					extraExtReloc += nExtReloc - 1
+					if nExtReloc == 0 {
+						// No external relocation needed. Speculation failed. Undo the append.
+						extRelocs = extRelocs[:len(extRelocs)-1]
+					} else {
+						// Account for the difference between host relocations and Go relocations.
+						extraExtReloc += nExtReloc - 1
+					}
 				}
 			}
 			needExtReloc = false // already appended
@@ -638,8 +642,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 
 	switch rt {
 	default:
-		// TODO: handle arch-specific relocations
-		panic("unsupported")
+		return thearch.Extreloc(&target, ldr, r, s)
 
 	case objabi.R_TLS_LE, objabi.R_TLS_IE:
 		if target.IsElf() {
