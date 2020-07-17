@@ -722,7 +722,7 @@ var printVerbs = []printVerb{
 	// '#' is alternate format for several verbs.
 	// ' ' is spacer for numbers
 	{'%', noFlag, 0},
-	{'b', numFlag, argInt | argFloat | argComplex | argPointer},
+	{'b', sharpNumFlag, argInt | argFloat | argComplex | argPointer},
 	{'c', "-", argRune | argInt},
 	{'d', numFlag, argInt | argPointer},
 	{'e', sharpNumFlag, argFloat | argComplex},
@@ -732,6 +732,7 @@ var printVerbs = []printVerb{
 	{'g', sharpNumFlag, argFloat | argComplex},
 	{'G', sharpNumFlag, argFloat | argComplex},
 	{'o', sharpNumFlag, argInt | argPointer},
+	{'O', sharpNumFlag, argInt | argPointer},
 	{'p', "-#", argPointer},
 	{'q', " -+.0#", argRune | argInt | argString},
 	{'s', " -+.0", argString},
@@ -740,8 +741,8 @@ var printVerbs = []printVerb{
 	{'U', "-#", argRune | argInt},
 	{'v', allFlags, anyType},
 	{'w', noFlag, anyType},
-	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
-	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
+	{'x', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
+	{'X', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
 }
 
 // okPrintfArg compares the formatState to the arguments actually present,
