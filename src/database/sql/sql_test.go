@@ -80,6 +80,11 @@ func newTestDBConnector(t testing.TB, fc *fakeConnector, name string) *DB {
 		exec(t, db, "CREATE|magicquery|op=string,millis=int32")
 		exec(t, db, "INSERT|magicquery|op=sleep,millis=10")
 	}
+	if name == "tx_status" {
+		// Magic table name and column, known by fakedb_test.go.
+		exec(t, db, "CREATE|tx_status|tx_status=string")
+		exec(t, db, "INSERT|tx_status|tx_status=invalid")
+	}
 	return db
 }
 
@@ -437,6 +442,7 @@ func TestTxContextWait(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
+	tx.keepConnOnRollback = false
 
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
@@ -447,6 +453,35 @@ func TestTxContextWait(t *testing.T) {
 	}
 
 	waitForFree(t, db, 5*time.Second, 0)
+}
+
+// TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
+// the final connection.
+func TestTxContextWaitNoDiscard(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
+	defer cancel()
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		// Guard against the context being canceled before BeginTx completes.
+		if err == context.DeadlineExceeded {
+			t.Skip("tx context canceled prior to first use")
+		}
+		t.Fatal(err)
+	}
+
+	// This will trigger the *fakeConn.Prepare method which will take time
+	// performing the query. The ctxDriverPrepare func will check the context
+	// after this and close the rows and return an error.
+	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
+	if err != context.DeadlineExceeded {
+		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
+	}
+
+	waitForFree(t, db, 5*time.Second, 1)
 }
 
 // TestUnsupportedOptions checks that the database fails when a driver that
@@ -1522,6 +1557,37 @@ func TestConnTx(t *testing.T) {
 	}
 	if selectName != insertName {
 		t.Fatalf("got %q want %q", selectName, insertName)
+	}
+}
+
+// TestConnIsValid verifies that a database connection that should be discarded,
+// is actually discarded and does not re-enter the connection pool.
+// If the IsValid method from *fakeConn is removed, this test will fail.
+func TestConnIsValid(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	ctx := context.Background()
+
+	c, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Raw(func(raw interface{}) error {
+		dc := raw.(*fakeConn)
+		dc.stickyBad = true
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+
+	if len(db.freeConn) > 0 && db.freeConn[0].ci.(*fakeConn).stickyBad {
+		t.Fatal("bad connection returned to pool; expected bad connection to be discarded")
 	}
 }
 
@@ -2655,6 +2721,159 @@ func TestManyErrBadConn(t *testing.T) {
 	err = db.PingContext(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Issue 34755: Ensure that a Tx cannot commit after a rollback.
+func TestTxCannotCommitAfterRollback(t *testing.T) {
+	db := newTestDB(t, "tx_status")
+	defer closeDB(t, db)
+
+	// First check query reporting is correct.
+	var txStatus string
+	err := db.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "autocommit"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ignore dirty session for this test.
+	// A failing test should trigger the dirty session flag as well,
+	// but that isn't exactly what this should test for.
+	tx.txi.(*fakeTx).c.skipDirtySession = true
+
+	defer tx.Rollback()
+
+	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "transaction"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
+	}
+
+	// 1. Begin a transaction.
+	// 2. (A) Start a query, (B) begin Tx rollback through a ctx cancel.
+	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
+	sendQuery := make(chan struct{})
+	hookTxGrabConn = func() {
+		cancel()
+		<-sendQuery
+	}
+	rollbackHook = func() {
+		close(sendQuery)
+	}
+	defer func() {
+		hookTxGrabConn = nil
+		rollbackHook = nil
+	}()
+
+	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		// A failure here would be expected if skipDirtySession was not set to true above.
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "transaction"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
+	}
+}
+
+// Issue32530 encounters an issue where a connection may
+// expire right after it comes out of a used connection pool
+// even when a new connection is requested.
+func TestConnExpiresFreshOutOfPool(t *testing.T) {
+	execCases := []struct {
+		expired  bool
+		badReset bool
+	}{
+		{false, false},
+		{true, false},
+		{false, true},
+	}
+
+	t0 := time.Unix(1000000, 0)
+	offset := time.Duration(0)
+	offsetMu := sync.RWMutex{}
+
+	nowFunc = func() time.Time {
+		offsetMu.RLock()
+		defer offsetMu.RUnlock()
+		return t0.Add(offset)
+	}
+	defer func() { nowFunc = time.Now }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	for _, ec := range execCases {
+		ec := ec
+		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
+		t.Run(name, func(t *testing.T) {
+			db.clearAllConns(t)
+
+			db.SetMaxIdleConns(1)
+			db.SetConnMaxLifetime(10 * time.Second)
+
+			conn, err := db.conn(ctx, alwaysNewConn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			afterPutConn := make(chan struct{})
+			waitingForConn := make(chan struct{})
+
+			go func() {
+				conn, err := db.conn(ctx, alwaysNewConn)
+				if err != nil {
+					t.Fatal(err)
+				}
+				db.putConn(conn, err, false)
+				close(afterPutConn)
+			}()
+			go func() {
+				for {
+					db.mu.Lock()
+					ct := len(db.connRequests)
+					db.mu.Unlock()
+					if ct > 0 {
+						close(waitingForConn)
+						return
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}()
+
+			<-waitingForConn
+
+			offsetMu.Lock()
+			if ec.expired {
+				offset = 11 * time.Second
+			} else {
+				offset = time.Duration(0)
+			}
+			offsetMu.Unlock()
+
+			conn.ci.(*fakeConn).stickyBad = ec.badReset
+
+			db.putConn(conn, err, true)
+
+			<-afterPutConn
+		})
 	}
 }
 

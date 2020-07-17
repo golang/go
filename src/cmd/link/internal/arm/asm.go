@@ -470,8 +470,12 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 			offset := (signext24(r.Add&0xffffff) + 2) * 4
 			var tramp *sym.Symbol
 			for i := 0; ; i++ {
-				name := r.Sym.Name + fmt.Sprintf("%+d-tramp%d", offset, i)
+				oName := r.Sym.Name
+				name := oName + fmt.Sprintf("%+d-tramp%d", offset, i)
 				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
+				if oName == "runtime.deferreturn" {
+					tramp.Attr.Set(sym.AttrDeferReturnTramp, true)
+				}
 				if tramp.Type == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue

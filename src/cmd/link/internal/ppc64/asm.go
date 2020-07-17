@@ -667,7 +667,8 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
 				// distinct trampolines.
 
-				name := r.Sym.Name
+				oName := r.Sym.Name
+				name := oName
 				if r.Add == 0 {
 					name = name + fmt.Sprintf("-tramp%d", i)
 				} else {
@@ -677,6 +678,9 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
 				// Look up the trampoline in case it already exists
 
 				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
+				if oName == "runtime.deferreturn" {
+					tramp.Attr.Set(sym.AttrDeferReturnTramp, true)
+				}
 				if tramp.Value == 0 {
 					break
 				}

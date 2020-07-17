@@ -551,6 +551,7 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
 }
 
 // Information from the compiler about the layout of stack frames.
+// Note: this type must agree with reflect.bitVector.
 type bitvector struct {
 	n        int32 // # of bits
 	bytedata *uint8

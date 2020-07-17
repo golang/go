@@ -438,8 +438,6 @@ func TestTRun(t *T) {
 	}, {
 		// A chatty test should always log with fmt.Print, even if the
 		// parent test has completed.
-		// TODO(deklerk) Capture the log of fmt.Print and assert that the
-		// subtest message is not lost.
 		desc:   "log in finished sub test with chatty",
 		ok:     false,
 		chatty: true,
@@ -477,35 +475,37 @@ func TestTRun(t *T) {
 		},
 	}}
 	for _, tc := range testCases {
-		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
-		buf := &bytes.Buffer{}
-		root := &T{
-			common: common{
-				signal: make(chan bool),
-				name:   "Test",
-				w:      buf,
-				chatty: tc.chatty,
-			},
-			context: ctx,
-		}
-		ok := root.Run(tc.desc, tc.f)
-		ctx.release()
+		t.Run(tc.desc, func(t *T) {
+			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+			buf := &bytes.Buffer{}
+			root := &T{
+				common: common{
+					signal: make(chan bool),
+					name:   "Test",
+					w:      buf,
+					chatty: tc.chatty,
+				},
+				context: ctx,
+			}
+			ok := root.Run(tc.desc, tc.f)
+			ctx.release()
 
-		if ok != tc.ok {
-			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
-		}
-		if ok != !root.Failed() {
-			t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
-		}
-		if ctx.running != 0 || ctx.numWaiting != 0 {
-			t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
-		}
-		got := strings.TrimSpace(buf.String())
-		want := strings.TrimSpace(tc.output)
-		re := makeRegexp(want)
-		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
-		}
+			if ok != tc.ok {
+				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
+			}
+			if ok != !root.Failed() {
+				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+			}
+			if ctx.running != 0 || ctx.numWaiting != 0 {
+				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
+			}
+			got := strings.TrimSpace(buf.String())
+			want := strings.TrimSpace(tc.output)
+			re := makeRegexp(want)
+			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			}
+		})
 	}
 }
 
@@ -655,43 +655,45 @@ func TestBRun(t *T) {
 		},
 	}}
 	for _, tc := range testCases {
-		var ok bool
-		buf := &bytes.Buffer{}
-		// This is almost like the Benchmark function, except that we override
-		// the benchtime and catch the failure result of the subbenchmark.
-		root := &B{
-			common: common{
-				signal: make(chan bool),
-				name:   "root",
-				w:      buf,
-				chatty: tc.chatty,
-			},
-			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
-			benchTime: benchTimeFlag{d: 1 * time.Microsecond},
-		}
-		root.runN(1)
-		if ok != !tc.failed {
-			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
-		}
-		if !ok != root.Failed() {
-			t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
-		}
-		// All tests are run as subtests
-		if root.result.N != 1 {
-			t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
-		}
-		got := strings.TrimSpace(buf.String())
-		want := strings.TrimSpace(tc.output)
-		re := makeRegexp(want)
-		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
-		}
+		t.Run(tc.desc, func(t *T) {
+			var ok bool
+			buf := &bytes.Buffer{}
+			// This is almost like the Benchmark function, except that we override
+			// the benchtime and catch the failure result of the subbenchmark.
+			root := &B{
+				common: common{
+					signal: make(chan bool),
+					name:   "root",
+					w:      buf,
+					chatty: tc.chatty,
+				},
+				benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
+				benchTime: benchTimeFlag{d: 1 * time.Microsecond},
+			}
+			root.runN(1)
+			if ok != !tc.failed {
+				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
+			}
+			if !ok != root.Failed() {
+				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+			}
+			// All tests are run as subtests
+			if root.result.N != 1 {
+				t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
+			}
+			got := strings.TrimSpace(buf.String())
+			want := strings.TrimSpace(tc.output)
+			re := makeRegexp(want)
+			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+			}
+		})
 	}
 }
 
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
-	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d:`)
+	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
 	return s
 }

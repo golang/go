@@ -2459,4 +2459,20 @@ func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
 	if t1 != t2 {
 		t.Errorf("Marshal and Unmarshal roundtrip mismatch: want %q got %q", t1, t2)
 	}
+
+	// See golang.org/issues/39555.
+	input := map[textUnmarshalerString]string{"FOO": "", `"`: ""}
+
+	encoded, err := Marshal(input)
+	if err != nil {
+		t.Fatalf("Marshal unexpected error: %v", err)
+	}
+	var got map[textUnmarshalerString]string
+	if err := Unmarshal(encoded, &got); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+	want := map[textUnmarshalerString]string{"foo": "", `"`: ""}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("Unexpected roundtrip result:\nwant: %q\ngot:  %q", want, got)
+	}
 }
