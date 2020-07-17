@@ -159,7 +159,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	target := st.target
 	syms := st.syms
 	var extRelocs []loader.ExtReloc
-	if target.IsExternal() && !(target.IsAMD64() && target.IsELF) {
+	if target.IsExternal() && !target.StreamExtRelocs() {
 		// preallocate a slice conservatively assuming that all
 		// relocs will require an external reloc
 		extRelocs = st.preallocExtRelocSlice(relocs.Count())
@@ -592,14 +592,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 
 	addExtReloc:
 		if needExtReloc {
-			if target.IsAMD64() && target.IsELF {
+			if target.StreamExtRelocs() {
 				extraExtReloc++
 			} else {
 				extRelocs = append(extRelocs, rr)
 			}
 		}
 	}
-	if target.IsExternal() && target.IsAMD64() && target.IsELF {
+	if target.IsExternal() && target.StreamExtRelocs() {
 		// On AMD64 ELF, we'll stream out the external relocations in elfrelocsect
 		// and we only need the count here.
 		// TODO: just count, but not compute the external relocations. For now it

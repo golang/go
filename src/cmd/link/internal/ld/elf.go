@@ -1372,7 +1372,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 			break
 		}
 
-		if ctxt.IsAMD64() {
+		if ctxt.StreamExtRelocs() {
 			// Compute external relocations on the go, and pass to Elfreloc1
 			// to stream out.
 			relocs := ldr.Relocs(s)
