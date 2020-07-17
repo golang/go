@@ -6182,7 +6182,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 
 	// Resolve branches, and relax DefaultStmt into NotStmt
 	for _, br := range s.Branches {
-		br.P.To.Val = s.bstart[br.B.ID]
+		br.P.To.SetTarget(s.bstart[br.B.ID])
 		if br.P.Pos.IsStmt() != src.PosIsStmt {
 			br.P.Pos = br.P.Pos.WithNotStmt()
 		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {

@@ -634,7 +634,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		getargp.Reg = 0
 		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
 
-		bneadj.Pcond = getargp
+		bneadj.To.SetTarget(getargp)
 
 		calcargp := obj.Appendp(getargp, newprog)
 		calcargp.As = AADDI
@@ -647,7 +647,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
 		testargp.Reg = REG_X13
 		testargp.To.Type = obj.TYPE_BRANCH
-		testargp.Pcond = endadj
+		testargp.To.SetTarget(endadj)
 
 		adjargp := obj.Appendp(testargp, newprog)
 		adjargp.As = AADDI
@@ -665,7 +665,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		godone.As = AJAL
 		godone.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
 		godone.To.Type = obj.TYPE_BRANCH
-		godone.Pcond = endadj
+		godone.To.SetTarget(endadj)
 	}
 
 	// Update stack-based offsets.
@@ -890,27 +890,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				if p.To.Type != obj.TYPE_BRANCH {
 					panic("assemble: instruction with branch-like opcode lacks destination")
 				}
-				offset := p.Pcond.Pc - p.Pc
+				offset := p.To.Target().Pc - p.Pc
 				if offset < -4096 || 4096 <= offset {
 					// Branch is long.  Replace it with a jump.
 					jmp := obj.Appendp(p, newprog)
 					jmp.As = AJAL
 					jmp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
 					jmp.To = obj.Addr{Type: obj.TYPE_BRANCH}
-					jmp.Pcond = p.Pcond
+					jmp.To.SetTarget(p.To.Target())
 
 					p.As = InvertBranch(p.As)
-					p.Pcond = jmp.Link
+					p.To.SetTarget(jmp.Link)
 
 					// We may have made previous branches too long,
 					// so recheck them.
 					rescan = true
 				}
 			case AJAL:
-				if p.Pcond == nil {
+				if p.To.Target() == nil {
 					panic("intersymbol jumps should be expressed as AUIPC+JALR")
 				}
-				offset := p.Pcond.Pc - p.Pc
+				offset := p.To.Target().Pc - p.Pc
 				if offset < -(1<<20) || (1<<20) <= offset {
 					// Replace with 2-instruction sequence. This assumes
 					// that TMP is not live across J instructions, since
@@ -946,16 +946,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
-				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
+				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			case obj.TYPE_MEM:
 				panic("unhandled type")
 			}
 
 		case AAUIPC:
 			if p.From.Type == obj.TYPE_BRANCH {
-				low, high, err := Split32BitImmediate(p.Pcond.Pc - p.Pc)
+				low, high, err := Split32BitImmediate(p.To.Target().Pc - p.Pc)
 				if err != nil {
-					ctxt.Diag("%v: jump displacement %d too large", p, p.Pcond.Pc-p.Pc)
+					ctxt.Diag("%v: jump displacement %d too large", p, p.To.Target().Pc-p.Pc)
 				}
 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
 				p.Link.From.Offset = low
@@ -1098,7 +1098,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		p.To.Sym = ctxt.Lookup("runtime.morestack")
 	}
 	if to_more != nil {
-		to_more.Pcond = p
+		to_more.To.SetTarget(p)
 	}
 	p = jalrToSym(ctxt, p, newprog, REG_X5)
 
@@ -1107,12 +1107,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.As = AJAL
 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-	p.Pcond = cursym.Func.Text.Link
+	p.To.SetTarget(cursym.Func.Text.Link)
 
 	// placeholder for to_done's jump target
 	p = obj.Appendp(p, newprog)
 	p.As = obj.ANOP // zero-width place holder
-	to_done.Pcond = p
+	to_done.To.SetTarget(p)
 
 	return p
 }

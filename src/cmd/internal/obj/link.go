@@ -237,6 +237,19 @@ const (
 	TYPE_REGLIST
 )
 
+func (a *Addr) Target() *Prog {
+	if a.Type == TYPE_BRANCH && a.Val != nil {
+		return a.Val.(*Prog)
+	}
+	return nil
+}
+func (a *Addr) SetTarget(t *Prog) {
+	if a.Type != TYPE_BRANCH {
+		panic("setting branch target when type is not TYPE_BRANCH")
+	}
+	a.Val = t
+}
+
 // Prog describes a single machine instruction.
 //
 // The general instruction form is:
@@ -255,7 +268,7 @@ const (
 // to avoid too much changes in a single swing.
 // (1) scheme is enough to express any kind of operand combination.
 //
-// Jump instructions use the Pcond field to point to the target instruction,
+// Jump instructions use the To.Val field to point to the target *Prog,
 // which must be in the same linked list as the jump instruction.
 //
 // The Progs for a given function are arranged in a list linked through the Link field.
@@ -274,7 +287,7 @@ type Prog struct {
 	From     Addr     // first source operand
 	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
 	To       Addr     // destination operand (second is RegTo2 below)
-	Pcond    *Prog    // target of conditional jump
+	Pool     *Prog    // constant pool entry, for arm,arm64 back ends
 	Forwd    *Prog    // for x86 back end
 	Rel      *Prog    // for x86, arm back ends
 	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
