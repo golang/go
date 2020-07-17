@@ -82,7 +82,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if wantQuickFixes := wanted[protocol.QuickFix] && len(diagnostics) > 0; wantQuickFixes || wanted[protocol.SourceOrganizeImports] {
 			importEdits, importEditsPerFix, err := source.AllImportsFixes(ctx, snapshot, fh)
 			if err != nil {
-				return nil, err
+				event.Error(ctx, "imports fixes", err, tag.File.Of(fh.URI().Filename()))
 			}
 			// Separate this into a set of codeActions per diagnostic, where
 			// each action is the addition, removal, or renaming of one import.

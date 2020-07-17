@@ -8,6 +8,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -18,7 +19,6 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 // Format formats a file with a given range.
@@ -95,7 +95,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
 	}); err != nil {
-		return nil, nil, errors.Errorf("computing fix edits: %v", err)
+		return nil, nil, fmt.Errorf("AllImportsFixes: %v", err)
 	}
 	return allFixEdits, editsPerFix, nil
 }
