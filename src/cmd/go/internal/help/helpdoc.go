@@ -398,15 +398,23 @@ Here's an extended version of the directory layout above:
                 internal/
                     baz/           (go code in package baz)
                         z.go
-                quux/              (go code in package main)
-                    y.go
-
+				quux/              (go code in package main)
+					y.go
+					internal/
+						q.go
+				v2/
+					f.go
 
 The code in z.go is imported as "foo/internal/baz", but that
 import statement can only appear in source files in the subtree
 rooted at foo. The source files foo/f.go, foo/bar/x.go, and
 foo/quux/y.go can all import "foo/internal/baz", but the source file
 crash/bang/b.go cannot.
+
+Take note that v2/f.go *can* import foo/internal/baz, but *cannot*
+import foo/quux/internal. Internal packages that are intended to be
+shared among multiple major versions of a package should be stored
+within a top-level "internal" directory (foo/internal in the example).
 
 See https://golang.org/s/go14internal for details.
 
