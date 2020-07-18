@@ -7,6 +7,7 @@
 package testdata
 
 import (
+	"encoding/asn1"
 	"encoding/gob"
 	"encoding/json"
 	"encoding/xml"
@@ -30,6 +31,8 @@ func _() {
 	xml.Unmarshal([]byte{}, &v)
 	xml.NewDecoder(r).Decode(v) // want "call of Decode passes non-pointer"
 	xml.NewDecoder(r).Decode(&v)
+	asn1.Unmarshal([]byte{}, v) // want "call of Unmarshal passes non-pointer as second argument"
+	asn1.Unmarshal([]byte{}, &v)
 
 	var p *t
 	json.Unmarshal([]byte{}, p)
@@ -42,6 +45,8 @@ func _() {
 	xml.Unmarshal([]byte{}, *p) // want "call of Unmarshal passes non-pointer as second argument"
 	xml.NewDecoder(r).Decode(p)
 	xml.NewDecoder(r).Decode(*p) // want "call of Decode passes non-pointer"
+	asn1.Unmarshal([]byte{}, p)
+	asn1.Unmarshal([]byte{}, *p) // want "call of Unmarshal passes non-pointer as second argument"
 
 	var i interface{}
 	json.Unmarshal([]byte{}, i)
