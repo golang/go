@@ -398,12 +398,12 @@ Here's an extended version of the directory layout above:
                 internal/
                     baz/           (go code in package baz)
                         z.go
-				quux/              (go code in package main)
-					y.go
-					internal/
-						q.go
-				v2/
-					f.go
+                quux/              (go code in package main)
+                    y.go
+                    internal/
+                        q.go
+                v2/
+                    f.go
 
 The code in z.go is imported as "foo/internal/baz", but that
 import statement can only appear in source files in the subtree
