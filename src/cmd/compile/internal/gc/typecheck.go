@@ -257,12 +257,12 @@ func typecheck(n *Node, top int) (res *Node) {
 				// are substituted.
 				cycle := cycleFor(n)
 				for _, n1 := range cycle {
-					if n1.Name != nil && !n1.Name.Param.Alias {
+					if n1.Name != nil && !n1.Name.Param.Alias() {
 						// Cycle is ok. But if n is an alias type and doesn't
 						// have a type yet, we have a recursive type declaration
 						// with aliases that we can't handle properly yet.
 						// Report an error rather than crashing later.
-						if n.Name != nil && n.Name.Param.Alias && n.Type == nil {
+						if n.Name != nil && n.Name.Param.Alias() && n.Type == nil {
 							lineno = n.Pos
 							Fatalf("cannot handle alias type declaration (issue #25838): %v", n)
 						}
@@ -3504,7 +3504,7 @@ func setUnderlying(t, underlying *types.Type) {
 	}
 
 	// Propagate go:notinheap pragma from the Name to the Type.
-	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma&NotInHeap != 0 {
+	if n.Name != nil && n.Name.Param != nil && n.Name.Param.Pragma()&NotInHeap != 0 {
 		t.SetNotInHeap(true)
 	}
 
@@ -3676,7 +3676,7 @@ func typecheckdef(n *Node) {
 		n.Name.Defn = typecheck(n.Name.Defn, ctxStmt) // fills in n.Type
 
 	case OTYPE:
-		if p := n.Name.Param; p.Alias {
+		if p := n.Name.Param; p.Alias() {
 			// Type alias declaration: Simply use the rhs type - no need
 			// to create a new type.
 			// If we have a syntax error, p.Ntype may be nil.

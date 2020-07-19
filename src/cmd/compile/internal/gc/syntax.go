@@ -480,11 +480,87 @@ type Param struct {
 	Innermost *Node
 	Outer     *Node
 
-	// OTYPE
-	//
-	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma PragmaFlag
-	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
+	// OTYPE & ONAME //go:embed info,
+	// sharing storage to reduce gc.Param size.
+	// Extra is nil, or else *Extra is a *paramType or an *embedFileList.
+	Extra *interface{}
+}
+
+type paramType struct {
+	flag  PragmaFlag
+	alias bool
+}
+
+type embedFileList []string
+
+// Pragma returns the PragmaFlag for p, which must be for an OTYPE.
+func (p *Param) Pragma() PragmaFlag {
+	if p.Extra == nil {
+		return 0
+	}
+	return (*p.Extra).(*paramType).flag
+}
+
+// SetPragma sets the PragmaFlag for p, which must be for an OTYPE.
+func (p *Param) SetPragma(flag PragmaFlag) {
+	if p.Extra == nil {
+		if flag == 0 {
+			return
+		}
+		p.Extra = new(interface{})
+		*p.Extra = &paramType{flag: flag}
+		return
+	}
+	(*p.Extra).(*paramType).flag = flag
+}
+
+// Alias reports whether p, which must be for an OTYPE, is a type alias.
+func (p *Param) Alias() bool {
+	if p.Extra == nil {
+		return false
+	}
+	t, ok := (*p.Extra).(*paramType)
+	if !ok {
+		return false
+	}
+	return t.alias
+}
+
+// SetAlias sets whether p, which must be for an OTYPE, is a type alias.
+func (p *Param) SetAlias(alias bool) {
+	if p.Extra == nil {
+		if !alias {
+			return
+		}
+		p.Extra = new(interface{})
+		*p.Extra = &paramType{alias: alias}
+		return
+	}
+	(*p.Extra).(*paramType).alias = alias
+}
+
+// EmbedFiles returns the list of embedded files for p,
+// which must be for an ONAME var.
+func (p *Param) EmbedFiles() []string {
+	if p.Extra == nil {
+		return nil
+	}
+	return *(*p.Extra).(*embedFileList)
+}
+
+// SetEmbedFiles sets the list of embedded files for p,
+// which must be for an ONAME var.
+func (p *Param) SetEmbedFiles(list []string) {
+	if p.Extra == nil {
+		if len(list) == 0 {
+			return
+		}
+		f := embedFileList(list)
+		p.Extra = new(interface{})
+		*p.Extra = &f
+		return
+	}
+	*(*p.Extra).(*embedFileList) = list
 }
 
 // Functions

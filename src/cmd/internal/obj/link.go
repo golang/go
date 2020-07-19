@@ -401,7 +401,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Extra *interface{} // *FuncInfo if present
+	Extra *interface{} // *FuncInfo or *FileInfo, if present
 
 	Pkg    string
 	PkgIdx int32
@@ -451,6 +451,33 @@ func (s *LSym) Func() *FuncInfo {
 		return nil
 	}
 	f, _ := (*s.Extra).(*FuncInfo)
+	return f
+}
+
+// A FileInfo contains extra fields for SDATA symbols backed by files.
+// (If LSym.Extra is a *FileInfo, LSym.P == nil.)
+type FileInfo struct {
+	Name string // name of file to read into object file
+	Size int64  // length of file
+}
+
+// NewFileInfo allocates and returns a FileInfo for LSym.
+func (s *LSym) NewFileInfo() *FileInfo {
+	if s.Extra != nil {
+		log.Fatalf("invalid use of LSym - NewFileInfo with Extra of type %T", *s.Extra)
+	}
+	f := new(FileInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// File returns the *FileInfo associated with s, or else nil.
+func (s *LSym) File() *FileInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FileInfo)
 	return f
 }
 
