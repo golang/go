@@ -5,5 +5,3 @@
 package filepath
 
 var LstatP = &lstat
-
-type DirEntryFromInfo = dirEntryFromInfo
