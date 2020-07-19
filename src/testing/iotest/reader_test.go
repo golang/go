@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -247,5 +248,14 @@ func TestErrReader(t *testing.T) {
 				t.Fatalf("Byte count mismatch: got %d want 0", n)
 			}
 		})
+	}
+}
+
+func TestStringsReader(t *testing.T) {
+	const msg = "Now is the time for all good gophers."
+
+	r := strings.NewReader(msg)
+	if err := TestReader(r, []byte(msg)); err != nil {
+		t.Fatal(err)
 	}
 }
