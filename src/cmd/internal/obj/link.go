@@ -38,6 +38,7 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"log"
 	"sync"
 )
 
@@ -400,7 +401,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Func *FuncInfo
+	Extra *interface{} // *FuncInfo if present
 
 	Pkg    string
 	PkgIdx int32
@@ -431,6 +432,26 @@ type FuncInfo struct {
 	OpenCodedDeferInfo *LSym
 
 	FuncInfoSym *LSym
+}
+
+// NewFuncInfo allocates and returns a FuncInfo for LSym.
+func (s *LSym) NewFuncInfo() *FuncInfo {
+	if s.Extra != nil {
+		log.Fatalf("invalid use of LSym - NewFuncInfo with Extra of type %T", *s.Extra)
+	}
+	f := new(FuncInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// Func returns the *FuncInfo associated with s, or else nil.
+func (s *LSym) Func() *FuncInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*FuncInfo)
+	return f
 }
 
 type InlMark struct {

@@ -663,8 +663,8 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 		// the function alignment is not changed which might
 		// result in 16 byte alignment but that is still fine.
 		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func.Align < 32 {
-			cursym.Func.Align = 32
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
+			cursym.Func().Align = 32
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -673,7 +673,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 }
 
 func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
-	p := cursym.Func.Text
+	p := cursym.Func().Text
 	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
 		return
 	}
@@ -722,7 +722,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func.Text.Link; p != nil; p = p.Link {
+		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
@@ -784,7 +784,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	bp := c.cursym.P
 	var i int32
 	var out [6]uint32
-	for p := c.cursym.Func.Text.Link; p != nil; p = p.Link {
+	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
