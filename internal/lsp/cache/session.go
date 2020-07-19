@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -328,11 +329,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		if c.Action == source.InvalidateMetadata {
 			forceReloadMetadata = true
 		}
-		// Do nothing if the file is open in the editor and we receive
-		// an on-disk action. The editor is the source of truth.
-		if s.isOpen(c.URI) && c.OnDisk {
-			continue
-		}
 		// Look through all of the session's views, invalidating the file for
 		// all of the views to which it is known.
 		for _, view := range s.views {
@@ -379,12 +375,19 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 	defer s.overlayMu.Unlock()
 
 	for _, c := range changes {
-		// Don't update overlays for on-disk changes or metadata invalidations.
-		if c.OnDisk || c.Action == source.InvalidateMetadata {
+		// Don't update overlays for metadata invalidations.
+		if c.Action == source.InvalidateMetadata {
 			continue
 		}
 
 		o, ok := s.overlays[c.URI]
+
+		// If the file is not opened in an overlay and the change is on disk,
+		// there's no need to update an overlay. If there is an overlay, we
+		// may need to update the overlay's saved value.
+		if !ok && c.OnDisk {
+			continue
+		}
 
 		// Determine the file kind on open, otherwise, assume it has been cached.
 		var kind source.FileKind
@@ -408,35 +411,46 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		}
 
 		// If the file is on disk, check if its content is the same as in the
-		// overlay. Saves don't necessarily come with the file's content.
+		// overlay. Saves and on-disk file changes don't come with the file's
+		// content.
 		text := c.Text
-		if text == nil && c.Action == source.Save {
+		if text == nil && (c.Action == source.Save || c.OnDisk) {
+			if !ok {
+				return nil, fmt.Errorf("no known content for overlay for %s", c.Action)
+			}
 			text = o.text
+		}
+		// On-disk changes don't come with versions.
+		version := c.Version
+		if c.OnDisk {
+			version = o.version
 		}
 		hash := hashContents(text)
 		var sameContentOnDisk bool
 		switch c.Action {
-		case source.Open:
-			fh, err := s.cache.getFile(ctx, c.URI)
-			if err != nil {
-				return nil, err
-			}
-			_, readErr := fh.Read()
-			sameContentOnDisk = (readErr == nil && fh.Identity().Identifier == hash)
+		case source.Delete:
+			// Do nothing. sameContentOnDisk should be false.
 		case source.Save:
 			// Make sure the version and content (if present) is the same.
-			if o.version != c.Version {
+			if o.version != version {
 				return nil, errors.Errorf("updateOverlays: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
 			}
 			if c.Text != nil && o.hash != hash {
 				return nil, errors.Errorf("updateOverlays: overlay %s changed on save", c.URI)
 			}
 			sameContentOnDisk = true
+		default:
+			fh, err := s.cache.getFile(ctx, c.URI)
+			if err != nil {
+				return nil, err
+			}
+			_, readErr := fh.Read()
+			sameContentOnDisk = (readErr == nil && fh.Identity().Identifier == hash)
 		}
 		o = &overlay{
 			session: s,
 			uri:     c.URI,
-			version: c.Version,
+			version: version,
 			text:    text,
 			kind:    kind,
 			hash:    hash,
@@ -445,7 +459,8 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 		s.overlays[c.URI] = o
 	}
 
-	// Get the overlays for each change while the session's overlay map is locked.
+	// Get the overlays for each change while the session's overlay map is
+	// locked.
 	overlays := make(map[span.URI]*overlay)
 	for _, c := range changes {
 		if o, ok := s.overlays[c.URI]; ok {

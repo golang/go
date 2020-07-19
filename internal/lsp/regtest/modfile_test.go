@@ -37,28 +37,58 @@ package main
 import "example.com/blah"
 
 func main() {
-	fmt.Println(blah.Name)
-}`
-	withOptions(WithProxy(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
-		// Open the file and make sure that the initial workspace load does not
-		// modify the go.mod file.
-		goModContent := env.ReadWorkspaceFile("go.mod")
-		env.OpenFile("main.go")
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
-		)
-		if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
-			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
-		}
-		// Save the buffer, which will format and organize imports.
-		// Confirm that the go.mod file still does not change.
-		env.SaveBuffer("main.go")
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
-		)
-		if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
-			t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
-		}
+	println(blah.Name)
+}
+`
+	t.Run("basic", func(t *testing.T) {
+		withOptions(WithProxy(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
+			// Open the file and make sure that the initial workspace load does not
+			// modify the go.mod file.
+			goModContent := env.ReadWorkspaceFile("go.mod")
+			env.OpenFile("main.go")
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
+			)
+			if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
+				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
+			}
+			// Save the buffer, which will format and organize imports.
+			// Confirm that the go.mod file still does not change.
+			env.SaveBuffer("main.go")
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
+			)
+			if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
+				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
+			}
+		})
+	})
+
+	// Reproduce golang/go#40269 by deleting and recreating main.go.
+	t.Run("delete main.go", func(t *testing.T) {
+		t.Skipf("This test will be flaky until golang/go#40269 is resolved.")
+
+		withOptions(WithProxy(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
+			goModContent := env.ReadWorkspaceFile("go.mod")
+			mainContent := env.ReadWorkspaceFile("main.go")
+			env.OpenFile("main.go")
+			env.SaveBuffer("main.go")
+
+			env.RemoveWorkspaceFile("main.go")
+			env.Await(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+			)
+
+			env.WriteWorkspaceFile("main.go", mainContent)
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", "\"example.com/blah\""),
+			)
+			if got := env.ReadWorkspaceFile("go.mod"); got != goModContent {
+				t.Fatalf("go.mod changed on disk:\n%s", tests.Diff(goModContent, got))
+			}
+		})
 	})
 }
 

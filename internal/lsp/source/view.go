@@ -274,6 +274,27 @@ const (
 	InvalidateMetadata
 )
 
+func (a FileAction) String() string {
+	switch a {
+	case Open:
+		return "Open"
+	case Change:
+		return "Change"
+	case Close:
+		return "Close"
+	case Save:
+		return "Save"
+	case Create:
+		return "Create"
+	case Delete:
+		return "Delete"
+	case InvalidateMetadata:
+		return "InvalidateMetadata"
+	default:
+		return "Unknown"
+	}
+}
+
 // Cache abstracts the core logic of dealing with the environment from the
 // higher level logic that processes the information to produce results.
 // The cache provides access to files and their contents, so the source
