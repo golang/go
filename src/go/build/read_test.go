@@ -236,23 +236,23 @@ var readEmbedTests = []struct {
 		nil,
 	},
 	{
-		"package p\nimport \"embed\"\nvar i int\n//go:embed x y z\nvar files embed.Files",
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x y z\nvar files embed.FS",
 		[]string{"x", "y", "z"},
 	},
 	{
-		"package p\nimport \"embed\"\nvar i int\n//go:embed x \"\\x79\" `z`\nvar files embed.Files",
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x \"\\x79\" `z`\nvar files embed.FS",
 		[]string{"x", "y", "z"},
 	},
 	{
-		"package p\nimport \"embed\"\nvar i int\n//go:embed x y\n//go:embed z\nvar files embed.Files",
+		"package p\nimport \"embed\"\nvar i int\n//go:embed x y\n//go:embed z\nvar files embed.FS",
 		[]string{"x", "y", "z"},
 	},
 	{
-		"package p\nimport \"embed\"\nvar i int\n\t //go:embed x y\n\t //go:embed z\n\t var files embed.Files",
+		"package p\nimport \"embed\"\nvar i int\n\t //go:embed x y\n\t //go:embed z\n\t var files embed.FS",
 		[]string{"x", "y", "z"},
 	},
 	{
-		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.Files",
+		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
 		[]string{"x", "y", "z"},
 	},
 	{
@@ -260,7 +260,7 @@ var readEmbedTests = []struct {
 		nil,
 	},
 	{
-		"package p\n//go:embed x y z\nvar files embed.Files", // no import, no scan
+		"package p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
 		nil,
 	},
 }
