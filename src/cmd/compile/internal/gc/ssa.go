@@ -240,7 +240,7 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 //      - Offset of where argument should be placed in the args frame when making call
 func (s *state) emitOpenDeferInfo() {
 	x := Ctxt.Lookup(s.curfn.Func.lsym.Name + ".opendefer")
-	s.curfn.Func.lsym.Func.OpenCodedDeferInfo = x
+	s.curfn.Func.lsym.Func().OpenCodedDeferInfo = x
 	off := 0
 
 	// Compute maxargsize (max size of arguments for all defers)
@@ -6108,7 +6108,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
 
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.
-	x := e.curfn.Func.lsym.Func.StackObjects
+	x := e.curfn.Func.lsym.Func().StackObjects
 	off := 0
 	off = duintptr(x, off, uint64(len(vars)))
 	for _, v := range vars {
@@ -6145,7 +6145,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 	s.livenessMap = liveness(e, f, pp)
 	emitStackObjects(e, pp)
 
-	openDeferInfo := e.curfn.Func.lsym.Func.OpenCodedDeferInfo
+	openDeferInfo := e.curfn.Func.lsym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {
 		// This function uses open-coded defers -- write out the funcdata
 		// info that we computed at the end of genssa.
@@ -6350,7 +6350,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 				// some of the inline marks.
 				// Use this instruction instead.
 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
-				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
+				pp.curfn.Func.lsym.Func().AddInlMark(p, inlMarks[m])
 				// Make the inline mark a real nop, so it doesn't generate any code.
 				m.As = obj.ANOP
 				m.Pos = src.NoXPos
@@ -6362,7 +6362,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
 		for _, p := range inlMarkList {
 			if p.As != obj.ANOP {
-				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[p])
+				pp.curfn.Func.lsym.Func().AddInlMark(p, inlMarks[p])
 			}
 		}
 	}

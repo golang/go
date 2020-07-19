@@ -62,9 +62,9 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
 	if len(marks) == 0 {
 		return
 	}
-	p0 := fnsym.Func.Text
+	p0 := fnsym.Func().Text
 	scope := findScope(marks, p0.Pos)
-	for p := fnsym.Func.Text; p != nil; p = p.Link {
+	for p := p0; p != nil; p = p.Link {
 		if p.Pos == p0.Pos {
 			continue
 		}
