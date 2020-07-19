@@ -432,19 +432,28 @@ func chtmpdir(t *testing.T) (restore func()) {
 }
 
 func TestWalk(t *testing.T) {
-	walk := func(root string, fn filepath.WalkDirFunc) error {
+	walk := func(root string, fn fs.WalkDirFunc) error {
 		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-			return fn(path, &filepath.DirEntryFromInfo{info}, err)
+			return fn(path, &statDirEntry{info}, err)
 		})
 	}
 	testWalk(t, walk, 1)
 }
 
+type statDirEntry struct {
+	info fs.FileInfo
+}
+
+func (d *statDirEntry) Name() string               { return d.info.Name() }
+func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+
 func TestWalkDir(t *testing.T) {
 	testWalk(t, filepath.WalkDir, 2)
 }
 
-func testWalk(t *testing.T, walk func(string, filepath.WalkDirFunc) error, errVisit int) {
+func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit int) {
 	if runtime.GOOS == "ios" {
 		restore := chtmpdir(t)
 		defer restore()
