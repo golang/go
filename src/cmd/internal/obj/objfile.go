@@ -16,6 +16,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -147,14 +149,20 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
 	// Data indexes
 	h.Offsets[goobj.BlkDataIdx] = w.Offset()
-	dataOff := uint32(0)
+	dataOff := int64(0)
 	for _, list := range lists {
 		for _, s := range list {
-			w.Uint32(dataOff)
-			dataOff += uint32(len(s.P))
+			w.Uint32(uint32(dataOff))
+			dataOff += int64(len(s.P))
+			if file := s.File(); file != nil {
+				dataOff += int64(file.Size)
+			}
 		}
 	}
-	w.Uint32(dataOff)
+	if int64(uint32(dataOff)) != dataOff {
+		log.Fatalf("data too large")
+	}
+	w.Uint32(uint32(dataOff))
 
 	// Relocs
 	h.Offsets[goobj.BlkReloc] = w.Offset()
@@ -179,6 +187,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	for _, list := range lists {
 		for _, s := range list {
 			w.Bytes(s.P)
+			if file := s.File(); file != nil {
+				w.writeFile(ctxt, file)
+			}
 		}
 	}
 
@@ -218,6 +229,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 
 type writer struct {
 	*goobj.Writer
+	filebuf []byte
 	ctxt    *Link
 	pkgpath string   // the package import path (escaped), "" if unknown
 	pkglist []string // list of packages referenced, indexed by ctxt.pkgIdx
@@ -229,6 +241,35 @@ func (w *writer) init() {
 	w.pkglist[0] = "" // dummy invalid package for index 0
 	for pkg, i := range w.ctxt.pkgIdx {
 		w.pkglist[i] = pkg
+	}
+}
+
+func (w *writer) writeFile(ctxt *Link, file *FileInfo) {
+	f, err := os.Open(file.Name)
+	if err != nil {
+		ctxt.Diag("%v", err)
+		return
+	}
+	defer f.Close()
+	if w.filebuf == nil {
+		w.filebuf = make([]byte, 1024)
+	}
+	buf := w.filebuf
+	written := int64(0)
+	for {
+		n, err := f.Read(buf)
+		w.Bytes(buf[:n])
+		written += int64(n)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			ctxt.Diag("%v", err)
+			return
+		}
+	}
+	if written != file.Size {
+		ctxt.Diag("copy %s: unexpected length %d != %d", file.Name, written, file.Size)
 	}
 }
 
