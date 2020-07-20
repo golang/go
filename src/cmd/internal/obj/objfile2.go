@@ -373,7 +373,9 @@ func contentHash64(s *LSym) goobj2.Hash64Type {
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj2.HashType {
 	h := sha1.New()
-	h.Write(s.P)
+	// The compiler trims trailing zeros _sometimes_. We just do
+	// it always.
+	h.Write(bytes.TrimRight(s.P, "\x00"))
 	var tmp [14]byte
 	for i := range s.R {
 		r := &s.R[i]
