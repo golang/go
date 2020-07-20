@@ -1,10 +1,10 @@
 package extract
 
 func _() {
-	x0 := 1
-	a := x0 //@extractfunc("a", "x0")
+	fn0 := 1
+	a := fn0 //@extractfunc("a", "fn0")
 }
 
-func x1() int {
+func fn1() int {
 	return 1
 }

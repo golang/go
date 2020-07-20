@@ -2,15 +2,15 @@
 package extract
 
 func _() {
-	x0 := 1
-	x2(x0) //@extractfunc("a", "x0")
+	fn0 := 1
+	fn2(fn0) //@extractfunc("a", "fn0")
 }
 
-func x2(x0 int) {
-	a := x0
+func fn2(fn0 int) {
+	a := fn0
 }
 
-func x1() int {
+func fn1() int {
 	return 1
 }
 

@@ -1,0 +1,27 @@
+-- functionextraction_extract_return_complex_8_2 --
+package extract
+
+import "fmt"
+
+func _() (int, string, error) {
+	x := 1
+	y := "hello"
+	z, cond0, ret0, ret1, ret2 := x0(y, x)
+	if cond0 {
+		return ret0, ret1, ret2
+	} //@mark(e0, "}")
+	return x, z, nil
+	//@extractfunc(s0, e0)
+}
+
+func x0(y string, x int) (string, bool, int, string, error) {
+	z := "bye"
+	if y == z {
+		return "", true, x, y, fmt.Errorf("same")
+	} else {
+		z = "hi"
+		return "", true, x, z, nil
+	}
+	return z, false, 0, "", nil
+}
+

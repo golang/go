@@ -281,3 +281,22 @@ func baseIfStmt(path []ast.Node, index int) ast.Stmt {
 	}
 	return stmt.(ast.Stmt)
 }
+
+// WalkASTWithParent walks the AST rooted at n. The semantics are
+// similar to ast.Inspect except it does not call f(nil).
+func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
+	var ancestors []ast.Node
+	ast.Inspect(n, func(n ast.Node) (recurse bool) {
+		if n == nil {
+			ancestors = ancestors[:len(ancestors)-1]
+			return false
+		}
+
+		var parent ast.Node
+		if len(ancestors) > 0 {
+			parent = ancestors[len(ancestors)-1]
+		}
+		ancestors = append(ancestors, n)
+		return f(n, parent)
+	})
+}

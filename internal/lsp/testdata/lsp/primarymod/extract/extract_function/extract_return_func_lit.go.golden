@@ -1,0 +1,23 @@
+-- functionextraction_extract_return_func_lit_7_3 --
+package extract
+
+import "go/ast"
+
+func _() {
+	ast.Inspect(ast.NewIdent("a"), func(n ast.Node) bool {
+		cond0, ret0 := x0(n)
+		if cond0 {
+			return ret0
+		} //@mark(e0, "}")
+		return false
+	})
+	//@extractfunc(s0, e0)
+}
+
+func x0(n ast.Node) (bool, bool) {
+	if n == nil {
+		return true, true
+	}
+	return false, false
+}
+

@@ -1,0 +1,20 @@
+-- functionextraction_extract_return_basic_5_2 --
+package extract
+
+func _() bool {
+	x := 1
+	cond0, ret0 := x0(x)
+	if cond0 {
+		return ret0
+	} //@mark(e0, "}")
+	return false
+	//@extractfunc(s0, e0)
+}
+
+func x0(x int) (bool, bool) {
+	if x == 0 {
+		return true, true
+	}
+	return false, false
+}
+
