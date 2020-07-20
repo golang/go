@@ -42,11 +42,18 @@ type modTidyHandle struct {
 type modTidyData struct {
 	memoize.NoCopy
 
+	// tidiedContent is the content of the tidied file.
+	tidiedContent []byte
+
 	// diagnostics are any errors and associated suggested fixes for
 	// the go.mod file.
 	diagnostics []source.Error
 
 	err error
+}
+
+func (mth *modTidyHandle) ParseModHandle() source.ParseModHandle {
+	return mth.pmh
 }
 
 func (mth *modTidyHandle) Tidy(ctx context.Context) ([]source.Error, error) {
@@ -56,6 +63,15 @@ func (mth *modTidyHandle) Tidy(ctx context.Context) ([]source.Error, error) {
 	}
 	data := v.(*modTidyData)
 	return data.diagnostics, data.err
+}
+
+func (mth *modTidyHandle) TidiedContent(ctx context.Context) ([]byte, error) {
+	v, err := mth.handle.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	data := v.(*modTidyData)
+	return data.tidiedContent, data.err
 }
 
 func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, error) {
@@ -180,7 +196,8 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 			return &modTidyData{err: err}
 		}
 		return &modTidyData{
-			diagnostics: append(modRequireErrs, missingModuleErrs...),
+			tidiedContent: tempContents,
+			diagnostics:   append(modRequireErrs, missingModuleErrs...),
 		}
 	})
 	s.mu.Lock()

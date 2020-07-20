@@ -22,6 +22,14 @@ go 1.12
 package blah
 
 const Name = "Blah"
+-- random.org@v1.2.3/go.mod --
+module random.org
+
+go 1.12
+-- random.org@v1.2.3/blah/blah.go --
+package hello
+
+const Name = "Hello"
 `
 
 func TestModFileModification(t *testing.T) {
@@ -397,5 +405,43 @@ func main() {
 				env.DiagnosticAtRegexp("main.go", "x = "),
 			)
 		}, WithProxy(proxy))
+	})
+}
+
+func TestTidyOnSave(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
+
+	const untidyModule = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+require random.org v1.2.3
+-- main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	fmt.Println(blah.Name)
+}
+`
+	withOptions(WithProxy(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+			env.DiagnosticAtRegexp("go.mod", `require random.org v1.2.3`),
+		)
+		env.SaveBuffer("go.mod")
+		const want = `module mod.com
+
+go 1.14
+
+require example.com v1.2.3
+`
+		if got := env.ReadWorkspaceFile("go.mod"); got != want {
+			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
+		}
 	})
 }

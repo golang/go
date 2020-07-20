@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/internal/lsp/debug/tag"
-	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -52,12 +51,25 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	switch fh.Kind() {
 	case source.Mod:
-		if diagnostics := params.Context.Diagnostics; wanted[protocol.SourceOrganizeImports] || len(diagnostics) > 0 {
-			modFixes, err := mod.SuggestedFixes(ctx, snapshot, diagnostics)
+		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
+			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, diagnostics)
+			if err == source.ErrTmpModfileUnsupported {
+				return nil, nil
+			}
 			if err != nil {
 				return nil, err
 			}
-			codeActions = append(codeActions, modFixes...)
+			codeActions = append(codeActions, modQuickFixes...)
+		}
+		if wanted[protocol.SourceOrganizeImports] {
+			action, err := goModTidy(ctx, snapshot)
+			if err == source.ErrTmpModfileUnsupported {
+				return nil, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, *action)
 		}
 	case source.Go:
 		// Don't suggest fixes for generated files, since they are generally
@@ -126,12 +138,12 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 				// If there are any diagnostics relating to the go.mod file,
 				// add their corresponding quick fixes.
-				moduleQuickFixes, err := mod.SuggestedFixes(ctx, snapshot, diagnostics)
+				modQuickFixes, err := moduleQuickFixes(ctx, snapshot, diagnostics)
 				if err != nil {
 					// Not a fatal error.
 					event.Error(ctx, "module suggested fixes failed", err, tag.Directory.Of(snapshot.View().Folder()))
 				}
-				codeActions = append(codeActions, moduleQuickFixes...)
+				codeActions = append(codeActions, modQuickFixes...)
 			}
 			if wanted[protocol.SourceFixAll] && len(highConfidenceEdits) > 0 {
 				codeActions = append(codeActions, protocol.CodeAction{
@@ -396,4 +408,100 @@ func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol
 			Edits: edits,
 		},
 	}
+}
+
+func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	mth, err := snapshot.ModTidyHandle(ctx)
+	if err == source.ErrTmpModfileUnsupported {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	errors, err := mth.Tidy(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pmh := mth.ParseModHandle()
+	var quickFixes []protocol.CodeAction
+	for _, e := range errors {
+		var diag *protocol.Diagnostic
+		for _, d := range diagnostics {
+			if sameDiagnostic(d, e) {
+				diag = &d
+				break
+			}
+		}
+		if diag == nil {
+			continue
+		}
+		for _, fix := range e.SuggestedFixes {
+			action := protocol.CodeAction{
+				Title:       fix.Title,
+				Kind:        protocol.QuickFix,
+				Diagnostics: []protocol.Diagnostic{*diag},
+				Edit:        protocol.WorkspaceEdit{},
+			}
+			for uri, edits := range fix.Edits {
+				if uri != pmh.Mod().URI() {
+					continue
+				}
+				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
+					TextDocument: protocol.VersionedTextDocumentIdentifier{
+						Version: pmh.Mod().Version(),
+						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+							URI: protocol.URIFromSpanURI(pmh.Mod().URI()),
+						},
+					},
+					Edits: edits,
+				})
+			}
+			quickFixes = append(quickFixes, action)
+		}
+	}
+	return quickFixes, nil
+}
+
+func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
+	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
+}
+
+func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAction, error) {
+	mth, err := snapshot.ModTidyHandle(ctx)
+	if err != nil {
+		return nil, err
+	}
+	uri := mth.ParseModHandle().Mod().URI()
+	_, m, _, err := mth.ParseModHandle().Parse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	left, err := mth.ParseModHandle().Mod().Read()
+	if err != nil {
+		return nil, err
+	}
+	right, err := mth.TidiedContent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	edits := snapshot.View().Options().ComputeEdits(uri, string(left), string(right))
+	protocolEdits, err := source.ToProtocolEdits(m, edits)
+	if err != nil {
+		return nil, err
+	}
+	return &protocol.CodeAction{
+		Title: "Tidy",
+		Kind:  protocol.SourceOrganizeImports,
+		Edit: protocol.WorkspaceEdit{
+			DocumentChanges: []protocol.TextDocumentEdit{{
+				TextDocument: protocol.VersionedTextDocumentIdentifier{
+					Version: mth.ParseModHandle().Mod().Version(),
+					TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+						URI: protocol.URIFromSpanURI(uri),
+					},
+				},
+				Edits: protocolEdits,
+			}},
+		},
+	}, nil
 }

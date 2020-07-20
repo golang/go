@@ -414,13 +414,13 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if err != nil {
 		t.Fatalf("CodeAction %s failed: %v", spn, err)
 	}
-	if actions[0].Command != nil {
-		t.Skip("no tests for code action commands")
-	}
 	// Hack: We assume that we only get one code action per range.
 	// TODO(rstambler): Support multiple code actions per test.
 	if len(actions) == 0 || len(actions) > 1 {
-		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
+		t.Fatalf("unexpected number of code actions, want 1, got %v (%v)", len(actions), actions)
+	}
+	if actions[0].Command != nil {
+		t.Skip("no tests for code action commands")
 	}
 	res, err := applyWorkspaceEdits(r, actions[0].Edit)
 	if err != nil {

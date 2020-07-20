@@ -365,8 +365,14 @@ type ModWhyHandle interface {
 }
 
 type ModTidyHandle interface {
+	// Mod is the ParseModHandle associated with the go.mod file being tidied.
+	ParseModHandle() ParseModHandle
+
 	// Tidy returns the results of `go mod tidy` for the module.
 	Tidy(ctx context.Context) ([]Error, error)
+
+	// TidiedContent is the content of the tidied go.mod file.
+	TidiedContent(ctx context.Context) ([]byte, error)
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")
