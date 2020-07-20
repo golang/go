@@ -1,3 +1,7 @@
+# Checks that an identical binary is built with -trimpath from the same
+# source files, with GOROOT in two different locations.
+# Verifies golang.org/issue/38989
+
 [short] skip
 [!symlink] skip
 
