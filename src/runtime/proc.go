@@ -961,10 +961,26 @@ func stopTheWorld(reason string) {
 // startTheWorld undoes the effects of stopTheWorld.
 func startTheWorld() {
 	systemstack(func() { startTheWorldWithSema(false) })
+
 	// worldsema must be held over startTheWorldWithSema to ensure
 	// gomaxprocs cannot change while worldsema is held.
-	semrelease(&worldsema)
-	getg().m.preemptoff = ""
+	//
+	// Release worldsema with direct handoff to the next waiter, but
+	// acquirem so that semrelease1 doesn't try to yield our time.
+	//
+	// Otherwise if e.g. ReadMemStats is being called in a loop,
+	// it might stomp on other attempts to stop the world, such as
+	// for starting or ending GC. The operation this blocks is
+	// so heavy-weight that we should just try to be as fair as
+	// possible here.
+	//
+	// We don't want to just allow us to get preempted between now
+	// and releasing the semaphore because then we keep everyone
+	// (including, for example, GCs) waiting longer.
+	mp := acquirem()
+	mp.preemptoff = ""
+	semrelease1(&worldsema, true, 0)
+	releasem(mp)
 }
 
 // stopTheWorldGC has the same effect as stopTheWorld, but blocks
