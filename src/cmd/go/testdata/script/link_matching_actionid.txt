@@ -1,5 +1,6 @@
 env GO111MODULE=off
 [short] skip
+[!symlink] skip
 
 # Symlink the compiler to a local path
 env GOROOT=$WORK/goroot1
