@@ -350,7 +350,7 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 		fullEnv[k] = v
 	}
 	for _, v := range env {
-		s := strings.Split(v, "=")
+		s := strings.SplitN(v, "=", 2)
 		if len(s) != 2 {
 			continue
 		}
