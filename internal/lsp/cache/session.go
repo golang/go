@@ -407,9 +407,10 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 			continue
 		}
 
-		// If the file is on disk, check if its content is the same as the overlay.
+		// If the file is on disk, check if its content is the same as in the
+		// overlay. Saves don't necessarily come with the file's content.
 		text := c.Text
-		if text == nil {
+		if text == nil && c.Action == source.Save {
 			text = o.text
 		}
 		hash := hashContents(text)

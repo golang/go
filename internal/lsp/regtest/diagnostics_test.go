@@ -1039,3 +1039,51 @@ func main() {}
 		)
 	})
 }
+
+// Reproduces golang/go#38424.
+func TestCutAndPaste(t *testing.T) {
+	const basic = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main2.go --
+package main
+`
+	runner.Run(t, basic, func(t *testing.T, env *Env) {
+		env.CreateBuffer("main.go", "")
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1))
+
+		env.Editor.SaveBufferWithoutActions(env.Ctx, "main.go")
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+		)
+
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
+
+func main() {
+}
+`))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1))
+
+		env.SaveBuffer("main.go")
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 2),
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+		)
+
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 4, 0, ""))
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2))
+
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
+
+func main() {
+	var x int
+}
+`))
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "x"),
+		)
+	})
+}
