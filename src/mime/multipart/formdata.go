@@ -41,6 +41,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 
 	// Reserve an additional 10 MB for non-file parts.
 	maxValueBytes := maxMemory + int64(10<<20)
+	maxNonFileBytes := 10<<20
 	for {
 		p, err := r.NextPart()
 		if err == io.EOF {
@@ -60,12 +61,13 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 
 		if filename == "" {
 			// value, store as string in memory
-			n, err := io.CopyN(&b, p, maxValueBytes+1)
+			n, err := io.CopyN(&b, p, maxNonFileBytes+1)
 			if err != nil && err != io.EOF {
 				return nil, err
 			}
 			maxValueBytes -= n
-			if maxValueBytes < 0 {
+			maxNonFileBytes -= n
+			if maxNonFileBytes < 0 {
 				return nil, ErrMessageTooLarge
 			}
 			form.Value[name] = append(form.Value[name], b.String())
