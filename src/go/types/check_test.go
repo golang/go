@@ -118,6 +118,7 @@ var tests = [][]string{
 	{"testdata/typeinst2B.go2"},
 	{"testdata/issuesB.go2"},
 	{"testdata/todosB.go2"},
+	{"testdata/tinferenceB.go2"},
 
 	// Go 2 examples from design doc
 	{"testdata/slices.go2"},
@@ -320,6 +321,7 @@ func checkFiles(t *testing.T, testfiles []string) {
 	// typecheck and collect typechecker errors
 	var conf Config
 	conf.AcceptMethodTypeParams = true
+	conf.InferFromConstraints = true
 	// special case for importC.src
 	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
 		conf.FakeImportC = true

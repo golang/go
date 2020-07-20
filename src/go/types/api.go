@@ -107,6 +107,10 @@ type Config struct {
 	// If AcceptMethodTypeParams is set, methods may have type parameters.
 	AcceptMethodTypeParams bool
 
+	// If InferFromConstraints is set, constraint type inference is used
+	// if some function type arguments are missing.
+	InferFromConstraints bool
+
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
 	// declares an empty "C" package and errors are omitted for qualified
 	// identifiers referring to package C (which won't find an object).
@@ -183,7 +187,7 @@ type Info struct {
 	Types map[ast.Expr]TypeAndValue
 
 	// Inferred maps calls of parameterized functions that use
-	// type inferrence to the inferred type arguments and signature
+	// type inference to the inferred type arguments and signature
 	// of the function called.
 	Inferred map[*ast.CallExpr]Inferred
 

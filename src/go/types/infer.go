@@ -13,12 +13,15 @@ import (
 )
 
 // infer returns the list of actual type arguments for the given list of type parameters tparams
-// by inferring them from the actual arguments args for the parameters params. If infer fails to
-// determine all type arguments, an error is reported and the result is nil.
-func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
+// by inferring them from the actual arguments args for the parameters params. If type inference
+// is impossible because unification fails, an error is reported and the resulting types list is
+// nil, and index is 0. Otherwise, types is the list of inferred type arguments, and index is
+// the index of the first type argument in that list that couldn't be inferred (and thus is nil).
+// If all type arguments where inferred successfully, index is < 0.
+func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand) (types []Type, index int) {
 	assert(params.Len() == len(args))
 
-	u := check.newUnifier(false)
+	u := newUnifier(check, false)
 	u.x.init(tparams)
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
@@ -61,9 +64,10 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// generic function (for which we want to infer // its type arguments).
 		if IsParameterized(par.typ) {
 			if arg.mode == invalid {
-				// TODO(gri) we might still be able to infer all targs by
-				//           simply ignoring (continue) invalid args
-				return nil // error was reported earlier
+				// An error was reported earlier. Ignore this targ
+				// and continue, we may still be able to infer all
+				// targs resulting in fewer follon-on errors.
+				continue
 			}
 			if targ := arg.typ; isTyped(targ) {
 				// If we permit bidirectional unification, and targ is
@@ -71,7 +75,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 				// the respectice type parameters of targ.
 				if !u.unify(par.typ, targ) {
 					errorf("type", par.typ, targ, arg)
-					return nil
+					return nil, 0
 				}
 			} else {
 				indices = append(indices, i)
@@ -110,21 +114,11 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// nil by making sure all default argument types are typed.
 		if isTyped(targ) && !u.unify(par.typ, targ) {
 			errorf("default type", par.typ, targ, arg)
-			return nil
+			return nil, 0
 		}
 	}
 
-	// Collect type arguments and check if they all have been determined.
-	// TODO(gri) consider moving this outside this function and then we won't need to pass in pos
-	targs, failed := u.x.types()
-	if failed >= 0 {
-		tpar := tparams[failed]
-		ppos := check.fset.Position(tpar.pos).String()
-		check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
-		return nil
-	}
-
-	return targs
+	return u.x.types()
 }
 
 // typeNamesString produces a string containing all the
@@ -265,4 +259,99 @@ func isParameterizedList(list []Type, seen map[Type]bool) bool {
 		}
 	}
 	return false
+}
+
+// inferB returns the list of actual type arguments inferred from the type parameters'
+// bounds and an initial set of type arguments. If type inference is impossible because
+// unification fails, an error is reported, the resulting types list is nil, and index is 0.
+// Otherwise, types is the list of inferred type arguments, and index is the index of the
+// first type argument in that list that couldn't be inferred (and thus is nil). If all
+// type arguments where inferred successfully, index is < 0. The number of type arguments
+// provided may be less than the number of type parameters, but there must be at least one.
+func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, index int) {
+	assert(len(tparams) >= len(targs) && len(targs) > 0)
+
+	// Setup bidirectional unification between those structural bounds
+	// and the corresponding type arguments (which may be nil!).
+	u := newUnifier(check, false)
+	u.x.init(tparams)
+	u.y = u.x // type parameters between LHS and RHS of unification are identical
+
+	// Set the type arguments which we know already.
+	for i, targ := range targs {
+		if targ != nil {
+			u.x.set(i, targ)
+		}
+	}
+
+	// Unify type parameters with their structural constraints, if any.
+	for _, tpar := range tparams {
+		typ := tpar.typ.(*TypeParam)
+		sbound := check.structuralType(typ.bound.Under())
+		if sbound != nil {
+			//check.dump(">>> unify(%s, %s)", tpar, sbound)
+			if !u.unify(typ, sbound) {
+				check.errorf(tpar.pos, "%s does not match %s", tpar, sbound)
+				return nil, 0
+			}
+			//check.dump(">>> => indices = %v, types = %s", u.x.indices, u.types)
+		}
+	}
+
+	// u.x.types() now contains the incoming type arguments plus any additional type
+	// arguments for which there were structural constraints. The newly inferred non-
+	// nil entries may still contain references to other type parameters. For instance,
+	// for [type A interface{}, B interface{type []C}, C interface{type *A}], if A == int
+	// was given, unification produced the type list [int, []C, *A]. We eliminate the
+	// remaining type parameters by substituting the type parameters in this type list
+	// until nothing changes anymore.
+	types, index = u.x.types()
+	if debug {
+		for i, targ := range targs {
+			assert(targ == nil || types[i] == targ)
+		}
+	}
+
+	// dirty tracks the indices of all types that may still contain type parameters.
+	// We know that nil types entries and entries corresponding to provided (non-nil)
+	// type arguments are clean, so exclude them from the start.
+	var dirty []int
+	for i, typ := range types {
+		if typ != nil && (i >= len(targs) || targs[i] == nil) {
+			dirty = append(dirty, i)
+		}
+	}
+
+	for len(dirty) > 0 {
+		// TODO(gri) Instead of creating a new smap for each iteration,
+		// provide an update operation for smaps and only change when
+		// needed. Optimization.
+		smap := makeSubstMap(tparams, types)
+		n := 0
+		for _, index := range dirty {
+			t0 := types[index]
+			if t1 := check.subst(token.NoPos, t0, smap); t1 != t0 {
+				types[index] = t1
+				dirty[n] = index
+				n++
+			}
+		}
+		dirty = dirty[:n]
+	}
+	//check.dump(">>> inferred types = %s", types)
+
+	return
+}
+
+// structuralType returns the structural type of a constraint, if any.
+func (check *Checker) structuralType(constraint Type) Type {
+	if iface, _ := constraint.(*Interface); iface != nil {
+		check.completeInterface(token.NoPos, iface)
+		types := unpack(iface.allTypes)
+		if len(types) == 1 {
+			return types[0]
+		}
+		return nil
+	}
+	return constraint
 }

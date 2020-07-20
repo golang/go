@@ -296,7 +296,7 @@ func _() {
         var r R1(int, string)
         r.m1(rune)(42, "foo", 'a')
         r.m1(rune)(42, "foo", 1.2 /* ERROR truncated to rune */)
-        r.m1(42, "foo", 1.2) // using type inferrence
+        r.m1(42, "foo", 1.2) // using type inference
         var _ float64 = r.m1(42, "foo", 1.2)
 }
 

@@ -11,14 +11,36 @@ import (
 	"sort"
 )
 
+// The unifier maintains two separate sets of type parameters x and y
+// which are used to resolve type parameters in the x and y arguments
+// provided to the unify call. For unidirectional unification, only
+// one of these sets (say x) is provided, and then type parameters are
+// only resolved for the x argument passed to unify, not the y argument
+// (even if that also contains possibly the same type parameters). This
+// is crucial to infer the type parameters of self-recursive calls:
+//
+//	func f[type P](a P) { f(a) }
+//
+// For the call f(a) we want to infer that the type argument for P is P.
+// During unification, the parameter type P must be resolved to the type
+// parameter P ("x" side), but the argument type P must be left alone so
+// that unification resolves the type parameter P to P.
+//
+// For bidirection unification, both sets are provided. This enables
+// unification to go from argument to parameter type and vice versa.
+// For constraint type inference, we use bidirectional unification
+// where both the x and y type parameters are identical. This is done
+// by setting up one of them (using init) and then assigning its value
+// to the other.
+
 // A unifier maintains the current type parameters for x and y
 // and the respective types inferred for each type parameter.
-// A uninifier is created by calling Checker.unifier.
+// A unifier is created by calling newUnifier.
 type unifier struct {
 	check *Checker
 	exact bool
-	x, y  typeDesc // x and y must initialized via typeDesc.init
-	types []Type   // inferred types, shared by x and y
+	x, y  tparamsList // x and y must initialized via tparamsList.init
+	types []Type      // inferred types, shared by x and y
 }
 
 // newUnifier returns a new unifier.
@@ -26,10 +48,10 @@ type unifier struct {
 // exactly. If exact is not set, a named type's underlying type
 // is considered if unification would fail otherwise, and the
 // direction of channels is ignored.
-func (check *Checker) newUnifier(exact bool) *unifier {
+func newUnifier(check *Checker, exact bool) *unifier {
 	u := &unifier{check: check, exact: exact}
-	u.x.uplink = u
-	u.y.uplink = u
+	u.x.unifier = u
+	u.y.unifier = u
 	return u
 }
 
@@ -38,37 +60,132 @@ func (u *unifier) unify(x, y Type) bool {
 	return u.nify(x, y, nil)
 }
 
-// A typeDesc describes a list of type parameters and the types inferred for them.
-type typeDesc struct {
-	uplink  *unifier
+// A tparamsList describes a list of type parameters and the types inferred for them.
+type tparamsList struct {
+	unifier *unifier
 	tparams []*TypeName
+	// For each tparams element, there is a corresponding type slot index in indices.
+	// index  < 0: unifier.types[-index] == nil
+	// index == 0: no type slot allocated yet
+	// index  > 0: unifier.types[index] == typ
+	// Joined tparams elements share the same type slot and thus have the same index.
+	// By using a negative index for nil types we don't need to check unifier.types
+	// to see if we have a type or not.
 	indices []int // len(d.indices) == len(d.tparams)
 }
 
-func (d *typeDesc) init(tparams []*TypeName) {
+// init initializes d with the given type parameters.
+// The type parameters must be in the order in which they appear in their declaration
+// (this ensures that the tparams indices match the respective type parameter index).
+func (d *tparamsList) init(tparams []*TypeName) {
 	if len(tparams) == 0 {
 		return
+	}
+	if debug {
+		for i, tpar := range tparams {
+			assert(i == tpar.typ.(*TypeParam).index)
+		}
 	}
 	d.tparams = tparams
 	d.indices = make([]int, len(tparams))
 }
 
-// at returns the type inferred (via unification) for the i'th type parameter; or nil.
-// The index i must be a valid type parameter index: 0 <= i < len(d.tparams).
-func (d *typeDesc) at(i int) Type {
-	if i := d.indices[i]; i != 0 {
-		typ := d.uplink.types[i-1]
-		assert(typ != nil)
-		return typ
+// join unifies the i'th type parameter of x with the j'th type parameter of y.
+// If both type parameters already have a type associated with them and they are
+// not joined, join fails and return false.
+func (u *unifier) join(i, j int) bool {
+	ti := u.x.indices[i]
+	tj := u.y.indices[j]
+	switch {
+	case ti == 0 && tj == 0:
+		// Neither type parameter has a type slot associated with them.
+		// Allocate a new joined nil type slot (negative index).
+		u.types = append(u.types, nil)
+		u.x.indices[i] = -len(u.types)
+		u.y.indices[j] = -len(u.types)
+	case ti == 0:
+		// The type parameter for x has no type slot yet. Use slot of y.
+		u.x.indices[i] = tj
+	case tj == 0:
+		// The type parameter for y has no type slot yet. Use slot of x.
+		u.y.indices[j] = ti
+
+	// Both type parameters have a slot: ti != 0 && tj != 0.
+	case ti == tj:
+		// Both type parameters already share the same slot. Nothing to do.
+		break
+	case ti > 0 && tj > 0:
+		// Both type parameters have (possibly different) inferred types. Cannot join.
+		return false
+	case ti > 0:
+		// Only the type parameter for x has an inferred type. Use x slot for y.
+		u.y.setIndex(j, ti)
+	// This case is handled like the default case.
+	// case tj > 0:
+	// 	// Only the type parameter for y has an inferred type. Use y slot for x.
+	// 	u.x.setIndex(i, tj)
+	default:
+		// Neither type parameter has an inferred type. Use y slot for x
+		// (or x slot for y, it doesn't matter).
+		u.x.setIndex(i, tj)
+	}
+	return true
+}
+
+// If typ is a type parameter of d, index returns the type parameter index.
+// Otherwise, the result is < 0.
+func (d *tparamsList) index(typ Type) int {
+	if t, ok := typ.(*TypeParam); ok {
+		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
+			return i
+		}
+	}
+	return -1
+}
+
+// setIndex sets the type slot index for the i'th type parameter
+// (and all its joined parameters) to tj. The type parameter
+// must have a (possibly nil) type slot associated with it.
+func (d *tparamsList) setIndex(i, tj int) {
+	ti := d.indices[i]
+	assert(ti != 0 && tj != 0)
+	for k, tk := range d.indices {
+		if tk == ti {
+			d.indices[k] = tj
+		}
+	}
+}
+
+// at returns the type set for the i'th type parameter; or nil.
+func (d *tparamsList) at(i int) Type {
+	if ti := d.indices[i]; ti > 0 {
+		return d.unifier.types[ti-1]
 	}
 	return nil
 }
 
+// set sets the type typ for the i'th type parameter;
+// typ must not be nil and it must not have been set before.
+func (d *tparamsList) set(i int, typ Type) {
+	assert(typ != nil)
+	u := d.unifier
+	switch ti := d.indices[i]; {
+	case ti < 0:
+		u.types[-ti-1] = typ
+		d.setIndex(i, -ti)
+	case ti == 0:
+		u.types = append(u.types, typ)
+		d.indices[i] = len(u.types)
+	default:
+		panic("type already set")
+	}
+}
+
 // types returns the list of inferred types (via unification) for the type parameters
 // described by d, and an index. If all types were inferred, the returned index is < 0.
-// Otherwise, it is the index of the first type parameter which couldn't be inferred
-// and for which list[index] is nil.
-func (d *typeDesc) types() (list []Type, index int) {
+// Otherwise, it is the index of the first type parameter which couldn't be inferred;
+// i.e., for which list[index] is nil.
+func (d *tparamsList) types() (list []Type, index int) {
 	list = make([]Type, len(d.tparams))
 	index = -1
 	for i := range d.tparams {
@@ -81,31 +198,14 @@ func (d *typeDesc) types() (list []Type, index int) {
 	return
 }
 
-// set sets the type typ inferred (via unification) for the i'th type parameter; typ must not be nil.
-// The index i must be a valid type parameter index: 0 <= i < len(d.tparams).
-func (d *typeDesc) set(i int, typ Type) {
-	assert(typ != nil)
-	u := d.uplink
-	u.types = append(u.types, typ)
-	d.indices[i] = len(u.types)
+func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+	return x == y || u.nify(x, y, p)
 }
 
-// If typ is a type parameter in d.tparams, index returns the
-// corresponding d.tparams index. Otherwise, the result is < 0.
-func (d *typeDesc) index(typ Type) int {
-	if t, ok := typ.(*TypeParam); ok {
-		// typ is a type parameter; check that it belongs to the (enclosing) type
-		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
-			return i
-		}
-	}
-	return -1
-}
-
-// nify must only be called by unifier.unify.
 // nify implements the core unification algorithm which is an
 // adapted version of Checker.identical0. For changes to that
 // code the corresponding changes should be made here.
+// Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	// types must be expanded for comparison
 	x = expand(x)
@@ -126,79 +226,39 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 	}
 
-	//u.check.dump("### u.nify(%s, %s)", x, y)
-	i := u.x.index(x)
-	j := u.y.index(y)
-	switch {
+	// Cases where at least one of x or y is a type parameter.
+	switch i, j := u.x.index(x), u.y.index(y); {
 	case i >= 0 && j >= 0:
-		//u.check.dump("### i = %d, j = %d", i, j)
-		// x and y are type parameters
-		// This code is only needed for bidirectional type inference.
-		// TODO(gri) We should be able to combine this code with the simple case.
-		tx := u.x.at(i)
-		ty := u.y.at(j)
-		switch {
-		case tx != nil && ty != nil:
-			// both x and y have an inferred type - they must match
-			if tx == ty {
-				return true
-			}
-			return u.nify(tx, ty, p)
-
-		case tx != nil:
-			// x has an inferred type
-			// TODO(gri) fill this in (only needed for bidirection type inference)
-			panic("unimplemented: x has an inferred type")
-
-		case ty != nil:
-			// y has an inferred type
-			// TODO(gri) fill this in (only needed for bidirection type inference)
-			panic("unimplemented: y has an inferred type")
-
-		default:
-			// neither x nor y have an inferred type - unify the type parameters
-			// TODO(gri) fill this in (only needed for bidirection type inference)
-			panic("unimplemented: neither x nor y have an inferred type")
+		// both x and y are type parameters
+		if u.join(i, j) {
+			return true
 		}
+		// both x and y have an inferred type - they must match
+		return u.nifyEq(u.x.at(i), u.y.at(j), p)
 
 	case i >= 0:
-		//u.check.dump("### i = %d", i)
-		// x is a type parameter
+		// x is a type parameter, y is not
 		if tx := u.x.at(i); tx != nil {
-			// If we have inferred a type tx and it matches y, we
-			// are done. u.nify won't do this check, so do it now
-			// to avoid endless recursion.
-			if tx == y {
-				return true
-			}
-			return u.nify(tx, y, p)
+			return u.nifyEq(tx, y, p)
 		}
-		// otherwise, infer type from y (which is known not to be a type parameter)
+		// otherwise, infer type from y
 		u.x.set(i, y)
 		return true
 
 	case j >= 0:
-		//u.check.dump("### j = %d", j)
-		// y is a type parameter
+		// y is a type parameter, x is not
 		if ty := u.y.at(j); ty != nil {
-			// If we have inferred a type ty and it matches x, we
-			// are done. u.nify won't do this check, so do it now
-			// to avoid endless recursion.
-			if x == ty {
-				return true
-			}
-			return u.nify(x, ty, p)
+			return u.nifyEq(x, ty, p)
 		}
-		// otherwise, infer type from x (which is known not to be a type parameter)
-		u.y.set(i, x)
+		// otherwise, infer type from x
+		u.y.set(j, x)
 		return true
-
 	}
 
 	// For type unification, do not shortcut (x == y) for identical
 	// types. Instead keep comparing them element-wise to unify the
 	// matching (and equal type parameter types). A simple test case
-	// where this matters is: func f(type T)(x T) { f(x) } .
+	// where this matters is: func f[type P](a P) { f(a) } .
 
 	switch x := x.(type) {
 	case *Basic:
@@ -388,7 +448,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		//u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
+		u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
 		unreachable()
 	}
 

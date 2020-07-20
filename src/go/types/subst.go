@@ -46,11 +46,11 @@ func (m *substMap) empty() bool {
 	return len(m.proj) == 0
 }
 
-func (m *substMap) lookup(typ *TypeParam) Type {
-	if t := m.proj[typ]; t != nil {
+func (m *substMap) lookup(tpar *TypeParam) Type {
+	if t := m.proj[tpar]; t != nil {
 		return t
 	}
-	return typ
+	return tpar
 }
 
 func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
@@ -70,7 +70,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}()
 	}
 
-	assert(poslist == nil || len(poslist) == len(targs))
+	assert(poslist == nil || len(poslist) <= len(targs))
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
@@ -212,6 +212,9 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 // subst returns the type typ with its type parameters tpars replaced by
 // the corresponding type arguments targs, recursively.
+// subst is functional in the sense that it doesn't modify the incoming
+// type. If a substitution took place, the result type is different from
+// from the incoming type.
 func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
 	if smap.empty() {
 		return typ
