@@ -1098,3 +1098,23 @@ func main() {
 		)
 	})
 }
+
+// Reproduces golang/go#39763.
+func TestInvalidPackageName(t *testing.T) {
+	testenv.NeedsGo1Point(t, 15)
+
+	const pkgDefault = `
+-- go.mod --
+module mod.com
+-- main.go --
+package default
+
+func main() {}
+`
+	runner.Run(t, pkgDefault, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "default"),
+		)
+	})
+}

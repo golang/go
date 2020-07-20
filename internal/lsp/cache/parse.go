@@ -43,6 +43,7 @@ type parseGoData struct {
 	memoize.NoCopy
 
 	ast    *ast.File
+	tok    *token.File
 	mapper *protocol.ColumnMapper
 
 	// Source code used to build the AST. It may be different from the
@@ -112,12 +113,20 @@ func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
 }
 
 func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
+	data, err := pgh.cached()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return data.ast, data.src, data.mapper, data.parseError, data.err
+}
+
+func (pgh *parseGoHandle) cached() (*parseGoData, error) {
 	v := pgh.handle.Cached()
 	if v == nil {
-		return nil, nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.URI())
+		return nil, errors.Errorf("no cached AST for %s", pgh.file.URI())
 	}
 	data := v.(*parseGoData)
-	return data.ast, data.src, data.mapper, data.parseError, data.err
+	return data, nil
 }
 
 func (pgh *parseGoHandle) PosToDecl(ctx context.Context) (map[token.Pos]ast.Decl, error) {
@@ -278,7 +287,19 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	if file != nil {
 		tok = fset.File(file.Pos())
 		if tok == nil {
-			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.URI(), parseError)}
+			tok = fset.AddFile(fh.URI().Filename(), -1, len(buf))
+			tok.SetLinesForContent(buf)
+			return &parseGoData{
+				ast: file,
+				src: buf,
+				tok: tok,
+				mapper: &protocol.ColumnMapper{
+					URI:       fh.URI(),
+					Content:   buf,
+					Converter: span.NewTokenConverter(fset, tok),
+				},
+				parseError: parseError,
+			}
 		}
 
 		// Fix any badly parsed parts of the AST.
@@ -319,6 +340,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	return &parseGoData{
 		src:        buf,
 		ast:        file,
+		tok:        tok,
 		mapper:     m,
 		parseError: parseError,
 		fixed:      fixed,

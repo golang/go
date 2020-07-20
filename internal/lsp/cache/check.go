@@ -331,6 +331,19 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		// race to Unsafe.completed.
 		return pkg, nil
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
+		// Try to attach errors messages to the file as much as possible.
+		var found bool
+		for _, e := range rawErrors {
+			srcErr, err := sourceError(ctx, fset, pkg, e)
+			if err != nil {
+				continue
+			}
+			found = true
+			pkg.errors = append(pkg.errors, srcErr)
+		}
+		if found {
+			return pkg, nil
+		}
 		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v, list errors: %v", pkg.pkgPath, pkg.compiledGoFiles, actualErrors, rawErrors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
