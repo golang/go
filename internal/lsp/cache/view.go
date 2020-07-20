@@ -119,6 +119,8 @@ type View struct {
 	// `go env` variables that need to be tracked by gopls.
 	gocache, gomodcache, gopath, goprivate string
 
+	// goEnv is the `go env` output collected when a view is created.
+	// It includes the values of the environment variables above.
 	goEnv map[string]string
 }
 
@@ -343,21 +345,24 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 	env, buildFlags := v.envLocked()
 	v.optionsMu.Unlock()
 
-	// TODO(rstambler): We could probably avoid running this by saving the
-	// output on original create, but I'm not sure if it's worth it.
-	inv := gocommand.Invocation{
-		Verb:       "env",
-		Env:        env,
-		WorkingDir: v.Folder().Filename(),
+	fullEnv := make(map[string]string)
+	for k, v := range v.goEnv {
+		fullEnv[k] = v
 	}
-	// Don't go through runGoCommand, as we don't need a temporary go.mod to
-	// run `go env`.
-	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
-	if err != nil {
-		return err
+	for _, v := range env {
+		s := strings.Split(v, "=")
+		if len(s) != 2 {
+			continue
+		}
+		if _, ok := fullEnv[s[0]]; ok {
+			fullEnv[s[0]] = s[1]
+		}
+
 	}
 	fmt.Fprintf(w, "go env for %v\n(valid build configuration = %v)\n(build flags: %v)\n", v.folder.Filename(), v.hasValidBuildConfiguration, buildFlags)
-	fmt.Fprint(w, stdout)
+	for k, v := range fullEnv {
+		fmt.Fprintf(w, "%s=%s\n", k, v)
+	}
 	return nil
 }
 
