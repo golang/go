@@ -778,3 +778,23 @@ func TestPErsrc(t *testing.T) {
 		t.Fatalf("binary does not contain expected content")
 	}
 }
+
+func TestContentAddressableSymbols(t *testing.T) {
+	// Test that the linker handles content-addressable symbols correctly.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join("testdata", "testHashedSyms", "p.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
+	}
+}
