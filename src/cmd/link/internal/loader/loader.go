@@ -1872,6 +1872,10 @@ func (fi *FuncInfo) Locals() int {
 	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
 }
 
+func (fi *FuncInfo) FuncID() objabi.FuncID {
+	return objabi.FuncID((*goobj2.FuncInfo)(nil).ReadFuncID(fi.data))
+}
+
 func (fi *FuncInfo) Pcsp() []byte {
 	pcsp, end := (*goobj2.FuncInfo)(nil).ReadPcsp(fi.data)
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))

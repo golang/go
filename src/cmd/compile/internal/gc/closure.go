@@ -429,6 +429,7 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
 	// Create top-level function.
 	xfunc := makepartialcall(fn, fn.Type, sym)
 	fn.Func = xfunc.Func
+	fn.Func.SetWrapper(true)
 	fn.Right = newname(sym)
 	fn.Op = OCALLPART
 	fn.Type = xfunc.Type

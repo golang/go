@@ -21,7 +21,7 @@ import (
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go115ld"
+//       Magic       [...]byte   // "\x00go116ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -199,7 +199,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go115ld"
+const Magic = "\x00go116ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
