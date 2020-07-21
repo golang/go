@@ -2537,6 +2537,35 @@ func main() {
 	}
 }
 
+func TestInvalidPackageName(t *testing.T) {
+	packagestest.TestAll(t, testInvalidPackageName)
+}
+
+func testInvalidPackageName(t *testing.T, exporter packagestest.Exporter) {
+	testenv.NeedsGo1Point(t, 15)
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"main.go": `package default
+
+func main() {
+}
+`,
+		},
+	}})
+	defer exported.Cleanup()
+
+	initial, err := packages.Load(exported.Config, "golang.org/fake")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := initial[0]
+	if len(pkg.CompiledGoFiles) != 1 {
+		t.Fatalf("expected 1 Go file in package %s, got %v", pkg.ID, len(pkg.CompiledGoFiles))
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
