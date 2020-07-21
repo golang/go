@@ -211,7 +211,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		// Print each view's environment.
 		buf := &bytes.Buffer{}
 		if err := view.WriteEnv(ctx, buf); err != nil {
-			event.Error(ctx, "failed to write environment", err, tag.Directory.Of(view.Folder()))
+			event.Error(ctx, "failed to write environment", err, tag.Directory.Of(view.Folder().Filename()))
 			continue
 		}
 		event.Log(ctx, buf.String())

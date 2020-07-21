@@ -108,7 +108,7 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 
 	cfg := &packages.Config{
 		Context:    ctx,
-		Dir:        s.view.folder.Filename(),
+		Dir:        s.view.root.Filename(),
 		Env:        append([]string{}, env...),
 		BuildFlags: append([]string{}, buildFlags...),
 		Mode: packages.NeedName |

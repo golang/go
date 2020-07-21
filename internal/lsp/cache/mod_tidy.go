@@ -114,7 +114,6 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 	s.mu.Unlock()
 
 	var (
-		folder  = s.View().Folder()
 		modURI  = s.view.modURI
 		cfg     = s.config(ctx)
 		options = s.view.Options()
@@ -122,7 +121,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 	)
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
-		view:            folder.Filename(),
+		view:            s.view.root.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
 		gomod:           pmh.Mod().Identity().String(),

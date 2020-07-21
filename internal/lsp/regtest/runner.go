@@ -74,6 +74,7 @@ type runConfig struct {
 	timeout                 time.Duration
 	gopath                  bool
 	withoutWorkspaceFolders bool
+	rootPath                string
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -132,6 +133,15 @@ func WithoutWorkspaceFolders() RunOption {
 	})
 }
 
+// WithRootPath specifies the rootURI of the workspace folder opened in the
+// editor. By default, the sandbox opens the top-level directory, but some
+// tests need to check other cases.
+func WithRootPath(path string) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.rootPath = path
+	})
+}
+
 // InGOPATH configures the workspace working directory to be GOPATH, rather
 // than a separate working directory for use with modules.
 func InGOPATH() RunOption {
@@ -176,8 +186,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOp
 			if err := os.MkdirAll(tempDir, 0755); err != nil {
 				t.Fatal(err)
 			}
-
-			sandbox, err := fake.NewSandbox(tempDir, filedata, config.proxyTxt, config.gopath, config.withoutWorkspaceFolders)
+			sandbox, err := fake.NewSandbox(tempDir, filedata, config.proxyTxt, config.gopath, config.withoutWorkspaceFolders, config.rootPath)
 			if err != nil {
 				t.Fatal(err)
 			}

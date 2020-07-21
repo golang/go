@@ -102,7 +102,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			Type:    protocol.Error,
 			Message: fmt.Sprintf("%s\n%v", msg, err),
 		}); err != nil {
-			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
+			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 		}
 		return nil, nil
 	}
@@ -131,7 +131,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			if warn && !snapshot.View().ValidBuildConfiguration() {
 				showMsg = &protocol.ShowMessageParams{
 					Type:    protocol.Warning,
-					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor at the directory containing the go.mod. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
+					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor to a directory in your module. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
 				}
 			}
 			if err != nil {
@@ -305,7 +305,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			return true
 		}
 		if err != nil {
-			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder()))
+			event.Error(ctx, "go mod vendor ShowMessageRequest failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 			return true
 		}
 		if err := s.directGoModCommand(ctx, protocol.URIFromSpanURI(modURI), "mod", []string{"vendor"}...); err != nil {
@@ -314,7 +314,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 				Message: fmt.Sprintf(`"go mod vendor" failed with %v`, err),
 			}); err != nil {
 				if err != nil {
-					event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder()))
+					event.Error(ctx, "go mod vendor ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 				}
 			}
 		}

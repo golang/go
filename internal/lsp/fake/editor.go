@@ -92,7 +92,7 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))
-	if err := e.initialize(ctx, e.sandbox.withoutWorkspaceFolders); err != nil {
+	if err := e.initialize(ctx, e.sandbox.withoutWorkspaceFolders, e.sandbox.editorRootPath); err != nil {
 		return nil, err
 	}
 	e.sandbox.Workdir.AddWatcher(e.onFileChanges)
@@ -169,14 +169,18 @@ func (e *Editor) configuration() map[string]interface{} {
 	return config
 }
 
-func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool) error {
+func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool, editorRootPath string) error {
 	params := &protocol.ParamInitialize{}
 	params.ClientInfo.Name = "fakeclient"
 	params.ClientInfo.Version = "v1.0.0"
 	if !withoutWorkspaceFolders {
+		rootURI := e.sandbox.Workdir.RootURI()
+		if editorRootPath != "" {
+			rootURI = toURI(e.sandbox.Workdir.filePath(editorRootPath))
+		}
 		params.WorkspaceFolders = []protocol.WorkspaceFolder{{
-			URI:  string(e.sandbox.Workdir.RootURI()),
-			Name: filepath.Base(e.sandbox.Workdir.RootURI().SpanURI().Filename()),
+			URI:  string(rootURI),
+			Name: filepath.Base(rootURI.SpanURI().Filename()),
 		}}
 	}
 	params.Capabilities.Workspace.Configuration = true
@@ -734,7 +738,7 @@ func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 	return nil
 }
 
-// CodeLens execute a codelens request on the server.
+// CodeLens executes a codelens request on the server.
 func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens, error) {
 	if e.Server == nil {
 		return nil, nil
@@ -753,6 +757,33 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 		return nil, err
 	}
 	return lens, nil
+}
+
+// References executes a reference request on the server.
+func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.ReferenceParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: e.textDocumentIdentifier(path),
+			Position:     pos.toProtocolPosition(),
+		},
+		Context: protocol.ReferenceContext{
+			IncludeDeclaration: true,
+		},
+	}
+	locations, err := e.Server.References(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return locations, nil
 }
 
 // CodeAction executes a codeAction request on the server.

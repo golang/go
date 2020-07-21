@@ -196,7 +196,7 @@ func main() {
 }`
 
 func TestDebugInfoLifecycle(t *testing.T) {
-	sb, err := fake.NewSandbox("", exampleProgram, "", false, false)
+	sb, err := fake.NewSandbox("", exampleProgram, "", false, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}

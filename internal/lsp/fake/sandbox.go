@@ -29,6 +29,10 @@ type Sandbox struct {
 	// editor, without a workspace root. In that case, the client sends neither
 	// workspace folders nor a root URI.
 	withoutWorkspaceFolders bool
+
+	// editorRootPath specifies the root path of the workspace folder used when
+	// initializing gopls in the sandbox. If empty, the Workdir is used.
+	editorRootPath string
 }
 
 // NewSandbox creates a collection of named temporary resources, with a
@@ -39,7 +43,7 @@ type Sandbox struct {
 // If rootDir is non-empty, it will be used as the root of temporary
 // directories created for the sandbox. Otherwise, a new temporary directory
 // will be used as root.
-func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool) (_ *Sandbox, err error) {
+func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool, editorRootPath string) (_ *Sandbox, err error) {
 	sb := &Sandbox{}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
@@ -70,6 +74,7 @@ func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspac
 	sb.Proxy, err = NewProxy(proxydir, proxytxt)
 	sb.Workdir, err = NewWorkdir(workdir, srctxt)
 	sb.withoutWorkspaceFolders = withoutWorkspaceFolders
+	sb.editorRootPath = editorRootPath
 
 	return sb, nil
 }

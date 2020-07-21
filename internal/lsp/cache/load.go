@@ -58,7 +58,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			// Simplify the query if it will be run in the requested directory.
 			// This ensures compatibility with Go 1.12 that doesn't allow
 			// <directory>/... in GOPATH mode.
-			if s.view.folder.Filename() == filename {
+			if s.view.root.Filename() == filename {
 				q = "./..."
 			}
 			query = append(query, q)

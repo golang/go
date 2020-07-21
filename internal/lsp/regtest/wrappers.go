@@ -238,6 +238,18 @@ func (e *Env) CodeLens(path string) []protocol.CodeLens {
 	return lens
 }
 
+// ReferencesAtRegexp calls textDocument/references for the given path at the
+// position of the given regexp.
+func (e *Env) ReferencesAtRegexp(path string, re string) []protocol.Location {
+	e.T.Helper()
+	pos := e.RegexpSearch(path, re)
+	locations, err := e.Editor.References(e.Ctx, path, pos)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return locations
+}
+
 // CodeAction calls testDocument/codeAction for the given path, and calls
 // t.Fatal if there are errors.
 func (e *Env) CodeAction(path string) []protocol.CodeAction {

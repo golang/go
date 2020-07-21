@@ -54,11 +54,15 @@ type View struct {
 	// should be stopped.
 	cancel context.CancelFunc
 
-	// Name is the user visible name of this view.
+	// name is the user visible name of this view.
 	name string
 
-	// Folder is the root of this view.
+	// folder is the folder with which this view was constructed.
 	folder span.URI
+
+	// root is the root directory of this view. If we are in GOPATH mode, this
+	// is just the folder. If we are in module mode, this is the module root.
+	root span.URI
 
 	// importsMu guards imports-related state, particularly the ProcessEnv.
 	importsMu sync.Mutex
@@ -372,7 +376,8 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 		}
 
 	}
-	fmt.Fprintf(w, "go env for %v\n(valid build configuration = %v)\n(build flags: %v)\n", v.folder.Filename(), v.hasValidBuildConfiguration, buildFlags)
+	fmt.Fprintf(w, "go env for %v\n(root %s)\n(valid build configuration = %v)\n(build flags: %v)\n",
+		v.folder.Filename(), v.root.Filename(), v.hasValidBuildConfiguration, buildFlags)
 	for k, v := range fullEnv {
 		fmt.Fprintf(w, "%s=%s\n", k, v)
 	}
@@ -525,7 +530,7 @@ func (v *View) envLocked() ([]string, []string) {
 }
 
 func (v *View) contains(uri span.URI) bool {
-	return strings.HasPrefix(string(uri), string(v.folder))
+	return strings.HasPrefix(string(uri), string(v.root))
 }
 
 func (v *View) mapFile(uri span.URI, f *fileBase) {
@@ -546,7 +551,7 @@ func (v *View) WorkspaceDirectories(ctx context.Context) ([]string, error) {
 	// but that's probably too expensive.
 	// TODO(rstambler): Figure out a better approach in the future.
 	if v.modURI == "" {
-		return []string{v.folder.Filename()}, nil
+		return []string{v.root.Filename()}, nil
 	}
 	// Anything inside of the module root is known.
 	dirs := []string{filepath.Dir(v.modURI.Filename())}
@@ -824,6 +829,11 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []s
 		v.sumURI = span.URIFromPath(sumFilename)
 	}
 
+	v.root = v.folder
+	if v.modURI != "" {
+		v.root = span.URIFromPath(filepath.Dir(v.modURI.Filename()))
+	}
+
 	// Now that we have set all required fields,
 	// check if the view has a valid build configuration.
 	v.setBuildConfiguration()
@@ -969,8 +979,8 @@ func globsMatchPath(globs, target string) bool {
 	return false
 }
 
-// This function will return the main go.mod file for this folder if it exists and whether the -modfile
-// flag exists for this version of go.
+// This function will return the main go.mod file for this folder if it exists
+// and whether the -modfile flag exists for this version of go.
 func (v *View) modfileFlagExists(ctx context.Context, env []string) (bool, error) {
 	// Check the go version by running "go list" with modules off.
 	// Borrowed from internal/imports/mod.go:620.
@@ -980,7 +990,7 @@ func (v *View) modfileFlagExists(ctx context.Context, env []string) (bool, error
 		Verb:       "list",
 		Args:       []string{"-e", "-f", format},
 		Env:        append(env, "GO111MODULE=off"),
-		WorkingDir: v.Folder().Filename(),
+		WorkingDir: v.root.Filename(),
 	}
 	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
 	if err != nil {

@@ -228,7 +228,7 @@ func (s *snapshot) ModWhyHandle(ctx context.Context) (source.ModWhyHandle, error
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
 		mod:       pmh.Mod().Identity().String(),
-		view:      s.view.folder.Filename(),
+		view:      s.view.root.Filename(),
 		verb:      why,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
@@ -315,7 +315,7 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
 		mod:       pmh.Mod().Identity().String(),
-		view:      s.view.folder.Filename(),
+		view:      s.view.root.Filename(),
 		verb:      upgrade,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
