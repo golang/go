@@ -126,8 +126,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 		Version:  m.Version,
 		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
 	}
-	if loaded != nil {
-		info.GoVersion = loaded.goVersion[m.Path]
+	if v, ok := rawGoVersion.Load(m); ok {
+		info.GoVersion = v.(string)
 	}
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
@@ -155,6 +155,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 	}
 
 	if !fromBuildList {
+		// If this was an explicitly-versioned argument to 'go mod download' or
+		// 'go list -m', report the actual requested version, not its replacement.
 		completeFromModCache(info) // Will set m.Error in vendor mode.
 		return info
 	}
@@ -178,9 +180,12 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 	// worth the cost, and we're going to overwrite the GoMod and Dir from the
 	// replacement anyway. See https://golang.org/issue/27859.
 	info.Replace = &modinfo.ModulePublic{
-		Path:      r.Path,
-		Version:   r.Version,
-		GoVersion: info.GoVersion,
+		Path:    r.Path,
+		Version: r.Version,
+	}
+	if goV, ok := rawGoVersion.Load(r); ok {
+		info.Replace.GoVersion = goV.(string)
+		info.GoVersion = info.Replace.GoVersion
 	}
 	if r.Version == "" {
 		if filepath.IsAbs(r.Path) {

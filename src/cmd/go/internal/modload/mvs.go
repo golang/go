@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -30,7 +29,6 @@ import (
 type mvsReqs struct {
 	buildList []module.Version
 	cache     par.Cache
-	versions  sync.Map
 }
 
 // Reqs returns the current module requirement graph.
@@ -83,7 +81,7 @@ func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
 func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
 		if modFile != nil && modFile.Go != nil {
-			r.versions.LoadOrStore(mod, modFile.Go.Version)
+			rawGoVersion.LoadOrStore(mod, modFile.Go.Version)
 		}
 		return append([]module.Version(nil), r.buildList[1:]...), nil
 	}
@@ -113,7 +111,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
 			}
 			if f.Go != nil {
-				r.versions.LoadOrStore(mod, f.Go.Version)
+				rawGoVersion.LoadOrStore(repl, f.Go.Version)
 			}
 			return r.modFileToList(f), nil
 		}
@@ -147,7 +145,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	        but was required as: %s`, mpath, origPath))
 	}
 	if f.Go != nil {
-		r.versions.LoadOrStore(mod, f.Go.Version)
+		rawGoVersion.LoadOrStore(mod, f.Go.Version)
 	}
 
 	return r.modFileToList(f), nil

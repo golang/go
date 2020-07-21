@@ -7,6 +7,7 @@ package modload
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"sync"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -164,3 +165,9 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 
 	return false
 }
+
+// rawGoVersion records the Go version parsed from each module's go.mod file.
+//
+// If a module is replaced, the version of the replacement is keyed by the
+// replacement module.Version, not the version being replaced.
+var rawGoVersion sync.Map // map[module.Version]string
