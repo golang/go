@@ -40,7 +40,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(s.Func.Args), uint64(s.Func.Locals), uint64(s.Func.FuncID))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}

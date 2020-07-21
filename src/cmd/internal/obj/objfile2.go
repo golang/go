@@ -534,6 +534,7 @@ func genFuncInfoSyms(ctxt *Link) {
 		o := goobj2.FuncInfo{
 			Args:   uint32(s.Func.Args),
 			Locals: uint32(s.Func.Locals),
+			FuncID: objabi.FuncID(s.Func.FuncID),
 		}
 		pc := &s.Func.Pcln
 		o.Pcsp = pcdataoff

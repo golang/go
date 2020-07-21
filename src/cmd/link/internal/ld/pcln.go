@@ -297,7 +297,14 @@ func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, new
 		}
 
 		inlTreeSym.SetUint16(arch, int64(i*20+0), uint16(call.Parent))
-		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(objabi.GetFuncID(ldr.SymName(call.Func), "")))
+		inlFunc := ldr.FuncInfo(call.Func)
+
+		var funcID objabi.FuncID
+		if inlFunc.Valid() {
+			funcID = inlFunc.FuncID()
+		}
+		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(funcID))
+
 		// byte 3 is unused
 		inlTreeSym.SetUint32(arch, int64(i*20+4), uint32(val))
 		inlTreeSym.SetUint32(arch, int64(i*20+8), uint32(call.Line))
@@ -610,13 +617,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
 
 		// funcID uint8
-		var file string
-		if fi.Valid() && fi.NumFile() > 0 {
-			filesymname := ldr.SymName(fi.File(0))
-			file = filesymname[len(src.FileSymPrefix):]
+		var funcID objabi.FuncID
+		if fi.Valid() {
+			funcID = fi.FuncID()
 		}
-		funcID := objabi.GetFuncID(ldr.SymName(s), file)
-
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
 
 		// unused
