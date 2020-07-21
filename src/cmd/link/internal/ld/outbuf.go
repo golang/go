@@ -277,23 +277,24 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 	}
 }
 
-// WriteSym writes the content of a Symbol, then changes the Symbol's content
-// to point to the output buffer that we just wrote, so we can apply further
-// edit to the symbol content.
-// If the output file is not Mmap'd, just writes the content.
-func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) {
+// WriteSym writes the content of a Symbol, and returns the output buffer
+// that we just wrote, so we can apply further edit to the symbol content.
+// For generator symbols, it also sets the symbol's Data to the output
+// buffer.
+func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) []byte {
 	if !ldr.IsGeneratedSym(s) {
 		P := ldr.Data(s)
 		n := int64(len(P))
 		pos, buf := out.writeLoc(n)
 		copy(buf[pos:], P)
 		out.off += n
-		ldr.SetOutData(s, buf[pos:pos+n])
+		ldr.FreeData(s)
+		return buf[pos : pos+n]
 	} else {
 		n := ldr.SymSize(s)
 		pos, buf := out.writeLoc(n)
 		out.off += n
-		ldr.SetOutData(s, buf[pos:pos+n])
 		ldr.MakeSymbolUpdater(s).SetData(buf[pos : pos+n])
+		return buf[pos : pos+n]
 	}
 }

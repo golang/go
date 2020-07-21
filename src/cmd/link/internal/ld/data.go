@@ -1026,9 +1026,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 			out.WriteStringPad("", int(val-addr), pad)
 			addr = val
 		}
-		out.WriteSym(ldr, s)
-		st.relocsym(s, ldr.OutData(s))
-		addr += int64(len(ldr.Data(s)))
+		P := out.WriteSym(ldr, s)
+		st.relocsym(s, P)
+		addr += int64(len(P))
 		siz := ldr.SymSize(s)
 		if addr < val+siz {
 			out.WriteStringPad("", int(val+siz-addr), pad)
@@ -2677,8 +2677,8 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 		if relocs.Count() != 0 {
 			relocbuf = append(relocbuf[:0], P...)
 			P = relocbuf
+			st.relocsym(s, P)
 		}
-		st.relocsym(s, P)
 		if _, err := z.Write(P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}

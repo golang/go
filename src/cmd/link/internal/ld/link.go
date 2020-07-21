@@ -159,8 +159,8 @@ func (ctxt *Link) MaxVersion() int {
 // Generator symbols shouldn't grow the symbol size, and might be called in
 // parallel in the future.
 //
-// Generator Symbols have their Data and OutData set to the mmapped area when
-// the generator is called.
+// Generator Symbols have their Data set to the mmapped area when the
+// generator is called.
 type generatorFunc func(*Link, loader.Sym)
 
 // createGeneratorSymbol is a convenience method for creating a generator
