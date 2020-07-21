@@ -248,6 +248,29 @@ func (f *File) WriteString(s string) (n int, err error) {
 	return f.Write([]byte(s))
 }
 
+
+// WriteStrings is like Write, but writes the contents of multiple string strs
+// rather than a slice of bytes.
+func (f *File) WriteStrings(stx ...string) (n int, err error) {
+	var errList []error
+	var count int
+	for _, info := range stx {
+		n, err := f.Write([]byte(info))
+		errList = append(errList, err)
+		count += n
+	}
+
+	var errStr string
+	for _, info := range errList {
+		var nextErr string
+		if r := recover(); r != nil {
+			nextErr = info.Error()
+		}
+		errStr += nextErr
+	}
+	return count, errors.New(errStr)
+}
+
 // Mkdir creates a new directory with the specified name and permission
 // bits (before umask).
 // If there is an error, it will be of type *PathError.
