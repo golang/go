@@ -627,8 +627,7 @@ type loader struct {
 	pkgCache *par.Cache // map from string to *loadPkg
 
 	// computed at end of iterations
-	direct    map[string]bool   // imported directly by main module
-	goVersion map[string]string // go version recorded in each module
+	direct map[string]bool // imported directly by main module
 }
 
 // LoadTests controls whether the loaders load tests of the root packages.
@@ -752,13 +751,6 @@ func (ld *loader) load(roots func() []string) {
 				}
 			}
 		}
-	}
-
-	// Add Go versions, computed during walk.
-	ld.goVersion = make(map[string]string)
-	for _, m := range buildList {
-		v, _ := reqs.(*mvsReqs).versions.Load(m)
-		ld.goVersion[m.Path], _ = v.(string)
 	}
 
 	// Mix in direct markings (really, lack of indirect markings)
