@@ -605,8 +605,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return val | ((t >> 2) & 0x03ffffff), noExtReloc, true
 
 	case objabi.R_ARM64_GOT:
-		sData := ldr.Data(s)
-		if sData[r.Off()+3]&0x9f == 0x90 {
+		if (val>>24)&0x9f == 0x90 {
 			// R_AARCH64_ADR_GOT_PAGE
 			// patch instruction: adrp
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -616,7 +615,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			var o0 uint32
 			o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
 			return val | int64(o0), noExtReloc, isOk
-		} else if sData[r.Off()+3] == 0xf9 {
+		} else if val>>24 == 0xf9 {
 			// R_AARCH64_LD64_GOT_LO12_NC
 			// patch instruction: ldr
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -627,12 +626,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			o1 |= uint32(t&0xfff) << (10 - 3)
 			return val | int64(uint64(o1)), noExtReloc, isOk
 		} else {
-			ldr.Errorf(s, "unsupported instruction for %v R_GOTARM64", sData[r.Off():r.Off()+4])
+			ldr.Errorf(s, "unsupported instruction for %x R_GOTARM64", val)
 		}
 
 	case objabi.R_ARM64_PCREL:
-		sData := ldr.Data(s)
-		if sData[r.Off()+3]&0x9f == 0x90 {
+		if (val>>24)&0x9f == 0x90 {
 			// R_AARCH64_ADR_PREL_PG_HI21
 			// patch instruction: adrp
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
@@ -641,14 +639,14 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 			o0 := (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
 			return val | int64(o0), noExtReloc, isOk
-		} else if sData[r.Off()+3]&0x91 == 0x91 {
+		} else if (val>>24)&0x91 == 0x91 {
 			// R_AARCH64_ADD_ABS_LO12_NC
 			// patch instruction: add
 			t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 			o1 := uint32(t&0xfff) << 10
 			return val | int64(o1), noExtReloc, isOk
 		} else {
-			ldr.Errorf(s, "unsupported instruction for %v R_PCRELARM64", sData[r.Off():r.Off()+4])
+			ldr.Errorf(s, "unsupported instruction for %x R_PCRELARM64", val)
 		}
 
 	case objabi.R_ARM64_LDST8:
