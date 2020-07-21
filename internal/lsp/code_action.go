@@ -332,7 +332,7 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		case fillstruct.Analyzer.Name:
 			arg, err := json.Marshal(CommandRangeArgument{
 				URI:   protocol.URIFromSpanURI(d.URI),
-				Range: rng,
+				Range: d.Range,
 			})
 			if err != nil {
 				return nil, err
