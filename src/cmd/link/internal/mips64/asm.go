@@ -129,25 +129,22 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ldr.SymValue(rs) + r.Add()
-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
 		if r.Type() == objabi.R_ADDRMIPS {
-			return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
+			return int64(val&0xffff0000 | t&0xffff), noExtReloc, isOk
 		}
-		return int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff), noExtReloc, isOk
+		return int64(val&0xffff0000 | ((t+1<<15)>>16)&0xffff), noExtReloc, isOk
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ldr.SymValue(rs) + r.Add() - 0x7000
 		if t < -32768 || t >= 32678 {
 			ldr.Errorf(s, "TLS offset out of range %d", t)
 		}
-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
-		return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
+		return int64(val&0xffff0000 | t&0xffff), noExtReloc, isOk
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ldr.SymValue(rs) + r.Add()
-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
-		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), noExtReloc, isOk
+		return int64(val&0xfc000000 | (t>>2)&^0xfc000000), noExtReloc, isOk
 	}
 
 	return val, 0, false

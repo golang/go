@@ -77,7 +77,7 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 }
 
 func applyrel(arch *sys.Arch, ldr *loader.Loader, rt objabi.RelocType, off int32, s loader.Sym, val int64, t int64) int64 {
-	o := arch.ByteOrder.Uint32(ldr.OutData(s)[off:])
+	o := uint32(val)
 	switch rt {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
 		return int64(o&0xffff0000 | uint32(t)&0xffff)

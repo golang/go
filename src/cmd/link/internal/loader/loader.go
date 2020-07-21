@@ -238,7 +238,6 @@ type Loader struct {
 
 	align []uint8 // symbol 2^N alignment, indexed by global index
 
-	outdata   [][]byte     // symbol's data in the output buffer
 	extRelocs [][]ExtReloc // symbol's external relocations
 
 	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
@@ -1230,30 +1229,16 @@ func (l *Loader) Data(i Sym) []byte {
 	return r.Data(li)
 }
 
-// Returns the data of the i-th symbol in the output buffer.
-func (l *Loader) OutData(i Sym) []byte {
-	if int(i) < len(l.outdata) && l.outdata[i] != nil {
-		return l.outdata[i]
-	}
-	return l.Data(i)
-}
-
-// SetOutData sets the position of the data of the i-th symbol in the output buffer.
+// FreeData clears the symbol data of an external symbol, allowing the memory
+// to be freed earlier. No-op for non-external symbols.
 // i is global index.
-func (l *Loader) SetOutData(i Sym, data []byte) {
+func (l *Loader) FreeData(i Sym) {
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
 		if pp != nil {
-			pp.data = data
-			return
+			pp.data = nil
 		}
 	}
-	l.outdata[i] = data
-}
-
-// InitOutData initializes the slice used to store symbol output data.
-func (l *Loader) InitOutData() {
-	l.outdata = make([][]byte, l.extStart)
 }
 
 // SetExtRelocs sets the external relocations of the i-th symbol. i is global index.
