@@ -258,8 +258,17 @@ func Hello() {
 			env.SaveBuffer("go.mod")
 			env.Await(
 				EmptyDiagnostics("main.go"),
+			)
+			metBy := env.Await(
 				env.DiagnosticAtRegexp("bob/bob.go", "x"),
 			)
+			d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+			if !ok {
+				t.Fatalf("unexpected met by result %v (%T)", metBy, metBy)
+			}
+			if len(d.Diagnostics) != 1 {
+				t.Fatalf("expected 1 diagnostic, got %v", len(d.Diagnostics))
+			}
 		})
 	})
 	t.Run("initialized", func(t *testing.T) {

@@ -38,7 +38,7 @@ func TestLSP(t *testing.T) {
 type runner struct {
 	server      *Server
 	data        *tests.Data
-	diagnostics map[span.URI][]*source.Diagnostic
+	diagnostics map[span.URI]map[string]*source.Diagnostic
 	ctx         context.Context
 }
 
@@ -118,7 +118,7 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	// Get the diagnostics for this view if we have not done it before.
 	if r.diagnostics == nil {
-		r.diagnostics = make(map[span.URI][]*source.Diagnostic)
+		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		v := r.server.session.View(r.data.Config.Dir)
 		// Always run diagnostics with analysis.
 		reports, _ := r.server.diagnose(r.ctx, v.Snapshot(), true)
@@ -126,7 +126,10 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 			r.diagnostics[key.id.URI] = diags
 		}
 	}
-	got := r.diagnostics[uri]
+	var got []*source.Diagnostic
+	for _, d := range r.diagnostics[uri] {
+		got = append(got, d)
+	}
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {
@@ -380,7 +383,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	}
 	// Get the diagnostics for this view if we have not done it before.
 	if r.diagnostics == nil {
-		r.diagnostics = make(map[span.URI][]*source.Diagnostic)
+		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		// Always run diagnostics with analysis.
 		reports, _ := r.server.diagnose(r.ctx, view.Snapshot(), true)
 		for key, diags := range reports {
