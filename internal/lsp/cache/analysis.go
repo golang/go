@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"go/ast"
 	"go/types"
 	"reflect"
 	"sort"
@@ -244,13 +245,18 @@ func runAnalysis(ctx context.Context, snapshot *snapshot, analyzer *analysis.Ana
 		}
 	}
 
+	var syntax []*ast.File
+	for _, cgf := range pkg.compiledGoFiles {
+		syntax = append(syntax, cgf.File)
+	}
+
 	var diagnostics []*analysis.Diagnostic
 
 	// Run the analysis.
 	pass := &analysis.Pass{
 		Analyzer:   analyzer,
 		Fset:       snapshot.view.session.cache.fset,
-		Files:      pkg.GetSyntax(),
+		Files:      syntax,
 		Pkg:        pkg.GetTypes(),
 		TypesInfo:  pkg.GetTypesInfo(),
 		TypesSizes: pkg.GetTypesSizes(),

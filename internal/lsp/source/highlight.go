@@ -22,23 +22,19 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	ctx, done := event.Start(ctx, "source.Highlight")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Highlight: %w", err)
 	}
-	file, _, m, _, err := pgh.Parse(ctx, snapshot.View())
+	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {
 		return nil, err
 	}
-	spn, err := m.PointSpan(pos)
+	rng, err := spn.Range(pgf.Mapper.Converter)
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start, rng.Start)
 	if len(path) == 0 {
 		return nil, fmt.Errorf("no enclosing position found for %v:%v", int(pos.Line), int(pos.Character))
 	}
@@ -47,7 +43,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	// match so we should check the 1-char interval to the left of the passed
 	// in position to see if that is an exact match.
 	if _, ok := path[0].(*ast.Ident); !ok {
-		if p, _ := astutil.PathEnclosingInterval(file, rng.Start-1, rng.Start-1); p != nil {
+		if p, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start-1, rng.Start-1); p != nil {
 			switch p[0].(type) {
 			case *ast.Ident, *ast.SelectorExpr:
 				path = p // use preceding ident/selector

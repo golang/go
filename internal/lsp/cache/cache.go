@@ -199,13 +199,8 @@ func (c *Cache) PackageStats(withNames bool) template.HTML {
 				typesInfo: typInfoCost,
 			}
 			for _, f := range v.pkg.compiledGoFiles {
-				fvi := f.handle.Cached()
-				if fvi == nil {
-					continue
-				}
-				fv := fvi.(*parseGoData)
-				stat.file += int64(len(fv.src))
-				stat.ast += astCost(fv.ast)
+				stat.file += int64(len(f.Src))
+				stat.ast += astCost(f.File)
 			}
 			stat.total = stat.file + stat.ast + stat.types + stat.typesInfo
 			packageStats = append(packageStats, stat)

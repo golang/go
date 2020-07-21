@@ -122,8 +122,8 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 			}
 			// Only run analyses for packages with open files.
 			withAnalysis := alwaysAnalyze
-			for _, pgh := range pkg.CompiledGoFiles() {
-				if snapshot.IsOpen(pgh.File().URI()) {
+			for _, pgf := range pkg.CompiledGoFiles() {
+				if snapshot.IsOpen(pgf.URI) {
 					withAnalysis = true
 					break
 				}

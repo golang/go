@@ -68,7 +68,7 @@ func (s mappedRange) URI() span.URI {
 
 // getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
 // selectPackage is typically Narrowest/WidestPackageHandle below.
-func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, ParseGoHandle, error) {
+func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, *ParsedGoFile, error) {
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, nil, err
@@ -147,16 +147,15 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	if err != nil {
 		return false
 	}
-	ph := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseHeader)
-	parsed, _, _, _, err := ph.Parse(ctx, snapshot.View())
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
 	if err != nil {
 		return false
 	}
-	tok := snapshot.View().Session().Cache().FileSet().File(parsed.Pos())
+	tok := snapshot.View().Session().Cache().FileSet().File(pgf.File.Pos())
 	if tok == nil {
 		return false
 	}
-	for _, commentGroup := range parsed.Comments {
+	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
 			if matched := generatedRx.MatchString(comment.Text); matched {
 				// Check if comment is at the beginning of the line in source.
@@ -202,7 +201,7 @@ func nameToMappedRange(v View, pkg Package, pos token.Pos, name string) (mappedR
 
 func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
 	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
-	m, err := findMapperInPackage(v, pkg, span.URIFromPath(logicalFilename))
+	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
 	}
@@ -212,7 +211,7 @@ func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, err
 	if !end.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	return newMappedRange(v.Session().Cache().FileSet(), m, pos, end), nil
+	return newMappedRange(v.Session().Cache().FileSet(), pgf.Mapper, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
@@ -530,34 +529,22 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-func findPosInPackage(v View, searchpkg Package, pos token.Pos) (ParseGoHandle, Package, error) {
+func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
 	tok := v.Session().Cache().FileSet().File(pos)
 	if tok == nil {
 		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}
 	uri := span.URIFromPath(tok.Name())
 
-	ph, pkg, err := FindFileInPackage(searchpkg, uri)
+	pgf, pkg, err := findFileInDeps(searchpkg, uri)
 	if err != nil {
 		return nil, nil, err
 	}
-	return ph, pkg, nil
+	return pgf, pkg, nil
 }
 
-func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.ColumnMapper, error) {
-	ph, _, err := FindFileInPackage(searchpkg, uri)
-	if err != nil {
-		return nil, err
-	}
-	_, _, m, _, err := ph.Cached()
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// FindFileInPackage finds uri in pkg or its dependencies.
-func FindFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error) {
+// findFileInDeps finds uri in pkg or its dependencies.
+func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 	queue := []Package{pkg}
 	seen := make(map[string]bool)
 
@@ -566,8 +553,8 @@ func FindFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error
 		queue = queue[1:]
 		seen[pkg.ID()] = true
 
-		if f, err := pkg.File(uri); err == nil {
-			return f, pkg, nil
+		if pgf, err := pkg.File(uri); err == nil {
+			return pgf, pkg, nil
 		}
 		for _, dep := range pkg.Imports() {
 			if !seen[dep.ID()] {

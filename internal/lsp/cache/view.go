@@ -151,7 +151,7 @@ type builtinPackageData struct {
 	memoize.NoCopy
 
 	pkg *ast.Package
-	pgh *parseGoHandle
+	pgf *source.ParsedGoFile
 	err error
 }
 
@@ -159,8 +159,8 @@ func (d *builtinPackageData) Package() *ast.Package {
 	return d.pkg
 }
 
-func (d *builtinPackageData) ParseGoHandle() source.ParseGoHandle {
-	return d.pgh
+func (d *builtinPackageData) ParsedFile() *source.ParsedGoFile {
+	return d.pgf
 }
 
 // fileBase holds the common functionality for all files.
@@ -337,18 +337,18 @@ func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 		view := arg.(*View)
 
 		pgh := view.session.cache.parseGoHandle(ctx, fh, source.ParseFull)
-		file, _, _, _, err := pgh.Parse(ctx, view)
+		pgf, _, err := view.parseGo(ctx, pgh)
 		if err != nil {
 			return &builtinPackageData{err: err}
 		}
 		pkg, err := ast.NewPackage(view.session.cache.fset, map[string]*ast.File{
-			pgh.File().URI().Filename(): file,
+			pgf.URI.Filename(): pgf.File,
 		}, nil, nil)
 		if err != nil {
 			return &builtinPackageData{err: err}
 		}
 		return &builtinPackageData{
-			pgh: pgh,
+			pgf: pgf,
 			pkg: pkg,
 		}
 	})

@@ -18,15 +18,14 @@ type FoldingRangeInfo struct {
 func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFoldingOnly bool) (ranges []*FoldingRangeInfo, err error) {
 	// TODO(suzmue): consider limiting the number of folding ranges returned, and
 	// implement a way to prioritize folding ranges in that case.
-	pgh := snapshot.View().Session().Cache().ParseGoHandle(ctx, fh, ParseFull)
-	file, _, m, _, err := pgh.Parse(ctx, snapshot.View())
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err
 	}
 	fset := snapshot.View().Session().Cache().FileSet()
 
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.
-	ranges = append(ranges, commentsFoldingRange(fset, m, file)...)
+	ranges = append(ranges, commentsFoldingRange(fset, pgf.Mapper, pgf.File)...)
 
 	foldingFunc := foldingRange
 	if lineFoldingOnly {
@@ -34,14 +33,14 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	}
 
 	visit := func(n ast.Node) bool {
-		rng := foldingFunc(fset, m, n)
+		rng := foldingFunc(fset, pgf.Mapper, n)
 		if rng != nil {
 			ranges = append(ranges, rng)
 		}
 		return true
 	}
 	// Walk the ast and collect folding ranges.
-	ast.Inspect(file, visit)
+	ast.Inspect(pgf.File, visit)
 
 	sort.Slice(ranges, func(i, j int) bool {
 		irng, _ := ranges[i].Range()

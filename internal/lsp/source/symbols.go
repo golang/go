@@ -18,21 +18,17 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	ctx, done := event.Start(ctx, "source.DocumentSymbols")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for DocumentSymbols: %w", err)
 	}
-	file, _, _, _, err := pgh.Cached()
-	if err != nil {
-		return nil, err
-	}
 
 	info := pkg.GetTypesInfo()
-	q := qualifier(file, pkg.GetTypes(), info)
+	q := qualifier(pgf.File, pkg.GetTypes(), info)
 
 	symbolsToReceiver := make(map[types.Type]int)
 	var symbols []protocol.DocumentSymbol
-	for _, decl := range file.Decls {
+	for _, decl := range pgf.File.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			if obj := info.ObjectOf(decl.Name); obj != nil {

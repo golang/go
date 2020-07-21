@@ -1007,27 +1007,27 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		return originalFH.URI() == s.view.modURI
 	}
 	// Get the original and current parsed files in order to check package name and imports.
-	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(ctx, originalFH, source.ParseHeader).Parse(ctx, s.view)
-	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(ctx, currentFH, source.ParseHeader).Parse(ctx, s.view)
+	original, originalErr := s.ParseGo(ctx, originalFH, source.ParseHeader)
+	current, currentErr := s.ParseGo(ctx, currentFH, source.ParseHeader)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}
 	// Check if the package's metadata has changed. The cases handled are:
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
-	if original.Name.Name != current.Name.Name {
+	if original.File.Name.Name != current.File.Name.Name {
 		return true
 	}
 	// If the package's imports have increased, definitely re-run `go list`.
-	if len(original.Imports) < len(current.Imports) {
+	if len(original.File.Imports) < len(current.File.Imports) {
 		return true
 	}
 	importSet := make(map[string]struct{})
-	for _, importSpec := range original.Imports {
+	for _, importSpec := range original.File.Imports {
 		importSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
-	for _, importSpec := range current.Imports {
+	for _, importSpec := range current.File.Imports {
 		if _, ok := importSet[importSpec.Path.Value]; !ok {
 			return true
 		}

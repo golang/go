@@ -22,25 +22,21 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
-	file, _, m, _, err := pgh.Cached()
+	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {
 		return nil, 0, err
 	}
-	spn, err := m.PointSpan(pos)
-	if err != nil {
-		return nil, 0, err
-	}
-	rng, err := spn.Range(m.Converter)
+	rng, err := spn.Range(pgf.Mapper.Converter)
 	if err != nil {
 		return nil, 0, err
 	}
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
-	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, rng.Start, rng.Start)
 	if path == nil {
 		return nil, 0, errors.Errorf("cannot find node enclosing position")
 	}
@@ -63,7 +59,7 @@ FindCall:
 		return nil, 0, errors.Errorf("cannot find an enclosing function")
 	}
 
-	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
+	qf := qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
 
 	// Get the object representing the function, if available.
 	// There is no object in certain cases such as calling a function returned by
@@ -99,7 +95,7 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		node, err := objToDecl(ctx, snapshot.View(), pkg, obj)
+		node, err := objToDecl(ctx, snapshot, pkg, obj)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -121,7 +117,7 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	s, err := newSignature(ctx, snapshot, pkg, file, name, sig, comment, qf)
+	s, err := newSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -134,7 +134,7 @@ func pathLinkAndSymbolName(i *IdentifierInfo) (string, string, string) {
 	// package's API). This is true if the request originated in a test package,
 	// and if the declaration is also found in the same test package.
 	if i.pkg != nil && obj.Pkg() != nil && i.pkg.ForTest() != "" {
-		if _, pkg, _ := FindFileInPackage(i.pkg, i.Declaration.MappedRange[0].URI()); i.pkg == pkg {
+		if _, err := i.pkg.File(i.Declaration.MappedRange[0].URI()); err == nil {
 			return "", "", ""
 		}
 	}
@@ -249,10 +249,10 @@ func hoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation,
 			}
 			// Assume that only one file will contain package documentation,
 			// so pick the first file that has a doc comment.
-			var doc *ast.CommentGroup
 			for _, file := range imp.GetSyntax() {
 				if file.Doc != nil {
-					info = &HoverInformation{source: obj, comment: doc}
+					info = &HoverInformation{source: obj, comment: file.Doc}
+					break
 				}
 			}
 		}

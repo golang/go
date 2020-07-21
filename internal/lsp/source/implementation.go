@@ -285,23 +285,19 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 }
 
 func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, token.Pos, error) {
-	pgh, err := pkg.File(f.URI())
+	pgf, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, 0, err
 	}
-	file, _, m, _, err := pgh.Cached()
+	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {
 		return nil, 0, err
 	}
-	spn, err := m.PointSpan(pos)
+	rng, err := spn.Range(pgf.Mapper.Converter)
 	if err != nil {
 		return nil, 0, err
 	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, 0, err
-	}
-	return file, rng.Start, nil
+	return pgf.File, rng.Start, nil
 }
 
 // pathEnclosingObjNode returns the AST path to the object-defining

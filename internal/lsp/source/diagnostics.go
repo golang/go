@@ -40,8 +40,8 @@ type RelatedInformation struct {
 
 func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalysis bool) (map[FileIdentity][]*Diagnostic, bool, error) {
 	onlyIgnoredFiles := true
-	for _, pgh := range pkg.CompiledGoFiles() {
-		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.View().IgnoredFile(pgh.File().URI())
+	for _, pgf := range pkg.CompiledGoFiles() {
+		onlyIgnoredFiles = onlyIgnoredFiles && snapshot.View().IgnoredFile(pgf.URI)
 	}
 	if onlyIgnoredFiles {
 		return nil, false, nil
@@ -61,8 +61,8 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalys
 	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]*Diagnostic)
-	for _, pgh := range pkg.CompiledGoFiles() {
-		clearReports(ctx, snapshot, reports, pgh.File().URI())
+	for _, pgf := range pkg.CompiledGoFiles() {
+		clearReports(ctx, snapshot, reports, pgf.URI)
 	}
 	// Prepare any additional reports for the errors in this package.
 	for _, e := range pkg.GetErrors() {
@@ -72,9 +72,9 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, withAnalys
 		}
 		// If no file is associated with the error, pick an open file from the package.
 		if e.URI.Filename() == "" {
-			for _, pgh := range pkg.CompiledGoFiles() {
-				if snapshot.IsOpen(pgh.File().URI()) {
-					e.URI = pgh.File().URI()
+			for _, pgf := range pkg.CompiledGoFiles() {
+				if snapshot.IsOpen(pgf.URI) {
+					e.URI = pgf.URI
 				}
 			}
 		}

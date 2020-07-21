@@ -130,7 +130,6 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		defer done()
 
 		snapshot := arg.(*snapshot)
-
 		original, m, parseErrors, err := pmh.Parse(ctx, snapshot)
 		if err != nil || len(parseErrors) > 0 {
 			return &modTidyData{
@@ -501,13 +500,9 @@ func missingModuleErrors(ctx context.Context, snapshot *snapshot, modMapper *pro
 
 func missingModules(ctx context.Context, snapshot *snapshot, modMapper *protocol.ColumnMapper, pkg source.Package, missing map[string]*modfile.Require, options source.Options) ([]source.Error, error) {
 	var errors []source.Error
-	for _, pgh := range pkg.CompiledGoFiles() {
-		file, _, m, _, err := pgh.Parse(ctx, snapshot.view)
-		if err != nil {
-			return nil, err
-		}
+	for _, pgf := range pkg.CompiledGoFiles() {
 		imports := make(map[string]*ast.ImportSpec)
-		for _, imp := range file.Imports {
+		for _, imp := range pgf.File.Imports {
 			if imp.Path == nil {
 				continue
 			}
@@ -530,7 +525,7 @@ func missingModules(ctx context.Context, snapshot *snapshot, modMapper *protocol
 			if err != nil {
 				return nil, err
 			}
-			rng, err := m.Range(spn)
+			rng, err := pgf.Mapper.Range(spn)
 			if err != nil {
 				return nil, err
 			}
@@ -539,7 +534,7 @@ func missingModules(ctx context.Context, snapshot *snapshot, modMapper *protocol
 				return nil, err
 			}
 			errors = append(errors, source.Error{
-				URI:      pgh.File().URI(),
+				URI:      pgf.URI,
 				Range:    rng,
 				Message:  fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
 				Category: "go mod tidy",

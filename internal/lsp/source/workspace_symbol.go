@@ -61,12 +61,8 @@ outer:
 				continue
 			}
 			seen[pkg.PkgPath()] = struct{}{}
-			for _, fh := range pkg.CompiledGoFiles() {
-				file, _, _, _, err := fh.Cached()
-				if err != nil {
-					return nil, err
-				}
-				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), symbolMatcher) {
+			for _, pgf := range pkg.CompiledGoFiles() {
+				for _, si := range findSymbol(pgf.File.Decls, pkg.GetTypesInfo(), symbolMatcher) {
 					mrng, err := posToMappedRange(view, pkg, si.node.Pos(), si.node.End())
 					if err != nil {
 						event.Error(ctx, "Error getting mapped range for node", err)

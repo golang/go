@@ -18,8 +18,8 @@ import (
 type pkg struct {
 	m               *metadata
 	mode            source.ParseMode
-	goFiles         []*parseGoHandle
-	compiledGoFiles []*parseGoHandle
+	goFiles         []*source.ParsedGoFile
+	compiledGoFiles []*source.ParsedGoFile
 	errors          []*source.Error
 	imports         map[packagePath]*pkg
 	module          *packages.Module
@@ -56,23 +56,19 @@ func (p *pkg) PkgPath() string {
 	return string(p.m.pkgPath)
 }
 
-func (p *pkg) CompiledGoFiles() []source.ParseGoHandle {
-	var files []source.ParseGoHandle
-	for _, f := range p.compiledGoFiles {
-		files = append(files, f)
-	}
-	return files
+func (p *pkg) CompiledGoFiles() []*source.ParsedGoFile {
+	return p.compiledGoFiles
 }
 
-func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
-	for _, ph := range p.compiledGoFiles {
-		if ph.File().URI() == uri {
-			return ph, nil
+func (p *pkg) File(uri span.URI) (*source.ParsedGoFile, error) {
+	for _, cgf := range p.compiledGoFiles {
+		if cgf.URI == uri {
+			return cgf, nil
 		}
 	}
-	for _, ph := range p.goFiles {
-		if ph.File().URI() == uri {
-			return ph, nil
+	for _, gf := range p.goFiles {
+		if gf.URI == uri {
+			return gf, nil
 		}
 	}
 	return nil, errors.Errorf("no ParseGoHandle for %s", uri)
@@ -80,11 +76,8 @@ func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
 
 func (p *pkg) GetSyntax() []*ast.File {
 	var syntax []*ast.File
-	for _, ph := range p.compiledGoFiles {
-		file, _, _, _, err := ph.Cached()
-		if err == nil {
-			syntax = append(syntax, file)
-		}
+	for _, pgf := range p.compiledGoFiles {
+		syntax = append(syntax, pgf.File)
 	}
 	return syntax
 }

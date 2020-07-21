@@ -47,7 +47,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 			spn = parseGoListError(e.Msg)
 
 			// We may not have been able to parse a valid span.
-			if _, err := spanToRange(pkg, spn); err != nil {
+			if _, err := spanToRange(snapshot, pkg, spn); err != nil {
 				return &source.Error{
 					URI:     spn.URI(),
 					Message: msg,
@@ -60,7 +60,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 	case *scanner.Error:
 		msg = e.Msg
 		kind = source.ParseError
-		spn, err = scannerErrorRange(fset, pkg, e.Pos)
+		spn, err = scannerErrorRange(snapshot, pkg, e.Pos)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -76,7 +76,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		}
 		msg = e[0].Msg
 		kind = source.ParseError
-		spn, err = scannerErrorRange(fset, pkg, e[0].Pos)
+		spn, err = scannerErrorRange(snapshot, pkg, e[0].Pos)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -90,7 +90,7 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		if !e.Pos.IsValid() {
 			return nil, fmt.Errorf("invalid position for type error %v", e)
 		}
-		spn, err = typeErrorRange(ctx, fset, pkg, e.Pos)
+		spn, err = typeErrorRange(snapshot, fset, pkg, e.Pos)
 		if err != nil {
 			return nil, err
 		}
@@ -103,16 +103,16 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		msg = e.Message
 		kind = source.Analysis
 		category = e.Category
-		fixes, err = suggestedFixes(fset, pkg, e)
+		fixes, err = suggestedFixes(snapshot, pkg, e)
 		if err != nil {
 			return nil, err
 		}
-		related, err = relatedInformation(fset, pkg, e)
+		related, err = relatedInformation(snapshot, pkg, e)
 		if err != nil {
 			return nil, err
 		}
 	}
-	rng, err := spanToRange(pkg, spn)
+	rng, err := spanToRange(snapshot, pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -127,16 +127,16 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 	}, nil
 }
 
-func suggestedFixes(fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+func suggestedFixes(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
 		for _, e := range fix.TextEdits {
-			spn, err := span.NewRange(fset, e.Pos, e.End).Span()
+			spn, err := span.NewRange(snapshot.view.session.cache.fset, e.Pos, e.End).Span()
 			if err != nil {
 				return nil, err
 			}
-			rng, err := spanToRange(pkg, spn)
+			rng, err := spanToRange(snapshot, pkg, spn)
 			if err != nil {
 				return nil, err
 			}
@@ -153,14 +153,14 @@ func suggestedFixes(fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([
 	return fixes, nil
 }
 
-func relatedInformation(fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(snapshot *snapshot, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
-		spn, err := span.NewRange(fset, related.Pos, related.End).Span()
+		spn, err := span.NewRange(snapshot.view.session.cache.fset, related.Pos, related.End).Span()
 		if err != nil {
 			return nil, err
 		}
-		rng, err := spanToRange(pkg, spn)
+		rng, err := spanToRange(snapshot, pkg, spn)
 		if err != nil {
 			return nil, err
 		}
@@ -186,56 +186,38 @@ func toSourceErrorKind(kind packages.ErrorKind) source.ErrorKind {
 	}
 }
 
-func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos token.Pos) (span.Span, error) {
+func typeErrorRange(snapshot *snapshot, fset *token.FileSet, pkg *pkg, pos token.Pos) (span.Span, error) {
 	posn := fset.Position(pos)
-	ph, _, err := source.FindFileInPackage(pkg, span.URIFromPath(posn.Filename))
-	if err != nil {
-		return span.Span{}, err
-	}
-	_, _, m, _, err := ph.Cached()
-	if err != nil {
-		return span.Span{}, err
-	}
-	data, err := ph.File().Read()
+	pgf, err := pkg.File(span.URIFromPath(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
 	}
 	return span.Range{
 		FileSet:   fset,
 		Start:     pos,
-		End:       analysisinternal.TypeErrorEndPos(fset, data, pos),
-		Converter: m.Converter,
+		End:       analysisinternal.TypeErrorEndPos(fset, pgf.Src, pos),
+		Converter: pgf.Mapper.Converter,
 	}.Span()
 }
 
-func scannerErrorRange(fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
-	pgh, _, err := source.FindFileInPackage(pkg, span.URIFromPath(posn.Filename))
+func scannerErrorRange(snapshot *snapshot, pkg *pkg, posn token.Position) (span.Span, error) {
+	fset := snapshot.view.session.cache.fset
+	pgf, err := pkg.File(span.URIFromPath(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
 	}
-	data, err := pgh.(*parseGoHandle).cached()
-	if data.tok == nil {
-		if err != nil {
-			return span.Span{}, err
-		}
-		return span.Span{}, errors.Errorf("no token.File for %s: %v", pgh.File().URI(), data.err)
-	}
-	pos := data.tok.Pos(posn.Offset)
+	pos := pgf.Tok.Pos(posn.Offset)
 	return span.NewRange(fset, pos, pos).Span()
 }
 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
-	pgh, _, err := source.FindFileInPackage(pkg, spn.URI())
+func spanToRange(snapshot *snapshot, pkg *pkg, spn span.Span) (protocol.Range, error) {
+	pgf, err := pkg.File(spn.URI())
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	_, _, m, _, err := pgh.Cached()
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	return m.Range(spn)
+	return pgf.Mapper.Range(spn)
 }
 
 // parseGoListError attempts to parse a standard `go list` error message
@@ -270,13 +252,9 @@ func parseGoListImportCycleError(ctx context.Context, snapshot *snapshot, e pack
 	}
 	// Imports have quotation marks around them.
 	circImp := strconv.Quote(importList[1])
-	for _, ph := range pkg.compiledGoFiles {
-		fh, _, _, _, err := ph.Parse(ctx, snapshot.view)
-		if err != nil {
-			continue
-		}
+	for _, cgf := range pkg.compiledGoFiles {
 		// Search file imports for the import that is causing the import cycle.
-		for _, imp := range fh.Imports {
+		for _, imp := range cgf.File.Imports {
 			if imp.Path.Value == circImp {
 				spn, err := span.NewRange(snapshot.view.session.cache.fset, imp.Pos(), imp.End()).Span()
 				if err != nil {

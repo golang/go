@@ -79,8 +79,6 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	//
 
 	m := ph.m
-	goFiles := ph.goFiles
-	compiledGoFiles := ph.compiledGoFiles
 	key := ph.key
 
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
@@ -94,7 +92,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 		}
 
 		data := &packageData{}
-		data.pkg, data.err = typeCheck(ctx, snapshot, m, mode, goFiles, compiledGoFiles, deps)
+		data.pkg, data.err = typeCheck(ctx, snapshot, m, mode, deps)
 
 		return data
 	})
@@ -239,7 +237,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 	return pghs, nil
 }
 
-func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, goFiles, compiledGoFiles []*parseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
+func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, deps map[packagePath]*packageHandle) (*pkg, error) {
 	ctx, done := event.Start(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
@@ -252,8 +250,8 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 	pkg := &pkg{
 		m:               m,
 		mode:            mode,
-		goFiles:         goFiles,
-		compiledGoFiles: compiledGoFiles,
+		goFiles:         make([]*source.ParsedGoFile, len(m.goFiles)),
+		compiledGoFiles: make([]*source.ParsedGoFile, len(m.compiledGoFiles)),
 		module:          m.module,
 		imports:         make(map[packagePath]*pkg),
 		typesSizes:      m.typesSizes,
@@ -267,39 +265,56 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		},
 	}
 	var (
-		files        = make([]*ast.File, len(pkg.compiledGoFiles))
-		parseErrors  = make([]error, len(pkg.compiledGoFiles))
-		actualErrors = make([]error, len(pkg.compiledGoFiles))
+		files        = make([]*ast.File, len(m.compiledGoFiles))
+		parseErrors  = make([]error, len(m.compiledGoFiles))
+		actualErrors = make([]error, len(m.compiledGoFiles))
 		wg           sync.WaitGroup
 
 		mu             sync.Mutex
 		skipTypeErrors bool
 	)
-	for i, ph := range pkg.compiledGoFiles {
+	for i, cgf := range m.compiledGoFiles {
 		wg.Add(1)
-		go func(i int, ph *parseGoHandle) {
+		go func(i int, cgf span.URI) {
 			defer wg.Done()
-			data, err := ph.parse(ctx, snapshot.view)
+			fh, err := snapshot.GetFile(ctx, cgf)
 			if err != nil {
 				actualErrors[i] = err
 				return
 			}
-			files[i], parseErrors[i], actualErrors[i] = data.ast, data.parseError, data.err
+			pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, mode)
+			pgf, fixed, err := snapshot.view.parseGo(ctx, pgh)
+			if err != nil {
+				actualErrors[i] = err
+				return
+			}
+			pkg.compiledGoFiles[i] = pgf
+			files[i], parseErrors[i], actualErrors[i] = pgf.File, pgf.ParseErr, err
 
 			mu.Lock()
-			skipTypeErrors = skipTypeErrors || data.fixed
+			skipTypeErrors = skipTypeErrors || fixed
 			mu.Unlock()
-		}(i, ph)
+		}(i, cgf)
 	}
-	for _, ph := range pkg.goFiles {
+	for i, gf := range m.goFiles {
 		wg.Add(1)
 		// We need to parse the non-compiled go files, but we don't care about their errors.
-		go func(ph source.ParseGoHandle) {
-			ph.Parse(ctx, snapshot.view)
-			wg.Done()
-		}(ph)
+		go func(i int, gf span.URI) {
+			defer wg.Done()
+			fh, err := snapshot.GetFile(ctx, gf)
+			if err != nil {
+				return
+			}
+			pgf, _ := snapshot.ParseGo(ctx, fh, mode)
+			pkg.goFiles[i] = pgf
+		}(i, gf)
 	}
 	wg.Wait()
+	for _, err := range actualErrors {
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	for _, e := range parseErrors {
 		if e != nil {
@@ -336,7 +351,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		if found {
 			return pkg, nil
 		}
-		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, actualErrors, rawErrors)
+		return nil, errors.Errorf("no parsed files for package %s, expected: %s, list errors: %v", pkg.m.pkgPath, pkg.compiledGoFiles, rawErrors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), string(m.name))
 	}

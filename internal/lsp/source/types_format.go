@@ -199,12 +199,12 @@ func newSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, 
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always fallbacks back to types.TypeString.
 func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast.File, obj *types.Var, qf types.Qualifier) string {
-	ph, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
+	pgf, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	expr, err := varType(ctx, s, ph, obj)
+	expr, err := varType(ctx, s, pgf, obj)
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
@@ -224,8 +224,8 @@ func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast
 }
 
 // varType returns the type expression for a *types.Var.
-func varType(ctx context.Context, snapshot Snapshot, ph ParseGoHandle, obj *types.Var) (ast.Expr, error) {
-	posToField, err := ph.PosToField(ctx, snapshot.View())
+func varType(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, obj *types.Var) (ast.Expr, error) {
+	posToField, err := snapshot.PosToField(ctx, pgf)
 	if err != nil {
 		return nil, err
 	}

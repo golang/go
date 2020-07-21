@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -42,6 +43,21 @@ type Snapshot interface {
 
 	// IsSaved returns whether the contents are saved on disk or not.
 	IsSaved(uri span.URI) bool
+
+	// ParseGo returns the parsed AST for the file.
+	// If the file is not available, returns nil and an error.
+	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
+
+	// PosToField is a cache of *ast.Fields by token.Pos. This allows us
+	// to quickly find corresponding *ast.Field node given a *types.Var.
+	// We must refer to the AST to render type aliases properly when
+	// formatting signatures and other types.
+	PosToField(ctx context.Context, pgf *ParsedGoFile) (map[token.Pos]*ast.Field, error)
+
+	// PosToDecl maps certain objects' positions to their surrounding
+	// ast.Decl. This mapping is used when building the documentation
+	// string for the objects.
+	PosToDecl(ctx context.Context, pgf *ParsedGoFile) (map[token.Pos]ast.Decl, error)
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, pkgID string, analyzers ...*analysis.Analyzer) ([]*Error, error)
@@ -182,7 +198,21 @@ type View interface {
 
 type BuiltinPackage interface {
 	Package() *ast.Package
-	ParseGoHandle() ParseGoHandle
+	ParsedFile() *ParsedGoFile
+}
+
+type ParsedGoFile struct {
+	memoize.NoCopy
+
+	URI  span.URI
+	Mode ParseMode
+	File *ast.File
+	Tok  *token.File
+	// Source code used to build the AST. It may be different from the
+	// actual content of the file if we have fixed the AST.
+	Src      []byte
+	Mapper   *protocol.ColumnMapper
+	ParseErr error
 }
 
 // Session represents a single connection from a client.
@@ -305,36 +335,6 @@ type Cache interface {
 
 	// GetFile returns a file handle for the given URI.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
-
-	// ParseGoHandle returns a ParseGoHandle for the given file handle.
-	ParseGoHandle(ctx context.Context, fh FileHandle, mode ParseMode) ParseGoHandle
-}
-
-// ParseGoHandle represents a handle to the AST for a file.
-type ParseGoHandle interface {
-	// File returns a file handle for which to get the AST.
-	File() FileHandle
-
-	// Mode returns the parse mode of this handle.
-	Mode() ParseMode
-
-	// Parse returns the parsed AST for the file.
-	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context, view View) (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
-
-	// Cached returns the AST for this handle, if it has already been stored.
-	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
-
-	// PosToField is a cache of *ast.Fields by token.Pos. This allows us
-	// to quickly find corresponding *ast.Field node given a *types.Var.
-	// We must refer to the AST to render type aliases properly when
-	// formatting signatures and other types.
-	PosToField(ctx context.Context, view View) (map[token.Pos]*ast.Field, error)
-
-	// PosToDecl maps certain objects' positions to their surrounding
-	// ast.Decl. This mapping is used when building the documentation
-	// string for the objects.
-	PosToDecl(ctx context.Context, view View) (map[token.Pos]ast.Decl, error)
 }
 
 type ParseModHandle interface {
@@ -486,8 +486,8 @@ type Package interface {
 	ID() string
 	Name() string
 	PkgPath() string
-	CompiledGoFiles() []ParseGoHandle
-	File(uri span.URI) (ParseGoHandle, error)
+	CompiledGoFiles() []*ParsedGoFile
+	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File
 	GetErrors() []*Error
 	GetTypes() *types.Package

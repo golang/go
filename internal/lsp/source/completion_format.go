@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 // formatCompletion creates a completion item for a given candidate.
@@ -188,12 +187,12 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		searchPkg = cand.imp.pkg
 	}
 
-	ph, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
+	pgf, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
 
-	posToDecl, err := ph.PosToDecl(ctx, c.snapshot.View())
+	posToDecl, err := c.snapshot.PosToDecl(ctx, pgf)
 	if err != nil {
 		return CompletionItem{}, err
 	}
@@ -220,18 +219,12 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 		return nil, nil
 	}
 
-	uri := span.URIFromPath(c.filename)
-	var ph ParseGoHandle
-	for _, h := range c.pkg.CompiledGoFiles() {
-		if h.File().URI() == uri {
-			ph = h
-		}
-	}
-	if ph == nil {
-		return nil, errors.Errorf("building import completion for %v: no ParseGoHandle for %s", imp.importPath, c.filename)
+	pgf, err := c.pkg.File(span.URIFromPath(c.filename))
+	if err != nil {
+		return nil, err
 	}
 
-	return computeOneImportFixEdits(ctx, c.snapshot.View(), ph, &imports.ImportFix{
+	return computeOneImportFixEdits(ctx, c.snapshot.View(), pgf, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,

@@ -184,19 +184,15 @@ func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh FileHa
 // getAllSuggestedFixInputs is a helper function to collect all possible needed
 // inputs for an AppliesFunc or SuggestedFixFunc.
 func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, span.Range, []byte, *ast.File, *protocol.ColumnMapper, *types.Package, *types.Info, error) {
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	file, _, m, _, err := pgh.Cached()
+	spn, err := pgf.Mapper.RangeSpan(pRng)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, err
 	}
-	spn, err := m.RangeSpan(pRng)
-	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, nil, err
-	}
-	rng, err := spn.Range(m.Converter)
+	rng, err := spn.Range(pgf.Mapper.Converter)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, err
 	}
@@ -205,5 +201,5 @@ func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHan
 		return nil, span.Range{}, nil, nil, nil, nil, nil, err
 	}
 	fset := snapshot.View().Session().Cache().FileSet()
-	return fset, rng, src, file, m, pkg.GetTypes(), pkg.GetTypesInfo(), nil
+	return fset, rng, src, pgf.File, pgf.Mapper, pkg.GetTypes(), pkg.GetTypesInfo(), nil
 }

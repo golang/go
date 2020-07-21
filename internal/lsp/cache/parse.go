@@ -7,6 +7,7 @@ package cache
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
@@ -42,22 +43,12 @@ type parseGoHandle struct {
 type parseGoData struct {
 	memoize.NoCopy
 
-	ast    *ast.File
-	tok    *token.File
-	mapper *protocol.ColumnMapper
+	parsed *source.ParsedGoFile
 
-	// Source code used to build the AST. It may be different from the
-	// actual content of the file if we have fixed the AST, in which case,
-	// fixed will be true.
-	src   []byte
+	// If true, we adjusted the AST to make it type check better, and
+	// it may not match the source code.
 	fixed bool
-
-	parseError error // errors associated with parsing the file
-	err        error // any other errors
-}
-
-func (c *Cache) ParseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
-	return c.parseGoHandle(ctx, fh, mode)
+	err   error // any other errors
 }
 
 func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
@@ -95,46 +86,30 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 	return pgh.mode
 }
 
-func (pgh *parseGoHandle) Parse(ctx context.Context, v source.View) (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
-	data, err := pgh.parse(ctx, v.(*View))
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	return data.ast, data.src, data.mapper, data.parseError, data.err
+func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+	pgh := s.view.session.cache.parseGoHandle(ctx, fh, mode)
+	pgf, _, err := s.view.parseGo(ctx, pgh)
+	return pgf, err
 }
 
-func (pgh *parseGoHandle) parse(ctx context.Context, v *View) (*parseGoData, error) {
+func (v *View) parseGo(ctx context.Context, pgh *parseGoHandle) (*source.ParsedGoFile, bool, error) {
 	d, err := pgh.handle.Get(ctx, v)
+	if err != nil {
+		return nil, false, err
+	}
+	data := d.(*parseGoData)
+	return data.parsed, data.fixed, data.err
+}
+
+func (s *snapshot) PosToDecl(ctx context.Context, pgf *source.ParsedGoFile) (map[token.Pos]ast.Decl, error) {
+	fh, err := s.GetFile(ctx, pgf.URI)
 	if err != nil {
 		return nil, err
 	}
-	data, ok := d.(*parseGoData)
-	if !ok {
-		return nil, errors.Errorf("no parsed file for %s", pgh.File().URI())
-	}
-	return data, nil
-}
 
-func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
-	data, err := pgh.cached()
+	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
+	d, err := pgh.astCacheHandle.Get(ctx, s.view)
 	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	return data.ast, data.src, data.mapper, data.parseError, data.err
-}
-
-func (pgh *parseGoHandle) cached() (*parseGoData, error) {
-	v := pgh.handle.Cached()
-	if v == nil {
-		return nil, errors.Errorf("no cached AST for %s", pgh.file.URI())
-	}
-	data := v.(*parseGoData)
-	return data, nil
-}
-
-func (pgh *parseGoHandle) PosToDecl(ctx context.Context, v source.View) (map[token.Pos]ast.Decl, error) {
-	d, err := pgh.astCacheHandle.Get(ctx, v.(*View))
-	if err != nil || v == nil {
 		return nil, err
 	}
 
@@ -146,8 +121,14 @@ func (pgh *parseGoHandle) PosToDecl(ctx context.Context, v source.View) (map[tok
 	return data.posToDecl, nil
 }
 
-func (pgh *parseGoHandle) PosToField(ctx context.Context, v source.View) (map[token.Pos]*ast.Field, error) {
-	d, err := pgh.astCacheHandle.Get(ctx, v.(*View))
+func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (map[token.Pos]*ast.Field, error) {
+	fh, err := s.GetFile(ctx, pgf.URI)
+	if err != nil {
+		return nil, err
+	}
+
+	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
+	d, err := pgh.astCacheHandle.Get(ctx, s.view)
 	if err != nil || d == nil {
 		return nil, err
 	}
@@ -156,7 +137,6 @@ func (pgh *parseGoHandle) PosToField(ctx context.Context, v source.View) (map[to
 	if data.err != nil {
 		return nil, data.err
 	}
-
 	return data.posToField, nil
 }
 
@@ -180,8 +160,12 @@ func buildASTCache(ctx context.Context, view *View, parseHandle *memoize.Handle)
 	)
 
 	v, err := parseHandle.Get(ctx, view)
-	if err != nil || v == nil || v.(*parseGoData).ast == nil {
+	if err != nil {
 		return &astCacheData{err: err}
+	}
+	file := v.(*parseGoData).parsed.File
+	if err != nil {
+		return &astCacheData{err: fmt.Errorf("nil file")}
 	}
 
 	data := &astCacheData{
@@ -189,7 +173,7 @@ func buildASTCache(ctx context.Context, view *View, parseHandle *memoize.Handle)
 		posToField: make(map[token.Pos]*ast.Field),
 	}
 
-	ast.Inspect(v.(*parseGoData).ast, func(n ast.Node) bool {
+	ast.Inspect(file, func(n ast.Node) bool {
 		if n == nil {
 			lastP := path[len(path)-1]
 			path = path[:len(path)-1]
@@ -284,15 +268,19 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			tok = fset.AddFile(fh.URI().Filename(), -1, len(buf))
 			tok.SetLinesForContent(buf)
 			return &parseGoData{
-				ast: file,
-				src: buf,
-				tok: tok,
-				mapper: &protocol.ColumnMapper{
-					URI:       fh.URI(),
-					Content:   buf,
-					Converter: span.NewTokenConverter(fset, tok),
+				parsed: &source.ParsedGoFile{
+					URI:  fh.URI(),
+					Mode: mode,
+					Src:  buf,
+					File: file,
+					Tok:  tok,
+					Mapper: &protocol.ColumnMapper{
+						URI:       fh.URI(),
+						Content:   buf,
+						Converter: span.NewTokenConverter(fset, tok),
+					},
+					ParseErr: parseError,
 				},
-				parseError: parseError,
 			}
 		}
 
@@ -317,14 +305,12 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			trimAST(file)
 		}
 	}
+	// A missing file is always an error; use the parse error or make one up if there isn't one.
 	if file == nil {
-		// If the file is nil only due to parse errors,
-		// the parse errors are the actual errors.
-		err := parseError
-		if err == nil {
-			err = errors.Errorf("no AST for %s", fh.URI())
+		if parseError == nil {
+			parseError = errors.Errorf("parsing %s failed with no parse error reported", fh.URI())
 		}
-		return &parseGoData{parseError: parseError, err: err}
+		err = parseError
 	}
 	m := &protocol.ColumnMapper{
 		URI:       fh.URI(),
@@ -332,12 +318,17 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		Content:   buf,
 	}
 	return &parseGoData{
-		src:        buf,
-		ast:        file,
-		tok:        tok,
-		mapper:     m,
-		parseError: parseError,
-		fixed:      fixed,
+		parsed: &source.ParsedGoFile{
+			URI:      fh.URI(),
+			Mode:     mode,
+			Src:      buf,
+			File:     file,
+			Tok:      tok,
+			Mapper:   m,
+			ParseErr: parseError,
+		},
+		fixed: fixed,
+		err:   err,
 	}
 }
 

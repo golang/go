@@ -57,23 +57,19 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	file, _, m, _, err := pgh.Cached()
+	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {
 		return nil, err
 	}
-	spn, err := m.PointSpan(pos)
+	rng, err := spn.Range(pgf.Mapper.Converter)
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	return findIdentifier(ctx, snapshot, pkg, file, rng.Start)
+	return findIdentifier(ctx, snapshot, pkg, pgf.File, rng.Start)
 }
 
 var ErrNoIdentFound = errors.New("no identifier found")
@@ -107,9 +103,9 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 			return nil, err
 		}
 		var declAST *ast.File
-		for _, f := range pkg.GetSyntax() {
-			if f.Doc != nil {
-				declAST = f
+		for _, pgf := range pkg.CompiledGoFiles() {
+			if pgf.File.Doc != nil {
+				declAST = pgf.File
 			}
 		}
 		// If there's no package documentation, just use current file.
@@ -187,11 +183,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 		// The builtin package isn't in the dependency graph, so the usual utilities
 		// won't work here.
-		_, _, m, _, err := builtin.ParseGoHandle().Cached()
-		if err != nil {
-			return nil, err
-		}
-		rng := newMappedRange(view.Session().Cache().FileSet(), m, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := newMappedRange(view.Session().Cache().FileSet(), builtin.ParsedFile().Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
 		return result, nil
@@ -213,7 +205,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	if result.Declaration.node, err = objToDecl(ctx, view, pkg, result.Declaration.obj); err != nil {
+	if result.Declaration.node, err = objToDecl(ctx, s, pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -288,12 +280,12 @@ func hasErrorType(obj types.Object) bool {
 	return types.IsInterface(obj.Type()) && obj.Pkg() == nil && obj.Name() == "error"
 }
 
-func objToDecl(ctx context.Context, v View, srcPkg Package, obj types.Object) (ast.Decl, error) {
-	ph, _, err := findPosInPackage(v, srcPkg, obj.Pos())
+func objToDecl(ctx context.Context, snapshot Snapshot, srcPkg Package, obj types.Object) (ast.Decl, error) {
+	pgf, _, err := findPosInPackage(snapshot.View(), srcPkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}
-	posToDecl, err := ph.PosToDecl(ctx, v)
+	posToDecl, err := snapshot.PosToDecl(ctx, pgf)
 	if err != nil {
 		return nil, err
 	}
@@ -328,15 +320,7 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 	if err != nil {
 		return nil, err
 	}
-	if importedPkg.GetSyntax() == nil {
-		return nil, errors.Errorf("no syntax for for %q", importPath)
-	}
 	// Return all of the files in the package as the definition of the import spec.
-	dest := pkg.GetSyntax()
-	if len(dest) == 0 {
-		return nil, errors.Errorf("package %q has no files", importPath)
-	}
-
 	for _, dst := range importedPkg.GetSyntax() {
 		rng, err := posToMappedRange(s.View(), pkg, dst.Pos(), dst.End())
 		if err != nil {
