@@ -107,10 +107,10 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 	s.view.optionsMu.Unlock()
 
 	cfg := &packages.Config{
-		Env:        env,
-		Dir:        s.view.folder.Filename(),
 		Context:    ctx,
-		BuildFlags: buildFlags,
+		Dir:        s.view.folder.Filename(),
+		Env:        append([]string{}, env...),
+		BuildFlags: append([]string{}, buildFlags...),
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
