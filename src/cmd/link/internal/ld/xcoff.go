@@ -1695,27 +1695,32 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 				break
 			}
 
+			// Compute external relocations on the go, and pass to Xcoffreloc1 to stream out.
 			// Relocation must be ordered by address, so create a list of sorted indices.
-			relocs := ldr.ExtRelocs(s)
+			relocs := ldr.Relocs(s)
 			sorted := make([]int, relocs.Count())
 			for i := 0; i < relocs.Count(); i++ {
 				sorted[i] = i
 			}
 			sort.Slice(sorted, func(i, j int) bool {
-				return relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off()
+				return relocs.At2(sorted[i]).Off() < relocs.At2(sorted[j]).Off()
 			})
 
 			for _, ri := range sorted {
-				r := relocs.At(ri)
-
-				if r.Xsym == 0 {
+				r := relocs.At2(ri)
+				rr, ok := extreloc(ctxt, ldr, s, r, ri)
+				if !ok {
+					continue
+				}
+				if rr.Xsym == 0 {
 					ldr.Errorf(s, "missing xsym in relocation")
 					continue
 				}
-				if ldr.SymDynid(r.Xsym) < 0 {
-					ldr.Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymDynid(r.Xsym))
+				if ldr.SymDynid(rr.Xsym) < 0 {
+					ldr.Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()), ldr.SymDynid(rr.Xsym))
 				}
-				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
+				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
 					ldr.Errorf(s, "unsupported obj reloc %d(%s)/%d to %s", r.Type(), r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
 			}

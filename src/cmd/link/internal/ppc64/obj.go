@@ -54,6 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
+		Extreloc:         extreloc,
 		Elfreloc1:        elfreloc1,
 		ElfrelocSize:     24,
 		Elfsetupplt:      elfsetupplt,

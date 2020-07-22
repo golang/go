@@ -804,7 +804,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		// value with the current addresses.
 		switch rt := r.Type(); rt {
 		default:
-			if target.IsAIX() {
+			if !target.IsAIX() {
 				return val, nExtReloc, false
 			}
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
@@ -813,8 +813,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if rt == objabi.R_POWER_TLS_IE {
 				nExtReloc = 2 // need two ELF relocations, see elfreloc1
 			}
-			rr.Xadd = r.Add()
-			rr.Xsym = rs
 			return val, nExtReloc, true
 		case objabi.R_ADDRPOWER,
 			objabi.R_ADDRPOWER_DS,
@@ -823,23 +821,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_ADDRPOWER_GOT,
 			objabi.R_ADDRPOWER_PCREL:
 			nExtReloc = 2 // need two ELF relocations, see elfreloc1
-
-			// set up addend for eventual relocation via outer symbol.
-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-			rr.Xadd = r.Add() + off
-			rst := ldr.SymType(rs)
-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
-			}
-			rr.Xsym = rs
-
 			if !target.IsAIX() {
 				return val, nExtReloc, true
 			}
 		case objabi.R_CALLPOWER:
 			nExtReloc = 1
-			rr.Xsym = rs
-			rr.Xadd = r.Add()
 			if !target.IsAIX() {
 				return val, nExtReloc, true
 			}
@@ -978,6 +964,37 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv
 overflow:
 	ldr.Errorf(s, "relocation for %s+%d is too big: %d", ldr.SymName(rs), r.Off(), t)
 	return t
+}
+
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+	rs := ldr.ResolveABIAlias(r.Sym())
+	var rr loader.ExtReloc
+	switch r.Type() {
+	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
+		rr.Xadd = r.Add()
+		rr.Xsym = rs
+		return rr, true
+	case objabi.R_ADDRPOWER,
+		objabi.R_ADDRPOWER_DS,
+		objabi.R_ADDRPOWER_TOCREL,
+		objabi.R_ADDRPOWER_TOCREL_DS,
+		objabi.R_ADDRPOWER_GOT,
+		objabi.R_ADDRPOWER_PCREL:
+		// set up addend for eventual relocation via outer symbol.
+		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+		rr.Xadd = r.Add() + off
+		rst := ldr.SymType(rs)
+		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+		}
+		rr.Xsym = rs
+		return rr, true
+	case objabi.R_CALLPOWER:
+		rr.Xsym = rs
+		rr.Xadd = r.Add()
+		return rr, true
+	}
+	return rr, false
 }
 
 func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
