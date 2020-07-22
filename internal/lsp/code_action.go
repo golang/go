@@ -118,16 +118,16 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		phs, err := snapshot.PackageHandles(ctx, fh)
+		pkgs, err := snapshot.PackagesForFile(ctx, fh.URI())
 		if err != nil {
 			return nil, err
 		}
-		ph, err := source.WidestPackageHandle(phs)
+		pkg, err := source.WidestPackage(pkgs)
 		if err != nil {
 			return nil, err
 		}
 		if (wanted[protocol.QuickFix] || wanted[protocol.SourceFixAll]) && len(diagnostics) > 0 {
-			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, ph, diagnostics)
+			analysisQuickFixes, highConfidenceEdits, err := analysisFixes(ctx, snapshot, pkg, diagnostics)
 			if err != nil {
 				return nil, err
 			}
@@ -159,14 +159,14 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		}
 		// Add any suggestions that do not necessarily fix any diagnostics.
 		if wanted[protocol.RefactorRewrite] {
-			fixes, err := convenienceFixes(ctx, snapshot, ph, uri, params.Range)
+			fixes, err := convenienceFixes(ctx, snapshot, pkg, uri, params.Range)
 			if err != nil {
 				return nil, err
 			}
 			codeActions = append(codeActions, fixes...)
 		}
 		if wanted[protocol.RefactorExtract] {
-			fixes, err := extractionFixes(ctx, snapshot, ph, uri, params.Range)
+			fixes, err := extractionFixes(ctx, snapshot, pkg, uri, params.Range)
 			if err != nil {
 				return nil, err
 			}
@@ -237,7 +237,7 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, []protocol.TextDocumentEdit, error) {
+func analysisFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, []protocol.TextDocumentEdit, error) {
 	if len(diagnostics) == 0 {
 		return nil, nil, nil
 	}
@@ -246,7 +246,7 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.Pack
 		sourceFixAllEdits []protocol.TextDocumentEdit
 	)
 	for _, diag := range diagnostics {
-		srcErr, analyzer, ok := findSourceError(ctx, snapshot, ph.ID(), diag)
+		srcErr, analyzer, ok := findSourceError(ctx, snapshot, pkg.ID(), diag)
 		if !ok {
 			continue
 		}
@@ -341,7 +341,7 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 	return nil
 }
 
-func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+func convenienceFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().ConvenienceAnalyzers {
 		if !a.Enabled(snapshot) {
@@ -353,7 +353,7 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		}
 		analyzers = append(analyzers, a.Analyzer)
 	}
-	diagnostics, err := snapshot.Analyze(ctx, ph.ID(), analyzers...)
+	diagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers...)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +407,7 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 	}, nil
 }
 
-func extractionFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
+func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.Package, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
 	if rng.Start == rng.End {
 		return nil, nil
 	}

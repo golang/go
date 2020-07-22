@@ -84,14 +84,14 @@ type packageFactKey struct {
 func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.Analyzer) (*actionHandle, error) {
 	ph := s.getPackage(id, source.ParseFull)
 	if ph == nil {
-		return nil, errors.Errorf("no PackageHandle for %s", id)
+		return nil, errors.Errorf("no package for %s", id)
 	}
 	act := s.getActionHandle(id, ph.mode, a)
 	if act != nil {
 		return act, nil
 	}
 	if len(ph.key) == 0 {
-		return nil, errors.Errorf("no key for PackageHandle %s", id)
+		return nil, errors.Errorf("no key for package %s", id)
 	}
 	pkg, err := ph.check(ctx, s)
 	if err != nil {

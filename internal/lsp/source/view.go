@@ -92,13 +92,12 @@ type Snapshot interface {
 	// takes a ParseModHandle.
 	ModTidyHandle(ctx context.Context) (ModTidyHandle, error)
 
-	// PackageHandles returns the PackageHandles for the packages that this file
-	// belongs to.
-	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
+	// PackagesForFile returns the packages that this file belongs to.
+	PackagesForFile(ctx context.Context, uri span.URI) ([]Package, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
-	GetReverseDependencies(ctx context.Context, id string) ([]PackageHandle, error)
+	GetReverseDependencies(ctx context.Context, id string) ([]Package, error)
 
 	// CachedImportPaths returns all the imported packages loaded in this snapshot,
 	// indexed by their import path.
@@ -107,27 +106,10 @@ type Snapshot interface {
 	// KnownPackages returns all the packages loaded in this snapshot.
 	// Workspace packages may be parsed in ParseFull mode, whereas transitive
 	// dependencies will be in ParseExported mode.
-	KnownPackages(ctx context.Context) ([]PackageHandle, error)
+	KnownPackages(ctx context.Context) ([]Package, error)
 
-	// WorkspacePackages returns the PackageHandles for the snapshot's
-	// top-level packages.
-	WorkspacePackages(ctx context.Context) ([]PackageHandle, error)
-}
-
-// PackageHandle represents a handle to a specific version of a package.
-// It is uniquely defined by the file handles that make up the package.
-type PackageHandle interface {
-	// ID returns the ID of the package associated with the PackageHandle.
-	ID() string
-
-	// CompiledGoFiles returns the URIs of the files composing the package.
-	CompiledGoFiles() []span.URI
-
-	// Check returns the type-checked Package for the PackageHandle.
-	Check(ctx context.Context, snapshot Snapshot) (Package, error)
-
-	// Cached returns the Package for the PackageHandle if it has already been stored.
-	Cached() (Package, error)
+	// WorkspacePackages returns the snapshot's top-level packages.
+	WorkspacePackages(ctx context.Context) ([]Package, error)
 }
 
 // View represents a single workspace.

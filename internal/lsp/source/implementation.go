@@ -94,11 +94,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 		if err != nil {
 			return nil, err
 		}
-		for _, ph := range knownPkgs {
-			pkg, err := ph.Check(ctx, s)
-			if err != nil {
-				return nil, err
-			}
+		for _, pkg := range knownPkgs {
 			pkgs[pkg.GetTypes()] = pkg
 			info := pkg.GetTypesInfo()
 			for _, obj := range info.Defs {
@@ -205,17 +201,13 @@ var errBuiltin = errors.New("builtin object")
 // referenced at the given position. An object will be returned for
 // every package that the file belongs to.
 func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
-	phs, err := s.PackageHandles(ctx, fh)
+	pkgs, err := s.PackagesForFile(ctx, fh.URI())
 	if err != nil {
 		return nil, err
 	}
 	// Check all the packages that the file belongs to.
 	var qualifiedObjs []qualifiedObject
-	for _, ph := range phs {
-		searchpkg, err := ph.Check(ctx, s)
-		if err != nil {
-			return nil, err
-		}
+	for _, searchpkg := range pkgs {
 		astFile, pos, err := getASTFile(searchpkg, fh, pp)
 		if err != nil {
 			return nil, err

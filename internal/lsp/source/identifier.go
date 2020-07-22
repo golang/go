@@ -57,7 +57,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}

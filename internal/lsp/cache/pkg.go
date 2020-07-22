@@ -71,7 +71,7 @@ func (p *pkg) File(uri span.URI) (*source.ParsedGoFile, error) {
 			return gf, nil
 		}
 	}
-	return nil, errors.Errorf("no ParseGoHandle for %s", uri)
+	return nil, errors.Errorf("no parsed file for %s in %v", uri, p.m.id)
 }
 
 func (p *pkg) GetSyntax() []*ast.File {

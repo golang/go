@@ -66,18 +66,14 @@ func (s mappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
+// getParsedFile is a convenience function that extracts the Package and ParsedGoFile for a File in a Snapshot.
 // selectPackage is typically Narrowest/WidestPackageHandle below.
 func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, *ParsedGoFile, error) {
-	phs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackagesForFile(ctx, fh.URI())
 	if err != nil {
 		return nil, nil, err
 	}
-	ph, err := selectPackage(phs)
-	if err != nil {
-		return nil, nil, err
-	}
-	pkg, err := ph.Check(ctx, snapshot)
+	pkg, err := selectPackage(phs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,61 +81,47 @@ func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, select
 	return pkg, pgh, err
 }
 
-type PackagePolicy func([]PackageHandle) (PackageHandle, error)
+type PackagePolicy func([]Package) (Package, error)
 
-// NarrowestPackageHandle picks the "narrowest" package for a given file.
+// NarrowestPackage picks the "narrowest" package for a given file.
 //
 // By "narrowest" package, we mean the package with the fewest number of files
 // that includes the given file. This solves the problem of test variants,
 // as the test will have more files than the non-test package.
-func NarrowestPackageHandle(handles []PackageHandle) (PackageHandle, error) {
-	if len(handles) < 1 {
-		return nil, errors.Errorf("no PackageHandles")
+func NarrowestPackage(pkgs []Package) (Package, error) {
+	if len(pkgs) < 1 {
+		return nil, errors.Errorf("no packages")
 	}
-	result := handles[0]
-	for _, handle := range handles[1:] {
+	result := pkgs[0]
+	for _, handle := range pkgs[1:] {
 		if result == nil || len(handle.CompiledGoFiles()) < len(result.CompiledGoFiles()) {
 			result = handle
 		}
 	}
 	if result == nil {
-		return nil, errors.Errorf("nil PackageHandles have been returned")
+		return nil, errors.Errorf("no packages in input")
 	}
 	return result, nil
 }
 
-// WidestPackageHandle returns the PackageHandle containing the most files.
+// WidestPackage returns the Package containing the most files.
 //
 // This is useful for something like diagnostics, where we'd prefer to offer diagnostics
 // for as many files as possible.
-func WidestPackageHandle(handles []PackageHandle) (PackageHandle, error) {
-	if len(handles) < 1 {
-		return nil, errors.Errorf("no PackageHandles")
+func WidestPackage(pkgs []Package) (Package, error) {
+	if len(pkgs) < 1 {
+		return nil, errors.Errorf("no packages")
 	}
-	result := handles[0]
-	for _, handle := range handles[1:] {
+	result := pkgs[0]
+	for _, handle := range pkgs[1:] {
 		if result == nil || len(handle.CompiledGoFiles()) > len(result.CompiledGoFiles()) {
 			result = handle
 		}
 	}
 	if result == nil {
-		return nil, errors.Errorf("nil PackageHandles have been returned")
+		return nil, errors.Errorf("no packages in input")
 	}
 	return result, nil
-}
-
-// SpecificPackageHandle creates a PackagePolicy to select a
-// particular PackageHandle when you alread know the one you want.
-func SpecificPackageHandle(desiredID string) PackagePolicy {
-	return func(handles []PackageHandle) (PackageHandle, error) {
-		for _, h := range handles {
-			if h.ID() == desiredID {
-				return h, nil
-			}
-		}
-
-		return nil, fmt.Errorf("no package handle with expected id %q", desiredID)
-	}
 }
 
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {

@@ -76,13 +76,7 @@ func references(ctx context.Context, s Snapshot, qos []qualifiedObject, includeD
 			if err != nil {
 				return nil, err
 			}
-			for _, ph := range reverseDeps {
-				pkg, err := ph.Check(ctx, s)
-				if err != nil {
-					return nil, err
-				}
-				searchPkgs = append(searchPkgs, pkg)
-			}
+			searchPkgs = append(searchPkgs, reverseDeps...)
 		}
 		// Add the package in which the identifier is declared.
 		searchPkgs = append(searchPkgs, qo.pkg)

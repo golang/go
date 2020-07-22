@@ -51,8 +51,8 @@ outer:
 		if err != nil {
 			return nil, err
 		}
-		for _, ph := range knownPkgs {
-			pkg, err := ph.Check(ctx, view.Snapshot())
+		// TODO: apply some kind of ordering to the search, and sort the results.
+		for _, pkg := range knownPkgs {
 			symbolMatcher := makePackageSymbolMatcher(style, pkg, queryMatcher)
 			if err != nil {
 				return nil, err

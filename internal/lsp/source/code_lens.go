@@ -52,7 +52,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
 		return nil, nil
 	}
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackage)
 	if err != nil {
 		return nil, err
 	}

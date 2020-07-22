@@ -27,7 +27,6 @@ import (
 
 type packageHandleKey string
 
-// packageHandle implements source.PackageHandle.
 type packageHandle struct {
 	handle *memoize.Handle
 
@@ -58,13 +57,13 @@ type packageData struct {
 	err error
 }
 
-// buildPackageHandle returns a source.PackageHandle for a given package and config.
+// buildPackageHandle returns a packageHandle for a given package and mode.
 func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
 	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
 	}
 
-	// Build the PackageHandle for this ID and its dependencies.
+	// Build the packageHandle for this ID and its dependencies.
 	ph, deps, err := s.buildKey(ctx, id, mode)
 	if err != nil {
 		return nil, err
@@ -98,7 +97,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	})
 	ph.handle = h
 
-	// Cache the PackageHandle in the snapshot. If a package handle has already
+	// Cache the handle in the snapshot. If a package handle has already
 	// been cached, addPackage will return the cached value. This is fine,
 	// since the original package handle above will have no references and be
 	// garbage collected.

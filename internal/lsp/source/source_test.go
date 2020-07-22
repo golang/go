@@ -820,10 +820,6 @@ func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source
 		t.Fatal(err)
 	}
 	got = tests.FilterWorkspaceSymbols(got, dirs)
-	if len(got) != len(expectedSymbols) {
-		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
-		return
-	}
 	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
 		t.Error(diff)
 	}

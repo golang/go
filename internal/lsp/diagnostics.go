@@ -89,7 +89,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	}
 
 	// Diagnose all of the packages in the workspace.
-	wsHandles, err := snapshot.WorkspacePackages(ctx)
+	wsPkgs, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
 		// Try constructing a more helpful error message out of this error.
 		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
@@ -110,16 +110,11 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 		showMsg *protocol.ShowMessageParams
 		wg      sync.WaitGroup
 	)
-	for _, ph := range wsHandles {
+	for _, pkg := range wsPkgs {
 		wg.Add(1)
-		go func(ph source.PackageHandle) {
+		go func(pkg source.Package) {
 			defer wg.Done()
 
-			pkg, err := ph.Check(ctx, snapshot)
-			if err != nil {
-				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
-				return
-			}
 			// Only run analyses for packages with open files.
 			withAnalysis := alwaysAnalyze
 			for _, pgf := range pkg.CompiledGoFiles() {
@@ -140,7 +135,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 				}
 			}
 			if err != nil {
-				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
+				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(pkg.ID()))
 				return
 			}
 
@@ -159,7 +154,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 				}
 			}
 			reportsMu.Unlock()
-		}(ph)
+		}(pkg)
 	}
 	wg.Wait()
 	return reports, showMsg

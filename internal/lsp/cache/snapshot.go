@@ -28,7 +28,6 @@ import (
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
-	errors "golang.org/x/xerrors"
 )
 
 type snapshot struct {
@@ -258,17 +257,13 @@ func hashUnsavedOverlays(files map[span.URI]source.FileHandle) string {
 	return hashContents([]byte(strings.Join(unsaved, "")))
 }
 
-func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
-	if fh.Kind() != source.Go {
-		panic("called PackageHandles on a non-Go FileHandle")
-	}
-
-	ctx = event.Label(ctx, tag.URI.Of(fh.URI()))
+func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI) ([]source.Package, error) {
+	ctx = event.Label(ctx, tag.URI.Of(uri))
 
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
-	ids := s.getIDsForURI(fh.URI())
+	ids := s.getIDsForURI(uri)
 	reload := len(ids) == 0
 	for _, id := range ids {
 		// Reload package metadata if any of the metadata has missing
@@ -283,40 +278,31 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		// calls to packages.Load. Determine what we should do instead.
 	}
 	if reload {
-		if err := s.load(ctx, fileURI(fh.URI())); err != nil {
+		if err := s.load(ctx, fileURI(uri)); err != nil {
 			return nil, err
 		}
 	}
 	// Get the list of IDs from the snapshot again, in case it has changed.
-	var phs []source.PackageHandle
-	for _, id := range s.getIDsForURI(fh.URI()) {
-		ph, err := s.packageHandle(ctx, id, source.ParseFull)
+	var pkgs []source.Package
+	for _, id := range s.getIDsForURI(uri) {
+		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
-		phs = append(phs, ph)
+		pkgs = append(pkgs, pkg)
 	}
-	return phs, nil
+	return pkgs, nil
 }
 
-// packageHandle returns a PackageHandle for the given ID. It assumes that
-// the metadata for the given ID has already been loaded, but if the
-// PackageHandle has not been constructed, it will rebuild it.
-func (s *snapshot) packageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
-	ph := s.getPackage(id, mode)
-	if ph != nil {
-		return ph, nil
+func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
+	ph, err := s.buildPackageHandle(ctx, id, mode)
+	if err != nil {
+		return nil, err
 	}
-	// Don't reload metadata in this function.
-	// Callers of this function must reload metadata themselves.
-	m := s.getMetadata(id)
-	if m == nil {
-		return nil, errors.Errorf("%s has no metadata", id)
-	}
-	return s.buildPackageHandle(ctx, m.id, mode)
+	return ph.check(ctx, s)
 }
 
-func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]source.PackageHandle, error) {
+func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
@@ -326,15 +312,15 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 	// Make sure to delete the original package ID from the map.
 	delete(ids, packageID(id))
 
-	var results []source.PackageHandle
+	var pkgs []source.Package
 	for id := range ids {
-		ph, err := s.packageHandle(ctx, id, source.ParseFull)
+		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, ph)
+		pkgs = append(pkgs, pkg)
 	}
-	return results, nil
+	return pkgs, nil
 }
 
 // transitiveReverseDependencies populates the uris map with file URIs
@@ -431,64 +417,55 @@ func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 	return ids
 }
 
-func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.PackageHandle, error) {
+func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	var results []source.PackageHandle
+	var pkgs []source.Package
 	for _, pkgID := range s.workspacePackageIDs() {
-		ph, err := s.packageHandle(ctx, pkgID, source.ParseFull)
+		pkg, err := s.checkedPackage(ctx, pkgID, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, ph)
+		pkgs = append(pkgs, pkg)
 	}
-	return results, nil
+	return pkgs, nil
 }
 
-func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, error) {
+func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	// Collect PackageHandles for all of the workspace packages first.
-	// They may need to be reloaded if their metadata has been invalidated.
-	wsPackages := make(map[packageID]bool)
-	s.mu.Lock()
-	for id := range s.workspacePackages {
-		wsPackages[id] = true
-	}
-	s.mu.Unlock()
 
-	var results []source.PackageHandle
-	for pkgID := range wsPackages {
-		ph, err := s.packageHandle(ctx, pkgID, source.ParseFull)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, ph)
-	}
-
-	// Once all workspace packages have been checked, the metadata will be up-to-date.
-	// Add all packages known in the workspace (that haven't already been added).
-	pkgIDs := make(map[packageID]bool)
+	// The WorkspaceSymbols implementation relies on this function returning
+	// workspace packages first.
+	wsPackages := s.workspacePackageIDs()
+	var otherPackages []packageID
 	s.mu.Lock()
 	for id := range s.metadata {
-		if !wsPackages[id] {
-			pkgIDs[id] = true
+		if _, ok := s.workspacePackages[id]; ok {
+			continue
 		}
+		otherPackages = append(otherPackages, id)
 	}
 	s.mu.Unlock()
 
-	for pkgID := range pkgIDs {
-		// Metadata for these packages should already be up-to-date,
-		// so just build the package handle directly (without a reload).
-		ph, err := s.buildPackageHandle(ctx, pkgID, source.ParseExported)
+	var pkgs []source.Package
+	for _, id := range wsPackages {
+		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, ph)
+		pkgs = append(pkgs, pkg)
 	}
-	return results, nil
+	for _, id := range otherPackages {
+		pkg, err := s.checkedPackage(ctx, id, source.ParseExported)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs, nil
 }
 
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
@@ -507,7 +484,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 		}
 		for importPath, newPkg := range cachedPkg.imports {
 			if oldPkg, ok := results[string(importPath)]; ok {
-				// Using the same trick as NarrowestPackageHandle, prefer non-variants.
+				// Using the same trick as NarrowestPackage, prefer non-variants.
 				if len(newPkg.compiledGoFiles) < len(oldPkg.(*pkg).compiledGoFiles) {
 					results[string(importPath)] = newPkg
 				}

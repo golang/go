@@ -18,7 +18,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	ctx, done := event.Start(ctx, "source.DocumentSymbols")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for DocumentSymbols: %w", err)
 	}

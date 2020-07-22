@@ -101,11 +101,11 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 
 func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
-	phs, err := snapshot.PackageHandles(ctx, fh)
+	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI())
 	if err != nil {
 		return nil, err
 	}
-	ph, err := source.WidestPackageHandle(phs)
+	pkg, err := source.WidestPackage(pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			if view.IsGoPrivatePath(target) {
 				continue
 			}
-			if mod, version, ok := moduleAtVersion(ctx, snapshot, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
+			if mod, version, ok := moduleAtVersion(ctx, snapshot, target, pkg); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
 				target = strings.Replace(target, mod, mod+"@"+version, 1)
 			}
 			// Account for the quotation marks in the positions.
@@ -175,11 +175,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	return links, nil
 }
 
-func moduleAtVersion(ctx context.Context, snapshot source.Snapshot, target string, ph source.PackageHandle) (string, string, bool) {
-	pkg, err := ph.Check(ctx, snapshot)
-	if err != nil {
-		return "", "", false
-	}
+func moduleAtVersion(ctx context.Context, snapshot source.Snapshot, target string, pkg source.Package) (string, string, bool) {
 	impPkg, err := pkg.GetImport(target)
 	if err != nil {
 		return "", "", false

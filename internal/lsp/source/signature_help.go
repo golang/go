@@ -22,7 +22,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}

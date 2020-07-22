@@ -235,10 +235,10 @@ func tempModFile(modFh, sumFH source.FileHandle) (tmpURI span.URI, cleanup func(
 	if sumFH != nil {
 		sumContents, err := sumFH.Read()
 		if err != nil {
-			return "", nil, err
+			return "", cleanup, err
 		}
 		if err := ioutil.WriteFile(tmpSumName, sumContents, 0655); err != nil {
-			return "", nil, err
+			return "", cleanup, err
 		}
 	}
 

@@ -88,20 +88,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 	if err != nil {
 		return nil, err
 	}
-	wsPhs, err := s.WorkspacePackages(ctx)
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
+	workspacePkgs, err := s.WorkspacePackages(ctx)
 	if err != nil {
 		return nil, err
-	}
-	var workspacePkgs []source.Package
-	for _, ph := range wsPhs {
-		pkg, err := ph.Check(ctx, s)
-		if err != nil {
-			return nil, err
-		}
-		workspacePkgs = append(workspacePkgs, pkg)
 	}
 	importHash, err := hashImports(ctx, workspacePkgs)
 	if err != nil {

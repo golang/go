@@ -129,15 +129,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
-	phs, err := snapshot.PackageHandles(ctx, fh)
-	if err != nil {
-		return FileIdentity{}, nil, err
-	}
-	ph, err := NarrowestPackageHandle(phs)
-	if err != nil {
-		return FileIdentity{}, nil, err
-	}
-	pkg, err := ph.Check(ctx, snapshot)
+	pkg, _, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
