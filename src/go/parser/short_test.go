@@ -86,6 +86,7 @@ var valids = []string{
 
 	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
 	`package p; type _[type] int; var _ T[chan int]`,
+	`package p; func f[A, B](); func _() { _ = f[int, int] }`,
 
 	// optional "type" keyword for generic functions using square brackets
 	`package p; func _[]()`,

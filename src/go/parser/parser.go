@@ -1773,6 +1773,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.StarExpr:
 	case *ast.UnaryExpr:
 	case *ast.BinaryExpr:
+	case *ast.InstantiatedType: // can be a function instantiation // TODO(gri) rename this node
 	default:
 		// all other nodes are not proper expressions
 		p.errorExpected(x.Pos(), "expression")
