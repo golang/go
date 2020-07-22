@@ -184,6 +184,6 @@ func (t *Target) IsBigEndian() bool {
 
 // Temporary helper.
 func (t *Target) StreamExtRelocs() bool {
-	return (t.IsELF || t.IsDarwin()) &&
-		(t.IsAMD64() || t.Is386() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
+	return (t.IsELF || t.IsDarwin() || t.IsWindows()) &&
+		(t.IsAMD64() || t.Is386() || t.IsARM() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
 }
