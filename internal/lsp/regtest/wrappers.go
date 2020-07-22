@@ -264,12 +264,17 @@ func (e *Env) CodeAction(path string) []protocol.CodeAction {
 // ChangeEnv modifies the editor environment and reconfigures the LSP client.
 // TODO: extend this to "ChangeConfiguration", once we refactor the way editor
 // configuration is defined.
-func (e *Env) ChangeEnv(envvars ...string) {
+func (e *Env) ChangeEnv(overlay map[string]string) {
 	e.T.Helper()
 	// TODO: to be correct, this should probably be synchronized, but right now
 	// configuration is only ever modified synchronously in a regtest, so this
 	// correctness can wait for the previously mentioned refactoring.
-	e.Editor.Config.Env = append(e.Editor.Config.Env, envvars...)
+	if e.Editor.Config.Env == nil {
+		e.Editor.Config.Env = make(map[string]string)
+	}
+	for k, v := range overlay {
+		e.Editor.Config.Env[k] = v
+	}
 	var params protocol.DidChangeConfigurationParams
 	if err := e.Editor.Server.DidChangeConfiguration(e.Ctx, &params); err != nil {
 		e.T.Fatal(err)

@@ -62,7 +62,7 @@ const Hello = "Hello"
 		}
 
 		// Then change the environment to make these links private.
-		env.ChangeEnv("GOPRIVATE=import.test")
+		env.ChangeEnv(map[string]string{"GOPRIVATE": "import.test"})
 
 		// Finally, verify that the links are gone.
 		content, _ = env.Hover("main.go", env.RegexpSearch("main.go", "pkg.Hello"))

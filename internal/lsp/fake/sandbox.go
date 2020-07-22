@@ -114,27 +114,31 @@ func (sb *Sandbox) GOPATH() string {
 
 // GoEnv returns the default environment variables that can be used for
 // invoking Go commands in the sandbox.
-func (sb *Sandbox) GoEnv() []string {
-	vars := []string{
-		"GOPATH=" + sb.GOPATH(),
-		"GOPROXY=" + sb.Proxy.GOPROXY(),
-		"GO111MODULE=",
-		"GOSUMDB=off",
-		"GOPACKAGESDRIVER=off",
+func (sb *Sandbox) GoEnv() map[string]string {
+	vars := map[string]string{
+		"GOPATH":           sb.GOPATH(),
+		"GOPROXY":          sb.Proxy.GOPROXY(),
+		"GO111MODULE":      "",
+		"GOSUMDB":          "off",
+		"GOPACKAGESDRIVER": "off",
 	}
 	if testenv.Go1Point() >= 5 {
-		vars = append(vars, "GOMODCACHE=")
+		vars["GOMODCACHE"] = ""
 	}
 	return vars
 }
 
 // RunGoCommand executes a go command in the sandbox.
 func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string) error {
+	var vars []string
+	for k, v := range sb.GoEnv() {
+		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
+	}
 	inv := gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		WorkingDir: sb.Workdir.workdir,
-		Env:        sb.GoEnv(),
+		Env:        vars,
 	}
 	gocmdRunner := &gocommand.Runner{}
 	_, _, _, err := gocmdRunner.RunRaw(ctx, inv)

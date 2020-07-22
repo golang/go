@@ -430,7 +430,7 @@ func Hello() {
 
 // Tests golang/go#37984: GOPATH should be read from the go command.
 func TestNoGOPATH_Issue37984(t *testing.T) {
-	const missingImport = `
+	const files = `
 -- main.go --
 package main
 
@@ -438,17 +438,18 @@ func _() {
 	fmt.Println("Hello World")
 }
 `
-	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
+	editorConfig := fake.EditorConfig{Env: map[string]string{"GOPATH": ""}}
+	withOptions(WithEditorConfig(editorConfig)).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
 		env.SaveBuffer("main.go")
 		env.Await(EmptyDiagnostics("main.go"))
-	}, WithEditorConfig(fake.EditorConfig{Env: []string{"GOPATH="}}))
+	})
 }
 
 // Tests golang/go#38669.
 func TestEqualInEnv_Issue38669(t *testing.T) {
-	const missingImport = `
+	const files = `
 -- go.mod --
 module mod.com
 
@@ -461,11 +462,12 @@ package x
 
 var X = 0
 `
-	runner.Run(t, missingImport, func(t *testing.T, env *Env) {
+	editorConfig := fake.EditorConfig{Env: map[string]string{"GOFLAGS": "-tags=foo"}}
+	withOptions(WithEditorConfig(editorConfig)).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		env.Await(EmptyDiagnostics("main.go"))
-	}, WithEditorConfig(fake.EditorConfig{Env: []string{"GOFLAGS=-tags=foo"}}))
+	})
 }
 
 // Tests golang/go#38467.

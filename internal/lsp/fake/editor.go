@@ -31,6 +31,7 @@ type Editor struct {
 	serverConn jsonrpc2.Conn
 	client     *Client
 	sandbox    *Sandbox
+	defaultEnv map[string]string
 
 	// Since this editor is intended just for testing, we use very coarse
 	// locking.
@@ -57,7 +58,7 @@ func (b buffer) text() string {
 //
 // The zero value for EditorConfig should correspond to its defaults.
 type EditorConfig struct {
-	Env []string
+	Env map[string]string
 
 	// CodeLens is a map defining whether codelens are enabled, keyed by the
 	// codeLens command. CodeLens which are not present in this map are left in
@@ -70,11 +71,12 @@ type EditorConfig struct {
 }
 
 // NewEditor Creates a new Editor.
-func NewEditor(ws *Sandbox, config EditorConfig) *Editor {
+func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 	return &Editor{
-		buffers: make(map[string]buffer),
-		sandbox: ws,
-		Config:  config,
+		buffers:    make(map[string]buffer),
+		sandbox:    sandbox,
+		defaultEnv: sandbox.GoEnv(),
+		Config:     config,
 	}
 }
 
@@ -144,19 +146,22 @@ func (e *Editor) Client() *Client {
 	return e.client
 }
 
+func (e *Editor) overlayEnv() map[string]string {
+	env := make(map[string]string)
+	for k, v := range e.defaultEnv {
+		env[k] = v
+	}
+	for k, v := range e.Config.Env {
+		env[k] = v
+	}
+	return env
+}
+
 func (e *Editor) configuration() map[string]interface{} {
 	config := map[string]interface{}{
 		"verboseWorkDoneProgress": true,
+		"env":                     e.overlayEnv(),
 	}
-
-	envvars := e.sandbox.GoEnv()
-	envvars = append(envvars, e.Config.Env...)
-	env := map[string]interface{}{}
-	for _, value := range envvars {
-		kv := strings.SplitN(value, "=", 2)
-		env[kv[0]] = kv[1]
-	}
-	config["env"] = env
 
 	if e.Config.CodeLens != nil {
 		config["codelens"] = e.Config.CodeLens

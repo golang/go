@@ -121,7 +121,7 @@ package y
 
 const Y = 2
 `
-	const ws = `
+	const files = `
 -- go.mod --
 module mod.com
 
@@ -141,8 +141,11 @@ var _, _ = x.X, y.Y
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(modcache)
-
-	runner.Run(t, ws, func(t *testing.T, env *Env) {
+	editorConfig := fake.EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
+	withOptions(
+		WithEditorConfig(editorConfig),
+		WithProxy(proxy),
+	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", `y.Y`))
 		env.SaveBuffer("main.go")
@@ -151,5 +154,5 @@ var _, _ = x.X, y.Y
 		if !strings.HasPrefix(path, filepath.ToSlash(modcache)) {
 			t.Errorf("found module dependency outside of GOMODCACHE: got %v, wanted subdir of %v", path, filepath.ToSlash(modcache))
 		}
-	}, WithProxy(proxy), WithEditorConfig(fake.EditorConfig{Env: []string{"GOMODCACHE=" + modcache}}))
+	})
 }
