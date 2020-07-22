@@ -5,9 +5,26 @@ import (
 	"golang.org/x/tools/internal/lsp/godef/a"   //@mark(AImport, re"\".*\"")
 )
 
+type Embed struct {
+	*a.A
+	a.I
+	a.S
+}
+
+func _() {
+	e := Embed{}
+	e.Hi()      //@hover("Hi", AHi)
+	e.B()       //@hover("B", AB)
+	e.Field     //@hover("Field", AField)
+	e.Field2    //@hover("Field2", AField2)
+	e.Hello()   //@hover("Hello", AHello)
+	e.Hey()     //@hover("Hey", AHey)
+	e.Goodbye() //@hover("Goodbye", AGoodbye)
+}
+
 type S1 struct { //@S1
 	F1  int //@mark(S1F1, "F1")
-	S2      //@godef("S2", S2), mark(S1S2, "S2")
+	S2      //@godef("S2", S2),mark(S1S2, "S2")
 	a.A     //@godef("A", AString)
 }
 

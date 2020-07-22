@@ -230,7 +230,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			// If leaf represents an implicit type switch object or the type
 			// switch "assign" variable, expand to all of the type switch's
 			// implicit objects.
-			if implicits := typeSwitchImplicits(searchpkg, path); len(implicits) > 0 {
+			if implicits, _ := typeSwitchImplicits(searchpkg, path); len(implicits) > 0 {
 				objs = append(objs, implicits...)
 			} else {
 				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)

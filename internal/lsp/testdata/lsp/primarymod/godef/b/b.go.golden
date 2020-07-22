@@ -1,3 +1,55 @@
+-- AB-hover --
+```go
+func (a.I).B()
+```
+
+[`(a.I).B` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#I.B)
+
+\@mark\(AB, \"B\"\)
+-- AField-hover --
+```go
+field Field int
+```
+
+[`(a.S).Field` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#S.Field)
+
+\@mark\(AField, \"Field\"\)
+-- AField2-hover --
+```go
+field Field2 int
+```
+
+[`(a.R).Field2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#R.Field2)
+
+\@mark\(AField2, \"Field2\"\)
+-- AGoodbye-hover --
+```go
+func (a.H).Goodbye()
+```
+
+[`(a.H).Goodbye` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#H.Goodbye)
+
+\@mark\(AGoodbye, \"Goodbye\"\)
+-- AHello-hover --
+```go
+func (a.J).Hello()
+```
+
+[`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#J.Hello)
+
+\@mark\(AHello, \"Hello\"\)
+-- AHey-hover --
+```go
+func (a.R).Hey()
+```
+
+[`(a.R).Hey` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#R.Hey)
+-- AHi-hover --
+```go
+func (a.A).Hi()
+```
+
+[`(a.A).Hi` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A.Hi)
 -- AImport-definition --
 godef/b/b.go:5:2-43: defined here as ```go
 package a ("golang.org/x/tools/internal/lsp/godef/a")
@@ -91,10 +143,10 @@ func a.AStuff()
 
 [`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
 -- S1-definition --
-godef/b/b.go:8:6-8: defined here as ```go
+godef/b/b.go:25:6-8: defined here as ```go
 S1 struct {
 	F1  int //@mark(S1F1, "F1")
-	S2      //@godef("S2", S2), mark(S1S2, "S2")
+	S2      //@godef("S2", S2),mark(S1S2, "S2")
 	a.A     //@godef("A", AString)
 }
 ```
@@ -105,31 +157,31 @@ S1 struct {
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 8,
+			"line": 25,
 			"column": 6,
-			"offset": 193
+			"offset": 521
 		},
 		"end": {
-			"line": 8,
+			"line": 25,
 			"column": 8,
-			"offset": 195
+			"offset": 523
 		}
 	},
-	"description": "```go\nS1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2), mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)"
+	"description": "```go\nS1 struct {\n\tF1  int //@mark(S1F1, \"F1\")\n\tS2      //@godef(\"S2\", S2),mark(S1S2, \"S2\")\n\ta.A     //@godef(\"A\", AString)\n}\n```\n\n[`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)"
 }
 
 -- S1-hover --
 ```go
 S1 struct {
 	F1  int //@mark(S1F1, "F1")
-	S2      //@godef("S2", S2), mark(S1S2, "S2")
+	S2      //@godef("S2", S2),mark(S1S2, "S2")
 	a.A     //@godef("A", AString)
 }
 ```
 
 [`b.S1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1)
 -- S1F1-definition --
-godef/b/b.go:9:2-4: defined here as ```go
+godef/b/b.go:26:2-4: defined here as ```go
 field F1 int
 ```
 
@@ -141,14 +193,14 @@ field F1 int
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 9,
+			"line": 26,
 			"column": 2,
-			"offset": 212
+			"offset": 540
 		},
 		"end": {
-			"line": 9,
+			"line": 26,
 			"column": 4,
-			"offset": 214
+			"offset": 542
 		}
 	},
 	"description": "```go\nfield F1 int\n```\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)\n\n\\@mark\\(S1F1, \\\"F1\\\"\\)"
@@ -163,29 +215,29 @@ field F1 int
 
 \@mark\(S1F1, \"F1\"\)
 -- S1S2-definition --
-godef/b/b.go:10:2-4: defined here as ```go
+godef/b/b.go:27:2-4: defined here as ```go
 field S2 S2
 ```
 
 [`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)
 
-\@godef\(\"S2\", S2\), mark\(S1S2, \"S2\"\)
+\@godef\(\"S2\", S2\),mark\(S1S2, \"S2\"\)
 -- S1S2-definition-json --
 {
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 10,
+			"line": 27,
 			"column": 2,
-			"offset": 241
+			"offset": 569
 		},
 		"end": {
-			"line": 10,
+			"line": 27,
 			"column": 4,
-			"offset": 243
+			"offset": 571
 		}
 	},
-	"description": "```go\nfield S2 S2\n```\n\n[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)\n\n\\@godef\\(\\\"S2\\\", S2\\), mark\\(S1S2, \\\"S2\\\"\\)"
+	"description": "```go\nfield S2 S2\n```\n\n[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)\n\n\\@godef\\(\\\"S2\\\", S2\\),mark\\(S1S2, \\\"S2\\\"\\)"
 }
 
 -- S1S2-hover --
@@ -195,9 +247,9 @@ field S2 S2
 
 [`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.S2)
 
-\@godef\(\"S2\", S2\), mark\(S1S2, \"S2\"\)
+\@godef\(\"S2\", S2\),mark\(S1S2, \"S2\"\)
 -- S2-definition --
-godef/b/b.go:14:6-8: defined here as ```go
+godef/b/b.go:31:6-8: defined here as ```go
 S2 struct {
 	F1   string //@mark(S2F1, "F1")
 	F2   int    //@mark(S2F2, "F2")
@@ -211,14 +263,14 @@ S2 struct {
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 14,
+			"line": 31,
 			"column": 6,
-			"offset": 326
+			"offset": 653
 		},
 		"end": {
-			"line": 14,
+			"line": 31,
 			"column": 8,
-			"offset": 328
+			"offset": 655
 		}
 	},
 	"description": "```go\nS2 struct {\n\tF1   string //@mark(S2F1, \"F1\")\n\tF2   int    //@mark(S2F2, \"F2\")\n\t*a.A        //@godef(\"A\", AString),godef(\"a\",AImport)\n}\n```\n\n[`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)"
@@ -235,7 +287,7 @@ S2 struct {
 
 [`b.S2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2)
 -- S2F1-definition --
-godef/b/b.go:15:2-4: defined here as ```go
+godef/b/b.go:32:2-4: defined here as ```go
 field F1 string
 ```
 
@@ -247,14 +299,14 @@ field F1 string
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 15,
+			"line": 32,
 			"column": 2,
-			"offset": 345
+			"offset": 672
 		},
 		"end": {
-			"line": 15,
+			"line": 32,
 			"column": 4,
-			"offset": 347
+			"offset": 674
 		}
 	},
 	"description": "```go\nfield F1 string\n```\n\n[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F1)\n\n\\@mark\\(S2F1, \\\"F1\\\"\\)"
@@ -269,11 +321,11 @@ field F1 string
 
 \@mark\(S2F1, \"F1\"\)
 -- S2F2-definition --
-godef/b/b.go:16:2-4: defined here as ```go
+godef/b/b.go:33:2-4: defined here as ```go
 field F2 int
 ```
 
-[`(b.S1).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F2)
+[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F2)
 
 \@mark\(S2F2, \"F2\"\)
 -- S2F2-definition-json --
@@ -281,17 +333,17 @@ field F2 int
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 16,
+			"line": 33,
 			"column": 2,
-			"offset": 378
+			"offset": 705
 		},
 		"end": {
-			"line": 16,
+			"line": 33,
 			"column": 4,
-			"offset": 380
+			"offset": 707
 		}
 	},
-	"description": "```go\nfield F2 int\n```\n\n[`(b.S1).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F2)\n\n\\@mark\\(S2F2, \\\"F2\\\"\\)"
+	"description": "```go\nfield F2 int\n```\n\n[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F2)\n\n\\@mark\\(S2F2, \\\"F2\\\"\\)"
 }
 
 -- S2F2-hover --
@@ -299,11 +351,11 @@ field F2 int
 field F2 int
 ```
 
-[`(b.S1).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F2)
+[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S2.F2)
 
 \@mark\(S2F2, \"F2\"\)
 -- bX-definition --
-godef/b/b.go:37:7-8: defined here as ```go
+godef/b/b.go:54:7-8: defined here as ```go
 const X untyped int = 0
 ```
 
@@ -315,14 +367,14 @@ const X untyped int = 0
 	"span": {
 		"uri": "file://godef/b/b.go",
 		"start": {
-			"line": 37,
+			"line": 54,
 			"column": 7,
-			"offset": 813
+			"offset": 1140
 		},
 		"end": {
-			"line": 37,
+			"line": 54,
 			"column": 8,
-			"offset": 814
+			"offset": 1141
 		}
 	},
 	"description": "```go\nconst X untyped int = 0\n```\n\n[`b.X` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#X)\n\n\\@mark\\(bX, \\\"X\\\"\\),godef\\(\\\"X\\\", bX\\)"
