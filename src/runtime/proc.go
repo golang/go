@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/bytealg"
 	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -5460,7 +5461,7 @@ func haveexperiment(name string) bool {
 	x := sys.Goexperiment
 	for x != "" {
 		xname := ""
-		i := index(x, ",")
+		i := bytealg.IndexByteString(x, ',')
 		if i < 0 {
 			xname, x = x, ""
 		} else {
