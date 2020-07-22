@@ -288,11 +288,9 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 			list[count] = literalNode{uint16(i), f}
 			count++
 		} else {
-			list[count] = literalNode{}
 			h.codes[i].len = 0
 		}
 	}
-	list[len(freq)] = literalNode{}
 
 	list = list[:count]
 	if count <= 2 {
