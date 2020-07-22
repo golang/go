@@ -535,23 +535,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		switch r.Type() {
 		case objabi.R_CALLARM:
 			// set up addend for eventual relocation via outer symbol.
-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-			rr.Xadd = int64(signext24(r.Add() & 0xffffff))
-			rr.Xadd *= 4
-			rr.Xadd += off
-			rst := ldr.SymType(rs)
-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+			_, off := ld.FoldSubSymbolOffset(ldr, rs)
+			xadd := int64(signext24(r.Add()&0xffffff))*4 + off
+			if xadd/4 > 0x7fffff || xadd/4 < -0x800000 {
+				ldr.Errorf(s, "direct call too far %d", xadd/4)
 			}
-			rr.Xsym = rs
-
-			if rr.Xadd/4 > 0x7fffff || rr.Xadd/4 < -0x800000 {
-				ldr.Errorf(s, "direct call too far %d", rr.Xadd/4)
-			}
-
-			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(rr.Xadd/4)))), 1, true
+			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(xadd/4)))), 1, true
 		}
-
 		return -1, 0, false
 	}
 
@@ -585,6 +575,24 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
+}
+
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+	rs := ldr.ResolveABIAlias(r.Sym())
+	var rr loader.ExtReloc
+	switch r.Type() {
+	case objabi.R_CALLARM:
+		// set up addend for eventual relocation via outer symbol.
+		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+		rr.Xadd = int64(signext24(r.Add()&0xffffff))*4 + off
+		rst := ldr.SymType(rs)
+		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+		}
+		rr.Xsym = rs
+		return rr, true
+	}
+	return rr, false
 }
 
 func addpltreloc(ldr *loader.Loader, plt *loader.SymbolBuilder, got *loader.SymbolBuilder, s loader.Sym, typ objabi.RelocType) {

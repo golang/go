@@ -517,17 +517,24 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 			if ldr.SymValue(s) >= int64(eaddr) {
 				break
 			}
-			relocs := ldr.ExtRelocs(s)
+			// Compute external relocations on the go, and pass to PEreloc1
+			// to stream out.
+			relocs := ldr.Relocs(s)
 			for ri := 0; ri < relocs.Count(); ri++ {
-				r := relocs.At(ri)
-				if r.Xsym == 0 {
+				r := relocs.At2(ri)
+				rr, ok := extreloc(ctxt, ldr, s, r, ri)
+				if !ok {
+					continue
+				}
+				if rr.Xsym == 0 {
 					ctxt.Errorf(s, "missing xsym in relocation")
 					continue
 				}
-				if ldr.SymDynid(r.Xsym) < 0 {
-					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()))
+				if ldr.SymDynid(rr.Xsym) < 0 {
+					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
 				}
-				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
+				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
 					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
 				nrelocs++
