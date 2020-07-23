@@ -144,7 +144,7 @@ var _, _ = x.X, y.Y
 	editorConfig := fake.EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
 	withOptions(
 		WithEditorConfig(editorConfig),
-		WithProxy(proxy),
+		WithProxyFiles(proxy),
 	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", `y.Y`))

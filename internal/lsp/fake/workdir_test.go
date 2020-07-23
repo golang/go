@@ -29,8 +29,8 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wd, err := NewWorkdir(tmpdir, data)
-	if err != nil {
+	wd := NewWorkdir(tmpdir)
+	if err := wd.WriteInitialFiles(data); err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {

@@ -40,19 +40,22 @@ type Workdir struct {
 
 // NewWorkdir writes the txtar-encoded file data in txt to dir, and returns a
 // Workir for operating on these files using
-func NewWorkdir(dir, txt string) (*Workdir, error) {
-	w := &Workdir{workdir: dir}
+func NewWorkdir(dir string) *Workdir {
+	return &Workdir{workdir: dir}
+}
+
+func (w *Workdir) WriteInitialFiles(txt string) error {
 	files := unpackTxt(txt)
 	for name, data := range files {
 		if err := w.writeFileData(name, string(data)); err != nil {
-			return nil, fmt.Errorf("writing to workdir: %w", err)
+			return fmt.Errorf("writing to workdir: %w", err)
 		}
 	}
 	// Poll to capture the current file state.
 	if _, err := w.pollFiles(); err != nil {
-		return nil, fmt.Errorf("polling files: %w", err)
+		return fmt.Errorf("polling files: %w", err)
 	}
-	return w, nil
+	return nil
 }
 
 // RootURI returns the root URI for this working directory of this scratch

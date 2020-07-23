@@ -74,7 +74,7 @@ func TestReferences(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := []RunOption{WithProxy(workspaceProxy)}
+			opts := []RunOption{WithProxyFiles(workspaceProxy)}
 			if tt.rootPath != "" {
 				opts = append(opts, WithRootPath(tt.rootPath))
 			}
@@ -95,7 +95,7 @@ func TestReferences(t *testing.T) {
 // VS Code, where clicking on a reference result triggers a
 // textDocument/didOpen without a corresponding textDocument/didClose.
 func TestClearAnalysisDiagnostics(t *testing.T) {
-	withOptions(WithProxy(workspaceProxy), WithRootPath("inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("main2.go", "fmt.Print"),

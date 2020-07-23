@@ -122,7 +122,7 @@ func main() {
 		if before == after {
 			t.Fatalf("go.mod file was unchanged by upgrade command")
 		}
-	}, WithProxy(proxyWithLatest))
+	}, WithProxyFiles(proxyWithLatest))
 }
 
 func TestRegenerateCgo(t *testing.T) {

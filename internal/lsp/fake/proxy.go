@@ -10,13 +10,9 @@ import (
 	"golang.org/x/tools/internal/proxydir"
 )
 
-// Proxy is a file-based module proxy.
-type Proxy struct {
-	proxydir string
-}
-
-// NewProxy creates a new proxy file tree using the txtar-encoded content.
-func NewProxy(tmpdir, txt string) (*Proxy, error) {
+// WriteProxy creates a new proxy file tree using the txtar-encoded content,
+// and returns its URL.
+func WriteProxy(tmpdir, txt string) (string, error) {
 	files := unpackTxt(txt)
 	type moduleVersion struct {
 		modulePath, version string
@@ -33,14 +29,8 @@ func NewProxy(tmpdir, txt string) (*Proxy, error) {
 	}
 	for mv, files := range filesByModule {
 		if err := proxydir.WriteModuleVersion(tmpdir, mv.modulePath, mv.version, files); err != nil {
-			return nil, fmt.Errorf("error writing %s@%s: %v", mv.modulePath, mv.version, err)
+			return "", fmt.Errorf("error writing %s@%s: %v", mv.modulePath, mv.version, err)
 		}
 	}
-	return &Proxy{proxydir: tmpdir}, nil
-}
-
-// GOPROXY returns the GOPROXY environment variable value for this proxy
-// directory.
-func (p *Proxy) GOPROXY() string {
-	return proxydir.ToURL(p.proxydir)
+	return proxydir.ToURL(tmpdir), nil
 }

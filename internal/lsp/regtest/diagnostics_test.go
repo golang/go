@@ -402,7 +402,7 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 		// diagnostic for the wrong formatting type.
 		// TODO: we should be able to easily also match the diagnostic message.
 		env.Await(env.DiagnosticAtRegexp("print.go", "fmt.Printf"))
-	}, WithProxy(testPackageWithRequireProxy))
+	}, WithProxyFiles(testPackageWithRequireProxy))
 }
 
 func TestMissingDependency(t *testing.T) {
@@ -664,7 +664,7 @@ func main() {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
 		)
-	}, WithProxy(ardanLabsProxy))
+	}, WithProxyFiles(ardanLabsProxy))
 }
 
 // Test for golang/go#38207.
@@ -700,7 +700,7 @@ func main() {
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)
-	}, WithProxy(ardanLabsProxy))
+	}, WithProxyFiles(ardanLabsProxy))
 }
 
 // Test for golang/go#36960.

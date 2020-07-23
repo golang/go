@@ -22,7 +22,7 @@ import (
 type Sandbox struct {
 	gopath  string
 	basedir string
-	Proxy   *Proxy
+	goproxy string
 	Workdir *Workdir
 }
 
@@ -35,12 +35,23 @@ type SandboxConfig struct {
 	// Files holds a txtar-encoded archive of files to populate the initial state
 	// of the working directory.
 	Files string
-	// ProxyFiles holds a txtar-encoded archive of files to populate a file-based
-	// Go proxy.
-	ProxyFiles string
 	// InGoPath specifies that the working directory should be within the
 	// temporary GOPATH.
 	InGoPath bool
+	// Workdir configures the working directory of the Sandbox, for running in a
+	// pre-existing directory. If unset, a new working directory will be created
+	// under RootDir.
+	//
+	// This option is incompatible with InGoPath or Files.
+	Workdir string
+
+	// ProxyFiles holds a txtar-encoded archive of files to populate a file-based
+	// Go proxy.
+	ProxyFiles string
+	// GOPROXY is the explicit GOPROXY value that should be used for the sandbox.
+	//
+	// This option is incompatible with ProxyFiles.
+	GOPROXY string
 }
 
 // NewSandbox creates a collection of named temporary resources, with a
@@ -55,6 +66,15 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 	if config == nil {
 		config = new(SandboxConfig)
 	}
+
+	if config.Workdir != "" && (config.Files != "" || config.InGoPath) {
+		return nil, fmt.Errorf("invalid SandboxConfig: Workdir cannot be used in conjunction with Files or InGoPath. Got %+v", config)
+	}
+
+	if config.GOPROXY != "" && config.ProxyFiles != "" {
+		return nil, fmt.Errorf("invalid SandboxConfig: GOPROXY cannot be set in conjunction with ProxyFiles. Got %+v", config)
+	}
+
 	sb := &Sandbox{}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
@@ -68,22 +88,42 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 		return nil, fmt.Errorf("creating temporary workdir: %v", err)
 	}
 	sb.basedir = baseDir
-	proxydir := filepath.Join(sb.basedir, "proxy")
 	sb.gopath = filepath.Join(sb.basedir, "gopath")
-	// Set the working directory as $GOPATH/src if inGopath is true.
-	workdir := filepath.Join(sb.gopath, "src")
-	dirs := []string{sb.gopath, proxydir}
-	if !config.InGoPath {
-		workdir = filepath.Join(sb.basedir, "work")
-		dirs = append(dirs, workdir)
+	if err := os.Mkdir(sb.gopath, 0755); err != nil {
+		return nil, err
 	}
-	for _, subdir := range dirs {
-		if err := os.Mkdir(subdir, 0755); err != nil {
+	if config.GOPROXY != "" {
+		sb.goproxy = config.GOPROXY
+	} else {
+		proxydir := filepath.Join(sb.basedir, "proxy")
+		if err := os.Mkdir(proxydir, 0755); err != nil {
+			return nil, err
+		}
+		sb.goproxy, err = WriteProxy(proxydir, config.ProxyFiles)
+		if err != nil {
 			return nil, err
 		}
 	}
-	sb.Proxy, err = NewProxy(proxydir, config.ProxyFiles)
-	sb.Workdir, err = NewWorkdir(workdir, config.Files)
+	if config.Workdir != "" {
+		sb.Workdir = NewWorkdir(config.Workdir)
+	} else {
+		workdir := config.Workdir
+		// If we don't have a pre-existing work dir, we want to create either
+		// $GOPATH/src or <RootDir/work>.
+		if config.InGoPath {
+			// Set the working directory as $GOPATH/src.
+			workdir = filepath.Join(sb.gopath, "src")
+		} else if workdir == "" {
+			workdir = filepath.Join(sb.basedir, "work")
+		}
+		if err := os.Mkdir(workdir, 0755); err != nil {
+			return nil, err
+		}
+		sb.Workdir = NewWorkdir(workdir)
+		if err := sb.Workdir.WriteInitialFiles(config.Files); err != nil {
+			return nil, err
+		}
+	}
 
 	return sb, nil
 }
@@ -126,7 +166,7 @@ func (sb *Sandbox) GOPATH() string {
 func (sb *Sandbox) GoEnv() map[string]string {
 	vars := map[string]string{
 		"GOPATH":           sb.GOPATH(),
-		"GOPROXY":          sb.Proxy.GOPROXY(),
+		"GOPROXY":          sb.goproxy,
 		"GO111MODULE":      "",
 		"GOSUMDB":          "off",
 		"GOPACKAGESDRIVER": "off",
@@ -144,10 +184,15 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
 	}
 	inv := gocommand.Invocation{
-		Verb:       verb,
-		Args:       args,
-		WorkingDir: sb.Workdir.workdir,
-		Env:        vars,
+		Verb: verb,
+		Args: args,
+		Env:  vars,
+	}
+	// sb.Workdir may be nil if we exited the constructor with errors (we call
+	// Close to clean up any partial state from the constructor, which calls
+	// RunGoCommand).
+	if sb.Workdir != nil {
+		inv.WorkingDir = sb.Workdir.workdir
 	}
 	gocmdRunner := &gocommand.Runner{}
 	_, _, _, err := gocmdRunner.RunRaw(ctx, inv)
@@ -156,8 +201,10 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 	}
 	// Since running a go command may result in changes to workspace files,
 	// check if we need to send any any "watched" file events.
-	if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
-		return fmt.Errorf("checking for file changes: %w", err)
+	if sb.Workdir != nil {
+		if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
+			return fmt.Errorf("checking for file changes: %w", err)
+		}
 	}
 	return nil
 }

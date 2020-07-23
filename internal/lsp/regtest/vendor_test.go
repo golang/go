@@ -58,5 +58,5 @@ func _() {
 				DiagnosticAt("a/a1.go", 6, 5),
 			),
 		)
-	}, WithProxy(basicProxy))
+	}, WithProxyFiles(basicProxy))
 }
