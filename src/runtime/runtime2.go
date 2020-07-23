@@ -804,9 +804,9 @@ type _func struct {
 	pcfile    int32
 	pcln      int32
 	npcdata   int32
-	funcID    funcID  // set for certain special runtime functions
-	_         [2]int8 // unused
-	nfuncdata uint8   // must be last
+	cuIndex   uint16 // TODO(jfaller): 16 bits is never enough, make this larger.
+	funcID    funcID // set for certain special runtime functions
+	nfuncdata uint8  // must be last
 }
 
 // Pseudo-Func that is returned for PCs that occur in inlined code.

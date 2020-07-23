@@ -10,12 +10,19 @@ import "cmd/internal/dwarf"
 // type from the sym package since loader imports sym.
 type LoaderSym int
 
-// CompilationUnit is an abstraction used by DWARF to represent a chunk of
-// debug-related data. We create a CompilationUnit per Object file in a
-// library (so, one for all the Go code, one for each assembly file, etc.).
+// A CompilationUnit represents a set of source files that are compiled
+// together. Since all Go sources in a Go package are compiled together,
+// there's one CompilationUnit per package that represents all Go sources in
+// that package, plus one for each assembly file.
+//
+// Equivalently, there's one CompilationUnit per object file in each Library
+// loaded by the linker.
+//
+// These are used for both DWARF and pclntab generation.
 type CompilationUnit struct {
 	Pkg            string        // The package name, eg ("fmt", or "runtime")
 	Lib            *Library      // Our library
+	PclnIndex      int           // Index of this CU in pclntab
 	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
 	DWInfo         *dwarf.DWDie  // CU root DIE
 	DWARFFileTable []string      // The file table used to generate the .debug_lines
