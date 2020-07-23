@@ -218,24 +218,6 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			new.Args = args
 			return &new
 		}
-	case *ast.InstantiatedType:
-		// TODO(gri) This code is almost identical with the code for CallExpr. Factor.
-		var args []ast.Expr
-		for i, arg := range n.TArgs {
-			Arg := isubst(arg, smap)
-			if Arg != arg {
-				if args == nil {
-					args = make([]ast.Expr, len(n.TArgs))
-					copy(args, n.TArgs)
-				}
-				args[i] = Arg
-			}
-		}
-		if args != nil {
-			new := *n
-			new.TArgs = args
-			return &new
-		}
 	case *ast.ParenExpr:
 		X := isubst(n.X, smap)
 		if X != n.X {
@@ -481,12 +463,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			return check.instantiatedType(e.X, []ast.Expr{e.Index}, def)
 		}
 		check.errorf(e0.Pos(), "%s is not a type", e0)
-
-	case *ast.InstantiatedType:
-		if check.useBrackets {
-			return check.instantiatedType(e.Base, e.TArgs, def)
-		}
-		unreachable()
 
 	case *ast.CallExpr:
 		return check.instantiatedType(e.Fun, e.Args, def)
@@ -1145,8 +1121,6 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	case *ast.CallExpr:
 		return embeddedFieldIdent(e.Fun)
-	case *ast.InstantiatedType:
-		return embeddedFieldIdent(e.Base)
 	case *ast.ParenExpr:
 		return embeddedFieldIdent(e.X)
 	}

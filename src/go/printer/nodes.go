@@ -372,10 +372,10 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 			if par.Type != nil {
 				typ := stripParensAlways(par.Type)
 				// If we don't have a parameter name and the parameter type is an
-				// instantiated type (using parentheses), then we need to parenthesize
+				// instantiated type using parentheses, then we need to parenthesize
 				// the type otherwise it is interpreted as a parameter name followed
 				// by a parenthesized type name.
-				if _, ok := typ.(*ast.CallExpr); ok && len(par.Names) == 0 {
+				if call, _ := typ.(*ast.CallExpr); call != nil && !call.Brackets && len(par.Names) == 0 {
 					p.print(token.LPAREN)
 					p.expr(typ)
 					p.print(token.RPAREN)
@@ -937,37 +937,32 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			depth++
 		}
 		var wasIndented bool
-		if _, ok := x.Fun.(*ast.FuncType); ok {
-			// conversions to literal function types require parentheses around the type
-			p.print(token.LPAREN)
+		if x.Brackets {
 			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-			p.print(token.RPAREN)
-		} else {
-			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
-		}
-		p.print(x.Lparen, token.LPAREN)
-		if x.Ellipsis.IsValid() {
-			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
-			p.print(x.Ellipsis, token.ELLIPSIS)
-			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
-				p.print(token.COMMA, formfeed)
-			}
-		} else {
+			p.print(x.Lparen, token.LBRACK)
 			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
+			p.print(x.Rparen, token.RBRACK)
+		} else {
+			if _, ok := x.Fun.(*ast.FuncType); ok {
+				// conversions to literal function types require parentheses around the type
+				p.print(token.LPAREN)
+				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+				p.print(token.RPAREN)
+			} else {
+				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+			}
+			p.print(x.Lparen, token.LPAREN)
+			if x.Ellipsis.IsValid() {
+				p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
+				p.print(x.Ellipsis, token.ELLIPSIS)
+				if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
+					p.print(token.COMMA, formfeed)
+				}
+			} else {
+				p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
+			}
+			p.print(x.Rparen, token.RPAREN)
 		}
-		p.print(x.Rparen, token.RPAREN)
-		if wasIndented {
-			p.print(unindent)
-		}
-
-	case *ast.InstantiatedType:
-		if len(x.TArgs) > 1 {
-			depth++
-		}
-		wasIndented := p.possibleSelectorExpr(x.Base, token.HighestPrec, depth)
-		p.print(x.Lbrack, token.LBRACK)
-		p.exprList(x.Lbrack, x.TArgs, depth, commaTerm, x.Rbrack, false)
-		p.print(x.Rbrack, token.RBRACK)
 		if wasIndented {
 			p.print(unindent)
 		}

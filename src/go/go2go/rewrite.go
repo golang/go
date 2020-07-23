@@ -713,14 +713,6 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Value)
 	case *ast.ChanType:
 		t.translateExpr(&e.Value)
-	case *ast.InstantiatedType:
-		if ftyp, ok := t.lookupType(e.Base).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
-			t.translateFunctionInstantiation(pe)
-		} else if ntyp, ok := t.lookupType(e.Base).(*types.Named); ok && len(ntyp.TParams()) > 0 && len(ntyp.TArgs()) == 0 {
-			t.translateTypeInstantiation(pe)
-		} else {
-			t.err = fmt.Errorf("%s: can't identify instantiation", t.fset.Position(e.Pos()))
-		}
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}
@@ -1006,8 +998,6 @@ func (t *translator) instantiatedIdent(x ast.Expr) qualifiedIdent {
 		fun = x.Fun
 	case *ast.IndexExpr:
 		fun = x.X
-	case *ast.InstantiatedType:
-		fun = x.Base
 	default:
 		panic(fmt.Sprintf("unexpected AST %T", x))
 	}
@@ -1049,8 +1039,6 @@ func (t *translator) instantiationTypes(x ast.Expr) (argList []ast.Expr, typeLis
 		args = x.Args
 	case *ast.IndexExpr:
 		args = []ast.Expr{x.Index}
-	case *ast.InstantiatedType:
-		args = x.TArgs
 	default:
 		panic("unexpected AST type")
 	}

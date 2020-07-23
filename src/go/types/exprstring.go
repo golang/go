@@ -98,12 +98,16 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	case *ast.CallExpr:
 		WriteExpr(buf, x.Fun)
-		buf.WriteByte('(')
+		var l, r byte = '(', ')'
+		if x.Brackets {
+			l, r = '[', ']'
+		}
+		buf.WriteByte(l)
 		writeExprList(buf, x.Args)
 		if x.Ellipsis.IsValid() {
 			buf.WriteString("...")
 		}
-		buf.WriteByte(')')
+		buf.WriteByte(r)
 
 	case *ast.StarExpr:
 		buf.WriteByte('*')
@@ -181,12 +185,6 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		}
 		buf.WriteString(s)
 		WriteExpr(buf, x.Value)
-
-	case *ast.InstantiatedType:
-		WriteExpr(buf, x.Base)
-		buf.WriteByte('[')
-		writeExprList(buf, x.TArgs)
-		buf.WriteByte(']')
 	}
 }
 

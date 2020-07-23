@@ -1654,13 +1654,6 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		// performance issue because we only reach here for composite literal
 		// types, which are comparatively rare.
 
-	case *ast.InstantiatedType:
-		if check.useBrackets {
-			call := &ast.CallExpr{Fun: e.Base, Lparen: e.Lbrack, Args: e.TArgs, Rparen: e.Rbrack}
-			return check.call(x, call)
-		}
-		unreachable()
-
 	default:
 		panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
 	}

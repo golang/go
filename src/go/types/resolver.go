@@ -512,7 +512,6 @@ L: // unpack receiver type
 	}
 
 	// unpack type parameters, if any
-	// TODO(gri) factor out common code!
 	switch ptyp := rtyp.(type) {
 	case *ast.IndexExpr:
 		panic("unimplemented")
@@ -520,27 +519,6 @@ L: // unpack receiver type
 		rtyp = ptyp.Fun
 		if unpackParams {
 			for _, arg := range ptyp.Args {
-				var par *ast.Ident
-				switch arg := arg.(type) {
-				case *ast.Ident:
-					par = arg
-				case *ast.BadExpr:
-					// ignore - error already reported by parser
-				case nil:
-					check.invalidAST(ptyp.Pos(), "parameterized receiver contains nil parameters")
-				default:
-					check.errorf(arg.Pos(), "receiver type parameter %s must be an identifier", arg)
-				}
-				if par == nil {
-					par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
-				}
-				tparams = append(tparams, par)
-			}
-		}
-	case *ast.InstantiatedType:
-		rtyp = ptyp.Base
-		if unpackParams {
-			for _, arg := range ptyp.TArgs {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:

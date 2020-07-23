@@ -724,7 +724,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 	}
 
 	// x[P], x[P1, P2], ...
-	return nil, &ast.InstantiatedType{Base: x, Lbrack: lbrack, TArgs: args, Rbrack: rbrack}
+	return nil, &ast.CallExpr{Fun: x, Lparen: lbrack, Args: args, Rparen: rbrack, Brackets: true}
 }
 
 type lookAhead struct {
@@ -1301,12 +1301,7 @@ func (p *parser) parseTypeInstance(typ ast.Expr, opening lookAhead) ast.Expr {
 
 	closing := p.expectClosing(closingTok, "type argument list")
 
-	// Use the appropriate expression node so it can be printed accordingly using ()'s or []'s.
-	if opening.tok == token.LPAREN {
-		return &ast.CallExpr{Fun: typ, Lparen: opening.pos, Args: list, Rparen: closing}
-	} else {
-		return &ast.InstantiatedType{Base: typ, Lbrack: opening.pos, TArgs: list, Rbrack: closing}
-	}
+	return &ast.CallExpr{Fun: typ, Lparen: opening.pos, Args: list, Rparen: closing, Brackets: opening.tok == token.LBRACK}
 }
 
 // If the result is an identifier, it is not resolved.
@@ -1521,7 +1516,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 		// TODO(gri) should this be permitted?
 		rbrack := p.pos
 		p.next()
-		return &ast.InstantiatedType{Base: x, Lbrack: lbrack, Rbrack: rbrack}
+		return &ast.CallExpr{Fun: x, Lparen: lbrack, Rparen: rbrack, Brackets: true}
 	}
 	p.exprLev++
 
@@ -1585,7 +1580,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	}
 
 	// instance expression
-	return &ast.InstantiatedType{Base: x, Lbrack: lbrack, TArgs: args, Rbrack: rbrack}
+	return &ast.CallExpr{Fun: x, Lparen: lbrack, Args: args, Rparen: rbrack, Brackets: true}
 }
 
 func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
@@ -1773,7 +1768,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.StarExpr:
 	case *ast.UnaryExpr:
 	case *ast.BinaryExpr:
-	case *ast.InstantiatedType: // can be a function instantiation // TODO(gri) rename this node
 	default:
 		// all other nodes are not proper expressions
 		p.errorExpected(x.Pos(), "expression")
@@ -1875,18 +1869,18 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
 			// type; accept it but complain if we have a complit
 			t := unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
-			switch t.(type) {
+			switch t := t.(type) {
 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
 				if p.exprLev < 0 {
 					return
 				}
 				// x is possibly a composite literal type
 			case *ast.CallExpr:
-				if p.brack || p.exprLev < 0 {
+				if p.brack != t.Brackets || p.exprLev < 0 {
 					return
 				}
 				// x is possibly a composite literal type
-			case *ast.IndexExpr, *ast.InstantiatedType:
+			case *ast.IndexExpr:
 				if !p.brack || p.exprLev < 0 {
 					return
 				}
