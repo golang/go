@@ -129,8 +129,7 @@ func WithEditorConfig(config fake.EditorConfig) RunOption {
 // neither workspace folders nor a root URI.
 func WithoutWorkspaceFolders() RunOption {
 	return optionSetter(func(opts *runConfig) {
-		// TODO: this cannot be right.
-		opts.editor.WithoutWorkspaceFolders = false
+		opts.editor.WithoutWorkspaceFolders = true
 	})
 }
 
