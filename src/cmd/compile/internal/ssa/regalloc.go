@@ -241,12 +241,6 @@ type regAllocState struct {
 	GReg        register
 	allocatable regMask
 
-	// for each block, its primary predecessor.
-	// A predecessor of b is primary if it is the closest
-	// predecessor that appears before b in the layout order.
-	// We record the index in the Preds list where the primary predecessor sits.
-	primary []int32
-
 	// live values at the end of each block.  live[b.ID] is a list of value IDs
 	// which are live at the end of b, together with a count of how many instructions
 	// forward to the next use.
@@ -304,6 +298,9 @@ type regAllocState struct {
 
 	// choose a good order in which to visit blocks for allocation purposes.
 	visitOrder []*Block
+
+	// blockOrder[b.ID] corresponds to the index of block b in visitOrder.
+	blockOrder []int32
 }
 
 type endReg struct {
@@ -636,9 +633,9 @@ func (s *regAllocState) init(f *Func) {
 
 	// Compute block order. This array allows us to distinguish forward edges
 	// from backward edges and compute how far they go.
-	blockOrder := make([]int32, f.NumBlocks())
+	s.blockOrder = make([]int32, f.NumBlocks())
 	for i, b := range s.visitOrder {
-		blockOrder[b.ID] = int32(i)
+		s.blockOrder[b.ID] = int32(i)
 	}
 
 	s.regs = make([]regState, s.numRegs)
@@ -663,22 +660,6 @@ func (s *regAllocState) init(f *Func) {
 		}
 	}
 	s.computeLive()
-
-	// Compute primary predecessors.
-	s.primary = make([]int32, f.NumBlocks())
-	for _, b := range s.visitOrder {
-		best := -1
-		for i, e := range b.Preds {
-			p := e.b
-			if blockOrder[p.ID] >= blockOrder[b.ID] {
-				continue // backward edge
-			}
-			if best == -1 || blockOrder[p.ID] > blockOrder[b.Preds[best].b.ID] {
-				best = i
-			}
-		}
-		s.primary[b.ID] = int32(best)
-	}
 
 	s.endRegs = make([][]endReg, f.NumBlocks())
 	s.startRegs = make([][]startReg, f.NumBlocks())
@@ -957,10 +938,49 @@ func (s *regAllocState) regalloc(f *Func) {
 			// This is the complicated case. We have more than one predecessor,
 			// which means we may have Phi ops.
 
-			// Start with the final register state of the primary predecessor
-			idx := s.primary[b.ID]
+			// Start with the final register state of the predecessor with least spill values.
+			// This is based on the following points:
+			// 1, The less spill value indicates that the register pressure of this path is smaller,
+			//    so the values of this block are more likely to be allocated to registers.
+			// 2, Avoid the predecessor that contains the function call, because the predecessor that
+			//    contains the function call usually generates a lot of spills and lose the previous
+			//    allocation state.
+			// TODO: Improve this part. At least the size of endRegs of the predecessor also has
+			// an impact on the code size and compiler speed. But it is not easy to find a simple
+			// and efficient method that combines multiple factors.
+			idx := -1
+			for i, p := range b.Preds {
+				// If the predecessor has not been visited yet, skip it because its end state
+				// (redRegs and spillLive) has not been computed yet.
+				pb := p.b
+				if s.blockOrder[pb.ID] >= s.blockOrder[b.ID] {
+					continue
+				}
+				if idx == -1 {
+					idx = i
+					continue
+				}
+				pSel := b.Preds[idx].b
+				if len(s.spillLive[pb.ID]) < len(s.spillLive[pSel.ID]) {
+					idx = i
+				} else if len(s.spillLive[pb.ID]) == len(s.spillLive[pSel.ID]) {
+					// Use a bit of likely information. After critical pass, pb and pSel must
+					// be plain blocks, so check edge pb->pb.Preds instead of edge pb->b.
+					// TODO: improve the prediction of the likely predecessor. The following
+					// method is only suitable for the simplest cases. For complex cases,
+					// the prediction may be inaccurate, but this does not affect the
+					// correctness of the program.
+					// According to the layout algorithm, the predecessor with the
+					// smaller blockOrder is the true branch, and the test results show
+					// that it is better to choose the predecessor with a smaller
+					// blockOrder than no choice.
+					if pb.likelyBranch() && !pSel.likelyBranch() || s.blockOrder[pb.ID] < s.blockOrder[pSel.ID] {
+						idx = i
+					}
+				}
+			}
 			if idx < 0 {
-				f.Fatalf("block with no primary predecessor %s", b)
+				f.Fatalf("bad visitOrder, no predecessor of %s has been visited before it", b)
 			}
 			p := b.Preds[idx].b
 			s.setState(s.endRegs[p.ID])
@@ -1048,7 +1068,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// If one of the other inputs of v is in a register, and the register is available,
 				// select this register, which can save some unnecessary copies.
 				for i, pe := range b.Preds {
-					if int32(i) == idx {
+					if i == idx {
 						continue
 					}
 					ri := noRegister
