@@ -32,9 +32,8 @@ type mcache struct {
 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
 	// we handle it by clearing it in releaseAll during mark
 	// termination.
-	tiny             uintptr
-	tinyoffset       uintptr
-	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+	tiny       uintptr
+	tinyoffset uintptr
 
 	// The rest is not accessed on every malloc.
 
@@ -49,6 +48,7 @@ type mcache struct {
 	// When read with stats from other mcaches and with the world
 	// stopped, the result will accurately reflect the state of the
 	// application.
+	local_tinyallocs  uintptr                  // number of tiny allocs not counted in other stats
 	local_largealloc  uintptr                  // bytes allocated for large objects
 	local_nlargealloc uintptr                  // number of large object allocations
 	local_nsmallalloc [_NumSizeClasses]uintptr // number of allocs for small objects
@@ -151,6 +151,8 @@ func (c *mcache) donate(d *mcache) {
 		d.local_nsmallfree[i] += c.local_nsmallfree[i]
 		c.local_nsmallfree[i] = 0
 	}
+	d.local_tinyallocs += c.local_tinyallocs
+	c.local_tinyallocs = 0
 }
 
 // refill acquires a new span of span class spc for c. This span will
