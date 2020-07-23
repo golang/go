@@ -170,6 +170,18 @@ func (m *Mutex) lockSlow() {
 	}
 }
 
+// Tries to lock m without blocking.
+// Returns if it locked the mutex or not
+func (m *Mutex) TryLock() bool {
+	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
+		if race.Enabled {
+			race.Acquire(unsafe.Pointer(m))
+		}
+		return true
+	}
+	return false
+}
+
 // Unlock unlocks m.
 // It is a run-time error if m is not locked on entry to Unlock.
 //
