@@ -119,8 +119,8 @@ func (d *Dialer) deadline(ctx context.Context, now time.Time) (earliest time.Tim
 	if d.Timeout != 0 { // including negative, for historical reasons
 		earliest = now.Add(d.Timeout)
 	}
-	if d, ok := ctx.Deadline(); ok {
-		earliest = minNonzeroTime(earliest, d)
+	if dl, ok := ctx.Deadline(); ok {
+		earliest = minNonzeroTime(earliest, dl)
 	}
 	return minNonzeroTime(earliest, d.Deadline)
 }
@@ -372,7 +372,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	}
 	deadline := d.deadline(ctx, time.Now())
 	if !deadline.IsZero() {
-		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
+		if dl, ok := ctx.Deadline(); !ok || deadline.Before(dl) {
 			subCtx, cancel := context.WithDeadline(ctx, deadline)
 			defer cancel()
 			ctx = subCtx
