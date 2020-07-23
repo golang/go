@@ -139,6 +139,8 @@ type mstats struct {
 	// no-scan objects and no-scan tails of objects.
 	//
 	// Whenever this is updated, call gcController.revise().
+	//
+	// Read and written atomically or with the world stopped.
 	heap_scan uint64
 
 	// heap_marked is the number of bytes marked by the previous
@@ -635,7 +637,7 @@ func flushallmcaches() {
 func purgecachedstats(c *mcache) {
 	// Protected by either heap or GC lock.
 	h := &mheap_
-	memstats.heap_scan += uint64(c.local_scan)
+	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0

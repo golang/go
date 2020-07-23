@@ -1168,7 +1168,7 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 				throw("mheap.allocSpan called with no P")
 			}
 		}
-		memstats.heap_scan += uint64(c.local_scan)
+		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 		c.local_scan = 0
 		memstats.tinyallocs += uint64(c.local_tinyallocs)
 		c.local_tinyallocs = 0
@@ -1375,7 +1375,7 @@ func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
 		c := getg().m.p.ptr().mcache
 		lock(&h.lock)
-		memstats.heap_scan += uint64(c.local_scan)
+		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 		c.local_scan = 0
 		memstats.tinyallocs += uint64(c.local_tinyallocs)
 		c.local_tinyallocs = 0
