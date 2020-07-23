@@ -1,32 +1,14 @@
--- switchStringY-definition --
-godef/a/f.go:8:9-10: defined here as ```go
-var y string
+-- intY-hover --
+```go
+var y int
 ```
--- switchStringY-definition-json --
-{
-	"span": {
-		"uri": "file://godef/a/f.go",
-		"start": {
-			"line": 8,
-			"column": 9,
-			"offset": 76
-		},
-		"end": {
-			"line": 8,
-			"column": 10,
-			"offset": 77
-		}
-	},
-	"description": "```go\nvar y string\n```"
-}
-
--- switchStringY-hover --
+-- stringY-hover --
 ```go
 var y string
 ```
 -- switchY-definition --
 godef/a/f.go:8:9-10: defined here as ```go
-var y int
+var y interface{}
 ```
 -- switchY-definition-json --
 {
@@ -43,10 +25,10 @@ var y int
 			"offset": 77
 		}
 	},
-	"description": "```go\nvar y int\n```"
+	"description": "```go\nvar y interface{}\n```"
 }
 
 -- switchY-hover --
 ```go
-var y int
+var y interface{}
 ```

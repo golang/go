@@ -130,3 +130,15 @@ func a.Things(val []string) []a.Thing
 ```
 
 [`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+-- eInt-hover --
+```go
+var x int
+```
+-- eInterface-hover --
+```go
+var x interface{}
+```
+-- eString-hover --
+```go
+var x string
+```

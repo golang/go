@@ -43,6 +43,10 @@ type Declaration struct {
 	MappedRange []mappedRange
 	node        ast.Node
 	obj         types.Object
+
+	// typeSwitchImplicit indicates that the declaration is in an implicit
+	// type switch.
+	typeSwitchImplicit bool
 }
 
 // Identifier returns identifier information for a position
@@ -152,9 +156,10 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 	result.Declaration.obj = pkg.GetTypesInfo().ObjectOf(result.ident)
 	if result.Declaration.obj == nil {
-		// If there was no types.Object for the declaration, there might be an implicit local variable
-		// declaration in a type switch.
+		// If there was no types.Object for the declaration, there might be an
+		// implicit local variable declaration in a type switch.
 		if objs := typeSwitchImplicits(pkg, path); len(objs) > 0 {
+			result.Declaration.typeSwitchImplicit = true
 			// There is no types.Object for the declaration of an implicit local variable,
 			// but all of the types.Objects associated with the usages of this variable can be
 			// used to connect it back to the declaration.
@@ -244,6 +249,15 @@ func searchForEnclosing(pkg Package, path []ast.Node) types.Type {
 					return t.Type()
 				}
 			}
+		case *ast.TypeSwitchStmt:
+			// The right-hand side of a type switch should only have one
+			// element, and we need to track its type in order to generate
+			// hover information for implicit type switch variables.
+			if assign, ok := n.Assign.(*ast.AssignStmt); ok && len(assign.Rhs) == 1 {
+				if rhs := assign.Rhs[0].(*ast.TypeAssertExpr); ok {
+					return pkg.GetTypesInfo().TypeOf(rhs.X)
+				}
+			}
 		}
 	}
 	return nil
@@ -269,12 +283,10 @@ func objToDecl(ctx context.Context, v View, srcPkg Package, obj types.Object) (a
 	if err != nil {
 		return nil, err
 	}
-
 	posToDecl, err := ph.PosToDecl(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	return posToDecl[obj.Pos()], nil
 }
 

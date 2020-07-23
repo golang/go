@@ -96,7 +96,13 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 		}
 		h.Signature = b.String()
 	case types.Object:
-		h.Signature = objectString(x, i.qf)
+		// If the variable is implicitly declared in a type switch, we need to
+		// manually generate its object string.
+		if v, ok := x.(*types.Var); ok && i.Declaration.typeSwitchImplicit {
+			h.Signature = fmt.Sprintf("var %s %s", v.Name(), types.TypeString(i.enclosing, i.qf))
+		} else {
+			h.Signature = objectString(x, i.qf)
+		}
 	}
 	if obj := i.Declaration.obj; obj != nil {
 		h.SingleLine = objectString(obj, i.qf)

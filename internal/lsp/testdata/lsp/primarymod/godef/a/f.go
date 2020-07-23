@@ -5,11 +5,11 @@ import "fmt"
 func TypeStuff() { //@Stuff
 	var x string
 
-	switch y := interface{}(x).(type) { //@mark(switchY, "y"),mark(switchStringY,"y"),godef("y", switchY)
-	case int:
-		fmt.Printf("%v", y) //@godef("y", switchY)
-	case string:
-		fmt.Printf("%v", y) //@godef("y", switchStringY)
+	switch y := interface{}(x).(type) { //@mark(switchY, "y"),godef("y", switchY)
+	case int: //@mark(intY, "int")
+		fmt.Printf("%v", y) //@hover("y", intY)
+	case string: //@mark(stringY, "string")
+		fmt.Printf("%v", y) //@hover("y", stringY)
 	}
 
 }
