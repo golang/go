@@ -1163,8 +1163,6 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		}
 		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 		c.local_scan = 0
-		memstats.tinyallocs += uint64(c.local_tinyallocs)
-		c.local_tinyallocs = 0
 
 		// heap_scan was been updated.
 		if gcBlackenEnabled != 0 {
@@ -1358,8 +1356,6 @@ func (h *mheap) freeSpan(s *mspan) {
 		lock(&h.lock)
 		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 		c.local_scan = 0
-		memstats.tinyallocs += uint64(c.local_tinyallocs)
-		c.local_tinyallocs = 0
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
