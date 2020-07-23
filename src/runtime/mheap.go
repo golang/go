@@ -1102,23 +1102,11 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		base, scav = c.alloc(npages)
 		if base != 0 {
 			s = h.tryAllocMSpan()
-
-			if s != nil && gcBlackenEnabled == 0 && (manual || spanclass.sizeclass() != 0) {
+			if s != nil {
 				goto HaveSpan
 			}
-			// We're either running duing GC, failed to acquire a mspan,
-			// or the allocation is for a large object. This means we
-			// have to lock the heap and do a bunch of extra work,
-			// so go down the HaveBaseLocked path.
-			//
-			// We must do this during GC to avoid skew with heap_scan
-			// since we flush mcache stats whenever we lock.
-			//
-			// TODO(mknyszek): It would be nice to not have to
-			// lock the heap if it's a large allocation, but
-			// it's fine for now. The critical section here is
-			// short and large object allocations are relatively
-			// infrequent.
+			// We have a base but no mspan, so we need
+			// to lock the heap.
 		}
 	}
 
@@ -1144,30 +1132,6 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		// We failed to get an mspan earlier, so grab
 		// one now that we have the heap lock.
 		s = h.allocMSpanLocked()
-	}
-	if !manual {
-		// This is a heap span, so we should do some additional accounting
-		// which may only be done with the heap locked.
-
-		// Transfer stats from mcache to global.
-		var c *mcache
-		if gp.m.p != 0 {
-			c = gp.m.p.ptr().mcache
-		} else {
-			// This case occurs while bootstrapping.
-			// See the similar code in mallocgc.
-			c = mcache0
-			if c == nil {
-				throw("mheap.allocSpan called with no P")
-			}
-		}
-		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
-		c.local_scan = 0
-
-		// heap_scan was been updated.
-		if gcBlackenEnabled != 0 {
-			gcController.revise()
-		}
 	}
 	unlock(&h.lock)
 
@@ -1352,19 +1316,12 @@ func (h *mheap) grow(npage uintptr) bool {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		c := getg().m.p.ptr().mcache
 		lock(&h.lock)
-		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
-		c.local_scan = 0
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
 			bytes := s.npages << _PageShift
 			msanfree(base, bytes)
-		}
-		if gcBlackenEnabled != 0 {
-			// heap_scan changed.
-			gcController.revise()
 		}
 		h.freeSpanLocked(s, true, true)
 		unlock(&h.lock)

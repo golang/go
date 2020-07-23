@@ -556,9 +556,6 @@ func updatememstats() {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Aggregate local stats.
-	cachestats()
-
 	// Collect allocation stats. This is safe and consistent
 	// because the world is stopped.
 	var smallFree, totalAlloc, totalFree uint64
@@ -602,21 +599,6 @@ func updatememstats() {
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
-// cachestats flushes all mcache stats.
-//
-// The world must be stopped.
-//
-//go:nowritebarrier
-func cachestats() {
-	for _, p := range allp {
-		c := p.mcache
-		if c == nil {
-			continue
-		}
-		purgecachedstats(c)
-	}
-}
-
 // flushmcache flushes the mcache of allp[i].
 //
 // The world must be stopped.
@@ -641,13 +623,6 @@ func flushallmcaches() {
 	for i := 0; i < int(gomaxprocs); i++ {
 		flushmcache(i)
 	}
-}
-
-//go:nosplit
-func purgecachedstats(c *mcache) {
-	// Protected by heap lock.
-	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
-	c.local_scan = 0
 }
 
 // Atomically increases a given *system* memory stat. We are counting on this
