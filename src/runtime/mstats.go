@@ -57,9 +57,15 @@ type mstats struct {
 	gc_sys       uint64 // updated atomically or during STW
 	other_sys    uint64 // updated atomically or during STW
 
-	// Statistics about garbage collector.
+	// Statistics about the garbage collector.
+
+	// next_gc is the goal heap_live for when next GC ends.
+	// Set to ^uint64(0) if disabled.
+	//
+	// Read and written atomically, unless the world is stopped.
+	next_gc uint64
+
 	// Protected by mheap or stopping the world during GC.
-	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths

@@ -123,7 +123,7 @@ func gcPaceScavenger() {
 		return
 	}
 	// Compute our scavenging goal.
-	goalRatio := float64(memstats.next_gc) / float64(memstats.last_next_gc)
+	goalRatio := float64(atomic.Load64(&memstats.next_gc)) / float64(memstats.last_next_gc)
 	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
 	// Add retainExtraPercent overhead to retainedGoal. This calculation
 	// looks strange but the purpose is to arrive at an integer division
