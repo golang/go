@@ -51,6 +51,7 @@ type mcache struct {
 	// application.
 	local_largealloc  uintptr                  // bytes allocated for large objects
 	local_nlargealloc uintptr                  // number of large object allocations
+	local_nsmallalloc [_NumSizeClasses]uintptr // number of allocs for small objects
 	local_largefree   uintptr                  // bytes freed for large objects (>maxsmallsize)
 	local_nlargefree  uintptr                  // number of frees for large objects (>maxsmallsize)
 	local_nsmallfree  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
@@ -138,6 +139,10 @@ func (c *mcache) donate(d *mcache) {
 	c.local_largealloc = 0
 	d.local_nlargealloc += c.local_nlargealloc
 	c.local_nlargealloc = 0
+	for i := range c.local_nsmallalloc {
+		d.local_nsmallalloc[i] += c.local_nsmallalloc[i]
+		c.local_nsmallalloc[i] = 0
+	}
 	d.local_largefree += c.local_largefree
 	c.local_largefree = 0
 	d.local_nlargefree += c.local_nlargefree
@@ -181,6 +186,20 @@ func (c *mcache) refill(spc spanClass) {
 	// Indicate that this span is cached and prevent asynchronous
 	// sweeping in the next sweep phase.
 	s.sweepgen = mheap_.sweepgen + 3
+
+	// Assume all objects from this span will be allocated in the
+	// mcache. If it gets uncached, we'll adjust this.
+	c.local_nsmallalloc[spc.sizeclass()] += uintptr(s.nelems) - uintptr(s.allocCount)
+	usedBytes := uintptr(s.allocCount) * s.elemsize
+	atomic.Xadd64(&memstats.heap_live, int64(s.npages*pageSize)-int64(usedBytes))
+	if trace.enabled {
+		// heap_live changed.
+		traceHeapAlloc()
+	}
+	if gcBlackenEnabled != 0 {
+		// heap_live changed.
+		gcController.revise()
+	}
 
 	c.alloc[spc] = s
 }
@@ -227,9 +246,24 @@ func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 }
 
 func (c *mcache) releaseAll() {
+	sg := mheap_.sweepgen
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
+			// Adjust nsmallalloc in case the span wasn't fully allocated.
+			n := uintptr(s.nelems) - uintptr(s.allocCount)
+			c.local_nsmallalloc[spanClass(i).sizeclass()] -= n
+			if s.sweepgen != sg+1 {
+				// refill conservatively counted unallocated slots in heap_live.
+				// Undo this.
+				//
+				// If this span was cached before sweep, then
+				// heap_live was totally recomputed since
+				// caching this span, so we don't do this for
+				// stale spans.
+				atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+			}
+			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
 			c.alloc[i] = &emptymspan
 		}
