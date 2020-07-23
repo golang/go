@@ -284,11 +284,16 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg
 			}
 			// We picked up Go 2 imports above, but we still
 			// need to pick up Go 1 imports here.
-			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-			if imps[path] {
+			path, err := strconv.Unquote(imp.Path.Value)
+			if err != nil || imps[path] {
 				continue
 			}
-			imps[path] = true
+			if imp.Name == nil {
+				// If Name != nil we are keeping the spec.
+				// Don't add the import again here,
+				// only if it is needed elsewhere.
+				imps[path] = true
+			}
 			for _, p := range importer.transitiveImports(path) {
 				imps[p] = true
 			}
