@@ -571,21 +571,27 @@ func updatememstats() {
 		memstats.by_size[i].nmalloc += c.nmalloc
 		totalAlloc += c.nmalloc * uint64(class_to_size[i])
 	}
-	// Collect per-sizeclass stats.
-	for i := 0; i < _NumSizeClasses; i++ {
-		if i == 0 {
-			memstats.nmalloc += mheap_.nlargealloc
-			totalAlloc += mheap_.largealloc
-			totalFree += mheap_.largefree
-			memstats.nfree += mheap_.nlargefree
+
+	for _, p := range allp {
+		c := p.mcache
+		if c == nil {
 			continue
 		}
+		// Collect large allocation stats.
+		totalFree += uint64(c.local_largefree)
+		memstats.nfree += uint64(c.local_nlargefree)
 
-		// The mcache stats have been flushed to mheap_.
-		memstats.nfree += mheap_.nsmallfree[i]
-		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
-		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		// Collect per-sizeclass stats.
+		for i := 0; i < _NumSizeClasses; i++ {
+			memstats.nfree += uint64(c.local_nsmallfree[i])
+			memstats.by_size[i].nfree += uint64(c.local_nsmallfree[i])
+			smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
+		}
 	}
+	// Collect remaining large allocation stats.
+	memstats.nmalloc += mheap_.nlargealloc
+	totalAlloc += mheap_.largealloc
+
 	totalFree += smallFree
 
 	memstats.nfree += memstats.tinyallocs
@@ -641,20 +647,11 @@ func flushallmcaches() {
 
 //go:nosplit
 func purgecachedstats(c *mcache) {
-	// Protected by either heap or GC lock.
-	h := &mheap_
+	// Protected by heap lock.
 	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
-	h.largefree += uint64(c.local_largefree)
-	c.local_largefree = 0
-	h.nlargefree += uint64(c.local_nlargefree)
-	c.local_nlargefree = 0
-	for i := 0; i < len(c.local_nsmallfree); i++ {
-		h.nsmallfree[i] += uint64(c.local_nsmallfree[i])
-		c.local_nsmallfree[i] = 0
-	}
 }
 
 // Atomically increases a given *system* memory stat. We are counting on this

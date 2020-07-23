@@ -129,11 +129,8 @@ type mheap struct {
 	reclaimCredit uintptr
 
 	// Malloc stats.
-	largealloc  uint64                  // bytes allocated for large objects
-	nlargealloc uint64                  // number of large object allocations
-	largefree   uint64                  // bytes freed for large objects (>maxsmallsize)
-	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
-	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+	largealloc  uint64 // bytes allocated for large objects
+	nlargealloc uint64 // number of large object allocations
 
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual

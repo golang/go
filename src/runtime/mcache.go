@@ -41,7 +41,13 @@ type mcache struct {
 
 	stackcache [_NumStackOrders]stackfreelist
 
-	// Local allocator stats, flushed during GC.
+	// Allocator stats (source-of-truth).
+	// Only the P that owns this mcache may write to these
+	// variables, so it's safe for that P to read non-atomically.
+	//
+	// When read with stats from other mcaches and with the world
+	// stopped, the result will accurately reflect the state of the
+	// application.
 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
@@ -97,7 +103,13 @@ func allocmcache() *mcache {
 	return c
 }
 
-func freemcache(c *mcache) {
+// freemcache releases resources associated with this
+// mcache and puts the object onto a free list.
+//
+// In some cases there is no way to simply release
+// resources, such as statistics, so donate them to
+// a different mcache (the recipient).
+func freemcache(c *mcache, recipient *mcache) {
 	systemstack(func() {
 		c.releaseAll()
 		stackcache_clear(c)
@@ -109,9 +121,24 @@ func freemcache(c *mcache) {
 
 		lock(&mheap_.lock)
 		purgecachedstats(c)
+		// Donate anything else that's left.
+		c.donate(recipient)
 		mheap_.cachealloc.free(unsafe.Pointer(c))
 		unlock(&mheap_.lock)
 	})
+}
+
+// donate flushes data and resources which have no global
+// pool to another mcache.
+func (c *mcache) donate(d *mcache) {
+	d.local_largefree += c.local_largefree
+	c.local_largefree = 0
+	d.local_nlargefree += c.local_nlargefree
+	c.local_nlargefree = 0
+	for i := range c.local_nsmallfree {
+		d.local_nsmallfree[i] += c.local_nsmallfree[i]
+		c.local_nsmallfree[i] = 0
+	}
 }
 
 // refill acquires a new span of span class spc for c. This span will
