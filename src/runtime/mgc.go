@@ -495,6 +495,7 @@ func (c *gcControllerState) revise() {
 	}
 	live := atomic.Load64(&memstats.heap_live)
 	scan := atomic.Load64(&memstats.heap_scan)
+	work := atomic.Loadint64(&c.scanWork)
 
 	// Assume we're under the soft goal. Pace GC to complete at
 	// next_gc assuming the heap is in steady-state.
@@ -511,7 +512,7 @@ func (c *gcControllerState) revise() {
 	// 100*heap_scan.)
 	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
 
-	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
+	if live > memstats.next_gc || work > scanWorkExpected {
 		// We're past the soft goal, or we've already done more scan
 		// work than we expected. Pace GC so that in the worst case it
 		// will complete by the hard goal.
@@ -529,7 +530,7 @@ func (c *gcControllerState) revise() {
 	// (scanWork), so allocation will change this difference
 	// slowly in the soft regime and not at all in the hard
 	// regime.
-	scanWorkRemaining := scanWorkExpected - c.scanWork
+	scanWorkRemaining := scanWorkExpected - work
 	if scanWorkRemaining < 1000 {
 		// We set a somewhat arbitrary lower bound on
 		// remaining scan work since if we aim a little high,
