@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -1146,11 +1147,11 @@ func traceHeapAlloc() {
 }
 
 func traceNextGC() {
-	if memstats.next_gc == ^uint64(0) {
+	if nextGC := atomic.Load64(&memstats.next_gc); nextGC == ^uint64(0) {
 		// Heap-based triggering is disabled.
 		traceEvent(traceEvNextGC, -1, 0)
 	} else {
-		traceEvent(traceEvNextGC, -1, memstats.next_gc)
+		traceEvent(traceEvNextGC, -1, nextGC)
 	}
 }
 

@@ -409,7 +409,8 @@ type gcControllerState struct {
 }
 
 // startCycle resets the GC controller's state and computes estimates
-// for a new GC cycle. The caller must hold worldsema.
+// for a new GC cycle. The caller must hold worldsema and the world
+// must be stopped.
 func (c *gcControllerState) startCycle() {
 	c.scanWork = 0
 	c.bgScanCredit = 0
@@ -499,7 +500,7 @@ func (c *gcControllerState) revise() {
 
 	// Assume we're under the soft goal. Pace GC to complete at
 	// next_gc assuming the heap is in steady-state.
-	heapGoal := int64(memstats.next_gc)
+	heapGoal := int64(atomic.Load64(&memstats.next_gc))
 
 	// Compute the expected scan work remaining.
 	//
@@ -512,12 +513,12 @@ func (c *gcControllerState) revise() {
 	// 100*heap_scan.)
 	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
 
-	if live > memstats.next_gc || work > scanWorkExpected {
+	if int64(live) > heapGoal || work > scanWorkExpected {
 		// We're past the soft goal, or we've already done more scan
 		// work than we expected. Pace GC so that in the worst case it
 		// will complete by the hard goal.
 		const maxOvershoot = 1.1
-		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
+		heapGoal = int64(float64(heapGoal) * maxOvershoot)
 
 		// Compute the upper bound on the scan work remaining.
 		scanWorkExpected = int64(scan)
@@ -846,7 +847,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 
 	// Commit to the trigger and goal.
 	memstats.gc_trigger = trigger
-	memstats.next_gc = goal
+	atomic.Store64(&memstats.next_gc, goal)
 	if trace.enabled {
 		traceNextGC()
 	}
@@ -903,7 +904,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcEffectiveGrowthRatio() float64 {
-	egogc := float64(memstats.next_gc-memstats.heap_marked) / float64(memstats.heap_marked)
+	egogc := float64(atomic.Load64(&memstats.next_gc)-memstats.heap_marked) / float64(memstats.heap_marked)
 	if egogc < 0 {
 		// Shouldn't happen, but just in case.
 		egogc = 0
