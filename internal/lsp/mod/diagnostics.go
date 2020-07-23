@@ -8,9 +8,9 @@ package mod
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -68,21 +68,25 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	return reports, nil
 }
 
-var moduleAtVersionRe = regexp.MustCompile(`(?P<module>.*)@(?P<version>.*)`)
+var moduleAtVersionRe = regexp.MustCompile(`^(?P<module>.*)@(?P<version>.*)$`)
 
 // ExtractGoCommandError tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
 func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, loadErr error) (*source.Diagnostic, error) {
 	// We try to match module versions in error messages. Some examples:
 	//
-	//  err: exit status 1: stderr: go: example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
-	//  exit status 1: go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
+	//  example.com@v1.2.2: reading example.com/@v/v1.2.2.mod: no such file or directory
+	//  go: github.com/cockroachdb/apd/v2@v2.0.72: reading github.com/cockroachdb/apd/go.mod at revision v2.0.72: unknown revision v2.0.72
+	//  go: example.com@v1.2.3 requires\n\trandom.org@v1.2.3: parsing go.mod:\n\tmodule declares its path as: bob.org\n\tbut was required as: random.org
 	//
-	// We split on colons and attempt to match on something that matches
-	// module@version. If we're able to find a match, we try to find anything
-	// that matches it in the go.mod file.
+	// We split on colons and whitespace, and attempt to match on something
+	// that matches module@version. If we're able to find a match, we try to
+	// find anything that matches it in the go.mod file.
 	var v module.Version
-	for _, s := range strings.Split(loadErr.Error(), ":") {
+	fields := strings.FieldsFunc(loadErr.Error(), func(r rune) bool {
+		return unicode.IsSpace(r) || r == ':'
+	})
+	for _, s := range fields {
 		s = strings.TrimSpace(s)
 		match := moduleAtVersionRe.FindStringSubmatch(s)
 		if match == nil || len(match) < 3 {
@@ -133,7 +137,9 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 		}
 		return toDiagnostic(rep.Syntax)
 	}
-	return nil, fmt.Errorf("no diagnostics for %v", loadErr)
+	// No match for the module path was found in the go.mod file.
+	// Show the error on the module declaration.
+	return toDiagnostic(parsed.Module.Syntax)
 }
 
 func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {
