@@ -44,11 +44,6 @@ type mcentral struct {
 	// encounter swept spans, and these should be ignored.
 	partial [2]spanSet // list of spans with a free object
 	full    [2]spanSet // list of spans with no free objects
-
-	// nmalloc is the cumulative count of objects allocated from
-	// this mcentral, assuming all spans in mcaches are
-	// fully-allocated. Written atomically, read under STW.
-	nmalloc uint64
 }
 
 // Initialize a single central free list.
@@ -178,19 +173,6 @@ havespan:
 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
-	// Assume all objects from this span will be allocated in the
-	// mcache. If it gets uncached, we'll adjust this.
-	atomic.Xadd64(&c.nmalloc, int64(n))
-	usedBytes := uintptr(s.allocCount) * s.elemsize
-	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
-	if trace.enabled {
-		// heap_live changed.
-		traceHeapAlloc()
-	}
-	if gcBlackenEnabled != 0 {
-		// heap_live changed.
-		gcController.revise()
-	}
 	freeByteBase := s.freeindex &^ (64 - 1)
 	whichByte := freeByteBase / 8
 	// Init alloc bits cache.
@@ -228,27 +210,6 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		// Indicate that s is no longer cached.
 		atomic.Store(&s.sweepgen, sg)
 	}
-	n := int(s.nelems) - int(s.allocCount)
-
-	// Fix up statistics.
-	if n > 0 {
-		// cacheSpan updated alloc assuming all objects on s
-		// were going to be allocated. Adjust for any that
-		// weren't. We must do this before potentially
-		// sweeping the span.
-		atomic.Xadd64(&c.nmalloc, -int64(n))
-
-		if !stale {
-			// (*mcentral).cacheSpan conservatively counted
-			// unallocated slots in heap_live. Undo this.
-			//
-			// If this span was cached before sweep, then
-			// heap_live was totally recomputed since
-			// caching this span, so we don't do this for
-			// stale spans.
-			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
-		}
-	}
 
 	// Put the span in the appropriate place.
 	if stale {
@@ -256,7 +217,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 		// the right list.
 		s.sweep(false)
 	} else {
-		if n > 0 {
+		if int(s.nelems)-int(s.allocCount) > 0 {
 			// Put it back on the partial swept list.
 			c.partialSwept(sg).push(s)
 		} else {
