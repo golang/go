@@ -388,10 +388,24 @@ type gcControllerState struct {
 	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heap_scan is updated.
-	assistWorkPerByte float64
+	//
+	// Stored as a uint64, but it's actually a float64. Use
+	// float64frombits to get the value.
+	//
+	// Read and written atomically.
+	assistWorkPerByte uint64
 
 	// assistBytesPerWork is 1/assistWorkPerByte.
-	assistBytesPerWork float64
+	//
+	// Stored as a uint64, but it's actually a float64. Use
+	// float64frombits to get the value.
+	//
+	// Read and written atomically.
+	//
+	// Note that because this is read and written independently
+	// from assistWorkPerByte users may notice a skew between
+	// the two values, and such a state should be safe.
+	assistBytesPerWork uint64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker on
@@ -470,7 +484,8 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		print("pacer: assist ratio=", c.assistWorkPerByte,
+		assistRatio := float64frombits(atomic.Load64(&c.assistWorkPerByte))
+		print("pacer: assist ratio=", assistRatio,
 			" (scan ", memstats.heap_scan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			memstats.next_gc>>20, " MB)",
@@ -480,9 +495,22 @@ func (c *gcControllerState) startCycle() {
 }
 
 // revise updates the assist ratio during the GC cycle to account for
-// improved estimates. This should be called either under STW or
-// whenever memstats.heap_scan, memstats.heap_live, or
-// memstats.next_gc is updated (with mheap_.lock held).
+// improved estimates. This should be called whenever memstats.heap_scan,
+// memstats.heap_live, or memstats.next_gc is updated. It is safe to
+// call concurrently, but it may race with other calls to revise.
+//
+// The result of this race is that the two assist ratio values may not line
+// up or may be stale. In practice this is OK because the assist ratio
+// moves slowly throughout a GC cycle, and the assist ratio is a best-effort
+// heuristic anyway. Furthermore, no part of the heuristic depends on
+// the two assist ratio values being exact reciprocals of one another, since
+// the two values are used to convert values from different sources.
+//
+// The worst case result of this raciness is that we may miss a larger shift
+// in the ratio (say, if we decide to pace more aggressively against the
+// hard heap goal) but even this "hard goal" is best-effort (see #40460).
+// The dedicated GC should ensure we don't exceed the hard goal by too much
+// in the rare case we do exceed it.
 //
 // It should only be called when gcBlackenEnabled != 0 (because this
 // is when assists are enabled and the necessary statistics are
@@ -555,8 +583,15 @@ func (c *gcControllerState) revise() {
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
 	// have done (or stolen) the remaining amount of scan work.
-	c.assistWorkPerByte = float64(scanWorkRemaining) / float64(heapRemaining)
-	c.assistBytesPerWork = float64(heapRemaining) / float64(scanWorkRemaining)
+	// Note that the assist ratio values are updated atomically
+	// but not together. This means there may be some degree of
+	// skew between the two values. This is generally OK as the
+	// values shift relatively slowly over the course of a GC
+	// cycle.
+	assistWorkPerByte := float64(scanWorkRemaining) / float64(heapRemaining)
+	assistBytesPerWork := float64(heapRemaining) / float64(scanWorkRemaining)
+	atomic.Store64(&c.assistWorkPerByte, float64bits(assistWorkPerByte))
+	atomic.Store64(&c.assistBytesPerWork, float64bits(assistBytesPerWork))
 }
 
 // endCycle computes the trigger ratio for the next cycle.

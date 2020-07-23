@@ -3208,7 +3208,8 @@ func goexit0(gp *g) {
 		// Flush assist credit to the global pool. This gives
 		// better information to pacing if the application is
 		// rapidly creating an exiting goroutines.
-		scanCredit := int64(gcController.assistWorkPerByte * float64(gp.gcAssistBytes))
+		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+		scanCredit := int64(assistWorkPerByte * float64(gp.gcAssistBytes))
 		atomic.Xaddint64(&gcController.bgScanCredit, scanCredit)
 		gp.gcAssistBytes = 0
 	}
