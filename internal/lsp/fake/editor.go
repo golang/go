@@ -68,6 +68,15 @@ type EditorConfig struct {
 	// SymbolMatcher is the config associated with the "symbolMatcher" gopls
 	// config option.
 	SymbolMatcher *string
+
+	// WithoutWorkspaceFolders is used to simulate opening a single file in the
+	// editor, without a workspace root. In that case, the client sends neither
+	// workspace folders nor a root URI.
+	WithoutWorkspaceFolders bool
+
+	// EditorRootPath specifies the root path of the workspace folder used when
+	// initializing gopls in the sandbox. If empty, the Workdir is used.
+	EditorRootPath string
 }
 
 // NewEditor Creates a new Editor.
@@ -94,7 +103,7 @@ func (e *Editor) Connect(ctx context.Context, conn jsonrpc2.Conn, hooks ClientHo
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,
 				jsonrpc2.MethodNotFound)))
-	if err := e.initialize(ctx, e.sandbox.withoutWorkspaceFolders, e.sandbox.editorRootPath); err != nil {
+	if err := e.initialize(ctx, e.Config.WithoutWorkspaceFolders, e.Config.EditorRootPath); err != nil {
 		return nil, err
 	}
 	e.sandbox.Workdir.AddWatcher(e.onFileChanges)

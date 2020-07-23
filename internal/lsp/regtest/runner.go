@@ -68,13 +68,10 @@ type Runner struct {
 }
 
 type runConfig struct {
-	editorConfig            fake.EditorConfig
-	modes                   Mode
-	proxyTxt                string
-	timeout                 time.Duration
-	gopath                  bool
-	withoutWorkspaceFolders bool
-	rootPath                string
+	editor  fake.EditorConfig
+	sandbox fake.SandboxConfig
+	modes   Mode
+	timeout time.Duration
 }
 
 func (r *Runner) defaultConfig() *runConfig {
@@ -105,7 +102,7 @@ func WithTimeout(d time.Duration) RunOption {
 // WithProxy configures a file proxy using the given txtar-encoded string.
 func WithProxy(txt string) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.proxyTxt = txt
+		opts.sandbox.ProxyFiles = txt
 	})
 }
 
@@ -119,7 +116,7 @@ func WithModes(modes Mode) RunOption {
 // WithEditorConfig configures the editor's LSP session.
 func WithEditorConfig(config fake.EditorConfig) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.editorConfig = config
+		opts.editor = config
 	})
 }
 
@@ -129,7 +126,8 @@ func WithEditorConfig(config fake.EditorConfig) RunOption {
 // neither workspace folders nor a root URI.
 func WithoutWorkspaceFolders() RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.withoutWorkspaceFolders = false
+		// TODO: this cannot be right.
+		opts.editor.WithoutWorkspaceFolders = false
 	})
 }
 
@@ -138,7 +136,7 @@ func WithoutWorkspaceFolders() RunOption {
 // tests need to check other cases.
 func WithRootPath(path string) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.rootPath = path
+		opts.editor.EditorRootPath = path
 	})
 }
 
@@ -146,7 +144,7 @@ func WithRootPath(path string) RunOption {
 // than a separate working directory for use with modules.
 func InGOPATH() RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.gopath = true
+		opts.sandbox.InGoPath = true
 	})
 }
 
@@ -155,12 +153,8 @@ type TestFunc func(t *testing.T, env *Env)
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
-func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOption) {
+func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOption) {
 	t.Helper()
-	config := r.defaultConfig()
-	for _, opt := range opts {
-		opt.set(config)
-	}
 
 	tests := []struct {
 		name      string
@@ -174,6 +168,10 @@ func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOp
 
 	for _, tc := range tests {
 		tc := tc
+		config := r.defaultConfig()
+		for _, opt := range opts {
+			opt.set(config)
+		}
 		if config.modes&tc.mode == 0 {
 			continue
 		}
@@ -186,7 +184,9 @@ func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOp
 			if err := os.MkdirAll(tempDir, 0755); err != nil {
 				t.Fatal(err)
 			}
-			sandbox, err := fake.NewSandbox(tempDir, filedata, config.proxyTxt, config.gopath, config.withoutWorkspaceFolders, config.rootPath)
+			config.sandbox.Files = files
+			config.sandbox.RootDir = tempDir
+			sandbox, err := fake.NewSandbox(&config.sandbox)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -201,7 +201,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test TestFunc, opts ...RunOp
 			ls := &loggingFramer{}
 			framer := ls.framer(jsonrpc2.NewRawStream)
 			ts := servertest.NewPipeServer(ctx, ss, framer)
-			env := NewEnv(ctx, t, sandbox, ts, config.editorConfig)
+			env := NewEnv(ctx, t, sandbox, ts, config.editor)
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)

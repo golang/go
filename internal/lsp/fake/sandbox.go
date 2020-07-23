@@ -24,15 +24,23 @@ type Sandbox struct {
 	basedir string
 	Proxy   *Proxy
 	Workdir *Workdir
+}
 
-	// withoutWorkspaceFolders is used to simulate opening a single file in the
-	// editor, without a workspace root. In that case, the client sends neither
-	// workspace folders nor a root URI.
-	withoutWorkspaceFolders bool
-
-	// editorRootPath specifies the root path of the workspace folder used when
-	// initializing gopls in the sandbox. If empty, the Workdir is used.
-	editorRootPath string
+// SandboxConfig controls the behavior of a test sandbox. The zero value
+// defines a reasonable default.
+type SandboxConfig struct {
+	// RootDir sets the base directory to use when creating temporary
+	// directories. If not specified, defaults to a new temporary directory.
+	RootDir string
+	// Files holds a txtar-encoded archive of files to populate the initial state
+	// of the working directory.
+	Files string
+	// ProxyFiles holds a txtar-encoded archive of files to populate a file-based
+	// Go proxy.
+	ProxyFiles string
+	// InGoPath specifies that the working directory should be within the
+	// temporary GOPATH.
+	InGoPath bool
 }
 
 // NewSandbox creates a collection of named temporary resources, with a
@@ -43,7 +51,10 @@ type Sandbox struct {
 // If rootDir is non-empty, it will be used as the root of temporary
 // directories created for the sandbox. Otherwise, a new temporary directory
 // will be used as root.
-func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspaceFolders bool, editorRootPath string) (_ *Sandbox, err error) {
+func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
+	if config == nil {
+		config = new(SandboxConfig)
+	}
 	sb := &Sandbox{}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
@@ -52,7 +63,7 @@ func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspac
 		}
 	}()
 
-	baseDir, err := ioutil.TempDir(rootDir, "gopls-sandbox-")
+	baseDir, err := ioutil.TempDir(config.RootDir, "gopls-sandbox-")
 	if err != nil {
 		return nil, fmt.Errorf("creating temporary workdir: %v", err)
 	}
@@ -62,7 +73,7 @@ func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspac
 	// Set the working directory as $GOPATH/src if inGopath is true.
 	workdir := filepath.Join(sb.gopath, "src")
 	dirs := []string{sb.gopath, proxydir}
-	if !inGopath {
+	if !config.InGoPath {
 		workdir = filepath.Join(sb.basedir, "work")
 		dirs = append(dirs, workdir)
 	}
@@ -71,10 +82,8 @@ func NewSandbox(rootDir, srctxt, proxytxt string, inGopath bool, withoutWorkspac
 			return nil, err
 		}
 	}
-	sb.Proxy, err = NewProxy(proxydir, proxytxt)
-	sb.Workdir, err = NewWorkdir(workdir, srctxt)
-	sb.withoutWorkspaceFolders = withoutWorkspaceFolders
-	sb.editorRootPath = editorRootPath
+	sb.Proxy, err = NewProxy(proxydir, config.ProxyFiles)
+	sb.Workdir, err = NewWorkdir(workdir, config.Files)
 
 	return sb, nil
 }
