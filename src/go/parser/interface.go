@@ -52,10 +52,10 @@ const (
 	PackageClauseOnly Mode             = 1 << iota // stop parsing after package clause
 	ImportsOnly                                    // stop parsing after import declarations
 	ParseComments                                  // parse comments and add them to AST
-	UseBrackets                                    // use square brackets with type parameters
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
+	UseBrackets                                    // use square brackets with type parameters
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
