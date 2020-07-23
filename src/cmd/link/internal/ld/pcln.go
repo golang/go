@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,8 +97,9 @@ func makeOldPclnState(ctxt *Link) *oldPclnState {
 	return state
 }
 
-// makePclntab makes a pclntab object.
-func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
+// makePclntab makes a pclntab object, and assembles all the compilation units
+// we'll need to write pclntab.
+func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit) {
 	ldr := ctxt.loader
 
 	state := &pclntab{
@@ -105,7 +107,10 @@ func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
 	}
 
 	// Gather some basic stats and info.
+	seenCUs := make(map[*sym.CompilationUnit]struct{})
 	prevSect := ldr.SymSect(ctxt.Textp[0])
+	compUnits := []*sym.CompilationUnit{}
+
 	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s, container) {
 			continue
@@ -125,8 +130,17 @@ func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
 			state.nfunc++
 			prevSect = ss
 		}
+
+		// We need to keep track of all compilation units we see. Some symbols
+		// (eg, go.buildid, _cgoexp_, etc) won't have a compilation unit.
+		cu := ldr.SymUnit(s)
+		if _, ok := seenCUs[cu]; cu != nil && !ok {
+			seenCUs[cu] = struct{}{}
+			cu.PclnIndex = len(compUnits)
+			compUnits = append(compUnits, cu)
+		}
 	}
-	return state
+	return state, compUnits
 }
 
 func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
@@ -425,7 +439,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//        filetable
 
 	oldState := makeOldPclnState(ctxt)
-	state := makePclntab(ctxt, container)
+	state, _ := makePclntab(ctxt, container)
 
 	ldr := ctxt.loader
 	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
@@ -434,7 +448,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 
 	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
 	// It contains the pieces of runtime.pclntab that haven't moved to a more
-	// ration form.
+	// rational form.
 	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
 	state.generatePCHeader(ctxt)
 	state.generateFuncnametab(ctxt, container)
@@ -616,15 +630,22 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = writepctab(off, pcline.P)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
 
+		// Store the compilation unit index.
+		cuIdx := ^uint16(0)
+		if cu := ldr.SymUnit(s); cu != nil {
+			if cu.PclnIndex > math.MaxUint16 {
+				panic("cu limit reached.")
+			}
+			cuIdx = uint16(cu.PclnIndex)
+		}
+		off = int32(ftab.SetUint16(ctxt.Arch, int64(off), cuIdx))
+
 		// funcID uint8
 		var funcID objabi.FuncID
 		if fi.Valid() {
 			funcID = fi.FuncID()
 		}
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
-
-		// unused
-		off += 2
 
 		// nfuncdata must be the final entry.
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
