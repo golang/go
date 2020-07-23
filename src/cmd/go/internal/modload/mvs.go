@@ -6,20 +6,15 @@ package modload
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
@@ -28,7 +23,7 @@ import (
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-	cache     par.Cache
+	cache     par.Cache // module.Version → Required method results
 }
 
 // Reqs returns the current module requirement graph.
@@ -42,113 +37,21 @@ func Reqs() mvs.Reqs {
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	type cached struct {
-		list []module.Version
-		err  error
-	}
-
-	c := r.cache.Do(mod, func() interface{} {
-		list, err := r.required(mod)
-		if err != nil {
-			return cached{nil, err}
-		}
-		if index != nil && len(index.exclude) > 0 {
-			// Drop requirements on excluded versions.
-			nonExcluded := list[:0]
-			for _, r := range list {
-				if !index.exclude[r] {
-					nonExcluded = append(nonExcluded, r)
-				}
-			}
-			list = nonExcluded
-		}
-
-		return cached{list, nil}
-	}).(cached)
-
-	return c.list, c.err
-}
-
-func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
-	list := make([]module.Version, 0, len(f.Require))
-	for _, r := range f.Require {
-		list = append(list, r.Mod)
-	}
-	return list
-}
-
-// required returns a unique copy of the requirements of mod.
-func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
-		if modFile != nil && modFile.Go != nil {
-			rawGoVersion.LoadOrStore(mod, modFile.Go.Version)
-		}
-		return append([]module.Version(nil), r.buildList[1:]...), nil
-	}
-
-	if cfg.BuildMod == "vendor" {
-		// For every module other than the target,
-		// return the full list of modules from modules.txt.
-		readVendorList()
-		return append([]module.Version(nil), vendorList...), nil
-	}
-
-	origPath := mod.Path
-	if repl := Replacement(mod); repl.Path != "" {
-		if repl.Version == "" {
-			// TODO: need to slip the new version into the tags list etc.
-			dir := repl.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			gomod := filepath.Join(dir, "go.mod")
-			data, err := lockedfile.Read(gomod)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			f, err := modfile.ParseLax(gomod, data, nil)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			if f.Go != nil {
-				rawGoVersion.LoadOrStore(repl, f.Go.Version)
-			}
-			return r.modFileToList(f), nil
-		}
-		mod = repl
+		// Use the build list as it existed when r was constructed, not the current
+		// global build list.
+		return r.buildList[1:], nil
 	}
 
 	if mod.Version == "none" {
 		return nil, nil
 	}
 
-	if !semver.IsValid(mod.Version) {
-		// Disallow the broader queries supported by fetch.Lookup.
-		base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", mod.Path, mod.Version)
-	}
-
-	data, err := modfetch.GoMod(mod.Path, mod.Version)
+	summary, err := goModSummary(mod)
 	if err != nil {
 		return nil, err
 	}
-	f, err := modfile.ParseLax("go.mod", data, nil)
-	if err != nil {
-		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
-	}
-
-	if f.Module == nil {
-		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
-	}
-	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
-	module declares its path as: %s
-	        but was required as: %s`, mpath, origPath))
-	}
-	if f.Go != nil {
-		rawGoVersion.LoadOrStore(mod, f.Go.Version)
-	}
-
-	return r.modFileToList(f), nil
+	return summary.require, nil
 }
 
 // Max returns the maximum of v1 and v2 according to semver.Compare.
