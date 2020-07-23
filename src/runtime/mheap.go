@@ -128,10 +128,6 @@ type mheap struct {
 	// This is accessed atomically.
 	reclaimCredit uintptr
 
-	// Malloc stats.
-	largealloc  uint64 // bytes allocated for large objects
-	nlargealloc uint64 // number of large object allocations
-
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual
 	// address space.
@@ -1170,14 +1166,7 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		memstats.tinyallocs += uint64(c.local_tinyallocs)
 		c.local_tinyallocs = 0
 
-		// Do some additional accounting if it's a large allocation.
-		if spanclass.sizeclass() == 0 {
-			mheap_.largealloc += uint64(npages * pageSize)
-			mheap_.nlargealloc++
-			atomic.Xadd64(&memstats.heap_live, int64(npages*pageSize))
-		}
-
-		// Either heap_live or heap_scan could have been updated.
+		// heap_scan was been updated.
 		if gcBlackenEnabled != 0 {
 			gcController.revise()
 		}
@@ -1277,11 +1266,6 @@ HaveSpan:
 
 		// Update related page sweeper stats.
 		atomic.Xadd64(&h.pagesInUse, int64(npages))
-
-		if trace.enabled {
-			// Trace that a heap alloc occurred.
-			traceHeapAlloc()
-		}
 	}
 
 	// Make sure the newly allocated span will be observed

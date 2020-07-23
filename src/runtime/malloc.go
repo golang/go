@@ -1082,9 +1082,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	} else {
 		shouldhelpgc = true
-		systemstack(func() {
-			span = largeAlloc(size, needzero, noscan)
-		})
+		span = c.largeAlloc(size, needzero, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
 		x = unsafe.Pointer(span.base())
@@ -1177,35 +1175,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	return x
-}
-
-func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
-	// print("largeAlloc size=", size, "\n")
-
-	if size+_PageSize < size {
-		throw("out of memory")
-	}
-	npages := size >> _PageShift
-	if size&_PageMask != 0 {
-		npages++
-	}
-
-	// Deduct credit for this span allocation and sweep if
-	// necessary. mHeap_Alloc will also sweep npages, so this only
-	// pays the debt down to npage pages.
-	deductSweepCredit(npages*_PageSize, npages)
-
-	spc := makeSpanClass(0, noscan)
-	s := mheap_.alloc(npages, spc, needzero)
-	if s == nil {
-		throw("out of memory")
-	}
-	// Put the large span in the mcentral swept list so that it's
-	// visible to the background sweeper.
-	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
-	s.limit = s.base() + size
-	heapBitsForAddr(s.base()).initSpan(s)
-	return s
 }
 
 // implementation of new builtin

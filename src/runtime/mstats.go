@@ -578,6 +578,8 @@ func updatememstats() {
 			continue
 		}
 		// Collect large allocation stats.
+		memstats.nmalloc += uint64(c.local_nlargealloc)
+		totalAlloc += uint64(c.local_largealloc)
 		totalFree += uint64(c.local_largefree)
 		memstats.nfree += uint64(c.local_nlargefree)
 
@@ -589,8 +591,6 @@ func updatememstats() {
 		}
 	}
 	// Collect remaining large allocation stats.
-	memstats.nmalloc += mheap_.nlargealloc
-	totalAlloc += mheap_.largealloc
 
 	totalFree += smallFree
 
