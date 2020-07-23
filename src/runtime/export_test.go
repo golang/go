@@ -339,18 +339,28 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 
 		// Add in frees. readmemstats_m flushed the cached stats, so
 		// these are up-to-date.
-		var smallFree uint64
-		slow.Frees = mheap_.nlargefree
-		for i := range mheap_.nsmallfree {
-			slow.Frees += mheap_.nsmallfree[i]
-			bySize[i].Frees = mheap_.nsmallfree[i]
-			bySize[i].Mallocs += mheap_.nsmallfree[i]
-			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		var largeFree, smallFree uint64
+		for _, p := range allp {
+			c := p.mcache
+			if c == nil {
+				continue
+			}
+			// Collect large allocation stats.
+			largeFree += uint64(c.local_largefree)
+			slow.Frees += uint64(c.local_nlargefree)
+
+			// Collect per-sizeclass stats.
+			for i := 0; i < _NumSizeClasses; i++ {
+				slow.Frees += uint64(c.local_nsmallfree[i])
+				bySize[i].Frees += uint64(c.local_nsmallfree[i])
+				bySize[i].Mallocs += uint64(c.local_nsmallfree[i])
+				smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
+			}
 		}
 		slow.Frees += memstats.tinyallocs
 		slow.Mallocs += slow.Frees
 
-		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
+		slow.TotalAlloc = slow.Alloc + largeFree + smallFree
 
 		for i := range slow.BySize {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
