@@ -494,6 +494,7 @@ func (c *gcControllerState) revise() {
 		gcpercent = 100000
 	}
 	live := atomic.Load64(&memstats.heap_live)
+	scan := atomic.Load64(&memstats.heap_scan)
 
 	// Assume we're under the soft goal. Pace GC to complete at
 	// next_gc assuming the heap is in steady-state.
@@ -508,7 +509,7 @@ func (c *gcControllerState) revise() {
 	//
 	// (This is a float calculation to avoid overflowing on
 	// 100*heap_scan.)
-	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
 
 	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
 		// We're past the soft goal, or we've already done more scan
@@ -518,7 +519,7 @@ func (c *gcControllerState) revise() {
 		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
 
 		// Compute the upper bound on the scan work remaining.
-		scanWorkExpected = int64(memstats.heap_scan)
+		scanWorkExpected = int64(scan)
 	}
 
 	// Compute the remaining scan work estimate.
