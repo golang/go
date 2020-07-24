@@ -115,8 +115,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		pass.Report(analysis.Diagnostic{
 			Message: fmt.Sprintf("Fill %s with default values", name),
-			Pos:     expr.Lbrace,
-			End:     expr.Rbrace,
+			Pos:     expr.Pos(),
+			End:     expr.End(),
 		})
 	})
 	return nil, nil

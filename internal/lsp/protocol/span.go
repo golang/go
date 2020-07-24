@@ -130,6 +130,14 @@ func ComparePosition(a, b Position) int {
 	return 0
 }
 
+func Intersect(a, b Range) bool {
+	if a.Start.Line > b.End.Line || a.End.Line < b.Start.Line {
+		return false
+	}
+	return !((a.Start.Line == b.End.Line) && a.Start.Character > b.End.Character ||
+		(a.End.Line == b.Start.Line) && a.End.Character < b.Start.Character)
+}
+
 func (r Range) Format(f fmt.State, _ rune) {
 	fmt.Fprintf(f, "%v:%v-%v:%v", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
 }

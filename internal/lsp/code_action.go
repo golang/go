@@ -364,7 +364,8 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		if d.URI != uri {
 			continue
 		}
-		if d.Range.Start.Line != rng.Start.Line {
+
+		if !protocol.Intersect(d.Range, rng) {
 			continue
 		}
 		action, err := diagnosticToCommandCodeAction(ctx, snapshot, d, nil, protocol.RefactorRewrite)
