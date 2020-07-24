@@ -383,8 +383,8 @@ func InitMod(ctx context.Context) {
 		legacyModInit()
 	}
 
-	modFileToBuildList()
 	setDefaultBuildMod()
+	modFileToBuildList()
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
 		checkVendorConsistency()
@@ -459,7 +459,15 @@ func modFileToBuildList() {
 
 	list := []module.Version{Target}
 	for _, r := range modFile.Require {
-		list = append(list, r.Mod)
+		if index != nil && index.exclude[r.Mod] {
+			if cfg.BuildMod == "mod" {
+				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+			} else {
+				fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+			}
+		} else {
+			list = append(list, r.Mod)
+		}
 	}
 	buildList = list
 }

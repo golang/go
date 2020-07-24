@@ -54,20 +54,15 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 		if err != nil {
 			return cached{nil, err}
 		}
-		for i, mv := range list {
-			if index != nil {
-				for index.exclude[mv] {
-					mv1, err := r.next(mv)
-					if err != nil {
-						return cached{nil, err}
-					}
-					if mv1.Version == "none" {
-						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-					}
-					mv = mv1
+		if index != nil && len(index.exclude) > 0 {
+			// Drop requirements on excluded versions.
+			nonExcluded := list[:0]
+			for _, r := range list {
+				if !index.exclude[r] {
+					nonExcluded = append(nonExcluded, r)
 				}
 			}
-			list[i] = mv
+			list = nonExcluded
 		}
 
 		return cached{list, nil}
