@@ -226,13 +226,22 @@ func ExampleRegexp_ReplaceAll() {
 	re := regexp.MustCompile(`a(x*)b`)
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("T")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1")))
-	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
+
+	// $1W evaluated as ${1W}
+	// $1W is not a named submatch, so the replacement is with an empty slice.
+	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
+
+	re2 := regexp.MustCompile(`a(?P<1W>x*)b`)
+	// $1W is a named submatch, so the replacement is with a matched slice.
+	fmt.Printf("%s\n", re2.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
+
 	// Output:
 	// -T-T-
 	// --xx-
-	// ---
 	// -W-xxW-
+	// ---
+	// --xx-
 }
 
 func ExampleRegexp_ReplaceAllLiteralString() {
