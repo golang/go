@@ -86,6 +86,9 @@ type Snapshot interface {
 	// ModTidy returns the results of `go mod tidy` for the snapshot's module.
 	ModTidy(ctx context.Context) (*TidiedModule, error)
 
+	// BuiltinPackage returns information about the special builtin package.
+	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)
+
 	// PackagesForFile returns the packages that this file belongs to.
 	PackagesForFile(ctx context.Context, uri span.URI) ([]Package, error)
 
@@ -121,9 +124,6 @@ type View interface {
 
 	// ModFile is the go.mod file at the root of this view. It may not exist.
 	ModFile() span.URI
-
-	// BuiltinPackage returns the go/ast.Object for the given name in the builtin package.
-	BuiltinPackage(ctx context.Context) (BuiltinPackage, error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -172,9 +172,9 @@ type View interface {
 	WorkspaceDirectories(ctx context.Context) ([]string, error)
 }
 
-type BuiltinPackage interface {
-	Package() *ast.Package
-	ParsedFile() *ParsedGoFile
+type BuiltinPackage struct {
+	Package    *ast.Package
+	ParsedFile *ParsedGoFile
 }
 
 // A ParsedGoFile contains the results of parsing a Go file.

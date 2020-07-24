@@ -246,7 +246,7 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (Completi
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		sig, err := newBuiltinSignature(ctx, c.snapshot.View(), obj.Name())
+		sig, err := newBuiltinSignature(ctx, c.snapshot, obj.Name())
 		if err != nil {
 			return CompletionItem{}, err
 		}

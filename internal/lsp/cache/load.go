@@ -138,7 +138,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 		// Special case for the builtin package, as it has no dependencies.
 		if pkg.PkgPath == "builtin" {
-			if err := s.view.buildBuiltinPackage(ctx, pkg.GoFiles); err != nil {
+			if err := s.buildBuiltinPackage(ctx, pkg.GoFiles); err != nil {
 				return err
 			}
 			continue

@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/ast"
 	"io"
 	"io/ioutil"
 	"os"
@@ -33,8 +32,6 @@ import (
 )
 
 type View struct {
-	memoize.Arg // allow as a memoize.Function arg
-
 	session *Session
 	id      string
 
@@ -117,9 +114,6 @@ type View struct {
 	initializeOnce     *sync.Once
 	initializedErr     error
 
-	// builtin pins the AST and package for builtin.go in memory.
-	builtin *builtinPackageHandle
-
 	// True if the view is either in GOPATH, a module, or some other
 	// non go command build system.
 	hasValidBuildConfiguration bool
@@ -150,17 +144,8 @@ type builtinPackageHandle struct {
 type builtinPackageData struct {
 	memoize.NoCopy
 
-	pkg *ast.Package
-	pgf *source.ParsedGoFile
-	err error
-}
-
-func (d *builtinPackageData) Package() *ast.Package {
-	return d.pkg
-}
-
-func (d *builtinPackageData) ParsedFile() *source.ParsedGoFile {
-	return d.pgf
+	parsed *source.BuiltinPackage
+	err    error
 }
 
 // fileBase holds the common functionality for all files.
@@ -297,69 +282,6 @@ func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
 	}
 	snapshot, release := newView.Snapshot()
 	return snapshot, release, nil
-}
-
-func (v *View) BuiltinPackage(ctx context.Context) (source.BuiltinPackage, error) {
-	v.awaitInitialized(ctx)
-
-	if v.builtin == nil {
-		return nil, errors.Errorf("no builtin package for view %s", v.name)
-	}
-	data, err := v.builtin.handle.Get(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, errors.Errorf("unexpected nil builtin package")
-	}
-	d, ok := data.(*builtinPackageData)
-	if !ok {
-		return nil, errors.Errorf("unexpected type %T", data)
-	}
-	if d.err != nil {
-		return nil, d.err
-	}
-	if d.pkg == nil || d.pkg.Scope == nil {
-		return nil, errors.Errorf("no builtin package")
-	}
-	return d, nil
-}
-
-func (v *View) buildBuiltinPackage(ctx context.Context, goFiles []string) error {
-	if len(goFiles) != 1 {
-		return errors.Errorf("only expected 1 file, got %v", len(goFiles))
-	}
-	uri := span.URIFromPath(goFiles[0])
-
-	// Get the FileHandle through the cache to avoid adding it to the snapshot
-	// and to get the file content from disk.
-	fh, err := v.session.cache.getFile(ctx, uri)
-	if err != nil {
-		return err
-	}
-	h := v.session.cache.store.Bind(fh.Identity(), func(ctx context.Context, arg memoize.Arg) interface{} {
-		view := arg.(*View)
-
-		pgh := view.session.cache.parseGoHandle(ctx, fh, source.ParseFull)
-		pgf, _, err := view.parseGo(ctx, pgh)
-		if err != nil {
-			return &builtinPackageData{err: err}
-		}
-		pkg, err := ast.NewPackage(view.session.cache.fset, map[string]*ast.File{
-			pgf.URI.Filename(): pgf.File,
-		}, nil, nil)
-		if err != nil {
-			return &builtinPackageData{err: err}
-		}
-		return &builtinPackageData{
-			pgf: pgf,
-			pkg: pkg,
-		}
-	})
-	v.builtin = &builtinPackageHandle{
-		handle: h,
-	}
-	return nil
 }
 
 func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {

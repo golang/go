@@ -74,7 +74,7 @@ FindCall:
 
 	// Handle builtin functions separately.
 	if obj, ok := obj.(*types.Builtin); ok {
-		return builtinSignature(ctx, snapshot.View(), callExpr, obj.Name(), rng.Start)
+		return builtinSignature(ctx, snapshot, callExpr, obj.Name(), rng.Start)
 	}
 
 	// Get the type information for the function being called.
@@ -132,8 +132,8 @@ FindCall:
 	}, activeParam, nil
 }
 
-func builtinSignature(ctx context.Context, view View, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
-	sig, err := newBuiltinSignature(ctx, view, name)
+func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
+	sig, err := newBuiltinSignature(ctx, snapshot, name)
 	if err != nil {
 		return nil, 0, err
 	}

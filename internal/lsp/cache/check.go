@@ -288,7 +288,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 				return
 			}
 			pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, mode)
-			pgf, fixed, err := snapshot.view.parseGo(ctx, pgh)
+			pgf, fixed, err := snapshot.parseGo(ctx, pgh)
 			if err != nil {
 				actualErrors[i] = err
 				return

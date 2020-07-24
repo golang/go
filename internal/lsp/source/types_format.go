@@ -74,12 +74,12 @@ func (s *signature) format() string {
 	return b.String()
 }
 
-func newBuiltinSignature(ctx context.Context, view View, name string) (*signature, error) {
-	builtin, err := view.BuiltinPackage(ctx)
+func newBuiltinSignature(ctx context.Context, snapshot Snapshot, name string) (*signature, error) {
+	builtin, err := snapshot.BuiltinPackage(ctx)
 	if err != nil {
 		return nil, err
 	}
-	obj := builtin.Package().Scope.Lookup(name)
+	obj := builtin.Package.Scope.Lookup(name)
 	if obj == nil {
 		return nil, fmt.Errorf("no builtin object for %s", name)
 	}
@@ -98,8 +98,8 @@ func newBuiltinSignature(ctx context.Context, view View, name string) (*signatur
 			variadic = true
 		}
 	}
-	params, _ := formatFieldList(ctx, view, decl.Type.Params, variadic)
-	results, needResultParens := formatFieldList(ctx, view, decl.Type.Results, false)
+	params, _ := formatFieldList(ctx, snapshot.View(), decl.Type.Params, variadic)
+	results, needResultParens := formatFieldList(ctx, snapshot.View(), decl.Type.Results, false)
 	return &signature{
 		doc:              decl.Doc.Text(),
 		name:             name,

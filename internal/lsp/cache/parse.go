@@ -57,13 +57,13 @@ func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode so
 		mode: mode,
 	}
 	parseHandle := c.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		view := arg.(*View)
-		return parseGo(ctx, view.session.cache.fset, fh, mode)
+		snapshot := arg.(*snapshot)
+		return parseGo(ctx, snapshot.view.session.cache.fset, fh, mode)
 	})
 
 	astHandle := c.store.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
-		view := arg.(*View)
-		return buildASTCache(ctx, view, parseHandle)
+		snapshot := arg.(*snapshot)
+		return buildASTCache(ctx, snapshot, parseHandle)
 	})
 
 	return &parseGoHandle{
@@ -88,12 +88,12 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 
 func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
 	pgh := s.view.session.cache.parseGoHandle(ctx, fh, mode)
-	pgf, _, err := s.view.parseGo(ctx, pgh)
+	pgf, _, err := s.parseGo(ctx, pgh)
 	return pgf, err
 }
 
-func (v *View) parseGo(ctx context.Context, pgh *parseGoHandle) (*source.ParsedGoFile, bool, error) {
-	d, err := pgh.handle.Get(ctx, v)
+func (s *snapshot) parseGo(ctx context.Context, pgh *parseGoHandle) (*source.ParsedGoFile, bool, error) {
+	d, err := pgh.handle.Get(ctx, s)
 	if err != nil {
 		return nil, false, err
 	}
@@ -108,7 +108,7 @@ func (s *snapshot) PosToDecl(ctx context.Context, pgf *source.ParsedGoFile) (map
 	}
 
 	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
-	d, err := pgh.astCacheHandle.Get(ctx, s.view)
+	d, err := pgh.astCacheHandle.Get(ctx, s)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (ma
 	}
 
 	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
-	d, err := pgh.astCacheHandle.Get(ctx, s.view)
+	d, err := pgh.astCacheHandle.Get(ctx, s)
 	if err != nil || d == nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ type astCacheData struct {
 
 // buildASTCache builds caches to aid in quickly going from the typed
 // world to the syntactic world.
-func buildASTCache(ctx context.Context, view *View, parseHandle *memoize.Handle) *astCacheData {
+func buildASTCache(ctx context.Context, snapshot *snapshot, parseHandle *memoize.Handle) *astCacheData {
 	var (
 		// path contains all ancestors, including n.
 		path []ast.Node
@@ -159,7 +159,7 @@ func buildASTCache(ctx context.Context, view *View, parseHandle *memoize.Handle)
 		decls []ast.Decl
 	)
 
-	v, err := parseHandle.Get(ctx, view)
+	v, err := parseHandle.Get(ctx, snapshot)
 	if err != nil {
 		return &astCacheData{err: err}
 	}

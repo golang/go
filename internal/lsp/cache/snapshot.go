@@ -28,6 +28,7 @@ import (
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/typesinternal"
+	errors "golang.org/x/xerrors"
 )
 
 type snapshot struct {
@@ -37,6 +38,9 @@ type snapshot struct {
 	view *View
 
 	active sync.WaitGroup
+
+	// builtin pins the AST and package for builtin.go in memory.
+	builtin *builtinPackageHandle
 
 	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
@@ -751,6 +755,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 	result := &snapshot{
 		id:                s.id + 1,
 		view:              s.view,
+		builtin:           s.builtin,
 		ids:               make(map[span.URI][]packageID),
 		importedBy:        make(map[packageID][]packageID),
 		metadata:          make(map[packageID]*metadata),
@@ -984,4 +989,55 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		}
 	}
 	return false
+}
+
+func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, error) {
+	s.view.awaitInitialized(ctx)
+
+	if s.builtin == nil {
+		return nil, errors.Errorf("no builtin package for view %s", s.view.name)
+	}
+	d, err := s.builtin.handle.Get(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	data := d.(*builtinPackageData)
+	return data.parsed, data.err
+}
+
+func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) error {
+	if len(goFiles) != 1 {
+		return errors.Errorf("only expected 1 file, got %v", len(goFiles))
+	}
+	uri := span.URIFromPath(goFiles[0])
+
+	// Get the FileHandle through the cache to avoid adding it to the snapshot
+	// and to get the file content from disk.
+	fh, err := s.view.session.cache.getFile(ctx, uri)
+	if err != nil {
+		return err
+	}
+	h := s.view.session.cache.store.Bind(fh.Identity(), func(ctx context.Context, arg memoize.Arg) interface{} {
+		snapshot := arg.(*snapshot)
+
+		pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, source.ParseFull)
+		pgf, _, err := snapshot.parseGo(ctx, pgh)
+		if err != nil {
+			return &builtinPackageData{err: err}
+		}
+		pkg, err := ast.NewPackage(snapshot.view.session.cache.fset, map[string]*ast.File{
+			pgf.URI.Filename(): pgf.File,
+		}, nil, nil)
+		if err != nil {
+			return &builtinPackageData{err: err}
+		}
+		return &builtinPackageData{
+			parsed: &source.BuiltinPackage{
+				ParsedFile: pgf,
+				Package:    pkg,
+			},
+		}
+	})
+	s.builtin = &builtinPackageHandle{handle: h}
+	return nil
 }
