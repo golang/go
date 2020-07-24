@@ -72,12 +72,16 @@ func ExampleJoin() {
 	fmt.Println(filepath.Join("a", "b/c"))
 	fmt.Println(filepath.Join("a/b", "c"))
 	fmt.Println(filepath.Join("a/b", "/c"))
+
+	fmt.Println(filepath.Join("a/b", "../../../xyz"))
+
 	// Output:
 	// On Unix:
 	// a/b/c
 	// a/b/c
 	// a/b/c
 	// a/b/c
+	// ../xyz
 }
 
 func ExampleMatch() {
