@@ -2086,16 +2086,16 @@ func gcMark(start_time int64) {
 	// Update the marked heap stat.
 	memstats.heap_marked = work.bytesMarked
 
-	// Flush local_scan from each mcache since we're about to modify
-	// heap_scan directly. If we were to flush this later, then local_scan
+	// Flush scanAlloc from each mcache since we're about to modify
+	// heap_scan directly. If we were to flush this later, then scanAlloc
 	// might have incorrect information.
 	for _, p := range allp {
 		c := p.mcache
 		if c == nil {
 			continue
 		}
-		memstats.heap_scan += uint64(c.local_scan)
-		c.local_scan = 0
+		memstats.heap_scan += uint64(c.scanAlloc)
+		c.scanAlloc = 0
 	}
 
 	// Update other GC heap size stats. This must happen after

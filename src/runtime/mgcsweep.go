@@ -503,7 +503,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			// wasn't totally filled, but then swept, still has all of its
 			// free slots zeroed.
 			s.needzero = 1
-			c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+			c.smallFreeCount[spc.sizeclass()] += uintptr(nfreed)
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -548,8 +548,8 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			c.local_nlargefree++
-			c.local_largefree += size
+			c.largeFreeCount++
+			c.largeFree += size
 			return true
 		}
 
