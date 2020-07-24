@@ -20,8 +20,8 @@ import (
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	next_sample uintptr // trigger heap sample after allocating this many bytes
-	local_scan  uintptr // bytes of scannable heap allocated
+	nextSample uintptr // trigger heap sample after allocating this many bytes
+	scanAlloc  uintptr // bytes of scannable heap allocated
 
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
@@ -48,13 +48,13 @@ type mcache struct {
 	// When read with stats from other mcaches and with the world
 	// stopped, the result will accurately reflect the state of the
 	// application.
-	local_tinyallocs  uintptr                  // number of tiny allocs not counted in other stats
-	local_largealloc  uintptr                  // bytes allocated for large objects
-	local_nlargealloc uintptr                  // number of large object allocations
-	local_nsmallalloc [_NumSizeClasses]uintptr // number of allocs for small objects
-	local_largefree   uintptr                  // bytes freed for large objects (>maxsmallsize)
-	local_nlargefree  uintptr                  // number of frees for large objects (>maxsmallsize)
-	local_nsmallfree  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+	tinyAllocCount  uintptr                  // number of tiny allocs not counted in other stats
+	largeAlloc      uintptr                  // bytes allocated for large objects
+	largeAllocCount uintptr                  // number of large object allocations
+	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
+	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
+	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
+	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
 
 	// flushGen indicates the sweepgen during which this mcache
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
@@ -103,7 +103,7 @@ func allocmcache() *mcache {
 	for i := range c.alloc {
 		c.alloc[i] = &emptymspan
 	}
-	c.next_sample = nextSample()
+	c.nextSample = nextSample()
 	return c
 }
 
@@ -134,26 +134,26 @@ func freemcache(c *mcache, recipient *mcache) {
 // donate flushes data and resources which have no global
 // pool to another mcache.
 func (c *mcache) donate(d *mcache) {
-	// local_scan is handled separately because it's not
+	// scanAlloc is handled separately because it's not
 	// like these stats -- it's used for GC pacing.
-	d.local_largealloc += c.local_largealloc
-	c.local_largealloc = 0
-	d.local_nlargealloc += c.local_nlargealloc
-	c.local_nlargealloc = 0
-	for i := range c.local_nsmallalloc {
-		d.local_nsmallalloc[i] += c.local_nsmallalloc[i]
-		c.local_nsmallalloc[i] = 0
+	d.largeAlloc += c.largeAlloc
+	c.largeAlloc = 0
+	d.largeAllocCount += c.largeAllocCount
+	c.largeAllocCount = 0
+	for i := range c.smallAllocCount {
+		d.smallAllocCount[i] += c.smallAllocCount[i]
+		c.smallAllocCount[i] = 0
 	}
-	d.local_largefree += c.local_largefree
-	c.local_largefree = 0
-	d.local_nlargefree += c.local_nlargefree
-	c.local_nlargefree = 0
-	for i := range c.local_nsmallfree {
-		d.local_nsmallfree[i] += c.local_nsmallfree[i]
-		c.local_nsmallfree[i] = 0
+	d.largeFree += c.largeFree
+	c.largeFree = 0
+	d.largeFreeCount += c.largeFreeCount
+	c.largeFreeCount = 0
+	for i := range c.smallFreeCount {
+		d.smallFreeCount[i] += c.smallFreeCount[i]
+		c.smallFreeCount[i] = 0
 	}
-	d.local_tinyallocs += c.local_tinyallocs
-	c.local_tinyallocs = 0
+	d.tinyAllocCount += c.tinyAllocCount
+	c.tinyAllocCount = 0
 }
 
 // refill acquires a new span of span class spc for c. This span will
@@ -192,16 +192,16 @@ func (c *mcache) refill(spc spanClass) {
 
 	// Assume all objects from this span will be allocated in the
 	// mcache. If it gets uncached, we'll adjust this.
-	c.local_nsmallalloc[spc.sizeclass()] += uintptr(s.nelems) - uintptr(s.allocCount)
+	c.smallAllocCount[spc.sizeclass()] += uintptr(s.nelems) - uintptr(s.allocCount)
 
 	// Update heap_live with the same assumption.
 	usedBytes := uintptr(s.allocCount) * s.elemsize
 	atomic.Xadd64(&memstats.heap_live, int64(s.npages*pageSize)-int64(usedBytes))
 
-	// While we're here, flush local_scan, since we have to call
+	// While we're here, flush scanAlloc, since we have to call
 	// revise anyway.
-	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
-	c.local_scan = 0
+	atomic.Xadd64(&memstats.heap_scan, int64(c.scanAlloc))
+	c.scanAlloc = 0
 
 	if trace.enabled {
 		// heap_live changed.
@@ -215,8 +215,8 @@ func (c *mcache) refill(spc spanClass) {
 	c.alloc[spc] = s
 }
 
-// largeAlloc allocates a span for a large object.
-func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+// allocLarge allocates a span for a large object.
+func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) *mspan {
 	if size+_PageSize < size {
 		throw("out of memory")
 	}
@@ -235,8 +235,8 @@ func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 	if s == nil {
 		throw("out of memory")
 	}
-	c.local_largealloc += npages * pageSize
-	c.local_nlargealloc++
+	c.largeAlloc += npages * pageSize
+	c.largeAllocCount++
 
 	// Update heap_live and revise pacing if needed.
 	atomic.Xadd64(&memstats.heap_live, int64(npages*pageSize))
@@ -257,9 +257,9 @@ func (c *mcache) largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
 }
 
 func (c *mcache) releaseAll() {
-	// Take this opportunity to flush local_scan.
-	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
-	c.local_scan = 0
+	// Take this opportunity to flush scanAlloc.
+	atomic.Xadd64(&memstats.heap_scan, int64(c.scanAlloc))
+	c.scanAlloc = 0
 
 	sg := mheap_.sweepgen
 	for i := range c.alloc {
@@ -267,7 +267,7 @@ func (c *mcache) releaseAll() {
 		if s != &emptymspan {
 			// Adjust nsmallalloc in case the span wasn't fully allocated.
 			n := uintptr(s.nelems) - uintptr(s.allocCount)
-			c.local_nsmallalloc[spanClass(i).sizeclass()] -= n
+			c.smallAllocCount[spanClass(i).sizeclass()] -= n
 			if s.sweepgen != sg+1 {
 				// refill conservatively counted unallocated slots in heap_live.
 				// Undo this.

@@ -1040,7 +1040,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				// The object fits into existing tiny block.
 				x = unsafe.Pointer(c.tiny + off)
 				c.tinyoffset = off + size
-				c.local_tinyallocs++
+				c.tinyAllocCount++
 				mp.mallocing = 0
 				releasem(mp)
 				return x
@@ -1082,7 +1082,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	} else {
 		shouldhelpgc = true
-		span = c.largeAlloc(size, needzero, noscan)
+		span = c.allocLarge(size, needzero, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
 		x = unsafe.Pointer(span.base())
@@ -1111,7 +1111,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		} else {
 			scanSize = typ.ptrdata
 		}
-		c.local_scan += scanSize
+		c.scanAlloc += scanSize
 	}
 
 	// Ensure that the stores above that initialize x to
@@ -1153,8 +1153,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	if rate := MemProfileRate; rate > 0 {
-		if rate != 1 && size < c.next_sample {
-			c.next_sample -= size
+		if rate != 1 && size < c.nextSample {
+			c.nextSample -= size
 		} else {
 			mp := acquirem()
 			profilealloc(mp, x, size)
@@ -1221,7 +1221,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 			throw("profilealloc called with no P")
 		}
 	}
-	c.next_sample = nextSample()
+	c.nextSample = nextSample()
 	mProf_Malloc(x, size)
 }
 
