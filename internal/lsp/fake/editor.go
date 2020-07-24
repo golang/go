@@ -734,12 +734,12 @@ func (e *Editor) RunGenerate(ctx context.Context, dir string) error {
 		return nil
 	}
 	absDir := e.sandbox.Workdir.filePath(dir)
-	jsonArgs, err := source.EncodeArgs(span.URIFromPath(absDir), false)
+	jsonArgs, err := source.MarshalArgs(span.URIFromPath(absDir), false)
 	if err != nil {
 		return err
 	}
 	params := &protocol.ExecuteCommandParams{
-		Command:   source.CommandGenerate,
+		Command:   source.CommandGenerate.Name,
 		Arguments: jsonArgs,
 	}
 	if _, err := e.Server.ExecuteCommand(ctx, params); err != nil {

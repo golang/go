@@ -628,14 +628,14 @@ func formatZeroValue(T types.Type, qf types.Qualifier) string {
 	}
 }
 
-// EncodeArgs encodes the given arguments to json.RawMessages. This function
+// MarshalArgs encodes the given arguments to json.RawMessages. This function
 // is used to construct arguments to a protocol.Command.
 //
 // Example usage:
 //
 //   jsonArgs, err := EncodeArgs(1, "hello", true, StructuredArg{42, 12.6})
 //
-func EncodeArgs(args ...interface{}) ([]json.RawMessage, error) {
+func MarshalArgs(args ...interface{}) ([]json.RawMessage, error) {
 	var out []json.RawMessage
 	for _, arg := range args {
 		argJSON, err := json.Marshal(arg)
@@ -647,8 +647,8 @@ func EncodeArgs(args ...interface{}) ([]json.RawMessage, error) {
 	return out, nil
 }
 
-// DecodeArgs decodes the given json.RawMessages to the variables provided by
-// args. Each element of args should be a pointer.
+// UnmarshalArgs decodes the given json.RawMessages to the variables provided
+// by args. Each element of args should be a pointer.
 //
 // Example usage:
 //
@@ -658,9 +658,9 @@ func EncodeArgs(args ...interface{}) ([]json.RawMessage, error) {
 //       bul bool
 //       structured StructuredArg
 //   )
-//   err := DecodeArgs(args, &num, &str, &bul, &structured)
+//   err := UnmarshalArgs(args, &num, &str, &bul, &structured)
 //
-func DecodeArgs(jsonArgs []json.RawMessage, args ...interface{}) error {
+func UnmarshalArgs(jsonArgs []json.RawMessage, args ...interface{}) error {
 	if len(args) != len(jsonArgs) {
 		return fmt.Errorf("DecodeArgs: expected %d input arguments, got %d JSON arguments", len(args), len(jsonArgs))
 	}

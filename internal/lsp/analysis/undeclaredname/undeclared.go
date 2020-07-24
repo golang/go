@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/span"
 )
 
 const Doc = `suggested fixes for "undeclared name: <>"
@@ -86,7 +87,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func SuggestedFix(fset *token.FileSet, pos token.Pos, content []byte, file *ast.File, _ *types.Package, _ *types.Info) (*analysis.SuggestedFix, error) {
+func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast.File, _ *types.Package, _ *types.Info) (*analysis.SuggestedFix, error) {
+	pos := rng.Start // don't use the end
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) < 2 {
 		return nil, fmt.Errorf("")

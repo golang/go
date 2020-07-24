@@ -14,7 +14,7 @@ import (
 
 // CodeLens computes code lens for a go.mod file.
 func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]protocol.CodeLens, error) {
-	if !snapshot.View().Options().EnabledCodeLens[source.CommandUpgradeDependency] {
+	if !snapshot.View().Options().EnabledCodeLens[source.CommandUpgradeDependency.Name] {
 		return nil, nil
 	}
 	ctx, done := event.Start(ctx, "mod.CodeLens", tag.URI.Of(uri))
@@ -59,7 +59,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
-		jsonArgs, err := source.EncodeArgs(uri, dep)
+		jsonArgs, err := source.MarshalArgs(uri, dep)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Range: rng,
 			Command: protocol.Command{
 				Title:     fmt.Sprintf("Upgrade dependency to %s", latest),
-				Command:   source.CommandUpgradeDependency,
+				Command:   source.CommandUpgradeDependency.Name,
 				Arguments: jsonArgs,
 			},
 		})
@@ -80,7 +80,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
-		jsonArgs, err := source.EncodeArgs(uri, append([]string{"-u"}, allUpgrades...))
+		jsonArgs, err := source.MarshalArgs(uri, append([]string{"-u"}, allUpgrades...))
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "Upgrade all dependencies",
-				Command:   source.CommandUpgradeDependency,
+				Command:   source.CommandUpgradeDependency.Name,
 				Arguments: jsonArgs,
 			},
 		})

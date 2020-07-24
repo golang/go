@@ -228,7 +228,7 @@ func DefaultOptions() source.Options {
 		},
 		source.Sum: {},
 	}
-	o.UserOptions.EnabledCodeLens[source.CommandTest] = true
+	o.UserOptions.EnabledCodeLens[source.CommandTest.Name] = true
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute

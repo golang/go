@@ -54,38 +54,14 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-const (
-	// CommandGenerate is a gopls command to run `go test` for a specific test function.
-	CommandTest = "test"
-
-	// CommandGenerate is a gopls command to run `go generate` for a directory.
-	CommandGenerate = "generate"
-
-	// CommandTidy is a gopls command to run `go mod tidy` for a module.
-	CommandTidy = "tidy"
-
-	// CommandVendor is a gopls command to run `go mod vendor` for a module.
-	CommandVendor = "vendor"
-
-	// CommandUpgradeDependency is a gopls command to upgrade a dependency.
-	CommandUpgradeDependency = "upgrade_dependency"
-
-	// CommandRegenerateCfgo is a gopls command to regenerate cgo definitions.
-	CommandRegenerateCgo = "regenerate_cgo"
-
-	// CommandFillStruct is a gopls command to fill a struct with default
-	// values.
-	CommandFillStruct = "fill_struct"
-
-	// CommandUndeclaredName is a gopls command to add a variable declaration
-	// for an undeclared name.
-	CommandUndeclaredName = "undeclared_name"
-)
-
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
 // invokation, etc.).
 func DefaultOptions() Options {
+	var commands []string
+	for _, c := range Commands {
+		commands = append(commands, c.Name)
+	}
 	return Options{
 		ClientOptions: ClientOptions{
 			InsertTextFormat:                  protocol.PlainTextTextFormat,
@@ -110,16 +86,7 @@ func DefaultOptions() Options {
 				},
 				Sum: {},
 			},
-			SupportedCommands: []string{
-				CommandGenerate,
-				CommandFillStruct,
-				CommandRegenerateCgo,
-				CommandTest,
-				CommandTidy,
-				CommandUndeclaredName,
-				CommandUpgradeDependency,
-				CommandVendor,
-			},
+			SupportedCommands: commands,
 		},
 		UserOptions: UserOptions{
 			Env:                     os.Environ(),
@@ -132,9 +99,9 @@ func DefaultOptions() Options {
 			UnimportedCompletion:    true,
 			CompletionDocumentation: true,
 			EnabledCodeLens: map[string]bool{
-				CommandGenerate:          true,
-				CommandUpgradeDependency: true,
-				CommandRegenerateCgo:     true,
+				CommandGenerate.Name:          true,
+				CommandUpgradeDependency.Name: true,
+				CommandRegenerateCgo.Name:     true,
 			},
 		},
 		DebuggingOptions: DebuggingOptions{
@@ -728,11 +695,10 @@ func typeErrorAnalyzers() map[string]Analyzer {
 			enabled:    true,
 		},
 		undeclaredname.Analyzer.Name: {
-			Analyzer:     undeclaredname.Analyzer,
-			FixesError:   undeclaredname.FixesError,
-			SuggestedFix: undeclaredname.SuggestedFix,
-			Command:      CommandUndeclaredName,
-			enabled:      true,
+			Analyzer:   undeclaredname.Analyzer,
+			FixesError: undeclaredname.FixesError,
+			Command:    CommandUndeclaredName,
+			enabled:    true,
 		},
 	}
 }
@@ -740,10 +706,9 @@ func typeErrorAnalyzers() map[string]Analyzer {
 func convenienceAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		fillstruct.Analyzer.Name: {
-			Analyzer:     fillstruct.Analyzer,
-			SuggestedFix: fillstruct.SuggestedFix,
-			Command:      CommandFillStruct,
-			enabled:      true,
+			Analyzer: fillstruct.Analyzer,
+			Command:  CommandFillStruct,
+			enabled:  true,
 		},
 	}
 }

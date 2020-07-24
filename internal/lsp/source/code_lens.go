@@ -20,9 +20,9 @@ import (
 type lensFunc func(context.Context, Snapshot, FileHandle) ([]protocol.CodeLens, error)
 
 var lensFuncs = map[string]lensFunc{
-	CommandGenerate:      goGenerateCodeLens,
-	CommandTest:          runTestCodeLens,
-	CommandRegenerateCgo: regenerateCgoLens,
+	CommandGenerate.Name:      goGenerateCodeLens,
+	CommandTest.Name:          runTestCodeLens,
+	CommandRegenerateCgo.Name: regenerateCgoLens,
 }
 
 // CodeLens computes code lens for Go source code.
@@ -41,8 +41,10 @@ func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol
 	return result, nil
 }
 
-var testRe = regexp.MustCompile("^Test[^a-z]")
-var benchmarkRe = regexp.MustCompile("^Benchmark[^a-z]")
+var (
+	testRe      = regexp.MustCompile("^Test[^a-z]")
+	benchmarkRe = regexp.MustCompile("^Benchmark[^a-z]")
+)
 
 func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	codeLens := make([]protocol.CodeLens, 0)
@@ -70,7 +72,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		}
 
 		if matchTestFunc(fn, pkg, testRe, "T") {
-			jsonArgs, err := EncodeArgs(fh.URI(), "-run", fn.Name.Name)
+			jsonArgs, err := MarshalArgs(fh.URI(), "-run", fn.Name.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -78,14 +80,14 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				Range: rng,
 				Command: protocol.Command{
 					Title:     "run test",
-					Command:   CommandTest,
+					Command:   CommandTest.Name,
 					Arguments: jsonArgs,
 				},
 			})
 		}
 
 		if matchTestFunc(fn, pkg, benchmarkRe, "B") {
-			jsonArgs, err := EncodeArgs(fh.URI(), "-bench", fn.Name.Name)
+			jsonArgs, err := MarshalArgs(fh.URI(), "-bench", fn.Name.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +95,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				Range: rng,
 				Command: protocol.Command{
 					Title:     "run benchmark",
-					Command:   CommandTest,
+					Command:   CommandTest.Name,
 					Arguments: jsonArgs,
 				},
 			})
@@ -158,11 +160,11 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 				return nil, err
 			}
 			dir := span.URIFromPath(filepath.Dir(fh.URI().Filename()))
-			nonRecursiveArgs, err := EncodeArgs(dir, false)
+			nonRecursiveArgs, err := MarshalArgs(dir, false)
 			if err != nil {
 				return nil, err
 			}
-			recursiveArgs, err := EncodeArgs(dir, true)
+			recursiveArgs, err := MarshalArgs(dir, true)
 			if err != nil {
 				return nil, err
 			}
@@ -171,7 +173,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate",
-						Command:   CommandGenerate,
+						Command:   CommandGenerate.Name,
 						Arguments: nonRecursiveArgs,
 					},
 				},
@@ -179,7 +181,7 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 					Range: rng,
 					Command: protocol.Command{
 						Title:     "run go generate ./...",
-						Command:   CommandGenerate,
+						Command:   CommandGenerate.Name,
 						Arguments: recursiveArgs,
 					},
 				},
@@ -210,7 +212,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	if err != nil {
 		return nil, err
 	}
-	jsonArgs, err := EncodeArgs(fh.URI())
+	jsonArgs, err := MarshalArgs(fh.URI())
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +221,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 			Range: rng,
 			Command: protocol.Command{
 				Title:     "regenerate cgo definitions",
-				Command:   CommandRegenerateCgo,
+				Command:   CommandRegenerateCgo.Name,
 				Arguments: jsonArgs,
 			},
 		},

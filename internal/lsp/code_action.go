@@ -252,7 +252,7 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, ph source.Pack
 		}
 		// If the suggested fix for the diagnostic is expected to be separate,
 		// see if there are any supported commands available.
-		if analyzer.SuggestedFix != nil {
+		if analyzer.Command != nil {
 			action, err := diagnosticToCommandCodeAction(ctx, snapshot, srcErr, &diag, protocol.QuickFix)
 			if err != nil {
 				return nil, nil, err
@@ -347,7 +347,7 @@ func convenienceFixes(ctx context.Context, snapshot source.Snapshot, ph source.P
 		if !a.Enabled(snapshot) {
 			continue
 		}
-		if a.SuggestedFix == nil {
+		if a.Command == nil {
 			event.Error(ctx, "convenienceFixes", fmt.Errorf("no suggested fixes for convenience analyzer %s", a.Analyzer.Name))
 			continue
 		}
@@ -383,10 +383,10 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 	if analyzer == nil {
 		return nil, fmt.Errorf("no convenience analyzer for category %s", e.Category)
 	}
-	if analyzer.Command == "" {
+	if analyzer.Command == nil {
 		return nil, fmt.Errorf("no command for convenience analyzer %s", analyzer.Analyzer.Name)
 	}
-	jsonArgs, err := source.EncodeArgs(e.URI, e.Range)
+	jsonArgs, err := source.MarshalArgs(e.URI, e.Range)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +399,7 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 		Kind:        kind,
 		Diagnostics: diagnostics,
 		Command: &protocol.Command{
-			Command:   analyzer.Command,
+			Command:   analyzer.Command.Name,
 			Title:     e.Message,
 			Arguments: jsonArgs,
 		},
@@ -407,34 +407,31 @@ func diagnosticToCommandCodeAction(ctx context.Context, snapshot source.Snapshot
 }
 
 func extractionFixes(ctx context.Context, snapshot source.Snapshot, ph source.PackageHandle, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
-	fh, err := snapshot.GetFile(ctx, uri)
-	if err != nil {
+	if rng.Start == rng.End {
 		return nil, nil
 	}
+	fh, err := snapshot.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	jsonArgs, err := source.MarshalArgs(uri, rng)
+	if err != nil {
+		return nil, err
+	}
 	var actions []protocol.CodeAction
-	edits, err := source.ExtractVariable(ctx, snapshot, fh, rng)
-	if err != nil {
-		return nil, err
-	}
-	if len(edits) > 0 {
+	for _, command := range []*source.Command{
+		source.CommandExtractFunction,
+		source.CommandExtractVariable,
+	} {
+		if !command.Applies(ctx, snapshot, fh, rng) {
+			continue
+		}
 		actions = append(actions, protocol.CodeAction{
-			Title: "Extract to variable",
+			Title: command.Title,
 			Kind:  protocol.RefactorExtract,
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: documentChanges(fh, edits),
-			},
-		})
-	}
-	edits, err = source.ExtractFunction(ctx, snapshot, fh, rng)
-	if err != nil {
-		return nil, err
-	}
-	if len(edits) > 0 {
-		actions = append(actions, protocol.CodeAction{
-			Title: "Extract to function",
-			Kind:  protocol.RefactorExtract,
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: documentChanges(fh, edits),
+			Command: &protocol.Command{
+				Command:   source.CommandExtractFunction.Name,
+				Arguments: jsonArgs,
 			},
 		})
 	}

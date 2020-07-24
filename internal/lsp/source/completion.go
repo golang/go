@@ -955,7 +955,7 @@ func (c *completer) methodsAndFields(ctx context.Context, typ types.Type, addres
 
 // lexical finds completions in the lexical environment.
 func (c *completer) lexical(ctx context.Context) error {
-	scopes := collectScopes(c.pkg, c.path, c.pos)
+	scopes := collectScopes(c.pkg.GetTypesInfo(), c.path, c.pos)
 	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
 	var (
@@ -1092,7 +1092,7 @@ func (c *completer) lexical(ctx context.Context) error {
 	return nil
 }
 
-func collectScopes(pkg Package, path []ast.Node, pos token.Pos) []*types.Scope {
+func collectScopes(info *types.Info, path []ast.Node, pos token.Pos) []*types.Scope {
 	// scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	var scopes []*types.Scope
 	for _, n := range path {
@@ -1107,7 +1107,7 @@ func collectScopes(pkg Package, path []ast.Node, pos token.Pos) []*types.Scope {
 				n = node.Type
 			}
 		}
-		scopes = append(scopes, pkg.GetTypesInfo().Scopes[n])
+		scopes = append(scopes, info.Scopes[n])
 	}
 	return scopes
 }

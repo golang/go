@@ -464,6 +464,23 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	}
 }
 
+func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, rng protocol.Range, cmd string) ([]protocol.TextDocumentEdit, error) {
+	var command *source.Command
+	for _, c := range source.Commands {
+		if c.Name == cmd {
+			command = c
+			break
+		}
+	}
+	if command == nil {
+		return nil, fmt.Errorf("no known command for %s", cmd)
+	}
+	if !command.Applies(ctx, snapshot, fh, rng) {
+		return nil, nil
+	}
+	return command.SuggestedFix(ctx, snapshot, fh, rng)
+}
+
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
 	uri := start.URI()
 	_, err := r.server.session.ViewOf(uri)

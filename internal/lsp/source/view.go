@@ -460,14 +460,11 @@ type Analyzer struct {
 	Analyzer *analysis.Analyzer
 	enabled  bool
 
-	// SuggestedFix is non-nil if we expect this analyzer to provide its fix
-	// separately from its diagnostics. That is, we should apply the analyzer's
-	// suggested fixes through a Command, not a TextEdit.
-	SuggestedFix SuggestedFixFunc
-
 	// Command is the name of the command used to invoke the suggested fixes
-	// for the analyzer.
-	Command string
+	// for the analyzer. It is non-nil if we expect this analyzer to provide
+	// its fix separately from its diagnostics. That is, we should apply the
+	// analyzer's suggested fixes through a Command, not a TextEdit.
+	Command *Command
 
 	// If this is true, then we can apply the suggested fixes
 	// as part of a source.FixAll codeaction.

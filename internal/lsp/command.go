@@ -20,15 +20,25 @@ import (
 )
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
-	var found bool
-	for _, command := range s.session.Options().SupportedCommands {
-		if command == params.Command {
-			found = true
+	var command *source.Command
+	for _, c := range source.Commands {
+		if c.Name == params.Command {
+			command = c
 			break
 		}
 	}
-	if !found {
-		return nil, fmt.Errorf("unsupported command detected: %s", params.Command)
+	if command == nil {
+		return nil, fmt.Errorf("no known command")
+	}
+	var match bool
+	for _, name := range s.session.Options().SupportedCommands {
+		if command.Name == name {
+			match = true
+			break
+		}
+	}
+	if !match {
+		return nil, fmt.Errorf("%s is not a supported command", command.Name)
 	}
 	// Some commands require that all files are saved to disk. If we detect
 	// unsaved files, warn the user instead of running the commands.
@@ -40,7 +50,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 	}
 	if unsaved {
-		switch params.Command {
+		switch command {
 		case source.CommandTest, source.CommandGenerate:
 			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
@@ -48,69 +58,19 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			})
 		}
 	}
-	switch params.Command {
-	case source.CommandTest:
-		var uri protocol.DocumentURI
-		var flag string
-		var funcName string
-		if err := source.DecodeArgs(params.Arguments, &uri, &flag, &funcName); err != nil {
-			return nil, err
-		}
-		snapshot, _, ok, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
-		if !ok {
-			return nil, err
-		}
-		go s.runTest(ctx, snapshot, []string{flag, funcName})
-	case source.CommandGenerate:
-		var uri protocol.DocumentURI
-		var recursive bool
-		if err := source.DecodeArgs(params.Arguments, &uri, &recursive); err != nil {
-			return nil, err
-		}
-		go s.runGoGenerate(xcontext.Detach(ctx), uri.SpanURI(), recursive)
-	case source.CommandRegenerateCgo:
-		var uri protocol.DocumentURI
-		if err := source.DecodeArgs(params.Arguments, &uri); err != nil {
-			return nil, err
-		}
-		mod := source.FileModification{
-			URI:    uri.SpanURI(),
-			Action: source.InvalidateMetadata,
-		}
-		_, err := s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
-		return nil, err
-	case source.CommandTidy, source.CommandVendor:
-		var uri protocol.DocumentURI
-		if err := source.DecodeArgs(params.Arguments, &uri); err != nil {
-			return nil, err
-		}
-		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
-		// so we combine them into one case for convenience.
-		a := "tidy"
-		if params.Command == source.CommandVendor {
-			a = "vendor"
-		}
-		err := s.directGoModCommand(ctx, uri, "mod", []string{a}...)
-		return nil, err
-	case source.CommandUpgradeDependency:
-		var uri protocol.DocumentURI
-		var deps []string
-		if err := source.DecodeArgs(params.Arguments, &uri, &deps); err != nil {
-			return nil, err
-		}
-		err := s.directGoModCommand(ctx, uri, "get", deps...)
-		return nil, err
-	case source.CommandFillStruct, source.CommandUndeclaredName:
+	// If the command has a suggested fix function available, use it and apply
+	// the edits to the workspace.
+	if command.IsSuggestedFix() {
 		var uri protocol.DocumentURI
 		var rng protocol.Range
-		if err := source.DecodeArgs(params.Arguments, &uri, &rng); err != nil {
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &rng); err != nil {
 			return nil, err
 		}
 		snapshot, fh, ok, err := s.beginFileRequest(ctx, uri, source.Go)
 		if !ok {
 			return nil, err
 		}
-		edits, err := commandToEdits(ctx, snapshot, fh, rng, params.Command)
+		edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
 		if err != nil {
 			return nil, err
 		}
@@ -128,27 +88,65 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 				Message: fmt.Sprintf("%s failed: %v", params.Command, r.FailureReason),
 			})
 		}
+		return nil, nil
+	}
+	// Default commands that don't have suggested fix functions.
+	switch command {
+	case source.CommandTest:
+		var uri protocol.DocumentURI
+		var flag string
+		var funcName string
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &flag, &funcName); err != nil {
+			return nil, err
+		}
+		snapshot, _, ok, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
+		if !ok {
+			return nil, err
+		}
+		go s.runTest(ctx, snapshot, []string{flag, funcName})
+	case source.CommandGenerate:
+		var uri protocol.DocumentURI
+		var recursive bool
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &recursive); err != nil {
+			return nil, err
+		}
+		go s.runGoGenerate(xcontext.Detach(ctx), uri.SpanURI(), recursive)
+	case source.CommandRegenerateCgo:
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		mod := source.FileModification{
+			URI:    uri.SpanURI(),
+			Action: source.InvalidateMetadata,
+		}
+		_, err := s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
+		return nil, err
+	case source.CommandTidy, source.CommandVendor:
+		var uri protocol.DocumentURI
+		if err := source.UnmarshalArgs(params.Arguments, &uri); err != nil {
+			return nil, err
+		}
+		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
+		// so we combine them into one case for convenience.
+		a := "tidy"
+		if command == source.CommandVendor {
+			a = "vendor"
+		}
+		err := s.directGoModCommand(ctx, uri, "mod", []string{a}...)
+		return nil, err
+	case source.CommandUpgradeDependency:
+		var uri protocol.DocumentURI
+		var deps []string
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &deps); err != nil {
+			return nil, err
+		}
+		err := s.directGoModCommand(ctx, uri, "get", deps...)
+		return nil, err
 	default:
 		return nil, fmt.Errorf("unknown command: %s", params.Command)
 	}
 	return nil, nil
-}
-
-func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, rng protocol.Range, cmd string) ([]protocol.TextDocumentEdit, error) {
-	var analyzer *source.Analyzer
-	for _, a := range source.EnabledAnalyzers(snapshot) {
-		if cmd == a.Command {
-			analyzer = &a
-			break
-		}
-	}
-	if analyzer == nil {
-		return nil, fmt.Errorf("no known analyzer for %s", cmd)
-	}
-	if analyzer.SuggestedFix == nil {
-		return nil, fmt.Errorf("no fix function for %s", cmd)
-	}
-	return source.CommandSuggestedFixes(ctx, snapshot, fh, rng, analyzer.SuggestedFix)
 }
 
 func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {

@@ -6,7 +6,6 @@ package source
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -16,57 +15,32 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
 
-func ExtractVariable(ctx context.Context, snapshot Snapshot, fh FileHandle, protoRng protocol.Range) ([]protocol.TextEdit, error) {
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
-	if err != nil {
-		return nil, fmt.Errorf("ExtractVariable: %v", err)
-	}
-	file, _, m, _, err := pgh.Cached()
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.RangeSpan(protoRng)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
+func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	if rng.Start == rng.End {
-		return nil, nil
+		return nil, fmt.Errorf("extractVariable: start and end are equal (%v)", fset.Position(rng.Start))
 	}
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("extractVariable: no path enclosing interval")
 	}
-	fset := snapshot.View().Session().Cache().FileSet()
 	node := path[0]
-	tok := fset.File(node.Pos())
-	if tok == nil {
-		return nil, fmt.Errorf("ExtractVariable: no token.File for %s", fh.URI())
-	}
-	var content []byte
-	if content, err = fh.Read(); err != nil {
-		return nil, err
-	}
 	if rng.Start != node.Pos() || rng.End != node.End() {
-		return nil, nil
+		return nil, fmt.Errorf("extractVariable: node doesn't perfectly enclose range")
 	}
-	name := generateAvailableIdentifier(node.Pos(), pkg, path, file)
-
-	var assignment string
 	expr, ok := node.(ast.Expr)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("extractVariable: node is not an expression")
 	}
+	name := generateAvailableIdentifier(expr.Pos(), file, path, info)
+
 	// Create new AST node for extracted code.
+	var assignment string
 	switch expr.(type) {
 	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr,
 		*ast.SliceExpr, *ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr: // TODO: stricter rules for selectorExpr.
@@ -76,7 +50,7 @@ func ExtractVariable(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 			Rhs: []ast.Expr{expr},
 		}
 		var buf bytes.Buffer
-		if err = format.Node(&buf, fset, assignStmt); err != nil {
+		if err := format.Node(&buf, fset, assignStmt); err != nil {
 			return nil, err
 		}
 		assignment = buf.String()
@@ -91,32 +65,45 @@ func ExtractVariable(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 		return nil, nil
 	}
 
-	// Convert token.Pos to protocol.Position.
-	rng = span.NewRange(fset, insertBeforeStmt.Pos(), insertBeforeStmt.End())
-	spn, err = rng.Span()
-	if err != nil {
+	tok := fset.File(node.Pos())
+	if tok == nil {
 		return nil, nil
 	}
-	beforeStmtStart, err := m.Position(spn.Start())
-	if err != nil {
-		return nil, nil
-	}
-	stmtBeforeRng := protocol.Range{
-		Start: beforeStmtStart,
-		End:   beforeStmtStart,
-	}
-	indent := calculateIndentation(content, tok, insertBeforeStmt)
-
-	return []protocol.TextEdit{
-		{
-			Range:   stmtBeforeRng,
-			NewText: assignment + "\n" + indent,
-		},
-		{
-			Range:   protoRng,
-			NewText: name,
+	indent := calculateIndentation(src, tok, insertBeforeStmt)
+	return &analysis.SuggestedFix{
+		TextEdits: []analysis.TextEdit{
+			{
+				Pos:     insertBeforeStmt.Pos(),
+				End:     insertBeforeStmt.End(),
+				NewText: []byte(assignment + "\n" + indent),
+			},
+			{
+				Pos:     rng.Start,
+				End:     rng.Start,
+				NewText: []byte(name),
+			},
 		},
 	}, nil
+}
+
+// canExtractVariable reports whether the code in the given range can be
+// extracted to a variable.
+// TODO(rstambler): De-duplicate the logic between extractVariable and
+// canExtractVariable.
+func canExtractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool {
+	if rng.Start == rng.End {
+		return false
+	}
+	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
+	if len(path) == 0 {
+		return false
+	}
+	node := path[0]
+	if rng.Start != node.Pos() || rng.End != node.End() {
+		return false
+	}
+	_, ok := node.(ast.Expr)
+	return ok
 }
 
 // Calculate indentation for insertion.
@@ -143,63 +130,36 @@ func isValidName(name string, scopes []*types.Scope) bool {
 	return true
 }
 
-// ExtractFunction refactors the selected block of code into a new function. It also
-// replaces the selected block of code with a call to the extracted function. First, we
-// manually adjust the selection range. We remove trailing and leading whitespace
-// characters to ensure the range is precisely bounded by AST nodes. Next, we
-// determine the variables that will be the paramters and return values of the
-// extracted function. Lastly, we construct the call of the function and insert
-// this call as well as the extracted function into their proper locations.
-func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, protoRng protocol.Range) ([]protocol.TextEdit, error) {
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
-	if err != nil {
-		return nil, fmt.Errorf("ExtractFunction: %v", err)
-	}
-	file, _, m, _, err := pgh.Cached()
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.RangeSpan(protoRng)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spn.Range(m.Converter)
-	if err != nil {
-		return nil, err
-	}
-	if rng.Start == rng.End {
-		return nil, nil
-	}
-	content, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-	fset := snapshot.View().Session().Cache().FileSet()
+// extractFunction refactors the selected block of code into a new function.
+// It also replaces the selected block of code with a call to the extracted
+// function. First, we manually adjust the selection range. We remove trailing
+// and leading whitespace characters to ensure the range is precisely bounded
+// by AST nodes. Next, we determine the variables that will be the paramters
+// and return values of the extracted function. Lastly, we construct the call
+// of the function and insert this call as well as the extracted function into
+// their proper locations.
+func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		return nil, fmt.Errorf("ExtractFunction: no token.File for %s", fh.URI())
+		return nil, fmt.Errorf("extractFunction: no token.File")
 	}
-	rng = adjustRangeForWhitespace(content, tok, rng)
+	rng = adjustRangeForWhitespace(rng, tok, src)
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: no path enclosing interval")
 	}
 	// Node that encloses selection must be a statement.
 	// TODO: Support function extraction for an expression.
 	if _, ok := path[0].(ast.Stmt); !ok {
-		return nil, nil
-	}
-	info := pkg.GetTypesInfo()
-	if info == nil {
-		return nil, fmt.Errorf("nil TypesInfo")
+		return nil, fmt.Errorf("extractFunction: ast.Node is not a statement")
 	}
 	fileScope := info.Scopes[file]
 	if fileScope == nil {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: file scope is empty")
 	}
 	pkgScope := fileScope.Parent()
 	if pkgScope == nil {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: package scope is empty")
 	}
 	// Find function enclosing the selection.
 	var outer *ast.FuncDecl
@@ -210,7 +170,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 		}
 	}
 	if outer == nil {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: no enclosing function")
 	}
 	// At the moment, we don't extract selections containing return statements,
 	// as they are more complex and need to be adjusted to maintain correctness.
@@ -229,7 +189,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 		return n.Pos() <= rng.End
 	})
 	if containsReturn {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: selected block contains return")
 	}
 	// Find the nodes at the start and end of the selection.
 	var start, end ast.Node
@@ -246,7 +206,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 		return n.Pos() <= rng.End
 	})
 	if start == nil || end == nil {
-		return nil, nil
+		return nil, fmt.Errorf("extractFunction: start or end node is empty")
 	}
 
 	// Now that we have determined the correct range for the selection block,
@@ -274,7 +234,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 		if _, ok := seenVars[obj]; ok {
 			continue
 		}
-		typ := analysisinternal.TypeExpr(fset, file, pkg.GetTypes(), obj.Type())
+		typ := analysisinternal.TypeExpr(fset, file, pkg, obj.Type())
 		if typ == nil {
 			return nil, fmt.Errorf("nil AST expression for type: %v", obj.Name())
 		}
@@ -334,10 +294,10 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 			declarations = append(declarations, &ast.DeclStmt{Decl: genDecl})
 		}
 		var declBuf bytes.Buffer
-		if err = format.Node(&declBuf, fset, declarations); err != nil {
+		if err := format.Node(&declBuf, fset, declarations); err != nil {
 			return nil, err
 		}
-		indent := calculateIndentation(content, tok, start)
+		indent := calculateIndentation(src, tok, start)
 		// Add proper indentation to each declaration. Also add formatting to
 		// the line following the last initialization to ensure that subsequent
 		// edits begin at the proper location.
@@ -345,7 +305,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 			"\n" + indent
 	}
 
-	name := generateAvailableIdentifier(start.Pos(), pkg, path, file)
+	name := generateAvailableIdentifier(start.Pos(), file, path, info)
 	var replace ast.Node
 	if len(returns) > 0 {
 		// If none of the variables on the left-hand side of the function call have
@@ -372,7 +332,7 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 
 	startOffset := tok.Offset(rng.Start)
 	endOffset := tok.Offset(rng.End)
-	selection := content[startOffset:endOffset]
+	selection := src[startOffset:endOffset]
 	// Put selection in constructed file to parse and produce block statement. We can
 	// then use the block statement to traverse and edit extracted function without
 	// altering the original file.
@@ -415,8 +375,8 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 	outerEnd := tok.Offset(outer.End())
 	// We're going to replace the whole enclosing function,
 	// so preserve the text before and after the selected block.
-	before := content[outerStart:startOffset]
-	after := content[endOffset:outerEnd]
+	before := src[outerStart:startOffset]
+	after := src[endOffset:outerEnd]
 	var fullReplacement strings.Builder
 	fullReplacement.Write(before)
 	fullReplacement.WriteString(initializations) // add any initializations, if needed
@@ -425,28 +385,13 @@ func ExtractFunction(ctx context.Context, snapshot Snapshot, fh FileHandle, prot
 	fullReplacement.WriteString("\n\n")       // add newlines after the enclosing function
 	fullReplacement.Write(newFuncBuf.Bytes()) // insert the extracted function
 
-	// Convert enclosing function's span.Range to protocol.Range.
-	rng = span.NewRange(fset, outer.Pos(), outer.End())
-	spn, err = rng.Span()
-	if err != nil {
-		return nil, nil
-	}
-	startFunc, err := m.Position(spn.Start())
-	if err != nil {
-		return nil, nil
-	}
-	endFunc, err := m.Position(spn.End())
-	if err != nil {
-		return nil, nil
-	}
-	funcLoc := protocol.Range{
-		Start: startFunc,
-		End:   endFunc,
-	}
-	return []protocol.TextEdit{
-		{
-			Range:   funcLoc,
-			NewText: fullReplacement.String(),
+	return &analysis.SuggestedFix{
+		TextEdits: []analysis.TextEdit{
+			{
+				Pos:     outer.Pos(),
+				End:     outer.End(),
+				NewText: []byte(fullReplacement.String()),
+			},
 		},
 	}, nil
 }
@@ -582,10 +527,31 @@ func collectFreeVars(info *types.Info, file *ast.File, fileScope *types.Scope,
 	return free, vars, assigned
 }
 
+// canExtractFunction reports whether the code in the given range can be
+// extracted to a function.
+// TODO(rstambler): De-duplicate the logic between extractFunction and
+// canExtractFunction.
+func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool {
+	if rng.Start == rng.End {
+		return false
+	}
+	tok := fset.File(file.Pos())
+	if tok == nil {
+		return false
+	}
+	rng = adjustRangeForWhitespace(rng, tok, src)
+	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
+	if len(path) == 0 {
+		return false
+	}
+	_, ok := path[0].(ast.Stmt)
+	return ok
+}
+
 // Adjust new function name until no collisons in scope. Possible collisions include
 // other function and variable names.
-func generateAvailableIdentifier(pos token.Pos, pkg Package, path []ast.Node, file *ast.File) string {
-	scopes := collectScopes(pkg, path, pos)
+func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info) string {
+	scopes := collectScopes(info, path, pos)
 	var idx int
 	name := "x0"
 	for file.Scope.Lookup(name) != nil || !isValidName(name, scopes) {
@@ -609,7 +575,7 @@ func generateAvailableIdentifier(pos token.Pos, pkg Package, path []ast.Node, fi
 // their cursors for whitespace. To support this use case, we must manually adjust the
 // ranges to match the correct AST node. In this particular example, we would adjust
 // rng.Start forward by one byte, and rng.End backwards by two bytes.
-func adjustRangeForWhitespace(content []byte, tok *token.File, rng span.Range) span.Range {
+func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) span.Range {
 	offset := tok.Offset(rng.Start)
 	for offset < len(content) {
 		if !unicode.IsSpace(rune(content[offset])) {
