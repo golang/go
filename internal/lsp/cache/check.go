@@ -238,7 +238,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 		if err != nil {
 			return nil, err
 		}
-		pghs = append(pghs, s.view.session.cache.parseGoHandle(ctx, fh, mode))
+		pghs = append(pghs, s.parseGoHandle(ctx, fh, mode))
 	}
 	return pghs, nil
 }
@@ -288,7 +288,7 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 				actualErrors[i] = err
 				return
 			}
-			pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, mode)
+			pgh := snapshot.parseGoHandle(ctx, fh, mode)
 			pgf, fixed, err := snapshot.parseGo(ctx, pgh)
 			if err != nil {
 				actualErrors[i] = err

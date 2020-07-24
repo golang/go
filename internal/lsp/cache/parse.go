@@ -51,27 +51,31 @@ type parseGoData struct {
 	err   error // any other errors
 }
 
-func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
+func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
 	key := parseKey{
 		file: fh.FileIdentity(),
 		mode: mode,
 	}
-	parseHandle := c.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	if pgh := s.getGoFile(key); pgh != nil {
+		return pgh
+	}
+	parseHandle := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return parseGo(ctx, snapshot.view.session.cache.fset, fh, mode)
 	})
 
-	astHandle := c.store.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
+	astHandle := s.view.session.cache.store.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return buildASTCache(ctx, snapshot, parseHandle)
 	})
 
-	return &parseGoHandle{
+	pgh := &parseGoHandle{
 		handle:         parseHandle,
 		file:           fh,
 		mode:           mode,
 		astCacheHandle: astHandle,
 	}
+	return s.addGoFile(key, pgh)
 }
 
 func (pgh *parseGoHandle) String() string {
@@ -87,7 +91,7 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 }
 
 func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	pgh := s.view.session.cache.parseGoHandle(ctx, fh, mode)
+	pgh := s.parseGoHandle(ctx, fh, mode)
 	pgf, _, err := s.parseGo(ctx, pgh)
 	return pgf, err
 }
@@ -107,18 +111,14 @@ func (s *snapshot) PosToDecl(ctx context.Context, pgf *source.ParsedGoFile) (map
 		return nil, err
 	}
 
-	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
+	pgh := s.parseGoHandle(ctx, fh, pgf.Mode)
 	d, err := pgh.astCacheHandle.Get(ctx, s)
 	if err != nil {
 		return nil, err
 	}
 
 	data := d.(*astCacheData)
-	if data.err != nil {
-		return nil, data.err
-	}
-
-	return data.posToDecl, nil
+	return data.posToDecl, data.err
 }
 
 func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (map[token.Pos]*ast.Field, error) {
@@ -127,17 +127,14 @@ func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (ma
 		return nil, err
 	}
 
-	pgh := s.view.session.cache.parseGoHandle(ctx, fh, pgf.Mode)
+	pgh := s.parseGoHandle(ctx, fh, pgf.Mode)
 	d, err := pgh.astCacheHandle.Get(ctx, s)
 	if err != nil || d == nil {
 		return nil, err
 	}
 
 	data := d.(*astCacheData)
-	if data.err != nil {
-		return nil, data.err
-	}
-	return data.posToField, nil
+	return data.posToField, data.err
 }
 
 type astCacheData struct {
@@ -317,6 +314,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		Converter: span.NewTokenConverter(fset, tok),
 		Content:   buf,
 	}
+
 	return &parseGoData{
 		parsed: &source.ParsedGoFile{
 			URI:      fh.URI(),

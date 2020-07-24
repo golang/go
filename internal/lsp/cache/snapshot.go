@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"io"
@@ -59,6 +60,9 @@ type snapshot struct {
 	// files maps file URIs to their corresponding FileHandles.
 	// It may invalidated when a file's content changes.
 	files map[span.URI]source.VersionedFileHandle
+
+	// goFiles maps a parseKey to its parseGoHandle.
+	goFiles map[parseKey]*parseGoHandle
 
 	// packages maps a packageKey to a set of packageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
@@ -315,6 +319,22 @@ func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID
 	for _, parentID := range importedBy {
 		s.transitiveReverseDependencies(parentID, ids)
 	}
+}
+
+func (s *snapshot) getGoFile(key parseKey) *parseGoHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.goFiles[key]
+}
+
+func (s *snapshot) addGoFile(key parseKey, pgh *parseGoHandle) *parseGoHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existing, ok := s.goFiles[key]; ok {
+		return existing
+	}
+	s.goFiles[key] = pgh
+	return pgh
 }
 
 func (s *snapshot) getModHandle(uri span.URI) *parseModHandle {
@@ -763,6 +783,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		packages:          make(map[packageKey]*packageHandle),
 		actions:           make(map[actionKey]*actionHandle),
 		files:             make(map[span.URI]source.VersionedFileHandle),
+		goFiles:           make(map[parseKey]*parseGoHandle),
 		workspacePackages: make(map[packageID]packagePath),
 		unloadableFiles:   make(map[span.URI]struct{}),
 		parseModHandles:   make(map[span.URI]*parseModHandle),
@@ -782,6 +803,13 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 	// Copy all of the modHandles.
 	for k, v := range s.parseModHandles {
 		result.parseModHandles[k] = v
+	}
+
+	for k, v := range s.goFiles {
+		if _, ok := withoutURIs[k.file.URI]; ok {
+			continue
+		}
+		result.goFiles[k] = v
 	}
 
 	// transitiveIDs keeps track of transitive reverse dependencies.
@@ -964,27 +992,36 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		return originalFH.URI() == s.view.modURI
 	}
 	// Get the original and current parsed files in order to check package name and imports.
-	original, originalErr := s.ParseGo(ctx, originalFH, source.ParseHeader)
-	current, currentErr := s.ParseGo(ctx, currentFH, source.ParseHeader)
+	// Use the direct parsing API to avoid modifying the snapshot we're cloning.
+	parse := func(fh source.FileHandle) (*ast.File, error) {
+		data, err := fh.Read()
+		if err != nil {
+			return nil, err
+		}
+		fset := token.NewFileSet()
+		return parser.ParseFile(fset, fh.URI().Filename(), data, parser.ImportsOnly)
+	}
+	original, originalErr := parse(originalFH)
+	current, currentErr := parse(currentFH)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}
 	// Check if the package's metadata has changed. The cases handled are:
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
-	if original.File.Name.Name != current.File.Name.Name {
+	if original.Name.Name != current.Name.Name {
 		return true
 	}
 	// If the package's imports have increased, definitely re-run `go list`.
-	if len(original.File.Imports) < len(current.File.Imports) {
+	if len(original.Imports) < len(current.Imports) {
 		return true
 	}
 	importSet := make(map[string]struct{})
-	for _, importSpec := range original.File.Imports {
+	for _, importSpec := range original.Imports {
 		importSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
-	for _, importSpec := range current.File.Imports {
+	for _, importSpec := range current.Imports {
 		if _, ok := importSet[importSpec.Path.Value]; !ok {
 			return true
 		}
@@ -1021,7 +1058,7 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	h := s.view.session.cache.store.Bind(fh.FileIdentity(), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 
-		pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, source.ParseFull)
+		pgh := snapshot.parseGoHandle(ctx, fh, source.ParseFull)
 		pgf, _, err := snapshot.parseGo(ctx, pgh)
 		if err != nil {
 			return &builtinPackageData{err: err}
