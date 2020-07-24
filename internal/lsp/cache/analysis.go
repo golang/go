@@ -133,7 +133,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 		}
 	}
 
-	h := s.view.session.cache.store.Bind(buildActionKey(a, ph), func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(buildActionKey(a, ph), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		// Analyze dependencies first.
 		results, err := execAll(ctx, snapshot, deps)
@@ -151,11 +151,11 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 }
 
 func (act *actionHandle) analyze(ctx context.Context, snapshot *snapshot) ([]*source.Error, interface{}, error) {
-	v, err := act.handle.Get(ctx, snapshot)
-	if v == nil {
+	d, err := act.handle.Get(ctx, snapshot.generation, snapshot)
+	if err != nil {
 		return nil, nil, err
 	}
-	data, ok := v.(*actionData)
+	data, ok := d.(*actionData)
 	if !ok {
 		return nil, nil, errors.Errorf("unexpected type for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
@@ -181,7 +181,7 @@ func execAll(ctx context.Context, snapshot *snapshot, actions []*actionHandle) (
 	for _, act := range actions {
 		act := act
 		g.Go(func() error {
-			v, err := act.handle.Get(ctx, snapshot)
+			v, err := act.handle.Get(ctx, snapshot.generation, snapshot)
 			if err != nil {
 				return err
 			}

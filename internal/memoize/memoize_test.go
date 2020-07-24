@@ -5,230 +5,65 @@
 package memoize_test
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
-	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/memoize"
 )
 
-func TestStore(t *testing.T) {
-	ctx := context.Background()
+func TestGet(t *testing.T) {
 	s := &memoize.Store{}
-	logBuffer := &bytes.Buffer{}
-	ctx = context.WithValue(ctx, "logger", logBuffer)
+	g := s.Generation("x")
 
-	// These tests check the behavior of the Bind and Get functions.
-	// They confirm that the functions only ever run once for a given value.
-	for _, test := range []struct {
-		name, key, want string
-	}{
-		{
-			name: "nothing",
-		},
-		{
-			name: "get 1",
-			key:  "_1",
-			want: `
-start @1
-simple a = A
-simple b = B
-simple c = C
-end @1 =  A B C
-`[1:],
-		},
-		{
-			name: "redo 1",
-			key:  "_1",
-			want: ``,
-		},
-		{
-			name: "get 2",
-			key:  "_2",
-			want: `
-start @2
-simple d = D
-simple e = E
-simple f = F
-end @2 =  D E F
-`[1:],
-		},
-		{
-			name: "redo 2",
-			key:  "_2",
-			want: ``,
-		},
-		{
-			name: "get 3",
-			key:  "_3",
-			want: `
-start @3
-end @3 =  @1[ A B C] @2[ D E F]
-`[1:],
-		},
-		{
-			name: "get 4",
-			key:  "_4",
-			want: `
-start @3
-simple g = G
-error ERR = fail
-simple h = H
-end @3 =  G !fail H
-`[1:],
-		},
-	} {
-		s.Bind(test.key, generate(s, test.key)).Get(ctx, nil)
-		got := logBuffer.String()
-		if got != test.want {
-			t.Errorf("at %q expected:\n%v\ngot:\n%s", test.name, test.want, got)
-		}
-		logBuffer.Reset()
-	}
+	evaled := 0
 
-	// This test checks that values are garbage collected and removed from the
-	// store when they are no longer used.
-
-	pinned := []string{"b", "_1", "_3"}             // keys to pin in memory
-	unpinned := []string{"a", "c", "d", "_2", "_4"} // keys to garbage collect
-
-	// Handles maintain a strong reference to their values.
-	// By generating handles for the pinned keys and keeping the pins alive in memory,
-	// we ensure these keys stay cached.
-	var pins []*memoize.Handle
-	for _, key := range pinned {
-		h := s.Bind(key, generate(s, key))
-		h.Get(ctx, nil)
-		pins = append(pins, h)
-	}
-
-	// Force the garbage collector to run.
-	runAllFinalizers(t)
-
-	// Confirm our expectation that pinned values should remain cached,
-	// and unpinned values should be garbage collected.
-	for _, k := range pinned {
-		if v := s.Find(k); v == nil {
-			t.Errorf("pinned value %q was nil", k)
-		}
-	}
-	for _, k := range unpinned {
-		if v := s.Find(k); v != nil {
-			t.Errorf("unpinned value %q should be nil, was %v", k, v)
-		}
-	}
-
-	// This forces the pins to stay alive until this point in the function.
-	runtime.KeepAlive(pins)
-}
-
-func runAllFinalizers(t *testing.T) {
-	// The following is very tricky, so be very when careful changing it.
-	// It relies on behavior of finalizers that is not guaranteed.
-
-	// First, run the GC to queue the finalizers.
-	runtime.GC()
-
-	// wait is used to signal that the finalizers are all done.
-	wait := make(chan struct{})
-
-	// Register a finalizer against an immediately collectible object.
-	//
-	// The finalizer will signal on the wait channel once it executes,
-	// and it was the most recently registered finalizer,
-	// so the wait channel will be closed when all of the finalizers have run.
-	runtime.SetFinalizer(&struct{ s string }{"obj"}, func(_ interface{}) { close(wait) })
-
-	// Now, run the GC again to pick up the tracker object above.
-	runtime.GC()
-
-	// Wait for the finalizers to run or a timeout.
-	select {
-	case <-wait:
-	case <-time.Tick(time.Second):
-		t.Fatalf("finalizers had not run after 1 second")
+	h := g.Bind("key", func(context.Context, memoize.Arg) interface{} {
+		evaled++
+		return "res"
+	})
+	expectGet(t, h, g, "res")
+	expectGet(t, h, g, "res")
+	if evaled != 1 {
+		t.Errorf("got %v calls to function, wanted 1", evaled)
 	}
 }
 
-type stringOrError struct {
-	value string
-	err   error
-}
-
-func (v *stringOrError) String() string {
-	if v.err != nil {
-		return v.err.Error()
-	}
-	return v.value
-}
-
-func asValue(v interface{}) *stringOrError {
-	if v == nil {
-		return nil
-	}
-	return v.(*stringOrError)
-}
-
-func generate(s *memoize.Store, key interface{}) memoize.Function {
-	return func(ctx context.Context, _ memoize.Arg) interface{} {
-		name := key.(string)
-		switch name {
-		case "":
-			return nil
-		case "err":
-			return logGenerator(ctx, s, "ERR", "", fmt.Errorf("fail"))
-		case "_1":
-			return joinValues(ctx, s, "@1", "a", "b", "c")
-		case "_2":
-			return joinValues(ctx, s, "@2", "d", "e", "f")
-		case "_3":
-			return joinValues(ctx, s, "@3", "_1", "_2")
-		case "_4":
-			return joinValues(ctx, s, "@3", "g", "err", "h")
-		default:
-			return logGenerator(ctx, s, name, strings.ToUpper(name), nil)
-		}
+func expectGet(t *testing.T, h *memoize.Handle, g *memoize.Generation, wantV interface{}) {
+	gotV, gotErr := h.Get(context.Background(), g, nil)
+	if gotV != wantV || gotErr != nil {
+		t.Fatalf("Get() = %v, %v, wanted %v, nil", gotV, gotErr, wantV)
 	}
 }
 
-// logGenerator generates a *stringOrError value, while logging to the store's logger.
-func logGenerator(ctx context.Context, s *memoize.Store, name string, v string, err error) *stringOrError {
-	// Get the logger from the context.
-	w := ctx.Value("logger").(io.Writer)
-
-	if err != nil {
-		fmt.Fprintf(w, "error %v = %v\n", name, err)
-	} else {
-		fmt.Fprintf(w, "simple %v = %v\n", name, v)
+func expectGetError(t *testing.T, h *memoize.Handle, g *memoize.Generation, substr string) {
+	gotV, gotErr := h.Get(context.Background(), g, nil)
+	if gotErr == nil || !strings.Contains(gotErr.Error(), substr) {
+		t.Fatalf("Get() = %v, %v, wanted err %q", gotV, gotErr, substr)
 	}
-	return &stringOrError{value: v, err: err}
 }
+func TestGenerations(t *testing.T) {
+	s := &memoize.Store{}
+	// Evaluate key in g1.
+	g1 := s.Generation("g1")
+	h1 := g1.Bind("key", func(context.Context, memoize.Arg) interface{} { return "res" })
+	expectGet(t, h1, g1, "res")
 
-// joinValues binds a list of keys to their values, while logging to the store's logger.
-func joinValues(ctx context.Context, s *memoize.Store, name string, keys ...string) *stringOrError {
-	// Get the logger from the context.
-	w := ctx.Value("logger").(io.Writer)
+	// Get key in g2. It should inherit the value from g1.
+	g2 := s.Generation("g2")
+	h2 := g2.Bind("key", func(context.Context, memoize.Arg) interface{} {
+		t.Fatal("h2 should not need evaluation")
+		return "error"
+	})
+	expectGet(t, h2, g2, "res")
 
-	fmt.Fprintf(w, "start %v\n", name)
-	value := ""
-	for _, key := range keys {
-		i, err := s.Bind(key, generate(s, key)).Get(ctx, nil)
-		if err != nil {
-			return &stringOrError{err: err}
-		}
-		if v := asValue(i); v == nil {
-			value = value + " <nil>"
-		} else if v.err != nil {
-			value = value + " !" + v.err.Error()
-		} else {
-			value = value + " " + v.value
-		}
-	}
-	fmt.Fprintf(w, "end %v = %v\n", name, value)
-	return &stringOrError{value: fmt.Sprintf("%s[%v]", name, value)}
+	// With g1 destroyed, g2 should still work.
+	g1.Destroy()
+	expectGet(t, h2, g2, "res")
+
+	// With all generations destroyed, key should be re-evaluated.
+	g2.Destroy()
+	g3 := s.Generation("g3")
+	h3 := g3.Bind("key", func(context.Context, memoize.Arg) interface{} { return "new res" })
+	expectGet(t, h3, g3, "new res")
 }

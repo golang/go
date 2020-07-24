@@ -37,14 +37,12 @@ type modTidyHandle struct {
 }
 
 type modTidyData struct {
-	memoize.NoCopy
-
 	tidied *source.TidiedModule
 	err    error
 }
 
-func (mth *modTidyHandle) tidy(ctx context.Context, s source.Snapshot) (*source.TidiedModule, error) {
-	v, err := mth.handle.Get(ctx, s.(*snapshot))
+func (mth *modTidyHandle) tidy(ctx context.Context, snapshot *snapshot) (*source.TidiedModule, error) {
+	v, err := mth.handle.Get(ctx, snapshot.generation, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +86,7 @@ func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
 		gomod:           modFH.FileIdentity(),
 		cfg:             hashConfig(cfg),
 	}
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(modURI))
 		defer done()
 

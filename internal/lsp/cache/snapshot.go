@@ -38,7 +38,8 @@ type snapshot struct {
 	id   uint64
 	view *View
 
-	active sync.WaitGroup
+	// the cache generation that contains the data for this snapshot.
+	generation *memoize.Generation
 
 	// builtin pins the AST and package for builtin.go in memory.
 	builtin *builtinPackageHandle
@@ -495,7 +496,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 
 	results := map[string]source.Package{}
 	for _, ph := range s.packages {
-		cachedPkg, err := ph.cached()
+		cachedPkg, err := ph.cached(s.generation)
 		if err != nil {
 			continue
 		}
@@ -788,12 +789,18 @@ func contains(views []*View, view *View) bool {
 	return false
 }
 
+func generationName(v *View, snapshotID uint64) string {
+	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
+}
+
 func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	result := &snapshot{
 		id:                   s.id + 1,
+		generation:           newGen,
 		view:                 s.view,
 		builtin:              s.builtin,
 		ids:                  make(map[span.URI][]packageID),
@@ -812,6 +819,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		modWhyHandle:         s.modWhyHandle,
 	}
 
+	if s.builtin != nil {
+		newGen.Inherit(s.builtin.handle)
+	}
+
 	// Copy all of the FileHandles.
 	for k, v := range s.files {
 		result.files[k] = v
@@ -822,6 +833,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 	}
 	// Copy all of the modHandles.
 	for k, v := range s.parseModHandles {
+		newGen.Inherit(v.handle)
 		result.parseModHandles[k] = v
 	}
 	// Copy all of the workspace directories. They may be reset later.
@@ -833,6 +845,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		if _, ok := withoutURIs[k.file.URI]; ok {
 			continue
 		}
+		newGen.Inherit(v.handle)
+		newGen.Inherit(v.astCacheHandle)
 		result.goFiles[k] = v
 	}
 
@@ -935,6 +949,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		if _, ok := transitiveIDs[k.id]; ok {
 			continue
 		}
+		newGen.Inherit(v.handle)
 		result.packages[k] = v
 	}
 	// Copy the package analysis information.
@@ -942,6 +957,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 		if _, ok := transitiveIDs[k.pkg.id]; ok {
 			continue
 		}
+		newGen.Inherit(v.handle)
 		result.actions[k] = v
 	}
 	// Copy the package metadata. We only need to invalidate packages directly
@@ -988,6 +1004,17 @@ copyIDs:
 
 		result.workspacePackages[id] = pkgPath
 	}
+
+	if result.modTidyHandle != nil {
+		newGen.Inherit(result.modTidyHandle.handle)
+	}
+	if result.modUpgradeHandle != nil {
+		newGen.Inherit(result.modUpgradeHandle.handle)
+	}
+	if result.modWhyHandle != nil {
+		newGen.Inherit(result.modWhyHandle.handle)
+	}
+
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
 	return result
@@ -1106,7 +1133,7 @@ func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, 
 	if s.builtin == nil {
 		return nil, errors.Errorf("no builtin package for view %s", s.view.name)
 	}
-	d, err := s.builtin.handle.Get(ctx, s)
+	d, err := s.builtin.handle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
@@ -1126,7 +1153,7 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	if err != nil {
 		return err
 	}
-	h := s.view.session.cache.store.Bind(fh.FileIdentity(), func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(fh.FileIdentity(), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 
 		pgh := snapshot.parseGoHandle(ctx, fh, source.ParseFull)

@@ -41,8 +41,6 @@ type parseGoHandle struct {
 }
 
 type parseGoData struct {
-	memoize.NoCopy
-
 	parsed *source.ParsedGoFile
 
 	// If true, we adjusted the AST to make it type check better, and
@@ -59,12 +57,12 @@ func (s *snapshot) parseGoHandle(ctx context.Context, fh source.FileHandle, mode
 	if pgh := s.getGoFile(key); pgh != nil {
 		return pgh
 	}
-	parseHandle := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	parseHandle := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return parseGo(ctx, snapshot.view.session.cache.fset, fh, mode)
 	})
 
-	astHandle := s.view.session.cache.store.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
+	astHandle := s.generation.Bind(astCacheKey(key), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 		return buildASTCache(ctx, snapshot, parseHandle)
 	})
@@ -97,7 +95,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 }
 
 func (s *snapshot) parseGo(ctx context.Context, pgh *parseGoHandle) (*source.ParsedGoFile, bool, error) {
-	d, err := pgh.handle.Get(ctx, s)
+	d, err := pgh.handle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, false, err
 	}
@@ -112,7 +110,7 @@ func (s *snapshot) PosToDecl(ctx context.Context, pgf *source.ParsedGoFile) (map
 	}
 
 	pgh := s.parseGoHandle(ctx, fh, pgf.Mode)
-	d, err := pgh.astCacheHandle.Get(ctx, s)
+	d, err := pgh.astCacheHandle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +126,7 @@ func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (ma
 	}
 
 	pgh := s.parseGoHandle(ctx, fh, pgf.Mode)
-	d, err := pgh.astCacheHandle.Get(ctx, s)
+	d, err := pgh.astCacheHandle.Get(ctx, s.generation, s)
 	if err != nil || d == nil {
 		return nil, err
 	}
@@ -138,8 +136,6 @@ func (s *snapshot) PosToField(ctx context.Context, pgf *source.ParsedGoFile) (ma
 }
 
 type astCacheData struct {
-	memoize.NoCopy
-
 	err error
 
 	posToDecl  map[token.Pos]ast.Decl
@@ -156,7 +152,7 @@ func buildASTCache(ctx context.Context, snapshot *snapshot, parseHandle *memoize
 		decls []ast.Decl
 	)
 
-	v, err := parseHandle.Get(ctx, snapshot)
+	v, err := parseHandle.Get(ctx, snapshot.generation, snapshot)
 	if err != nil {
 		return &astCacheData{err: err}
 	}

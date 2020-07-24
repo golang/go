@@ -53,7 +53,7 @@ func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}
 			return err
 		}
 		go func() {
-			snapshot, release := view.Snapshot()
+			snapshot, release := view.Snapshot(ctx)
 			defer release()
 			s.diagnoseDetached(snapshot)
 		}()

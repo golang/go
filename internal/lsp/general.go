@@ -260,7 +260,7 @@ func (s *Server) updateWatchedDirectories(ctx context.Context, updatedSnapshots 
 		if _, ok := seenViews[view]; ok {
 			continue
 		}
-		snapshot, release := view.Snapshot()
+		snapshot, release := view.Snapshot(ctx)
 		for _, dir := range snapshot.WorkspaceDirectories(ctx) {
 			dirsToWatch[dir] = struct{}{}
 		}
@@ -416,7 +416,7 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 	if err != nil {
 		return nil, nil, false, func() {}, err
 	}
-	snapshot, release := view.Snapshot()
+	snapshot, release := view.Snapshot(ctx)
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		release()

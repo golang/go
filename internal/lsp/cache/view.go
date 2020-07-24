@@ -143,8 +143,6 @@ type builtinPackageHandle struct {
 }
 
 type builtinPackageData struct {
-	memoize.NoCopy
-
 	parsed *source.BuiltinPackage
 	err    error
 }
@@ -281,7 +279,7 @@ func (v *View) Rebuild(ctx context.Context) (source.Snapshot, func(), error) {
 	if err != nil {
 		return nil, func() {}, err
 	}
-	snapshot, release := newView.Snapshot()
+	snapshot, release := newView.Snapshot(ctx)
 	return snapshot, release, nil
 }
 
@@ -489,7 +487,7 @@ func (v *View) WorkspaceDirectories(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	snapshot, release := v.Snapshot()
+	snapshot, release := v.Snapshot(ctx)
 	defer release()
 
 	pm, err := snapshot.ParseMod(ctx, fh)
@@ -587,11 +585,14 @@ func (v *View) shutdown(ctx context.Context) {
 	v.initCancelFirstAttempt()
 
 	v.mu.Lock()
-	defer v.mu.Unlock()
 	if v.cancel != nil {
 		v.cancel()
 		v.cancel = nil
 	}
+	v.mu.Unlock()
+	v.snapshotMu.Lock()
+	go v.snapshot.generation.Destroy()
+	v.snapshotMu.Unlock()
 }
 
 func (v *View) BackgroundContext() context.Context {
@@ -636,10 +637,9 @@ func checkIgnored(suffix string) bool {
 	return false
 }
 
-func (v *View) Snapshot() (source.Snapshot, func()) {
+func (v *View) Snapshot(ctx context.Context) (source.Snapshot, func()) {
 	s := v.getSnapshot()
-	s.active.Add(1)
-	return s, s.active.Done
+	return s, s.generation.Acquire(ctx)
 }
 
 func (v *View) getSnapshot() *snapshot {
@@ -713,12 +713,9 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 
 	oldSnapshot := v.snapshot
 	v.snapshot = oldSnapshot.clone(ctx, uris, forceReloadMetadata)
-	// Move the View's reference from the old snapshot to the new one.
-	oldSnapshot.active.Done()
-	v.snapshot.active.Add(1)
+	go oldSnapshot.generation.Destroy()
 
-	v.snapshot.active.Add(1)
-	return v.snapshot, v.snapshot.active.Done
+	return v.snapshot, v.snapshot.generation.Acquire(ctx)
 }
 
 func (v *View) cancelBackground() {

@@ -81,7 +81,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		if err := session.ModifyFiles(ctx, modifications); err != nil {
 			t.Fatal(err)
 		}
-		snapshot, release := view.Snapshot()
+		snapshot, release := view.Snapshot(ctx)
 		defer release()
 		r := &runner{
 			view:     view,

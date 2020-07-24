@@ -51,8 +51,6 @@ func (ph *packageHandle) packageKey() packageKey {
 
 // packageData contains the data produced by type-checking a package.
 type packageData struct {
-	memoize.NoCopy
-
 	pkg *pkg
 	err error
 }
@@ -80,7 +78,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	m := ph.m
 	key := ph.key
 
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 
 		// Begin loading the direct dependencies, in parallel.
@@ -202,7 +200,7 @@ func (ph *packageHandle) Check(ctx context.Context, s source.Snapshot) (source.P
 }
 
 func (ph *packageHandle) check(ctx context.Context, s *snapshot) (*pkg, error) {
-	v, err := ph.handle.Get(ctx, s)
+	v, err := ph.handle.Get(ctx, s.generation, s)
 	if err != nil {
 		return nil, err
 	}
@@ -218,12 +216,8 @@ func (ph *packageHandle) ID() string {
 	return string(ph.m.id)
 }
 
-func (ph *packageHandle) Cached() (source.Package, error) {
-	return ph.cached()
-}
-
-func (ph *packageHandle) cached() (*pkg, error) {
-	v := ph.handle.Cached()
+func (ph *packageHandle) cached(g *memoize.Generation) (*pkg, error) {
+	v := ph.handle.Cached(g)
 	if v == nil {
 		return nil, errors.Errorf("no cached type information for %s", ph.m.pkgPath)
 	}

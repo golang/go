@@ -172,22 +172,22 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		folder:             folder,
 		filesByURI:         make(map[span.URI]*fileBase),
 		filesByBase:        make(map[string][]*fileBase),
-		snapshot: &snapshot{
-			id:                snapshotID,
-			packages:          make(map[packageKey]*packageHandle),
-			ids:               make(map[span.URI][]packageID),
-			metadata:          make(map[packageID]*metadata),
-			files:             make(map[span.URI]source.VersionedFileHandle),
-			goFiles:           make(map[parseKey]*parseGoHandle),
-			importedBy:        make(map[packageID][]packageID),
-			actions:           make(map[actionKey]*actionHandle),
-			workspacePackages: make(map[packageID]packagePath),
-			unloadableFiles:   make(map[span.URI]struct{}),
-			parseModHandles:   make(map[span.URI]*parseModHandle),
-		},
 	}
-	v.snapshot.view = v
-	v.snapshot.active.Add(1)
+	v.snapshot = &snapshot{
+		id:                snapshotID,
+		view:              v,
+		generation:        s.cache.store.Generation(generationName(v, 0)),
+		packages:          make(map[packageKey]*packageHandle),
+		ids:               make(map[span.URI][]packageID),
+		metadata:          make(map[packageID]*metadata),
+		files:             make(map[span.URI]source.VersionedFileHandle),
+		goFiles:           make(map[parseKey]*parseGoHandle),
+		importedBy:        make(map[packageID][]packageID),
+		actions:           make(map[actionKey]*actionHandle),
+		workspacePackages: make(map[packageID]packagePath),
+		unloadableFiles:   make(map[span.URI]struct{}),
+		parseModHandles:   make(map[span.URI]*parseModHandle),
+	}
 
 	if v.session.cache.options != nil {
 		v.session.cache.options(&v.options)
@@ -215,10 +215,12 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel
-	go v.initialize(initCtx, v.snapshot, true)
-
-	v.snapshot.active.Add(1)
-	return v, v.snapshot, v.snapshot.active.Done, nil
+	go func() {
+		release := v.snapshot.generation.Acquire(initCtx)
+		v.initialize(initCtx, v.snapshot, true)
+		release()
+	}()
+	return v, v.snapshot, v.snapshot.generation.Acquire(ctx), nil
 }
 
 // View returns the view by name.
@@ -343,6 +345,7 @@ func (s *Session) updateView(ctx context.Context, view *View, options source.Opt
 		s.views[i] = s.views[len(s.views)-1]
 		s.views[len(s.views)-1] = nil
 		s.views = s.views[:len(s.views)-1]
+		return nil, err
 	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v

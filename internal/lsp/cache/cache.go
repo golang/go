@@ -54,10 +54,9 @@ type Cache struct {
 type fileHandle struct {
 	modTime time.Time
 	uri     span.URI
-	memoize.NoCopy
-	bytes []byte
-	hash  string
-	err   error
+	bytes   []byte
+	hash    string
+	err     error
 }
 
 func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {

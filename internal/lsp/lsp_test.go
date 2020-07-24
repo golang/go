@@ -151,7 +151,7 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot, release := v.Snapshot()
+	snapshot, release := v.Snapshot(r.ctx)
 	defer release()
 	got, err := mod.CodeLens(r.ctx, snapshot, uri)
 	if err != nil {
@@ -168,7 +168,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		v := r.server.session.View(r.data.Config.Dir)
 		// Always run diagnostics with analysis.
-		snapshot, release := v.Snapshot()
+		snapshot, release := v.Snapshot(r.ctx)
 		defer release()
 		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
 		for key, diags := range reports {
@@ -423,7 +423,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		t.Fatal(err)
 	}
 
-	snapshot, release := view.Snapshot()
+	snapshot, release := view.Snapshot(r.ctx)
 	defer release()
 
 	fh, err := snapshot.GetFile(r.ctx, uri)
@@ -442,7 +442,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 	if r.diagnostics == nil {
 		r.diagnostics = make(map[span.URI]map[string]*source.Diagnostic)
 		// Always run diagnostics with analysis.
-		snapshot, release := view.Snapshot()
+		snapshot, release := view.Snapshot(r.ctx)
 		defer release()
 		reports, _ := r.server.diagnose(r.ctx, snapshot, true)
 		for key, diags := range reports {
@@ -542,7 +542,7 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 		t.Fatal(err)
 	}
 
-	snapshot, release := view.Snapshot()
+	snapshot, release := view.Snapshot(r.ctx)
 	defer release()
 
 	fh, err := snapshot.GetFile(r.ctx, uri)

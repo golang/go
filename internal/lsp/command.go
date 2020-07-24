@@ -173,7 +173,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		snapshot, release := sv.Snapshot()
+		snapshot, release := sv.Snapshot(ctx)
 		defer release()
 		s.diagnoseSnapshot(snapshot)
 		return nil, nil
@@ -188,7 +188,7 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	if err != nil {
 		return err
 	}
-	snapshot, release := view.Snapshot()
+	snapshot, release := view.Snapshot(ctx)
 	defer release()
 	return snapshot.RunGoCommandDirect(ctx, verb, args)
 }

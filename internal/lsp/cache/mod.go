@@ -32,16 +32,14 @@ type parseModHandle struct {
 }
 
 type parseModData struct {
-	memoize.NoCopy
-
 	parsed *source.ParsedModule
 
 	// err is any error encountered while parsing the file.
 	err error
 }
 
-func (mh *parseModHandle) parse(ctx context.Context, s source.Snapshot) (*source.ParsedModule, error) {
-	v, err := mh.handle.Get(ctx, s.(*snapshot))
+func (mh *parseModHandle) parse(ctx context.Context, snapshot *snapshot) (*source.ParsedModule, error) {
+	v, err := mh.handle.Get(ctx, snapshot.generation, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +52,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		return handle.parse(ctx, s)
 	}
 
-	h := s.view.session.cache.store.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
+	h := s.generation.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
 		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
 		defer done()
 
@@ -182,8 +180,8 @@ type modWhyData struct {
 	err error
 }
 
-func (mwh *modWhyHandle) why(ctx context.Context, s source.Snapshot) (map[string]string, error) {
-	v, err := mwh.handle.Get(ctx, s.(*snapshot))
+func (mwh *modWhyHandle) why(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
+	v, err := mwh.handle.Get(ctx, snapshot.generation, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +204,7 @@ func (s *snapshot) ModWhy(ctx context.Context) (map[string]string, error) {
 		view:      s.view.root.Filename(),
 		verb:      why,
 	}
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		ctx, done := event.Start(ctx, "cache.ModWhyHandle", tag.URI.Of(fh.URI()))
 		defer done()
 
@@ -261,8 +259,8 @@ type modUpgradeData struct {
 	err error
 }
 
-func (muh *modUpgradeHandle) Upgrades(ctx context.Context, s source.Snapshot) (map[string]string, error) {
-	v, err := muh.handle.Get(ctx, s.(*snapshot))
+func (muh *modUpgradeHandle) Upgrades(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
+	v, err := muh.handle.Get(ctx, snapshot.generation, snapshot)
 	if v == nil {
 		return nil, err
 	}
@@ -286,7 +284,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context) (map[string]string, error) {
 		view:      s.view.root.Filename(),
 		verb:      upgrade,
 	}
-	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
 		ctx, done := event.Start(ctx, "cache.ModUpgradeHandle", tag.URI.Of(fh.URI()))
 		defer done()
 

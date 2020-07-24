@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -136,7 +135,7 @@ type View interface {
 	// on behalf of this view.
 	BackgroundContext() context.Context
 
-	// Shutdown closes this view, and detaches it from it's session.
+	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)
 
 	// WriteEnv writes the view-specific environment to the io.Writer.
@@ -156,7 +155,7 @@ type View interface {
 	SetOptions(context.Context, Options) (View, error)
 
 	// Snapshot returns the current snapshot for the view.
-	Snapshot() (Snapshot, func())
+	Snapshot(ctx context.Context) (Snapshot, func())
 
 	// Rebuild rebuilds the current view, replacing the original view in its session.
 	Rebuild(ctx context.Context) (Snapshot, func(), error)
@@ -182,8 +181,6 @@ type BuiltinPackage struct {
 
 // A ParsedGoFile contains the results of parsing a Go file.
 type ParsedGoFile struct {
-	memoize.NoCopy
-
 	URI  span.URI
 	Mode ParseMode
 	File *ast.File
@@ -197,8 +194,6 @@ type ParsedGoFile struct {
 
 // A ParsedModule contains the results of parsing a go.mod file.
 type ParsedModule struct {
-	memoize.NoCopy
-
 	File        *modfile.File
 	Mapper      *protocol.ColumnMapper
 	ParseErrors []Error
@@ -206,8 +201,6 @@ type ParsedModule struct {
 
 // A TidiedModule contains the results of running `go mod tidy` on a module.
 type TidiedModule struct {
-	memoize.NoCopy
-
 	// The parsed module, which is guaranteed to have parsed successfully.
 	Parsed *ParsedModule
 	// Diagnostics representing changes made by `go mod tidy`.
