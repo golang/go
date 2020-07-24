@@ -158,9 +158,14 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if x.typ != Typ[Invalid] {
-			intro := " of type "
-			if isGeneric(x.typ) {
+			var intro string
+			switch {
+			case isGeneric(x.typ):
 				intro = " of generic type "
+			case x.typ.TypeParam() != nil:
+				intro = " of type parameter type "
+			default:
+				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
