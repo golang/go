@@ -387,6 +387,13 @@ type Out struct {
 // defers this error until a Scan.
 var ErrNoRows = errors.New("sql: no rows in result set")
 
+// Can be use to specify on-connect handler params
+type OnConnParams struct {
+	Enabled [3]bool
+	SQLs    []string
+	Args    [][]interface{}
+}
+
 // DB is a database handle representing a pool of zero or more
 // underlying connections. It's safe for concurrent use by multiple
 // goroutines.
@@ -435,6 +442,9 @@ type DB struct {
 	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
 
 	stop func() // stop cancels the connection opener and the session resetter.
+
+	// OnConn params
+	onConnParams OnConnParams
 }
 
 // connReuseStrategy determines how (*DB).conn returns database connections.
@@ -1222,6 +1232,14 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			return nil, driver.ErrBadConn
 		}
 
+		// Handle on-connect
+		state := 0
+		if db.checkOnConn(state) {
+			err := db.onConn(ctx, conn, state)
+			if err != nil {
+				fmt.Printf("onConn: state: 0 error: %v\n", err)
+			}
+		}
 		return conn, nil
 	}
 
@@ -1285,6 +1303,15 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 				ret.conn.Close()
 				return nil, driver.ErrBadConn
 			}
+
+			// Handle on-connect
+			state := 1
+			if db.checkOnConn(state) {
+				err := db.onConn(ctx, ret.conn, state)
+				if err != nil {
+					fmt.Printf("onConn: state: 1 error: %v\n", err)
+				}
+			}
 			return ret.conn, ret.err
 		}
 	}
@@ -1309,6 +1336,15 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	}
 	db.addDepLocked(dc, dc)
 	db.mu.Unlock()
+
+	// Handle on-connect
+	state := 2
+	if db.checkOnConn(state) {
+		err := db.onConn(ctx, dc, state)
+		if err != nil {
+			fmt.Printf("onConn: state: 2 error: %v\n", err)
+		}
+	}
 	return dc, nil
 }
 
@@ -1817,6 +1853,43 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 		dc: dc,
 	}
 	return conn, nil
+}
+
+// checkOnConn - check if onConn() handler should be used
+// state:
+// 0 - used free connection
+// 1 - used connection from connRequest channel
+// 2 - created a new connection
+func (db *DB) checkOnConn(state int) bool {
+	if state < 0 || state > 2 {
+		return false
+	}
+	return db.onConnParams.Enabled[state]
+}
+
+// SetOnConn - set on-connection handler parameters
+func (db *DB) SetOnConn(params *OnConnParams) {
+	db.onConnParams = *params
+}
+
+// onConn - calls on-connection handlers (if defined)
+// state:
+// 0 - used free connection
+// 1 - used connection from connRequest channel
+// 2 - created a new connection
+func (db *DB) onConn(ctx context.Context, dc *driverConn, state int) error {
+	noRelease := func(error) {
+	}
+	for idx := range db.onConnParams.SQLs {
+		sql := db.onConnParams.SQLs[idx]
+		args := db.onConnParams.Args[idx]
+		// fmt.Printf("OnConn: state: %d exec: '%s' %+v\n", state, sql, args)
+		_, err := db.execDC(ctx, dc, noRelease, sql, args)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type releaseConn func(error)
