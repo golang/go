@@ -2,9 +2,9 @@ package extract
 
 func _() bool {
 	x := 1
-	if x == 0 { //@mark(s0, "if")
+	if x == 0 { //@mark(exSt2, "if")
 		return true
-	} //@mark(e0, "}")
+	} //@mark(exEn2, "}")
 	return false
-	//@extractfunc(s0, e0)
+	//@extractfunc(exSt2, exEn2)
 }

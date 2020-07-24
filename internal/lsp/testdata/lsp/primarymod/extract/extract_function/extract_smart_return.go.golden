@@ -4,9 +4,9 @@ package extract
 func _() {
 	var b []int
 	var a int
-	b = fn0(a, b) //@mark(e2, ")")
+	b = fn0(a, b) //@mark(exEn7, ")")
 	b[0] = 1
-	//@extractfunc(s2, e2)
+	//@extractfunc(exSt7, exEn7)
 }
 
 func fn0(a int, b []int) []int {

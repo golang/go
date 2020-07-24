@@ -3,22 +3,20 @@ package extract
 
 func _() string {
 	x := 1
-	var cond0 bool
-	var ret0 string
-	x, cond0, ret0 = fn0(x)
+	cond0, ret0 := fn0(x)
 	if cond0 {
 		return ret0
-	} //@mark(e0, "}")
+	} //@mark(exEn5, "}")
 	x = 2
 	return "b"
-	//@extractfunc(s0, e0)
+	//@extractfunc(exSt5, exEn5)
 }
 
-func fn0(x int) (int, bool, string) {
+func fn0(x int) (bool, string) {
 	if x == 0 {
 		x = 3
-		return 0, true, "a"
+		return true, "a"
 	}
-	return x, false, ""
+	return false, ""
 }
 

@@ -2,11 +2,11 @@ package extract
 
 func _() string {
 	x := 1
-	if x == 0 { //@mark(s0, "if")
+	if x == 0 { //@mark(exSt5, "if")
 		x = 3
 		return "a"
-	} //@mark(e0, "}")
+	} //@mark(exEn5, "}")
 	x = 2
 	return "b"
-	//@extractfunc(s0, e0)
+	//@extractfunc(exSt5, exEn5)
 }

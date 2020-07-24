@@ -1,0 +1,18 @@
+-- functionextraction_extract_redefine_7_2 --
+package extract
+
+import "strconv"
+
+func _() {
+	i, err := strconv.Atoi("1")
+	u, err := fn0() //@extractfunc("u", ")")
+	if i == u || err == nil {
+		return
+	}
+}
+
+func fn0() (int, error) {
+	u, err := strconv.Atoi("2")
+	return u, err
+}
+

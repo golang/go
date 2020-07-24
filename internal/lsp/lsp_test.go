@@ -493,7 +493,15 @@ func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.Ver
 
 func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
 	uri := start.URI()
-	_, err := r.server.session.ViewOf(uri)
+	view, err := r.server.session.ViewOf(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot, release := view.Snapshot()
+	defer release()
+
+	fh, err := snapshot.GetFile(r.ctx, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,7 +531,11 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	if len(actions) == 0 || len(actions) > 1 {
 		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
 	}
-	res, err := applyTextDocumentEdits(r, actions[0].Edit.DocumentChanges)
+	edits, err := commandToEdits(r.ctx, snapshot, fh, rng, actions[0].Command.Command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := applyTextDocumentEdits(r, edits)
 	if err != nil {
 		t.Fatal(err)
 	}

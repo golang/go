@@ -6,15 +6,15 @@ import "fmt"
 func _() (int, string, error) {
 	x := 1
 	y := "hello"
-	z, cond0, ret0, ret1, ret2 := x0(y, x)
+	z, cond0, ret0, ret1, ret2 := fn0(y, x)
 	if cond0 {
 		return ret0, ret1, ret2
-	} //@mark(e0, "}")
+	} //@mark(exEn3, "}")
 	return x, z, nil
-	//@extractfunc(s0, e0)
+	//@extractfunc(exSt3, exEn3)
 }
 
-func x0(y string, x int) (string, bool, int, string, error) {
+func fn0(y string, x int) (string, bool, int, string, error) {
 	z := "bye"
 	if y == z {
 		return "", true, x, y, fmt.Errorf("same")

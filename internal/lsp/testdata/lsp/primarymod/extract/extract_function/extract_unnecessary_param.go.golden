@@ -1,0 +1,21 @@
+-- functionextraction_extract_unnecessary_param_6_2 --
+package extract
+
+func _() {
+	var b []int
+	var a int
+	a, b = fn0(b) //@mark(exEn8, ")")
+	b[0] = 1
+	if a == 2 {
+		return
+	}
+	//@extractfunc(exSt8, exEn8)
+}
+
+func fn0(b []int) (int, []int) {
+	a := 2
+	b = []int{}
+	b = append(b, a)
+	return a, b
+}
+

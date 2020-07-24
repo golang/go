@@ -2,12 +2,12 @@
 package extract
 
 func _() {
-	x0() //@mark(e0, "4")
-	//@extractfunc(s0, e0)
+	fn0() //@mark(exEn1, "4")
+	//@extractfunc(exSt1, exEn1)
 }
 
-func x0() {
+func fn0() {
 	a := 1
-	var _ = 3 + 4
+	_ = 3 + 4
 }
 

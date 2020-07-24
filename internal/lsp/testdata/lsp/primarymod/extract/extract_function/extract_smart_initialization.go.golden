@@ -3,9 +3,8 @@ package extract
 
 func _() {
 	var a []int
-	var b int
-	a, b = fn0(a)           //@mark(e4, "4")
-	//@extractfunc(s4, e4)
+	a, b := fn0(a)           //@mark(exEn6, "4")
+	//@extractfunc(exSt6, exEn6)
 	a = append(a, b)
 }
 
