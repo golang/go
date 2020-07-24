@@ -34,6 +34,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -132,35 +133,6 @@ var tests = [][]string{
 	{"testdata/mapB.go2"},
 	{"testdata/map2B.go2"},
 	{"testdata/linalgB.go2"},
-
-	// Go 2 prototype examples
-	{"examples/functions.go2"},
-	{"examples/methods.go2"},
-	{"examples/types.go2"},
-
-	{"examples/functionsB.go2"},
-	{"examples/methodsB.go2"},
-	{"examples/typesB.go2"},
-
-	// Go 2 prototype bug fixes
-	// TODO(gri) Eliminate the need to enumerate these tests here.
-	//           Should just traverse that directory.
-	{"fixedbugs/issue39634.go2"},
-	{"fixedbugs/issue39664.go2"},
-	{"fixedbugs/issue39680.go2"},
-	{"fixedbugs/issue39693.go2"},
-	{"fixedbugs/issue39699.go2"},
-	{"fixedbugs/issue39711.go2"},
-	{"fixedbugs/issue39723.go2"},
-	{"fixedbugs/issue39725.go2"},
-	{"fixedbugs/issue39754.go2"},
-	{"fixedbugs/issue39755.go2"},
-	{"fixedbugs/issue39768.go2"},
-	{"fixedbugs/issue39938.go2"},
-	{"fixedbugs/issue39948.go2"},
-	{"fixedbugs/issue39976.go2"},
-	{"fixedbugs/issue39982.go2"},
-	{"fixedbugs/issue40301.go2"},
 }
 
 var fset = token.NewFileSet()
@@ -382,5 +354,27 @@ func TestCheck(t *testing.T) {
 	// Otherwise, run all the tests.
 	for _, files := range tests {
 		checkFiles(t, files)
+	}
+}
+
+func TestExamples(t *testing.T) { testDir(t, "examples") }
+func TestFixed(t *testing.T)    { testDir(t, "fixedbugs") }
+
+func testDir(t *testing.T, dir string) {
+	testenv.MustHaveGoBuild(t)
+
+	fis, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, fi := range fis {
+		filename := filepath.Join(dir, fi.Name())
+		if fi.IsDir() {
+			t.Errorf("skipped directory %s", filename)
+			continue
+		}
+		checkFiles(t, []string{filename})
 	}
 }
