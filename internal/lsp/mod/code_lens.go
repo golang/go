@@ -28,19 +28,11 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil {
 		return nil, err
 	}
-	pmh, err := snapshot.ParseModHandle(ctx, fh)
+	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := pmh.Parse(ctx, snapshot)
-	if err != nil {
-		return nil, err
-	}
-	muh, err := snapshot.ModUpgradeHandle(ctx)
-	if err != nil {
-		return nil, err
-	}
-	upgrades, err := muh.Upgrades(ctx, snapshot)
+	upgrades, err := snapshot.ModUpgrade(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -48,14 +40,14 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		codelens    []protocol.CodeLens
 		allUpgrades []string
 	)
-	for _, req := range file.Require {
+	for _, req := range pm.File.Require {
 		dep := req.Mod.Path
 		latest, ok := upgrades[dep]
 		if !ok {
 			continue
 		}
 		// Get the range of the require directive.
-		rng, err := positionsToRange(uri, m, req.Syntax.Start, req.Syntax.End)
+		rng, err := positionsToRange(uri, pm.Mapper, req.Syntax.Start, req.Syntax.End)
 		if err != nil {
 			return nil, err
 		}
@@ -74,9 +66,9 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		allUpgrades = append(allUpgrades, dep)
 	}
 	// If there is at least 1 upgrade, add an "Upgrade all dependencies" to the module statement.
-	if module := file.Module; len(allUpgrades) > 0 && module != nil && module.Syntax != nil {
+	if module := pm.File.Module; len(allUpgrades) > 0 && module != nil && module.Syntax != nil {
 		// Get the range of the module directive.
-		rng, err := positionsToRange(uri, m, module.Syntax.Start, module.Syntax.End)
+		rng, err := positionsToRange(uri, pm.Mapper, module.Syntax.Start, module.Syntax.End)
 		if err != nil {
 			return nil, err
 		}

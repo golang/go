@@ -562,15 +562,11 @@ func (v *View) WorkspaceDirectories(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	pmh, err := v.Snapshot().ParseModHandle(ctx, fh)
+	pm, err := v.Snapshot().ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	parsed, _, _, err := pmh.Parse(ctx, v.Snapshot())
-	if err != nil {
-		return nil, err
-	}
-	for _, replace := range parsed.Replace {
+	for _, replace := range pm.File.Replace {
 		dirs = append(dirs, replace.New.Path)
 	}
 	return dirs, nil

@@ -46,16 +46,12 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
 
-	pmh, err := snapshot.ParseModHandle(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	file, m, _, err := pmh.Parse(ctx, snapshot)
+	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
 	var links []protocol.DocumentLink
-	for _, req := range file.Require {
+	for _, req := range pm.File.Require {
 		if req.Syntax == nil {
 			continue
 		}
@@ -65,7 +61,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		}
 		dep := []byte(req.Mod.Path)
 		s, e := req.Syntax.Start.Byte, req.Syntax.End.Byte
-		i := bytes.Index(m.Content[s:e], dep)
+		i := bytes.Index(pm.Mapper.Content[s:e], dep)
 		if i == -1 {
 			continue
 		}
@@ -73,25 +69,25 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		// dependency within the require statement.
 		start, end := token.Pos(s+i), token.Pos(s+i+len(dep))
 		target := fmt.Sprintf("https://%s/mod/%s", view.Options().LinkTarget, req.Mod.String())
-		l, err := toProtocolLink(view, m, target, start, end, source.Mod)
+		l, err := toProtocolLink(view, pm.Mapper, target, start, end, source.Mod)
 		if err != nil {
 			return nil, err
 		}
 		links = append(links, l)
 	}
 	// TODO(ridersofrohan): handle links for replace and exclude directives.
-	if syntax := file.Syntax; syntax == nil {
+	if syntax := pm.File.Syntax; syntax == nil {
 		return links, nil
 	}
 	// Get all the links that are contained in the comments of the file.
-	for _, expr := range file.Syntax.Stmt {
+	for _, expr := range pm.File.Syntax.Stmt {
 		comments := expr.Comment()
 		if comments == nil {
 			continue
 		}
 		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
 			for _, comment := range section {
-				l, err := findLinksInString(ctx, view, comment.Token, token.Pos(comment.Start.Byte), m, source.Mod)
+				l, err := findLinksInString(ctx, view, comment.Token, token.Pos(comment.Start.Byte), pm.Mapper, source.Mod)
 				if err != nil {
 					return nil, err
 				}

@@ -74,23 +74,17 @@ type Snapshot interface {
 	// -modfile flag.
 	RunGoCommandDirect(ctx context.Context, verb string, args []string) error
 
-	// ParseModHandle is used to parse go.mod files.
-	ParseModHandle(ctx context.Context, fh FileHandle) (ParseModHandle, error)
+	// ParseMod is used to parse go.mod files.
+	ParseMod(ctx context.Context, fh FileHandle) (*ParsedModule, error)
 
-	// ModWhyHandle is used get the results of `go mod why` for a given module.
-	// It only works for go.mod files that can be parsed, hence it takes a
-	// ParseModHandle.
-	ModWhyHandle(ctx context.Context) (ModWhyHandle, error)
+	// ModWhy returns the results of `go mod why` for the snapshot's module.
+	ModWhy(ctx context.Context) (map[string]string, error)
 
-	// ModWhyHandle is used get the possible upgrades for the dependencies of
-	// a given module. It only works for go.mod files that can be parsed, hence
-	// it takes a ParseModHandle.
-	ModUpgradeHandle(ctx context.Context) (ModUpgradeHandle, error)
+	// ModUpgrade returns the possible updates for the snapshot's module.
+	ModUpgrade(ctx context.Context) (map[string]string, error)
 
-	// ModWhyHandle is used get the results of `go mod tidy` for a given
-	// module. It only works for go.mod files that can be parsed, hence it
-	// takes a ParseModHandle.
-	ModTidyHandle(ctx context.Context) (ModTidyHandle, error)
+	// ModTidy returns the results of `go mod tidy` for the snapshot's module.
+	ModTidy(ctx context.Context) (*TidiedModule, error)
 
 	// PackagesForFile returns the packages that this file belongs to.
 	PackagesForFile(ctx context.Context, uri span.URI) ([]Package, error)
@@ -183,6 +177,7 @@ type BuiltinPackage interface {
 	ParsedFile() *ParsedGoFile
 }
 
+// A ParsedGoFile contains the results of parsing a Go file.
 type ParsedGoFile struct {
 	memoize.NoCopy
 
@@ -195,6 +190,27 @@ type ParsedGoFile struct {
 	Src      []byte
 	Mapper   *protocol.ColumnMapper
 	ParseErr error
+}
+
+// A ParsedModule contains the results of parsing a go.mod file.
+type ParsedModule struct {
+	memoize.NoCopy
+
+	File        *modfile.File
+	Mapper      *protocol.ColumnMapper
+	ParseErrors []Error
+}
+
+// A TidedModule contains the results of running `go mod tidy` on a module.
+type TidiedModule struct {
+	memoize.NoCopy
+
+	// The parsed module, which is guaranteed to have parsed successfully.
+	Parsed *ParsedModule
+	// Diagnostics representing changes made by `go mod tidy`.
+	Errors []Error
+	// The bytes of the go.mod file after it was tidied.
+	TidiedContent []byte
 }
 
 // Session represents a single connection from a client.
@@ -317,41 +333,6 @@ type Cache interface {
 
 	// GetFile returns a file handle for the given URI.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
-}
-
-type ParseModHandle interface {
-	// Mod returns the file handle for the go.mod file.
-	Mod() FileHandle
-
-	// Sum returns the file handle for the analogous go.sum file. It may be nil.
-	Sum() FileHandle
-
-	// Parse returns the parsed go.mod file, a column mapper, and a list of
-	// parse for the go.mod file.
-	Parse(ctx context.Context, snapshot Snapshot) (*modfile.File, *protocol.ColumnMapper, []Error, error)
-}
-
-type ModUpgradeHandle interface {
-	// Upgrades returns the latest versions for each of the module's
-	// dependencies.
-	Upgrades(ctx context.Context, snapshot Snapshot) (map[string]string, error)
-}
-
-type ModWhyHandle interface {
-	// Why returns the results of `go mod why` for every dependency of the
-	// module.
-	Why(ctx context.Context, snapshot Snapshot) (map[string]string, error)
-}
-
-type ModTidyHandle interface {
-	// Mod is the ParseModHandle associated with the go.mod file being tidied.
-	ParseModHandle() ParseModHandle
-
-	// Tidy returns the results of `go mod tidy` for the module.
-	Tidy(ctx context.Context, snapshot Snapshot) ([]Error, error)
-
-	// TidiedContent is the content of the tidied go.mod file.
-	TidiedContent(ctx context.Context, snapshot Snapshot) ([]byte, error)
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")

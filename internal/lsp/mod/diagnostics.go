@@ -34,7 +34,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, err
 	}
-	mth, err := snapshot.ModTidyHandle(ctx)
+	tidied, err := snapshot.ModTidy(ctx)
 	if err == source.ErrTmpModfileUnsupported {
 		return nil, nil
 	}
@@ -44,11 +44,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, err
 	}
-	diagnostics, err := mth.Tidy(ctx, snapshot)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range diagnostics {
+	for _, e := range tidied.Errors {
 		diag := &source.Diagnostic{
 			Message: e.Message,
 			Range:   e.Range,
@@ -98,16 +94,12 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 			break
 		}
 	}
-	pmh, err := snapshot.ParseModHandle(ctx, fh)
-	if err != nil {
-		return nil, err
-	}
-	parsed, m, _, err := pmh.Parse(ctx, snapshot)
+	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
 	toDiagnostic := func(line *modfile.Line) (*source.Diagnostic, error) {
-		rng, err := rangeFromPositions(fh.URI(), m, line.Start, line.End)
+		rng, err := rangeFromPositions(fh.URI(), pm.Mapper, line.Start, line.End)
 		if err != nil {
 			return nil, err
 		}
@@ -119,19 +111,19 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 	}
 	// Check if there are any require, exclude, or replace statements that
 	// match this module version.
-	for _, req := range parsed.Require {
+	for _, req := range pm.File.Require {
 		if req.Mod != v {
 			continue
 		}
 		return toDiagnostic(req.Syntax)
 	}
-	for _, ex := range parsed.Exclude {
+	for _, ex := range pm.File.Exclude {
 		if ex.Mod != v {
 			continue
 		}
 		return toDiagnostic(ex.Syntax)
 	}
-	for _, rep := range parsed.Replace {
+	for _, rep := range pm.File.Replace {
 		if rep.New != v && rep.Old != v {
 			continue
 		}
@@ -139,7 +131,7 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 	}
 	// No match for the module path was found in the go.mod file.
 	// Show the error on the module declaration.
-	return toDiagnostic(parsed.Module.Syntax)
+	return toDiagnostic(pm.File.Module.Syntax)
 }
 
 func rangeFromPositions(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {

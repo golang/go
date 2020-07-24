@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
-	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -34,57 +33,32 @@ type modTidyKey struct {
 
 type modTidyHandle struct {
 	handle *memoize.Handle
-
-	pmh source.ParseModHandle
 }
 
 type modTidyData struct {
 	memoize.NoCopy
 
-	// tidiedContent is the content of the tidied file.
-	tidiedContent []byte
-
-	// diagnostics are any errors and associated suggested fixes for
-	// the go.mod file.
-	diagnostics []source.Error
-
-	err error
+	tidied *source.TidiedModule
+	err    error
 }
 
-func (mth *modTidyHandle) ParseModHandle() source.ParseModHandle {
-	return mth.pmh
-}
-
-func (mth *modTidyHandle) Tidy(ctx context.Context, s source.Snapshot) ([]source.Error, error) {
+func (mth *modTidyHandle) tidy(ctx context.Context, s source.Snapshot) (*source.TidiedModule, error) {
 	v, err := mth.handle.Get(ctx, s.(*snapshot))
 	if err != nil {
 		return nil, err
 	}
 	data := v.(*modTidyData)
-	return data.diagnostics, data.err
+	return data.tidied, data.err
 }
 
-func (mth *modTidyHandle) TidiedContent(ctx context.Context, s source.Snapshot) ([]byte, error) {
-	v, err := mth.handle.Get(ctx, s.(*snapshot))
-	if err != nil {
-		return nil, err
-	}
-	data := v.(*modTidyData)
-	return data.tidiedContent, data.err
-}
-
-func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, error) {
+func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
 	if !s.view.tmpMod {
 		return nil, source.ErrTmpModfileUnsupported
 	}
 	if handle := s.getModTidyHandle(); handle != nil {
-		return handle, nil
+		return handle.tidy(ctx, s)
 	}
-	fh, err := s.GetFile(ctx, s.view.modURI)
-	if err != nil {
-		return nil, err
-	}
-	pmh, err := s.ParseModHandle(ctx, fh)
+	modFH, err := s.GetFile(ctx, s.view.modURI)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +85,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		view:            s.view.root.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
-		gomod:           pmh.Mod().Identity().String(),
+		gomod:           modFH.Identity().String(),
 		cfg:             hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
@@ -119,21 +93,26 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		defer done()
 
 		snapshot := arg.(*snapshot)
-		original, m, parseErrors, err := pmh.Parse(ctx, snapshot)
-		if err != nil || len(parseErrors) > 0 {
+		pm, err := snapshot.ParseMod(ctx, modFH)
+		if err != nil {
+			return &modTidyData{err: err}
+		}
+		if len(pm.ParseErrors) > 0 {
 			return &modTidyData{
-				diagnostics: parseErrors,
-				err:         err,
+				tidied: &source.TidiedModule{
+					Parsed: pm,
+				},
+				err: fmt.Errorf("could not parse module to tidy: %v", pm.ParseErrors),
 			}
 		}
-		tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, pmh, "mod", []string{"tidy"})
+		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, true, "mod", []string{"tidy"})
 		if err != nil {
 			return &modTidyData{err: err}
 		}
 		// Keep the temporary go.mod file around long enough to parse it.
 		defer cleanup()
 
-		if _, err := packagesinternal.GetGoCmdRunner(cfg).Run(ctx, *inv); err != nil {
+		if _, err := runner.Run(ctx, *inv); err != nil {
 			return &modTidyData{err: err}
 		}
 		// Go directly to disk to get the temporary mod file, since it is
@@ -150,9 +129,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		}
 		// Get the dependencies that are different between the original and
 		// ideal go.mod files.
-		unusedDeps := make(map[string]*modfile.Require, len(original.Require))
+		unusedDeps := make(map[string]*modfile.Require, len(pm.File.Require))
 		missingDeps := make(map[string]*modfile.Require, len(ideal.Require))
-		for _, req := range original.Require {
+		for _, req := range pm.File.Require {
 			unusedDeps[req.Mod.Path] = req
 		}
 		for _, req := range ideal.Require {
@@ -166,7 +145,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		// First, compute any errors specific to the go.mod file. These include
 		// unused dependencies and modules with incorrect // indirect comments.
 		/// Both the diagnostic and the fix will appear on the go.mod file.
-		modRequireErrs, err := modRequireErrors(m, missingDeps, unusedDeps, options)
+		modRequireErrs, err := modRequireErrors(pm.Mapper, missingDeps, unusedDeps, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -179,22 +158,25 @@ func (s *snapshot) ModTidyHandle(ctx context.Context) (source.ModTidyHandle, err
 		// go.mod file. The fixes will be for the go.mod file, but the
 		// diagnostics should appear on the import statements in the Go or
 		// go.mod files.
-		missingModuleErrs, err := missingModuleErrors(ctx, snapshot, m, workspacePkgs, ideal.Require, missingDeps, original, options)
+		missingModuleErrs, err := missingModuleErrors(ctx, snapshot, pm.Mapper, workspacePkgs, ideal.Require, missingDeps, pm.File, options)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
 		return &modTidyData{
-			tidiedContent: tempContents,
-			diagnostics:   append(modRequireErrs, missingModuleErrs...),
+			tidied: &source.TidiedModule{
+				Parsed:        pm,
+				TidiedContent: tempContents,
+				Errors:        append(modRequireErrs, missingModuleErrs...),
+			},
 		}
 	})
+
+	mth := &modTidyHandle{handle: h}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.modTidyHandle = &modTidyHandle{
-		handle: h,
-		pmh:    pmh,
-	}
-	return s.modTidyHandle, nil
+	s.modTidyHandle = mth
+	s.mu.Unlock()
+
+	return mth.tidy(ctx, s)
 }
 
 func hashImports(ctx context.Context, wsPackages []source.Package) (string, error) {

@@ -142,83 +142,55 @@ func (s *snapshot) config(ctx context.Context) *packages.Config {
 }
 
 func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []string) error {
-	cfg := s.config(ctx)
-	_, _, err := runGoCommand(ctx, cfg, nil, s.view.tmpMod, verb, args)
-	return err
-}
-
-func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
-	cfg := s.config(ctx)
-	var pmh source.ParseModHandle
-	if s.view.tmpMod {
-		modFH, err := s.GetFile(ctx, s.view.modURI)
-		if err != nil {
-			return nil, err
-		}
-		pmh, err = s.ParseModHandle(ctx, modFH)
-		if err != nil {
-			return nil, err
-		}
-	}
-	_, stdout, err := runGoCommand(ctx, cfg, pmh, s.view.tmpMod, verb, args)
-	return stdout, err
-}
-
-func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
-	cfg := s.config(ctx)
-	var pmh source.ParseModHandle
-	if s.view.tmpMod {
-		modFH, err := s.GetFile(ctx, s.view.modURI)
-		if err != nil {
-			return err
-		}
-		pmh, err = s.ParseModHandle(ctx, modFH)
-		if err != nil {
-			return err
-		}
-	}
-	_, inv, cleanup, err := goCommandInvocation(ctx, cfg, pmh, verb, args)
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, false, verb, args)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	return runner.RunPiped(ctx, *inv, stdout, stderr)
+	_, err = runner.Run(ctx, *inv)
+	return err
 }
 
-// runGoCommand runs the given go command with the given config.
-// The given go.mod file is used to construct the temporary go.mod file, which
-// is then passed to the go command via the BuildFlags.
-// It assumes that modURI is only provided when the -modfile flag is enabled.
-func runGoCommand(ctx context.Context, cfg *packages.Config, pmh source.ParseModHandle, tmpMod bool, verb string, args []string) (span.URI, *bytes.Buffer, error) {
-	// Don't pass in the ParseModHandle if we are not using the -modfile flag.
-	var tmpPMH source.ParseModHandle
-	if tmpMod {
-		tmpPMH = pmh
-	}
-	tmpURI, inv, cleanup, err := goCommandInvocation(ctx, cfg, tmpPMH, verb, args)
+func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, true, verb, args)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	defer cleanup()
 
-	runner := packagesinternal.GetGoCmdRunner(cfg)
-	stdout, err := runner.Run(ctx, *inv)
-	return tmpURI, stdout, err
+	return runner.Run(ctx, *inv)
+}
+
+func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, true, verb, args)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return runner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
 // Assumes that modURI is only provided when the -modfile flag is enabled.
-func goCommandInvocation(ctx context.Context, cfg *packages.Config, pmh source.ParseModHandle, verb string, args []string) (tmpURI span.URI, inv *gocommand.Invocation, cleanup func(), err error) {
+func (s *snapshot) goCommandInvocation(ctx context.Context, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
 	cleanup = func() {} // fallback
-	if pmh != nil {
-		tmpURI, cleanup, err = tempModFile(pmh.Mod(), pmh.Sum())
+	cfg := s.config(ctx)
+	if allowTempModfile && s.view.tmpMod {
+		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
-			return "", nil, nil, err
+			return "", nil, nil, cleanup, err
+		}
+		// Use the go.sum if it happens to be available.
+		sumFH, _ := s.sumFH(ctx, modFH)
+
+		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
+		if err != nil {
+			return "", nil, nil, cleanup, err
 		}
 		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
-	return tmpURI, &gocommand.Invocation{
+	runner = packagesinternal.GetGoCmdRunner(cfg)
+	return tmpURI, runner, &gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		Env:        cfg.Env,

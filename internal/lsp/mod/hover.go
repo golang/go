@@ -26,19 +26,15 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	defer done()
 
 	// Get the position of the cursor.
-	pmh, err := snapshot.ParseModHandle(ctx, fh)
+	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	file, m, _, err := pmh.Parse(ctx, snapshot)
-	if err != nil {
-		return nil, err
-	}
-	spn, err := m.PointSpan(position)
+	spn, err := pm.Mapper.PointSpan(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
-	hoverRng, err := spn.Range(m.Converter)
+	hoverRng, err := spn.Range(pm.Mapper.Converter)
 	if err != nil {
 		return nil, fmt.Errorf("computing hover range: %w", err)
 	}
@@ -46,10 +42,10 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	// Confirm that the cursor is at the position of a require statement.
 	var req *modfile.Require
 	var startPos, endPos int
-	for _, r := range file.Require {
+	for _, r := range pm.File.Require {
 		dep := []byte(r.Mod.Path)
 		s, e := r.Syntax.Start.Byte, r.Syntax.End.Byte
-		i := bytes.Index(m.Content[s:e], dep)
+		i := bytes.Index(pm.Mapper.Content[s:e], dep)
 		if i == -1 {
 			continue
 		}
@@ -68,16 +64,9 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the `go mod why` results for the given file.
-	mwh, err := snapshot.ModWhyHandle(ctx)
+	why, err := snapshot.ModWhy(ctx)
 	if err != nil {
 		return nil, err
-	}
-	why, err := mwh.Why(ctx, snapshot)
-	if err != nil {
-		return nil, fmt.Errorf("running go mod why: %w", err)
-	}
-	if why == nil {
-		return nil, nil
 	}
 	explanation, ok := why[req.Mod.Path]
 	if !ok {
@@ -85,20 +74,20 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the range to highlight for the hover.
-	line, col, err := m.Converter.ToPosition(startPos)
+	line, col, err := pm.Mapper.Converter.ToPosition(startPos)
 	if err != nil {
 		return nil, err
 	}
 	start := span.NewPoint(line, col, startPos)
 
-	line, col, err = m.Converter.ToPosition(endPos)
+	line, col, err = pm.Mapper.Converter.ToPosition(endPos)
 	if err != nil {
 		return nil, err
 	}
 	end := span.NewPoint(line, col, endPos)
 
 	spn = span.New(fh.URI(), start, end)
-	rng, err := m.Range(spn)
+	rng, err := pm.Mapper.Range(spn)
 	if err != nil {
 		return nil, err
 	}
