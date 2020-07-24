@@ -181,8 +181,3 @@ func (t *Target) mustSetHeadType() {
 func (t *Target) IsBigEndian() bool {
 	return t.Arch.ByteOrder == binary.BigEndian
 }
-
-// Temporary helper.
-func (t *Target) StreamExtRelocs() bool {
-	return true
-}

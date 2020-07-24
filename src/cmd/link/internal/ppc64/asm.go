@@ -797,7 +797,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetData(P)
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	if target.IsExternal() {
 		// On AIX, relocations (except TLS ones) must be also done to the

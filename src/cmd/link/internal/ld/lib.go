@@ -212,8 +212,8 @@ type Arch struct {
 	// ELF/Mach-O/etc. relocations, not Go relocations, this must match Elfreloc1,
 	// etc.), and a boolean indicating success/failure (a failing value indicates
 	// a fatal error).
-	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, *loader.ExtReloc,
-		loader.Sym, int64) (relocatedOffset int64, nExtReloc int, ok bool)
+	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, loader.Sym,
+		int64) (relocatedOffset int64, nExtReloc int, ok bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
 	// insufficient to describe the relocation (r.Variant !=

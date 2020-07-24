@@ -18,10 +18,6 @@ import (
 //  - writing out the architecture specific pieces.
 // This function handles the first part.
 func asmb(ctxt *Link) {
-	if ctxt.IsExternal() && !ctxt.StreamExtRelocs() {
-		ctxt.loader.InitExtRelocs()
-	}
-
 	// TODO(jfaller): delete me.
 	if thearch.Asmb != nil {
 		thearch.Asmb(ctxt, ctxt.loader)
