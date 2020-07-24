@@ -238,8 +238,6 @@ type Loader struct {
 
 	align []uint8 // symbol 2^N alignment, indexed by global index
 
-	extRelocs [][]ExtReloc // symbol's external relocations
-
 	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 	deferReturnTramp map[Sym]bool     // whether the symbol is a trampoline of a deferreturn call
 
@@ -1241,16 +1239,6 @@ func (l *Loader) FreeData(i Sym) {
 	}
 }
 
-// SetExtRelocs sets the external relocations of the i-th symbol. i is global index.
-func (l *Loader) SetExtRelocs(i Sym, relocs []ExtReloc) {
-	l.extRelocs[i] = relocs
-}
-
-// InitExtRelocs initialize the slice used to store external relocations.
-func (l *Loader) InitExtRelocs() {
-	l.extRelocs = make([][]ExtReloc, l.NSym())
-}
-
 // SymAlign returns the alignment for a symbol.
 func (l *Loader) SymAlign(i Sym) int32 {
 	if int(i) >= len(l.align) {
@@ -1876,24 +1864,6 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 		r:  r,
 		l:  l,
 	}
-}
-
-// ExtRelocs returns the external relocations of the i-th symbol.
-func (l *Loader) ExtRelocs(i Sym) ExtRelocs {
-	return ExtRelocs{l.Relocs(i), l.extRelocs[i]}
-}
-
-// ExtRelocs represents the set of external relocations of a symbol.
-type ExtRelocs struct {
-	rs Relocs
-	es []ExtReloc
-}
-
-func (ers ExtRelocs) Count() int { return len(ers.es) }
-
-func (ers ExtRelocs) At(j int) ExtRelocView {
-	i := ers.es[j].Idx
-	return ExtRelocView{ers.rs.At2(i), ers.es[j]}
 }
 
 // RelocByOff implements sort.Interface for sorting relocations by offset.

@@ -158,17 +158,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	}
 	target := st.target
 	syms := st.syms
-	var extRelocs []loader.ExtReloc
-	if target.IsExternal() && !target.StreamExtRelocs() {
-		// preallocate a slice conservatively assuming that all
-		// relocs will require an external reloc
-		extRelocs = st.preallocExtRelocSlice(relocs.Count())
-	}
-	// Extra external host relocations (e.g. ELF relocations).
-	// This is the difference between number of host relocations
-	// and number of Go relocations, as one Go relocation may turn
-	// into multiple host relocations.
-	extraExtReloc := 0
+	nExtReloc := 0 // number of external relocations
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At2(ri)
 		off := r.Off()
@@ -226,12 +216,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
 		}
 
-		var rr loader.ExtReloc
-		needExtReloc := false // will set to true below in case it is needed
-		if target.IsExternal() {
-			rr.Idx = ri
-		}
-
 		var rv sym.RelocVariant
 		if target.IsPPC64() || target.IsS390X() {
 			rv = ldr.RelocVariant(s, ri)
@@ -263,30 +247,10 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			case 8:
 				o = int64(target.Arch.ByteOrder.Uint64(P[off:]))
 			}
-			var rp *loader.ExtReloc
-			if target.IsExternal() && !target.StreamExtRelocs() {
-				// Don't pass &rr directly to Archreloc, which will escape rr
-				// even if this case is not taken. Instead, as Archreloc will
-				// likely return true, we speculatively add rr to extRelocs
-				// and use that space to pass to Archreloc.
-				extRelocs = append(extRelocs, rr)
-				rp = &extRelocs[len(extRelocs)-1]
-			}
-			out, nExtReloc, ok := thearch.Archreloc(target, ldr, syms, r, rp, s, o)
+			out, n, ok := thearch.Archreloc(target, ldr, syms, r, s, o)
 			if target.IsExternal() {
-				if target.StreamExtRelocs() {
-					extraExtReloc += nExtReloc
-				} else {
-					if nExtReloc == 0 {
-						// No external relocation needed. Speculation failed. Undo the append.
-						extRelocs = extRelocs[:len(extRelocs)-1]
-					} else {
-						// Account for the difference between host relocations and Go relocations.
-						extraExtReloc += nExtReloc - 1
-					}
-				}
+				nExtReloc += n
 			}
-			needExtReloc = false // already appended
 			if ok {
 				o = out
 			} else {
@@ -294,12 +258,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 		case objabi.R_TLS_LE:
 			if target.IsExternal() && target.IsElf() {
-				needExtReloc = true
-				rr.Xsym = rs
-				if rr.Xsym == 0 {
-					rr.Xsym = syms.Tlsg
-				}
-				rr.Xadd = r.Add()
+				nExtReloc++
 				o = 0
 				if !target.IsAMD64() {
 					o = r.Add()
@@ -325,18 +284,13 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 		case objabi.R_TLS_IE:
 			if target.IsExternal() && target.IsElf() {
-				needExtReloc = true
-				rr.Xsym = rs
-				if rr.Xsym == 0 {
-					rr.Xsym = syms.Tlsg
-				}
-				rr.Xadd = r.Add()
+				nExtReloc++
 				o = 0
 				if !target.IsAMD64() {
 					o = r.Add()
 				}
 				if target.Is386() {
-					extraExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
+					nExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
 				}
 				break
 			}
@@ -353,19 +307,18 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 		case objabi.R_ADDR:
 			if target.IsExternal() {
-				needExtReloc = true
+				nExtReloc++
 
 				// set up addend for eventual relocation via outer symbol.
 				rs := rs
 				rs, off := FoldSubSymbolOffset(ldr, rs)
-				rr.Xadd = r.Add() + off
+				xadd := r.Add() + off
 				rst := ldr.SymType(rs)
 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
 				}
-				rr.Xsym = rs
 
-				o = rr.Xadd
+				o = xadd
 				if target.IsElf() {
 					if target.IsAMD64() {
 						o = 0
@@ -377,7 +330,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				} else if target.IsWindows() {
 					// nothing to do
 				} else if target.IsAIX() {
-					o = ldr.SymValue(rs) + rr.Xadd
+					o = ldr.SymValue(rs) + xadd
 				} else {
 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
 				}
@@ -417,21 +370,18 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 
 			if target.IsExternal() {
-				needExtReloc = true
-
 				// On most platforms, the external linker needs to adjust DWARF references
 				// as it combines DWARF sections. However, on Darwin, dsymutil does the
 				// DWARF linking, and it understands how to follow section offsets.
 				// Leaving in the relocation records confuses it (see
 				// https://golang.org/issue/22068) so drop them for Darwin.
-				if target.IsDarwin() {
-					needExtReloc = false
+				if !target.IsDarwin() {
+					nExtReloc++
 				}
 
-				rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
-				rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
+				xadd := r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
 
-				o = rr.Xadd
+				o = xadd
 				if target.IsElf() && target.IsAMD64() {
 					o = 0
 				}
@@ -460,46 +410,34 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
 			if target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 {
-				needExtReloc = true
-				rr.Xadd = r.Add()
-				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
-				rr.Xsym = rs
-
-				o = rr.Xadd
-				o += int64(siz)
+				nExtReloc++
+				o = r.Add()
 				break
 			}
 			if target.Is386() && target.IsExternal() && target.IsELF {
-				extraExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
+				nExtReloc++ // need two ELF relocations on 386, see ../x86/asm.go:elfreloc1
 			}
 			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
 			if target.IsExternal() && rs != 0 && rst == sym.SUNDEFEXT {
 				// pass through to the external linker.
-				needExtReloc = true
-				rr.Xadd = 0
-				if target.IsElf() {
-					rr.Xadd -= int64(siz)
-				}
-				rr.Xsym = rs
+				nExtReloc++
 				o = 0
 				break
 			}
 			if target.IsExternal() && rs != 0 && (ldr.SymSect(rs) != ldr.SymSect(s) || rt == objabi.R_GOTPCREL) {
-				needExtReloc = true
+				nExtReloc++
 
 				// set up addend for eventual relocation via outer symbol.
 				rs := rs
 				rs, off := FoldSubSymbolOffset(ldr, rs)
-				rr.Xadd = r.Add() + off
-				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
+				xadd := r.Add() + off - int64(siz) // relative to address after the relocated chunk
 				rst := ldr.SymType(rs)
 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
 				}
-				rr.Xsym = rs
 
-				o = rr.Xadd
+				o = xadd
 				if target.IsElf() {
 					if target.IsAMD64() {
 						o = 0
@@ -547,10 +485,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if !target.IsExternal() {
 				st.err.Errorf(s, "find XCOFF R_REF with internal linking")
 			}
-			needExtReloc = true
-			rr.Xsym = rs
-			rr.Xadd = r.Add()
-			goto addExtReloc
+			nExtReloc++
+			continue
 
 		case objabi.R_DWARFFILEREF:
 			// We don't renumber files in dwarf.go:writelines anymore.
@@ -593,26 +529,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		case 8:
 			target.Arch.ByteOrder.PutUint64(P[off:], uint64(o))
 		}
-
-	addExtReloc:
-		if needExtReloc {
-			if target.StreamExtRelocs() {
-				extraExtReloc++
-			} else {
-				extRelocs = append(extRelocs, rr)
-			}
-		}
 	}
-	if target.IsExternal() && target.StreamExtRelocs() {
-		// On AMD64 ELF, we'll stream out the external relocations in elfrelocsect
+	if target.IsExternal() {
+		// We'll stream out the external relocations in asmb2 (e.g. elfrelocsect)
 		// and we only need the count here.
-		// TODO: just count, but not compute the external relocations. For now it
-		// is still needed on other platforms, and this keeps the code simple.
-		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(extraExtReloc))
-	} else if len(extRelocs) != 0 {
-		st.finalizeExtRelocSlice(extRelocs)
-		ldr.SetExtRelocs(s, extRelocs)
-		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(len(extRelocs)+extraExtReloc))
+		atomic.AddUint32(&ldr.SymSect(s).Relcount, uint32(nExtReloc))
 	}
 }
 
@@ -661,10 +582,6 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 		rs := ldr.ResolveABIAlias(r.Sym())
 		rs, off := FoldSubSymbolOffset(ldr, rs)
 		rr.Xadd = r.Add() + off
-		rst := ldr.SymType(rs)
-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
-			ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
-		}
 		rr.Xsym = rs
 
 	case objabi.R_DWARFSECREF:
@@ -704,10 +621,6 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 			rs, off := FoldSubSymbolOffset(ldr, rs)
 			rr.Xadd = r.Add() + off
 			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
-			rst := ldr.SymType(rs)
-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
-				ldr.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
-			}
 			rr.Xsym = rs
 			break
 		}
@@ -726,8 +639,6 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 	return rr, true
 }
 
-const extRelocSlabSize = 2048
-
 // relocSymState hold state information needed when making a series of
 // successive calls to relocsym(). The items here are invariant
 // (meaning that they are set up once initially and then don't change
@@ -740,34 +651,6 @@ type relocSymState struct {
 	ldr    *loader.Loader
 	err    *ErrorReporter
 	syms   *ArchSyms
-	batch  []loader.ExtReloc
-}
-
-// preallocExtRelocs returns a subslice from an internally allocated
-// slab owned by the state object. Client requests a slice of size
-// 'sz', however it may be that fewer relocs are needed; the
-// assumption is that the final size is set in a [required] subsequent
-// call to 'finalizeExtRelocSlice'.
-func (st *relocSymState) preallocExtRelocSlice(sz int) []loader.ExtReloc {
-	if len(st.batch) < sz {
-		slabSize := extRelocSlabSize
-		if sz > extRelocSlabSize {
-			slabSize = sz
-		}
-		st.batch = make([]loader.ExtReloc, slabSize)
-	}
-	rval := st.batch[:sz:sz]
-	return rval[:0]
-}
-
-// finalizeExtRelocSlice takes a slice returned from preallocExtRelocSlice,
-// from which it determines how many of the pre-allocated relocs were
-// actually needed; it then carves that number off the batch slice.
-func (st *relocSymState) finalizeExtRelocSlice(finalsl []loader.ExtReloc) {
-	if &st.batch[0] != &finalsl[0] {
-		panic("preallocExtRelocSlice size invariant violation")
-	}
-	st.batch = st.batch[len(finalsl):]
 }
 
 // makeRelocSymState creates a relocSymState container object to
