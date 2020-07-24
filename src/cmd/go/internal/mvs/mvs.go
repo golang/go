@@ -83,7 +83,7 @@ func (e *BuildListError) Module() module.Version {
 	if len(e.stack) == 0 {
 		return module.Version{}
 	}
-	return e.stack[0].m
+	return e.stack[len(e.stack)-1].m
 }
 
 func (e *BuildListError) Error() string {
@@ -93,22 +93,22 @@ func (e *BuildListError) Error() string {
 	// Don't print modules at the beginning of the chain without a
 	// version. These always seem to be the main module or a
 	// synthetic module ("target@").
-	for len(stack) > 0 && stack[len(stack)-1].m.Version == "" {
-		stack = stack[:len(stack)-1]
+	for len(stack) > 0 && stack[0].m.Version == "" {
+		stack = stack[1:]
 	}
 
-	for i := len(stack) - 1; i >= 1; i-- {
-		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
-	}
 	if len(stack) == 0 {
 		b.WriteString(e.Err.Error())
 	} else {
+		for _, elem := range stack[:len(stack)-1] {
+			fmt.Fprintf(b, "%s@%s %s\n\t", elem.m.Path, elem.m.Version, elem.nextReason)
+		}
 		// Ensure that the final module path and version are included as part of the
 		// error message.
 		if _, ok := e.Err.(*module.ModuleError); ok {
 			fmt.Fprintf(b, "%v", e.Err)
 		} else {
-			fmt.Fprintf(b, "%v", module.VersionError(stack[0].m, e.Err))
+			fmt.Fprintf(b, "%v", module.VersionError(stack[len(stack)-1].m, e.Err))
 		}
 	}
 	return b.String()
@@ -202,16 +202,27 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 			q = q[1:]
 
 			if node.err != nil {
-				err := &BuildListError{
-					Err:   node.err,
-					stack: []buildListErrorElem{{m: node.m}},
-				}
+				// Construct the stack reversed (from the error to the main module),
+				// then reverse it to obtain the usual order (from the main module to
+				// the error).
+				stack := []buildListErrorElem{{m: node.m}}
 				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
 					reason := "requires"
 					if n.upgrade == prev.m {
 						reason = "updating to"
 					}
-					err.stack = append(err.stack, buildListErrorElem{m: n.m, nextReason: reason})
+					stack = append(stack, buildListErrorElem{m: n.m, nextReason: reason})
+				}
+				i, j := 0, len(stack)-1
+				for i < j {
+					stack[i], stack[j] = stack[j], stack[i]
+					i++
+					j--
+				}
+
+				err := &BuildListError{
+					Err:   node.err,
+					stack: stack,
 				}
 				return nil, err
 			}
