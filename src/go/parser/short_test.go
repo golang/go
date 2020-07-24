@@ -88,6 +88,14 @@ var valids = []string{
 	`package p; type _[type] int; var _ T[chan int]`,
 	`package p; func f[A, B](); func _() { _ = f[int, int] }`,
 
+	// optional "type" keyword for generic types using square brackets
+	`package p; type _[A interface{},] struct{}`,
+	`package p; type _[A interface{}] struct{}`,
+	`package p; type _[A, B,] struct{}`,
+	`package p; type _[A, B] struct{}`,
+	`package p; type _[A,] struct{}`,
+	`package p; type _ [A+B]struct{}`, // this is an array!
+
 	// optional "type" keyword for generic functions using square brackets
 	`package p; func _[]()`,
 	`package p; func _[T]()`,
@@ -251,6 +259,7 @@ var invalids = []string{
 	`package p; var _ func( /* ERROR "cannot have type parameters" */ type T)(T)`,
 	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
+	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
