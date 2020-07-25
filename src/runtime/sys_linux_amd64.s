@@ -616,10 +616,6 @@ nog1:
 	SYSCALL
 	MOVQ	AX, m_procid(R13)
 
-	// Set FS to point at m->tls.
-	//LEAQ	m_tls(R13), DI
-	//CALL	runtime·settls(SB)
-
 	// In child, set up new stack
 	get_tls(CX)
 	MOVQ	R13, g_m(R9)
