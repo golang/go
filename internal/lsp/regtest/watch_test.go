@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -120,7 +121,8 @@ import "mod.com/b"
 
 func _() {
 	b.B()
-}`})
+}`,
+		})
 		env.Await(
 			EmptyDiagnostics("a/a.go"),
 			NoDiagnostics("b/b.go"),
@@ -215,7 +217,6 @@ func _() {}
 			NoDiagnostics("a/a.go"),
 		)
 	})
-
 }
 
 // Create a new file that defines a new symbol, in the same package.
@@ -422,5 +423,76 @@ package a
 			)
 		})
 	})
+}
 
+// This change reproduces the behavior of switching branches, with multiple
+// files being created and deleted. The key change here is the movement of a
+// symbol from one file to another in a given package through a deletion and
+// creation. To reproduce an issue with metadata invalidation in batched
+// changes, the last change in the batch is an on-disk file change that doesn't
+// require metadata invalidation.
+func TestMoveSymbol(t *testing.T) {
+	const pkg = `
+-- go.mod --
+module mod.com
+
+go 1.14
+-- main.go --
+package main
+
+import "mod.com/a"
+
+func main() {
+	var x int
+	x = a.Hello
+	println(x)
+}
+-- a/a1.go --
+package a
+
+var Hello int
+-- a/a2.go --
+package a
+
+func _() {}
+`
+	runner.Run(t, pkg, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.ChangeFilesOnDisk([]fake.FileEvent{
+			{
+				Path: "a/a3.go",
+				Content: `package a
+
+var Hello int
+`,
+				ProtocolEvent: protocol.FileEvent{
+					URI:  env.Sandbox.Workdir.URI("a/a3.go"),
+					Type: protocol.Created,
+				},
+			},
+			{
+				Path: "a/a1.go",
+				ProtocolEvent: protocol.FileEvent{
+					URI:  env.Sandbox.Workdir.URI("a/a1.go"),
+					Type: protocol.Deleted,
+				},
+			},
+			{
+				Path:    "a/a2.go",
+				Content: `package a; func _() {};`,
+				ProtocolEvent: protocol.FileEvent{
+					URI:  env.Sandbox.Workdir.URI("a/a2.go"),
+					Type: protocol.Changed,
+				},
+			},
+		})
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				NoDiagnostics("main.go"),
+			),
+		)
+	})
 }

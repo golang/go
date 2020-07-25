@@ -884,10 +884,15 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
 		var addRevDeps func(packageID)
 		addRevDeps = func(id packageID) {
-			if _, seen := transitiveIDs[id]; seen {
+			current, seen := transitiveIDs[id]
+			newInvalidateMetadata := current || invalidateMetadata
+
+			// If we've already seen this ID, and the value of invalidate
+			// metadata has not changed, we can return early.
+			if seen && current == newInvalidateMetadata {
 				return
 			}
-			transitiveIDs[id] = invalidateMetadata
+			transitiveIDs[id] = newInvalidateMetadata
 			for _, rid := range s.getImportedByLocked(id) {
 				addRevDeps(rid)
 			}
