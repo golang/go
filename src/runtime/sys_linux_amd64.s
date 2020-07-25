@@ -591,7 +591,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 #else
 	ADDQ	$8, R8	// ELF wants to use -8(FS)
 #endif
-	ORQ 	$0x00080000, DI
+	ORQ 	$0x00080000, DI //add flag CLONE_SETTLS(0x00080000) to call clone
 nog1:
 	MOVL	$SYS_clone, AX
 	SYSCALL
