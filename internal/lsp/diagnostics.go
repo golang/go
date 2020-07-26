@@ -25,7 +25,7 @@ import (
 // idWithAnalysis is used to track if the diagnostics for a given file were
 // computed with analyses.
 type idWithAnalysis struct {
-	id           source.FileIdentity
+	id           source.VersionedFileIdentity
 	withAnalysis bool
 }
 
@@ -226,8 +226,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		}
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
-			version:      key.id.Version,
-			identifier:   key.id.Identifier,
+			id:           key.id,
 			sorted:       diagnostics,
 			withAnalysis: key.withAnalysis,
 			snapshotID:   snapshot.ID(),
@@ -255,7 +254,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 
 		// If we've already delivered diagnostics for this file, at this
 		// snapshot, with analyses, do not send diagnostics without analyses.
-		if delivered.snapshotID == toSend.snapshotID && delivered.version == toSend.version &&
+		if delivered.snapshotID == toSend.snapshotID && delivered.id == toSend.id &&
 			delivered.withAnalysis && !toSend.withAnalysis {
 			// Do not update the delivered map since it already contains better diagnostics.
 			continue
@@ -366,7 +365,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 			return false
 		}
 		s.publishReports(ctx, snapshot, map[idWithAnalysis]map[string]*source.Diagnostic{
-			{id: fh.Identity()}: {diagnosticKey(diag): diag},
+			{id: fh.VersionedFileIdentity()}: {diagnosticKey(diag): diag},
 		})
 		return true
 	}

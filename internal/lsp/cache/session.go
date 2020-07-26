@@ -46,7 +46,7 @@ type overlay struct {
 	version float64
 	kind    source.FileKind
 
-	// saved is true if a file has been saved on disk,
+	// saved is true if a file matches the state on disk,
 	// and therefore does not need to be part of the overlay sent to go/packages.
 	saved bool
 }
@@ -55,13 +55,19 @@ func (o *overlay) Read() ([]byte, error) {
 	return o.text, nil
 }
 
-func (o *overlay) Identity() source.FileIdentity {
+func (o *overlay) FileIdentity() source.FileIdentity {
 	return source.FileIdentity{
-		URI:        o.uri,
-		Identifier: o.hash,
-		SessionID:  o.session.id,
-		Version:    o.version,
-		Kind:       o.kind,
+		URI:  o.uri,
+		Hash: o.hash,
+		Kind: o.kind,
+	}
+}
+
+func (o *overlay) VersionedFileIdentity() source.VersionedFileIdentity {
+	return source.VersionedFileIdentity{
+		URI:       o.uri,
+		SessionID: o.session.id,
+		Version:   o.version,
 	}
 }
 
@@ -77,9 +83,34 @@ func (o *overlay) Version() float64 {
 	return o.version
 }
 
-func (o *overlay) Session() source.Session { return o.session }
-func (o *overlay) Saved() bool             { return o.saved }
-func (o *overlay) Data() []byte            { return o.text }
+func (o *overlay) Session() string {
+	return o.session.id
+}
+
+func (o *overlay) Saved() bool {
+	return o.saved
+}
+
+// closedFile implements LSPFile for a file that the editor hasn't told us about.
+type closedFile struct {
+	source.FileHandle
+}
+
+func (c *closedFile) VersionedFileIdentity() source.VersionedFileIdentity {
+	return source.VersionedFileIdentity{
+		URI:       c.FileHandle.URI(),
+		SessionID: "",
+		Version:   0,
+	}
+}
+
+func (c *closedFile) Session() string {
+	return ""
+}
+
+func (c *closedFile) Version() float64 {
+	return 0
+}
 
 func (s *Session) ID() string     { return s.id }
 func (s *Session) String() string { return s.id }
@@ -146,7 +177,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 			packages:          make(map[packageKey]*packageHandle),
 			ids:               make(map[span.URI][]packageID),
 			metadata:          make(map[packageID]*metadata),
-			files:             make(map[span.URI]source.FileHandle),
+			files:             make(map[span.URI]source.VersionedFileHandle),
 			importedBy:        make(map[packageID][]packageID),
 			actions:           make(map[actionKey]*actionHandle),
 			workspacePackages: make(map[packageID]packagePath),
@@ -332,7 +363,7 @@ func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModifica
 }
 
 func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, []func(), []span.URI, error) {
-	views := make(map[*View]map[span.URI]source.FileHandle)
+	views := make(map[*View]map[span.URI]source.VersionedFileHandle)
 
 	// Keep track of deleted files so that we can clear their diagnostics.
 	// A file might be re-created after deletion, so only mark files that
@@ -362,21 +393,21 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 				return nil, nil, nil, err
 			}
 			if _, ok := views[view]; !ok {
-				views[view] = make(map[span.URI]source.FileHandle)
+				views[view] = make(map[span.URI]source.VersionedFileHandle)
 			}
 			var (
-				fh  source.FileHandle
-				ok  bool
-				err error
+				fh source.VersionedFileHandle
+				ok bool
 			)
 			if fh, ok = overlays[c.URI]; ok {
 				views[view][c.URI] = fh
 				delete(deletions, c.URI)
 			} else {
-				fh, err = s.cache.getFile(ctx, c.URI)
+				fsFile, err := s.cache.getFile(ctx, c.URI)
 				if err != nil {
 					return nil, nil, nil, err
 				}
+				fh = &closedFile{fsFile}
 				views[view][c.URI] = fh
 				if _, err := fh.Read(); err != nil {
 					deletions[c.URI] = struct{}{}
@@ -488,7 +519,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 				return nil, err
 			}
 			_, readErr := fh.Read()
-			sameContentOnDisk = (readErr == nil && fh.Identity().Identifier == hash)
+			sameContentOnDisk = (readErr == nil && fh.FileIdentity().Hash == hash)
 		}
 		o = &overlay{
 			session: s,

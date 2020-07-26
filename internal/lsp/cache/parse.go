@@ -25,7 +25,7 @@ import (
 
 // parseKey uniquely identifies a parsed Go file.
 type parseKey struct {
-	file string // FileIdentity.String()
+	file source.FileIdentity
 	mode source.ParseMode
 }
 
@@ -53,7 +53,7 @@ type parseGoData struct {
 
 func (c *Cache) parseGoHandle(ctx context.Context, fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
 	key := parseKey{
-		file: fh.Identity().String(),
+		file: fh.FileIdentity(),
 		mode: mode,
 	}
 	parseHandle := c.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {

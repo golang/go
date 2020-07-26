@@ -326,7 +326,7 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		if err != nil {
 			return err
 		}
-		modFileIdentifier = modFH.Identity().Identifier
+		modFileIdentifier = modFH.FileIdentity().Hash
 	}
 	if v.sumURI != "" {
 		sumFH, err = v.session.cache.getFile(ctx, v.sumURI)
@@ -695,7 +695,7 @@ func (v *View) awaitInitialized(ctx context.Context) {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle, forceReloadMetadata bool) (source.Snapshot, func()) {
+func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) (source.Snapshot, func()) {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 

@@ -25,7 +25,7 @@ import (
 type modTidyKey struct {
 	sessionID       string
 	cfg             string
-	gomod           string
+	gomod           source.FileIdentity
 	imports         string
 	unsavedOverlays string
 	view            string
@@ -85,7 +85,7 @@ func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
 		view:            s.view.root.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
-		gomod:           modFH.Identity().String(),
+		gomod:           modFH.FileIdentity(),
 		cfg:             hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {

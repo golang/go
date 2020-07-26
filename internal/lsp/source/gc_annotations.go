@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.URI) (map[FileIdentity][]*Diagnostic, error) {
+func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.URI) (map[VersionedFileIdentity][]*Diagnostic, error) {
 	outDir := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.details", os.Getpid()))
 	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 	if err != nil {
 		return nil, err
 	}
-	reports := make(map[FileIdentity][]*Diagnostic)
+	reports := make(map[VersionedFileIdentity][]*Diagnostic)
 	var parseError error
 	for _, fn := range files {
 		fname, v, err := parseDetailsFile(fn)
@@ -48,8 +48,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 		if x == nil {
 			continue
 		}
-		k := x.Identity()
-		reports[k] = v
+		reports[x.VersionedFileIdentity()] = v
 	}
 	return reports, parseError
 }

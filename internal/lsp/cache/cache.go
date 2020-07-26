@@ -139,15 +139,15 @@ func (h *fileHandle) Kind() source.FileKind {
 	return source.DetectLanguage("", h.uri.Filename())
 }
 
-func (h *fileHandle) Version() float64 {
-	return 0
+func (h *fileHandle) Hash() string {
+	return h.hash
 }
 
-func (h *fileHandle) Identity() source.FileIdentity {
+func (h *fileHandle) FileIdentity() source.FileIdentity {
 	return source.FileIdentity{
-		URI:        h.uri,
-		Identifier: h.hash,
-		Kind:       h.Kind(),
+		URI:  h.uri,
+		Hash: h.hash,
+		Kind: h.Kind(),
 	}
 }
 

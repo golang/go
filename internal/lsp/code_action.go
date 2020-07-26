@@ -440,7 +440,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	return actions, nil
 }
 
-func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {
+func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {
 	return []protocol.TextDocumentEdit{
 		{
 			TextDocument: protocol.VersionedTextDocumentIdentifier{

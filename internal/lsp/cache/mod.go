@@ -54,7 +54,7 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		return handle.parse(ctx, s)
 	}
 
-	h := s.view.session.cache.store.Bind(modFH.Identity().String(), func(ctx context.Context, _ memoize.Arg) interface{} {
+	h := s.view.session.cache.store.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
 		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
 		defer done()
 
@@ -96,7 +96,7 @@ func (s *snapshot) sumFH(ctx context.Context, modFH source.FileHandle) (source.F
 	// cache. Avoid (*snapshot).GetFile here, as we don't want to add
 	// nonexistent file handles to the snapshot if the file does not exist.
 	sumURI := span.URIFromPath(sumFilename(modFH.URI()))
-	sumFH := s.FindFile(sumURI)
+	var sumFH source.FileHandle = s.FindFile(sumURI)
 	if sumFH == nil {
 		var err error
 		sumFH, err = s.view.session.cache.getFile(ctx, sumURI)
@@ -158,8 +158,9 @@ func extractModParseErrors(uri span.URI, m *protocol.ColumnMapper, parseErr erro
 // modKey is uniquely identifies cached data for `go mod why` or dependencies
 // to upgrade.
 type modKey struct {
-	sessionID, cfg, mod, view string
-	verb                      modAction
+	sessionID, cfg, view string
+	mod                  source.FileIdentity
+	verb                 modAction
 }
 
 type modAction int
@@ -201,7 +202,7 @@ func (s *snapshot) ModWhy(ctx context.Context) (map[string]string, error) {
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(s.config(ctx)),
-		mod:       fh.Identity().String(),
+		mod:       fh.FileIdentity(),
 		view:      s.view.root.Filename(),
 		verb:      why,
 	}
@@ -281,7 +282,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context) (map[string]string, error) {
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
-		mod:       fh.Identity().String(),
+		mod:       fh.FileIdentity(),
 		view:      s.view.root.Filename(),
 		verb:      upgrade,
 	}

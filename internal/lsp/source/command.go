@@ -152,7 +152,7 @@ func (c *Command) IsSuggestedFix() bool {
 
 // SuggestedFix applies the command's suggested fix to the given file and
 // range, returning the resulting edits.
-func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
+func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
 	if c.suggestedFixFn == nil {
 		return nil, fmt.Errorf("no suggested fix function for %s", c.Name)
 	}

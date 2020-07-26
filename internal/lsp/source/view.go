@@ -32,11 +32,11 @@ type Snapshot interface {
 
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
-	FindFile(uri span.URI) FileHandle
+	FindFile(uri span.URI) VersionedFileHandle
 
 	// GetFile returns the FileHandle for a given URI, initializing it
 	// if it is not already part of the snapshot.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+	GetFile(ctx context.Context, uri span.URI) (VersionedFileHandle, error)
 
 	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
@@ -255,17 +255,10 @@ type Session interface {
 
 // Overlay is the type for a file held in memory on a session.
 type Overlay interface {
-	// Session returns the session this overlay belongs to.
-	Session() Session
-
-	// Identity returns the FileIdentity for the overlay.
-	Identity() FileIdentity
+	VersionedFileHandle
 
 	// Saved returns whether this overlay has been saved to disk.
 	Saved() bool
-
-	// Data is the contents of the overlay held in memory.
-	Data() []byte
 }
 
 // FileModification represents a modification to a file.
@@ -357,17 +350,35 @@ const (
 	ParseFull
 )
 
+type VersionedFileHandle interface {
+	FileHandle
+	Version() float64
+	Session() string
+
+	// LSPIdentity returns the version identity of a file.
+	VersionedFileIdentity() VersionedFileIdentity
+}
+
+type VersionedFileIdentity struct {
+	URI span.URI
+
+	// SessionID is the ID of the LSP session.
+	SessionID string
+
+	// Version is the version of the file, as specified by the client. It should
+	// only be set in combination with SessionID.
+	Version float64
+}
+
 // FileHandle represents a handle to a specific version of a single file.
 type FileHandle interface {
 	URI() span.URI
 	Kind() FileKind
-	Version() float64
 
 	// Identity returns a FileIdentity for the file, even if there was an error
 	// reading it.
 	// It is a fatal error to call Identity on a file that has not yet been read.
-	Identity() FileIdentity
-
+	FileIdentity() FileIdentity
 	// Read reads the contents of a file.
 	// If the file is not available, returns a nil slice and an error.
 	Read() ([]byte, error)
@@ -377,25 +388,11 @@ type FileHandle interface {
 type FileIdentity struct {
 	URI span.URI
 
-	// SessionID is the ID of the LSP session.
-	SessionID string
-
-	// Version is the version of the file, as specified by the client. It should
-	// only be set in combination with SessionID.
-	Version float64
-
-	// Identifier represents a unique identifier for the file.
-	// It could be a file's modification time or its SHA1 hash if it is not on disk.
-	Identifier string
+	// Identifier represents a unique identifier for the file's content.
+	Hash string
 
 	// Kind is the file's kind.
 	Kind FileKind
-}
-
-func (fileID FileIdentity) String() string {
-	// Version is not part of the FileIdentity string,
-	// as it can remain change even if the file does not.
-	return fmt.Sprintf("%s%s%s", fileID.URI, fileID.Identifier, fileID.Kind)
 }
 
 // FileKind describes the kind of the file in question.

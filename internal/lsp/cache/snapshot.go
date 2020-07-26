@@ -58,7 +58,7 @@ type snapshot struct {
 
 	// files maps file URIs to their corresponding FileHandles.
 	// It may invalidated when a file's content changes.
-	files map[span.URI]source.FileHandle
+	files map[span.URI]source.VersionedFileHandle
 
 	// packages maps a packageKey to a set of packageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
@@ -224,7 +224,7 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func hashUnsavedOverlays(files map[span.URI]source.FileHandle) string {
+func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
 	var unsaved []string
 	for uri, fh := range files {
 		if overlay, ok := fh.(*overlay); ok && !overlay.saved {
@@ -574,7 +574,7 @@ func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	return scope, ok
 }
 
-func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
+func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	f, err := s.view.getFile(uri)
 	if err != nil {
 		return nil
@@ -588,7 +588,7 @@ func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
 	f, err := s.view.getFile(uri)
 	if err != nil {
 		return nil, err
@@ -605,8 +605,9 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 	if err != nil {
 		return nil, err
 	}
-	s.files[f.URI()] = fh
-	return fh, nil
+	closed := &closedFile{fh}
+	s.files[f.URI()] = closed
+	return closed, nil
 }
 
 func (s *snapshot) IsOpen(uri span.URI) bool {
@@ -748,7 +749,7 @@ func contains(views []*View, view *View) bool {
 	return false
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.FileHandle, forceReloadMetadata bool) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.VersionedFileHandle, forceReloadMetadata bool) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -761,7 +762,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		metadata:          make(map[packageID]*metadata),
 		packages:          make(map[packageKey]*packageHandle),
 		actions:           make(map[actionKey]*actionHandle),
-		files:             make(map[span.URI]source.FileHandle),
+		files:             make(map[span.URI]source.VersionedFileHandle),
 		workspacePackages: make(map[packageID]packagePath),
 		unloadableFiles:   make(map[span.URI]struct{}),
 		parseModHandles:   make(map[span.URI]*parseModHandle),
@@ -955,7 +956,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		return currentFH.Kind() == source.Go
 	}
 	// If the file hasn't changed, there's no need to reload.
-	if originalFH.Identity().String() == currentFH.Identity().String() {
+	if originalFH.FileIdentity() == currentFH.FileIdentity() {
 		return false
 	}
 	// If a go.mod file's contents have changed, always invalidate metadata.
@@ -1017,7 +1018,7 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	if err != nil {
 		return err
 	}
-	h := s.view.session.cache.store.Bind(fh.Identity(), func(ctx context.Context, arg memoize.Arg) interface{} {
+	h := s.view.session.cache.store.Bind(fh.FileIdentity(), func(ctx context.Context, arg memoize.Arg) interface{} {
 		snapshot := arg.(*snapshot)
 
 		pgh := snapshot.view.session.cache.parseGoHandle(ctx, fh, source.ParseFull)

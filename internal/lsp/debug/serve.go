@@ -267,7 +267,7 @@ func (i *Instance) getFile(r *http.Request) interface{} {
 		return nil
 	}
 	for _, o := range s.Overlays() {
-		if o.Identity().Identifier == identifier {
+		if o.FileIdentity().Hash == identifier {
 			return o
 		}
 	}
