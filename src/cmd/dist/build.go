@@ -1209,7 +1209,7 @@ func timelog(op, name string) {
 		}
 		i := strings.Index(s, " start")
 		if i < 0 {
-			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBULDTIMELOGFILE"))
+			log.Fatalf("time log %s does not begin with start line", os.Getenv("GOBUILDTIMELOGFILE"))
 		}
 		t, err := time.Parse(time.UnixDate, s[:i])
 		if err != nil {
