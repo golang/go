@@ -459,6 +459,9 @@ type Error struct {
 	Related        []RelatedInformation
 }
 
+// GoModTidy is the source for a diagnostic computed by running `go mod tidy`.
+const GoModTidy = "go mod tidy"
+
 type ErrorKind int
 
 const (
