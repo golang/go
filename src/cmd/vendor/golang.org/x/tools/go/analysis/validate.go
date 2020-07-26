@@ -65,6 +65,9 @@ func Validate(analyzers []*Analyzer) error {
 			}
 			color[a] = black
 		}
+		if color[a] == grey {
+			return fmt.Errorf("cycle involving %s detected", a.Name)
+		}
 
 		return nil
 	}
