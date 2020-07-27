@@ -526,7 +526,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
-	//	clos = &struct{F uintptr; R T}{M.T·f, x}
+	//	clos = &struct{F uintptr; R T}{T.M·f, x}
 	//
 	// Like walkclosure above.
 
