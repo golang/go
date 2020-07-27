@@ -135,7 +135,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		qf:        qf,
 		pkg:       pkg,
 		ident:     ident,
-		enclosing: searchForEnclosing(pkg, path),
+		enclosing: searchForEnclosing(pkg.GetTypesInfo(), path),
 	}
 
 	var wasEmbeddedField bool
@@ -226,15 +226,15 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	return result, nil
 }
 
-func searchForEnclosing(pkg Package, path []ast.Node) types.Type {
+func searchForEnclosing(info *types.Info, path []ast.Node) types.Type {
 	for _, n := range path {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
-			if sel, ok := pkg.GetTypesInfo().Selections[n]; ok {
+			if sel, ok := info.Selections[n]; ok {
 				recv := deref(sel.Recv())
 
 				// Keep track of the last exported type seen.
-				var exported *types.Named
+				var exported types.Type
 				if named, ok := recv.(*types.Named); ok && named.Obj().Exported() {
 					exported = named
 				}
@@ -251,12 +251,12 @@ func searchForEnclosing(pkg Package, path []ast.Node) types.Type {
 				return exported
 			}
 		case *ast.CompositeLit:
-			if t, ok := pkg.GetTypesInfo().Types[n]; ok {
+			if t, ok := info.Types[n]; ok {
 				return t.Type
 			}
 		case *ast.TypeSpec:
 			if _, ok := n.Type.(*ast.StructType); ok {
-				if t, ok := pkg.GetTypesInfo().Defs[n.Name]; ok {
+				if t, ok := info.Defs[n.Name]; ok {
 					return t.Type()
 				}
 			}
