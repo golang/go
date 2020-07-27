@@ -170,7 +170,7 @@ func selectnbrecv(elem *any, hchan <-chan any) bool
 func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
 
 func selectsetpc(pc *uintptr)
-func selectgo(cas0 *byte, order0 *byte, pc0 *uintptr, ncases int) (int, bool)
+func selectgo(cas0 *byte, order0 *byte, pc0 *uintptr, nsends int, nrecvs int, block bool) (int, bool)
 func block()
 
 func makeslice(typ *byte, len int, cap int) unsafe.Pointer

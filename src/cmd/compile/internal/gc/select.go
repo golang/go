@@ -106,18 +106,16 @@ func walkselect(sel *Node) {
 }
 
 func walkselectcases(cases *Nodes) []*Node {
-	n := cases.Len()
+	ncas := cases.Len()
 	sellineno := lineno
 
 	// optimization: zero-case select
-	if n == 0 {
+	if ncas == 0 {
 		return []*Node{mkcall("block", nil, nil)}
 	}
 
 	// optimization: one-case select: single op.
-	// TODO(rsc): Reenable optimization once order.go can handle it.
-	// golang.org/issue/7672.
-	if n == 1 {
+	if ncas == 1 {
 		cas := cases.First()
 		setlineno(cas)
 		l := cas.Ninit.Slice()
@@ -178,10 +176,12 @@ func walkselectcases(cases *Nodes) []*Node {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
+	var dflt *Node
 	for _, cas := range cases.Slice() {
 		setlineno(cas)
 		n := cas.Left
 		if n == nil {
+			dflt = cas
 			continue
 		}
 		switch n.Op {
@@ -202,15 +202,10 @@ func walkselectcases(cases *Nodes) []*Node {
 	}
 
 	// optimization: two-case select but one is default: single non-blocking op.
-	if n == 2 && (cases.First().Left == nil || cases.Second().Left == nil) {
-		var cas *Node
-		var dflt *Node
-		if cases.First().Left == nil {
+	if ncas == 2 && dflt != nil {
+		cas := cases.First()
+		if cas == dflt {
 			cas = cases.Second()
-			dflt = cases.First()
-		} else {
-			dflt = cases.Second()
-			cas = cases.First()
 		}
 
 		n := cas.Left
@@ -257,62 +252,64 @@ func walkselectcases(cases *Nodes) []*Node {
 		return []*Node{r, nod(OBREAK, nil, nil)}
 	}
 
+	if dflt != nil {
+		ncas--
+	}
+	casorder := make([]*Node, ncas)
+	nsends, nrecvs := 0, 0
+
 	var init []*Node
 
 	// generate sel-struct
 	lineno = sellineno
-	selv := temp(types.NewArray(scasetype(), int64(n)))
+	selv := temp(types.NewArray(scasetype(), int64(ncas)))
 	r := nod(OAS, selv, nil)
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
-	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(n)))
+	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(ncas)))
 	r = nod(OAS, order, nil)
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
 	var pc0, pcs *Node
 	if flag_race {
-		pcs = temp(types.NewArray(types.Types[TUINTPTR], int64(n)))
+		pcs = temp(types.NewArray(types.Types[TUINTPTR], int64(ncas)))
 		pc0 = typecheck(nod(OADDR, nod(OINDEX, pcs, nodintconst(0)), nil), ctxExpr)
 	} else {
 		pc0 = nodnil()
 	}
 
 	// register cases
-	for i, cas := range cases.Slice() {
+	for _, cas := range cases.Slice() {
 		setlineno(cas)
 
 		init = append(init, cas.Ninit.Slice()...)
 		cas.Ninit.Set(nil)
 
-		// Keep in sync with runtime/select.go.
-		const (
-			caseNil = iota
-			caseRecv
-			caseSend
-			caseDefault
-		)
-
-		var c, elem *Node
-		var kind int64 = caseDefault
-
-		if n := cas.Left; n != nil {
-			init = append(init, n.Ninit.Slice()...)
-
-			switch n.Op {
-			default:
-				Fatalf("select %v", n.Op)
-			case OSEND:
-				kind = caseSend
-				c = n.Left
-				elem = n.Right
-			case OSELRECV, OSELRECV2:
-				kind = caseRecv
-				c = n.Right.Left
-				elem = n.Left
-			}
+		n := cas.Left
+		if n == nil { // default:
+			continue
 		}
+
+		var i int
+		var c, elem *Node
+		switch n.Op {
+		default:
+			Fatalf("select %v", n.Op)
+		case OSEND:
+			i = nsends
+			nsends++
+			c = n.Left
+			elem = n.Right
+		case OSELRECV, OSELRECV2:
+			nrecvs++
+			i = ncas - nrecvs
+			c = n.Right.Left
+			elem = n.Left
+		}
+
+		casorder[i] = cas
 
 		setField := func(f string, val *Node) {
 			r := nod(OAS, nodSym(ODOT, nod(OINDEX, selv, nodintconst(int64(i))), lookup(f)), val)
@@ -320,11 +317,8 @@ func walkselectcases(cases *Nodes) []*Node {
 			init = append(init, r)
 		}
 
-		setField("kind", nodintconst(kind))
-		if c != nil {
-			c = convnop(c, types.Types[TUNSAFEPTR])
-			setField("c", c)
-		}
+		c = convnop(c, types.Types[TUNSAFEPTR])
+		setField("c", c)
 		if elem != nil {
 			elem = convnop(elem, types.Types[TUNSAFEPTR])
 			setField("elem", elem)
@@ -337,6 +331,9 @@ func walkselectcases(cases *Nodes) []*Node {
 			init = append(init, r)
 		}
 	}
+	if nsends+nrecvs != ncas {
+		Fatalf("walkselectcases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
+	}
 
 	// run the select
 	lineno = sellineno
@@ -345,7 +342,7 @@ func walkselectcases(cases *Nodes) []*Node {
 	r = nod(OAS2, nil, nil)
 	r.List.Set2(chosen, recvOK)
 	fn := syslook("selectgo")
-	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, nodintconst(int64(n))))
+	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, nodintconst(int64(nsends)), nodintconst(int64(nrecvs)), nodbool(dflt == nil)))
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
@@ -357,14 +354,11 @@ func walkselectcases(cases *Nodes) []*Node {
 	}
 
 	// dispatch cases
-	for i, cas := range cases.Slice() {
-		setlineno(cas)
-
-		cond := nod(OEQ, chosen, nodintconst(int64(i)))
+	dispatch := func(cond, cas *Node) {
 		cond = typecheck(cond, ctxExpr)
 		cond = defaultlit(cond, nil)
 
-		r = nod(OIF, cond, nil)
+		r := nod(OIF, cond, nil)
 
 		if n := cas.Left; n != nil && n.Op == OSELRECV2 {
 			x := nod(OAS, n.List.First(), recvOK)
@@ -375,6 +369,15 @@ func walkselectcases(cases *Nodes) []*Node {
 		r.Nbody.AppendNodes(&cas.Nbody)
 		r.Nbody.Append(nod(OBREAK, nil, nil))
 		init = append(init, r)
+	}
+
+	if dflt != nil {
+		setlineno(dflt)
+		dispatch(nod(OLT, chosen, nodintconst(0)), dflt)
+	}
+	for i, cas := range casorder {
+		setlineno(cas)
+		dispatch(nod(OEQ, chosen, nodintconst(int64(i))), cas)
 	}
 
 	return init
@@ -395,7 +398,6 @@ func scasetype() *types.Type {
 		scase = tostruct([]*Node{
 			namedfield("c", types.Types[TUNSAFEPTR]),
 			namedfield("elem", types.Types[TUNSAFEPTR]),
-			namedfield("kind", types.Types[TUINT16]),
 		})
 		scase.SetNoalg(true)
 	}
