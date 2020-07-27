@@ -462,6 +462,7 @@ func TestTrivialExecutable(t *testing.T) {
 	run(t, "trivial executable", "../../bin/trivial")
 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
+	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
 }
 
 // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
@@ -470,6 +471,18 @@ func TestTrivialExecutablePIE(t *testing.T) {
 	run(t, "trivial executable", "./trivial.pie")
 	AssertIsLinkedTo(t, "./trivial.pie", soname)
 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
+}
+
+// Check that the file size does not exceed a limit.
+func checkSize(t *testing.T, f string, limit int64) {
+	fi, err := os.Stat(f)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if sz := fi.Size(); sz > limit {
+		t.Errorf("file too large: got %d, want <= %d", sz, limit)
+	}
 }
 
 // Build a division test program and check it runs.
