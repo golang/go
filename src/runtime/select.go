@@ -26,11 +26,10 @@ const (
 // Known to compiler.
 // Changes here must also be made in src/cmd/internal/gc/select.go's scasetype.
 type scase struct {
-	c           *hchan         // chan
-	elem        unsafe.Pointer // data element
-	kind        uint16
-	pc          uintptr // race pc (for race detector / msan)
-	releasetime int64
+	c    *hchan         // chan
+	elem unsafe.Pointer // data element
+	kind uint16
+	pc   uintptr // race pc (for race detector / msan)
 }
 
 var (
@@ -142,9 +141,6 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	var t0 int64
 	if blockprofilerate > 0 {
 		t0 = cputicks()
-		for i := 0; i < ncases; i++ {
-			scases[i].releasetime = -1
-		}
 	}
 
 	// The compiler rewrites selects that statically have
@@ -227,6 +223,7 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	var casi int
 	var cas *scase
 	var caseSuccess bool
+	var caseReleaseTime int64 = -1
 	var recvOK bool
 	for i := 0; i < ncases; i++ {
 		casi = int(pollorder[i])
@@ -346,14 +343,14 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 		if k.kind == caseNil {
 			continue
 		}
-		if sglist.releasetime > 0 {
-			k.releasetime = sglist.releasetime
-		}
 		if sg == sglist {
 			// sg has already been dequeued by the G that woke us up.
 			casi = int(casei)
 			cas = k
 			caseSuccess = sglist.success
+			if sglist.releasetime > 0 {
+				caseReleaseTime = sglist.releasetime
+			}
 		} else {
 			c = k.c
 			if k.kind == caseSend {
@@ -483,8 +480,8 @@ send:
 	goto retc
 
 retc:
-	if cas.releasetime > 0 {
-		blockevent(cas.releasetime-t0, 1)
+	if caseReleaseTime > 0 {
+		blockevent(caseReleaseTime-t0, 1)
 	}
 	return casi, recvOK
 
