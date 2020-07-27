@@ -2149,6 +2149,7 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 }
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+	// load non-package refs
 	ndef := uint32(r.NAlldef())
 	needNameExpansion := r.NeedNameExpansion()
 	for i, n := uint32(0), uint32(r.NNonpkgref()); i < n; i++ {
@@ -2164,6 +2165,15 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 			l.SetAttrLocal(gi, true)
 		}
 		if osym.UsedInIface() {
+			l.SetAttrUsedInIface(gi, true)
+		}
+	}
+
+	// load flags of package refs
+	for i, n := 0, r.NRefFlags(); i < n; i++ {
+		rf := r.RefFlags(i)
+		gi := l.resolve(r, rf.Sym())
+		if rf.Flag2()&goobj2.SymFlagUsedInIface != 0 {
 			l.SetAttrUsedInIface(gi, true)
 		}
 	}

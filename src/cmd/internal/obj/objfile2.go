@@ -105,6 +105,10 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		w.Sym(s)
 	}
 
+	// Referenced package symbol flags
+	h.Offsets[goobj2.BlkRefFlags] = w.Offset()
+	w.refFlags()
+
 	// Hashes
 	h.Offsets[goobj2.BlkHash64] = w.Offset()
 	for _, s := range ctxt.hashed64defs {
@@ -468,10 +472,9 @@ func (w *writer) Aux(s *LSym) {
 	}
 }
 
-// Emits names of referenced indexed symbols, used by tools (objdump, nm)
-// only.
-func (w *writer) refNames() {
-	seen := make(map[goobj2.SymRef]bool)
+// Emits flags of referenced indexed symbols.
+func (w *writer) refFlags() {
+	seen := make(map[*LSym]bool)
 	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
 		switch rs.PkgIdx {
 		case goobj2.PkgIdxNone, goobj2.PkgIdxHashed64, goobj2.PkgIdxHashed, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
@@ -479,11 +482,41 @@ func (w *writer) refNames() {
 		case goobj2.PkgIdxInvalid:
 			panic("unindexed symbol reference")
 		}
-		symref := makeSymRef(rs)
-		if seen[symref] {
+		if seen[rs] {
 			return
 		}
-		seen[symref] = true
+		seen[rs] = true
+		symref := makeSymRef(rs)
+		flag2 := uint8(0)
+		if rs.UsedInIface() {
+			flag2 |= goobj2.SymFlagUsedInIface
+		}
+		if flag2 == 0 {
+			return // no need to write zero flags
+		}
+		var o goobj2.RefFlags
+		o.SetSym(symref)
+		o.SetFlag2(flag2)
+		o.Write(w.Writer)
+	})
+}
+
+// Emits names of referenced indexed symbols, used by tools (objdump, nm)
+// only.
+func (w *writer) refNames() {
+	seen := make(map[*LSym]bool)
+	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
+		switch rs.PkgIdx {
+		case goobj2.PkgIdxNone, goobj2.PkgIdxHashed64, goobj2.PkgIdxHashed, goobj2.PkgIdxBuiltin, goobj2.PkgIdxSelf: // not an external indexed reference
+			return
+		case goobj2.PkgIdxInvalid:
+			panic("unindexed symbol reference")
+		}
+		if seen[rs] {
+			return
+		}
+		seen[rs] = true
+		symref := makeSymRef(rs)
 		var o goobj2.RefName
 		o.SetSym(symref)
 		o.SetName(rs.Name, w.Writer)
