@@ -56,6 +56,9 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	}
 	var links []protocol.DocumentLink
 	for _, req := range file.Require {
+		if req.Syntax == nil {
+			continue
+		}
 		// See golang/go#36998: don't link to modules matching GOPRIVATE.
 		if snapshot.View().IsGoPrivatePath(req.Mod.Path) {
 			continue
