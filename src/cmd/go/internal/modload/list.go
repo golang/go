@@ -58,7 +58,7 @@ func ListModules(ctx context.Context, args []string, listU, listVersions, listRe
 }
 
 func listModules(ctx context.Context, args []string, listVersions, listRetracted bool) []*modinfo.ModulePublic {
-	LoadBuildList(ctx)
+	LoadAllModules(ctx)
 	if len(args) == 0 {
 		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true, listRetracted)}
 	}
