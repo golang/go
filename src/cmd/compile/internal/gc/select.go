@@ -386,7 +386,6 @@ func scasetype() *types.Type {
 			namedfield("elem", types.Types[TUNSAFEPTR]),
 			namedfield("kind", types.Types[TUINT16]),
 			namedfield("pc", types.Types[TUINTPTR]),
-			namedfield("releasetime", types.Types[TINT64]),
 		})
 		scase.SetNoalg(true)
 	}
