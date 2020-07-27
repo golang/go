@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -100,16 +101,16 @@ func main() {
 `
 	runner.Run(t, shouldUpdateDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		before := env.ReadWorkspaceFile("go.mod")
 		lenses := env.CodeLens("go.mod")
 		want := "Upgrade dependency to v1.3.3"
-		var found *protocol.CodeLens
+		var found protocol.CodeLens
 		for _, lens := range lenses {
 			if lens.Command.Title == want {
-				found = &lens
+				found = lens
+				break
 			}
 		}
-		if found == nil {
+		if found.Command.Command == "" {
 			t.Fatalf("did not find lens %q, got %v", want, lenses)
 		}
 		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
@@ -118,9 +119,15 @@ func main() {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		after := env.ReadWorkspaceFile("go.mod")
-		if before == after {
-			t.Fatalf("go.mod file was unchanged by upgrade command")
+		got := env.ReadWorkspaceFile("go.mod")
+		const wantGoMod = `module mod.com
+
+go 1.14
+
+require golang.org/x/hello v1.3.3
+`
+		if got != wantGoMod {
+			t.Fatalf("go.mod upgrade failed:\n%s", tests.Diff(wantGoMod, got))
 		}
 	}, WithProxyFiles(proxyWithLatest))
 }

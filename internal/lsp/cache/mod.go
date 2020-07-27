@@ -350,12 +350,16 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 		for _, upgrade := range upgradesList[1:] {
 			// Example: "github.com/x/tools v1.1.0 [v1.2.0]"
 			info := strings.Split(upgrade, " ")
-			if len(info) < 3 {
+			if len(info) != 3 {
 				continue
 			}
 			dep, version := info[0], info[2]
-			latest := version[1:]                    // remove the "["
-			latest = strings.TrimSuffix(latest, "]") // remove the "]"
+
+			// Make sure that the format matches our expectation.
+			if version[0] != '[' || version[len(version)-1] != ']' {
+				continue
+			}
+			latest := version[1 : len(version)-1] // remove the "[" and "]"
 			upgrades[dep] = latest
 		}
 		return &modUpgradeData{

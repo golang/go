@@ -137,11 +137,11 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		return nil, err
 	case source.CommandUpgradeDependency:
 		var uri protocol.DocumentURI
-		var deps []string
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &deps); err != nil {
+		var goCmdArgs []string
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &goCmdArgs); err != nil {
 			return nil, err
 		}
-		err := s.directGoModCommand(ctx, uri, "get", deps...)
+		err := s.directGoModCommand(ctx, uri, "get", goCmdArgs...)
 		return nil, err
 	default:
 		return nil, fmt.Errorf("unknown command: %s", params.Command)

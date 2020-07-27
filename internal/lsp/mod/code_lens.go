@@ -59,7 +59,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
-		jsonArgs, err := source.MarshalArgs(uri, dep)
+		jsonArgs, err := source.MarshalArgs(uri, []string{dep})
 		if err != nil {
 			return nil, err
 		}
