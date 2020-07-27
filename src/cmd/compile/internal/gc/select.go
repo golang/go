@@ -123,17 +123,14 @@ func walkselectcases(cases *Nodes) []*Node {
 			n := cas.Left
 			l = append(l, n.Ninit.Slice()...)
 			n.Ninit.Set(nil)
-			var ch *Node
 			switch n.Op {
 			default:
 				Fatalf("select %v", n.Op)
 
-				// ok already
 			case OSEND:
-				ch = n.Left
+				// already ok
 
 			case OSELRECV, OSELRECV2:
-				ch = n.Right.Left
 				if n.Op == OSELRECV || n.List.Len() == 0 {
 					if n.Left == nil {
 						n = n.Right
@@ -157,16 +154,7 @@ func walkselectcases(cases *Nodes) []*Node {
 				n = typecheck(n, ctxStmt)
 			}
 
-			// if ch == nil { block() }; n;
-			a := nod(OIF, nil, nil)
-
-			a.Left = nod(OEQ, ch, nodnil())
-			var ln Nodes
-			ln.Set(l)
-			a.Nbody.Set1(mkcall("block", nil, &ln))
-			l = ln.Slice()
-			a = typecheck(a, ctxStmt)
-			l = append(l, a, n)
+			l = append(l, n)
 		}
 
 		l = append(l, cas.Nbody.Slice()...)
@@ -223,8 +211,6 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		case OSELRECV:
 			// if selectnbrecv(&v, c) { body } else { default body }
-			r = nod(OIF, nil, nil)
-			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
 			elem := n.Left
 			if elem == nil {
@@ -234,8 +220,6 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		case OSELRECV2:
 			// if selectnbrecv2(&v, &received, c) { body } else { default body }
-			r = nod(OIF, nil, nil)
-			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
 			elem := n.Left
 			if elem == nil {
