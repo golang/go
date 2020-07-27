@@ -98,4 +98,3 @@ func expandCalls(f *Func) {
 		}
 	}
 }
-
