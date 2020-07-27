@@ -11,6 +11,7 @@ import (
 	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 // explode splits s into a slice of UTF-8 strings,
@@ -562,16 +563,15 @@ func ToUpper(s string) string {
 		if !hasLower {
 			return s
 		}
-		var b Builder
-		b.Grow(len(s))
+		b := make([]byte, len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'a' <= c && c <= 'z' {
 				c -= 'a' - 'A'
 			}
-			b.WriteByte(c)
+			b[i] = c
 		}
-		return b.String()
+		return *(*string)(unsafe.Pointer(&b))
 	}
 	return Map(unicode.ToUpper, s)
 }
@@ -592,16 +592,15 @@ func ToLower(s string) string {
 		if !hasUpper {
 			return s
 		}
-		var b Builder
-		b.Grow(len(s))
+		b := make([]byte, len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'A' <= c && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			b.WriteByte(c)
+			b[i] = c
 		}
-		return b.String()
+		return *(*string)(unsafe.Pointer(&b))
 	}
 	return Map(unicode.ToLower, s)
 }
