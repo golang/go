@@ -29,7 +29,6 @@ type scase struct {
 	c    *hchan         // chan
 	elem unsafe.Pointer // data element
 	kind uint16
-	pc   uintptr // race pc (for race detector / msan)
 }
 
 var (
@@ -37,8 +36,8 @@ var (
 	chanrecvpc = funcPC(chanrecv)
 )
 
-func selectsetpc(cas *scase) {
-	cas.pc = getcallerpc()
+func selectsetpc(pc *uintptr) {
+	*pc = getcallerpc()
 }
 
 func sellock(scases []scase, lockorder []uint16) {
@@ -108,11 +107,15 @@ func block() {
 // Both reside on the goroutine's stack (regardless of any escaping in
 // selectgo).
 //
+// For race detector builds, pc0 points to an array of type
+// [ncases]uintptr (also on the stack); for other builds, it's set to
+// nil.
+//
 // selectgo returns the index of the chosen scase, which matches the
 // ordinal position of its respective select{recv,send,default} call.
 // Also, if the chosen scase was a receive operation, it reports whether
 // a value was received.
-func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
+func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, ncases int) (int, bool) {
 	if debugSelect {
 		print("select: cas0=", cas0, "\n")
 	}
@@ -125,6 +128,21 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	scases := cas1[:ncases:ncases]
 	pollorder := order1[:ncases:ncases]
 	lockorder := order1[ncases:][:ncases:ncases]
+
+	// Even when raceenabled is true, there might be select
+	// statements in packages compiled without -race (e.g.,
+	// ensureSigM in runtime/signal_unix.go).
+	var pcs []uintptr
+	if raceenabled && pc0 != nil {
+		pc1 := (*[1 << 16]uintptr)(unsafe.Pointer(pc0))
+		pcs = pc1[:ncases:ncases]
+	}
+	casePC := func(casi int) uintptr {
+		if pcs == nil {
+			return 0
+		}
+		return pcs[casi]
+	}
 
 	var t0 int64
 	if blockprofilerate > 0 {
@@ -247,7 +265,7 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 
 		case caseSend:
 			if raceenabled {
-				racereadpc(c.raceaddr(), cas.pc, chansendpc)
+				racereadpc(c.raceaddr(), casePC(casi), chansendpc)
 			}
 			if c.closed != 0 {
 				goto sclose
@@ -371,9 +389,9 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 
 	if raceenabled {
 		if cas.kind == caseRecv && cas.elem != nil {
-			raceWriteObjectPC(c.elemtype, cas.elem, cas.pc, chanrecvpc)
+			raceWriteObjectPC(c.elemtype, cas.elem, casePC(casi), chanrecvpc)
 		} else if cas.kind == caseSend {
-			raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+			raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 		}
 	}
 	if msanenabled {
@@ -391,7 +409,7 @@ bufrecv:
 	// can receive from buffer
 	if raceenabled {
 		if cas.elem != nil {
-			raceWriteObjectPC(c.elemtype, cas.elem, cas.pc, chanrecvpc)
+			raceWriteObjectPC(c.elemtype, cas.elem, casePC(casi), chanrecvpc)
 		}
 		raceacquire(chanbuf(c, c.recvx))
 		racerelease(chanbuf(c, c.recvx))
@@ -418,7 +436,7 @@ bufsend:
 	if raceenabled {
 		raceacquire(chanbuf(c, c.sendx))
 		racerelease(chanbuf(c, c.sendx))
-		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
@@ -456,7 +474,7 @@ rclose:
 send:
 	// can send to a sleeping receiver (sg)
 	if raceenabled {
-		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
 	}
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
@@ -519,12 +537,18 @@ func reflect_rselect(cases []runtimeSelect) (int, bool) {
 		case selectRecv:
 			sel[i] = scase{kind: caseRecv, c: rc.ch, elem: rc.val}
 		}
-		if raceenabled || msanenabled {
-			selectsetpc(&sel[i])
-		}
 	}
 
-	return selectgo(&sel[0], &order[0], len(cases))
+	var pc0 *uintptr
+	if raceenabled {
+		pcs := make([]uintptr, len(cases))
+		for i := range pcs {
+			selectsetpc(&pcs[i])
+		}
+		pc0 = &pcs[0]
+	}
+
+	return selectgo(&sel[0], &order[0], pc0, len(cases))
 }
 
 func (q *waitq) dequeueSudoG(sgp *sudog) {

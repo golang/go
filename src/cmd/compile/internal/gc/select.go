@@ -271,6 +271,14 @@ func walkselectcases(cases *Nodes) []*Node {
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
+	var pc0, pcs *Node
+	if flag_race {
+		pcs = temp(types.NewArray(types.Types[TUINTPTR], int64(n)))
+		pc0 = typecheck(nod(OADDR, nod(OINDEX, pcs, nodintconst(0)), nil), ctxExpr)
+	} else {
+		pc0 = nodnil()
+	}
+
 	// register cases
 	for i, cas := range cases.Slice() {
 		setlineno(cas)
@@ -324,8 +332,8 @@ func walkselectcases(cases *Nodes) []*Node {
 
 		// TODO(mdempsky): There should be a cleaner way to
 		// handle this.
-		if instrumenting {
-			r = mkcall("selectsetpc", nil, nil, bytePtrToIndex(selv, int64(i)))
+		if flag_race {
+			r = mkcall("selectsetpc", nil, nil, nod(OADDR, nod(OINDEX, pcs, nodintconst(int64(i))), nil))
 			init = append(init, r)
 		}
 	}
@@ -337,13 +345,16 @@ func walkselectcases(cases *Nodes) []*Node {
 	r = nod(OAS2, nil, nil)
 	r.List.Set2(chosen, recvOK)
 	fn := syslook("selectgo")
-	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), nodintconst(int64(n))))
+	r.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, nodintconst(int64(n))))
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
 	// selv and order are no longer alive after selectgo.
 	init = append(init, nod(OVARKILL, selv, nil))
 	init = append(init, nod(OVARKILL, order, nil))
+	if flag_race {
+		init = append(init, nod(OVARKILL, pcs, nil))
+	}
 
 	// dispatch cases
 	for i, cas := range cases.Slice() {
@@ -385,7 +396,6 @@ func scasetype() *types.Type {
 			namedfield("c", types.Types[TUNSAFEPTR]),
 			namedfield("elem", types.Types[TUNSAFEPTR]),
 			namedfield("kind", types.Types[TUINT16]),
-			namedfield("pc", types.Types[TUINTPTR]),
 		})
 		scase.SetNoalg(true)
 	}
