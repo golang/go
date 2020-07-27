@@ -27,16 +27,36 @@ import (
 //
 var buildList []module.Version
 
-// LoadBuildList loads and returns the build list from go.mod.
-// The loading of the build list happens automatically in ImportPaths:
-// LoadBuildList need only be called if ImportPaths is not
-// (typically in commands that care about the module but
-// no particular package).
-func LoadBuildList(ctx context.Context) []module.Version {
+// LoadAllModules loads and returns the list of modules matching the "all"
+// module pattern, starting with the Target module and in a deterministic
+// (stable) order, without loading any packages.
+//
+// Modules are loaded automatically (and lazily) in ImportPaths:
+// LoadAllModules need only be called if ImportPaths is not,
+// typically in commands that care about modules but no particular package.
+//
+// The caller must not modify the returned list.
+func LoadAllModules(ctx context.Context) []module.Version {
 	InitMod(ctx)
 	ReloadBuildList()
 	WriteGoMod()
 	return buildList
+}
+
+// LoadedModules returns the list of module requirements loaded or set by a
+// previous call (typically LoadAllModules or ImportPaths), starting with the
+// Target module and in a deterministic (stable) order.
+//
+// The caller must not modify the returned list.
+func LoadedModules() []module.Version {
+	return buildList
+}
+
+// SetBuildList sets the module build list.
+// The caller is responsible for ensuring that the list is valid.
+// SetBuildList does not retain a reference to the original list.
+func SetBuildList(list []module.Version) {
+	buildList = append([]module.Version{}, list...)
 }
 
 // ReloadBuildList resets the state of loaded packages, then loads and returns
@@ -48,21 +68,6 @@ func ReloadBuildList() []module.Version {
 		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
 	})
 	return buildList
-}
-
-// BuildList returns the module build list,
-// typically constructed by a previous call to
-// LoadBuildList or ImportPaths.
-// The caller must not modify the returned list.
-func BuildList() []module.Version {
-	return buildList
-}
-
-// SetBuildList sets the module build list.
-// The caller is responsible for ensuring that the list is valid.
-// SetBuildList does not retain a reference to the original list.
-func SetBuildList(list []module.Version) {
-	buildList = append([]module.Version{}, list...)
 }
 
 // TidyBuildList trims the build list to the minimal requirements needed to

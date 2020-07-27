@@ -278,7 +278,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.LoadTests = *getT
 
-	buildList := modload.LoadBuildList(ctx)
+	buildList := modload.LoadAllModules(ctx)
 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
 	versionByPath := make(map[string]string)
 	for _, m := range buildList {
@@ -599,7 +599,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.ExitIfErrors()
 
 		// Stop if no changes have been made to the build list.
-		buildList = modload.BuildList()
+		buildList = modload.LoadedModules()
 		eq := len(buildList) == len(prevBuildList)
 		for i := 0; eq && i < len(buildList); i++ {
 			eq = buildList[i] == prevBuildList[i]
@@ -617,7 +617,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Handle downgrades.
 	var down []module.Version
-	for _, m := range modload.BuildList() {
+	for _, m := range modload.LoadedModules() {
 		q := byPath[m.Path]
 		if q != nil && semver.Compare(m.Version, q.m.Version) > 0 {
 			down = append(down, module.Version{Path: m.Path, Version: q.m.Version})
@@ -641,7 +641,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	var lostUpgrades []*query
 	if len(down) > 0 {
 		versionByPath = make(map[string]string)
-		for _, m := range modload.BuildList() {
+		for _, m := range modload.LoadedModules() {
 			versionByPath[m.Path] = m.Version
 		}
 		for _, q := range byPath {
@@ -892,7 +892,7 @@ func reportRetractions(ctx context.Context) {
 	// Use modload.ListModules, since that provides information in the same format
 	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
 	// module.
-	buildList := modload.BuildList()
+	buildList := modload.LoadedModules()
 	args := make([]string, 0, len(buildList))
 	for _, m := range buildList {
 		if m.Version == "" {
