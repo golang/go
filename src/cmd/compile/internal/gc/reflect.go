@@ -1168,6 +1168,15 @@ func dtypesym(t *types.Type) *obj.LSym {
 	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
 		// named types from other files are defined only by those files
 		if tbase.Sym != nil && tbase.Sym.Pkg != localpkg {
+			if i, ok := typeSymIdx[tbase]; ok {
+				lsym.Pkg = tbase.Sym.Pkg.Prefix
+				if t != tbase {
+					lsym.SymIdx = int32(i[1])
+				} else {
+					lsym.SymIdx = int32(i[0])
+				}
+				lsym.Set(obj.AttrIndexed, true)
+			}
 			return lsym
 		}
 		// TODO(mdempsky): Investigate whether this can happen.

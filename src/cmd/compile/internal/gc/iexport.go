@@ -484,6 +484,7 @@ func (p *iexporter) doDecl(n *Node) {
 
 		t := n.Type
 		if t.IsInterface() {
+			w.typeExt(t)
 			break
 		}
 
@@ -496,6 +497,7 @@ func (p *iexporter) doDecl(n *Node) {
 			w.signature(m.Type)
 		}
 
+		w.typeExt(t)
 		for _, m := range ms.Slice() {
 			w.methExt(m)
 		}
@@ -1012,6 +1014,17 @@ func (w *exportWriter) symIdx(s *types.Sym) {
 		// For re-exporting an imported symbol, pass its index through.
 		w.int64(int64(lsym.SymIdx))
 	}
+}
+
+func (w *exportWriter) typeExt(t *types.Type) {
+	// For type T, export the index of type descriptor symbols of T and *T.
+	if i, ok := typeSymIdx[t]; ok {
+		w.int64(i[0])
+		w.int64(i[1])
+		return
+	}
+	w.symIdx(typesym(t))
+	w.symIdx(typesym(t.PtrTo()))
 }
 
 // Inline bodies.
