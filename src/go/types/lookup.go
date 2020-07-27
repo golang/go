@@ -85,7 +85,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface has no methods.
-	if isPtr && IsInterface(typ) {
+	// Be cautious: typ may be nil (issue 39634, crash #3).
+	if typ == nil || isPtr && IsInterface(typ) {
 		return
 	}
 

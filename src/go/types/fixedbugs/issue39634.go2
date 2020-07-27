@@ -13,6 +13,9 @@ func(*ph1(e,e /* ERROR redeclared */ ))h(d /* ERROR undeclared name */ )
 type Numeric2 interface{t2 /* ERROR not a type */ }
 func t2(type T Numeric2)(s[]T){0 /* ERROR not a type */ (){s /* ERROR cannot index */ [0][0]}}
 
+// crash 3
+type t3 *interface{ t3.p /* ERROR no field or method p */ }
+
 // crash 4
 type Numeric4 interface{t4 /* ERROR not a type */ }
 func t4(type T Numeric4)(s[]T){if( /* ERROR non-boolean */ 0){*s /* ERROR cannot indirect */ [0]}}

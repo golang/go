@@ -479,13 +479,12 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			typ.len = check.arrayLength(e.Len)
 			typ.elem = check.typ(e.Elt)
 			return typ
-
-		} else {
-			typ := new(Slice)
-			def.setUnderlying(typ)
-			typ.elem = check.typ(e.Elt)
-			return typ
 		}
+
+		typ := new(Slice)
+		def.setUnderlying(typ)
+		typ.elem = check.typ(e.Elt)
+		return typ
 
 	case *ast.StructType:
 		typ := new(Struct)

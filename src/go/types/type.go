@@ -30,7 +30,9 @@ type Type interface {
 	// Converters
 	// A converter must only be called when a type is
 	// known to be fully set up. A converter returns
-	// a type's operational type (see comment for optype).
+	// a type's operational type (see comment for optype)
+	// or nil if the type is receiver is not of the
+	// respective type.
 	Basic() *Basic
 	Array() *Array
 	Slice() *Slice
@@ -42,6 +44,11 @@ type Type interface {
 	Interface() *Interface
 	Map() *Map
 	Chan() *Chan
+
+	// If the receiver for Named and TypeParam is of
+	// the respective type (possibly after unpacking
+	// an instance type), these methods return that
+	// type. Otherwise the result is nil.
 	Named() *Named
 	TypeParam() *TypeParam
 }
@@ -68,6 +75,7 @@ func (aType) Sum() *Sum             { return nil }
 func (aType) Interface() *Interface { return nil }
 func (aType) Map() *Map             { return nil }
 func (aType) Chan() *Chan           { return nil }
+
 func (aType) Named() *Named         { return nil }
 func (aType) TypeParam() *TypeParam { return nil }
 
@@ -260,6 +268,7 @@ func (*Tuple) Sum() *Sum             { return nil }
 func (*Tuple) Interface() *Interface { return nil }
 func (*Tuple) Map() *Map             { return nil }
 func (*Tuple) Chan() *Chan           { return nil }
+
 func (*Tuple) Named() *Named         { return nil }
 func (*Tuple) TypeParam() *TypeParam { return nil }
 
@@ -897,7 +906,7 @@ func (t *TypeParam) Interface() *Interface { return optype(t).Interface() }
 func (t *TypeParam) Map() *Map             { return optype(t).Map() }
 func (t *TypeParam) Chan() *Chan           { return optype(t).Chan() }
 
-// func (t *TypeParam) Named() *Named         // named types are not permitted in type lists
+// func (t *TypeParam) Named() *Named         // Named does not unpack type parameters
 // func (t *TypeParam) TypeParam() *TypeParam // declared below
 
 // An instance represents an instantiated generic type syntactically
@@ -926,6 +935,7 @@ func (t *instance) Sum() *Sum             { return t.Under().Sum() }
 func (t *instance) Interface() *Interface { return t.Under().Interface() }
 func (t *instance) Map() *Map             { return t.Under().Map() }
 func (t *instance) Chan() *Chan           { return t.Under().Chan() }
+
 func (t *instance) Named() *Named         { return t.expand().Named() }
 func (t *instance) TypeParam() *TypeParam { return t.expand().TypeParam() }
 
@@ -999,6 +1009,7 @@ func (t *Sum) Sum() *Sum                   { return t }
 func (t *Interface) Interface() *Interface { return t }
 func (t *Map) Map() *Map                   { return t }
 func (t *Chan) Chan() *Chan                { return t }
+
 func (t *Named) Named() *Named             { return t }
 func (t *TypeParam) TypeParam() *TypeParam { return t }
 
