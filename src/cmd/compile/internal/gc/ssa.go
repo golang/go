@@ -2557,8 +2557,23 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.addr(n.Left)
 
 	case ORESULT:
-		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
-		return s.load(n.Type, addr)
+		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
+			// Do the old thing
+			addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
+			return s.load(n.Type, addr)
+		}
+		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Xoffset)
+		if which == -1 {
+			// Do the old thing // TODO: Panic instead.
+			addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
+			return s.load(n.Type, addr)
+		}
+		if canSSAType(n.Type) {
+			return s.newValue1I(ssa.OpSelectN, n.Type, which, s.prevCall)
+		} else {
+			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(n.Type), which, s.prevCall)
+			return s.load(n.Type, addr)
+		}
 
 	case ODEREF:
 		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
@@ -4700,7 +4715,17 @@ func (s *state) addr(n *Node) *ssa.Value {
 		}
 	case ORESULT:
 		// load return from callee
-		return s.constOffPtrSP(t, n.Xoffset)
+		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
+			return s.constOffPtrSP(t, n.Xoffset)
+		}
+		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Xoffset)
+		if which == -1 {
+			// Do the old thing // TODO: Panic instead.
+			return s.constOffPtrSP(t, n.Xoffset)
+		}
+		x := s.newValue1I(ssa.OpSelectNAddr, t, which, s.prevCall)
+		return x
+
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
