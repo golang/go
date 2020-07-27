@@ -44,9 +44,10 @@ type Func struct {
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 
-	scheduled bool // Values in Blocks are in final order
-	laidout   bool // Blocks are ordered
-	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
+	scheduled   bool  // Values in Blocks are in final order
+	laidout     bool  // Blocks are ordered
+	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
+	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
