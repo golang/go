@@ -45,7 +45,7 @@ func sellock(scases []scase, lockorder []uint16) {
 	var c *hchan
 	for _, o := range lockorder {
 		c0 := scases[o].c
-		if c0 != nil && c0 != c {
+		if c0 != c {
 			c = c0
 			lock(&c.lock)
 		}
@@ -61,11 +61,8 @@ func selunlock(scases []scase, lockorder []uint16) {
 	// the G that calls select runnable again and schedules it for execution.
 	// When the G runs on another M, it locks all the locks and frees sel.
 	// Now if the first M touches sel, it will access freed memory.
-	for i := len(scases) - 1; i >= 0; i-- {
+	for i := len(lockorder) - 1; i >= 0; i-- {
 		c := scases[lockorder[i]].c
-		if c == nil {
-			break
-		}
 		if i > 0 && c == scases[lockorder[i-1]].c {
 			continue // will unlock it on the next iteration
 		}
@@ -129,15 +126,6 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	pollorder := order1[:ncases:ncases]
 	lockorder := order1[ncases:][:ncases:ncases]
 
-	// Replace send/receive cases involving nil channels with
-	// caseNil so logic below can assume non-nil channel.
-	for i := range scases {
-		cas := &scases[i]
-		if cas.c == nil && cas.kind != caseDefault {
-			*cas = scase{}
-		}
-	}
-
 	var t0 int64
 	if blockprofilerate > 0 {
 		t0 = cputicks()
@@ -152,15 +140,31 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	// optimizing (and needing to test).
 
 	// generate permuted order
-	for i := 1; i < ncases; i++ {
-		j := fastrandn(uint32(i + 1))
-		pollorder[i] = pollorder[j]
+	dfli := -1
+	norder := 0
+	for i := range scases {
+		cas := &scases[i]
+
+		// Omit cases without channels from the poll and lock orders.
+		if cas.c == nil {
+			if cas.kind == caseDefault {
+				dfli = i
+			}
+			cas.elem = nil // allow GC
+			continue
+		}
+
+		j := fastrandn(uint32(norder + 1))
+		pollorder[norder] = pollorder[j]
 		pollorder[j] = uint16(i)
+		norder++
 	}
+	pollorder = pollorder[:norder]
+	lockorder = lockorder[:norder]
 
 	// sort the cases by Hchan address to get the locking order.
 	// simple heap sort, to guarantee n log n time and constant stack footprint.
-	for i := 0; i < ncases; i++ {
+	for i := range lockorder {
 		j := i
 		// Start with the pollorder to permute cases on the same channel.
 		c := scases[pollorder[i]].c
@@ -171,7 +175,7 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 		}
 		lockorder[j] = pollorder[i]
 	}
-	for i := ncases - 1; i >= 0; i-- {
+	for i := len(lockorder) - 1; i >= 0; i-- {
 		o := lockorder[i]
 		c := scases[o].c
 		lockorder[i] = lockorder[0]
@@ -195,7 +199,7 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	}
 
 	if debugSelect {
-		for i := 0; i+1 < ncases; i++ {
+		for i := 0; i+1 < len(lockorder); i++ {
 			if scases[lockorder[i]].c.sortkey() > scases[lockorder[i+1]].c.sortkey() {
 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
 				throw("select: broken sort")
@@ -218,22 +222,17 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	)
 
 	// pass 1 - look for something already waiting
-	var dfli int
-	var dfl *scase
 	var casi int
 	var cas *scase
 	var caseSuccess bool
 	var caseReleaseTime int64 = -1
 	var recvOK bool
-	for i := 0; i < ncases; i++ {
-		casi = int(pollorder[i])
+	for _, casei := range pollorder {
+		casi = int(casei)
 		cas = &scases[casi]
 		c = cas.c
 
 		switch cas.kind {
-		case caseNil:
-			continue
-
 		case caseRecv:
 			sg = c.sendq.dequeue()
 			if sg != nil {
@@ -260,17 +259,12 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 			if c.qcount < c.dataqsiz {
 				goto bufsend
 			}
-
-		case caseDefault:
-			dfli = casi
-			dfl = cas
 		}
 	}
 
-	if dfl != nil {
+	if dfli >= 0 {
 		selunlock(scases, lockorder)
 		casi = dfli
-		cas = dfl
 		goto retc
 	}
 
@@ -283,9 +277,6 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 	for _, casei := range lockorder {
 		casi = int(casei)
 		cas = &scases[casi]
-		if cas.kind == caseNil {
-			continue
-		}
 		c = cas.c
 		sg := acquireSudog()
 		sg.g = gp
@@ -340,9 +331,6 @@ func selectgo(cas0 *scase, order0 *uint16, ncases int) (int, bool) {
 
 	for _, casei := range lockorder {
 		k = &scases[casei]
-		if k.kind == caseNil {
-			continue
-		}
 		if sg == sglist {
 			// sg has already been dequeued by the G that woke us up.
 			casi = int(casei)
