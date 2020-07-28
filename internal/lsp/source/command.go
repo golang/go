@@ -105,7 +105,10 @@ var (
 		Name:           "extract_variable",
 		Title:          "Extract to variable",
 		suggestedFixFn: extractVariable,
-		appliesFn:      canExtractVariable,
+		appliesFn: func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool {
+			_, _, ok, _ := canExtractVariable(fset, rng, src, file, pkg, info)
+			return ok
+		},
 	}
 
 	// CommandExtractFunction extracts statements to a function.
