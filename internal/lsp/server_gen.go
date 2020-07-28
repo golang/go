@@ -112,8 +112,8 @@ func (s *Server) Initialized(ctx context.Context, params *protocol.InitializedPa
 	return s.initialized(ctx, params)
 }
 
-func (s *Server) LogTraceNotification(context.Context, *protocol.LogTraceParams) error {
-	return notImplemented("LogTraceNotification")
+func (s *Server) LogTrace(context.Context, *protocol.LogTraceParams) error {
+	return notImplemented("LogTrace")
 }
 
 func (s *Server) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
@@ -164,20 +164,20 @@ func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams)
 	return nil, notImplemented("SelectionRange")
 }
 
-func (s *Server) SemanticTokens(context.Context, *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
-	return nil, notImplemented("SemanticTokens")
+func (s *Server) SemanticTokensFull(context.Context, *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
+	return nil, notImplemented("SemanticTokensFull")
 }
 
-func (s *Server) SemanticTokensEdits(context.Context, *protocol.SemanticTokensEditsParams) (interface{}, error) {
-	return nil, notImplemented("SemanticTokensEdits")
+func (s *Server) SemanticTokensFullDelta(context.Context, *protocol.SemanticTokensDeltaParams) (interface{}, error) {
+	return nil, notImplemented("SemanticTokensFullDelta")
 }
 
 func (s *Server) SemanticTokensRange(context.Context, *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
 	return nil, notImplemented("SemanticTokensRange")
 }
 
-func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {
-	return notImplemented("SetTraceNotification")
+func (s *Server) SetTrace(context.Context, *protocol.SetTraceParams) error {
+	return notImplemented("SetTrace")
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {

@@ -1,12 +1,12 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 1f688e2f65f3a6fc9ba395380cd7b059667a9ecf
-// last fetched Tue Jun 09 2020 11:22:02 GMT-0400 (Eastern Daylight Time)
+// commit: 399de64448129835b53c7efe8962de91681d6cde
+// last fetched Tue Jul 28 2020 09:32:20 GMT-0400 (Eastern Daylight Time)
 package protocol
 
-import "encoding/json"
-
 // Code generated (see typescript/README.md) DO NOT EDIT.
+
+import "encoding/json"
 
 /**
  * The parameters passed via a apply workspace edit request.
@@ -588,6 +588,13 @@ type CompletionClientCapabilities struct {
 		 * @since 3.16.0 - Proposed state
 		 */
 		InsertReplaceSupport bool `json:"insertReplaceSupport,omitempty"`
+		/**
+		 * Client supports to resolve `additionalTextEdits` in the `completionItem/resolve`
+		 * request. So servers can postpone computing them.
+		 *
+		 * @since 3.16.0 - Proposed state
+		 */
+		ResolveAdditionalTextEditsSupport bool `json:"resolveAdditionalTextEditsSupport,omitempty"`
 	} `json:"completionItem,omitempty"`
 	CompletionItemKind struct {
 		/**
@@ -1594,7 +1601,7 @@ type DocumentSymbolClientCapabilities struct {
 	HierarchicalDocumentSymbolSupport bool `json:"hierarchicalDocumentSymbolSupport,omitempty"`
 	/**
 	 * The client supports tags on `SymbolInformation`. Tags are supported on
-	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set tot true.
+	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
 	 * Clients supporting tags have to handle unknown tags gracefully.
 	 *
 	 * @since 3.16.0 - Proposed state
@@ -2650,11 +2657,36 @@ type SemanticTokens struct {
 	 */
 	ResultID string `json:"resultId,omitempty"`
 	/**
-	 * The actual tokens. For a detailed description about how the data is
-	 * structured pls see
-	 * https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L71
+	 * The actual tokens.
 	 */
 	Data []float64 `json:"data"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensDelta struct {
+	ResultID string `json:"resultId,omitempty"`
+	/**
+	 * The semantic token edits to transform a previous result into a new result.
+	 */
+	Edits []SemanticTokensEdit `json:"edits"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensDeltaParams struct {
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The previous result id.
+	 */
+	PreviousResultID string `json:"previousResultId"`
+	WorkDoneProgressParams
+	PartialResultParams
 }
 
 /**
@@ -2673,34 +2705,6 @@ type SemanticTokensEdit struct {
 	 * The elements to insert.
 	 */
 	Data []float64 `json:"data,omitempty"`
-}
-
-/**
- * @since 3.16.0 - Proposed state
- */
-type SemanticTokensEdits struct {
-	ResultID string `json:"resultId,omitempty"`
-	/**
-	 * For a detailed description how these edits are structured pls see
-	 * https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L131
-	 */
-	Edits []SemanticTokensEdit `json:"edits"`
-}
-
-/**
- * @since 3.16.0 - Proposed state
- */
-type SemanticTokensEditsParams struct {
-	/**
-	 * The text document.
-	 */
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	/**
-	 * The previous result id.
-	 */
-	PreviousResultID string `json:"previousResultId"`
-	WorkDoneProgressParams
-	PartialResultParams
 }
 
 /**
@@ -3116,7 +3120,7 @@ type SymbolKind float64
 
 /**
  * Symbol tags are extra annotations that tweak the rendering of a symbol.
- * @since 3.15
+ * @since 3.16
  */
 type SymbolTag float64
 

@@ -14,7 +14,7 @@ export const fnames = [
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = '1f688e2f65f3a6fc9ba395380cd7b059667a9ecf'
+export const gitHash = '399de64448129835b53c7efe8962de91681d6cde'
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -86,7 +86,7 @@ export function goName(s: string): string {
   if (s.charAt(0) == '_') {
     ans = 'Inner' + s.substring(1)
   }
-  else {ans = s.substring(0, 1).toUpperCase() + s.substring(1)};
+  else { ans = s.substring(0, 1).toUpperCase() + s.substring(1) };
   ans = ans.replace(/Uri$/, 'URI')
   ans = ans.replace(/Id$/, 'ID')
   return ans
@@ -131,7 +131,7 @@ export function getComments(node: ts.Node): string {
 
 export function printAST(program: ts.Program) {
   // dump the ast, for debugging
-  const f = function(n: ts.Node) {
+  const f = function (n: ts.Node) {
     describe(n, pra)
   };
   for (const sourceFile of program.getSourceFiles()) {
@@ -173,7 +173,7 @@ function describe(node: ts.Node, pr: (s: string) => any) {
     else if (ts.isStringLiteral(n)) {
       pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`)
     }
-    else {pr(`${indent} ${loc(n)} ${strKind(n)} \n`)};
+    else { pr(`${indent} ${loc(n)} ${strKind(n)} \n`) };
     indent += ' .'
     ts.forEachChild(n, f)
     indent = indent.slice(0, indent.length - 2)
@@ -201,7 +201,7 @@ export function loc(node: ts.Node): string {
 // as part of printing the AST tree
 function kinds(n: ts.Node): string {
   let res = 'Seen ' + strKind(n);
-  function f(n: ts.Node): void {res += ' ' + strKind(n)};
+  function f(n: ts.Node): void { res += ' ' + strKind(n) };
   ts.forEachChild(n, f)
   return res
 }

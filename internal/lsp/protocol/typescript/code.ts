@@ -19,7 +19,7 @@
 import * as fs from 'fs';
 import * as ts from 'typescript';
 import * as u from './util';
-import {constName, getComments, goName, loc, strKind} from './util';
+import { constName, getComments, goName, loc, strKind } from './util';
 
 var program: ts.Program;
 
@@ -27,7 +27,7 @@ function parse() {
   // this won't complain if some fnames don't exist
   program = ts.createProgram(
     u.fnames,
-    {target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.CommonJS});
+    { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.CommonJS });
   program.getTypeChecker();  // finish type checking and assignment
 }
 
@@ -103,7 +103,7 @@ function findRPCs(node: ts.Node) {
   if (rpc == '') throw new Error(`no name found at ${loc(x)}`);
   // remember the implied types
   const [a, b] = ptypes.get(rpc);
-  const add = function(n: ts.Node) {
+  const add = function (n: ts.Node) {
     rpcTypes.add(goName(n.getText()))
   };
   underlying(a, add);
@@ -130,8 +130,8 @@ function setReceives() {
   // it would be nice to have some independent check on this
   // (this logic fails if the server ever sends $/canceRequest
   //  or $/progress)
-  req.forEach((_, k) => {receives.set(k, 'server')});
-  not.forEach((_, k) => {receives.set(k, 'server')});
+  req.forEach((_, k) => { receives.set(k, 'server') });
+  not.forEach((_, k) => { receives.set(k, 'server') });
   receives.set('window/showMessage', 'client');
   receives.set('window/showMessageRequest', 'client');
   receives.set('window/logMessage', 'client');
@@ -178,7 +178,7 @@ function newData(n: ts.Node, nm: string): Data {
 
 // for debugging, produce a skeleton description
 function strData(d: Data): string {
-  const f = function(na: ts.NodeArray<any>): number {
+  const f = function (na: ts.NodeArray<any>): number {
     return na.length
   };
   return `D(${d.name}) g;${f(d.generics)} a:${f(d.as)} p:${f(d.properties)} s:${
@@ -204,7 +204,7 @@ function genTypes(node: ts.Node) {
     const v: ts.InterfaceDeclaration = node;
     // need to check the members, many of which are disruptive
     let mems: ts.TypeElement[] = [];
-    const f = function(t: ts.TypeElement) {
+    const f = function (t: ts.TypeElement) {
       if (ts.isPropertySignature(t)) {
         mems.push(t);
       } else if (ts.isMethodSignature(t) || ts.isCallSignatureDeclaration(t)) {
@@ -262,7 +262,7 @@ function genTypes(node: ts.Node) {
     const b: ts.ModuleBlock = v.body;
     var s: ts.Statement[] = [];
     // we don't want most of these
-    const fx = function(x: ts.Statement) {
+    const fx = function (x: ts.Statement) {
       if (ts.isFunctionDeclaration(x)) {
         return
       };
@@ -297,7 +297,7 @@ function genTypes(node: ts.Node) {
     const v: ts.ClassDeclaration = node;
     var d: ts.PropertyDeclaration[] = [];
     // look harder at the PropertyDeclarations.
-    const wanted = function(c: ts.ClassElement): string {
+    const wanted = function (c: ts.ClassElement): string {
       if (ts.isConstructorDeclaration(c)) {
         return ''
       };
@@ -361,6 +361,7 @@ function dataMerge(a: Data, b: Data): Data {
       // want the Interface
       return a.properties.length > 0 ? a : b;
     case 'TextDocumentContentChangeEvent':  // almost the same
+    case 'TokenFormat':
       return a;
   }
   console.log(
@@ -387,7 +388,7 @@ function checkOnce() {
 // helper function to find underlying types
 function underlying(n: ts.Node, f: (n: ts.Node) => void) {
   if (!n) return;
-  const ff = function(n: ts.Node) {
+  const ff = function (n: ts.Node) {
     underlying(n, f)
   };
   if (ts.isIdentifier(n)) {
@@ -436,7 +437,7 @@ function underlying(n: ts.Node, f: (n: ts.Node) => void) {
 // Simplest way to the transitive closure is to stabilize the size of seenTypes
 // but it is slow
 function moreTypes() {
-  const extra = function(s: string) {
+  const extra = function (s: string) {
     if (!data.has(s)) throw new Error(`moreTypes needs ${s}`);
     seenTypes.set(s, data.get(s))
   };
@@ -456,17 +457,17 @@ function moreTypes() {
     old = seenTypes.size
 
     const m = new Map<string, Data>();
-    const add = function(n: ts.Node) {
+    const add = function (n: ts.Node) {
       const nm = goName(n.getText());
       if (seenTypes.has(nm) || m.has(nm)) return;
       // For generic parameters, this might set it to undefined
       m.set(nm, data.get(nm));
     };
     // expect all the heritage clauses have single Identifiers
-    const h = function(n: ts.Node) {
+    const h = function (n: ts.Node) {
       underlying(n, add);
     };
-    const f = function(x: ts.NodeArray<ts.Node>) {
+    const f = function (x: ts.NodeArray<ts.Node>) {
       x.forEach(h)
     };
     seenTypes.forEach((d: Data) => d && f(d.as))
@@ -513,7 +514,7 @@ function goInterface(d: Data, nm: string) {
   let ans = `type ${goName(nm)} struct {\n`;
 
   // generate the code for each member
-  const g = function(n: ts.TypeElement) {
+  const g = function (n: ts.TypeElement) {
     if (!ts.isPropertySignature(n))
       throw new Error(`expected PropertySignature got ${strKind(n)} `);
     ans = ans.concat(getComments(n));
@@ -532,7 +533,7 @@ function goInterface(d: Data, nm: string) {
   d.properties.forEach(g)
   // heritage clauses become embedded types
   // check they are all Identifiers
-  const f = function(n: ts.ExpressionWithTypeArguments) {
+  const f = function (n: ts.ExpressionWithTypeArguments) {
     if (!ts.isIdentifier(n.expression))
       throw new Error(`Interface ${nm} heritage ${strKind(n.expression)} `);
     ans = ans.concat(goName(n.expression.getText()), '\n')
@@ -555,7 +556,7 @@ function goModule(d: Data, nm: string) {
   // They are VariableStatements with x.declarationList having a single
   //   VariableDeclaration
   let isNumeric = false;
-  const f = function(n: ts.Statement, i: number) {
+  const f = function (n: ts.Statement, i: number) {
     if (!ts.isVariableStatement(n)) {
       throw new Error(` ${nm} ${i} expected VariableStatement,
       got ${strKind(n)}`);
@@ -582,7 +583,7 @@ function goModule(d: Data, nm: string) {
 // generate Go code for an enum. Both types and named constants
 function goEnum(d: Data, nm: string) {
   let isNumeric = false
-  const f = function(v: ts.EnumMember, j: number) {  // same as goModule
+  const f = function (v: ts.EnumMember, j: number) {  // same as goModule
     if (!v.initializer)
       throw new Error(`goEnum no initializer ${nm} ${j} ${v.name.getText()}`);
     isNumeric = strKind(v.initializer) == 'NumericLiteral';
@@ -635,6 +636,10 @@ function goType(n: ts.TypeNode, nm: string): string {
   } else if (strKind(n) == 'ObjectKeyword') {
     return 'interface{}'
   } else if (ts.isArrayTypeNode(n)) {
+    if (nm === 'arguments') {
+      // Command and ExecuteCommandParams
+      return '[]json.RawMessage';
+    }
     return `[]${goType(n.elementType, nm)}`
   } else if (ts.isParenthesizedTypeNode(n)) {
     return goType(n.type, nm)
@@ -757,7 +762,7 @@ function goIntersectionType(n: ts.IntersectionTypeNode, nm: string): string {
   if (nm == 'ServerCapabilities') return expandIntersection(n);
   let inner = '';
   n.types.forEach(
-    (t: ts.TypeNode) => {inner = inner.concat(goType(t, nm), '\n')});
+    (t: ts.TypeNode) => { inner = inner.concat(goType(t, nm), '\n') });
   return `struct{ \n${inner}} `
 }
 
@@ -766,7 +771,7 @@ function goIntersectionType(n: ts.IntersectionTypeNode, nm: string): string {
 // of them by name. The names that occur once can be output. The names
 // that occur more than once need to be combined.
 function expandIntersection(n: ts.IntersectionTypeNode): string {
-  const bad = function(n: ts.Node, s: string) {
+  const bad = function (n: ts.Node, s: string) {
     return new Error(`expandIntersection ${strKind(n)} ${s}`)
   };
   let props = new Map<string, ts.PropertySignature[]>();
@@ -818,7 +823,7 @@ function expandIntersection(n: ts.IntersectionTypeNode): string {
 function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
   let ans: string[] = [];  // in case we generate a new extra type
   let res = 'struct{\n'    // the actual answer usually
-  const g = function(nx: ts.TypeElement) {
+  const g = function (nx: ts.TypeElement) {
     // add the json, as in goInterface(). Strange inside union types.
     if (ts.isPropertySignature(nx)) {
       let json = u.JSON(nx);
@@ -858,6 +863,7 @@ function outputTypes() {
   v.sort();
   v.forEach((x) => toGo(seenTypes.get(x), x))
   u.prgo(u.computeHeader(true))
+  u.prgo(`import "encoding/json"\n\n`);
   typesOut.forEach((s) => {
     u.prgo(s);
     // it's more convenient not to have to think about trailing newlines
@@ -1003,8 +1009,7 @@ function methodName(m: string): string {
   let i = m.indexOf('/');
   let s = m.substring(i + 1);
   let x = s[0].toUpperCase() + s.substring(1);
-  const j = x.indexOf('/')
-  if (j >= 0) {
+  for (let j = x.indexOf('/'); j >= 0; j = x.indexOf('/')) {
     let suffix = x.substring(j + 1)
     suffix = suffix[0].toUpperCase() + suffix.substring(1)
     let prefix = x.substring(0, j)
@@ -1064,7 +1069,7 @@ function output(side: side) {
     side.outputFile = `ts${side.name}.go`;
     side.fd = fs.openSync(side.outputFile, 'w');
   }
-  const f = function(s: string) {
+  const f = function (s: string) {
     fs.writeSync(side.fd, s);
     fs.writeSync(side.fd, '\n');
   };
@@ -1080,17 +1085,17 @@ function output(side: side) {
         `);
   const a = side.name[0].toUpperCase() + side.name.substring(1)
   f(`type ${a} interface {`);
-  side.methods.forEach((v) => {f(v)});
+  side.methods.forEach((v) => { f(v) });
   f('}\n');
   f(`func ${side.name}Dispatch(ctx context.Context, ${side.name} ${a}, reply jsonrpc2.Replier, r jsonrpc2.Request) (bool, error) {
           switch r.Method() {`);
-  side.cases.forEach((v) => {f(v)});
+  side.cases.forEach((v) => { f(v) });
   f(`
         default:
           return false, nil
         }
       }`);
-  side.calls.forEach((v) => {f(v)});
+  side.calls.forEach((v) => { f(v) });
 }
 
 // Handling of non-standard requests, so we can add gopls-specific calls.
