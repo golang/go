@@ -111,8 +111,8 @@ var (
 		Name:           "extract_variable",
 		Title:          "Extract to variable",
 		suggestedFixFn: extractVariable,
-		appliesFn: func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool {
-			_, _, ok, _ := canExtractVariable(fset, rng, src, file, pkg, info)
+		appliesFn: func(_ *token.FileSet, rng span.Range, _ []byte, file *ast.File, _ *types.Package, _ *types.Info) bool {
+			_, _, ok, _ := canExtractVariable(rng, file)
 			return ok
 		},
 	}
@@ -122,7 +122,10 @@ var (
 		Name:           "extract_function",
 		Title:          "Extract to function",
 		suggestedFixFn: extractFunction,
-		appliesFn:      canExtractFunction,
+		appliesFn: func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) bool {
+			_, _, _, _, ok, _ := canExtractFunction(fset, rng, src, file, info)
+			return ok
+		},
 	}
 )
 

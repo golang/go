@@ -22,7 +22,7 @@ import (
 )
 
 func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	expr, path, ok, err := canExtractVariable(fset, rng, src, file, pkg, info)
+	expr, path, ok, err := canExtractVariable(rng, file)
 	if !ok {
 		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
 	}
@@ -78,7 +78,7 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 
 // canExtractVariable reports whether the code in the given range can be
 // extracted to a variable.
-func canExtractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (ast.Expr, []ast.Node, bool, error) {
+func canExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, bool, error) {
 	if rng.Start == rng.End {
 		return nil, nil, false, fmt.Errorf("start and end are equal")
 	}
@@ -156,19 +156,10 @@ type returnVariable struct {
 // of the function and insert this call as well as the extracted function into
 // their proper locations.
 func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	tok := fset.File(file.Pos())
-	if tok == nil {
-		return nil, fmt.Errorf("extractFunction: no token.File")
-	}
-	rng = adjustRangeForWhitespace(rng, tok, src)
-	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
-	if len(path) == 0 {
-		return nil, fmt.Errorf("extractFunction: no path enclosing interval")
-	}
-	// Node that encloses the selection must be a statement.
-	// TODO: Support function extraction for an expression.
-	if _, ok := path[0].(ast.Stmt); !ok {
-		return nil, fmt.Errorf("extractFunction: ast.Node is not a statement")
+	tok, path, outer, start, ok, err := canExtractFunction(fset, rng, src, file, info)
+	if !ok {
+		return nil, fmt.Errorf("extractFunction: cannot extract %s: %v",
+			fset.Position(rng.Start), err)
 	}
 	fileScope := info.Scopes[file]
 	if fileScope == nil {
@@ -177,37 +168,6 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	pkgScope := fileScope.Parent()
 	if pkgScope == nil {
 		return nil, fmt.Errorf("extractFunction: package scope is empty")
-	}
-	// Find the function declaration that encloses the selection.
-	var outer *ast.FuncDecl
-	for _, p := range path {
-		if p, ok := p.(*ast.FuncDecl); ok {
-			outer = p
-			break
-		}
-	}
-	if outer == nil {
-		return nil, fmt.Errorf("extractFunction: no enclosing function")
-	}
-
-	// Find the nodes at the start and end of the selection.
-	var start, end ast.Node
-	ast.Inspect(outer, func(n ast.Node) bool {
-		if n == nil {
-			return true
-		}
-		// Do not override 'start' with a node that begins at the same location but is
-		// nested further from 'outer'.
-		if start == nil && n.Pos() == rng.Start && n.End() <= rng.End {
-			start = n
-		}
-		if end == nil && n.End() == rng.End && n.Pos() >= rng.Start {
-			end = n
-		}
-		return n.Pos() <= rng.End
-	})
-	if start == nil || end == nil {
-		return nil, nil
 	}
 
 	// TODO: Support non-nested return statements.
@@ -237,7 +197,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		return true
 	})
 	if hasNonNestedReturn {
-		return nil, fmt.Errorf("extractFunction: selected bloc kcontains non-nested return")
+		return nil, fmt.Errorf("extractFunction: selected block contains non-nested return")
 	}
 	containsReturnStatement := len(retStmts) > 0
 
@@ -673,25 +633,60 @@ func collectFreeVars(info *types.Info, file *ast.File, fileScope *types.Scope,
 	return free, vars, assigned
 }
 
-// canExtractFunction reports whether the code in the given range can be
-// extracted to a function.
-// TODO(rstambler): De-duplicate the logic between extractFunction and
-// canExtractFunction.
-func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) bool {
+// canExtractFunction reports whether the code in the given range can be extracted to a function.
+func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, info *types.Info) (*token.File, []ast.Node, *ast.FuncDecl, ast.Node, bool, error) {
 	if rng.Start == rng.End {
-		return false
+		return nil, nil, nil, nil, false, fmt.Errorf("start and end are equal")
 	}
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		return false
+		return nil, nil, nil, nil, false,
+			fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
 	rng = adjustRangeForWhitespace(rng, tok, src)
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
-		return false
+		return nil, nil, nil, nil, false, fmt.Errorf("no path enclosing interval")
 	}
+	// Node that encloses the selection must be a statement.
+	// TODO: Support function extraction for an expression.
 	_, ok := path[0].(ast.Stmt)
-	return ok
+	if !ok {
+		return nil, nil, nil, nil, false, fmt.Errorf("node is not a statement")
+	}
+
+	// Find the function declaration that encloses the selection.
+	var outer *ast.FuncDecl
+	for _, p := range path {
+		if p, ok := p.(*ast.FuncDecl); ok {
+			outer = p
+			break
+		}
+	}
+	if outer == nil {
+		return nil, nil, nil, nil, false, fmt.Errorf("no enclosing function")
+	}
+
+	// Find the nodes at the start and end of the selection.
+	var start, end ast.Node
+	ast.Inspect(outer, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+		// Do not override 'start' with a node that begins at the same location but is
+		// nested further from 'outer'.
+		if start == nil && n.Pos() == rng.Start && n.End() <= rng.End {
+			start = n
+		}
+		if end == nil && n.End() == rng.End && n.Pos() >= rng.Start {
+			end = n
+		}
+		return n.Pos() <= rng.End
+	})
+	if start == nil || end == nil {
+		return nil, nil, nil, nil, false, fmt.Errorf("range does not map to AST nodes")
+	}
+	return tok, path, outer, start, true, nil
 }
 
 // objUsed checks if the object is used between the given positions.
