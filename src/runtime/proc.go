@@ -5225,7 +5225,9 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
 
 	atomic.StoreRel(&pp.runqtail, t)
 	if !q.empty() {
+		lock(&sched.lock)
 		globrunqputbatch(q, int32(qsize))
+		unlock(&sched.lock)
 	}
 }
 
