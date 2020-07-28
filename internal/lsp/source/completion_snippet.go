@@ -41,7 +41,7 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 		}
 	})
 
-	fset := c.snapshot.View().Session().Cache().FileSet()
+	fset := c.snapshot.FileSet()
 
 	// If the cursor position is on a different line from the literal's opening brace,
 	// we are in a multiline literal.

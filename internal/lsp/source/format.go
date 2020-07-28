@@ -38,10 +38,10 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, snapshot.View(), pgf, string(formatted))
+		return computeTextEdits(ctx, snapshot, pgf, string(formatted))
 	}
 
-	fset := snapshot.View().Session().Cache().FileSet()
+	fset := snapshot.FileSet()
 
 	// format.Node changes slightly from one release to another, so the version
 	// of Go used to build the LSP server will determine how it formats code.
@@ -62,7 +62,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		}
 		formatted = string(b)
 	}
-	return computeTextEdits(ctx, snapshot.View(), pgf, formatted)
+	return computeTextEdits(ctx, snapshot, pgf, formatted)
 }
 
 func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
@@ -94,7 +94,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 		return nil, nil, err
 	}
 	if err := snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgf, opts)
+		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot, pgf, opts)
 		return err
 	}); err != nil {
 		return nil, nil, fmt.Errorf("AllImportsFixes: %v", err)
@@ -104,7 +104,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 
 // computeImportEdits computes a set of edits that perform one or all of the
 // necessary import fixes.
-func computeImportEdits(ctx context.Context, view View, pgf *ParsedGoFile, options *imports.Options) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
+func computeImportEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, options *imports.Options) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	filename := pgf.URI.Filename()
 
 	// Build up basic information about the original file.
@@ -113,7 +113,7 @@ func computeImportEdits(ctx context.Context, view View, pgf *ParsedGoFile, optio
 		return nil, nil, err
 	}
 
-	allFixEdits, err = computeFixEdits(view, pgf, options, allFixes)
+	allFixEdits, err = computeFixEdits(snapshot, pgf, options, allFixes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -121,7 +121,7 @@ func computeImportEdits(ctx context.Context, view View, pgf *ParsedGoFile, optio
 	// Apply all of the import fixes to the file.
 	// Add the edits for each fix to the result.
 	for _, fix := range allFixes {
-		edits, err := computeFixEdits(view, pgf, options, []*imports.ImportFix{fix})
+		edits, err := computeFixEdits(snapshot, pgf, options, []*imports.ImportFix{fix})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -133,9 +133,9 @@ func computeImportEdits(ctx context.Context, view View, pgf *ParsedGoFile, optio
 	return allFixEdits, editsPerFix, nil
 }
 
-func computeOneImportFixEdits(ctx context.Context, view View, pgf *ParsedGoFile, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
+func computeOneImportFixEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
 	options := &imports.Options{
-		LocalPrefix: view.Options().LocalPrefix,
+		LocalPrefix: snapshot.View().Options().LocalPrefix,
 		// Defaults.
 		AllErrors:  true,
 		Comments:   true,
@@ -144,10 +144,10 @@ func computeOneImportFixEdits(ctx context.Context, view View, pgf *ParsedGoFile,
 		TabIndent:  true,
 		TabWidth:   8,
 	}
-	return computeFixEdits(view, pgf, options, []*imports.ImportFix{fix})
+	return computeFixEdits(snapshot, pgf, options, []*imports.ImportFix{fix})
 }
 
-func computeFixEdits(view View, pgf *ParsedGoFile, options *imports.Options, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
+func computeFixEdits(snapshot Snapshot, pgf *ParsedGoFile, options *imports.Options, fixes []*imports.ImportFix) ([]protocol.TextEdit, error) {
 	// trim the original data to match fixedData
 	left := importPrefix(pgf.Src)
 	extra := !strings.Contains(left, "\n") // one line may have more than imports
@@ -171,7 +171,7 @@ func computeFixEdits(view View, pgf *ParsedGoFile, options *imports.Options, fix
 	if fixedData == nil || fixedData[len(fixedData)-1] != '\n' {
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
 	}
-	edits := view.Options().ComputeEdits(pgf.URI, left, string(fixedData))
+	edits := snapshot.View().Options().ComputeEdits(pgf.URI, left, string(fixedData))
 	return ToProtocolEdits(pgf.Mapper, edits)
 }
 
@@ -236,11 +236,11 @@ func importPrefix(src []byte) string {
 	return string(src[:importEnd])
 }
 
-func computeTextEdits(ctx context.Context, view View, pgf *ParsedGoFile, formatted string) ([]protocol.TextEdit, error) {
+func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, formatted string) ([]protocol.TextEdit, error) {
 	_, done := event.Start(ctx, "source.computeTextEdits")
 	defer done()
 
-	edits := view.Options().ComputeEdits(pgf.URI, string(pgf.Src), formatted)
+	edits := snapshot.View().Options().ComputeEdits(pgf.URI, string(pgf.Src), formatted)
 	return ToProtocolEdits(pgf.Mapper, edits)
 }
 

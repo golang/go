@@ -74,11 +74,11 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 var ErrNoIdentFound = errors.New("no identifier found")
 
-func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
-	if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
-		if s.View().Options().ImportShortcut.ShowDefinition() {
+	if result, err := importSpec(snapshot, pkg, file, pos); result != nil || err != nil {
+		if snapshot.View().Options().ImportShortcut.ShowDefinition() {
 			return result, err
 		}
 		return nil, nil
@@ -88,7 +88,6 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		return nil, ErrNoIdentFound
 	}
 
-	view := s.View()
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 
 	ident, _ := path[0].(*ast.Ident)
@@ -98,7 +97,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	// Special case for package declarations, since they have no
 	// corresponding types.Object.
 	if ident == file.Name {
-		rng, err := posToMappedRange(view, pkg, file.Name.Pos(), file.Name.End())
+		rng, err := posToMappedRange(snapshot, pkg, file.Name.Pos(), file.Name.End())
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +111,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		if declAST == nil {
 			declAST = file
 		}
-		declRng, err := posToMappedRange(view, pkg, declAST.Name.Pos(), declAST.Name.End())
+		declRng, err := posToMappedRange(snapshot, pkg, declAST.Name.Pos(), declAST.Name.End())
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +121,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 			mappedRange: rng,
 			pkg:         pkg,
 			qf:          qf,
-			Snapshot:    s,
+			Snapshot:    snapshot,
 			Declaration: Declaration{
 				node:        declAST.Name,
 				MappedRange: []mappedRange{declRng},
@@ -131,7 +130,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	}
 
 	result := &IdentifierInfo{
-		Snapshot:  s,
+		Snapshot:  snapshot,
 		qf:        qf,
 		pkg:       pkg,
 		ident:     ident,
@@ -148,7 +147,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 	result.Name = result.ident.Name
 	var err error
-	if result.mappedRange, err = posToMappedRange(view, pkg, result.ident.Pos(), result.ident.End()); err != nil {
+	if result.mappedRange, err = posToMappedRange(snapshot, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +170,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		builtin, err := s.BuiltinPackage(ctx)
+		builtin, err := snapshot.BuiltinPackage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +186,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 
 		// The builtin package isn't in the dependency graph, so the usual utilities
 		// won't work here.
-		rng := newMappedRange(view.Session().Cache().FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := newMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
 		return result, nil
@@ -203,13 +202,13 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		}
 	}
 
-	rng, err := objToMappedRange(view, pkg, result.Declaration.obj)
+	rng, err := objToMappedRange(snapshot, pkg, result.Declaration.obj)
 	if err != nil {
 		return nil, err
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	if result.Declaration.node, err = objToDecl(ctx, s, pkg, result.Declaration.obj); err != nil {
+	if result.Declaration.node, err = objToDecl(ctx, snapshot, pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -223,7 +222,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.mappedRange, err = objToMappedRange(view, pkg, result.Type.Object); err != nil {
+		if result.Type.mappedRange, err = objToMappedRange(snapshot, pkg, result.Type.Object); err != nil {
 			return nil, err
 		}
 	}
@@ -285,7 +284,7 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToDecl(ctx context.Context, snapshot Snapshot, srcPkg Package, obj types.Object) (ast.Decl, error) {
-	pgf, _, err := findPosInPackage(snapshot.View(), srcPkg, obj.Pos())
+	pgf, _, err := findPosInPackage(snapshot, srcPkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +296,7 @@ func objToDecl(ctx context.Context, snapshot Snapshot, srcPkg Package, obj types
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
 	for _, spec := range file.Imports {
 		if spec.Path.Pos() <= pos && pos < spec.Path.End() {
@@ -312,11 +311,11 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 		return nil, errors.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
 	result := &IdentifierInfo{
-		Snapshot: s,
+		Snapshot: snapshot,
 		Name:     importPath,
 		pkg:      pkg,
 	}
-	if result.mappedRange, err = posToMappedRange(s.View(), pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
+	if result.mappedRange, err = posToMappedRange(snapshot, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
@@ -326,7 +325,7 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 	}
 	// Return all of the files in the package as the definition of the import spec.
 	for _, dst := range importedPkg.GetSyntax() {
-		rng, err := posToMappedRange(s.View(), pkg, dst.Pos(), dst.End())
+		rng, err := posToMappedRange(snapshot, pkg, dst.Pos(), dst.End())
 		if err != nil {
 			return nil, err
 		}

@@ -98,8 +98,8 @@ func newBuiltinSignature(ctx context.Context, snapshot Snapshot, name string) (*
 			variadic = true
 		}
 	}
-	params, _ := formatFieldList(ctx, snapshot.View(), decl.Type.Params, variadic)
-	results, needResultParens := formatFieldList(ctx, snapshot.View(), decl.Type.Results, false)
+	params, _ := formatFieldList(ctx, snapshot, decl.Type.Params, variadic)
+	results, needResultParens := formatFieldList(ctx, snapshot, decl.Type.Results, false)
 	return &signature{
 		doc:              decl.Doc.Text(),
 		name:             name,
@@ -116,7 +116,7 @@ var replacer = strings.NewReplacer(
 	`IntegerType`, `int`,
 )
 
-func formatFieldList(ctx context.Context, view View, list *ast.FieldList, variadic bool) ([]string, bool) {
+func formatFieldList(ctx context.Context, snapshot Snapshot, list *ast.FieldList, variadic bool) ([]string, bool) {
 	if list == nil {
 		return nil, false
 	}
@@ -129,7 +129,7 @@ func formatFieldList(ctx context.Context, view View, list *ast.FieldList, variad
 		p := list.List[i]
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
-		if err := cfg.Fprint(b, view.Session().Cache().FileSet(), p.Type); err != nil {
+		if err := cfg.Fprint(b, snapshot.FileSet(), p.Type); err != nil {
 			event.Error(ctx, "unable to print type", nil, tag.Type.Of(p.Type))
 			continue
 		}
@@ -198,13 +198,13 @@ func newSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, 
 // formatVarType formats a *types.Var, accounting for type aliases.
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always fallbacks back to types.TypeString.
-func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast.File, obj *types.Var, qf types.Qualifier) string {
-	pgf, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
+func formatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcfile *ast.File, obj *types.Var, qf types.Qualifier) string {
+	pgf, pkg, err := findPosInPackage(snapshot, srcpkg, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
 
-	expr, err := varType(ctx, s, pgf, obj)
+	expr, err := varType(ctx, snapshot, pgf, obj)
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
@@ -218,8 +218,8 @@ func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast
 
 	// If the request came from a different package than the one in which the
 	// types are defined, we may need to modify the qualifiers.
-	qualified = qualifyExpr(s.View().Session().Cache().FileSet(), qualified, srcpkg, pkg, srcfile, clonedInfo)
-	fmted := formatNode(s.View().Session().Cache().FileSet(), qualified)
+	qualified = qualifyExpr(snapshot.FileSet(), qualified, srcpkg, pkg, srcfile, clonedInfo)
+	fmted := formatNode(snapshot.FileSet(), qualified)
 	return fmted
 }
 

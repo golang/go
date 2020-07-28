@@ -133,7 +133,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	if err != nil {
 		return false
 	}
-	tok := snapshot.View().Session().Cache().FileSet().File(pgf.File.Pos())
+	tok := snapshot.FileSet().File(pgf.File.Pos())
 	if tok == nil {
 		return false
 	}
@@ -150,15 +150,15 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func nodeToProtocolRange(view View, pkg Package, n ast.Node) (protocol.Range, error) {
-	mrng, err := posToMappedRange(view, pkg, n.Pos(), n.End())
+func nodeToProtocolRange(snapshot Snapshot, pkg Package, n ast.Node) (protocol.Range, error) {
+	mrng, err := posToMappedRange(snapshot, pkg, n.Pos(), n.End())
 	if err != nil {
 		return protocol.Range{}, err
 	}
 	return mrng.Range()
 }
 
-func objToMappedRange(v View, pkg Package, obj types.Object) (mappedRange, error) {
+func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (mappedRange, error) {
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
 		// When the name matches the imported package name, there is no
@@ -171,18 +171,18 @@ func objToMappedRange(v View, pkg Package, obj types.Object) (mappedRange, error
 		// When the identifier does not appear in the source, have the range
 		// of the object be the import path, including quotes.
 		if pkgName.Imported().Name() == pkgName.Name() {
-			return posToMappedRange(v, pkg, obj.Pos(), obj.Pos()+token.Pos(len(pkgName.Imported().Path())+2))
+			return posToMappedRange(snapshot, pkg, obj.Pos(), obj.Pos()+token.Pos(len(pkgName.Imported().Path())+2))
 		}
 	}
-	return nameToMappedRange(v, pkg, obj.Pos(), obj.Name())
+	return nameToMappedRange(snapshot, pkg, obj.Pos(), obj.Name())
 }
 
-func nameToMappedRange(v View, pkg Package, pos token.Pos, name string) (mappedRange, error) {
-	return posToMappedRange(v, pkg, pos, pos+token.Pos(len(name)))
+func nameToMappedRange(snapshot Snapshot, pkg Package, pos token.Pos, name string) (mappedRange, error) {
+	return posToMappedRange(snapshot, pkg, pos, pos+token.Pos(len(name)))
 }
 
-func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
-	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
+func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (mappedRange, error) {
+	logicalFilename := snapshot.FileSet().File(pos).Position(pos).Filename
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
@@ -193,7 +193,7 @@ func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, err
 	if !end.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	return newMappedRange(v.Session().Cache().FileSet(), pgf.Mapper, pos, end), nil
+	return newMappedRange(snapshot.FileSet(), pgf.Mapper, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
@@ -511,8 +511,8 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
-	tok := v.Session().Cache().FileSet().File(pos)
+func findPosInPackage(snapshot Snapshot, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
+	tok := snapshot.FileSet().File(pos)
 	if tok == nil {
 		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}

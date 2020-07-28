@@ -110,6 +110,10 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
+func (s *snapshot) FileSet() *token.FileSet {
+	return s.view.session.cache.fset
+}
+
 // config returns the configuration used for the snapshot's interaction with the
 // go/packages API.
 func (s *snapshot) config(ctx context.Context) *packages.Config {

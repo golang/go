@@ -16,11 +16,11 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
+func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
 	ctx, done := event.Start(ctx, "source.Implementation")
 	defer done()
 
-	impls, err := implementations(ctx, s, f, pp)
+	impls, err := implementations(ctx, snapshot, f, pp)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-		rng, err := objToMappedRange(s.View(), impl.pkg, impl.obj)
+		rng, err := objToMappedRange(snapshot, impl.pkg, impl.obj)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +53,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 	var (
 		impls []qualifiedObject
 		seen  = make(map[token.Position]bool)
-		fset  = s.View().Session().Cache().FileSet()
+		fset  = s.FileSet()
 	)
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)

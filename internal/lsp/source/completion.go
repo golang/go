@@ -261,7 +261,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		content: ident.Name,
 		cursor:  c.pos,
 		// Overwrite the prefix only.
-		mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper, ident.Pos(), ident.End()),
+		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, ident.Pos(), ident.End()),
 	}
 
 	switch c.opts.matcher {
@@ -279,7 +279,7 @@ func (c *completer) getSurrounding() *Selection {
 		c.surrounding = &Selection{
 			content:     "",
 			cursor:      c.pos,
-			mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper, c.pos, c.pos),
+			mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, c.pos, c.pos),
 		}
 	}
 	return c.surrounding
@@ -653,7 +653,7 @@ func (c *completer) containingIdent(src []byte) *ast.Ident {
 
 // scanToken scans pgh's contents for the token containing pos.
 func (c *completer) scanToken(contents []byte) (token.Pos, token.Token, string) {
-	tok := c.snapshot.View().Session().Cache().FileSet().File(c.pos)
+	tok := c.snapshot.FileSet().File(c.pos)
 
 	var s scanner.Scanner
 	s.Init(tok, contents, nil, 0)
@@ -703,8 +703,7 @@ func (c *completer) emptySwitchStmt() bool {
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
 
 	// Using the comment position find the line after
-	fset := c.snapshot.View().Session().Cache().FileSet()
-	file := fset.File(comment.End())
+	file := c.snapshot.FileSet().File(comment.End())
 	if file == nil {
 		return
 	}
@@ -802,7 +801,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 	c.surrounding = &Selection{
 		content: cursorComment.Text[start:end],
 		cursor:  c.pos,
-		mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper,
+		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper,
 			token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
 	}
 }
@@ -1031,8 +1030,7 @@ func (c *completer) lexical(ctx context.Context) error {
 					node = c.path[i-1]
 				}
 				if node != nil {
-					fset := c.snapshot.View().Session().Cache().FileSet()
-					if resolved := resolveInvalid(fset, obj, node, c.pkg.GetTypesInfo()); resolved != nil {
+					if resolved := resolveInvalid(c.snapshot.FileSet(), obj, node, c.pkg.GetTypesInfo()); resolved != nil {
 						obj = resolved
 					}
 				}

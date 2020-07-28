@@ -53,7 +53,7 @@ func (c *completer) addAssignAppend() {
 		// needsLHS is true if we need to prepend the LHS slice name and
 		// "=" to our candidate.
 		needsLHS = false
-		fset     = c.snapshot.View().Session().Cache().FileSet()
+		fset     = c.snapshot.FileSet()
 	)
 
 	switch n := c.path[1].(type) {
@@ -205,7 +205,7 @@ func (c *completer) addErrCheckAndReturn() {
 
 	var (
 		// errText is e.g. "err" in "foo, err := bar()".
-		errText = formatNode(c.snapshot.View().Session().Cache().FileSet(), lastAssignee)
+		errText = formatNode(c.snapshot.FileSet(), lastAssignee)
 
 		// Whether we need to include the "if" keyword in our candidate.
 		needsIf = true

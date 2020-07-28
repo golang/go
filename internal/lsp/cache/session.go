@@ -134,7 +134,7 @@ func (s *Session) Shutdown(ctx context.Context) {
 	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
 
-func (s *Session) Cache() source.Cache {
+func (s *Session) Cache() interface{} {
 	return s.cache
 }
 

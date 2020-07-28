@@ -30,6 +30,9 @@ type Snapshot interface {
 	// View returns the View associated with this snapshot.
 	View() View
 
+	// Fileset returns the Fileset used to parse all the Go files in this snapshot.
+	FileSet() *token.FileSet
+
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
 	FindFile(uri span.URI) VersionedFileHandle
@@ -221,8 +224,8 @@ type Session interface {
 	// NewView creates a new View, returning it and its first snapshot.
 	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, Snapshot, func(), error)
 
-	// Cache returns the cache that created this session.
-	Cache() Cache
+	// Cache returns the cache that created this session, for debugging only.
+	Cache() interface{}
 
 	// View returns a view with a matching name, if the session has one.
 	View(name string) View
@@ -311,21 +314,6 @@ func (a FileAction) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-// Cache abstracts the core logic of dealing with the environment from the
-// higher level logic that processes the information to produce results.
-// The cache provides access to files and their contents, so the source
-// package does not directly access the file system.
-// A single cache is intended to be process wide, and is the primary point of
-// sharing between all consumers.
-// A cache may have many active sessions at any given time.
-type Cache interface {
-	// FileSet returns the shared fileset used by all files in the system.
-	FileSet() *token.FileSet
-
-	// GetFile returns a file handle for the given URI.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 }
 
 var ErrTmpModfileUnsupported = errors.New("-modfile is unsupported for this Go version")

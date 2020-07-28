@@ -212,6 +212,5 @@ func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHan
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, nil, err
 	}
-	fset := snapshot.View().Session().Cache().FileSet()
-	return fset, rng, src, pgf.File, pgf.Mapper, pkg.GetTypes(), pkg.GetTypesInfo(), nil
+	return snapshot.FileSet(), rng, src, pgf.File, pgf.Mapper, pkg.GetTypes(), pkg.GetTypesInfo(), nil
 }

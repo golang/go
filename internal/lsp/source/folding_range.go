@@ -23,7 +23,7 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	if err != nil {
 		return nil, err
 	}
-	fset := snapshot.View().Session().Cache().FileSet()
+	fset := snapshot.FileSet()
 
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.
 	ranges = append(ranges, commentsFoldingRange(fset, pgf.Mapper, pgf.File)...)

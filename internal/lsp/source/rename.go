@@ -42,16 +42,16 @@ type PrepareItem struct {
 	Text  string
 }
 
-func PrepareRename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) (*PrepareItem, error) {
+func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) (*PrepareItem, error) {
 	ctx, done := event.Start(ctx, "source.PrepareRename")
 	defer done()
 
-	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
+	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f, pp)
 	if err != nil {
 		return nil, err
 	}
 	node, obj, pkg := qos[0].node, qos[0].obj, qos[0].sourcePkg
-	mr, err := posToMappedRange(s.View(), pkg, node.Pos(), node.End())
+	mr, err := posToMappedRange(snapshot, pkg, node.Pos(), node.End())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	}
 	r := renamer{
 		ctx:          ctx,
-		fset:         s.View().Session().Cache().FileSet(),
+		fset:         s.FileSet(),
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         obj.Name(),

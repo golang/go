@@ -82,7 +82,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	ctx, done := event.Start(ctx, "source.Hover")
 	defer done()
 
-	fset := i.Snapshot.View().Session().Cache().FileSet()
+	fset := i.Snapshot.FileSet()
 	h, err := hover(ctx, fset, i.pkg, i.Declaration)
 	if err != nil {
 		return nil, err

@@ -142,7 +142,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if prefixOp != "" {
 		// If we are in a selector, add an edit to place prefix before selector.
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
-			edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, prefixOp)
+			edits, err := prependEdit(c.snapshot.FileSet(), c.mapper, sel, prefixOp)
 			if err != nil {
 				return CompletionItem{}, err
 			}
@@ -171,7 +171,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if !c.opts.documentation {
 		return item, nil
 	}
-	pos := c.snapshot.View().Session().Cache().FileSet().Position(obj.Pos())
+	pos := c.snapshot.FileSet().Position(obj.Pos())
 
 	// We ignore errors here, because some types, like "unsafe" or "error",
 	// may not have valid positions that we can use to get documentation.
@@ -187,7 +187,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		searchPkg = cand.imp.pkg
 	}
 
-	pgf, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
+	pgf, pkg, err := findPosInPackage(c.snapshot, searchPkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
@@ -224,7 +224,7 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 		return nil, err
 	}
 
-	return computeOneImportFixEdits(ctx, c.snapshot.View(), pgf, &imports.ImportFix{
+	return computeOneImportFixEdits(ctx, c.snapshot, pgf, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,

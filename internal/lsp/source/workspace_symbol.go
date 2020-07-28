@@ -65,7 +65,7 @@ outer:
 			seen[pkg.PkgPath()] = struct{}{}
 			for _, pgf := range pkg.CompiledGoFiles() {
 				for _, si := range findSymbol(pgf.File.Decls, pkg.GetTypesInfo(), symbolMatcher) {
-					mrng, err := posToMappedRange(view, pkg, si.node.Pos(), si.node.End())
+					mrng, err := posToMappedRange(snapshot, pkg, si.node.Pos(), si.node.End())
 					if err != nil {
 						event.Error(ctx, "Error getting mapped range for node", err)
 						continue

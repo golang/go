@@ -99,7 +99,7 @@ FindCall:
 		if err != nil {
 			return nil, 0, err
 		}
-		rng, err := objToMappedRange(snapshot.View(), pkg, obj)
+		rng, err := objToMappedRange(snapshot, pkg, obj)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -108,7 +108,7 @@ FindCall:
 			node: node,
 		}
 		decl.MappedRange = append(decl.MappedRange, rng)
-		d, err := hover(ctx, snapshot.View().Session().Cache().FileSet(), pkg, decl)
+		d, err := hover(ctx, snapshot.FileSet(), pkg, decl)
 		if err != nil {
 			return nil, 0, err
 		}

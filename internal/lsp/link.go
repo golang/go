@@ -45,8 +45,6 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 }
 
 func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
-	view := snapshot.View()
-
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
@@ -69,8 +67,8 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		// Shift the start position to the location of the
 		// dependency within the require statement.
 		start, end := token.Pos(s+i), token.Pos(s+i+len(dep))
-		target := fmt.Sprintf("https://%s/mod/%s", view.Options().LinkTarget, req.Mod.String())
-		l, err := toProtocolLink(view, pm.Mapper, target, start, end, source.Mod)
+		target := fmt.Sprintf("https://%s/mod/%s", snapshot.View().Options().LinkTarget, req.Mod.String())
+		l, err := toProtocolLink(snapshot, pm.Mapper, target, start, end, source.Mod)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +86,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		}
 		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
 			for _, comment := range section {
-				l, err := findLinksInString(ctx, view, comment.Token, token.Pos(comment.Start.Byte), pm.Mapper, source.Mod)
+				l, err := findLinksInString(ctx, snapshot, comment.Token, token.Pos(comment.Start.Byte), pm.Mapper, source.Mod)
 				if err != nil {
 					return nil, err
 				}
@@ -149,7 +147,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			start := imp.Path.Pos() + 1
 			end := imp.Path.End() - 1
 			target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
-			l, err := toProtocolLink(view, pgf.Mapper, target, start, end, source.Go)
+			l, err := toProtocolLink(snapshot, pgf.Mapper, target, start, end, source.Go)
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +155,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 		}
 	}
 	for _, s := range str {
-		l, err := findLinksInString(ctx, view, s.Value, s.Pos(), pgf.Mapper, source.Go)
+		l, err := findLinksInString(ctx, snapshot, s.Value, s.Pos(), pgf.Mapper, source.Go)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +163,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	}
 	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(ctx, view, comment.Text, comment.Pos(), pgf.Mapper, source.Go)
+			l, err := findLinksInString(ctx, snapshot, comment.Text, comment.Pos(), pgf.Mapper, source.Go)
 			if err != nil {
 				return nil, err
 			}
@@ -190,9 +188,9 @@ func moduleAtVersion(ctx context.Context, snapshot source.Snapshot, target strin
 	return modpath, version, true
 }
 
-func findLinksInString(ctx context.Context, view source.View, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
+func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
-	for _, index := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
+	for _, index := range snapshot.View().Options().URLRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
 		startPos := token.Pos(int(pos) + start)
 		endPos := token.Pos(int(pos) + end)
@@ -210,7 +208,7 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		if linkURL.Scheme == "" {
 			linkURL.Scheme = "https"
 		}
-		l, err := toProtocolLink(view, m, linkURL.String(), startPos, endPos, fileKind)
+		l, err := toProtocolLink(snapshot, m, linkURL.String(), startPos, endPos, fileKind)
 		if err != nil {
 			return nil, err
 		}
@@ -228,7 +226,7 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		}
 		org, repo, number := matches[1], matches[2], matches[3]
 		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
-		l, err := toProtocolLink(view, m, target, startPos, endPos, fileKind)
+		l, err := toProtocolLink(snapshot, m, target, startPos, endPos, fileKind)
 		if err != nil {
 			return nil, err
 		}
@@ -249,11 +247,11 @@ var (
 	issueRegexp *regexp.Regexp
 )
 
-func toProtocolLink(view source.View, m *protocol.ColumnMapper, target string, start, end token.Pos, fileKind source.FileKind) (protocol.DocumentLink, error) {
+func toProtocolLink(snapshot source.Snapshot, m *protocol.ColumnMapper, target string, start, end token.Pos, fileKind source.FileKind) (protocol.DocumentLink, error) {
 	var rng protocol.Range
 	switch fileKind {
 	case source.Go:
-		spn, err := span.NewRange(view.Session().Cache().FileSet(), start, end).Span()
+		spn, err := span.NewRange(snapshot.FileSet(), start, end).Span()
 		if err != nil {
 			return protocol.DocumentLink{}, err
 		}
