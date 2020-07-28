@@ -540,7 +540,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 // Convert a Go relocation to an external relocation.
 func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri int) (loader.ExtReloc, bool) {
 	var rr loader.ExtReloc
-	target := ctxt.Target
+	target := &ctxt.Target
 	siz := int32(r.Siz())
 	if siz == 0 { // informational relocation - no work to do
 		return rr, false
@@ -563,7 +563,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 
 	switch rt {
 	default:
-		return thearch.Extreloc(&target, ldr, r, s)
+		return thearch.Extreloc(target, ldr, r, s)
 
 	case objabi.R_TLS_LE, objabi.R_TLS_IE:
 		if target.IsElf() {
