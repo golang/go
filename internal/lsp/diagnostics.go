@@ -6,7 +6,7 @@ package lsp
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -190,7 +190,7 @@ func diagnosticKey(d *source.Diagnostic) string {
 		related += fmt.Sprintf("%s%s%s", r.URI, r.Message, r.Range)
 	}
 	key := fmt.Sprintf("%s%s%s%s%s%s", d.Message, d.Range, d.Severity, d.Source, tags, related)
-	return fmt.Sprintf("%x", sha1.Sum([]byte(key)))
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 }
 
 func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[idWithAnalysis]map[string]*source.Diagnostic) {

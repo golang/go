@@ -7,7 +7,7 @@
 package lsprpc
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log"
@@ -45,7 +45,7 @@ func autoNetworkAddressPosix(goplsPath, id string) (network string, address stri
 	// socket name. If possible, we also include the buildid in this hash, to
 	// account for long-running processes where the binary has been subsequently
 	// rebuilt.
-	h := sha1.New()
+	h := sha256.New()
 	cmd := exec.Command("go", "tool", "buildid", goplsPath)
 	cmd.Stdout = h
 	var pathHash []byte
@@ -53,7 +53,7 @@ func autoNetworkAddressPosix(goplsPath, id string) (network string, address stri
 		pathHash = h.Sum(nil)
 	} else {
 		log.Printf("error getting current buildid: %v", err)
-		sum := sha1.Sum([]byte(goplsPath))
+		sum := sha256.Sum256([]byte(goplsPath))
 		pathHash = sum[:]
 	}
 	shortHash := fmt.Sprintf("%x", pathHash)[:6]

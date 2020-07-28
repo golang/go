@@ -6,7 +6,7 @@ package cache
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -156,9 +156,7 @@ func (h *fileHandle) Read() ([]byte, error) {
 }
 
 func hashContents(contents []byte) string {
-	// TODO: consider whether sha1 is the best choice here
-	// This hash is used for internal identity detection only
-	return fmt.Sprintf("%x", sha1.Sum(contents))
+	return fmt.Sprintf("%x", sha256.Sum256(contents))
 }
 
 var cacheIndex, sessionIndex, viewIndex int64
