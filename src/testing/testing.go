@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package testing provides support for automated testing of Go packages.
-// It is intended to be used in concert with the ``go test'' command, which automates
+// It is intended to be used in concert with the "go test" command, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
 // where Xxx does not start with a lowercase letter. The function name
@@ -14,8 +14,8 @@
 // To write a new test suite, create a file whose name ends _test.go that
 // contains the TestXxx functions as described here. Put the file in the same
 // package as the one being tested. The file will be excluded from regular
-// package builds but will be included when the ``go test'' command is run.
-// For more detail, run ``go help test'' and ``go help testflag''.
+// package builds but will be included when the "go test" command is run.
+// For more detail, run "go help test" and "go help testflag".
 //
 // A simple test function looks like this:
 //
