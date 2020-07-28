@@ -114,7 +114,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			name = "anonymous struct"
 		}
 		pass.Report(analysis.Diagnostic{
-			Message: fmt.Sprintf("Fill %s with default values", name),
+			Message: fmt.Sprintf("Fill %s", name),
 			Pos:     expr.Pos(),
 			End:     expr.End(),
 		})
@@ -172,17 +172,35 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 
 	line := 2 // account for 1-based lines and the left brace
 	var elts []ast.Expr
+	var fieldTyps []types.Type
 	for i := 0; i < fieldCount; i++ {
 		field := obj.Field(i)
-
 		// Ignore fields that are not accessible in the current package.
 		if field.Pkg() != nil && field.Pkg() != pkg && !field.Exported() {
+			fieldTyps = append(fieldTyps, nil)
 			continue
 		}
-
-		value := populateValue(fset, file, pkg, field.Type())
-		if value == nil {
+		fieldTyps = append(fieldTyps, field.Type())
+	}
+	matches := analysisinternal.FindMatchingIdents(fieldTyps, file, rng.Start, info, pkg)
+	for i, fieldTyp := range fieldTyps {
+		if fieldTyp == nil {
 			continue
+		}
+		idents, ok := matches[fieldTyp]
+		if !ok {
+			return nil, fmt.Errorf("invalid struct field type: %v", fieldTyp)
+		}
+
+		// Find the identifer whose name is most similar to the name of the field's key.
+		// If we do not find any identifer that matches the pattern, generate a new value.
+		// NOTE: We currently match on the name of the field key rather than the field type.
+		value := analysisinternal.FindBestMatch(obj.Field(i).Name(), idents)
+		if value == nil {
+			value = populateValue(fset, file, pkg, fieldTyp)
+		}
+		if value == nil {
+			return nil, nil
 		}
 
 		tok.AddLine(line - 1) // add 1 byte per line
@@ -194,7 +212,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		kv := &ast.KeyValueExpr{
 			Key: &ast.Ident{
 				NamePos: pos,
-				Name:    field.Name(),
+				Name:    obj.Field(i).Name(),
 			},
 			Colon: pos,
 			Value: value,

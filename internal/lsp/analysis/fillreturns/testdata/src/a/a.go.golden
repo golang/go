@@ -6,6 +6,7 @@ package fillreturns
 
 import (
 	"errors"
+	"go/ast"
 	ast2 "go/ast"
 	"io"
 	"net/http"
@@ -119,4 +120,18 @@ func gotTooMany() int {
 		return 1 // want "wrong number of return values \\(want 1, got 3\\)"
 	}
 	return 5 // want "wrong number of return values \\(want 1, got 3\\)"
+}
+
+func fillVars() (int, string, ast.Node, bool, error) {
+	eint := 0
+	s := "a"
+	var t bool
+	if true {
+		err := errors.New("fail")
+		return eint, s, nil, false, err // want "wrong number of return values \\(want 5, got 0\\)"
+	}
+	n := ast.NewIdent("ident")
+	int := 3
+	var b bool
+	return int, "", n, b, nil // want "wrong number of return values \\(want 5, got 1\\)"
 }
