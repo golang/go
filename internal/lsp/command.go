@@ -159,7 +159,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		} else {
 			s.gcOptimizatonDetails[pkgDir] = true
 		}
-		event.Log(ctx, fmt.Sprintf("PJW details %s now %v %v", pkgDir, s.gcOptimizatonDetails[pkgDir],
+		event.Log(ctx, fmt.Sprintf("gc_details %s now %v %v", pkgDir, s.gcOptimizatonDetails[pkgDir],
 			s.gcOptimizatonDetails))
 		s.deliveredMu.Unlock()
 		// need to recompute diagnostics.
