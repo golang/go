@@ -110,6 +110,10 @@ type Snapshot interface {
 
 	// WorkspacePackages returns the snapshot's top-level packages.
 	WorkspacePackages(ctx context.Context) ([]Package, error)
+
+	// WorkspaceDirectories returns any directory known by the view. For views
+	// within a module, this is the module root and any replace targets.
+	WorkspaceDirectories(ctx context.Context) []span.URI
 }
 
 // View represents a single workspace.
@@ -169,10 +173,6 @@ type View interface {
 	// IgnoredFile reports if a file would be ignored by a `go list` of the whole
 	// workspace.
 	IgnoredFile(uri span.URI) bool
-
-	// WorkspaceDirectories returns any directory known by the view. For views
-	// within a module, this is the module root and any replace targets.
-	WorkspaceDirectories(ctx context.Context) ([]string, error)
 }
 
 type BuiltinPackage struct {
@@ -242,8 +242,8 @@ type Session interface {
 	// GetFile returns a handle for the specified file.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 
-	// DidModifyFile reports a file modification to the session.
-	// It returns the resulting snapshots, a guaranteed one per view.
+	// DidModifyFile reports a file modification to the session. It returns the
+	// resulting snapshots, a guaranteed one per view.
 	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, []func(), []span.URI, error)
 
 	// Overlays returns a slice of file overlays for the session.

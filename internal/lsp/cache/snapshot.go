@@ -75,6 +75,10 @@ type snapshot struct {
 	// when the view is created.
 	workspacePackages map[packageID]packagePath
 
+	// workspaceDirectories are the directories containing workspace packages.
+	// They are the view's root, as well as any replace targets.
+	workspaceDirectories map[span.URI]struct{}
+
 	// unloadableFiles keeps track of files that we've failed to load.
 	unloadableFiles map[span.URI]struct{}
 
@@ -417,6 +421,17 @@ func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+func (s *snapshot) WorkspaceDirectories(ctx context.Context) []span.URI {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var dirs []span.URI
+	for d := range s.workspaceDirectories {
+		dirs = append(dirs, d)
+	}
+	return dirs
 }
 
 func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, error) {
@@ -778,22 +793,23 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 	defer s.mu.Unlock()
 
 	result := &snapshot{
-		id:                s.id + 1,
-		view:              s.view,
-		builtin:           s.builtin,
-		ids:               make(map[span.URI][]packageID),
-		importedBy:        make(map[packageID][]packageID),
-		metadata:          make(map[packageID]*metadata),
-		packages:          make(map[packageKey]*packageHandle),
-		actions:           make(map[actionKey]*actionHandle),
-		files:             make(map[span.URI]source.VersionedFileHandle),
-		goFiles:           make(map[parseKey]*parseGoHandle),
-		workspacePackages: make(map[packageID]packagePath),
-		unloadableFiles:   make(map[span.URI]struct{}),
-		parseModHandles:   make(map[span.URI]*parseModHandle),
-		modTidyHandle:     s.modTidyHandle,
-		modUpgradeHandle:  s.modUpgradeHandle,
-		modWhyHandle:      s.modWhyHandle,
+		id:                   s.id + 1,
+		view:                 s.view,
+		builtin:              s.builtin,
+		ids:                  make(map[span.URI][]packageID),
+		importedBy:           make(map[packageID][]packageID),
+		metadata:             make(map[packageID]*metadata),
+		packages:             make(map[packageKey]*packageHandle),
+		actions:              make(map[actionKey]*actionHandle),
+		files:                make(map[span.URI]source.VersionedFileHandle),
+		goFiles:              make(map[parseKey]*parseGoHandle),
+		workspaceDirectories: make(map[span.URI]struct{}),
+		workspacePackages:    make(map[packageID]packagePath),
+		unloadableFiles:      make(map[span.URI]struct{}),
+		parseModHandles:      make(map[span.URI]*parseModHandle),
+		modTidyHandle:        s.modTidyHandle,
+		modUpgradeHandle:     s.modUpgradeHandle,
+		modWhyHandle:         s.modWhyHandle,
 	}
 
 	// Copy all of the FileHandles.
@@ -807,6 +823,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 	// Copy all of the modHandles.
 	for k, v := range s.parseModHandles {
 		result.parseModHandles[k] = v
+	}
+	// Copy all of the workspace directories. They may be reset later.
+	for k, v := range s.workspaceDirectories {
+		result.workspaceDirectories[k] = v
 	}
 
 	for k, v := range s.goFiles {
@@ -850,7 +870,15 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 					directIDs[k.id] = struct{}{}
 				}
 			}
+
 			delete(result.parseModHandles, withoutURI)
+
+			if currentFH.URI() == s.view.modURI {
+				// The go.mod's replace directives may have changed. We may
+				// need to update our set of workspace directories. Use the new
+				// snapshot, as it can be locked without causing issues.
+				result.workspaceDirectories = result.findWorkspaceDirectories(ctx, currentFH)
+			}
 		}
 
 		// If this is a file we don't yet know about,
@@ -1031,6 +1059,45 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		}
 	}
 	return false
+}
+
+// findWorkspaceDirectoriesLocked returns all of the directories that are
+// considered to be part of the view's workspace. For GOPATH workspaces, this
+// is just the view's root. For modules-based workspaces, this is the module
+// root and any replace targets. It also returns the parseModHandle for the
+// view's go.mod file if it has one.
+//
+// It assumes that the file handle is the view's go.mod file, if it has one.
+// The caller need not be holding the snapshot's mutex, but it might be.
+func (s *snapshot) findWorkspaceDirectories(ctx context.Context, modFH source.FileHandle) map[span.URI]struct{} {
+	m := map[span.URI]struct{}{
+		s.view.root: {},
+	}
+	// If the view does not have a go.mod file, only the root directory
+	// is known. In GOPATH mode, we should really watch the entire GOPATH,
+	// but that's too expensive.
+	modURI := s.view.modURI
+	if modURI == "" {
+		return m
+	}
+	if modFH == nil {
+		return m
+	}
+	// Ignore parse errors. An invalid go.mod is not fatal.
+	mod, err := s.ParseMod(ctx, modFH)
+	if err != nil {
+		return m
+	}
+	for _, r := range mod.File.Replace {
+		// We may be replacing a module with a different version. not a path
+		// on disk.
+		if r.New.Version != "" {
+			continue
+		}
+		uri := span.URIFromPath(r.New.Path)
+		m[uri] = struct{}{}
+	}
+	return m
 }
 
 func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, error) {

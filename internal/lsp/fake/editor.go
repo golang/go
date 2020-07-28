@@ -202,6 +202,12 @@ func (e *Editor) initialize(ctx context.Context, withoutWorkspaceFolders bool, e
 	// TODO: set client capabilities
 	params.InitializationOptions = e.configuration()
 
+	// This is a bit of a hack, since the fake editor doesn't actually support
+	// watching changed files that match a specific glob pattern. However, the
+	// editor does send didChangeWatchedFiles notifications, so set this to
+	// true.
+	params.Capabilities.Workspace.DidChangeWatchedFiles.DynamicRegistration = true
+
 	params.Trace = "messages"
 	// TODO: support workspace folders.
 	if e.Server != nil {

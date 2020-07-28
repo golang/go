@@ -25,6 +25,7 @@ func NewServer(session source.Session, client protocol.Client) *Server {
 	return &Server{
 		delivered:            make(map[span.URI]sentDiagnostics),
 		gcOptimizatonDetails: make(map[span.URI]struct{}),
+		watchedDirectories:   make(map[span.URI]struct{}),
 		session:              session,
 		client:               client,
 		diagnosticsSema:      make(chan struct{}, concurrentAnalyses),
@@ -70,6 +71,13 @@ type Server struct {
 	// folders is only valid between initialize and initialized, and holds the
 	// set of folders to build views for when we are ready
 	pendingFolders []protocol.WorkspaceFolder
+
+	// watchedDirectories is the set of directories that we have requested that
+	// the client watch on disk. It will be updated as the set of directories
+	// that the server should watch changes.
+	watchedDirectoriesMu   sync.Mutex
+	watchedDirectories     map[span.URI]struct{}
+	watchRegistrationCount uint64
 
 	// delivered is a cache of the diagnostics that the server has sent.
 	deliveredMu sync.Mutex

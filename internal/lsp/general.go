@@ -169,29 +169,11 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 	s.pendingFolders = nil
 
-	if options.DynamicWatchedFilesSupported {
-		for _, view := range s.session.Views() {
-			dirs, err := view.WorkspaceDirectories(ctx)
-			if err != nil {
-				return err
-			}
-			for _, dir := range dirs {
-				registrations = append(registrations, protocol.Registration{
-					ID:     "workspace/didChangeWatchedFiles",
-					Method: "workspace/didChangeWatchedFiles",
-					RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
-						Watchers: []protocol.FileSystemWatcher{{
-							GlobPattern: fmt.Sprintf("%s/**/*.{go,mod,sum}", dir),
-							Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
-						}},
-					},
-				})
-			}
-		}
-		if len(registrations) > 0 {
-			s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-				Registrations: registrations,
-			})
+	if len(registrations) > 0 {
+		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+			Registrations: registrations,
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -211,6 +193,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			}()
 		}()
 	}
+	dirsToWatch := map[span.URI]struct{}{}
 	for _, folder := range folders {
 		uri := span.URIFromURI(folder.URI)
 		view, snapshot, release, err := s.addView(ctx, folder.Name, uri)
@@ -218,6 +201,10 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			viewErrors[uri] = err
 			continue
 		}
+		for _, dir := range snapshot.WorkspaceDirectories(ctx) {
+			dirsToWatch[dir] = struct{}{}
+		}
+
 		// Print each view's environment.
 		buf := &bytes.Buffer{}
 		if err := view.WriteEnv(ctx, buf); err != nil {
@@ -234,6 +221,13 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			wg.Done()
 		}()
 	}
+	// Register for file watching notifications, if they are supported.
+	s.watchedDirectoriesMu.Lock()
+	err := s.registerWatchedDirectoriesLocked(ctx, dirsToWatch)
+	s.watchedDirectoriesMu.Unlock()
+	if err != nil {
+		return err
+	}
 	if len(viewErrors) > 0 {
 		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(folders), len(s.session.Views())-originalViews)
 		for uri, err := range viewErrors {
@@ -243,6 +237,113 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			Type:    protocol.Error,
 			Message: errMsg,
 		})
+	}
+	return nil
+}
+
+// updateWatchedDirectories compares the current set of directories to watch
+// with the previously registered set of directories. If the set of directories
+// has changed, we unregister and re-register for file watching notifications.
+// updatedSnapshots is the set of snapshots that have been updated.
+func (s *Server) updateWatchedDirectories(ctx context.Context, updatedSnapshots []source.Snapshot) error {
+	dirsToWatch := map[span.URI]struct{}{}
+	seenViews := map[source.View]struct{}{}
+
+	// Collect all of the workspace directories from the updated snapshots.
+	for _, snapshot := range updatedSnapshots {
+		seenViews[snapshot.View()] = struct{}{}
+		for _, dir := range snapshot.WorkspaceDirectories(ctx) {
+			dirsToWatch[dir] = struct{}{}
+		}
+	}
+	// Not all views were necessarily updated, so check the remaining views.
+	for _, view := range s.session.Views() {
+		if _, ok := seenViews[view]; ok {
+			continue
+		}
+		snapshot, release := view.Snapshot()
+		for _, dir := range snapshot.WorkspaceDirectories(ctx) {
+			dirsToWatch[dir] = struct{}{}
+		}
+		release()
+	}
+
+	s.watchedDirectoriesMu.Lock()
+	defer s.watchedDirectoriesMu.Unlock()
+
+	// Nothing to do if the set of workspace directories is unchanged.
+	if equalURISet(s.watchedDirectories, dirsToWatch) {
+		return nil
+	}
+
+	// If the set of directories to watch has changed, register the updates and
+	// unregister the previously watched directories. This ordering avoids a
+	// period where no files are being watched. Still, if a user makes on-disk
+	// changes before these updates are complete, we may miss them for the new
+	// directories.
+	if s.watchRegistrationCount > 0 {
+		prevID := s.watchRegistrationCount - 1
+		if err := s.registerWatchedDirectoriesLocked(ctx, dirsToWatch); err != nil {
+			return err
+		}
+		return s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
+			Unregisterations: []protocol.Unregistration{{
+				ID:     watchedFilesCapabilityID(prevID),
+				Method: "workspace/didChangeWatchedFiles",
+			}},
+		})
+	}
+	return nil
+}
+
+func watchedFilesCapabilityID(id uint64) string {
+	return fmt.Sprintf("workspace/didChangeWatchedFiles-%d", id)
+}
+
+func equalURISet(m1, m2 map[span.URI]struct{}) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+	for k := range m1 {
+		_, ok := m2[k]
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// registerWatchedDirectoriesLocked sends the workspace/didChangeWatchedFiles
+// registrations to the client and updates s.watchedDirectories.
+func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, dirs map[span.URI]struct{}) error {
+	if !s.session.Options().DynamicWatchedFilesSupported {
+		return nil
+	}
+	for k := range s.watchedDirectories {
+		delete(s.watchedDirectories, k)
+	}
+	var watchers []protocol.FileSystemWatcher
+	for dir := range dirs {
+		watchers = append(watchers, protocol.FileSystemWatcher{
+			GlobPattern: fmt.Sprintf("%s/**/*.{go,mod,sum}", dir),
+			Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
+		})
+	}
+	if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
+		Registrations: []protocol.Registration{{
+			ID:     watchedFilesCapabilityID(s.watchRegistrationCount),
+			Method: "workspace/didChangeWatchedFiles",
+			RegisterOptions: protocol.DidChangeWatchedFilesRegistrationOptions{
+				Watchers: watchers,
+			},
+		}},
+	}); err != nil {
+		return err
+	}
+	s.watchRegistrationCount++
+
+	for dir := range dirs {
+		s.watchedDirectories[dir] = struct{}{}
 	}
 	return nil
 }

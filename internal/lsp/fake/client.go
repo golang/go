@@ -19,6 +19,8 @@ type ClientHooks struct {
 	OnProgress               func(context.Context, *protocol.ProgressParams) error
 	OnShowMessage            func(context.Context, *protocol.ShowMessageParams) error
 	OnShowMessageRequest     func(context.Context, *protocol.ShowMessageRequestParams) error
+	OnRegistration           func(context.Context, *protocol.RegistrationParams) error
+	OnUnregistration         func(context.Context, *protocol.UnregistrationParams) error
 }
 
 // Client is an adapter that converts an *Editor into an LSP Client. It mosly
@@ -80,11 +82,17 @@ func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration
 	return results, nil
 }
 
-func (c *Client) RegisterCapability(context.Context, *protocol.RegistrationParams) error {
+func (c *Client) RegisterCapability(ctx context.Context, params *protocol.RegistrationParams) error {
+	if c.hooks.OnRegistration != nil {
+		return c.hooks.OnRegistration(ctx, params)
+	}
 	return nil
 }
 
-func (c *Client) UnregisterCapability(context.Context, *protocol.UnregistrationParams) error {
+func (c *Client) UnregisterCapability(ctx context.Context, params *protocol.UnregistrationParams) error {
+	if c.hooks.OnUnregistration != nil {
+		return c.hooks.OnUnregistration(ctx, params)
+	}
 	return nil
 }
 

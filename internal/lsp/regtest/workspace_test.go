@@ -5,7 +5,10 @@
 package regtest
 
 import (
+	"fmt"
 	"testing"
+
+	"golang.org/x/tools/internal/lsp"
 )
 
 const workspaceProxy = `
@@ -19,29 +22,44 @@ package blah
 func SaySomething() {
 	fmt.Println("something")
 }
+-- random.org@v1.2.3/go.mod --
+module random.org
+
+go 1.12
+-- random.org@v1.2.3/bye/bye.go --
+package bye
+
+func Goodbye() {
+	println("Bye")
+}
 `
 
 // TODO: Add a replace directive.
 const workspaceModule = `
--- go.mod --
+-- pkg/go.mod --
 module mod.com
 
 go 1.14
 
-require example.com v1.2.3
--- main.go --
+require (
+	example.com v1.2.3
+	random.org v1.2.3
+)
+-- pkg/main.go --
 package main
 
 import (
 	"example.com/blah"
 	"mod.com/inner"
+	"random.org/bye"
 )
 
 func main() {
 	blah.SaySomething()
 	inner.Hi()
+	bye.Goodbye()
 }
--- main2.go --
+-- pkg/main2.go --
 package main
 
 import "fmt"
@@ -49,7 +67,7 @@ import "fmt"
 func _() {
 	fmt.Print("%s")
 }
--- inner/inner.go --
+-- pkg/inner/inner.go --
 package inner
 
 import "example.com/blah"
@@ -57,6 +75,14 @@ import "example.com/blah"
 func Hi() {
 	blah.SaySomething()
 }
+-- goodbye/bye/bye.go --
+package bye
+
+func Bye() {}
+-- goodbye/go.mod --
+module random.org
+
+go 1.12
 `
 
 // Confirm that find references returns all of the references in the module,
@@ -66,11 +92,12 @@ func TestReferences(t *testing.T) {
 		name, rootPath string
 	}{
 		{
-			name: "module root",
+			name:     "module root",
+			rootPath: "pkg",
 		},
 		{
 			name:     "subdirectory",
-			rootPath: "inner",
+			rootPath: "pkg/inner",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,8 +106,8 @@ func TestReferences(t *testing.T) {
 				opts = append(opts, WithRootPath(tt.rootPath))
 			}
 			withOptions(opts...).run(t, workspaceModule, func(t *testing.T, env *Env) {
-				env.OpenFile("inner/inner.go")
-				locations := env.ReferencesAtRegexp("inner/inner.go", "SaySomething")
+				env.OpenFile("pkg/inner/inner.go")
+				locations := env.ReferencesAtRegexp("pkg/inner/inner.go", "SaySomething")
 				want := 3
 				if got := len(locations); got != want {
 					t.Fatalf("expected %v locations, got %v", want, got)
@@ -95,14 +122,36 @@ func TestReferences(t *testing.T) {
 // VS Code, where clicking on a reference result triggers a
 // textDocument/didOpen without a corresponding textDocument/didClose.
 func TestClearAnalysisDiagnostics(t *testing.T) {
-	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
-		env.OpenFile("main.go")
+	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg/inner")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+		env.OpenFile("pkg/main.go")
 		env.Await(
-			env.DiagnosticAtRegexp("main2.go", "fmt.Print"),
+			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
 		)
-		env.CloseBuffer("main.go")
+		env.CloseBuffer("pkg/main.go")
 		env.Await(
-			EmptyDiagnostics("main2.go"),
+			EmptyDiagnostics("pkg/main2.go"),
+		)
+	})
+}
+
+// This test checks that gopls updates the set of files it watches when a
+// replace target is added to the go.mod.
+func TestWatchReplaceTargets(t *testing.T) {
+	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		// Add a replace directive and expect the files that gopls is watching
+		// to change.
+		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
+		goModWithReplace := fmt.Sprintf(`%s
+replace random.org => %s
+`, env.ReadWorkspaceFile("pkg/go.mod"), dir)
+		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+			UnregistrationMatching("didChangeWatchedFiles"),
+			RegistrationMatching("didChangeWatchedFiles"),
 		)
 	})
 }
