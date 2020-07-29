@@ -1559,6 +1559,7 @@ func dumptabs() {
 		}
 		// Nothing writes static itabs, so they are read only.
 		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+		i.lsym.Set(obj.AttrContentAddressable, true)
 		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
 		dsymptr(ilink, 0, i.lsym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
