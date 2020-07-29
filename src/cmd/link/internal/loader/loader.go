@@ -172,10 +172,9 @@ func growBitmap(reqLen int, b Bitmap) Bitmap {
 	return b
 }
 
-type symSizeAlign struct {
-	sym   Sym
-	size  uint32
-	align uint32
+type symAndSize struct {
+	sym  Sym
+	size uint32
 }
 
 // A Loader loads new object files and resolves indexed symbol references.
@@ -205,10 +204,10 @@ type Loader struct {
 
 	objSyms []objSym // global index mapping to local index
 
-	hashed64Syms  map[uint64]symSizeAlign          // short hashed (content-addressable) symbols, keyed by content hash
-	hashedSyms    map[goobj2.HashType]symSizeAlign // hashed (content-addressable) symbols, keyed by content hash
-	symsByName    [2]map[string]Sym                // map symbol name to index, two maps are for ABI0 and ABIInternal
-	extStaticSyms map[nameVer]Sym                  // externally defined static symbols, keyed by name
+	hashed64Syms  map[uint64]symAndSize          // short hashed (content-addressable) symbols, keyed by content hash
+	hashedSyms    map[goobj2.HashType]symAndSize // hashed (content-addressable) symbols, keyed by content hash
+	symsByName    [2]map[string]Sym              // map symbol name to index, two maps are for ABI0 and ABIInternal
+	extStaticSyms map[nameVer]Sym                // externally defined static symbols, keyed by name
 
 	extReader    *oReader // a dummy oReader, for external symbols
 	payloadBatch []extSymPayload
@@ -331,8 +330,8 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
 		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
 		extReader:            extReader,
-		hashed64Syms:         make(map[uint64]symSizeAlign, 10000),                                        // TODO: adjust preallocation sizes
-		hashedSyms:           make(map[goobj2.HashType]symSizeAlign, 20000),                               // TODO: adjust preallocation sizes
+		hashed64Syms:         make(map[uint64]symAndSize, 10000),                                          // TODO: adjust preallocation sizes
+		hashedSyms:           make(map[goobj2.HashType]symAndSize, 20000),                                 // TODO: adjust preallocation sizes
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]*oReader),
 		outer:                make(map[Sym]Sym),
@@ -382,9 +381,9 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	return i
 }
 
-// Add a symbol from an object file, return the global index and whether it is added.
+// Add a symbol from an object file, return the global index.
 // If the symbol already exist, it returns the index of that symbol.
-func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj2.Sym) (Sym, bool) {
+func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj2.Sym) Sym {
 	if l.extStart != 0 {
 		panic("addSym called after external symbol is created")
 	}
@@ -394,14 +393,14 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
 	}
 	if name == "" && kind != hashed64Def && kind != hashedDef {
 		addToGlobal()
-		return i, true // unnamed aux symbol
+		return i // unnamed aux symbol
 	}
 	if ver == r.version {
 		// Static symbol. Add its global index but don't
 		// add to name lookup table, as it cannot be
 		// referenced by name.
 		addToGlobal()
-		return i, true
+		return i
 	}
 	switch kind {
 	case pkgDef:
@@ -412,33 +411,32 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
 		// referenced by name (e.g. through linkname).
 		l.symsByName[ver][name] = i
 		addToGlobal()
-		return i, true
+		return i
 	case hashed64Def, hashedDef:
 		// Hashed (content-addressable) symbol. Check the hash
 		// but don't add to name lookup table, as they are not
 		// referenced by name. Also no need to do overwriting
 		// check, as same hash indicates same content.
-		var checkHash func() (symSizeAlign, bool)
-		var addToHashMap func(symSizeAlign)
+		var checkHash func() (symAndSize, bool)
+		var addToHashMap func(symAndSize)
 		var h64 uint64         // only used for hashed64Def
 		var h *goobj2.HashType // only used for hashedDef
 		if kind == hashed64Def {
-			checkHash = func() (symSizeAlign, bool) {
+			checkHash = func() (symAndSize, bool) {
 				h64 = r.Hash64(li - uint32(r.ndef))
 				s, existed := l.hashed64Syms[h64]
 				return s, existed
 			}
-			addToHashMap = func(ss symSizeAlign) { l.hashed64Syms[h64] = ss }
+			addToHashMap = func(ss symAndSize) { l.hashed64Syms[h64] = ss }
 		} else {
-			checkHash = func() (symSizeAlign, bool) {
+			checkHash = func() (symAndSize, bool) {
 				h = r.Hash(li - uint32(r.ndef+r.nhashed64def))
 				s, existed := l.hashedSyms[*h]
 				return s, existed
 			}
-			addToHashMap = func(ss symSizeAlign) { l.hashedSyms[*h] = ss }
+			addToHashMap = func(ss symAndSize) { l.hashedSyms[*h] = ss }
 		}
 		siz := osym.Siz()
-		align := osym.Align()
 		if s, existed := checkHash(); existed {
 			// The content hash is built from symbol data and relocations. In the
 			// object file, the symbol data may not always contain trailing zeros,
@@ -449,25 +447,16 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
 			// hash("A") == hash("A\0\0\0").
 			// So when two symbols have the same hash, we need to use the one with
 			// larger size.
-			if siz <= s.size {
-				if align > s.align { // we need to use the biggest alignment
-					l.SetSymAlign(s.sym, int32(align))
-					addToHashMap(symSizeAlign{s.sym, s.size, align})
-				}
-			} else {
+			if siz > s.size {
 				// New symbol has larger size, use the new one. Rewrite the index mapping.
 				l.objSyms[s.sym] = objSym{r.objidx, li}
-				if align < s.align {
-					align = s.align // keep the biggest alignment
-					l.SetSymAlign(s.sym, int32(align))
-				}
-				addToHashMap(symSizeAlign{s.sym, siz, align})
+				addToHashMap(symAndSize{s.sym, siz})
 			}
-			return s.sym, false
+			return s.sym
 		}
-		addToHashMap(symSizeAlign{i, siz, align})
+		addToHashMap(symAndSize{i, siz})
 		addToGlobal()
-		return i, true
+		return i
 	}
 
 	// Non-package (named) symbol. Check if it already exists.
@@ -475,19 +464,19 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
 	if !existed {
 		l.symsByName[ver][name] = i
 		addToGlobal()
-		return i, true
+		return i
 	}
 	// symbol already exists
 	if osym.Dupok() {
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
-		return oldi, false
+		return oldi
 	}
 	oldr, oldli := l.toLocal(oldi)
 	oldsym := oldr.Sym(oldli)
 	if oldsym.Dupok() {
-		return oldi, false
+		return oldi
 	}
 	overwrite := r.DataSize(li) != 0
 	if overwrite {
@@ -504,7 +493,7 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
 			log.Fatalf("duplicated definition of symbol " + name)
 		}
 	}
-	return oldi, true
+	return oldi
 }
 
 // newExtSym creates a new external sym with the specified
@@ -2113,11 +2102,8 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 			}
 			v = abiToVer(osym.ABI(), r.version)
 		}
-		gi, added := l.addSym(name, v, r, i, kind, osym)
+		gi := l.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
-		if !added {
-			continue
-		}
 		if osym.TopFrame() {
 			l.SetAttrTopFrame(gi, true)
 		}
@@ -2137,8 +2123,8 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 				l.builtinSyms[bi] = gi
 			}
 		}
-		if a := osym.Align(); a != 0 {
-			l.SetSymAlign(gi, int32(a))
+		if a := int32(osym.Align()); a != 0 && a > l.SymAlign(gi) {
+			l.SetSymAlign(gi, a)
 		}
 	}
 }
