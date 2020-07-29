@@ -1222,22 +1222,22 @@ HaveSpan:
 		// sysUsed all the pages that are actually available
 		// in the span since some of them might be scavenged.
 		sysUsed(unsafe.Pointer(base), nbytes)
-		mSysStatDec(&memstats.heap_released, scav)
+		atomic.Xadd64(&memstats.heap_released, -int64(scav))
 	}
 	// Update stats.
 	switch typ {
 	case spanAllocHeap:
-		mSysStatInc(&memstats.heap_inuse, nbytes)
+		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
 	case spanAllocStack:
-		mSysStatInc(&memstats.stacks_inuse, nbytes)
+		atomic.Xadd64(&memstats.stacks_inuse, int64(nbytes))
 	case spanAllocPtrScalarBits, spanAllocWorkBuf:
-		mSysStatInc(&memstats.gc_sys, nbytes)
+		memstats.gc_sys.add(int64(nbytes))
 	}
 	if typ.manual() {
 		// Manually managed memory doesn't count toward heap_sys.
-		mSysStatDec(&memstats.heap_sys, nbytes)
+		memstats.heap_sys.add(-int64(nbytes))
 	}
-	mSysStatDec(&memstats.heap_idle, nbytes)
+	atomic.Xadd64(&memstats.heap_idle, -int64(nbytes))
 
 	// Publish the span in various locations.
 
@@ -1314,8 +1314,8 @@ func (h *mheap) grow(npage uintptr) bool {
 		// The allocation is always aligned to the heap arena
 		// size which is always > physPageSize, so its safe to
 		// just add directly to heap_released.
-		mSysStatInc(&memstats.heap_released, asize)
-		mSysStatInc(&memstats.heap_idle, asize)
+		atomic.Xadd64(&memstats.heap_released, int64(asize))
+		atomic.Xadd64(&memstats.heap_idle, int64(asize))
 
 		// Recalculate nBase.
 		// We know this won't overflow, because sysAlloc returned
@@ -1400,18 +1400,20 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	// Update stats.
 	//
 	// Mirrors the code in allocSpan.
+	nbytes := s.npages * pageSize
 	switch typ {
 	case spanAllocHeap:
-		mSysStatDec(&memstats.heap_inuse, s.npages*pageSize)
+		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
 	case spanAllocStack:
-		mSysStatDec(&memstats.stacks_inuse, s.npages*pageSize)
+		atomic.Xadd64(&memstats.stacks_inuse, -int64(nbytes))
 	case spanAllocPtrScalarBits, spanAllocWorkBuf:
-		mSysStatDec(&memstats.gc_sys, s.npages*pageSize)
+		memstats.gc_sys.add(-int64(nbytes))
 	}
 	if typ.manual() {
-		mSysStatInc(&memstats.heap_sys, s.npages*pageSize)
+		// Manually managed memory doesn't count toward heap_sys, so add it back.
+		memstats.heap_sys.add(int64(nbytes))
 	}
-	mSysStatInc(&memstats.heap_idle, s.npages*pageSize)
+	atomic.Xadd64(&memstats.heap_idle, int64(nbytes))
 
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)

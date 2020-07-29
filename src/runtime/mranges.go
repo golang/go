@@ -160,10 +160,10 @@ type addrRanges struct {
 	totalBytes uintptr
 
 	// sysStat is the stat to track allocations by this type
-	sysStat *uint64
+	sysStat *sysMemStat
 }
 
-func (a *addrRanges) init(sysStat *uint64) {
+func (a *addrRanges) init(sysStat *sysMemStat) {
 	ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
 	ranges.len = 0
 	ranges.cap = 16

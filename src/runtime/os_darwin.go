@@ -198,7 +198,6 @@ func newosproc(mp *m) {
 		exit(1)
 	}
 	mp.g0.stack.hi = stacksize // for mstart
-	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
@@ -247,7 +246,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 		exit(1)
 	}
 	g0.stack.hi = stacksize // for mstart
-	mSysStatInc(&memstats.stacks_sys, stacksize)
+	memstats.stacks_sys.add(int64(stacksize))
 
 	// Tell the pthread library we won't join with this thread.
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {

@@ -100,7 +100,7 @@ const (
 
 // heapRetained returns an estimate of the current heap RSS.
 func heapRetained() uint64 {
-	return atomic.Load64(&memstats.heap_sys) - atomic.Load64(&memstats.heap_released)
+	return memstats.heap_sys.load() - atomic.Load64(&memstats.heap_released)
 }
 
 // gcPaceScavenger updates the scavenger's pacing, particularly
@@ -711,7 +711,7 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr 
 
 	// Update global accounting only when not in test, otherwise
 	// the runtime's accounting will be wrong.
-	mSysStatInc(&memstats.heap_released, uintptr(npages)*pageSize)
+	atomic.Xadd64(&memstats.heap_released, int64(npages)*pageSize)
 	return addr
 }
 

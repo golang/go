@@ -8,7 +8,6 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -35,11 +34,11 @@ type mstats struct {
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
-	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
-	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
-	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in mSpanInUse spans
-	heap_released uint64 // bytes released to the os
+	heap_alloc    uint64     // bytes allocated and not yet freed (same as alloc above)
+	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
+	heap_idle     uint64     // bytes in idle spans
+	heap_inuse    uint64     // bytes in mSpanInUse spans
+	heap_released uint64     // bytes released to the os
 
 	// heap_objects is not used by the runtime directly and instead
 	// computed on the fly by updatememstats.
@@ -47,15 +46,15 @@ type mstats struct {
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // bytes in manually-managed stack spans; updated atomically or during STW
-	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
-	mspan_inuse  uint64 // mspan structures
-	mspan_sys    uint64
+	stacks_inuse uint64     // bytes in manually-managed stack spans; updated atomically or during STW
+	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+	mspan_inuse  uint64     // mspan structures
+	mspan_sys    sysMemStat
 	mcache_inuse uint64 // mcache structures
-	mcache_sys   uint64
-	buckhash_sys uint64 // profiling bucket hash table
-	gc_sys       uint64 // updated atomically or during STW
-	other_sys    uint64 // updated atomically or during STW
+	mcache_sys   sysMemStat
+	buckhash_sys sysMemStat // profiling bucket hash table
+	gc_sys       sysMemStat // updated atomically or during STW
+	other_sys    sysMemStat // updated atomically or during STW
 
 	// Statistics about the garbage collector.
 
@@ -533,8 +532,9 @@ func updatememstats() {
 
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
-	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
-		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
+	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gc_sys.load() +
+		memstats.other_sys.load()
 
 	// We also count stacks_inuse as sys memory.
 	memstats.sys += memstats.stacks_inuse
@@ -625,46 +625,24 @@ func flushallmcaches() {
 	}
 }
 
-// Atomically increases a given *system* memory stat. We are counting on this
-// stat never overflowing a uintptr, so this function must only be used for
-// system memory stats.
+// sysMemStat represents a global system statistic that is managed atomically.
 //
-// The current implementation for little endian architectures is based on
-// xadduintptr(), which is less than ideal: xadd64() should really be used.
-// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
-// doesn't use locks.  (Locks are a problem as they require a valid G, which
-// restricts their useability.)
-//
-// A side-effect of using xadduintptr() is that we need to check for
-// overflow errors.
-//go:nosplit
-func mSysStatInc(sysStat *uint64, n uintptr) {
-	if sysStat == nil {
-		return
-	}
-	if sys.BigEndian {
-		atomic.Xadd64(sysStat, int64(n))
-		return
-	}
-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
-		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
-		exit(2)
-	}
+// This type must structurally be a uint64 so that mstats aligns with MemStats.
+type sysMemStat uint64
+
+// load atomically reads the value of the stat.
+func (s *sysMemStat) load() uint64 {
+	return atomic.Load64((*uint64)(s))
 }
 
-// Atomically decreases a given *system* memory stat. Same comments as
-// mSysStatInc apply.
-//go:nosplit
-func mSysStatDec(sysStat *uint64, n uintptr) {
-	if sysStat == nil {
+// add atomically adds the sysMemStat by n.
+func (s *sysMemStat) add(n int64) {
+	if s == nil {
 		return
 	}
-	if sys.BigEndian {
-		atomic.Xadd64(sysStat, -int64(n))
-		return
-	}
-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
-		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
-		exit(2)
+	val := atomic.Xadd64((*uint64)(s), n)
+	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
+		print("runtime: val=", val, " n=", n, "\n")
+		throw("sysMemStat overflow")
 	}
 }
