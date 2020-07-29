@@ -128,7 +128,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	o(0xc3)
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -280,7 +280,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	// Reread the reloc to incorporate any changes in type above.
 	relocs := ldr.Relocs(s)
-	r = relocs.At2(rIdx)
+	r = relocs.At(rIdx)
 
 	switch r.Type() {
 	case objabi.R_CALL,
@@ -411,11 +411,11 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc2, loader.Sym, int64) (int64, int, bool) {
+func archreloc(*ld.Target, *loader.Loader, *ld.ArchSyms, loader.Reloc, loader.Sym, int64) (int64, int, bool) {
 	return -1, 0, false
 }
 
-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }

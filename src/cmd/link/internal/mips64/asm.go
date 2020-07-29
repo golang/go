@@ -94,7 +94,7 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 	return false
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	if target.IsExternal() {
 		switch r.Type() {
 		default:
@@ -138,11 +138,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, 0, false
 }
 
-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
 	return -1
 }
 
-func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:

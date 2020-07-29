@@ -90,7 +90,7 @@ func applyrel(arch *sys.Arch, ldr *loader.Loader, rt objabi.RelocType, off int32
 	}
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
@@ -140,11 +140,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, 0, false
 }
 
-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
 	return -1
 }
 
-func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true

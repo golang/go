@@ -149,12 +149,12 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 
 // Add a relocation with given type, return its handle and index
 // (to set other fields).
-func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc2, int) {
+func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
 	j := len(sb.relocs)
 	sb.relocs = append(sb.relocs, goobj2.Reloc{})
 	sb.reltypes = append(sb.reltypes, typ)
 	relocs := sb.Relocs()
-	return relocs.At2(j), j
+	return relocs.At(j), j
 }
 
 // Sort relocations by offset.

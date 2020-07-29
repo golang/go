@@ -75,7 +75,7 @@ func maxSizeTrampolinesPPC64(ldr *loader.Loader, s loader.Sym, isTramp bool) uin
 	n := uint64(0)
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		if r.Type().IsDirectCallOrJump() {
 			n++
 		}
@@ -96,7 +96,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
 	ldr := ctxt.loader
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		if !r.Type().IsDirectCallOrJump() {
 			continue
 		}
@@ -160,7 +160,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 	syms := st.syms
 	nExtReloc := 0 // number of external relocations
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		off := r.Off()
 		siz := int32(r.Siz())
 		rs := r.Sym()
@@ -538,7 +538,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 }
 
 // Convert a Go relocation to an external relocation.
-func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2) (loader.ExtReloc, bool) {
+func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loader.ExtReloc, bool) {
 	var rr loader.ExtReloc
 	target := &ctxt.Target
 	siz := int32(r.Siz())
@@ -639,7 +639,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2) (lo
 
 // ExtrelocSimple creates a simple external relocation from r, with the same
 // symbol and addend.
-func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
+func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc) loader.ExtReloc {
 	var rr loader.ExtReloc
 	rs := ldr.ResolveABIAlias(r.Sym())
 	rr.Xsym = rs
@@ -651,7 +651,7 @@ func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
 
 // ExtrelocViaOuterSym creates an external relocation from r targeting the
 // outer symbol and folding the subsymbol's offset into the addend.
-func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc2, s loader.Sym) loader.ExtReloc {
+func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc, s loader.Sym) loader.ExtReloc {
 	// set up addend for eventual relocation via outer symbol.
 	var rr loader.ExtReloc
 	rs := ldr.ResolveABIAlias(r.Sym())
@@ -697,7 +697,7 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	var su *loader.SymbolBuilder
 	relocs := ctxt.loader.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		targ := r.Sym()
 		if targ == 0 {
 			continue
@@ -774,7 +774,7 @@ func dynrelocsym(ctxt *Link, s loader.Sym) {
 	syms := &ctxt.ArchSyms
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so

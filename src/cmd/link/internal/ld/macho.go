@@ -1050,7 +1050,7 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
 		// to stream out.
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			rr, ok := extreloc(ctxt, ldr, s, r)
 			if !ok {
 				continue

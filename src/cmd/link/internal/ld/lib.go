@@ -200,7 +200,7 @@ type Arch struct {
 	Plan9Magic  uint32
 	Plan9_64Bit bool
 
-	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
+	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc, int) bool
 	Archinit  func(*Link)
 	// Archreloc is an arch-specific hook that assists in relocation processing
 	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
@@ -212,7 +212,7 @@ type Arch struct {
 	// ELF/Mach-O/etc. relocations, not Go relocations, this must match Elfreloc1,
 	// etc.), and a boolean indicating success/failure (a failing value indicates
 	// a fatal error).
-	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc2, loader.Sym,
+	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc, loader.Sym,
 		int64) (relocatedOffset int64, nExtReloc int, ok bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
@@ -222,7 +222,7 @@ type Arch struct {
 	// relocation applies, and "off" is the contents of the
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
-	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc2,
+	Archrelocvariant func(target *Target, ldr *loader.Loader, rel loader.Reloc,
 		rv sym.RelocVariant, sym loader.Sym, offset int64) (relocatedOffset int64)
 
 	// Generate a trampoline for a call from s to rs if necessary. ri is
@@ -242,7 +242,7 @@ type Arch struct {
 	// Extreloc is an arch-specific hook that converts a Go relocation to an
 	// external relocation. Return the external relocation and whether it is
 	// needed.
-	Extreloc func(*Target, *loader.Loader, loader.Reloc2, loader.Sym) (loader.ExtReloc, bool)
+	Extreloc func(*Target, *loader.Loader, loader.Reloc, loader.Sym) (loader.ExtReloc, bool)
 
 	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
 	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
@@ -2274,7 +2274,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 
 		// Process calls in this span.
 		for ; ri < relocs.Count(); ri++ {
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			if uint32(r.Off()) >= pcsp.NextPC {
 				break
 			}
@@ -2414,7 +2414,7 @@ func (ctxt *Link) callgraph() {
 	for _, s := range ctxt.Textp {
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At2(i)
+			r := relocs.At(i)
 			rs := r.Sym()
 			if rs == 0 {
 				continue

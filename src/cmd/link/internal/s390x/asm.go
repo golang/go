@@ -73,7 +73,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc.AddUint32(ctxt.Arch, 0)
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -367,11 +367,11 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 	return false
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	return val, 0, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) int64 {
 	switch rv & sym.RV_TYPE_MASK {
 	default:
 		ldr.Errorf(s, "unexpected relocation variant %d", rv)

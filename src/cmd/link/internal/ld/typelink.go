@@ -42,7 +42,7 @@ func (ctxt *Link) typelink() {
 	tl.Grow(tl.Size())
 	relocs := tl.AddRelocs(len(typelinks))
 	for i, s := range typelinks {
-		r := relocs.At2(i)
+		r := relocs.At(i)
 		r.SetSym(s.Type)
 		r.SetOff(int32(i * 4))
 		r.SetSiz(4)
