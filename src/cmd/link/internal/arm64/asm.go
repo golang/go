@@ -688,16 +688,10 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
 }
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
-	rs := ldr.ResolveABIAlias(r.Sym())
-	var rr loader.ExtReloc
 	switch rt := r.Type(); rt {
 	case objabi.R_ARM64_GOTPCREL,
 		objabi.R_ADDRARM64:
-
-		// set up addend for eventual relocation via outer symbol.
-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-		rr.Xadd = r.Add() + off
-		rr.Xsym = rs
+		rr := ld.ExtrelocViaOuterSym(ldr, r, s)
 
 		// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
 		// will make the linking fail because it thinks the code is not PIC even though
@@ -716,11 +710,9 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.S
 	case objabi.R_CALLARM64,
 		objabi.R_ARM64_TLS_LE,
 		objabi.R_ARM64_TLS_IE:
-		rr.Xsym = rs
-		rr.Xadd = r.Add()
-		return rr, true
+		return ld.ExtrelocSimple(ldr, r), true
 	}
-	return rr, false
+	return loader.ExtReloc{}, false
 }
 
 func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {

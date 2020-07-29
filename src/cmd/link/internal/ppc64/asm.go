@@ -967,34 +967,18 @@ overflow:
 }
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
-	rs := ldr.ResolveABIAlias(r.Sym())
-	var rr loader.ExtReloc
 	switch r.Type() {
-	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
-		rr.Xadd = r.Add()
-		rr.Xsym = rs
-		return rr, true
+	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE, objabi.R_CALLPOWER:
+		return ld.ExtrelocSimple(ldr, r), true
 	case objabi.R_ADDRPOWER,
 		objabi.R_ADDRPOWER_DS,
 		objabi.R_ADDRPOWER_TOCREL,
 		objabi.R_ADDRPOWER_TOCREL_DS,
 		objabi.R_ADDRPOWER_GOT,
 		objabi.R_ADDRPOWER_PCREL:
-		// set up addend for eventual relocation via outer symbol.
-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-		rr.Xadd = r.Add() + off
-		rst := ldr.SymType(rs)
-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
-			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
-		}
-		rr.Xsym = rs
-		return rr, true
-	case objabi.R_CALLPOWER:
-		rr.Xsym = rs
-		rr.Xadd = r.Add()
-		return rr, true
+		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
-	return rr, false
+	return loader.ExtReloc{}, false
 }
 
 func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
