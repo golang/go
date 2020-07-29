@@ -27,6 +27,8 @@ func bar() string {
 	_ = map[string]int{<>}
 	type T struct {<>}
 	_ = T{<>}
+	x, y := make(<>), make(<>)
+	select {<>}
 	// This is a multiline comment<>
 	return `
 this string
@@ -72,6 +74,12 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:<>
+	case <-y:<>
+	default:<>
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -122,6 +130,15 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {<>} else {<>}
+	case <-y:
+		fmt.Println(<>)
+	default:
+		fmt.Println(<>)
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -177,6 +194,19 @@ func bar() string {
 		g: 4,
 		h: "i",
 	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println(<>)
+		} else {
+			fmt.Println(<>)
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
+	}
 	// This is a multiline comment
 	// that is not a doc comment.
 	return `
@@ -188,7 +218,7 @@ is not indented`
 3:9-6:0
 10:22-11:32
 12:10-12:9
-12:20-52:0
+12:20-65:0
 13:10-24:1
 14:12-19:3
 15:12-17:2
@@ -204,7 +234,19 @@ is not indented`
 32:21-36:1
 37:17-41:1
 42:8-46:1
-47:32-48:30
+47:15-47:23
+47:32-47:40
+48:10-59:1
+49:18-54:3
+50:11-52:2
+51:16-51:28
+52:11-54:2
+53:16-53:29
+55:11-56:18
+56:15-56:17
+57:10-58:24
+58:15-58:23
+60:32-61:30
 
 -- foldingRange-comment-0 --
 package folding //@fold("package")
@@ -251,6 +293,19 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println("true from x")
+		} else {
+			fmt.Println("false from x")
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
 	}
 	// This is a multiline comment<>
 	return `
@@ -302,6 +357,19 @@ func bar() string {
 		g: 4,
 		h: "i",
 	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println("true from x")
+		} else {
+			fmt.Println("false from x")
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
+	}
 	// This is a multiline comment
 	// that is not a doc comment.
 	return `
@@ -344,6 +412,9 @@ func bar() string {
 	type T struct {<>
 	}
 	_ = T{<>,
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {<>
 	}
 	// This is a multiline comment<>
 	return `
@@ -390,6 +461,12 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:<>
+	case <-y:<>
+	default:<>
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -442,6 +519,17 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {<>
+		} else {<>
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
 	}
 	// This is a multiline comment
 	// that is not a doc comment.
@@ -496,6 +584,19 @@ func bar() string {
 		g: 4,
 		h: "i",
 	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println("true from x")
+		} else {
+			fmt.Println("false from x")
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
+	}
 	// This is a multiline comment<>
 	return `
 this string
@@ -546,6 +647,19 @@ func bar() string {
 		f: "j",
 		g: 4,
 		h: "i",
+	}
+	x, y := make(chan bool), make(chan bool)
+	select {
+	case val := <-x:
+		if val {
+			fmt.Println("true from x")
+		} else {
+			fmt.Println("false from x")
+		}
+	case <-y:
+		fmt.Println("y")
+	default:
+		fmt.Println("default")
 	}
 	// This is a multiline comment
 	// that is not a doc comment.

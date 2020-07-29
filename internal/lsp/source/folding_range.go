@@ -62,6 +62,9 @@ func foldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node) *Fo
 	case *ast.CaseClause:
 		// Fold from position of ":" to end.
 		start, end = n.Colon+1, n.End()
+	case *ast.CommClause:
+		// Fold from position of ":" to end.
+		start, end = n.Colon+1, n.End()
 	case *ast.CallExpr:
 		// Fold from position of "(" to position of ")".
 		start, end = n.Lparen+1, n.Rparen
@@ -115,6 +118,9 @@ func lineFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node)
 		}
 		start, end = n.Lbrace+1, n.List[nStmts-1].End()
 	case *ast.CaseClause:
+		// Fold from position of ":" to end.
+		start, end = n.Colon+1, n.End()
+	case *ast.CommClause:
 		// Fold from position of ":" to end.
 		start, end = n.Colon+1, n.End()
 	case *ast.FieldList:
