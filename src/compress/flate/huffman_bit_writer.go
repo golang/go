@@ -209,12 +209,12 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litE
 	// Copy the concatenated code sizes to codegen. Put a marker at the end.
 	cgnl := codegen[:numLiterals]
 	for i := range cgnl {
-		cgnl[i] = uint8(litEnc.codes[i].len)
+		cgnl[i] = uint8(litEnc.codes.len[i])
 	}
 
 	cgnl = codegen[numLiterals : numLiterals+numOffsets]
 	for i := range cgnl {
-		cgnl[i] = uint8(offEnc.codes[i].len)
+		cgnl[i] = uint8(offEnc.codes.len[i])
 	}
 	codegen[numLiterals+numOffsets] = badCode
 
@@ -324,12 +324,12 @@ func (w *huffmanBitWriter) storedSize(in []byte) (int, bool) {
 	return 0, false
 }
 
-func (w *huffmanBitWriter) writeCode(c hcode) {
+func (w *huffmanBitWriter) writeCode(codes, lens []uint16, index uint32) {
 	if w.err != nil {
 		return
 	}
-	w.bits |= uint64(c.code) << w.nbits
-	w.nbits += uint(c.len)
+	w.bits |= uint64(codes[index]) << w.nbits
+	w.nbits += uint(lens[index])
 	if w.nbits >= 48 {
 		bits := w.bits
 		w.bits >>= 48
@@ -370,7 +370,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 	w.writeBits(int32(numCodegens-4), 4)
 
 	for i := 0; i < numCodegens; i++ {
-		value := uint(w.codegenEncoding.codes[codegenOrder[i]].len)
+		value := uint(w.codegenEncoding.codes.len[codegenOrder[i]])
 		w.writeBits(int32(value), 3)
 	}
 
@@ -381,7 +381,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 		if codeWord == badCode {
 			break
 		}
-		w.writeCode(w.codegenEncoding.codes[uint32(codeWord)])
+		w.writeCode(w.codegenEncoding.codes.code, w.codegenEncoding.codes.len, uint32(codeWord))
 
 		switch codeWord {
 		case 16:
@@ -574,19 +574,19 @@ func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets 
 
 // writeTokens writes a slice of tokens to the output.
 // codes for literal and offset encoding must be supplied.
-func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode) {
+func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes hcode) {
 	if w.err != nil {
 		return
 	}
 	for _, t := range tokens {
 		if t < matchType {
-			w.writeCode(leCodes[t.literal()])
+			w.writeCode(leCodes.code, leCodes.len, t.literal())
 			continue
 		}
 		// Write the length
 		length := t.length()
 		lengthCode := lengthCode(length)
-		w.writeCode(leCodes[lengthCode+lengthCodesStart])
+		w.writeCode(leCodes.code, leCodes.len, lengthCode+lengthCodesStart)
 		extraLengthBits := uint(lengthExtraBits[lengthCode])
 		if extraLengthBits > 0 {
 			extraLength := int32(length - lengthBase[lengthCode])
@@ -595,7 +595,7 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 		// Write the offset
 		offset := t.offset()
 		offsetCode := offsetCode(offset)
-		w.writeCode(oeCodes[offsetCode])
+		w.writeCode(oeCodes.code, oeCodes.len, offsetCode)
 		extraOffsetBits := uint(offsetExtraBits[offsetCode])
 		if extraOffsetBits > 0 {
 			extraOffset := int32(offset - offsetBase[offsetCode])
@@ -658,13 +658,13 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 
 	// Huffman.
 	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
-	encoding := w.literalEncoding.codes[:257]
+	encodingCode := w.literalEncoding.codes.code[:257]
+	encodingLen := w.literalEncoding.codes.len[:257]
 	n := w.nbytes
 	for _, t := range input {
 		// Bitwriting inlined, ~30% speedup
-		c := encoding[t]
-		w.bits |= uint64(c.code) << w.nbits
-		w.nbits += uint(c.len)
+		w.bits |= uint64(encodingCode[t]) << w.nbits
+		w.nbits += uint(encodingLen[t])
 		if w.nbits < 48 {
 			continue
 		}
@@ -690,7 +690,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 		n = 0
 	}
 	w.nbytes = n
-	w.writeCode(encoding[endBlockMarker])
+	w.writeCode(encodingCode, encodingLen, endBlockMarker)
 }
 
 // histogram accumulates a histogram of b in h.

@@ -12,11 +12,12 @@ import (
 
 // hcode is a huffman code with a bit code and bit length.
 type hcode struct {
-	code, len uint16
+	code []uint16
+	len  []uint16
 }
 
 type huffmanEncoder struct {
-	codes     []hcode
+	codes     hcode
 	freqcache []literalNode
 	bitCount  [17]int32
 	lns       byLiteral // stored to avoid repeated allocation in generate
@@ -48,16 +49,13 @@ type levelInfo struct {
 	needed int32
 }
 
-// set sets the code and length of an hcode.
-func (h *hcode) set(code uint16, length uint16) {
-	h.len = length
-	h.code = code
-}
-
 func maxNode() literalNode { return literalNode{math.MaxUint16, math.MaxInt32} }
 
 func newHuffmanEncoder(size int) *huffmanEncoder {
-	return &huffmanEncoder{codes: make([]hcode, size)}
+	return &huffmanEncoder{codes: hcode{
+		code: make([]uint16, size),
+		len:  make([]uint16, size),
+	}}
 }
 
 // Generates a HuffmanCode corresponding to the fixed literal table
@@ -89,7 +87,8 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
 			bits = ch + 192 - 280
 			size = 8
 		}
-		codes[ch] = hcode{code: reverseBits(bits, byte(size)), len: size}
+		codes.code[ch] = reverseBits(bits, byte(size))
+		codes.len[ch] = size
 	}
 	return h
 }
@@ -97,8 +96,9 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
 func generateFixedOffsetEncoding() *huffmanEncoder {
 	h := newHuffmanEncoder(30)
 	codes := h.codes
-	for ch := range codes {
-		codes[ch] = hcode{code: reverseBits(uint16(ch), 5), len: 5}
+	for i := 0; i < len(codes.code); i++ {
+		codes.code[i] = reverseBits(uint16(i), 5)
+		codes.len[i] = 5
 	}
 	return h
 }
@@ -110,7 +110,7 @@ func (h *huffmanEncoder) bitLength(freq []int32) int {
 	var total int
 	for i, f := range freq {
 		if f != 0 {
-			total += int(f) * int(h.codes[i].len)
+			total += int(f) * int(h.codes.len[i])
 		}
 	}
 	return total
@@ -260,7 +260,8 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 
 		h.lns.sort(chunk)
 		for _, node := range chunk {
-			h.codes[node.literal] = hcode{code: reverseBits(code, uint8(n)), len: uint16(n)}
+			h.codes.code[node.literal] = reverseBits(code, uint8(n))
+			h.codes.len[node.literal] = uint16(n)
 			code++
 		}
 		list = list[0 : len(list)-int(bits)]
@@ -288,7 +289,7 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 			count++
 		} else {
 			list[count] = literalNode{}
-			h.codes[i].len = 0
+			h.codes.len[i] = 0
 		}
 	}
 	list[len(freq)] = literalNode{}
@@ -299,7 +300,8 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 		// two or fewer literals, everything has bit length 1.
 		for i, node := range list {
 			// "list" is in order of increasing literal value.
-			h.codes[node.literal].set(uint16(i), 1)
+			h.codes.code[node.literal] = uint16(i)
+			h.codes.len[node.literal] = 1
 		}
 		return
 	}
