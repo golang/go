@@ -21,11 +21,7 @@ import (
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := uint32(len(ldr.objSyms))
-	s, ok := ldr.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
-	if !ok {
-		t.Errorf("AddrSym failed for '" + name + "'")
-	}
-	return s
+	return ldr.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
 }
 
 func mkLoader() *Loader {
