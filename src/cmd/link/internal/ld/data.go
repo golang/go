@@ -1063,7 +1063,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 	bld.SetSize(0)
 	bld.SetData(make([]byte, 0, arch.PtrSize*2))
 	bld.SetReadOnly(false)
-	bld.SetRelocs(nil)
+	bld.ResetRelocs()
 	bld.AddAddrPlus(arch, sbld.Sym(), 0)
 	bld.AddUint(arch, uint64(len(value)))
 }

@@ -75,25 +75,19 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	o(0xe08f0000)
 
 	o(0xeafffffe)
-	rel := loader.Reloc{
-		Off:  8,
-		Size: 4,
-		Type: objabi.R_CALLARM,
-		Sym:  addmoduledata,
-		Add:  0xeafffffe, // vomit
-	}
-	initfunc.AddReloc(rel)
+	rel, _ := initfunc.AddRel(objabi.R_CALLARM)
+	rel.SetOff(8)
+	rel.SetSiz(4)
+	rel.SetSym(addmoduledata)
+	rel.SetAdd(0xeafffffe) // vomit
 
 	o(0x00000000)
 
-	rel2 := loader.Reloc{
-		Off:  12,
-		Size: 4,
-		Type: objabi.R_PCREL,
-		Sym:  ctxt.Moduledata,
-		Add:  4,
-	}
-	initfunc.AddReloc(rel2)
+	rel2, _ := initfunc.AddRel(objabi.R_PCREL)
+	rel2.SetOff(12)
+	rel2.SetSiz(4)
+	rel2.SetSym(ctxt.Moduledata)
+	rel2.SetAdd(4)
 }
 
 // Preserve highest 8 bits of a, and do addition to lower 24-bit
@@ -452,14 +446,11 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 	tramp.SetData(P)
 
 	if linkmode == ld.LinkExternal {
-		r := loader.Reloc{
-			Off:  8,
-			Type: objabi.R_ADDR,
-			Size: 4,
-			Sym:  target,
-			Add:  offset,
-		}
-		tramp.AddReloc(r)
+		r, _ := tramp.AddRel(objabi.R_ADDR)
+		r.SetOff(8)
+		r.SetSiz(4)
+		r.SetSym(target)
+		r.SetAdd(offset)
 	}
 }
 
@@ -477,14 +468,11 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	arch.ByteOrder.PutUint32(P[12:], o4)
 	tramp.SetData(P)
 
-	r := loader.Reloc{
-		Off:  12,
-		Type: objabi.R_PCREL,
-		Size: 4,
-		Sym:  target,
-		Add:  offset + 4,
-	}
-	tramp.AddReloc(r)
+	r, _ := tramp.AddRel(objabi.R_PCREL)
+	r.SetOff(12)
+	r.SetSiz(4)
+	r.SetSym(target)
+	r.SetAdd(offset + 4)
 }
 
 // generate a trampoline to target+offset in dynlink mode (using GOT)
@@ -515,19 +503,16 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	}
 	tramp.SetData(P)
 
-	r := loader.Reloc{
-		Off:  16,
-		Type: objabi.R_GOTPCREL,
-		Size: 4,
-		Sym:  target,
-		Add:  8,
-	}
+	r, _ := tramp.AddRel(objabi.R_GOTPCREL)
+	r.SetOff(16)
+	r.SetSiz(4)
+	r.SetSym(target)
+	r.SetAdd(8)
 	if offset != 0 {
 		// increase reloc offset by 4 as we inserted an ADD instruction
-		r.Off = 20
-		r.Add = 12
+		r.SetOff(20)
+		r.SetAdd(12)
 	}
-	tramp.AddReloc(r)
 }
 
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {

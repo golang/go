@@ -37,17 +37,6 @@ type Relocs struct {
 	l  *Loader  // loader
 }
 
-// Reloc contains the payload for a specific relocation.
-// TODO: replace this with sym.Reloc, once we change the
-// relocation target from "*sym.Symbol" to "loader.Sym" in sym.Reloc.
-type Reloc struct {
-	Off  int32            // offset to rewrite
-	Size uint8            // number of bytes to rewrite: 0, 1, 2, or 4
-	Type objabi.RelocType // the relocation type
-	Add  int64            // addend
-	Sym  Sym              // global index of symbol the reloc addresses
-}
-
 // ExtReloc contains the payload for an external relocation.
 type ExtReloc struct {
 	Xsym Sym
@@ -1858,14 +1847,6 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 		l:  l,
 	}
 }
-
-// RelocByOff implements sort.Interface for sorting relocations by offset.
-
-type RelocByOff []Reloc
-
-func (x RelocByOff) Len() int           { return len(x) }
-func (x RelocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 
 // FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
 type FuncInfo struct {

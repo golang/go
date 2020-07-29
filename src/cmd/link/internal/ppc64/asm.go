@@ -152,13 +152,10 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 
 	// addis r2, r12, .TOC.-func@ha
 	toc := ctxt.DotTOC[0]
-	rel1 := loader.Reloc{
-		Off:  0,
-		Size: 8,
-		Type: objabi.R_ADDRPOWER_PCREL,
-		Sym:  toc,
-	}
-	initfunc.AddReloc(rel1)
+	rel1, _ := initfunc.AddRel(objabi.R_ADDRPOWER_PCREL)
+	rel1.SetOff(0)
+	rel1.SetSiz(8)
+	rel1.SetSym(toc)
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
 	o(0x38420000)
@@ -175,24 +172,18 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 	} else {
 		tgt = ldr.LookupOrCreateSym("runtime.firstmoduledata", 0)
 	}
-	rel2 := loader.Reloc{
-		Off:  int32(initfunc.Size()),
-		Size: 8,
-		Type: objabi.R_ADDRPOWER_GOT,
-		Sym:  tgt,
-	}
-	initfunc.AddReloc(rel2)
+	rel2, _ := initfunc.AddRel(objabi.R_ADDRPOWER_GOT)
+	rel2.SetOff(int32(initfunc.Size()))
+	rel2.SetSiz(8)
+	rel2.SetSym(tgt)
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
 	o(0xe8630000)
 	// bl runtime.addmoduledata
-	rel3 := loader.Reloc{
-		Off:  int32(initfunc.Size()),
-		Size: 4,
-		Type: objabi.R_CALLPOWER,
-		Sym:  addmoduledata,
-	}
-	initfunc.AddReloc(rel3)
+	rel3, _ := initfunc.AddRel(objabi.R_CALLPOWER)
+	rel3.SetOff(int32(initfunc.Size()))
+	rel3.SetSiz(4)
+	rel3.SetSym(addmoduledata)
 	o(0x48000001)
 	// nop
 	o(0x60000000)
@@ -233,31 +224,25 @@ func gencallstub(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.Sy
 	stub.AddUint32(ctxt.Arch, 0xf8410018) // std r2,24(r1)
 
 	// Load the function pointer from the PLT.
-	rel := loader.Reloc{
-		Off:  int32(stub.Size()),
-		Size: 2,
-		Add:  int64(ldr.SymPlt(targ)),
-		Type: objabi.R_POWER_TOC,
-		Sym:  plt,
-	}
+	rel, ri1 := stub.AddRel(objabi.R_POWER_TOC)
+	rel.SetOff(int32(stub.Size()))
+	rel.SetSiz(2)
+	rel.SetAdd(int64(ldr.SymPlt(targ)))
+	rel.SetSym(plt)
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		rel.Off += int32(rel.Size)
+		rel.SetOff(rel.Off() + int32(rel.Siz()))
 	}
-	ri1 := stub.AddReloc(rel)
 	ldr.SetRelocVariant(stub.Sym(), int(ri1), sym.RV_POWER_HA)
 	stub.AddUint32(ctxt.Arch, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
 
-	rel2 := loader.Reloc{
-		Off:  int32(stub.Size()),
-		Size: 2,
-		Add:  int64(ldr.SymPlt(targ)),
-		Type: objabi.R_POWER_TOC,
-		Sym:  plt,
-	}
+	rel2, ri2 := stub.AddRel(objabi.R_POWER_TOC)
+	rel2.SetOff(int32(stub.Size()))
+	rel2.SetSiz(2)
+	rel2.SetAdd(int64(ldr.SymPlt(targ)))
+	rel2.SetSym(plt)
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		rel2.Off += int32(rel.Size)
+		rel2.SetOff(rel2.Off() + int32(rel2.Siz()))
 	}
-	ri2 := stub.AddReloc(rel2)
 	ldr.SetRelocVariant(stub.Sym(), int(ri2), sym.RV_POWER_LO)
 	stub.AddUint32(ctxt.Arch, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
@@ -751,13 +736,10 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 		toctramp.SetType(sym.SXCOFFTOC)
 		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
 
-		r := loader.Reloc{
-			Off:  0,
-			Type: objabi.R_ADDRPOWER_TOCREL_DS,
-			Size: 8, // generates 2 relocations:  HA + LO
-			Sym:  toctramp.Sym(),
-		}
-		tramp.AddReloc(r)
+		r, _ := tramp.AddRel(objabi.R_ADDRPOWER_TOCREL_DS)
+		r.SetOff(0)
+		r.SetSiz(8) // generates 2 relocations: HA + LO
+		r.SetSym(toctramp.Sym())
 	} else {
 		// Used for default build mode for an executable
 		// Address of the call target is generated using
@@ -768,14 +750,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 		// With external linking, the target address must be
 		// relocated using LO and HA
 		if ctxt.IsExternal() {
-			r := loader.Reloc{
-				Off:  0,
-				Type: objabi.R_ADDRPOWER,
-				Size: 8, // generates 2 relocations:  HA + LO
-				Sym:  target,
-				Add:  offset,
-			}
-			tramp.AddReloc(r)
+			r, _ := tramp.AddRel(objabi.R_ADDRPOWER)
+			r.SetOff(0)
+			r.SetSiz(8) // generates 2 relocations: HA + LO
+			r.SetSym(target)
+			r.SetAdd(offset)
 		} else {
 			// adjustment needed if lo has sign bit set
 			// when using addi to compute address
@@ -1000,13 +979,10 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
 
 		// Write symbol resolver stub (just a branch to the
 		// glink resolver stub)
-		rel := loader.Reloc{
-			Off:  int32(glink.Size()),
-			Size: 4,
-			Type: objabi.R_CALLPOWER,
-			Sym:  glink.Sym(),
-		}
-		glink.AddReloc(rel)
+		rel, _ := glink.AddRel(objabi.R_CALLPOWER)
+		rel.SetOff(int32(glink.Size()))
+		rel.SetSiz(4)
+		rel.SetSym(glink.Sym())
 		glink.AddUint32(ctxt.Arch, 0x48000000) // b .glink
 
 		// In the ppc64 ABI, the dynamic linker is responsible

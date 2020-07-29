@@ -2106,7 +2106,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			}
 			su := l.MakeSymbolUpdater(alias)
 			su.SetType(sym.SABIALIAS)
-			su.AddReloc(loader.Reloc{Sym: s})
+			r, _ := su.AddRel(0) // type doesn't matter
+			r.SetSym(s)
 		}
 	}
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
