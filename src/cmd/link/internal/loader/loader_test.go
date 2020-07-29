@@ -21,7 +21,8 @@ import (
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := uint32(len(ldr.objSyms))
-	return ldr.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
+	st := loadState{l: ldr}
+	return st.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
 }
 
 func mkLoader() *Loader {
