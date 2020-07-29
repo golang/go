@@ -293,13 +293,13 @@ type pageAlloc struct {
 
 	// sysStat is the runtime memstat to update when new system
 	// memory is committed by the pageAlloc for allocation metadata.
-	sysStat *uint64
+	sysStat *sysMemStat
 
 	// Whether or not this struct is being used in tests.
 	test bool
 }
 
-func (p *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
+func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
 	if levelLogPages[0] > logMaxPackedValue {
 		// We can't represent 1<<levelLogPages[0] pages, the maximum number
 		// of pages we need to represent at the root level, in a summary, which

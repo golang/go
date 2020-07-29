@@ -820,7 +820,7 @@ type AddrRanges struct {
 // Add.
 func NewAddrRanges() AddrRanges {
 	r := addrRanges{}
-	r.init(new(uint64))
+	r.init(new(sysMemStat))
 	return AddrRanges{r, true}
 }
 
@@ -844,7 +844,7 @@ func MakeAddrRanges(a ...AddrRange) AddrRanges {
 	return AddrRanges{addrRanges{
 		ranges:     ranges,
 		totalBytes: total,
-		sysStat:    new(uint64),
+		sysStat:    new(sysMemStat),
 	}, false}
 }
 
