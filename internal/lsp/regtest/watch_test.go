@@ -496,3 +496,80 @@ var Hello int
 		)
 	})
 }
+
+// Reproduce golang/go#40456.
+func TestChangeVersion(t *testing.T) {
+	const proxy = `
+-- example.com@v1.2.3/go.mod --
+module example.com
+
+go 1.12
+-- example.com@v1.2.3/blah/blah.go --
+package blah
+
+const Name = "Blah"
+
+func X(x int) {}
+-- example.com@v1.2.2/go.mod --
+module example.com
+
+go 1.12
+-- example.com@v1.2.2/blah/blah.go --
+package blah
+
+const Name = "Blah"
+
+func X() {}
+-- random.org@v1.2.3/go.mod --
+module random.org
+
+go 1.12
+-- random.org@v1.2.3/blah/blah.go --
+package hello
+
+const Name = "Hello"
+`
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require example.com v1.2.2
+-- main.go --
+package main
+
+import "example.com/blah"
+
+func main() {
+	blah.X()
+}
+`
+	withOptions(WithProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.WriteWorkspaceFiles(map[string]string{
+			"go.mod": `module mod.com
+
+go 1.12
+
+require example.com v1.2.3
+`,
+			"main.go": `package main
+
+import (
+	"example.com/blah"
+)
+
+func main() {
+	blah.X(1)
+}
+`,
+		})
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+			NoDiagnostics("main.go"),
+		)
+	})
+}

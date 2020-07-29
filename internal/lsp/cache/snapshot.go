@@ -803,11 +803,11 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 			result.modWhyHandle = nil
 		}
 		if currentFH.Kind() == source.Mod {
-			// If the view's go.mod file's contents have changed, invalidate the metadata
-			// for all of the packages in the workspace.
+			// If the view's go.mod file's contents have changed, invalidate the
+			// metadata for every known package in the snapshot.
 			if invalidateMetadata {
-				for id := range s.workspacePackages {
-					directIDs[id] = struct{}{}
+				for k := range s.packages {
+					directIDs[k.id] = struct{}{}
 				}
 			}
 			delete(result.parseModHandles, withoutURI)
