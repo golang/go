@@ -8,15 +8,22 @@
 
 usage() {
   cat <<EOUSAGE
-Usage: $0 [--sudo] [--short]
+Usage: $0 [--sudo] [--short] [--version (semver|latest)]
 
-Run govim tests against HEAD using local docker. If --sudo is set, run docker
-with sudo. If --short is set, run `go test` with `-short`.
+Args:
+  --sudo     run docker with sudo
+  --short    run `go test` with `-short`
+  --version  run on the specific tagged Go version (or latest) rather
+             than the default branch
+
+Run govim tests against HEAD using local docker.
 EOUSAGE
 }
 
 SUDO_IF_NEEDED=
 TEST_SHORT=
+DOCKERFILE=gopls/integration/govim/Dockerfile
+GOVIM_REF=main
 while [[ $# -gt 0 ]]; do
   case "$1" in
     "-h" | "--help" | "help")
@@ -30,6 +37,20 @@ while [[ $# -gt 0 ]]; do
     "--short")
       TEST_SHORT="-short"
       shift
+      ;;
+    "--version")
+      if [[ -z "$2" ]]; then
+        usage
+        exit 1
+      fi
+      GOVIM_REF=$2
+      if [[ "${GOVIM_REF}" == "latest" ]]; then
+        TMPGOPATH=$(mktemp -d)
+        trap "GOPATH=${TMPGOPATH} go clean -modcache && rm -r ${TMPGOPATH}" EXIT
+        GOVIM_REF=$(GOPATH=${TMPGOPATH} go mod download -json \
+          github.com/govim/govim@latest | jq -r .Version)
+      fi
+      shift 2
       ;;
     *)
       usage
@@ -49,8 +70,12 @@ go build -o "${temp_gopls}"
 
 # Build the test harness. Here we are careful to pass in a very limited build
 # context so as to optimize caching.
+echo "Checking out govim@${GOVIM_REF}"
 cd "${tools_dir}"
-${SUDO_IF_NEEDED}docker build -t gopls-govim-harness -f gopls/integration/govim/Dockerfile \
+${SUDO_IF_NEEDED}docker build \
+  --build-arg GOVIM_REF="${GOVIM_REF}" \
+  -t gopls-govim-harness:${GOVIM_REF} \
+  -f gopls/integration/govim/Dockerfile \
   gopls/integration/govim
 
 # Run govim integration tests.
@@ -60,6 +85,6 @@ ${SUDO_IF_NEEDED}docker run --rm -t \
   -v "${tools_dir}:/src/tools" \
   -w "/src/govim" \
   --ulimit memlock=-1:-1 \
-  gopls-govim-harness \
+  gopls-govim-harness:${GOVIM_REF} \
   go test ${TEST_SHORT} ./cmd/govim \
     -gopls "/src/tools/gopls/${temp_gopls_name}"
