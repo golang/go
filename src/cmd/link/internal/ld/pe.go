@@ -521,7 +521,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 			// to stream out.
 			relocs := ldr.Relocs(s)
 			for ri := 0; ri < relocs.Count(); ri++ {
-				r := relocs.At2(ri)
+				r := relocs.At(ri)
 				rr, ok := extreloc(ctxt, ldr, s, r)
 				if !ok {
 					continue
@@ -1381,7 +1381,7 @@ func (rt *peBaseRelocTable) init(ctxt *Link) {
 	rt.blocks = make(map[uint32]peBaseRelocBlock)
 }
 
-func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader.Reloc2) {
+func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader.Reloc) {
 	// pageSize is the size in bytes of a page
 	// described by a base relocation block.
 	const pageSize = 0x1000
@@ -1436,7 +1436,7 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
 func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		if r.Type() >= objabi.ElfRelocOffset {
 			continue
 		}
@@ -1530,7 +1530,7 @@ func addpersrc(ctxt *Link) {
 	// relocation
 	relocs := ctxt.loader.Relocs(rsrcsym)
 	for i := 0; i < relocs.Count(); i++ {
-		r := relocs.At2(i)
+		r := relocs.At(i)
 		p := data[r.Off():]
 		val := uint32(int64(h.virtualAddress) + r.Add())
 

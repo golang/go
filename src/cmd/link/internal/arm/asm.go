@@ -96,7 +96,7 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 
 	targ := r.Sym()
 	var targType sym.SymKind
@@ -209,7 +209,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	// Reread the reloc to incorporate any changes in type above.
 	relocs := ldr.Relocs(s)
-	r = relocs.At2(rIdx)
+	r = relocs.At(rIdx)
 
 	switch r.Type() {
 	case objabi.R_CALLARM:
@@ -265,7 +265,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_CALLARM:
 		if siz == 4 {
 			relocs := ldr.Relocs(s)
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			if r.Add()&0xff000000 == 0xeb000000 { // BL // TODO: using r.Add here is bad (issue 19811)
 				out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
 			} else {
@@ -367,7 +367,7 @@ func immrot(v uint32) uint32 {
 // Convert the direct jump relocation r to refer to a trampoline if the target is too far
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
-	r := relocs.At2(ri)
+	r := relocs.At(ri)
 	switch r.Type() {
 	case objabi.R_CALLARM:
 		// r.Add is the instruction
@@ -423,7 +423,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			// modify reloc to point to tramp, which will be resolved later
 			sb := ldr.MakeSymbolUpdater(s)
 			relocs := sb.Relocs()
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			r.SetSym(tramp)
 			r.SetAdd(r.Add()&0xff000000 | 0xfffffe) // clear the offset embedded in the instruction
 		}
@@ -515,7 +515,7 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	}
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	rs = ldr.ResolveABIAlias(rs)
 	if target.IsExternal() {
@@ -559,12 +559,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, 0, false
 }
 
-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }
 
-func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	var rr loader.ExtReloc
 	switch r.Type() {

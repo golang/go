@@ -185,7 +185,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	// Now invoke the usual loader interfaces to make sure
 	// we're getting the right things back for these symbols.
 	// First relocations...
-	expRel := [][]Reloc2{{r1, r2}, {r3}}
+	expRel := [][]Reloc{{r1, r2}, {r3}}
 	for k, sb := range []*SymbolBuilder{sb1, sb2} {
 		rsl := sb.Relocs()
 		exp := expRel[k]
@@ -219,12 +219,12 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	}
 }
 
-func sameRelocSlice(s1 *Relocs, s2 []Reloc2) bool {
+func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 	if s1.Count() != len(s2) {
 		return false
 	}
 	for i := 0; i < s1.Count(); i++ {
-		r1 := s1.At2(i)
+		r1 := s1.At(i)
 		r2 := &s2[i]
 		if r1.Sym() != r2.Sym() ||
 			r1.Type() != r2.Type() ||
@@ -239,8 +239,8 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc2) bool {
 
 type addFunc func(l *Loader, s Sym, s2 Sym) Sym
 
-func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc2 {
-	r := Reloc2{&goobj2.Reloc{}, l.extReader, l, typ}
+func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc {
+	r := Reloc{&goobj2.Reloc{}, l.extReader, l, typ}
 	r.SetOff(off)
 	r.SetSiz(siz)
 	r.SetAdd(add)
@@ -263,7 +263,7 @@ func TestAddDataMethods(t *testing.T) {
 		addDataFunc addFunc
 		expData     []byte
 		expKind     sym.SymKind
-		expRel      []Reloc2
+		expRel      []Reloc
 	}{
 		{
 			which: "AddUint8",
@@ -316,7 +316,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDR, 0, 8, 3, 6)},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDR, 0, 8, 3, 6)},
 		},
 		{
 			which: "AddAddrPlus4",
@@ -327,7 +327,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDR, 0, 4, 3, 7)},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDR, 0, 4, 3, 7)},
 		},
 		{
 			which: "AddCURelativeAddrPlus",
@@ -338,7 +338,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
 		},
 	}
 

@@ -1146,7 +1146,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 	}
 	relocs := d.ldr.Relocs(dsym)
 	for i := 0; i < relocs.Count(); i++ {
-		r := relocs.At2(i)
+		r := relocs.At(i)
 		if r.Type() != objabi.R_DWARFSECREF {
 			continue
 		}
@@ -1685,7 +1685,7 @@ func (d *dwctxt) dwarfVisitFunction(fnSym loader.Sym, unit *sym.CompilationUnit)
 	// locals/params but were optimized away.
 	drelocs := d.ldr.Relocs(infosym)
 	for ri := 0; ri < drelocs.Count(); ri++ {
-		r := drelocs.At2(ri)
+		r := drelocs.At(ri)
 		// Look for "use type" relocs.
 		if r.Type() == objabi.R_USETYPE {
 			d.defgotype(r.Sym())
@@ -2091,7 +2091,7 @@ func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	for _, fn := range u.FuncDIEs {
 		relocs := d.ldr.Relocs(loader.Sym(fn))
 		for i := 0; i < relocs.Count(); i++ {
-			reloc := relocs.At2(i)
+			reloc := relocs.At(i)
 			if reloc.Type() != objabi.R_DWARFSECREF {
 				continue
 			}

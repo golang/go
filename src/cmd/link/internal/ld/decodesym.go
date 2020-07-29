@@ -104,14 +104,14 @@ const (
 	kindMask      = (1 << 5) - 1
 )
 
-func decodeReloc(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc2 {
+func decodeReloc(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc {
 	for j := 0; j < relocs.Count(); j++ {
-		rel := relocs.At2(j)
+		rel := relocs.At(j)
 		if rel.Off() == off {
 			return rel
 		}
 	}
-	return loader.Reloc2{}
+	return loader.Reloc{}
 }
 
 func decodeRelocSym(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Sym {

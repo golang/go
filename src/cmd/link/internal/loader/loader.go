@@ -45,28 +45,28 @@ type ExtReloc struct {
 	Size uint8
 }
 
-// Reloc2 holds a "handle" to access a relocation record from an
+// Reloc holds a "handle" to access a relocation record from an
 // object file.
-type Reloc2 struct {
+type Reloc struct {
 	*goobj2.Reloc
 	r *oReader
 	l *Loader
 
 	// External reloc types may not fit into a uint8 which the Go object file uses.
-	// Store it here, instead of in the byte of goobj2.Reloc2.
+	// Store it here, instead of in the byte of goobj2.Reloc.
 	// For Go symbols this will always be zero.
-	// goobj2.Reloc2.Type() + typ is always the right type, for both Go and external
+	// goobj2.Reloc.Type() + typ is always the right type, for both Go and external
 	// symbols.
 	typ objabi.RelocType
 }
 
-func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
-func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
-func (rel Reloc2) SetSym(s Sym)           { rel.Reloc.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
+func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
 
-func (rel Reloc2) SetType(t objabi.RelocType) {
+func (rel Reloc) SetType(t objabi.RelocType) {
 	if t != objabi.RelocType(uint8(t)) {
-		panic("SetType: type doesn't fit into Reloc2")
+		panic("SetType: type doesn't fit into Reloc")
 	}
 	rel.Reloc.SetType(uint8(t))
 	if rel.typ != 0 {
@@ -75,15 +75,15 @@ func (rel Reloc2) SetType(t objabi.RelocType) {
 	}
 }
 
-// Aux2 holds a "handle" to access an aux symbol record from an
+// Aux holds a "handle" to access an aux symbol record from an
 // object file.
-type Aux2 struct {
+type Aux struct {
 	*goobj2.Aux
 	r *oReader
 	l *Loader
 }
 
-func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
+func (a Aux) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
 
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
@@ -1592,15 +1592,15 @@ func (l *Loader) NAux(i Sym) int {
 }
 
 // Returns the "handle" to the j-th aux symbol of the i-th symbol.
-func (l *Loader) Aux2(i Sym, j int) Aux2 {
+func (l *Loader) Aux(i Sym, j int) Aux {
 	if l.IsExternal(i) {
-		return Aux2{}
+		return Aux{}
 	}
 	r, li := l.toLocal(i)
 	if j >= r.NAux(li) {
-		return Aux2{}
+		return Aux{}
 	}
-	return Aux2{r.Aux(li, j), r, l}
+	return Aux{r.Aux(li, j), r, l}
 }
 
 // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
@@ -1813,13 +1813,13 @@ func (l *Loader) growExtAttrBitmaps() {
 
 func (relocs *Relocs) Count() int { return len(relocs.rs) }
 
-// At2 returns the j-th reloc for a global symbol.
-func (relocs *Relocs) At2(j int) Reloc2 {
+// At returns the j-th reloc for a global symbol.
+func (relocs *Relocs) At(j int) Reloc {
 	if relocs.l.isExtReader(relocs.r) {
 		pp := relocs.l.payloads[relocs.li]
-		return Reloc2{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
+		return Reloc{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
 	}
-	return Reloc2{&relocs.rs[j], relocs.r, relocs.l, 0}
+	return Reloc{&relocs.rs[j], relocs.r, relocs.l, 0}
 }
 
 // Relocs returns a Relocs object for the given global sym.
@@ -2188,7 +2188,7 @@ func (l *Loader) ResolveABIAlias(s Sym) Sym {
 		return s
 	}
 	relocs := l.Relocs(s)
-	target := relocs.At2(0).Sym()
+	target := relocs.At(0).Sym()
 	if l.SymType(target) == sym.SABIALIAS {
 		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
 	}
@@ -2260,7 +2260,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
-			rel := relocs.At2(i)
+			rel := relocs.At(i)
 			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
 			pp.reltypes[i] = rel.Type()
 		}
@@ -2390,7 +2390,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
 		for ri := 0; ri < relocs.Count(); ri++ {
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			rs := r.Sym()
 			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {
 				result = append(result, rs)

@@ -152,7 +152,7 @@ func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 
 
 	relocs := state.ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
-		r := relocs.At2(ri)
+		r := relocs.At(ri)
 		if target.IsWasm() && r.Type() == objabi.R_ADDR {
 			// Wasm does not have a live variable set at the deferreturn
 			// call itself. Instead it has one identified by the

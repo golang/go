@@ -71,7 +71,7 @@ func (d *deadcodePass) init() {
 			if exportsIdx != 0 {
 				relocs := d.ldr.Relocs(exportsIdx)
 				for i := 0; i < relocs.Count(); i++ {
-					d.mark(relocs.At2(i).Sym(), 0)
+					d.mark(relocs.At(i).Sym(), 0)
 				}
 			}
 		}
@@ -119,7 +119,7 @@ func (d *deadcodePass) flood() {
 
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At2(i)
+			r := relocs.At(i)
 			t := r.Type()
 			if t == objabi.R_WEAKADDROFF {
 				continue
@@ -160,7 +160,7 @@ func (d *deadcodePass) flood() {
 		}
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
-			a := d.ldr.Aux2(symIdx, i)
+			a := d.ldr.Aux(symIdx, i)
 			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
 				// A symbol being reachable doesn't imply we need its
 				// type descriptor. Don't mark it.
@@ -227,9 +227,9 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 
 func (d *deadcodePass) markMethod(m methodref) {
 	relocs := d.ldr.Relocs(m.src)
-	d.mark(relocs.At2(m.r).Sym(), m.src)
-	d.mark(relocs.At2(m.r+1).Sym(), m.src)
-	d.mark(relocs.At2(m.r+2).Sym(), m.src)
+	d.mark(relocs.At(m.r).Sym(), m.src)
+	d.mark(relocs.At(m.r+1).Sym(), m.src)
+	d.mark(relocs.At(m.r+2).Sym(), m.src)
 }
 
 // deadcode marks all reachable symbols.
@@ -316,7 +316,7 @@ func deadcode(ctxt *Link) {
 			s := loader.Sym(i)
 			if ldr.IsItabLink(s) {
 				relocs := ldr.Relocs(s)
-				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
+				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At(0).Sym()) {
 					ldr.SetAttrReachable(s, true)
 				}
 			}

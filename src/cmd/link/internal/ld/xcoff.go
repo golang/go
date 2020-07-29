@@ -1214,7 +1214,7 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
-func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	if target.IsExternal() {
 		return true
 	}
@@ -1705,11 +1705,11 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 				sorted[i] = i
 			}
 			sort.Slice(sorted, func(i, j int) bool {
-				return relocs.At2(sorted[i]).Off() < relocs.At2(sorted[j]).Off()
+				return relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off()
 			})
 
 			for _, ri := range sorted {
-				r := relocs.At2(ri)
+				r := relocs.At(ri)
 				rr, ok := extreloc(ctxt, ldr, s, r)
 				if !ok {
 					continue

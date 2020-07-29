@@ -139,7 +139,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	for _, fn := range ctxt.Textp {
 		relocs := ldr.Relocs(fn)
 		for ri := 0; ri < relocs.Count(); ri++ {
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			if r.Type() == objabi.R_WASMIMPORT {
 				hostImportMap[r.Sym()] = int64(len(hostImports))
 				hostImports = append(hostImports, &wasmFunc{
@@ -166,7 +166,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 			P := ldr.Data(fn)
 			off := int32(0)
 			for ri := 0; ri < relocs.Count(); ri++ {
-				r := relocs.At2(ri)
+				r := relocs.At(ri)
 				wfn.Write(P[off:r.Off()])
 				off = r.Off()
 				rs := ldr.ResolveABIAlias(r.Sym())

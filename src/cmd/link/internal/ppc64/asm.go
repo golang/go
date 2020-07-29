@@ -96,7 +96,7 @@ func genplt(ctxt *ld.Link, ldr *loader.Loader) {
 	for _, s := range ctxt.Textp {
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At2(i)
+			r := relocs.At(i)
 			if r.Type() != objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) || ldr.SymType(r.Sym()) != sym.SDYNIMPORT {
 				continue
 			}
@@ -251,7 +251,7 @@ func gencallstub(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.Sy
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	if target.IsElf() {
 		return addelfdynrel(target, ldr, syms, s, r, rIdx)
 	} else if target.IsAIX() {
@@ -260,7 +260,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
@@ -537,7 +537,7 @@ func symtoc(ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) int64 {
 // default load instruction can be changed to an addi instruction and the
 // symbol address can be used directly.
 // This code is for AIX only.
-func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) int64 {
+func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	if target.IsLinux() {
 		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
@@ -553,7 +553,7 @@ func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r lo
 	var t int64
 	useAddi := false
 	relocs := ldr.Relocs(rs)
-	tarSym := ldr.ResolveABIAlias(relocs.At2(0).Sym())
+	tarSym := ldr.ResolveABIAlias(relocs.At(0).Sym())
 
 	if target.IsInternal() && tarSym != 0 && ldr.AttrReachable(tarSym) && ldr.SymSect(tarSym).Seg == &ld.Segdata {
 		t = ldr.SymValue(tarSym) + r.Add() - ldr.SymValue(syms.TOC)
@@ -593,7 +593,7 @@ func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r lo
 
 // archrelocaddr relocates a symbol address.
 // This code is for AIX only.
-func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) int64 {
+func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	if target.IsAIX() {
 		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
@@ -655,7 +655,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	}
 
 	relocs := ldr.Relocs(s)
-	r := relocs.At2(ri)
+	r := relocs.At(ri)
 	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
@@ -708,7 +708,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			}
 			sb := ldr.MakeSymbolUpdater(s)
 			relocs := sb.Relocs()
-			r := relocs.At2(ri)
+			r := relocs.At(ri)
 			r.SetSym(tramp)
 			r.SetAdd(0) // This was folded into the trampoline target address
 		}
@@ -776,7 +776,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetData(P)
 }
 
-func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
+func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	if target.IsExternal() {
 		// On AIX, relocations (except TLS ones) must be also done to the
@@ -853,7 +853,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, nExtReloc, false
 }
 
-func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
+func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64) (relocatedOffset int64) {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	switch rv & sym.RV_TYPE_MASK {
 	default:
@@ -945,7 +945,7 @@ overflow:
 	return t
 }
 
-func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
+func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
 	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE, objabi.R_CALLPOWER:
 		return ld.ExtrelocSimple(ldr, r), true
