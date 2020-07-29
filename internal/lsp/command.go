@@ -145,23 +145,21 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		err := s.directGoModCommand(ctx, uri, "get", goCmdArgs...)
 		return nil, err
-	default:
-		return nil, fmt.Errorf("unknown command: %s", params.Command)
 	case source.CommandToggleDetails:
 		var fileURI span.URI
 		if err := source.UnmarshalArgs(params.Arguments, &fileURI); err != nil {
 			return nil, err
 		}
 		pkgDir := span.URI(path.Dir(fileURI.Filename()))
-		s.deliveredMu.Lock()
-		if s.gcOptimizatonDetails[pkgDir] {
+		s.gcOptimizationDetailsMu.Lock()
+		if _, ok := s.gcOptimizatonDetails[pkgDir]; ok {
 			delete(s.gcOptimizatonDetails, pkgDir)
 		} else {
-			s.gcOptimizatonDetails[pkgDir] = true
+			s.gcOptimizatonDetails[pkgDir] = struct{}{}
 		}
+		s.gcOptimizationDetailsMu.Unlock()
 		event.Log(ctx, fmt.Sprintf("gc_details %s now %v %v", pkgDir, s.gcOptimizatonDetails[pkgDir],
 			s.gcOptimizatonDetails))
-		s.deliveredMu.Unlock()
 		// need to recompute diagnostics.
 		// so find the snapshot
 		sv, err := s.session.ViewOf(fileURI)
@@ -170,6 +168,8 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		s.diagnoseSnapshot(sv.Snapshot())
 		return nil, nil
+	default:
+		return nil, fmt.Errorf("unknown command: %s", params.Command)
 	}
 	return nil, nil
 }

@@ -40,9 +40,11 @@ type (
 )
 
 // Declare explicit types for files and directories to distinguish between the two.
-type fileURI span.URI
-type directoryURI span.URI
-type viewLoadScope span.URI
+type (
+	fileURI       span.URI
+	directoryURI  span.URI
+	viewLoadScope span.URI
+)
 
 func (p *pkg) ID() string {
 	return string(p.m.id)
@@ -114,9 +116,9 @@ func (p *pkg) GetImport(pkgPath string) (source.Package, error) {
 	return nil, errors.Errorf("no imported package for %s", pkgPath)
 }
 
-func (pkg *pkg) MissingDependencies() []string {
+func (p *pkg) MissingDependencies() []string {
 	var md []string
-	for i := range pkg.m.missingDeps {
+	for i := range p.m.missingDeps {
 		md = append(md, string(i))
 	}
 	return md

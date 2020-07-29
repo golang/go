@@ -18,12 +18,12 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func DoGcDetails(ctx context.Context, snapshot Snapshot, pkgDir string) (map[FileIdentity][]*Diagnostic, error) {
+func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.URI) (map[FileIdentity][]*Diagnostic, error) {
 	outDir := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.details", os.Getpid()))
 	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return nil, err
 	}
-	args := []string{fmt.Sprintf("-gcflags=-json=0,%s", outDir), pkgDir}
+	args := []string{fmt.Sprintf("-gcflags=-json=0,%s", outDir), pkgDir.Filename()}
 	err := snapshot.RunGoCommandDirect(ctx, "build", args)
 	if err != nil {
 		return nil, err

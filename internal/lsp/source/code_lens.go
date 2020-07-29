@@ -225,6 +225,9 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 
 func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
 	_, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackage)
+	if err != nil {
+		return nil, err
+	}
 	fset := snapshot.View().Session().Cache().FileSet()
 	rng, err := newMappedRange(fset, pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
 	if err != nil {

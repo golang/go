@@ -351,6 +351,9 @@ func (s *snapshot) ModUpgradeHandle(ctx context.Context) (source.ModUpgradeHandl
 			dep, version := info[0], info[2]
 
 			// Make sure that the format matches our expectation.
+			if len(version) < 2 {
+				continue
+			}
 			if version[0] != '[' || version[len(version)-1] != ']' {
 				continue
 			}
