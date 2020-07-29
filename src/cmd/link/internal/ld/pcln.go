@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/goobj2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -32,7 +33,7 @@ import (
 type oldPclnState struct {
 	ldr            *loader.Loader
 	deferReturnSym loader.Sym
-	numberedFiles  map[loader.Sym]int64
+	numberedFiles  map[string]int64
 	filepaths      []string
 }
 
@@ -88,7 +89,7 @@ func makeOldPclnState(ctxt *Link) *oldPclnState {
 	state := &oldPclnState{
 		ldr:            ldr,
 		deferReturnSym: drs,
-		numberedFiles:  make(map[loader.Sym]int64),
+		numberedFiles:  make(map[string]int64),
 		// NB: initial entry in filepaths below is to reserve the zero value,
 		// so that when we do a map lookup in numberedFiles fails, it will not
 		// return a value slot in filepaths.
@@ -153,30 +154,37 @@ func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
 }
 
 // numberfile assigns a file number to the file if it hasn't been assigned already.
-func (state *oldPclnState) numberfile(file loader.Sym) int64 {
+// This funciton looks at a CU's file at index [i], and if it's a new filename,
+// stores that filename in the global file table, and adds it to the map lookup
+// for renumbering pcfile.
+func (state *oldPclnState) numberfile(cu *sym.CompilationUnit, i goobj2.CUFileIndex) int64 {
+	file := cu.FileTable[i]
 	if val, ok := state.numberedFiles[file]; ok {
 		return val
 	}
-	sn := state.ldr.SymName(file)
-	path := sn[len(src.FileSymPrefix):]
+	path := file
+	if strings.HasPrefix(path, src.FileSymPrefix) {
+		path = file[len(src.FileSymPrefix):]
+	}
 	val := int64(len(state.filepaths))
 	state.numberedFiles[file] = val
 	state.filepaths = append(state.filepaths, expandGoroot(path))
 	return val
 }
 
-func (state *oldPclnState) fileVal(file loader.Sym) int64 {
+func (state *oldPclnState) fileVal(cu *sym.CompilationUnit, i int32) int64 {
+	file := cu.FileTable[i]
 	if val, ok := state.numberedFiles[file]; ok {
 		return val
 	}
 	panic("should have been numbered first")
 }
 
-func (state *oldPclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.Pcdata) {
+func (state *oldPclnState) renumberfiles(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, d *sym.Pcdata) {
 	// Give files numbers.
 	nf := fi.NumFile()
 	for i := uint32(0); i < nf; i++ {
-		state.numberfile(fi.File(int(i)))
+		state.numberfile(cu, fi.File(int(i)))
 	}
 
 	buf := make([]byte, binary.MaxVarintLen32)
@@ -191,10 +199,10 @@ func (state *oldPclnState) renumberfiles(ctxt *Link, fi loader.FuncInfo, d *sym.
 		if oldval == -1 {
 			val = -1
 		} else {
-			if oldval < 0 || oldval >= int32(nf) {
+			if oldval < 0 || oldval >= int32(len(cu.FileTable)) {
 				log.Fatalf("bad pcdata %d", oldval)
 			}
-			val = int32(state.fileVal(fi.File(int(oldval))))
+			val = int32(state.fileVal(cu, oldval))
 		}
 
 		dv := val - newval
@@ -287,7 +295,7 @@ func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint
 
 // genInlTreeSym generates the InlTree sym for a function with the
 // specified FuncInfo.
-func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, newState *pclntab) loader.Sym {
+func (state *oldPclnState) genInlTreeSym(cu *sym.CompilationUnit, fi loader.FuncInfo, arch *sys.Arch, newState *pclntab) loader.Sym {
 	ldr := state.ldr
 	its := ldr.CreateExtSym("", 0)
 	inlTreeSym := ldr.MakeSymbolUpdater(its)
@@ -305,7 +313,7 @@ func (state *oldPclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch, new
 		// might overlap exactly so that only the innermost file
 		// appears in the Pcfile table. In that case, this assigns
 		// the outer file a number.
-		val := state.numberfile(call.File)
+		val := state.numberfile(cu, call.File)
 		nameoff, ok := newState.funcNameOffset[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
@@ -603,11 +611,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		deferreturn := oldState.computeDeferReturn(&ctxt.Target, s)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
+		cu := ldr.SymUnit(s)
 		if fi.Valid() {
 			pcsp = sym.Pcdata{P: fi.Pcsp()}
 			pcfile = sym.Pcdata{P: fi.Pcfile()}
 			pcline = sym.Pcdata{P: fi.Pcline()}
-			oldState.renumberfiles(ctxt, fi, &pcfile)
+			oldState.renumberfiles(ctxt, cu, fi, &pcfile)
 			if false {
 				// Sanity check the new numbering
 				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
@@ -621,7 +630,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
-			its := oldState.genInlTreeSym(fi, ctxt.Arch, state)
+			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
 			funcdata[objabi.FUNCDATA_InlTree] = its
 			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
 		}

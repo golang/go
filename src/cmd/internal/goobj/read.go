@@ -94,20 +94,20 @@ type Var struct {
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int64      // size in bytes of argument frame: inputs and outputs
-	Frame    int64      // size in bytes of local variable frame
-	Align    uint32     // alignment requirement in bytes for the address of the function
-	Leaf     bool       // function omits save of link register (ARM)
-	NoSplit  bool       // function omits stack split prologue
-	TopFrame bool       // function is the top of the call stack
-	Var      []Var      // detail about local variables
-	PCSP     Data       // PC → SP offset map
-	PCFile   Data       // PC → file number map (index into File)
-	PCLine   Data       // PC → line number map
-	PCInline Data       // PC → inline tree index map
-	PCData   []Data     // PC → runtime support data map
-	FuncData []FuncData // non-PC-specific runtime support data
-	File     []string   // paths indexed by PCFile
+	Args     int64                           // size in bytes of argument frame: inputs and outputs
+	Frame    int64                           // size in bytes of local variable frame
+	Align    uint32                          // alignment requirement in bytes for the address of the function
+	Leaf     bool                            // function omits save of link register (ARM)
+	NoSplit  bool                            // function omits stack split prologue
+	TopFrame bool                            // function is the top of the call stack
+	Var      []Var                           // detail about local variables
+	PCSP     Data                            // PC → SP offset map
+	PCFile   Data                            // PC → file number map (index into File)
+	PCLine   Data                            // PC → line number map
+	PCInline Data                            // PC → inline tree index map
+	PCData   []Data                          // PC → runtime support data map
+	FuncData []FuncData                      // non-PC-specific runtime support data
+	File     map[goobj2.CUFileIndex]struct{} // set of files used in this function
 	InlTree  []InlinedCall
 }
 
@@ -123,7 +123,7 @@ type FuncData struct {
 // See cmd/internal/obj.InlTree for details.
 type InlinedCall struct {
 	Parent   int64
-	File     string
+	File     goobj2.CUFileIndex
 	Line     int64
 	Func     SymID
 	ParentPC int64
@@ -131,14 +131,14 @@ type InlinedCall struct {
 
 // A Package is a parsed Go object file or archive defining a Go package.
 type Package struct {
-	ImportPath    string          // import path denoting this package
-	Imports       []string        // packages imported by this package
-	SymRefs       []SymID         // list of symbol names and versions referred to by this pack
-	Syms          []*Sym          // symbols defined by this package
-	MaxVersion    int64           // maximum Version in any SymID in Syms
-	Arch          string          // architecture
-	Native        []*NativeReader // native object data (e.g. ELF)
-	DWARFFileList []string        // List of files for the DWARF .debug_lines section
+	ImportPath string          // import path denoting this package
+	Imports    []string        // packages imported by this package
+	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+	Syms       []*Sym          // symbols defined by this package
+	MaxVersion int64           // maximum Version in any SymID in Syms
+	Arch       string          // architecture
+	Native     []*NativeReader // native object data (e.g. ELF)
+	FileList   []string        // List of files for this package.
 }
 
 type NativeReader struct {

@@ -367,8 +367,9 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, d)
 		}
 	}
-	for _, f := range pc.File {
-		if filesym := ctxt.Lookup(f); filesym != nil {
+	files := ctxt.PosTable.FileTable()
+	for f := range pc.UsedFiles {
+		if filesym := ctxt.Lookup(files[f]); filesym != nil {
 			fn(fsym, filesym)
 		}
 	}

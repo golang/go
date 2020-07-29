@@ -32,18 +32,6 @@ const (
 func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 	dctxt := dwCtxt{ctxt}
 
-	// The Pcfile table is used to generate the debug_lines section, and the file
-	// indices for that data could differ from the files we write out for the
-	// debug_lines section. Here we generate a LUT between those two indices.
-	fileNums := make(map[int32]int64)
-	for i, filename := range s.Func.Pcln.File {
-		if symbolIndex := ctxt.PosTable.FileIndex(filename); symbolIndex >= 0 {
-			fileNums[int32(i)] = int64(symbolIndex) + 1
-		} else {
-			panic(fmt.Sprintf("First time we've seen filename: %q", filename))
-		}
-	}
-
 	// Emit a LNE_set_address extended opcode, so as to establish the
 	// starting text address of this function.
 	dctxt.AddUint8(lines, 0)

@@ -38,7 +38,7 @@ import (
 //
 //    PkgIndex [...]string // referenced packages by index
 //
-//    DwarfFiles [...]string
+//    Files [...]string
 //
 //    SymbolDefs [...]struct {
 //       Name  string
@@ -177,7 +177,7 @@ const (
 const (
 	BlkAutolib = iota
 	BlkPkgIdx
-	BlkDwarfFile
+	BlkFile
 	BlkSymdef
 	BlkHashed64def
 	BlkHasheddef
@@ -686,12 +686,12 @@ func (r *Reader) Pkg(i int) string {
 	return r.StringRef(off)
 }
 
-func (r *Reader) NDwarfFile() int {
-	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / stringRefSize
+func (r *Reader) NFile() int {
+	return int(r.h.Offsets[BlkFile+1]-r.h.Offsets[BlkFile]) / stringRefSize
 }
 
-func (r *Reader) DwarfFile(i int) string {
-	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*stringRefSize
+func (r *Reader) File(i int) string {
+	off := r.h.Offsets[BlkFile] + uint32(i)*stringRefSize
 	return r.StringRef(off)
 }
 
