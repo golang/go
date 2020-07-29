@@ -1961,17 +1961,16 @@ func (fi *FuncInfo) NumFile() uint32 {
 	return fi.lengths.NumFile
 }
 
-func (fi *FuncInfo) File(k int) Sym {
+func (fi *FuncInfo) File(k int) goobj2.CUFileIndex {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	sr := (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
-	return fi.l.resolve(fi.r, sr)
+	return (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
 }
 
 type InlTreeNode struct {
 	Parent   int32
-	File     Sym
+	File     goobj2.CUFileIndex
 	Line     int32
 	Func     Sym
 	ParentPC int32
@@ -1991,7 +1990,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
 	return InlTreeNode{
 		Parent:   node.Parent,
-		File:     fi.l.resolve(fi.r, node.File),
+		File:     node.File,
 		Line:     node.Line,
 		Func:     fi.l.resolve(fi.r, node.Func),
 		ParentPC: node.ParentPC,
@@ -2060,10 +2059,10 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 	lib.Autolib = append(lib.Autolib, r.Autolib()...)
 
 	// DWARF file table
-	nfile := r.NDwarfFile()
-	unit.DWARFFileTable = make([]string, nfile)
-	for i := range unit.DWARFFileTable {
-		unit.DWARFFileTable[i] = r.DwarfFile(i)
+	nfile := r.NFile()
+	unit.FileTable = make([]string, nfile)
+	for i := range unit.FileTable {
+		unit.FileTable[i] = r.File(i)
 	}
 
 	l.addObj(lib.Pkg, or)

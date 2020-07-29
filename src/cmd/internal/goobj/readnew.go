@@ -75,6 +75,12 @@ func (r *objReader) readNew() {
 
 	// Read things for the current goobj API for now.
 
+	// File names
+	r.p.FileList = make([]string, rr.NFile())
+	for i := range r.p.FileList {
+		r.p.FileList[i] = rr.File(i)
+	}
+
 	// Symbols
 	pcdataBase := start + rr.PcdataBase()
 	ndef := uint32(rr.NSym() + rr.NHashed64def() + rr.NHasheddef() + rr.NNonpkgdef())
@@ -166,7 +172,7 @@ func (r *objReader) readNew() {
 			PCInline: Data{int64(pcdataBase + info.Pcinline), int64(info.Pcdata[0] - info.Pcinline)},
 			PCData:   make([]Data, len(info.Pcdata)-1), // -1 as we appended one above
 			FuncData: make([]FuncData, len(info.Funcdataoff)),
-			File:     make([]string, len(info.File)),
+			File:     make(map[goobj2.CUFileIndex]struct{}, len(info.File)),
 			InlTree:  make([]InlinedCall, len(info.InlTree)),
 		}
 		sym.Func = f
@@ -177,15 +183,14 @@ func (r *objReader) readNew() {
 			symID := resolveSymRef(funcdata[k])
 			f.FuncData[k] = FuncData{symID, int64(info.Funcdataoff[k])}
 		}
-		for k := range f.File {
-			symID := resolveSymRef(info.File[k])
-			f.File[k] = symID.Name
+		for _, k := range info.File {
+			f.File[k] = struct{}{}
 		}
 		for k := range f.InlTree {
 			inl := &info.InlTree[k]
 			f.InlTree[k] = InlinedCall{
 				Parent:   int64(inl.Parent),
-				File:     resolveSymRef(inl.File).Name,
+				File:     inl.File,
 				Line:     int64(inl.Line),
 				Func:     resolveSymRef(inl.Func),
 				ParentPC: int64(inl.ParentPC),

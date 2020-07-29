@@ -135,7 +135,7 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 			return "", 0, nil
 		}
 		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
-		fileName := s.Func.File[fileID]
+		fileName := f.goobj.FileList[fileID]
 		pcline := make([]byte, s.Func.PCLine.Size)
 		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
 		if err != nil {

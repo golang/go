@@ -22,3 +22,9 @@ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f string, l int32) {
 	// TODO(gri) Should this use relative or absolute line number?
 	return pos.SymFilename(), int32(pos.RelLine())
 }
+
+// getFileIndexAndLine returns the file index (local to the CU), and the line number for a position.
+func getFileIndexAndLine(ctxt *Link, xpos src.XPos) (int, int32) {
+	f, l := linkgetlineFromPos(ctxt, xpos)
+	return ctxt.PosTable.FileIndex(f), l
+}

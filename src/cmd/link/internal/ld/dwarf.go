@@ -1224,7 +1224,7 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 
 	// Copy over the file table.
 	fileNums := make(map[string]int)
-	for i, name := range unit.DWARFFileTable {
+	for i, name := range unit.FileTable {
 		name := expandFile(name)
 		if len(name) == 0 {
 			// Can't have empty filenames, and having a unique

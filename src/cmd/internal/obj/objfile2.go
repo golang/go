@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -69,9 +70,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		w.StringRef(pkg)
 	}
 
-	// DWARF file table
-	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
-	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
+	// File table (for DWARF and pcln generation).
+	h.Offsets[goobj2.BlkFile] = w.Offset()
+	for _, f := range ctxt.PosTable.FileTable() {
 		w.StringRef(filepath.ToSlash(f))
 	}
 
@@ -248,20 +249,9 @@ func (w *writer) StringTable() {
 		}
 		w.AddString(s.Name)
 	})
-	w.ctxt.traverseSyms(traverseDefs, func(s *LSym) {
-		if s.Type != objabi.STEXT {
-			return
-		}
-		pc := &s.Func.Pcln
-		for _, f := range pc.File {
-			w.AddString(filepath.ToSlash(f))
-		}
-		for _, call := range pc.InlTree.nodes {
-			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
-			w.AddString(filepath.ToSlash(f))
-		}
-	})
-	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
+
+	// All filenames are in the postable.
+	for _, f := range w.ctxt.PosTable.FileTable() {
 		w.AddString(filepath.ToSlash(f))
 	}
 }
@@ -594,18 +584,19 @@ func genFuncInfoSyms(ctxt *Link) {
 		for i, x := range pc.Funcdataoff {
 			o.Funcdataoff[i] = uint32(x)
 		}
-		o.File = make([]goobj2.SymRef, len(pc.File))
-		for i, f := range pc.File {
-			fsym := ctxt.Lookup(f)
-			o.File[i] = makeSymRef(fsym)
+		i := 0
+		o.File = make([]goobj2.CUFileIndex, len(pc.UsedFiles))
+		for f := range pc.UsedFiles {
+			o.File[i] = f
+			i++
 		}
+		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
 		o.InlTree = make([]goobj2.InlTreeNode, len(pc.InlTree.nodes))
 		for i, inl := range pc.InlTree.nodes {
-			f, l := linkgetlineFromPos(ctxt, inl.Pos)
-			fsym := ctxt.Lookup(f)
+			f, l := getFileIndexAndLine(ctxt, inl.Pos)
 			o.InlTree[i] = goobj2.InlTreeNode{
 				Parent:   int32(inl.Parent),
-				File:     makeSymRef(fsym),
+				File:     goobj2.CUFileIndex(f),
 				Line:     l,
 				Func:     makeSymRef(inl.Func),
 				ParentPC: inl.ParentPC,

@@ -20,12 +20,12 @@ type LoaderSym int
 //
 // These are used for both DWARF and pclntab generation.
 type CompilationUnit struct {
-	Pkg            string        // The package name, eg ("fmt", or "runtime")
-	Lib            *Library      // Our library
-	PclnIndex      int           // Index of this CU in pclntab
-	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
-	DWInfo         *dwarf.DWDie  // CU root DIE
-	DWARFFileTable []string      // The file table used to generate the .debug_lines
+	Pkg       string        // The package name, eg ("fmt", or "runtime")
+	Lib       *Library      // Our library
+	PclnIndex int           // Index of this CU in pclntab
+	PCs       []dwarf.Range // PC ranges, relative to Textp[0]
+	DWInfo    *dwarf.DWDie  // CU root DIE
+	FileTable []string      // The file table used in this compilation unit.
 
 	Consts    LoaderSym   // Package constants DIEs
 	FuncDIEs  []LoaderSym // Function DIE subtrees

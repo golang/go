@@ -10,6 +10,10 @@ import (
 	"encoding/binary"
 )
 
+// CUFileIndex is used to index the filenames that are stored in the
+// per-package/per-CU FileList.
+type CUFileIndex uint32
+
 // FuncInfo is serialized as a symbol (aux symbol). The symbol data is
 // the binary encoding of the struct below.
 //
@@ -26,7 +30,7 @@ type FuncInfo struct {
 	Pcdata      []uint32
 	PcdataEnd   uint32
 	Funcdataoff []uint32
-	File        []SymRef // TODO: just use string?
+	File        []CUFileIndex
 
 	InlTree []InlTreeNode
 }
@@ -57,8 +61,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	}
 	writeUint32(uint32(len(a.File)))
 	for _, f := range a.File {
-		writeUint32(f.PkgIdx)
-		writeUint32(f.SymIdx)
+		writeUint32(uint32(f))
 	}
 	writeUint32(uint32(len(a.InlTree)))
 	for i := range a.InlTree {
@@ -93,9 +96,9 @@ func (a *FuncInfo) Read(b []byte) {
 		a.Funcdataoff[i] = readUint32()
 	}
 	filelen := readUint32()
-	a.File = make([]SymRef, filelen)
+	a.File = make([]CUFileIndex, filelen)
 	for i := range a.File {
-		a.File[i] = SymRef{readUint32(), readUint32()}
+		a.File[i] = CUFileIndex(readUint32())
 	}
 	inltreelen := readUint32()
 	a.InlTree = make([]InlTreeNode, inltreelen)
@@ -136,8 +139,7 @@ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
 	result.FileOff = numfileOff + 4
 
-	const symRefSize = 4 + 4
-	numinltreeOff := result.FileOff + symRefSize*result.NumFile
+	numinltreeOff := result.FileOff + 4*result.NumFile
 	result.NumInlTree = binary.LittleEndian.Uint32(b[numinltreeOff:])
 	result.InlTreeOff = numinltreeOff + 4
 
@@ -181,14 +183,12 @@ func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int
 	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
 }
 
-func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) SymRef {
-	p := binary.LittleEndian.Uint32(b[filesoff+8*k:])
-	s := binary.LittleEndian.Uint32(b[filesoff+4+8*k:])
-	return SymRef{p, s}
+func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
+	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))
 }
 
 func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode {
-	const inlTreeNodeSize = 4 * 7
+	const inlTreeNodeSize = 4 * 6
 	var result InlTreeNode
 	result.Read(b[inltreeoff+k*inlTreeNodeSize:])
 	return result
@@ -197,7 +197,7 @@ func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode 
 // InlTreeNode is the serialized form of FileInfo.InlTree.
 type InlTreeNode struct {
 	Parent   int32
-	File     SymRef
+	File     CUFileIndex
 	Line     int32
 	Func     SymRef
 	ParentPC int32
@@ -210,8 +210,7 @@ func (inl *InlTreeNode) Write(w *bytes.Buffer) {
 		w.Write(b[:])
 	}
 	writeUint32(uint32(inl.Parent))
-	writeUint32(inl.File.PkgIdx)
-	writeUint32(inl.File.SymIdx)
+	writeUint32(uint32(inl.File))
 	writeUint32(uint32(inl.Line))
 	writeUint32(inl.Func.PkgIdx)
 	writeUint32(inl.Func.SymIdx)
@@ -226,7 +225,7 @@ func (inl *InlTreeNode) Read(b []byte) []byte {
 		return x
 	}
 	inl.Parent = int32(readUint32())
-	inl.File = SymRef{readUint32(), readUint32()}
+	inl.File = CUFileIndex(readUint32())
 	inl.Line = int32(readUint32())
 	inl.Func = SymRef{readUint32(), readUint32()}
 	inl.ParentPC = int32(readUint32())
