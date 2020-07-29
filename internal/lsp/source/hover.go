@@ -166,7 +166,7 @@ func pathLinkAndSymbolName(i *IdentifierInfo) (string, string, string) {
 				// exported (we may have an interface or struct we can link
 				// to). If not, don't show any link.
 				if !rtyp.Obj().Exported() {
-					if named := i.enclosing.(*types.Named); ok && named.Obj().Exported() {
+					if named, ok := i.enclosing.(*types.Named); ok && named.Obj().Exported() {
 						rTypeName = named.Obj().Name()
 					} else {
 						return "", "", ""

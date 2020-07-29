@@ -248,9 +248,6 @@ func searchForEnclosing(info *types.Info, path []ast.Node) types.Type {
 						}
 					}
 				}
-				if exported == nil {
-					return nil
-				}
 				return exported
 			}
 		case *ast.CompositeLit:
