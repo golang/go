@@ -402,7 +402,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 	return false
 }
 
-func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
 	rs := r.Xsym
 
 	emitReloc := func(v uint16, off uint64) {
@@ -412,12 +412,12 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	}
 
 	var v uint16
-	switch r.Type() {
+	switch r.Type {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		v = ld.XCOFF_R_POS
-		if r.Siz() == 4 {
+		if r.Size == 4 {
 			v |= 0x1F << 8
 		} else {
 			v |= 0x3F << 8
@@ -430,7 +430,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	case objabi.R_POWER_TLS_LE:
 		emitReloc(ld.XCOFF_R_TLS_LE|0x0F<<8, 2)
 	case objabi.R_CALLPOWER:
-		if r.Siz() != 4 {
+		if r.Size != 4 {
 			return false
 		}
 		emitReloc(ld.XCOFF_R_RBR|0x19<<8, 0)
@@ -441,9 +441,9 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 
 }
 
-func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
-	rt := r.Type()
+	rt := r.Type
 	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
 	} else {
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
@@ -457,7 +457,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		switch r.Siz() {
+		switch r.Size {
 		case 4:
 			out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
 		case 8:
@@ -506,7 +506,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
 	case objabi.R_CALLPOWER:
-		if r.Siz() != 4 {
+		if r.Size != 4 {
 			return false
 		}
 		out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
@@ -527,7 +527,7 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 	}
 }
 
-func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool {
+func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
 	return false
 }
 

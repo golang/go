@@ -538,7 +538,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 }
 
 // Convert a Go relocation to an external relocation.
-func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri int) (loader.ExtReloc, bool) {
+func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2) (loader.ExtReloc, bool) {
 	var rr loader.ExtReloc
 	target := &ctxt.Target
 	siz := int32(r.Siz())
@@ -550,8 +550,8 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 	if rt >= objabi.ElfRelocOffset {
 		return rr, false
 	}
-
-	rr.Idx = ri
+	rr.Type = rt
+	rr.Size = uint8(siz)
 
 	// TODO(mundaym): remove this special case - see issue 14218.
 	if target.IsS390X() {
@@ -644,6 +644,8 @@ func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
 	rs := ldr.ResolveABIAlias(r.Sym())
 	rr.Xsym = rs
 	rr.Xadd = r.Add()
+	rr.Type = r.Type()
+	rr.Size = r.Siz()
 	return rr
 }
 
@@ -652,13 +654,16 @@ func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
 func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc2, s loader.Sym) loader.ExtReloc {
 	// set up addend for eventual relocation via outer symbol.
 	var rr loader.ExtReloc
-	rs, off := FoldSubSymbolOffset(ldr, r.Sym())
+	rs := ldr.ResolveABIAlias(r.Sym())
+	rs, off := FoldSubSymbolOffset(ldr, rs)
 	rr.Xadd = r.Add() + off
 	rst := ldr.SymType(rs)
 	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
 		ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 	}
 	rr.Xsym = rs
+	rr.Type = r.Type()
+	rr.Size = r.Siz()
 	return rr
 }
 

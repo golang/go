@@ -50,17 +50,10 @@ type Reloc struct {
 
 // ExtReloc contains the payload for an external relocation.
 type ExtReloc struct {
-	Idx  int // index of the original relocation
 	Xsym Sym
 	Xadd int64
-}
-
-// ExtRelocView is a view of an external relocation.
-// It is intended to be constructed on the fly, such as ExtRelocs.At.
-// It is not the data structure used to store the payload internally.
-type ExtRelocView struct {
-	Reloc2
-	ExtReloc
+	Type objabi.RelocType
+	Size uint8
 }
 
 // Reloc2 holds a "handle" to access a relocation record from an
