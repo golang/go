@@ -143,27 +143,15 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
 }
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
-	rs := ldr.ResolveABIAlias(r.Sym())
-	var rr loader.ExtReloc
 	switch r.Type() {
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
-		// set up addend for eventual relocation via outer symbol.
-		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
-		rr.Xadd = r.Add() + off
-		rst := ldr.SymType(rs)
-		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
-			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
-		}
-		rr.Xsym = rs
-		return rr, true
+		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 
 	case objabi.R_ADDRMIPSTLS,
 		objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
-		rr.Xsym = rs
-		rr.Xadd = r.Add()
-		return rr, true
+		return ld.ExtrelocSimple(ldr, r), true
 	}
-	return rr, false
+	return loader.ExtReloc{}, false
 }

@@ -627,9 +627,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 		return rr, false
 
 	case objabi.R_XCOFFREF:
-		rs := ldr.ResolveABIAlias(r.Sym())
-		rr.Xsym = rs
-		rr.Xadd = r.Add()
+		return ExtrelocSimple(ldr, r), true
 
 	// These reloc types don't need external relocations.
 	case objabi.R_ADDROFF, objabi.R_WEAKADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
@@ -637,6 +635,31 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc2, ri 
 		return rr, false
 	}
 	return rr, true
+}
+
+// ExtrelocSimple creates a simple external relocation from r, with the same
+// symbol and addend.
+func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc2) loader.ExtReloc {
+	var rr loader.ExtReloc
+	rs := ldr.ResolveABIAlias(r.Sym())
+	rr.Xsym = rs
+	rr.Xadd = r.Add()
+	return rr
+}
+
+// ExtrelocViaOuterSym creates an external relocation from r targeting the
+// outer symbol and folding the subsymbol's offset into the addend.
+func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc2, s loader.Sym) loader.ExtReloc {
+	// set up addend for eventual relocation via outer symbol.
+	var rr loader.ExtReloc
+	rs, off := FoldSubSymbolOffset(ldr, r.Sym())
+	rr.Xadd = r.Add() + off
+	rst := ldr.SymType(rs)
+	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+		ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+	}
+	rr.Xsym = rs
+	return rr
 }
 
 // relocSymState hold state information needed when making a series of
