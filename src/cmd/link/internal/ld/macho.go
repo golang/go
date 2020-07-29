@@ -1051,7 +1051,7 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At2(ri)
-			rr, ok := extreloc(ctxt, ldr, s, r, ri)
+			rr, ok := extreloc(ctxt, ldr, s, r)
 			if !ok {
 				continue
 			}
@@ -1062,8 +1062,7 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
 			if !ldr.AttrReachable(rr.Xsym) {
 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
 			}
-			rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
-			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}

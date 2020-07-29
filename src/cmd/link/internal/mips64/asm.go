@@ -41,7 +41,7 @@ import (
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
 
-func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
 
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
@@ -59,11 +59,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	out.Write8(0)
 	out.Write8(0)
 	out.Write8(0)
-	switch r.Type() {
+	switch r.Type {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
-		switch r.Siz() {
+		switch r.Size {
 		case 4:
 			out.Write8(uint8(elf.R_MIPS_32))
 		case 8:
@@ -90,7 +90,7 @@ func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loade
 	return
 }
 
-func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool {
+func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
 	return false
 }
 

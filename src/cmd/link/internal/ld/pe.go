@@ -522,7 +522,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 			relocs := ldr.Relocs(s)
 			for ri := 0; ri < relocs.Count(); ri++ {
 				r := relocs.At2(ri)
-				rr, ok := extreloc(ctxt, ldr, s, r, ri)
+				rr, ok := extreloc(ctxt, ldr, s, r)
 				if !ok {
 					continue
 				}
@@ -533,8 +533,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				if ldr.SymDynid(rr.Xsym) < 0 {
 					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
 				}
-				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
-				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
 					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
 				nrelocs++

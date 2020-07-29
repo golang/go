@@ -1708,7 +1708,7 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 
 			for _, ri := range sorted {
 				r := relocs.At2(ri)
-				rr, ok := extreloc(ctxt, ldr, s, r, ri)
+				rr, ok := extreloc(ctxt, ldr, s, r)
 				if !ok {
 					continue
 				}
@@ -1719,8 +1719,7 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 				if ldr.SymDynid(rr.Xsym) < 0 {
 					ldr.Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()), ldr.SymDynid(rr.Xsym))
 				}
-				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
-				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
 					ldr.Errorf(s, "unsupported obj reloc %d(%s)/%d to %s", r.Type(), r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
 			}

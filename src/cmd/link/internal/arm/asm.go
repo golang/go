@@ -248,12 +248,12 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	return false
 }
 
-func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
 	out.Write32(uint32(sectoff))
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
-	siz := r.Siz()
-	switch r.Type() {
+	siz := r.Size
+	switch r.Type {
 	default:
 		return false
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
@@ -270,7 +270,9 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		}
 	case objabi.R_CALLARM:
 		if siz == 4 {
-			if r.Add()&0xff000000 == 0xeb000000 { // BL
+			relocs := ldr.Relocs(s)
+			r := relocs.At2(ri)
+			if r.Add()&0xff000000 == 0xeb000000 { // BL // TODO: using r.Add here is bad (issue 19811)
 				out.Write32(uint32(elf.R_ARM_CALL) | uint32(elfsym)<<8)
 			} else {
 				out.Write32(uint32(elf.R_ARM_JUMP24) | uint32(elfsym)<<8)
@@ -318,13 +320,13 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 	}
 }
 
-func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool {
+func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
 	return false
 }
 
-func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, sectoff int64) bool {
 	rs := r.Xsym
-	rt := r.Type()
+	rt := r.Type
 
 	if ldr.SymDynid(rs) < 0 {
 		ldr.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
@@ -590,6 +592,8 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.S
 			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 		}
 		rr.Xsym = rs
+		rr.Type = r.Type()
+		rr.Size = r.Siz()
 		return rr, true
 	}
 	return rr, false
