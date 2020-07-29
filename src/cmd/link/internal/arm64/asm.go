@@ -56,24 +56,18 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	// 	4: R_AARCH64_ADD_ABS_LO12_NC	local.moduledata
 	o(0x90000000)
 	o(0x91000000)
-	rel := loader.Reloc{
-		Off:  0,
-		Size: 8,
-		Type: objabi.R_ADDRARM64,
-		Sym:  ctxt.Moduledata,
-	}
-	initfunc.AddReloc(rel)
+	rel, _ := initfunc.AddRel(objabi.R_ADDRARM64)
+	rel.SetOff(0)
+	rel.SetSiz(8)
+	rel.SetSym(ctxt.Moduledata)
 
 	// 8:	14000000 	b	0 <runtime.addmoduledata>
 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
 	o(0x14000000)
-	rel2 := loader.Reloc{
-		Off:  8,
-		Size: 4,
-		Type: objabi.R_CALLARM64, // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
-		Sym:  addmoduledata,
-	}
-	initfunc.AddReloc(rel2)
+	rel2, _ := initfunc.AddRel(objabi.R_CALLARM64)
+	rel2.SetOff(8)
+	rel2.SetSiz(4)
+	rel2.SetSym(addmoduledata)
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {

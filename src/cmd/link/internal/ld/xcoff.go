@@ -1201,7 +1201,9 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 
 	// Relocation to retrieve the external address
 	sb.AddBytes(make([]byte, 8))
-	sb.AddReloc(loader.Reloc{Off: 0, Size: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: extsym.Sym()})
+	r, _ := sb.AddRel(objabi.R_ADDR)
+	r.SetSym(extsym.Sym())
+	r.SetSiz(uint8(ctxt.Arch.PtrSize))
 	// TODO: maybe this could be
 	// sb.SetSize(0)
 	// sb.SetData(nil)

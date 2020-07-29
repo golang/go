@@ -118,18 +118,10 @@ func (sb *SymbolBuilder) Relocs() Relocs {
 	return sb.l.Relocs(sb.symIdx)
 }
 
-func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
-	n := len(rslice)
-	if cap(sb.relocs) < n {
-		sb.relocs = make([]goobj2.Reloc, n)
-		sb.reltypes = make([]objabi.RelocType, n)
-	} else {
-		sb.relocs = sb.relocs[:n]
-		sb.reltypes = sb.reltypes[:n]
-	}
-	for i := range rslice {
-		sb.SetReloc(i, rslice[i])
-	}
+// ResetRelocs removes all relocations on this symbol.
+func (sb *SymbolBuilder) ResetRelocs() {
+	sb.relocs = sb.relocs[:0]
+	sb.reltypes = sb.reltypes[:0]
 }
 
 // SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
@@ -178,26 +170,6 @@ func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[
 func (p *relocsByOff) Swap(i, j int) {
 	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
 	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
-}
-
-// AddReloc appends the specified reloc to the symbols list of
-// relocations. Return value is the index of the newly created
-// reloc.
-func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
-	// Populate a goobj2.Reloc from external reloc record.
-	rval := uint32(len(sb.relocs))
-	var b goobj2.Reloc
-	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
-	sb.relocs = append(sb.relocs, b)
-	sb.reltypes = append(sb.reltypes, r.Type)
-	return rval
-}
-
-// Update the j-th relocation in place.
-func (sb *SymbolBuilder) SetReloc(j int, r Reloc) {
-	// Populate a goobj2.Reloc from external reloc record.
-	sb.relocs[j].Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
-	sb.reltypes[j] = r.Type
 }
 
 func (sb *SymbolBuilder) Reachable() bool {
@@ -323,14 +295,12 @@ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int
 		sb.size = off + int64(arch.PtrSize)
 		sb.Grow(sb.size)
 	}
-	var r Reloc
-	r.Sym = tgt
-	r.Off = int32(off)
-	r.Size = uint8(arch.PtrSize)
-	r.Type = objabi.R_ADDR
-	r.Add = add
-	sb.AddReloc(r)
-	return off + int64(r.Size)
+	r, _ := sb.AddRel(objabi.R_ADDR)
+	r.SetSym(tgt)
+	r.SetOff(int32(off))
+	r.SetSiz(uint8(arch.PtrSize))
+	r.SetAdd(add)
+	return off + int64(r.Siz())
 }
 
 func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
@@ -361,15 +331,13 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
 	sb.size += int64(rsize)
 	sb.Grow(sb.size)
 
-	var r Reloc
-	r.Sym = tgt
-	r.Off = int32(i)
-	r.Size = uint8(rsize)
-	r.Type = typ
-	r.Add = add
-	sb.AddReloc(r)
+	r, _ := sb.AddRel(typ)
+	r.SetSym(tgt)
+	r.SetOff(int32(i))
+	r.SetSiz(uint8(rsize))
+	r.SetAdd(add)
 
-	return i + int64(r.Size)
+	return i + int64(rsize)
 }
 
 // Add a symbol reference (relocation) with given type, addend, and size

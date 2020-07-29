@@ -1115,7 +1115,9 @@ func initdynimport(ctxt *Link) *Dll {
 				}
 				dynSym := ldr.CreateSymForUpdate(dynName, 0)
 				dynSym.SetType(sym.SHOSTOBJ)
-				sb.AddReloc(loader.Reloc{Sym: dynSym.Sym(), Type: objabi.R_ADDR, Off: 0, Size: uint8(ctxt.Arch.PtrSize)})
+				r, _ := sb.AddRel(objabi.R_ADDR)
+				r.SetSym(dynSym.Sym())
+				r.SetSiz(uint8(ctxt.Arch.PtrSize))
 			}
 		}
 	} else {
