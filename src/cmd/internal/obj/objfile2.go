@@ -367,7 +367,8 @@ func contentHash64(s *LSym) goobj2.Hash64Type {
 // consistent.
 // - For referenced content-addressable symbol, its content hash
 //   is globally consistent.
-// - For package symbol, its local index is globally consistent.
+// - For package symbol and builtin symbol, its local index is
+//   globally consistent.
 // - For non-package symbol, its fully-expanded name is globally
 //   consistent. For now, we require we know the current package
 //   path so we can always expand symbol names. (Otherwise,
@@ -398,11 +399,13 @@ func (w *writer) contentHash(s *LSym) goobj2.HashType {
 			h.Write([]byte{1})
 			t := w.contentHash(rs)
 			h.Write(t[:])
-		case goobj2.PkgIdxBuiltin:
-			panic("unsupported")
 		case goobj2.PkgIdxNone:
 			h.Write([]byte{2})
 			io.WriteString(h, rs.Name) // name is already expanded at this point
+		case goobj2.PkgIdxBuiltin:
+			h.Write([]byte{3})
+			binary.LittleEndian.PutUint32(tmp[:4], uint32(rs.SymIdx))
+			h.Write(tmp[:4])
 		case goobj2.PkgIdxSelf:
 			io.WriteString(h, w.pkgpath)
 			binary.LittleEndian.PutUint32(tmp[:4], uint32(rs.SymIdx))

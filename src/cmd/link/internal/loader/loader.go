@@ -277,6 +277,8 @@ type Loader struct {
 
 	flags uint32
 
+	hasUnknownPkgPath bool // if any Go object has unknown package path
+
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
 	elfsetstring elfsetstringFunc
@@ -378,6 +380,9 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	i := Sym(len(l.objSyms))
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
+	if r.NeedNameExpansion() && !r.FromAssembly() {
+		l.hasUnknownPkgPath = true
+	}
 	return i
 }
 
@@ -2086,6 +2091,16 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 	case hashedDef:
 		start = uint32(r.ndef + r.nhashed64def)
 		end = uint32(r.ndef + r.nhashed64def + r.nhasheddef)
+		if l.hasUnknownPkgPath {
+			// The content hash depends on symbol name expansion. If any package is
+			// built without fully expanded names, the content hash is unreliable.
+			// Treat them as named symbols.
+			// This is rare.
+			// (We don't need to do this for hashed64Def case, as there the hash
+			// function is simply the identity function, which doesn't depend on
+			// name expansion.)
+			kind = nonPkgDef
+		}
 	case nonPkgDef:
 		start = uint32(r.ndef + r.nhashed64def + r.nhasheddef)
 		end = uint32(r.ndef + r.nhashed64def + r.nhasheddef + r.NNonpkgdef())
