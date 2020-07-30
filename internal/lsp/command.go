@@ -150,7 +150,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err := source.UnmarshalArgs(params.Arguments, &fileURI); err != nil {
 			return nil, err
 		}
-		pkgDir := span.URI(path.Dir(fileURI.Filename()))
+		pkgDir := span.URIFromPath(path.Dir(fileURI.Filename()))
 		s.gcOptimizationDetailsMu.Lock()
 		if _, ok := s.gcOptimizatonDetails[pkgDir]; ok {
 			delete(s.gcOptimizatonDetails, pkgDir)
