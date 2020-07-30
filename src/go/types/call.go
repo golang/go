@@ -521,6 +521,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
+	if x.mode == typexpr && isGeneric(x.typ) {
+		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
+		goto Error
+	}
+
 	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
