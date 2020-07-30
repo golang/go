@@ -68,6 +68,15 @@ func F21(type *T Z21)() { ( /* ERROR not used */ F21(Z21)) }
 type T24(type P) P
 func (r T24(P)) m() { T24 /* ERROR without instantiation */ .m() }
 
+// crash 25
+type T25(type A) int
+func (t T25(A)) m1() {}
+var x T25 /* ERROR without instantiation */ .m1
+
+// crash 26
+type T26 = interface{ F26(type Z)() }
+func F26(type Z)() T26 { return F26() /* ERROR cannot infer Z */ }
+
 // crash 27
 func e27(type T)() interface{ (x27 /* ERROR not a type */ ) }
 func x27() { e27() /* ERROR cannot infer T */ }

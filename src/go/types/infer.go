@@ -200,7 +200,9 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 		return isParameterizedList(t.types, seen)
 
 	case *Signature:
-		assert(t.tparams == nil) // TODO(gri) is this correct?
+		// t.tparams may not be nil if we are looking at a signature
+		// of a function type (or an interface method) that is part of
+		// the type we're testing. We don't care about these parameters.
 		// TODO(gri) Rethink check below.
 		//assert(t.recv == nil || !isParameterized(t.recv.typ))
 		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
