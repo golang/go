@@ -57,10 +57,15 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	if err != nil {
 		return nil, err
 	}
+
+	var benchFns []string
 	for _, d := range pgf.File.Decls {
 		fn, ok := d.(*ast.FuncDecl)
 		if !ok {
 			continue
+		}
+		if benchmarkRe.MatchString(fn.Name.Name) {
+			benchFns = append(benchFns, fn.Name.Name)
 		}
 		rng, err := newMappedRange(snapshot.FileSet(), pgf.Mapper, d.Pos(), d.Pos()).Range()
 		if err != nil {
@@ -68,7 +73,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		}
 
 		if matchTestFunc(fn, pkg, testRe, "T") {
-			jsonArgs, err := MarshalArgs(fh.URI(), "-run", fn.Name.Name)
+			jsonArgs, err := MarshalArgs(fh.URI(), []string{fn.Name.Name}, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -83,7 +88,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		}
 
 		if matchTestFunc(fn, pkg, benchmarkRe, "B") {
-			jsonArgs, err := MarshalArgs(fh.URI(), "-bench", fn.Name.Name)
+			jsonArgs, err := MarshalArgs(fh.URI(), nil, []string{fn.Name.Name})
 			if err != nil {
 				return nil, err
 			}
@@ -97,6 +102,23 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			})
 		}
 	}
+	// add a code lens to the top of the file which runs all benchmarks in the file
+	rng, err := newMappedRange(snapshot.FileSet(), pgf.Mapper, pgf.File.Package, pgf.File.Package).Range()
+	if err != nil {
+		return nil, err
+	}
+	args, err := MarshalArgs(fh.URI(), []string{}, benchFns)
+	if err != nil {
+		return nil, err
+	}
+	codeLens = append(codeLens, protocol.CodeLens{
+		Range: rng,
+		Command: protocol.Command{
+			Title:     "run file benchmarks",
+			Command:   CommandTest.Name,
+			Arguments: args,
+		},
+	})
 	return codeLens, nil
 }
 

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"strings"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -97,9 +96,8 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	switch command {
 	case source.CommandTest:
 		var uri protocol.DocumentURI
-		var flag string
-		var funcName string
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &flag, &funcName); err != nil {
+		var tests, benchmarks []string
+		if err := source.UnmarshalArgs(params.Arguments, &uri, &tests, &benchmarks); err != nil {
 			return nil, err
 		}
 		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
@@ -107,7 +105,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
-		go s.runTest(ctx, snapshot, []string{flag, funcName}, params.WorkDoneToken)
+		go s.runTests(ctx, snapshot, uri, params.WorkDoneToken, tests, benchmarks)
 	case source.CommandGenerate:
 		var uri protocol.DocumentURI
 		var recursive bool
@@ -193,26 +191,74 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	return snapshot.RunGoCommandDirect(ctx, verb, args)
 }
 
-func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []string, token protocol.ProgressToken) error {
+func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, token protocol.ProgressToken, tests, benchmarks []string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	pkgs, err := snapshot.PackagesForFile(ctx, uri.SpanURI())
+	if err != nil {
+		return err
+	}
+	if len(pkgs) == 0 {
+		return fmt.Errorf("package could not be found for file: %s", uri.SpanURI().Filename())
+	}
+	pkgPath := pkgs[0].PkgPath()
+
+	// create output
 	ew := &eventWriter{ctx: ctx, operation: "test"}
-	msg := fmt.Sprintf("running `go test %s`", strings.Join(args, " "))
-	wc := s.progress.newWriter(ctx, "test", msg, msg, token, cancel)
+	var title string
+	if len(tests) > 0 && len(benchmarks) > 0 {
+		title = "tests and benchmarks"
+	} else if len(tests) > 0 {
+		title = "tests"
+	} else if len(benchmarks) > 0 {
+		title = "benchmarks"
+	} else {
+		return errors.New("No functions were provided")
+	}
+	msg := fmt.Sprintf("Running %s...", title)
+	wc := s.progress.newWriter(ctx, title, msg, msg, token, cancel)
 	defer wc.Close()
 
-	messageType := protocol.Info
-	message := "test passed"
 	stderr := io.MultiWriter(ew, wc)
 
-	if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
-		if errors.Is(err, context.Canceled) {
-			return err
+	// run `go test -run Func` on each test
+	var failedTests int
+	for _, funcName := range tests {
+		args := []string{pkgPath, "-run", fmt.Sprintf("^%s$", funcName)}
+		if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			failedTests++
 		}
-		messageType = protocol.Error
-		message = "test failed"
 	}
+
+	// run `go test -run=^$ -bench Func` on each test
+	var failedBenchmarks int
+	for _, funcName := range tests {
+		args := []string{pkgPath, "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)}
+		if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			failedBenchmarks++
+		}
+	}
+
+	messageType := protocol.Info
+	message := fmt.Sprintf("all %s passed", title)
+	if failedTests > 0 || failedBenchmarks > 0 {
+		messageType = protocol.Error
+	}
+	if failedTests > 0 && failedBenchmarks > 0 {
+		message = fmt.Sprintf("%d / %d tests failed and %d / %d benchmarks failed", failedTests, len(tests), failedBenchmarks, len(benchmarks))
+	} else if failedTests > 0 {
+		message = fmt.Sprintf("%d / %d tests failed", failedTests, len(tests))
+	} else if failedBenchmarks > 0 {
+		message = fmt.Sprintf("%d / %d benchmarks failed", failedBenchmarks, len(benchmarks))
+	}
+
 	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 		Type:    messageType,
 		Message: message,

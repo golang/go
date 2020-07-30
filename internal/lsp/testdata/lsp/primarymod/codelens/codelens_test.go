@@ -1,4 +1,4 @@
-package codelens
+package codelens //@codelens("package codelens", "run file benchmarks", "test")
 
 import "testing"
 
