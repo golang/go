@@ -300,6 +300,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.UsedInIface() {
 		flag2 |= goobj2.SymFlagUsedInIface
 	}
+	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
+		flag2 |= goobj2.SymFlagItab
+	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)

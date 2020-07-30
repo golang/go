@@ -28,9 +28,15 @@ func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (ctxt *Link) typelink() {
 	ldr := ctxt.loader
 	typelinks := byTypeStr{}
+	var itabs []loader.Sym
 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
-		if ldr.AttrReachable(s) && ldr.IsTypelink(s) {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		if ldr.IsTypelink(s) {
 			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ldr, ctxt.Arch, s), s})
+		} else if ldr.IsItab(s) {
+			itabs = append(itabs, s)
 		}
 	}
 	sort.Sort(typelinks)
@@ -47,5 +53,20 @@ func (ctxt *Link) typelink() {
 		r.SetOff(int32(i * 4))
 		r.SetSiz(4)
 		r.SetType(objabi.R_ADDROFF)
+	}
+
+	ptrsize := ctxt.Arch.PtrSize
+	il := ldr.CreateSymForUpdate("runtime.itablink", 0)
+	il.SetType(sym.SITABLINK)
+	ldr.SetAttrLocal(il.Sym(), true)
+	il.SetSize(int64(ptrsize * len(itabs)))
+	il.Grow(il.Size())
+	relocs = il.AddRelocs(len(itabs))
+	for i, s := range itabs {
+		r := relocs.At(i)
+		r.SetSym(s)
+		r.SetOff(int32(i * ptrsize))
+		r.SetSiz(uint8(ptrsize))
+		r.SetType(objabi.R_ADDR)
 	}
 }

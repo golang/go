@@ -306,22 +306,6 @@ func deadcode(ctxt *Link) {
 		}
 		d.flood()
 	}
-
-	n := ldr.NSym()
-
-	if ctxt.BuildMode != BuildModeShared {
-		// Keep a itablink if the symbol it points at is being kept.
-		// (When BuildModeShared, always keep itablinks.)
-		for i := 1; i < n; i++ {
-			s := loader.Sym(i)
-			if ldr.IsItabLink(s) {
-				relocs := ldr.Relocs(s)
-				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At(0).Sym()) {
-					ldr.SetAttrReachable(s, true)
-				}
-			}
-		}
-	}
 }
 
 // methodsig is a typed method signature (name + type).

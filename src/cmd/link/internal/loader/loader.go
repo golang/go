@@ -217,8 +217,7 @@ type Loader struct {
 
 	align []uint8 // symbol 2^N alignment, indexed by global index
 
-	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
-	deferReturnTramp map[Sym]bool     // whether the symbol is a trampoline of a deferreturn call
+	deferReturnTramp map[Sym]bool // whether the symbol is a trampoline of a deferreturn call
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
@@ -352,7 +351,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		generatedSyms:        make(map[Sym]struct{}),
-		itablink:             make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
@@ -1163,12 +1161,13 @@ func (l *Loader) IsTypelink(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
 }
 
-// Returns whether this is a "go.itablink.*" symbol.
-func (l *Loader) IsItabLink(i Sym) bool {
-	if _, ok := l.itablink[i]; ok {
-		return true
+// Returns whether this symbol is an itab symbol.
+func (l *Loader) IsItab(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
 	}
-	return false
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsItab()
 }
 
 // Return whether this is a trampoline of a deferreturn call.
@@ -2138,9 +2137,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if osym.UsedInIface() {
 			l.SetAttrUsedInIface(gi, true)
-		}
-		if strings.HasPrefix(name, "go.itablink.") {
-			l.itablink[gi] = struct{}{}
 		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
