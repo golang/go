@@ -25,7 +25,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
-		unreachable()
+		// we may get here because of other problems (issue #39634, crash 12)
+		check.errorf(x.pos(), "cannot assign %s to %s in %s", x, T, context)
+		return
 	}
 
 	if isUntyped(x.typ) {

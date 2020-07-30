@@ -30,6 +30,9 @@ type foo8(type A) interface { type A }
 func bar8(type A foo8(A))(a A) {}
 func main8() {}
 
+// crash 12
+var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len)]c /* ERROR undeclared */ /* ERROR undeclared */
+
 // crash 15
 func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15(string){} }
 type G15(type X) s /* ERROR undeclared name */
