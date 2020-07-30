@@ -62,7 +62,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 		// If we permit bidirectional unification, this conditional code needs to be
 		// executed even if par.typ is not parameterized since the argument may be a
 		// generic function (for which we want to infer // its type arguments).
-		if IsParameterized(par.typ) {
+		if isParameterized(tparams, par.typ) {
 			if arg.mode == invalid {
 				// An error was reported earlier. Ignore this targ
 				// and continue, we may still be able to infer all
@@ -148,24 +148,28 @@ func typeNamesString(list []*TypeName) string {
 	return b.String()
 }
 
-// IsParameterized reports whether typ contains any type parameters.
-// TODO(gri) This is not strictly correct. We only want the free
-// type parameters for a given type. (At the moment, the only way
-// to mix free and bound type parameters is through method type parameters
-// on parameterized receiver types - need to investigate.)
-func IsParameterized(typ Type) bool {
-	return isParameterized(typ, make(map[Type]bool))
+// IsParameterized reports whether typ contains any of the type parameters of tparams.
+func isParameterized(tparams []*TypeName, typ Type) bool {
+	w := tpWalker{
+		seen:    make(map[Type]bool),
+		tparams: tparams,
+	}
+	return w.isParameterized(typ)
 }
 
-func isParameterized(typ Type, seen map[Type]bool) (res bool) {
+type tpWalker struct {
+	seen    map[Type]bool
+	tparams []*TypeName
+}
+
+func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	// detect cycles
-	// TODO(gri) can/should this be a Checker map?
-	if x, ok := seen[typ]; ok {
+	if x, ok := w.seen[typ]; ok {
 		return x
 	}
-	seen[typ] = false
+	w.seen[typ] = false
 	defer func() {
-		seen[typ] = res
+		w.seen[typ] = res
 	}()
 
 	switch t := typ.(type) {
@@ -173,74 +177,77 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 		break
 
 	case *Array:
-		return isParameterized(t.elem, seen)
+		return w.isParameterized(t.elem)
 
 	case *Slice:
-		return isParameterized(t.elem, seen)
+		return w.isParameterized(t.elem)
 
 	case *Struct:
 		for _, fld := range t.fields {
-			if isParameterized(fld.typ, seen) {
+			if w.isParameterized(fld.typ) {
 				return true
 			}
 		}
 
 	case *Pointer:
-		return isParameterized(t.base, seen)
+		return w.isParameterized(t.base)
 
 	case *Tuple:
 		n := t.Len()
 		for i := 0; i < n; i++ {
-			if isParameterized(t.At(i).typ, seen) {
+			if w.isParameterized(t.At(i).typ) {
 				return true
 			}
 		}
 
 	case *Sum:
-		return isParameterizedList(t.types, seen)
+		return w.isParameterizedList(t.types)
 
 	case *Signature:
 		// t.tparams may not be nil if we are looking at a signature
-		// of a function type (or an interface method) that is part of
-		// the type we're testing. We don't care about these parameters.
-		// TODO(gri) Rethink check below.
-		//assert(t.recv == nil || !isParameterized(t.recv.typ))
-		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
+		// of a generic function type (or an interface method) that is
+		// part of the type we're testing. We don't care about these type
+		// parameters.
+		// Similarly, the receiver of a method may declare (rather then
+		// use) type parameters, we don't care about those either.
+		// Thus, we only need to look at the input and result parameters.
+		return w.isParameterized(t.params) || w.isParameterized(t.results)
 
 	case *Interface:
 		if t.allMethods != nil {
 			// interface is complete - quick test
 			for _, m := range t.allMethods {
-				if isParameterized(m.typ, seen) {
+				if w.isParameterized(m.typ) {
 					return true
 				}
 			}
-			return isParameterizedList(unpack(t.allTypes), seen)
+			return w.isParameterizedList(unpack(t.allTypes))
 		}
 
 		return t.iterate(func(t *Interface) bool {
 			for _, m := range t.methods {
-				if isParameterized(m.typ, seen) {
+				if w.isParameterized(m.typ) {
 					return true
 				}
 			}
-			return isParameterizedList(unpack(t.types), seen)
+			return w.isParameterizedList(unpack(t.types))
 		}, nil)
 
 	case *Map:
-		return isParameterized(t.key, seen) || isParameterized(t.elem, seen)
+		return w.isParameterized(t.key) || w.isParameterized(t.elem)
 
 	case *Chan:
-		return isParameterized(t.elem, seen)
+		return w.isParameterized(t.elem)
 
 	case *Named:
-		return isParameterizedList(t.targs, seen)
+		return w.isParameterizedList(t.targs)
 
 	case *TypeParam:
-		return true
+		// t must be one of w.tparams
+		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
 
 	case *instance:
-		return isParameterizedList(t.targs, seen)
+		return w.isParameterizedList(t.targs)
 
 	default:
 		unreachable()
@@ -249,14 +256,9 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 	return false
 }
 
-// IsParameterizedList reports whether any type in list is parameterized.
-func IsParameterizedList(list []Type) bool {
-	return isParameterizedList(list, make(map[Type]bool))
-}
-
-func isParameterizedList(list []Type, seen map[Type]bool) bool {
+func (w *tpWalker) isParameterizedList(list []Type) bool {
 	for _, t := range list {
-		if isParameterized(t, seen) {
+		if w.isParameterized(t) {
 			return true
 		}
 	}
