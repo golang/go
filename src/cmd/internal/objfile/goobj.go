@@ -7,7 +7,7 @@
 package objfile
 
 import (
-	"cmd/internal/goobj"
+	goobj "cmd/internal/archive"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/dwarf"
