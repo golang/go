@@ -28,7 +28,8 @@ func bar() string {
 		3,
 	}
 	_ = [2]string{"d",
-		"e"}
+		"e"
+	}
 	_ = map[string]int{
 		"a": 1,
 		"b": 2,
