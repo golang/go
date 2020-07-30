@@ -179,7 +179,7 @@ func (sb *Sandbox) GoEnv() map[string]string {
 }
 
 // RunGoCommand executes a go command in the sandbox.
-func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string) error {
+func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string) error {
 	var vars []string
 	for k, v := range sb.GoEnv() {
 		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
@@ -189,10 +189,13 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 		Args: args,
 		Env:  vars,
 	}
+	// Use the provided directory for the working directory, if available.
 	// sb.Workdir may be nil if we exited the constructor with errors (we call
 	// Close to clean up any partial state from the constructor, which calls
 	// RunGoCommand).
-	if sb.Workdir != nil {
+	if dir != "" {
+		inv.WorkingDir = sb.Workdir.filePath(dir)
+	} else if sb.Workdir != nil {
 		inv.WorkingDir = sb.Workdir.workdir
 	}
 	gocmdRunner := &gocommand.Runner{}
@@ -214,7 +217,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 func (sb *Sandbox) Close() error {
 	var goCleanErr error
 	if sb.gopath != "" {
-		goCleanErr = sb.RunGoCommand(context.Background(), "clean", "-modcache")
+		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"})
 	}
 	err := os.RemoveAll(sb.basedir)
 	if err != nil || goCleanErr != nil {

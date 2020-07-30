@@ -573,3 +573,48 @@ func main() {
 		)
 	})
 }
+
+// Reproduces golang/go#37069.
+func TestSwitchFromGOPATHToModules(t *testing.T) {
+	t.Skipf("golang/go#37069 is not yet resolved.")
+
+	const files = `
+-- foo/blah/blah.go --
+package blah
+
+const Name = ""
+-- foo/main.go --
+package main
+
+import "blah"
+
+func main() {
+	_ = blah.Name
+}
+`
+	withOptions(InGOPATH()).run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("foo/main.go")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+				env.DiagnosticAtRegexp("foo/main.go", `"blah"`),
+			),
+		)
+		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}); err != nil {
+			t.Fatal(err)
+		}
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DiagnosticAtRegexp("foo/main.go", `"blah`),
+			),
+		)
+		env.RegexpReplace("foo/main.go", `"blah"`, `"mod.com/blah"`)
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+				NoDiagnostics("foo/main.go"),
+			),
+		)
+	})
+}

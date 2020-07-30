@@ -238,7 +238,7 @@ go 1.12
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
 			env.DiagnosticAtRegexp("go.mod", "require"),
 		)
-		env.Sandbox.RunGoCommand(env.Ctx, "mod", "tidy")
+		env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"tidy"})
 		env.Await(
 			EmptyDiagnostics("go.mod"),
 		)
