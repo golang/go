@@ -1904,14 +1904,14 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
 	/* itablink */
-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.itablink", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.eitablink", 0), sect)
-	if ctxt.HeadType == objabi.Haix {
-		// Store .itablink size because its symbols are wrapped
-		// under an outer symbol: runtime.itablink.
-		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
-	}
+	sect = state.allocateNamedDataSection(seg, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroSecPerm)
+
+	itablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
+	ldr.SetSymSect(itablink.Sym(), sect)
+	itablink.SetType(sym.SRODATA)
+	state.datsize += itablink.Size()
+	state.checkdatsize(sym.SITABLINK)
+	sect.Length = uint64(state.datsize) - sect.Vaddr
 
 	/* gosymtab */
 	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
@@ -2414,11 +2414,10 @@ func (ctxt *Link) address() []*sym.Segment {
 
 	ldr := ctxt.loader
 	var (
-		rodata   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
-		itablink = ldr.SymSect(ldr.LookupOrCreateSym("runtime.itablink", 0))
-		symtab   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
-		pclntab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
-		types    = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
+		rodata  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
+		symtab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
+		pclntab = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
+		types   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
 	)
 
 	for _, s := range ctxt.datap {
@@ -2474,8 +2473,6 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	ctxt.xdefine("runtime.types", sym.SRODATA, int64(types.Vaddr))
 	ctxt.xdefine("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
-	ctxt.xdefine("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
-	ctxt.xdefine("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
 	s := ldr.Lookup("runtime.gcdata", 0)
 	ldr.SetAttrLocal(s, true)

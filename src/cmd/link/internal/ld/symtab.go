@@ -416,8 +416,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
-	ctxt.xdefine("runtime.itablink", sym.SRODATA, 0)
-	ctxt.xdefine("runtime.eitablink", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
@@ -489,15 +487,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		}
 	}
 
-	symitablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
-	symitablink.SetType(sym.SITABLINK)
-
 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
 	symt.SetType(sym.SSYMTAB)
 	symt.SetSize(0)
 	symt.SetLocal(true)
-
-	nitablinks := 0
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
@@ -535,12 +528,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			// Keep go.importpath symbols in the same section as types and
 			// names, as they can be referred to by a section offset.
 			symGroupType[s] = sym.STYPERELRO
-
-		case strings.HasPrefix(name, "go.itablink."):
-			nitablinks++
-			symGroupType[s] = sym.SITABLINK
-			ldr.SetAttrNotInSymbolTable(s, true)
-			ldr.SetCarrierSym(s, symitablink.Sym())
 
 		case strings.HasPrefix(name, "go.string."):
 			symGroupType[s] = sym.SGOSTRING
@@ -672,7 +659,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddUint(ctxt.Arch, ntypelinks)
 	moduledata.AddUint(ctxt.Arch, ntypelinks)
 	// The itablinks slice
-	moduledata.AddAddr(ctxt.Arch, symitablink.Sym())
+	itablinkSym := ldr.Lookup("runtime.itablink", 0)
+	nitablinks := uint64(ldr.SymSize(itablinkSym)) / uint64(ctxt.Arch.PtrSize)
+	moduledata.AddAddr(ctxt.Arch, itablinkSym)
 	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
 	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
 	// The ptab slice
