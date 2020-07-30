@@ -658,7 +658,7 @@ func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc, s loader.Sym) loade
 	rs, off := FoldSubSymbolOffset(ldr, rs)
 	rr.Xadd = r.Add() + off
 	rst := ldr.SymType(rs)
-	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+	if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
 		ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 	}
 	rr.Xsym = rs
