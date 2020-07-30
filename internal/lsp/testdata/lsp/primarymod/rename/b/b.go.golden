@@ -21,6 +21,7 @@ Hello description
 func Hello() {} //@rename("Hello", "Goodbye")
 
 -- Goodbye-rename --
+b.go:
 package b
 
 var c int //@rename("int", "uint")
@@ -41,6 +42,15 @@ var (
 Goodbye description
 */
 func Goodbye() {} //@rename("Hello", "Goodbye")
+
+c.go:
+package c
+
+import "golang.org/x/tools/internal/lsp/rename/b"
+
+func _() {
+	b.Goodbye() //@rename("Hello", "Goodbye")
+}
 
 -- error-rename --
 package b

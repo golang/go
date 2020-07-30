@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/xerrors"
 )
 
@@ -53,17 +54,21 @@ func references(ctx context.Context, s Snapshot, qos []qualifiedObject, includeD
 
 	// Make sure declaration is the first item in the response.
 	if includeDeclaration {
-		rng, err := objToMappedRange(s.View(), qos[0].pkg, qos[0].obj)
+		filename := s.View().Session().Cache().FileSet().Position(qos[0].obj.Pos()).Filename
+		pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
 		if err != nil {
 			return nil, err
 		}
-		ident, _ := qos[0].node.(*ast.Ident)
+		ident, err := findIdentifier(ctx, s, qos[0].pkg, pgf.File, qos[0].obj.Pos())
+		if err != nil {
+			return nil, err
+		}
 		references = append(references, &ReferenceInfo{
-			mappedRange:   rng,
+			mappedRange:   ident.mappedRange,
 			Name:          qos[0].obj.Name(),
-			ident:         ident,
+			ident:         ident.ident,
 			obj:           qos[0].obj,
-			pkg:           qos[0].pkg,
+			pkg:           ident.pkg,
 			isDeclaration: true,
 		})
 	}

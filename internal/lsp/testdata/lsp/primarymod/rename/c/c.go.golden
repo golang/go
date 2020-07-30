@@ -1,0 +1,32 @@
+-- Goodbye-rename --
+b.go:
+package b
+
+var c int //@rename("int", "uint")
+
+func _() {
+	a := 1 //@rename("a", "error")
+	a = 2
+	_ = a
+}
+
+var (
+	// Hello there.
+	// Foo does the thing.
+	Foo int //@rename("Foo", "Bob")
+)
+
+/*
+Goodbye description
+*/
+func Goodbye() {} //@rename("Hello", "Goodbye")
+
+c.go:
+package c
+
+import "golang.org/x/tools/internal/lsp/rename/b"
+
+func _() {
+	b.Goodbye() //@rename("Hello", "Goodbye")
+}
+

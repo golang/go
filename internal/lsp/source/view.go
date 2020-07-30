@@ -201,7 +201,7 @@ type ParsedModule struct {
 	ParseErrors []Error
 }
 
-// A TidedModule contains the results of running `go mod tidy` on a module.
+// A TidiedModule contains the results of running `go mod tidy` on a module.
 type TidiedModule struct {
 	memoize.NoCopy
 
