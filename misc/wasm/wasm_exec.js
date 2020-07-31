@@ -11,6 +11,7 @@
 	// - Node.js
 	// - Electron
 	// - Parcel
+	// - Webpack
 
 	if (typeof global !== "undefined") {
 		// global already exists
