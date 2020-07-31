@@ -22,7 +22,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
-		unreachable()
+		// we may get here because of other problems (issue #39634, crash 12)
+		check.errorf(x.pos(), "cannot assign %s to %s in %s", x, T, context)
+		return
 	}
 
 	if isUntyped(x.typ) {
@@ -284,7 +286,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 // TODO(gri) Should find a more efficient solution that doesn't
 //           require introduction of a new slice for simple
 //           expressions.
-func unpack(x syntax.Expr) []syntax.Expr {
+func unpackExpr(x syntax.Expr) []syntax.Expr {
 	if x, _ := x.(*syntax.ListExpr); x != nil {
 		return x.ElemList
 	}

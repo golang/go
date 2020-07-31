@@ -142,7 +142,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(x.typ.Under()); t := typ.(type) {
+		switch typ = implicitArrayDeref(optype(x.typ.Under())); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -176,9 +176,9 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				mode = value
 			}
 
-		case *TypeParam:
-			if t.Bound().is(func(t Type) bool {
-				switch t.(type) {
+		case *Sum:
+			if t.is(func(t Type) bool {
+				switch t := t.Under().(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -330,7 +330,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 		var src Type
-		switch t := y.typ.Under().(type) {
+		switch t := optype(y.typ.Under()).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
@@ -453,13 +453,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		var valid func(t Type) bool
 		valid = func(t Type) bool {
 			var m int
-			switch t := t.Under().(type) {
+			switch t := optype(t.Under()).(type) {
 			case *Slice:
 				m = 2
 			case *Map, *Chan:
 				m = 1
-			case *TypeParam:
-				return t.Bound().is(valid)
+			case *Sum:
+				return t.is(valid)
 			default:
 				return false
 			}
@@ -577,6 +577,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
+		if x.typ.TypeParam() != nil {
+			check.invalidOp(call.Pos(), "unsafe.Alignof undefined for %s", x)
+			return
+		}
 		check.assignment(x, nil, "argument to unsafe.Alignof")
 		if x.mode == invalid {
 			return
@@ -634,6 +638,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
+		if x.typ.TypeParam() != nil {
+			check.invalidOp(call.Pos(), "unsafe.Sizeof undefined for %s", x)
+			return
+		}
 		check.assignment(x, nil, "argument to unsafe.Sizeof")
 		if x.mode == invalid {
 			return
@@ -700,10 +708,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := x.TypeParam(); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
-		var resTypes []Type
+		var rtypes []Type
 		if !tp.Bound().is(func(x Type) bool {
 			if r := f(x); r != nil {
-				resTypes = append(resTypes, r)
+				rtypes = append(rtypes, r)
 				return true
 			}
 			return false
@@ -712,14 +720,15 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		}
 
 		// TODO(gri) Would it be ok to return just the one type
-		//           if len(resType) == 1? What about top-level
+		//           if len(rtypes) == 1? What about top-level
 		//           uses of real() where the result is used to
 		//           define type and initialize a variable?
 
 		// construct a suitable new type parameter
 		tpar := NewTypeName(nopos, nil /* = Universe pkg */, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		ptyp.bound = &Interface{types: resTypes, allMethods: markComplete, allTypes: resTypes}
+		ptyp := check.NewTypeParam(tp.ptr, tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+		tsum := NewSum(rtypes)
+		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
 
 		return ptyp
 	}

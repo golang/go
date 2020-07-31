@@ -28,10 +28,12 @@ package types2_test
 import (
 	"cmd/compile/internal/syntax"
 	"flag"
+	"fmt"
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -44,82 +46,6 @@ var (
 	listErrors  = flag.Bool("errlist", false, "list errors")
 	testFiles   = flag.String("files", "", "space-separated list of test files")
 )
-
-// The test filenames do not end in .go so that they are invisible
-// to gofmt since they contain comments that must not change their
-// positions relative to surrounding tokens.
-
-// Each tests entry is list of files belonging to the same package.
-var tests = [][]string{
-	{"testdata/errors.src"},
-	{"testdata/importdecl0a.src", "testdata/importdecl0b.src"},
-	{"testdata/importdecl1a.src", "testdata/importdecl1b.src"},
-	{"testdata/importC.src"}, // special handling in checkFiles
-	{"testdata/cycles.src"},
-	{"testdata/cycles1.src"},
-	{"testdata/cycles2.src"},
-	{"testdata/cycles3.src"},
-	{"testdata/cycles4.src"},
-	{"testdata/cycles5.src"},
-	{"testdata/init0.src"},
-	{"testdata/init1.src"},
-	{"testdata/init2.src"},
-	{"testdata/decls0.src"},
-	{"testdata/decls1.src"},
-	{"testdata/decls2a.src", "testdata/decls2b.src"},
-	{"testdata/decls3.src"},
-	{"testdata/decls4.src"},
-	{"testdata/decls5.src"},
-	{"testdata/const0.src"},
-	{"testdata/const1.src"},
-	{"testdata/constdecl.src"},
-	{"testdata/vardecl.src"},
-	{"testdata/expr0.src"},
-	{"testdata/expr1.src"},
-	{"testdata/expr2.src"},
-	{"testdata/expr3.src"},
-	{"testdata/methodsets.src"},
-	{"testdata/shifts.src"},
-	{"testdata/builtins.src"},
-	{"testdata/builtins.go2"},
-	{"testdata/conversions.src"},
-	{"testdata/conversions2.src"},
-	{"testdata/stmt0.src"},
-	{"testdata/stmt1.src"},
-	{"testdata/gotos.src"},
-	{"testdata/labels.src"},
-	{"testdata/literals.src"},
-	{"testdata/issues.src"},
-	{"testdata/blank.src"},
-	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
-	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
-	{"testdata/issue23203a.src"},
-	{"testdata/issue23203b.src"},
-	{"testdata/issue28251.src"},
-	{"testdata/issue6977.src"},
-
-	// Go 2 tests (type parameters and contracts)
-	{"testdata/tmp.go2"}, // used for ad-hoc tests - file contents transient
-	{"testdata/typeparams.go2"},
-	{"testdata/typeinst.go2"},
-	{"testdata/typeinst2.go2"},
-	// {"testdata/contracts.go2"}, // disabled for now
-	{"testdata/issues.go2"},
-	{"testdata/todos.go2"},
-
-	// Go 2 examples from design doc
-	{"testdata/slices.go2"},
-	{"testdata/chans.go2"},
-	{"testdata/map.go2"},
-	{"testdata/map2.go2"},
-	{"testdata/linalg.go2"},
-
-	// Go 2 prototype examples
-	// {"examples/contracts.go2"}, disabled for now
-	{"examples/functions.go2"},
-	{"examples/methods.go2"},
-	{"examples/types.go2"},
-}
 
 var fset = token.NewFileSet()
 
@@ -261,9 +187,9 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-func checkFiles(t *testing.T, testfiles []string) {
+func checkFiles(t *testing.T, sources []string, trace bool) {
 	// parse files and collect parser errors
-	files, errlist := parseFiles(t, testfiles)
+	files, errlist := parseFiles(t, sources)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -279,14 +205,14 @@ func checkFiles(t *testing.T, testfiles []string) {
 
 	// typecheck and collect typechecker errors
 	var conf Config
+	conf.AcceptMethodTypeParams = true
+	conf.InferFromConstraints = true
 	// special case for importC.src
-	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
+	if len(sources) == 1 && strings.HasSuffix(sources[0], "importC.src") {
 		conf.FakeImportC = true
 	}
-	conf.Trace = testing.Verbose()
-	// We don't use importer.Default() below so we can eventually
-	// get testdata/map.go2 to import chans (still to be fixed).
-	//conf.Importer = importer.ForCompiler(fset, "source", nil)
+	conf.Trace = trace
+	conf.Importer = defaultImporter()
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
@@ -323,22 +249,68 @@ func checkFiles(t *testing.T, testfiles []string) {
 	}
 }
 
+// TestCheck is for manual testing of selected input files, provided with -files.
 func TestCheck(t *testing.T) {
+	if *testFiles == "" {
+		return
+	}
+	testenv.MustHaveGoBuild(t)
+	DefPredeclaredTestFuncs()
+	checkFiles(t, strings.Split(*testFiles, " "), testing.Verbose())
+}
+
+func TestTestdata(t *testing.T) {
+	t.Skip("positions need to be fixed first")
+	DefPredeclaredTestFuncs()
+	testDir(t, "testdata")
+}
+func TestExamples(t *testing.T) {
+	t.Skip("positions need to be fixed first")
+	testDir(t, "examples")
+}
+func TestFixedbugs(t *testing.T) {
+	t.Skip("positions need to be fixed first")
+	testDir(t, "fixedbugs")
+}
+
+func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)
 
-	// Declare builtins for testing.
-	DefPredeclaredTestFuncs()
-
-	// If explicit test files are specified, only check those.
-	if files := *testFiles; files != "" {
-		checkFiles(t, strings.Split(files, " "))
+	fis, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Error(err)
 		return
 	}
 
-	t.Skip("requires error position corrections")
+	for count, fi := range fis {
+		path := filepath.Join(dir, fi.Name())
 
-	// Otherwise, run all the tests.
-	for _, files := range tests {
-		checkFiles(t, files)
+		// if fi is a directory, its files make up a single package
+		if fi.IsDir() {
+			if testing.Verbose() {
+				fmt.Printf("%3d %s\n", count, path)
+			}
+			fis, err := ioutil.ReadDir(path)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			files := make([]string, len(fis))
+			for i, fi := range fis {
+				// if fi is a directory, checkFiles below will complain
+				files[i] = filepath.Join(path, fi.Name())
+				if testing.Verbose() {
+					fmt.Printf("\t%s\n", files[i])
+				}
+			}
+			checkFiles(t, files, false)
+			continue
+		}
+
+		// otherwise, fi is a stand-alone file
+		if testing.Verbose() {
+			fmt.Printf("%3d %s\n", count, path)
+		}
+		checkFiles(t, []string{path}, false)
 	}
 }

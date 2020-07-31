@@ -158,9 +158,14 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if x.typ != Typ[Invalid] {
-			intro := " of type "
-			if isGeneric(x.typ) {
+			var intro string
+			switch {
+			case isGeneric(x.typ):
 				intro = " of generic type "
+			case x.typ.TypeParam() != nil:
+				intro = " of type parameter type "
+			default:
+				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
@@ -236,8 +241,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 		return true
 	}
 
-	Vu := V.Under()
-	Tu := T.Under()
+	Vu := optype(V.Under())
+	Tu := optype(T.Under())
 
 	// x is an untyped value representable by a value of type T
 	// TODO(gri) This is borrowing from checker.convertUntyped and
@@ -273,7 +278,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(V, false, Ti, true); m != nil /* Implements(V, Ti) */ {
+		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
 					if check.identical(m.typ, wrongType.typ) {

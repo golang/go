@@ -157,12 +157,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 				// initialize a variable with the function.
 			}
 
-		case *Contract:
-			// TODO(gri) is there anything else we need to do here?
-			if check.cycle(obj) {
-				obj.typ = Typ[Invalid]
-			}
-
 		default:
 			unreachable()
 		}
@@ -203,13 +197,6 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
-	// case *Contract:
-	// 	if !AcceptContracts {
-	// 		check.errorf(obj.pos, "contracts are not accepted")
-	// 		obj.typ = Typ[Invalid]
-	// 		break
-	// 	}
-	// 	check.contractDecl(obj, d.cdecl)
 	default:
 		unreachable()
 	}
@@ -260,8 +247,6 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 			}
 		case *Func:
 			// ignored for now
-		case *Contract:
-			// TODO(gri) what do we need to do here, if anything?
 		default:
 			unreachable()
 		}
@@ -356,13 +341,15 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 				if tn == t.obj {
 					check.cycleError(path[i:])
 					t.info = invalid
-					t.underlying = Typ[Invalid]
 					return t.info
 				}
 			}
 			panic("internal error: cycle start not found")
 		}
 		return t.info
+
+	case *instance:
+		return check.validType(t.expand(), path)
 	}
 
 	return valid
@@ -673,14 +660,17 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 			continue
 		}
 
-		// TODO(gri) We should try to delay the IsInterface check
-		//           as it may expand a possibly incomplete type.
-		if bound := check.anyType(ftype); IsInterface(bound) {
-			// If we have exactly one type parameter and the type bound expects exactly
-			// one type argument, permit leaving away the type argument for the type
-			// bound. This allows us to write (type T B(T)) as (type T B) instead.
+		// type bound must be an interface
+		// TODO(gri) We should delay the interface check because
+		//           we may not have a complete interface yet:
+		//           type C(type T C) interface {}
+		//           (issue #39724).
+		bound := check.anyType(f.Type)
+		if _, ok := bound.Under().(*Interface); ok {
+			// If the type bound expects exactly one type argument, permit leaving
+			// it away and use the corresponding type parameter as implicit argument.
+			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
 			if isGeneric(bound) {
-				// bound has not been instantiated yet
 				base := bound.(*Named) // only a *Named type can be generic
 				if j-i != 1 || len(base.tparams) != 1 {
 					// TODO(gri) make this error message better
@@ -688,21 +678,21 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 					bound = Typ[Invalid]
 					continue
 				}
-				// We have and expect exactly one type parameter.
-				// "Manually" instantiate the bound with the parameter.
+				// We have exactly one type parameter.
+				// "Manually" instantiate the bound with each type
+				// parameter the bound applies to.
 				// TODO(gri) this code (in more general form) is also in
-				// checker.typInternal for the *syntax.CallExpr case. Factor?
+				// checker.typInternal for the *ast.CallExpr case. Factor?
 				typ := new(instance)
 				typ.check = check
 				typ.pos = ftype.Pos()
 				typ.base = base
 				typ.targs = []Type{tparams[i].typ}
 				typ.poslist = []syntax.Pos{f.Name.Pos()}
-				// make sure we check instantiation works at least once
-				// and that the resulting type is valid
+				// Make sure we check instantiation works at least once
+				// and that the resulting type is valid.
 				check.atEnd(func() {
-					t := typ.expand()
-					check.validType(t, nil)
+					check.validType(typ.expand(), nil)
 				})
 				// update bound and recorded type
 				bound = typ
@@ -714,135 +704,23 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 				i++
 			}
 		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type.Pos(), "%s is not an interface or contract", bound)
+			check.errorf(f.Type.Pos(), "%s is not an interface", bound)
 		}
 	}
 
-	return
-}
-
-// contractExpr returns the contract obj of a contract name x = C or
-// the contract obj and type arguments targs of an instantiated contract
-// expression x = C(T1, T2, ...), and whether the expression is valid.
-// The set unused contains all (outer, incoming) type parameters that
-// have not yet been used in a contract expression. It must be set prior
-// to calling contractExpr and is updated by contractExpr.
-//
-// If x denotes a contract, the result obj is that contract; otherwise
-// obj == nil and the remaining results are undefined. If the contract
-// exists but the contract or the type arguments (if any) have errors
-// valid is false.
-// If x is a valid instantiated contract expression, targs is the list
-// of (incomming) type parameters used as arguments for the contract,
-// with their type bounds set according to the contract.
-func (check *Checker) contractExpr(x syntax.Expr, unused map[*TypeParam]bool) (obj *Contract, targs []Type, valid bool) {
-	// permit any parenthesized expression
-	x = unparen(x)
-
-	// a call expression might be an instantiated contract => unpack
-	var call *syntax.CallExpr
-	if call, _ = x.(*syntax.CallExpr); call != nil {
-		x = call.Fun
-	}
-
-	// determine contract obj
-	switch x := x.(type) {
-	case *syntax.Name:
-		// local contract
-		if obj, _ = check.lookup(x.Value).(*Contract); obj != nil {
-			// set up contract if not yet done
-			if obj.typ == nil {
-				check.objDecl(obj, nil)
-			}
-		}
-
-	case *syntax.SelectorExpr:
-		// imported contract
-		// TODO(gri) use a shared function between this and check.selector
-		if ident, _ := x.X.(*syntax.Name); ident != nil {
-			identObj := check.lookup(ident.Value)
-			if pname, _ := identObj.(*PkgName); pname != nil {
-				assert(pname.pkg == check.pkg)
-				check.recordUse(ident, pname)
-				pname.used = true
-				pkg := pname.imported
-				exp := pkg.scope.Lookup(x.Sel.Value)
-				if exp == nil {
-					if !pkg.fake {
-						check.errorf(x.Pos(), "%s not declared by package %s", ident.Value, pkg.name)
-						return
-					}
-				} else if !exp.Exported() {
-					check.errorf(x.Pos(), "%s not exported by packge %s", ident.Value, pkg.name)
-					return
-				} else {
-					obj, _ = exp.(*Contract)
-				}
-			}
-		}
-	}
-
-	if obj == nil {
-		return // not a contract
-	}
-
-	assert(obj.typ != nil)
-	if obj.typ == Typ[Invalid] {
-		if call != nil {
-			check.use(call.ArgList...)
-		}
-		return // we have a contract but it's broken
-	}
-
-	if call != nil {
-		// collect type arguments
-		if len(call.ArgList) != len(obj.TParams) {
-			check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.ArgList), len(obj.TParams))
-			check.use(call.ArgList...)
-			return
-		}
-		// For now, a contract type argument must be one of the (incoming)
-		// type parameters, and each of these type parameters may be used
-		// at most once.
-		for _, arg := range call.ArgList {
-			targ := check.typ(arg)
-			if tparam, _ := targ.(*TypeParam); tparam != nil {
-				if ok, found := unused[tparam]; ok {
-					unused[tparam] = false
-					targs = append(targs, targ)
-				} else if found {
-					check.errorf(arg.Pos(), "%s used multiple times (not supported due to implementation restriction)", arg)
-				} else {
-					check.errorf(arg.Pos(), "%s is not an incoming type parameter (not supported due to implementation restriction)", arg)
-				}
-			} else if targ != Typ[Invalid] {
-				check.errorf(arg.Pos(), "%s is not a type parameter (not supported due to implementation restriction)", arg)
-			}
-		}
-		if len(targs) != len(call.ArgList) {
-			return // some arguments are invalid
-		}
-		// Use contract's matching type parameter bound, instantiate
-		// it with the actual type arguments targs, and set the bound
-		// for the type parameter.
-		for i, bound := range obj.Bounds {
-			targs[i].(*TypeParam).bound = check.instantiate(call.ArgList[i].Pos(), bound, targs, nil).(*Named)
-		}
-	}
-
-	valid = true
 	return
 }
 
 func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
-	value := name.Value
-	if len(value) > 0 && value[0] == '*' {
-		value = value[1:]
-		check.errorf(name.Pos(), "warning: *-designation recognized but currently ignored")
+	var ptr bool
+	nstr := name.Value
+	if len(nstr) > 0 && nstr[0] == '*' {
+		ptr = true
+		nstr = nstr[1:]
 	}
-	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+	tpar := NewTypeName(name.Pos(), check.pkg, nstr, nil)
+	check.NewTypeParam(ptr, tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos)      // TODO(gri) check scope position
 	tparams = append(tparams, tpar)
 
 	if check.conf.Trace {
@@ -976,7 +854,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			// declare all constants
 			lhs := make([]*Const, len(s.NameList))
-			values := unpack(last.Values)
+			values := unpackExpr(last.Values)
 			for i, name := range s.NameList {
 				obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 				lhs[i] = obj
@@ -1017,7 +895,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 			// initialize all variables
-			values := unpack(s.Values)
+			values := unpackExpr(s.Values)
 			for i, obj := range lhs0 {
 				var lhs []*Var
 				var init syntax.Expr

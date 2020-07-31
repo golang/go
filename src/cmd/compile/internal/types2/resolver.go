@@ -130,10 +130,10 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	}
 
 	// no package yet => import it
-	if path == "C" && (check.conf.FakeImportC || check.conf.UsesCgo) {
+	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
 		imp = NewPackage("C", "C")
 		imp.fake = true // package scope is not populated
-		imp.cgo = check.conf.UsesCgo
+		imp.cgo = check.conf.go115UsesCgo
 	} else {
 		// ordinary import
 		var err error
@@ -336,7 +336,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all constants
-				values := unpack(last.Values)
+				values := unpackExpr(last.Values)
 				for i, name := range s.NameList {
 					obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
 
@@ -371,7 +371,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				// declare all variables
-				values := unpack(s.Values)
+				values := unpackExpr(s.Values)
 				for i, name := range s.NameList {
 					obj := NewVar(name.Pos(), pkg, name.Value, nil)
 					lhs[i] = obj
@@ -515,7 +515,10 @@ L: // unpack receiver type
 	}
 
 	// unpack type parameters, if any
-	if ptyp, _ := rtyp.(*syntax.CallExpr); ptyp != nil {
+	switch ptyp := rtyp.(type) {
+	case *syntax.IndexExpr:
+		unimplemented()
+	case *syntax.CallExpr:
 		rtyp = ptyp.Fun
 		if unpackParams {
 			for _, arg := range ptyp.ArgList {

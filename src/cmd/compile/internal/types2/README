@@ -1,136 +1,68 @@
-go/*: GopherCon 2019 snapshot of go/* packages supporting contracts
+This version of go/types is part of the prototype that implements the
+extended Go language as outlined by the latest generics draft design.
 
-PROTOTYPE. DO NOT REVIEW. DO NOT SUBMIT.
+DISCLAIMER
 
-This code contains changes to go/types and the go/* support libraries
-to type-check generic code as outlined in the latest contracts proposal
-and presented by Ian Lance Taylor at GopherCon 2019 in San Diego. Most
-aspects of the contracts proposal have been implemented and tested.
-go/types can now type-check all the *.go2 test files in the testdata
-and examples directories. Additionally, this prototype supports interfaces
-as type bounds (see below for details).
+This code is based on the std/library's go/types package but it has
+been modified heavily. Please bear in mind that:
 
-INTERFACES AS TYPE BOUNDS
+- This is a prototype. Expect bugs, incomplete parts, and suboptimal
+  and (gulp) possibly ugly code.
 
-To experiment with an alternative notation to contracts, this
-implementation permits the use of (possibly parameterized)
-interfaces instead of a contract. Specifically, the following
-notations are permitted and equivalent:
+- While all the major aspects of the generics design draft have been
+  implemented, parts are missing, especially around the operations permitted
+  on operands of generic types. In such cases, the result is most often
+  an error reporting that a certain operation is not permitted even though
+  it should be according to the draft design.
 
-// Instead of a contract
+- As prototyping continues, expect refinement and possibly divergence
+  from the most recent draft design published.
 
-contract C(P1, P2) {
-        P1 m1(x P1)
-        P2 m2(x P1) P2
-        P2 int, float64
-}
+EXAMPLE CODE
 
-// used in a generic function
+For tests and example code (with detailed comments) look for files
+with suffix .go2 in the testdata and examples subdirectories.
 
-func f (type P1, P2 C) (x P1, y P2) P2
+(The suffix .go2 is solely to distinguish them from regular Go code and
+to prevent gofmt from touching them. We expect a proper implementation to
+keep using .go .)
 
-// one may use a pair of parameterized interfaces I1 and I2
-// describing the bounds (constraints) of the respective type
-// parameters P1 and P2:
+RUNNING THE TYPE-CHECKER
 
-type I1(type P1) interface {
-        m1(x P1)
-}
+The type-checker is automatically run as part of the go2go tool.
+To experiment with generic code, it is recommened to use that tool.
 
-type I2(type P1, P2) interface {
-        m2(x P1) P2
-        type int, float64
-}
+But the type-checker can also be run stand-alone on source code if
+so desired. There are two primary ways:
 
-The function f above can then be written:
+1) By building the gotype tool in this source directory:
 
-func f(type P1 I1(P1), P2 I2(P1, P2)) (x P1, y P2) P2
+      go build gotype.go
 
-Obviously, the interface notation is longer in general, but it
-doesn't require a fundamentally new mechanism (but for the ability
-to enumerate a list of types). In many (most?) cases, the interfaces
-may not need to be parameterized at all, in which case the typing
-overhead is not as big. Using interfaces as constraints also opens
-the door to using already existing interfaces (such as io.Reader)
-directly.
+   and then running the resulting binary on some input files
 
-Internally, the type checker disassembles a contract into its
-component interfaces, one for each type parameter, each possibly
-parameterized by the type parameters of the contract. Allowing to
-use interfaces directly instead of contracts leads to a simpler
-implementation. In other words, the contract notation is simply
-a form of syntactic sugar for type parameter bounds expressed as
-interfaces. This approach also removes the conflict between contracts
-and interfaces and the question if they can be mixed and how.
-Interfaces are the fundamental underlying typing mechanism;
-contracts are syntactic sugar that may improve readability.
+      ./gotype <package files>
 
-To explore the boundaries of this new approach, this prototype
-permits type parameters also on methods (we don't have a good
-idea how to implement that but we can easily type-check it).
+   (Make sure to use the correct go tool when building.)
 
-MAJOR KNOWN ISSUES
+2) By using the type-checker's TestCheck test function which
+   accepts a list of user provided files:
 
-- Various type-specific operations (such as sending a message, type
-  assertions, etc.) on expressions of a generic type don't work yet
-  (but are relatively easy to implement going forward)
-- Error messages are pretty good but there's room to make them better.
-- Type parameters with pointer designation in contracts are not yet
-  supported (e.g.: contract C(T) { *T m() } ).
+      go test -run Check$ -errlist -files <package files>
 
-See also the NOTES file for details of the current state and issues.
+   For instance:
 
-TO PLAY WITH THIS PROTOTYPE
+      go test -run Check$ -files examples/types.go2
 
-- Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 81df5e69fc):
+   TestCheck will match any type errors against ERROR comments
+   in the source files and complain about discrepancies.
+   To report the errors instead, use:
 
-  git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
+      go test -run Check$ -errlist -files examples/types.go2
 
-  (replace the ... with the respective information from Gerrit's CL page)
+   To see a trace of the type checker progress, use the -v flag:
 
-- In the go/types directory, verify that the tests run:
+      go test -v -run Check$ -errlist -files examples/types.go2
 
-  go test
-
-  (If this causes a vet error, run "go test -vet off" instead.)
-
-  Note: This version of go/types is built in "debug" mode (see check.go:17)
-  and does extra checks. As a consequence it may run a bit slower than usual.
-
-- In the go/types directory, build the gotype command:
-
-  go build gotype.go
-
-- Run it against a test case (from the go/types directory):
-
-  ./gotype examples/functions.go2
-
-- Alternatively, use the go/types test framework to get detailed type-checking
-  information. For instance:
-
-   go test -run Check$ -files testdata/contracts.go2 -v
-
-  (the -v option provides a type-checking trace)
-
-See also `gotype -h` for more information.
-
-Note: Currently, files containing parameterized code have extension ".go2".
-This is solely to distinguish them from regular Go code and to prevent gofmt
-from touching them. We expect a proper implementation to keep using ".go".
-
-Updates:
-8/4/2019  : Several bugs around type inference and type instantiation fixed.
-8/16/2019 : Many issues around type instantiations and contracts with methods fixed.
-10/8/2019 : Contracts with type constraints starting to be usable.
-12/15/2019: Significant progress with much of the functionality present.
-12/19/2019: Several bugs around type bounds checking fixed; more complex examples.
-12/20/2019: Treat contracts as objects, not types anymore. Various bug fixes and more examples.
-1/14/2020 : Implemented contract embedding and instantiation. Lots of bug fixes.
-3/12/2020 : Many bug fixes. First steps towards a source-to-source translator.
-3/18/2020 : More bug fixes. Fixed type inference for directional channel types.
-4/2/2020  : More bug fixes. Improved gofmt for generic code. Better error messages.
-4/9/2020  : Minor improvements. Updated README. Rebased on top of latest (golang) master.
-4/22/2020 : Instantiated types are lazily expanded. Fixes many problems with cycles. Rebased.
-
-Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
+   (When playing with this code, sometimes go vet gets in the
+   way, so it can be helpful to also provide -vet off.)

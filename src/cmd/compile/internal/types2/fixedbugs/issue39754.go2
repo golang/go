@@ -1,0 +1,20 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Optional(type T) struct {}
+
+func (_ Optional(T)) Val() (T, bool)
+
+type Box(type T) interface {
+	Val() (T, bool)
+}
+
+func f(type V interface{}, A, B Box(V))() {}
+
+func _() {
+	f(int, Optional(int), Optional(int))()
+	f(int, Optional(int), Optional /* ERROR does not satisfy Box */ (string))()
+}

@@ -187,8 +187,8 @@ func DefPredeclaredTestFuncs() {
 	def(newBuiltin(_Trace))
 }
 
-func defPredeclaredComparableInterface() {
-	// The "comparable" interface can be envisioned as defined like
+func defPredeclaredComparable() {
+	// The "comparable" interface can be imagined as defined like
 	//
 	// type comparable interface {
 	//         == () untyped bool
@@ -223,11 +223,7 @@ func init() {
 	defPredeclaredConsts()
 	defPredeclaredNil()
 	defPredeclaredFuncs()
-	if AcceptContracts {
-		panic("contract support not implemented")
-	} else {
-		defPredeclaredComparableInterface()
-	}
+	defPredeclaredComparable()
 
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)

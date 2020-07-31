@@ -76,6 +76,10 @@ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
 	writeType(buf, typ, qf, make([]Type, 0, 8))
 }
 
+// instanceMarker is the prefix for an instantiated type
+// in "non-evaluated" instance form.
+const instanceMarker = '#'
+
 func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	// Theoretically, this is a quadratic lookup algorithm, but in
 	// practice deeply nested composite types with unnamed component
@@ -152,6 +156,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("func")
 		writeSignature(buf, t, qf, visited)
 
+	case *Sum:
+		for i, t := range t.types {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			writeType(buf, t, qf, visited)
+		}
+
 	case *Interface:
 		// We write the source-level methods and embedded types rather
 		// than the actual method set since resolved method signatures
@@ -177,15 +189,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
-			if !empty && len(t.allTypes) > 0 {
+			if !empty && t.allTypes != nil {
 				buf.WriteString("; ")
 			}
-			for i, typ := range t.allTypes {
-				if i > 0 {
-					buf.WriteString(", ")
-				}
-				writeType(buf, typ, qf, visited)
-				empty = false
+			if t.allTypes != nil {
+				buf.WriteString("type ")
+				writeType(buf, t.allTypes, qf, visited)
 			}
 		} else {
 			// print explicit interface methods and embedded types
@@ -197,12 +206,12 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
-			if !empty && len(t.types) > 0 {
+			if !empty && t.types != nil {
 				buf.WriteString("; ")
 			}
-			if len(t.types) > 0 {
+			if t.types != nil {
 				buf.WriteString("type ")
-				writeTypeList(buf, t.types, qf, visited)
+				writeType(buf, t.types, qf, visited)
 				empty = false
 			}
 			if !empty && len(t.embeddeds) > 0 {
@@ -276,11 +285,17 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString(s + subscript(t.id))
 
 	case *instance:
-		buf.WriteByte('#') // indicate "non-evaluated" syntactic instance
+		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
 		writeTypeName(buf, t.base.obj, qf)
 		buf.WriteByte('(')
 		writeTypeList(buf, t.targs, qf, visited)
 		buf.WriteByte(')')
+
+	case *bottom:
+		buf.WriteString("⊥")
+
+	case *top:
+		buf.WriteString("⊤")
 
 	default:
 		// For externally defined implementations of Type.
@@ -333,6 +348,9 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		prev = b
 
 		if t, _ := p.typ.(*TypeParam); t != nil {
+			if t.ptr {
+				buf.WriteByte('*')
+			}
 			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)

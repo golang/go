@@ -366,8 +366,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.assignment(&x, tch.elem, "send")
 
 	case *syntax.AssignStmt:
-		lhs := unpack(s.Lhs)
-		rhs := unpack(s.Rhs)
+		lhs := unpackExpr(s.Lhs)
+		rhs := unpackExpr(s.Rhs)
 		switch s.Op {
 		// case token.ASSIGN, token.DEFINE:
 		case 0, syntax.Def:
@@ -416,7 +416,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results
-		results := unpack(s.Results)
+		results := unpackExpr(s.Results)
 		if res.Len() > 0 {
 			// function returns results
 			// (if one, say the first, result parameter is named, all of them are named)
@@ -625,7 +625,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 			check.invalidAST(clause.Pos(), "incorrect expression switch case")
 			continue
 		}
-		check.caseValues(&x, unpack(clause.Cases), seen)
+		check.caseValues(&x, unpackExpr(clause.Cases), seen)
 		check.openScope(clause, "case")
 		inner := inner
 		if i+1 < len(s.Body) {
@@ -687,7 +687,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			continue
 		}
 		// Check each type in this type switch case.
-		cases := unpack(clause.Cases)
+		cases := unpackExpr(clause.Cases)
 		T := check.caseTypes(&x, xtyp, cases, seen, strict)
 		check.openScope(clause, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
@@ -885,12 +885,12 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *TypeParam:
+	case *Sum:
 		first := true
 		var key, val Type
 		var msg string
-		typ.Bound().is(func(t Type) bool {
-			k, v, m := rangeKeyVal(t, wantKey, wantVal)
+		typ.is(func(t Type) bool {
+			k, v, m := rangeKeyVal(t.Under(), wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m
 				return false

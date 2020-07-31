@@ -92,6 +92,7 @@ type Checker struct {
 	// maps and lists are allocated on demand)
 	files            []*syntax.File                     // package files
 	unusedDotImports map[*Scope]map[*Package]syntax.Pos // positions of unused dot-imported packages for each file scope
+	useBrackets      bool                               // if set, [] are used instead of () for type parameters
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -254,10 +255,10 @@ func (check *Checker) handleBailout(err *error) {
 // Files checks the provided files as part of the checker's package.
 func (check *Checker) Files(files []*syntax.File) error { return check.checkFiles(files) }
 
-var errBadCgo = errors.New("cannot use FakeImportC and UsesCgo together")
+var errBadCgo = errors.New("cannot use FakeImportC and go115UsesCgo together")
 
 func (check *Checker) checkFiles(files []*syntax.File) (err error) {
-	if check.conf.FakeImportC && check.conf.UsesCgo {
+	if check.conf.FakeImportC && check.conf.go115UsesCgo {
 		return errBadCgo
 	}
 
@@ -268,6 +269,20 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 			fmt.Println(msg)
 		}
 	}
+
+	print("=== check consistent use of () or [] for type parameters ===")
+	// TODO(gri) enable once the parser has been adjusted
+	/*
+		if len(files) > 0 {
+			check.useBrackets = files[0].UseBrackets
+			for _, file := range files[1:] {
+				if check.useBrackets != file.UseBrackets {
+					check.errorf(file.Pos(), "inconsistent use of () or [] for type parameters")
+					return // cannot type-check properly
+				}
+			}
+		}
+	*/
 
 	print("== initFiles ==")
 	check.initFiles(files)

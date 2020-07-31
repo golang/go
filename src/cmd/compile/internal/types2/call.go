@@ -12,13 +12,13 @@ import (
 	"unicode"
 )
 
-func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
-	check.exprOrType(x, e.Fun)
+func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
+	check.exprOrType(x, call.Fun)
 
 	switch x.mode {
 	case invalid:
-		check.use(e.ArgList...)
-		x.expr = e
+		check.use(call.ArgList...)
+		x.expr = call
 		return statement
 
 	case typexpr:
@@ -27,7 +27,7 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 		x.mode = invalid
 		if isGeneric(T) {
 			// type instantiation
-			x.typ = check.typ(e)
+			x.typ = check.typ(call)
 			if x.typ != Typ[Invalid] {
 				x.mode = typexpr
 			}
@@ -35,27 +35,34 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 		}
 
 		// conversion
-		switch n := len(e.ArgList); n {
+		switch n := len(call.ArgList); n {
 		case 0:
-			check.errorf(e.Pos(), "missing argument in conversion to %s", T)
+			check.errorf(call.Pos(), "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(x, e.ArgList[0])
+			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
+				if t := T.Interface(); t != nil {
+					check.completeInterface(nopos, t)
+					if t.IsConstraint() {
+						check.errorf(call.Pos(), "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						break
+					}
+				}
 				check.conversion(x, T)
 			}
 		default:
-			check.use(e.ArgList...)
-			check.errorf(e.ArgList[n-1].Pos(), "too many arguments in conversion to %s", T)
+			check.use(call.ArgList...)
+			check.errorf(call.ArgList[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
-		x.expr = e
+		x.expr = call
 		return conversion
 
 	case builtin:
 		id := x.id
-		if !check.builtin(x, e, id) {
+		if !check.builtin(x, call, id) {
 			x.mode = invalid
 		}
-		x.expr = e
+		x.expr = call
 		// a non-constant result implies a function call
 		if x.mode != invalid && x.mode != constant_ {
 			check.hasCallOrRecv = true
@@ -70,23 +77,22 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
 			x.mode = invalid
-			x.expr = e
+			x.expr = call
 			return statement
 		}
 
 		// evaluate arguments
-		args, _ := check.exprOrTypeList(e.ArgList)
+		args, _ := check.exprOrTypeList(call.ArgList)
 
 		// instantiate function if needed
 		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
-			// if the first argument is a type, assume we have explicit type arguments
+			// If the first argument is a type, assume we have explicit type arguments.
 
-			// we must have the correct number of type parameters
-			// TODO(gri) do this in the instantiate call?
-			if n != len(sig.tparams) {
+			// check number of type arguments
+			if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
 				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
-				x.expr = e
+				x.expr = call
 				return expression
 			}
 
@@ -97,23 +103,53 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 				if a.mode != typexpr {
 					// error was reported earlier
 					x.mode = invalid
-					x.expr = e
+					x.expr = call
 					return expression
 				}
 				targs[i] = a.typ
 				poslist[i] = a.pos()
 			}
 
+			// if we don't have enough type arguments, use constraint type inference
+			if n < len(sig.tparams) {
+				var failed int
+				targs, failed = check.inferB(sig.tparams, targs)
+				if targs == nil {
+					// error was already reported
+					x.mode = invalid
+					x.expr = call
+					return expression
+				}
+				if failed >= 0 {
+					// at least one type argument couldn't be inferred
+					assert(targs[failed] == nil)
+					tpar := sig.tparams[failed]
+					check.errorf(call.Pos(), "cannot infer %s (%s) (%s)", tpar.name, tpar.pos, targs)
+					x.mode = invalid
+					x.expr = call
+					return expression
+				}
+				// all type arguments were inferred sucessfully
+				if debug {
+					for _, targ := range targs {
+						assert(targ != nil)
+					}
+				}
+				//check.dump("### inferred targs = %s", targs)
+				n = len(targs)
+			}
+			assert(n == len(sig.tparams))
+
 			// instantiate function signature
 			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
 			assert(res.tparams == nil) // signature is not generic anymore
 			x.typ = res
 			x.mode = value
-			x.expr = e
+			x.expr = call
 			return expression
 		}
 
-		sig = check.arguments(e, sig, args)
+		sig = check.arguments(call, sig, args)
 
 		// determine result
 		switch sig.results.Len() {
@@ -130,12 +166,12 @@ func (check *Checker) call(x *operand, e *syntax.CallExpr) exprKind {
 			x.mode = value
 			x.typ = sig.results
 		}
-		x.expr = e
+		x.expr = call
 		check.hasCallOrRecv = true
 
 		// if type inference failed, a parametrized result must be invalidated
 		// (operands cannot have a parametrized type)
-		if x.mode == value && len(sig.tparams) > 0 && IsParameterized(x.typ) {
+		if x.mode == value && len(sig.tparams) > 0 && isParameterized(sig.tparams, x.typ) {
 			x.mode = invalid
 		}
 
@@ -317,10 +353,34 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call.Pos(), sig.tparams, sig_params, args)
+		targs, failed := check.infer(sig.tparams, sig_params, args)
 		if targs == nil {
-			return
+			return // error already reported
 		}
+		if failed >= 0 {
+			// Some type arguments couldn't be inferred. Use
+			// bounds type inference to try to make progress.
+			if check.conf.InferFromConstraints {
+				targs, failed = check.inferB(sig.tparams, targs)
+				if targs == nil {
+					return // error already reported
+				}
+			}
+			if failed >= 0 {
+				// at least one type argument couldn't be inferred
+				assert(targs[failed] == nil)
+				tpar := sig.tparams[failed]
+				check.errorf(call.Pos(), "cannot infer %s (%s) (%s)", tpar.name, tpar.pos, targs)
+				return
+			}
+		}
+		// all type arguments were inferred sucessfully
+		if debug {
+			for _, targ := range targs {
+				assert(targ != nil)
+			}
+		}
+		//check.dump("### inferred targs = %s", targs)
 
 		// compute result signature
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
@@ -460,6 +520,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 		goto Error
 	}
 
+	if x.mode == typexpr && isGeneric(x.typ) {
+		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
+		goto Error
+	}
+
 	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
@@ -477,8 +542,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
 				case *TypeName:
 					why = check.sprintf("interface %s has no method %s", obj.name, sel)
-				case *Contract:
-					why = check.sprintf("contract %s has no method %s", obj.name, sel)
 				}
 			} else {
 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
@@ -517,8 +580,8 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			//check.dump("### method = %s rparams = %s tparams = %s", m, sig.rparams, sig.tparams)
 			// The method may have a pointer receiver, but the actually provided receiver
 			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
-			// only care about inferring receiver type parameters; to make the inferrence
-			// work, match up pointer-ness of reveiver and argument.
+			// only care about inferring receiver type parameters; to make the inference
+			// work, match up pointer-ness of receiver and argument.
 			arg := x
 			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
 				copy := *arg
@@ -529,12 +592,13 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 				}
 				arg = &copy
 			}
-			targs := check.infer(sig.recv.pos, sig.rparams, NewTuple(sig.recv), []*operand{arg})
+			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{arg})
 			//check.dump("### inferred targs = %s", targs)
-			if len(targs) == 0 {
-				// TODO(gri) Provide explanation as to why we can't possibly
-				//           reach here (consider invalid receivers, etc.).
-				panic("internal error: receiver type parameter inference failed")
+			if failed >= 0 {
+				// We may reach here if there were other errors (see issue #40056).
+				// check.infer will report a follow-up error.
+				// TODO(gri) avoid the follow-up error or provide better explanation.
+				goto Error
 			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
 			// (If we modify m, some tests will fail; possibly because the m is in use.)

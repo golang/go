@@ -591,19 +591,26 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 
 	// In case of a type parameter, conversion must succeed against
 	// all types enumerated by the type parameter bound.
+	// TODO(gri) We should not need this because we have the code
+	// for Sum types in convertUntypedInternal. But at least one
+	// test fails. Investigate.
 	if t := target.TypeParam(); t != nil {
 		types := t.Bound().allTypes
-		if len(types) == 0 {
+		if types == nil {
 			goto Error
 		}
 
-		for _, t := range types {
+		for _, t := range unpack(types) {
 			check.convertUntypedInternal(x, t)
 			if x.mode == invalid {
 				goto Error
 			}
 		}
 
+		// keep nil untyped (was bug #39755)
+		if x.isNil() {
+			target = Typ[UntypedNil]
+		}
 		x.typ = target
 		check.updateExprType(x.expr, target, true) // UntypedNils are final
 		return
@@ -623,7 +630,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	assert(isTyped(target))
 
 	// typed target
-	switch t := target.Under().(type) {
+	switch t := optype(target.Under()).(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			check.representable(x, t)
@@ -659,6 +666,11 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 				goto Error
 			}
 		}
+	case *Sum:
+		t.is(func(t Type) bool {
+			check.convertUntypedInternal(x, t)
+			return x.mode != invalid
+		})
 	case *Interface:
 		// Update operand types to the default type rather then
 		// the target (interface) type: values must have concrete
@@ -1146,7 +1158,6 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 	case *syntax.Name:
 		check.ident(x, e, nil, false)
 
-	//case *syntax.Ellipsis:
 	case *syntax.DotsType:
 		// ellipses are handled explicitly where they are legal
 		// (array composite literals and parameter lists)
@@ -1211,7 +1222,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		switch utyp := base.Under().(type) {
+		switch utyp := optype(base.Under()).(type) {
 		case *Struct:
 			if len(e.ElemList) == 0 {
 				break
@@ -1395,9 +1406,32 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
+		if check.useBrackets {
+			if x.mode == typexpr {
+				if isGeneric(x.typ) {
+					// type instantiation
+					x.mode = invalid
+					x.typ = check.typ(e)
+					if x.typ != Typ[Invalid] {
+						x.mode = typexpr
+					}
+					return expression
+				} else {
+					check.errorf(x.pos(), "%s is not a generic type", x.typ)
+					goto Error
+				}
+			}
+
+			if sig := x.typ.Signature(); sig != nil {
+				// TODO(gri) should not evaluate e.X twice
+				call := &syntax.CallExpr{Fun: e.X, ArgList: []syntax.Expr{e.Index}}
+				return check.call(x, call)
+			}
+		}
+
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Under().(type) {
+		switch typ := optype(x.typ.Under()).(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1444,14 +1478,13 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			x.expr = e
 			return expression
 
-		case *TypeParam:
-			// A generic variable can be indexed if all types
-			// in its type bound support indexing and have the
-			// same element type.
+		case *Sum:
+			// A sum type can be indexed if all the sum's types
+			// support indexing and have the same element type.
 			var elem Type
-			if typ.Bound().is(func(t Type) bool {
+			if typ.is(func(t Type) bool {
 				var e Type
-				switch t := t.(type) {
+				switch t := t.Under().(type) {
 				case *Basic:
 					if isString(t) {
 						e = universeByte
@@ -1493,6 +1526,13 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
+		// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
+		// the element type may be accessed before it's set. Make sure we have
+		// a valid type.
+		if x.typ == nil {
+			x.typ = Typ[Invalid]
+		}
+
 		check.index(e.Index, length)
 		// ok to continue
 
@@ -1505,7 +1545,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Under().(type) {
+		switch typ := optype(x.typ.Under()).(type) {
 		case *Basic:
 			if isString(typ) {
 				if e.Full {
@@ -1543,7 +1583,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			valid = true
 			// x.typ doesn't change
 
-		case *TypeParam:
+		case *Sum, *TypeParam:
 			check.errorf(x.pos(), "generic slice expressions not yet implemented")
 			goto Error
 		}
@@ -1608,14 +1648,18 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 		var xtyp *Interface
 		var strict bool
-		switch t := x.typ.Under().(type) {
+		switch t := optype(x.typ.Under()).(type) {
 		case *Interface:
 			xtyp = t
-		case *TypeParam:
-			xtyp = t.Bound()
-			strict = true
+		// Disabled for now. It is not clear what the right approach is
+		// here. Also, the implementation below is inconsistent because
+		// the underlying type of a type parameter is either itself or
+		// a sum type if the corresponding type bound contains a type list.
+		// case *TypeParam:
+		// 	xtyp = t.Bound()
+		// 	strict = true
 		default:
-			check.invalidOp(x.pos(), "%s is not an interface or generic type", x)
+			check.invalidOp(x.pos(), "%s is not an interface type", x)
 			goto Error
 		}
 		// x.(type) expressions are encoded via TypeSwitchGuards

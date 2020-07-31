@@ -1,17 +1,10 @@
-This file works as a sort of notebook/implementation log. It replaces my notebook-based approach.
-I only switched to this file in Nov 2019, thus it doesn't contain earlier documentation.
+This file serves as a notebook/implementation log.
 
 ----------------------------------------------------------------------------------------------------
-TODO
+TODO (implementation issues)
 
 - report a better error when a type is not in a type list (investigate)
-- fix printing of embedded types (testcase: type E(type P) struct { (E(P)) })
-- fix endless instantiation when printing: type T(type P) T(P)
-- review all direct accesses to Named.underlying and verify that they are still correct
 - better error message when we need parentheses around a parameterized function parameter type
-- revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
-- revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
-- review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
 - use []*TypeParam for tparams in subst? (unclear)
@@ -21,18 +14,13 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
+- type parameter constraints are ignored when checking if a parameterized method implements the
+  matching method in an interface
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
   example: type B(type P B(P)) interface{ m() } (need to delay all checking after seting up declarations)
-- contract instantiation requires the type arguments to be type parameters from the type of function
-  type parameter list or enclosing contract
-- A type parameter that is constrained by multiple contracts will not get the correct type bound.
-  We may disallow this for  now.
-- Type-checking for type parameters with pointer designation in contracts is not implemented.
-  Do we actually need it? (Should the draft be updated?)
-- If we do need type-checking for type parameters with pointer designation in contracts, figure
-  out how to model this with interfaces. Do we need two interfaces, one for a T and one for a *T?
 - invoking a method of a parameterized embedded type doesn't work (cannot properly determine receiver yet)
+- pointer designation is incorrectly handled when checking type list constraint satisfaction
 
 ----------------------------------------------------------------------------------------------------
 OBSERVATIONS
@@ -44,9 +32,21 @@ OBSERVATIONS
   will this always work (look specifically at channel types where we need parentheses for disambiguation
   and possibly function types). File a proposal?
 
+- 6/3/2020: Observation: gofmt already removes superflous parentheses around types in parameter lists,
+  so in gofmt'ed code there won't be any such parentheses. Thus we can perhaps make the suggested language
+  change above without too many problems.
+
 - 2/21/2020: We do need top-level parentheses around types in certain situations such as conversions
   or composite literals. We could disallow parentheses around types in parameter lists only, but that
   seems quite a bit less elegant.
+
+- 6/13/2020: When comparing against the type list of an interface (to see if the interface is satisfied),
+  we must either recompute the underlying types of the type list entries after the interface was instantiated,
+  or we must compute the underlying type of each entry before comparing. (A type list may contain type
+  parameters which may be substituted with defined types when the interface is instantiated.) With the
+  latter approach (which is what's implemented now), we could relax some of the constraints that we have
+  on type lists entries: We could allow any type and just say that for interface satisfaction we always
+  look at the underlying types.
 
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
@@ -55,13 +55,10 @@ OPEN QUESTIONS
   these cases? Another example: []a(b, c){} This cannot be a conversion. Could fix such cases by re-
   associating the AST when we see a {. Need to be careful, and need to take into account additional
   complexity of spec.
-- What is the exact nature of a generic type? Does it act as a named type (it can have methods)?
 - For len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
   result be a constant? (right now it is not). What are the implications for alternative, non-
   monomorphizing implementation methods?
 - Confirm that it's ok to use inference in missingMethod to compare parameterized methods.
-- What does it mean to explicitly instantiate a contract with a non-type parameter argument?
-  (e.g., contract C(T) { T int }; func _(type T C(int))(...) ... seems invalid. What are the rules?)
 
 ----------------------------------------------------------------------------------------------------
 DESIGN/IMPLEMENTATION
@@ -160,3 +157,27 @@ DESIGN/IMPLEMENTATION
   interface that applies to exactly one type parameter and the type bound expects exactly
   one type argument. This makes parameterized interface type bounds easier to use in a common
   case.
+
+- 5/?/2020: Relaxed above syntactic sugar and permit omission of explicit type bound instantiation
+  in any case where the type bound only accepts a single type parameter.
+  We may not want to permit this in the first version as this is something we can always add later.
+
+- 6/3/2020: A function type parameter acts like a named type. If its type bound has a type list
+  that type list determines the underlying type of the type parameter. If the bound doesn't have
+  a type list, the underlying type of a type parameter is itself. (We may decide that in this
+  latter case there may no underlying type at all which would perhaps more consistent. But this
+  is not clear cut.)
+
+- 6/6/2020: The underlying type of a type parameter must _always_ be itself, otherwise a declaration
+  such as: type T(type P interface{type int}) P would have an underlying type int which is wrong.
+
+- 6/7/2020: Introduced the notion of an operational type which is used when determining what
+  operations are supported by a value of a given type. The operational type of a type parameter
+  is determined by its type bound. The operational type of any other type is its underlying
+  type. This approach appears to complete the picture about the nature of type parameters.
+
+- 6/7/2020: Removed support for contracts to match the latest design draft.
+
+- 6/15/2020: Disabled check that types in type lists must only contain basic types or composite types
+  composed of basic types. It is not needed since we always must recompute the underlying types
+  after a (possible) instantiation anyway (see observation from 6/3/2020).

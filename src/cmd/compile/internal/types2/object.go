@@ -325,18 +325,6 @@ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
-// A Contract represents a declared contract.
-type Contract struct {
-	object
-	TParams []*TypeName // type parameters in declaration order
-	Bounds  []*Named    // underlying type is always *Interface
-}
-
-// NewContract returns a new contract.
-func NewContract(pos syntax.Pos, pkg *Package, name string) *Contract {
-	return &Contract{object{nil, pos, pkg, name, nil, 0, white, nopos}, nil, nil}
-}
-
 // A Label represents a declared label.
 // Labels don't have a type.
 type Label struct {
@@ -397,31 +385,6 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		if typ != nil {
 			WriteSignature(buf, typ.(*Signature), qf)
 		}
-		return
-
-	case *Contract:
-		buf.WriteString("contract ")
-		buf.WriteString(obj.name) // TODO(gri) qualify this!
-		buf.WriteByte('(')
-		for i, tpar := range obj.TParams {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			WriteType(buf, tpar.typ, qf)
-		}
-		buf.WriteString(") {")
-		for i, bound := range obj.Bounds {
-			if i > 0 {
-				buf.WriteString("; ")
-			}
-			WriteType(buf, obj.TParams[i].typ, qf)
-			buf.WriteByte(' ')
-			WriteType(buf, bound, qf)
-			buf.WriteString(" = ")
-			WriteType(buf, bound.underlying, qf)
-			i++
-		}
-		buf.WriteByte('}')
 		return
 
 	case *Label:

@@ -48,7 +48,7 @@ type StdSizes struct {
 func (s *StdSizes) Alignof(T Type) int64 {
 	// For arrays and structs, alignment is defined in terms
 	// of alignment of the elements and fields, respectively.
-	switch t := T.Under().(type) {
+	switch t := optype(T.Under()).(type) {
 	case *Array:
 		// spec: "For a variable x of array type: unsafe.Alignof(x)
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
@@ -118,7 +118,7 @@ var basicSizes = [...]byte{
 }
 
 func (s *StdSizes) Sizeof(T Type) int64 {
-	switch t := T.Under().(type) {
+	switch t := optype(T.Under()).(type) {
 	case *Basic:
 		assert(isTyped(T))
 		k := t.kind
@@ -148,6 +148,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		}
 		offsets := s.Offsetsof(t.fields)
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+	case *Sum:
+		panic("Sizeof unimplemented for type sum")
 	case *Interface:
 		return s.WordSize * 2
 	}
