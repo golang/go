@@ -12,8 +12,6 @@ import (
 )
 
 // Statistics.
-// If you edit this structure, also edit type MemStats below.
-// Their layouts must match exactly.
 //
 // For detailed descriptions see the documentation for MemStats.
 // Fields that differ from MemStats are further documented here.
@@ -86,8 +84,6 @@ type mstats struct {
 	// Add an uint32 for even number of size classes to align below fields
 	// to 64 bits for atomic operations on 32 bit platforms.
 	_ [1 - _NumSizeClasses%2]uint32
-
-	// Statistics below here are not exported to MemStats directly.
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
@@ -430,20 +426,7 @@ type MemStats struct {
 	}
 }
 
-// Size of the trailing by_size array differs between mstats and MemStats,
-// and all data after by_size is local to runtime, not exported.
-// NumSizeClasses was changed, but we cannot change MemStats because of backward compatibility.
-// sizeof_C_MStats is the size of the prefix of mstats that
-// corresponds to MemStats. It should match Sizeof(MemStats{}).
-var sizeof_C_MStats = unsafe.Offsetof(memstats.by_size) + 61*unsafe.Sizeof(memstats.by_size[0])
-
 func init() {
-	var memStats MemStats
-	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
-		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
-		throw("MStats vs MemStatsType size mismatch")
-	}
-
 	if unsafe.Offsetof(memstats.heap_live)%8 != 0 {
 		println(unsafe.Offsetof(memstats.heap_live))
 		throw("memstats.heap_live not aligned to 8 bytes")
@@ -469,14 +452,55 @@ func ReadMemStats(m *MemStats) {
 func readmemstats_m(stats *MemStats) {
 	updatememstats()
 
-	// The size of the trailing by_size array differs between
-	// mstats and MemStats. NumSizeClasses was changed, but we
-	// cannot change MemStats because of backward compatibility.
-	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
-
+	stats.Alloc = memstats.alloc
+	stats.TotalAlloc = memstats.total_alloc
+	stats.Sys = memstats.sys
+	stats.Mallocs = memstats.nmalloc
+	stats.Frees = memstats.nfree
+	stats.HeapAlloc = memstats.heap_alloc
+	stats.HeapSys = memstats.heap_sys.load()
+	stats.HeapIdle = memstats.heap_idle
+	stats.HeapInuse = memstats.heap_inuse
+	stats.HeapReleased = memstats.heap_released
+	stats.HeapObjects = memstats.heap_objects
+	stats.StackInuse = memstats.stacks_inuse
 	// memstats.stacks_sys is only memory mapped directly for OS stacks.
 	// Add in heap-allocated stack memory for user consumption.
-	stats.StackSys += stats.StackInuse
+	stats.StackSys = memstats.stacks_inuse + memstats.stacks_sys.load()
+	stats.MSpanInuse = memstats.mspan_inuse
+	stats.MSpanSys = memstats.mspan_sys.load()
+	stats.MCacheInuse = memstats.mcache_inuse
+	stats.MCacheSys = memstats.mcache_sys.load()
+	stats.BuckHashSys = memstats.buckhash_sys.load()
+	stats.GCSys = memstats.gc_sys.load()
+	stats.OtherSys = memstats.other_sys.load()
+	stats.NextGC = memstats.next_gc
+	stats.LastGC = memstats.last_gc_unix
+	stats.PauseTotalNs = memstats.pause_total_ns
+	stats.PauseNs = memstats.pause_ns
+	stats.PauseEnd = memstats.pause_end
+	stats.NumGC = memstats.numgc
+	stats.NumForcedGC = memstats.numforcedgc
+	stats.GCCPUFraction = memstats.gc_cpu_fraction
+	stats.EnableGC = true
+
+	// Handle BySize. Copy N values, where N is
+	// the minimum of the lengths of the two arrays.
+	// Unfortunately copy() won't work here because
+	// the arrays have different structs.
+	//
+	// TODO(mknyszek): Consider renaming the fields
+	// of by_size's elements to align so we can use
+	// the copy built-in.
+	bySizeLen := len(stats.BySize)
+	if l := len(memstats.by_size); l < bySizeLen {
+		bySizeLen = l
+	}
+	for i := 0; i < bySizeLen; i++ {
+		stats.BySize[i].Size = memstats.by_size[i].size
+		stats.BySize[i].Mallocs = memstats.by_size[i].nmalloc
+		stats.BySize[i].Frees = memstats.by_size[i].nfree
+	}
 }
 
 //go:linkname readGCStats runtime/debug.readGCStats
