@@ -354,3 +354,26 @@ func idxCompare(i int) int {
 	}
 	return 1
 }
+
+func idxFloatOps(a []float64, b []float32, i int) (float64, float32) {
+	c := float64(7)
+	// amd64: `ADDSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+	c += a[i+1]
+	// amd64: `SUBSD\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+	c -= a[i+2]
+	// amd64: `MULSD\t24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+	c *= a[i+3]
+	// amd64: `DIVSD\t32\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+	c /= a[i+4]
+
+	d := float32(8)
+	// amd64: `ADDSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+	d += b[i+1]
+	// amd64: `SUBSS\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+	d -= b[i+2]
+	// amd64: `MULSS\t12\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+	d *= b[i+3]
+	// amd64: `DIVSS\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+	d /= b[i+4]
+	return c, d
+}
