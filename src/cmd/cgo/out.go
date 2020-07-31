@@ -123,7 +123,9 @@ func (p *Package) writeDefs() {
 		// Moreover, empty file name makes compile emit no source debug info at all.
 		var buf bytes.Buffer
 		noSourceConf.Fprint(&buf, fset, def.Go)
-		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
+		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
+			strings.HasPrefix(name, "_Ctype_enum_") ||
+			strings.HasPrefix(name, "_Ctype_union_") {
 			// This typedef is of the form `typedef a b` and should be an alias.
 			fmt.Fprintf(fgo2, "= ")
 		}
