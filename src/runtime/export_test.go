@@ -43,8 +43,6 @@ var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
 
-var ParseRelease = parseRelease
-
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 

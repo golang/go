@@ -328,20 +328,11 @@ func libpreinit() {
 	initsig(true)
 }
 
-// gsignalInitQuirk, if non-nil, is called for every allocated gsignal G.
-//
-// TODO(austin): Remove this after Go 1.15 when we remove the
-// mlockGsignal workaround.
-var gsignalInitQuirk func(gsignal *g)
-
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
 	mp.gsignal.m = mp
-	if gsignalInitQuirk != nil {
-		gsignalInitQuirk(mp.gsignal)
-	}
 }
 
 func gettid() uint32
