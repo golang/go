@@ -81,11 +81,11 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 func op2token(op syntax.Operator) token.Token {
 	switch op {
 	case syntax.Def: // :
-		unimplemented()
+		unreachable()
 	case syntax.Not: // !
 		return token.NOT
 	case syntax.Recv: // <-
-		unimplemented()
+		unreachable()
 
 	case syntax.OrOr: // ||
 		return token.LOR

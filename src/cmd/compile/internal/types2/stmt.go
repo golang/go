@@ -9,7 +9,6 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"go/constant"
-	"go/token"
 	"sort"
 )
 
@@ -162,14 +161,6 @@ func (check *Checker) openScope(node syntax.Node, comment string) {
 
 func (check *Checker) closeScope() {
 	check.scope = check.scope.Parent()
-}
-
-func assignOp(op token.Token) token.Token {
-	// token_test.go verifies the token ordering this function relies on
-	if token.ADD_ASSIGN <= op && op <= token.AND_NOT_ASSIGN {
-		return op + (token.ADD - token.ADD_ASSIGN)
-	}
-	return token.ILLEGAL
 }
 
 func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
@@ -368,9 +359,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
 		rhs := unpackExpr(s.Rhs)
-		switch s.Op {
-		// case token.ASSIGN, token.DEFINE:
-		case 0, syntax.Def:
+		if s.Op == 0 || s.Op == syntax.Def {
+			// regular assignment or short variable declaration
 			if len(lhs) == 0 {
 				check.invalidAST(s.Pos(), "missing lhs in assignment")
 				return
@@ -381,18 +371,12 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				// regular assignment
 				check.assignVars(lhs, rhs)
 			}
-
-		default:
+		} else {
 			// assignment operations
 			if len(lhs) != 1 || len(rhs) != 1 {
 				check.errorf(s.Pos(), "assignment operation %s requires single-valued expressions", s.Op)
 				return
 			}
-			// op := assignOp(s.Tok)
-			// if op == token.ILLEGAL {
-			// 	check.invalidAST(s.Pos(), "unknown assignment operation %s", s.Op)
-			// 	return
-			// }
 			var x operand
 			check.binary(&x, nil, lhs[0], rhs[0], s.Op)
 			if x.mode == invalid {

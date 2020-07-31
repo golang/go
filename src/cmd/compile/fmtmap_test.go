@@ -181,8 +181,6 @@ var knownFormats = map[string]string{
 	"float64 %.6g":                                    "",
 	"float64 %g":                                      "",
 	"go/constant.Value %s":                            "",
-	"go/token.Token %d":                               "",
-	"go/token.Token %s":                               "",
 	"int %#x":                                         "",
 	"int %-12d":                                       "",
 	"int %-6d":                                        "",
