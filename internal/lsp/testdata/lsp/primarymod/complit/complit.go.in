@@ -17,6 +17,13 @@ func ExportedFunc() int { //@item(exportedFunc, "ExportedFunc", "func() int", "f
 	return 0
 }
 
+// This tests multiline block comments and completion with prefix
+// Lorem Ipsum Multi//@complete(" ", multilineWithPrefix)
+// Lorem ipsum dolor sit ametom
+func MultilineWithPrefix() int { //@item(multilineWithPrefix, "MultilineWithPrefix", "func() int", "func")
+	return 0
+}
+
 // general completions
 
 type position struct { //@item(structPosition, "position", "struct{...}", "struct")
@@ -25,7 +32,7 @@ type position struct { //@item(structPosition, "position", "struct{...}", "struc
 
 func _() {
 	_ = position{
-		//@complete("", fieldX, fieldY, exportedFunc, structPosition, cVar, exportedConst, exportedType)
+		//@complete("", fieldX, fieldY, exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
 	}
 	_ = position{
 		X: 1,
@@ -37,7 +44,7 @@ func _() {
 	}
 	_ = []*position{
         {
-            //@complete("", fieldX, fieldY, exportedFunc, structPosition, cVar, exportedConst, exportedType)
+            //@complete("", fieldX, fieldY, exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
         },
 	}
 }
@@ -53,7 +60,7 @@ func _() {
 	}
 
 	_ = map[int]int{
-		//@complete("", abVar, exportedFunc, aaVar, structPosition, cVar, exportedConst, exportedType)
+		//@complete("", abVar, exportedFunc, multilineWithPrefix, aaVar, structPosition, cVar, exportedConst, exportedType)
 	}
 
 	_ = []string{a: ""} //@complete(":", abVar, aaVar)
@@ -61,7 +68,7 @@ func _() {
 
 	_ = position{X: a}   //@complete("}", abVar, aaVar)
 	_ = position{a}      //@complete("}", abVar, aaVar)
-	_ = position{a, }      //@complete("}", abVar, exportedFunc, aaVar, structPosition, cVar, exportedConst, exportedType)
+	_ = position{a, }      //@complete("}", abVar, exportedFunc, multilineWithPrefix, aaVar, structPosition, cVar, exportedConst, exportedType)
 
 	_ = []int{a}  //@complete("}", abVar, aaVar)
 	_ = [1]int{a} //@complete("}", abVar, aaVar)
@@ -89,7 +96,7 @@ func _() {
 
 func _() {
 	_ := position{
-		X: 1, //@complete("X", fieldX),complete(" 1", exportedFunc, structPosition, cVar, exportedConst, exportedType)
-		Y: ,  //@complete(":", fieldY),complete(" ,", exportedFunc, structPosition, cVar, exportedConst, exportedType)
+		X: 1, //@complete("X", fieldX),complete(" 1", exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
+		Y: ,  //@complete(":", fieldY),complete(" ,", exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
 	}
 }

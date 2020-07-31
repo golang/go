@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
@@ -703,12 +704,12 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 
 	// Using the comment position find the line after
 	fset := c.snapshot.View().Session().Cache().FileSet()
-	file := fset.File(comment.Pos())
+	file := fset.File(comment.End())
 	if file == nil {
 		return
 	}
 
-	line := file.Line(comment.Pos())
+	line := file.Line(comment.End())
 	if file.LineCount() < line+1 {
 		return
 	}
@@ -717,6 +718,9 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 	if !nextLinePos.IsValid() {
 		return
 	}
+
+	// comment is valid, set surrounding as word boundaries around cursor
+	c.setSurroundingForComment(comment)
 
 	// Using the next line pos, grab and parse the exported symbol on that line
 	for _, n := range c.file.Decls {
@@ -769,6 +773,45 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 			c.items = append(c.items, item)
 		}
 	}
+}
+
+// sets word boundaries surrounding a cursor for a comment
+func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
+	var cursorComment *ast.Comment
+	for _, comment := range comments.List {
+		if c.pos >= comment.Pos() && c.pos <= comment.End() {
+			cursorComment = comment
+			break
+		}
+	}
+	// if cursor isn't in the comment
+	if cursorComment == nil {
+		return
+	}
+
+	// index of cursor in comment text
+	cursorOffset := int(c.pos - cursorComment.Pos())
+	start, end := cursorOffset, cursorOffset
+	for start > 0 && isValidIdentifierChar(cursorComment.Text[start-1]) {
+		start--
+	}
+	for end < len(cursorComment.Text) && isValidIdentifierChar(cursorComment.Text[end]) {
+		end++
+	}
+
+	c.surrounding = &Selection{
+		content: cursorComment.Text[start:end],
+		cursor:  c.pos,
+		mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper,
+			token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
+	}
+}
+
+// isValidIdentifierChar returns true if a byte is a valid go identifier character
+// i.e unicode letter or digit or undescore
+func isValidIdentifierChar(char byte) bool {
+	charRune := rune(char)
+	return unicode.In(charRune, unicode.Letter, unicode.Digit) || char == '_'
 }
 
 func (c *completer) wantStructFieldCompletions() bool {
