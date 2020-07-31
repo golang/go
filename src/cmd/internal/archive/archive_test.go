@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package goobj
+package archive
 
 import (
+	"bytes"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
@@ -159,22 +160,23 @@ func TestParseGoobj(t *testing.T) {
 	}
 	defer f.Close()
 
-	p, err := Parse(f, "mypkg")
+	a, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Arch != runtime.GOARCH {
-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
+	if len(a.Entries) != 2 {
+		t.Errorf("expect 2 entry, found %d", len(a.Entries))
 	}
-	var found bool
-	for _, s := range p.Syms {
-		if s.Name == "mypkg.go1" {
-			found = true
-			break
+	for _, e := range a.Entries {
+		if e.Type == EntryPkgDef {
+			continue
 		}
-	}
-	if !found {
-		t.Errorf(`%s: symbol "mypkg.go1" not found`, path)
+		if e.Type != EntryGoObj {
+			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
+		}
+		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
+			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+		}
 	}
 }
 
@@ -187,28 +189,37 @@ func TestParseArchive(t *testing.T) {
 	}
 	defer f.Close()
 
-	p, err := Parse(f, "mypkg")
+	a, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Arch != runtime.GOARCH {
-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
+	if len(a.Entries) != 3 {
+		t.Errorf("expect 3 entry, found %d", len(a.Entries))
 	}
 	var found1 bool
 	var found2 bool
-	for _, s := range p.Syms {
-		if s.Name == "mypkg.go1" {
+	for _, e := range a.Entries {
+		if e.Type == EntryPkgDef {
+			continue
+		}
+		if e.Type != EntryGoObj {
+			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
+		}
+		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
+			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+		}
+		if e.Name == "go1.o" {
 			found1 = true
 		}
-		if s.Name == "mypkg.go2" {
+		if e.Name == "go2.o" {
 			found2 = true
 		}
 	}
 	if !found1 {
-		t.Errorf(`%s: symbol "mypkg.go1" not found`, path)
+		t.Errorf(`object "go1.o" not found`)
 	}
 	if !found2 {
-		t.Errorf(`%s: symbol "mypkg.go2" not found`, path)
+		t.Errorf(`object "go2.o" not found`)
 	}
 }
 
@@ -223,41 +234,47 @@ func TestParseCGOArchive(t *testing.T) {
 	}
 	defer f.Close()
 
-	p, err := Parse(f, "mycgo")
+	a, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if p.Arch != runtime.GOARCH {
-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
-	}
-	var found1 bool
-	var found2 bool
-	for _, s := range p.Syms {
-		if s.Name == "mycgo.go1" {
-			found1 = true
-		}
-		if s.Name == "mycgo.go2" {
-			found2 = true
-		}
-	}
-	if !found1 {
-		t.Errorf(`%s: symbol "mycgo.go1" not found`, path)
-	}
-	if !found2 {
-		t.Errorf(`%s: symbol "mycgo.go2" not found`, path)
 	}
 
 	c1 := "c1"
 	c2 := "c2"
-
-	found1 = false
-	found2 = false
-
 	switch runtime.GOOS {
 	case "darwin":
 		c1 = "_" + c1
 		c2 = "_" + c2
-		for _, obj := range p.Native {
+	case "windows":
+		if runtime.GOARCH == "386" {
+			c1 = "_" + c1
+			c2 = "_" + c2
+		}
+	case "aix":
+		c1 = "." + c1
+		c2 = "." + c2
+	}
+
+	var foundgo, found1, found2 bool
+
+	for _, e := range a.Entries {
+		switch e.Type {
+		default:
+			t.Errorf("unknown object type")
+		case EntryPkgDef:
+			continue
+		case EntryGoObj:
+			foundgo = true
+			if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
+				t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+			}
+			continue
+		case EntryNativeObj:
+		}
+
+		obj := io.NewSectionReader(f, e.Offset, e.Size)
+		switch runtime.GOOS {
+		case "darwin":
 			mf, err := macho.NewFile(obj)
 			if err != nil {
 				t.Fatal(err)
@@ -273,13 +290,7 @@ func TestParseCGOArchive(t *testing.T) {
 					found2 = true
 				}
 			}
-		}
-	case "windows":
-		if runtime.GOARCH == "386" {
-			c1 = "_" + c1
-			c2 = "_" + c2
-		}
-		for _, obj := range p.Native {
+		case "windows":
 			pf, err := pe.NewFile(obj)
 			if err != nil {
 				t.Fatal(err)
@@ -292,11 +303,7 @@ func TestParseCGOArchive(t *testing.T) {
 					found2 = true
 				}
 			}
-		}
-	case "aix":
-		c1 = "." + c1
-		c2 = "." + c2
-		for _, obj := range p.Native {
+		case "aix":
 			xf, err := xcoff.NewFile(obj)
 			if err != nil {
 				t.Fatal(err)
@@ -309,10 +316,7 @@ func TestParseCGOArchive(t *testing.T) {
 					found2 = true
 				}
 			}
-		}
-
-	default:
-		for _, obj := range p.Native {
+		default: // ELF
 			ef, err := elf.NewFile(obj)
 			if err != nil {
 				t.Fatal(err)
@@ -332,10 +336,13 @@ func TestParseCGOArchive(t *testing.T) {
 		}
 	}
 
+	if !foundgo {
+		t.Errorf(`go object not found`)
+	}
 	if !found1 {
-		t.Errorf(`%s: symbol %q not found`, path, c1)
+		t.Errorf(`symbol %q not found`, c1)
 	}
 	if !found2 {
-		t.Errorf(`%s: symbol %q not found`, path, c2)
+		t.Errorf(`symbol %q not found`, c2)
 	}
 }
