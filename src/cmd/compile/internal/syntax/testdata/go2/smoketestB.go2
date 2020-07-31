@@ -1,0 +1,78 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains basic generic code snippets,
+// using []'s for type parameters.
+
+package p
+
+// generic function declarations
+func _[]() {}
+func _[type]() {}
+func _[type T]() {}
+func _[type T any]() {}
+func _[type A, B]() {}
+func _[type A, B any]() {}
+func _[type A, B any, C interface{}]() {}
+
+// array/slice type declarations
+type _ []T
+type _ [N]T
+type _ [...]T
+
+// generic type declarations
+type _[type] T
+type _[type T] T
+type _[type T any] T
+type _[type A, B] T
+type _[type A, B any] T
+type _[type A, B any, C interface{}] T
+
+// generic type declarations without "type" keyword
+type _[T,] T
+type _[T any] T
+type _[A, B] T
+type _[A, B any] T
+type _[A, B any, C interface{}] T
+
+// instantiated types in type declarations
+type _ T[P]
+type _ T[A, B]
+
+// instantiated types in expressions
+var _ = T[]{}
+var _ = T[P]{}
+var _ = T[P,]{}
+var _ = T[P,Q]{}
+var _ = T[P,Q,]{}
+
+// embedded instantiated types
+type _ struct {
+	T[P]
+	T[P,]
+	T[P, Q]
+	T[P, Q,]
+	p.T[P]
+	p.T[P,]
+}
+
+// TODO(gri) implement these
+/*
+type _ interface {
+	T[P]
+	T[P,]
+	T[P, Q]
+	T[P, Q,]
+	p.T[P]
+	p.T[P,]
+}
+*/
+
+// instantiated types in parameter lists
+func _(T[P])
+func _(T[P,])
+func _(T[P, Q])
+func _(T[P, Q,])
+func _(p.T[P])
+func _(p.T[P,])

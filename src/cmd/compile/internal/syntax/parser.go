@@ -25,6 +25,7 @@ type parser struct {
 	first  error    // first error encountered
 	errcnt int      // number of errors encountered
 	pragma Pragma   // pragmas
+	brack  bool     // use []'s for type parameters
 
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
@@ -579,10 +580,44 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Pragma = p.takePragma()
 
 	d.Name = p.name()
-	if p.got(_Lparen) {
+	pos := p.pos()
+	if p.got(_Lbrack) {
+		// array/slice or generic type
 		if p.got(_Type) {
-			// parameterized type
-			d.TParamList = p.paramList(true)
+			// generic type
+			p.brack = true
+			d.TParamList = p.paramList(true, nil, _Rbrack)
+			d.Alias = p.gotAssign()
+			d.Type = p.typeOrNil(true)
+		} else if p.tok == _Name {
+			// array type or generic type without "type" keyword
+			p.xnest++
+			x := p.expr()
+			p.xnest--
+			name0, ok := x.(*Name)
+			if ok && p.tok != _Rbrack {
+				// generic type without "type" keyword
+				p.brack = true
+				d.TParamList = p.paramList(true, name0, _Rbrack)
+				d.Alias = p.gotAssign()
+				d.Type = p.typeOrNil(true)
+			} else {
+				// array type
+				p.want(_Rbrack)
+				t := new(ArrayType)
+				t.pos = pos
+				t.Len = x
+				t.Elem = p.type_(true)
+				d.Type = t
+			}
+		} else {
+			// array/slice type
+			d.Type = p.arrayOrSliceType(pos, true)
+		}
+	} else if p.got(_Lparen) {
+		if !p.brack && p.got(_Type) {
+			// generic type
+			d.TParamList = p.paramList(true, nil, _Rparen)
 			d.Alias = p.gotAssign()
 			d.Type = p.typeOrNil(true)
 		} else {
@@ -644,7 +679,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Pragma = p.takePragma()
 
 	if p.got(_Lparen) {
-		rcvr := p.paramList(false)
+		rcvr := p.paramList(false, nil, _Rparen)
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
@@ -664,10 +699,17 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 
 	f.Name = p.name()
 	tpos := p.pos()
-	p.want(_Lparen)
-	if p.got(_Type) {
-		f.TParamList = p.paramList(true)
+	if p.got(_Lbrack) {
+		p.brack = true
+		p.got(_Type) // optional
+		f.TParamList = p.paramList(true, nil, _Rbrack)
 		p.want(_Lparen)
+	} else {
+		p.want(_Lparen)
+		if !p.brack && p.got(_Type) {
+			f.TParamList = p.paramList(true, nil, _Rparen)
+			p.want(_Lparen)
+		}
 	}
 	f.Type = p.funcType(tpos, true)
 	if p.tok == _Lbrace {
@@ -989,6 +1031,18 @@ loop:
 
 		case _Lbrack:
 			p.next()
+
+			if p.brack && p.got(_Rbrack) {
+				// empty type instantiation
+				// TODO(gri) should this be permitted?
+				t := new(CallExpr)
+				t.pos = pos
+				t.Fun = x
+				t.Brackets = true
+				x = t
+				break
+			}
+
 			p.xnest++
 
 			var i Expr
@@ -1000,6 +1054,21 @@ loop:
 					t.pos = pos
 					t.X = x
 					t.Index = i
+					x = t
+					p.xnest--
+					break
+				} else if p.got(_Comma) {
+					// x[i, ... (instantiated type)
+					// TODO(gri) can we factor this with typeInstance?
+					t := new(CallExpr)
+					t.pos = pos
+					t.Fun = x
+					t.ArgList = append(t.ArgList, i)
+					t.Brackets = true
+					p.list(_Comma, _Rbrack, func() bool {
+						t.ArgList = append(t.ArgList, p.expr())
+						return false
+					})
 					x = t
 					p.xnest--
 					break
@@ -1047,10 +1116,20 @@ loop:
 			t := unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
 			complit_ok := false
-			switch t.(type) {
-			case *Name, *SelectorExpr, *CallExpr: // *CallExpr for instantiated types
+			switch t := t.(type) {
+			case *Name, *SelectorExpr:
 				if p.xnest >= 0 {
-					// x is considered a composite literal type
+					// x is possibly a composite literal type
+					complit_ok = true
+				}
+			case *CallExpr:
+				if p.brack == t.Brackets && p.xnest >= 0 {
+					// x is possibly a composite literal type
+					complit_ok = true
+				}
+			case *IndexExpr:
+				if p.brack && p.xnest >= 0 {
+					// x is possibly a composite literal type
 					complit_ok = true
 				}
 			case *ArrayType, *SliceType, *StructType, *MapType:
@@ -1163,6 +1242,10 @@ func (p *parser) typeOrNil(inType bool) Expr {
 		defer p.trace("typeOrNil")()
 	}
 
+	if p.brack {
+		inType = true
+	}
+
 	pos := p.pos()
 	switch p.tok {
 	case _Star:
@@ -1191,26 +1274,7 @@ func (p *parser) typeOrNil(inType bool) Expr {
 		// '[' oexpr ']' ntype
 		// '[' _DotDotDot ']' ntype
 		p.next()
-		p.xnest++
-		if p.got(_Rbrack) {
-			// []T
-			p.xnest--
-			t := new(SliceType)
-			t.pos = pos
-			t.Elem = p.type_(inType)
-			return t
-		}
-
-		// [n]T
-		t := new(ArrayType)
-		t.pos = pos
-		if !p.got(_DotDotDot) {
-			t.Len = p.expr()
-		}
-		p.want(_Rbrack)
-		p.xnest--
-		t.Elem = p.type_(inType)
-		return t
+		return p.arrayOrSliceType(pos, inType)
 
 	case _Chan:
 		// _Chan non_recvchantype
@@ -1243,7 +1307,7 @@ func (p *parser) typeOrNil(inType bool) Expr {
 
 	case _Name:
 		t := p.dotname(p.name())
-		if inType && p.tok == _Lparen {
+		if inType && (p.brack && p.tok == _Lbrack || !p.brack && p.tok == _Lparen) {
 			t = p.typeInstance(t)
 		}
 		return t
@@ -1267,9 +1331,14 @@ func (p *parser) typeInstance(typ Expr) *CallExpr {
 	x.pos = p.pos()
 	x.Fun = typ
 
+	open, close := _Lparen, _Rparen
+	if p.brack {
+		open, close = _Lbrack, _Rbrack
+	}
+
 	p.xnest++
-	p.want(_Lparen)
-	p.list(_Comma, _Rparen, func() bool {
+	p.want(open)
+	p.list(_Comma, close, func() bool {
 		x.ArgList = append(x.ArgList, p.expr())
 		return false
 	})
@@ -1286,10 +1355,36 @@ func (p *parser) funcType(pos Pos, inType bool) *FuncType {
 
 	typ := new(FuncType)
 	typ.pos = pos
-	typ.ParamList = p.paramList(false)
+	typ.ParamList = p.paramList(false, nil, _Rparen)
 	typ.ResultList = p.funcResult(inType)
 
 	return typ
+}
+
+// "[" has already been consumed, and pos is its position.
+func (p *parser) arrayOrSliceType(pos Pos, inType bool) Expr {
+	// '[' oexpr ']' ntype
+	// '[' _DotDotDot ']' ntype
+	p.xnest++
+	if p.got(_Rbrack) {
+		// []T
+		p.xnest--
+		t := new(SliceType)
+		t.pos = pos
+		t.Elem = p.type_(inType)
+		return t
+	}
+
+	// [n]T
+	t := new(ArrayType)
+	t.pos = pos
+	if !p.got(_DotDotDot) {
+		t.Len = p.expr()
+	}
+	p.want(_Rbrack)
+	p.xnest--
+	t.Elem = p.type_(inType)
+	return t
 }
 
 func (p *parser) chanElem(inType bool) Expr {
@@ -1397,7 +1492,7 @@ func (p *parser) funcResult(inType bool) []*Field {
 	}
 
 	if p.got(_Lparen) {
-		return p.paramList(false)
+		return p.paramList(false, nil, _Rparen)
 	}
 
 	pos := p.pos()
@@ -1445,17 +1540,34 @@ func (p *parser) fieldDecl(styp *StructType) {
 		if p.tok == _Dot || p.tok == _Literal || p.tok == _Semi || p.tok == _Rbrace {
 			// embedded type
 			typ := p.qualifiedName(name)
-			if p.tok == _Lparen {
+			if p.brack && p.tok == _Lbrack || !p.brack && p.tok == _Lparen {
 				typ = p.typeInstance(typ)
 			}
 			tag := p.oliteral()
 			p.addField(styp, pos, nil, typ, tag)
-			return
+			break
 		}
 
 		// name1, name2, ... Type [ tag ]
 		names := p.nameList(name)
-		typ := p.type_(true)
+		var typ Expr
+
+		// Careful dance: We don't know if we have an embedded instantiated
+		// type T[P1, P2, ...] or a field T of array/slice type [P]E or []E.
+		if len(names) == 1 && p.brack && p.tok == _Lbrack {
+			typ = p.arrayOrTArgs()
+			if typ, ok := typ.(*CallExpr); ok {
+				// embedded type T[P1, P2, ...]
+				typ.Fun = name // name == names[0]
+				tag := p.oliteral()
+				p.addField(styp, pos, nil, typ, tag)
+				break
+			}
+		} else {
+			// T P
+			typ = p.type_(true)
+		}
+
 		tag := p.oliteral()
 
 		for _, name := range names {
@@ -1463,7 +1575,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 		}
 
 	case _Lparen, _Star:
-		// embedded, possibly parameterized type
+		// embedded, possibly generic type
 		// (using the enclosing parentheses to distinguish it from a named field declaration)
 		// TODO(gri) This may be too liberal. Maybe only permit ()'s if necessary.
 		//           See also fixedbugs/bug299.go.
@@ -1475,6 +1587,49 @@ func (p *parser) fieldDecl(styp *StructType) {
 		p.syntaxError("expecting field name or embedded type")
 		p.advance(_Semi, _Rbrace)
 	}
+}
+
+func (p *parser) arrayOrTArgs() Expr {
+	if trace {
+		defer p.trace("arrayOrTArgs")()
+	}
+
+	pos := p.pos()
+	var args []Expr
+	p.xnest++
+	p.want(_Lbrack)
+	p.list(_Comma, _Rbrack, func() bool {
+		args = append(args, p.expr())
+		return false
+	})
+	p.xnest--
+
+	if len(args) == 0 {
+		// x []E
+		t := new(SliceType)
+		t.pos = pos
+		t.Elem = p.type_(true)
+		return t
+	}
+
+	// x [P]E or x[P]
+	if len(args) == 1 {
+		if elem := p.typeOrNil(true); elem != nil {
+			// x [P]E
+			t := new(ArrayType)
+			t.pos = pos
+			t.Len = args[0]
+			t.Elem = elem
+			return t
+		}
+	}
+
+	// x[P], x[P1, P2], ...
+	t := new(CallExpr)
+	t.pos = pos
+	t.ArgList = args
+	t.Brackets = true
+	return t
 }
 
 func (p *parser) oliteral() *BasicLit {
@@ -1555,9 +1710,21 @@ func (p *parser) paramDeclOrNil() *Field {
 	case _Name:
 		f.Name = p.name()
 		switch p.tok {
-		case _Name, _Star, _Arrow, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
+		case _Name, _Star, _Arrow, _Func, _Chan, _Map, _Struct, _Interface, _Lparen:
 			// sym name_or_type
 			f.Type = p.type_(true)
+
+		case _Lbrack:
+			if p.brack {
+				f.Type = p.arrayOrTArgs()
+				if typ, ok := f.Type.(*CallExpr); ok {
+					typ.Fun = f.Name
+					f.Name = nil
+					f.Type = typ
+				}
+			} else {
+				f.Type = p.type_(true)
+			}
 
 		case _DotDotDot:
 			// sym dotdotdot
@@ -1568,6 +1735,9 @@ func (p *parser) paramDeclOrNil() *Field {
 			// from dotname
 			f.Type = p.dotname(f.Name)
 			f.Name = nil
+			if p.brack && p.tok == _Lbrack || !p.brack && p.tok == _Lparen {
+				f.Type = p.typeInstance(f.Type)
+			}
 		}
 
 	case _Arrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
@@ -1587,7 +1757,7 @@ func (p *parser) paramDeclOrNil() *Field {
 	return f
 }
 
-func (p *parser) tparamDecl() *Field {
+func (p *parser) tparamDecl(name *Name) *Field {
 	if trace {
 		defer p.trace("tparamDecl")()
 	}
@@ -1595,19 +1765,18 @@ func (p *parser) tparamDecl() *Field {
 	f := new(Field)
 	f.pos = p.pos()
 
-	pointer := p.got(_Star)
-	f.Name = p.name()
+	pointer := name == nil && p.got(_Star)
+	if name == nil {
+		name = p.name()
+	}
+	f.Name = name
 	if pointer {
 		// encode pointer designation in the name
 		f.Name.Value = "*" + f.Name.Value
 	}
 
 	switch p.tok {
-	case _Name:
-		// type bound name
-		f.Type = p.type_(true)
-
-	case _Interface, _Lparen:
+	case _Name, _Interface, _Lparen:
 		// type bound
 		f.Type = p.type_(true)
 	}
@@ -1637,7 +1806,7 @@ func (p *parser) dotsType() *DotsType {
 // Parameters    = "(" [ ParameterList [ "," ] ] ")" .
 // ParameterList = ParameterDecl { "," ParameterDecl } .
 // "(" has already been consumed.
-func (p *parser) paramList(tparams bool) (list []*Field) {
+func (p *parser) paramList(tparams bool, name0 *Name, close token) (list []*Field) {
 	if trace {
 		defer p.trace("paramList")()
 	}
@@ -1645,14 +1814,19 @@ func (p *parser) paramList(tparams bool) (list []*Field) {
 	// TODO(gri) use the actual position where the error happens
 	pos := p.pos()
 
-	paramf := p.paramDeclOrNil
-	if tparams {
-		paramf = p.tparamDecl
-	}
-
 	var named int // number of parameters that have an explicit name and type/bound
-	p.list(_Comma, _Rparen, func() bool {
-		if par := paramf(); par != nil {
+	p.list(_Comma, close, func() bool {
+		var par *Field
+		if tparams {
+			par = p.tparamDecl(name0)
+			name0 = nil // 1st name was consumed if present
+		} else {
+			if debug && name0 != nil {
+				panic("no 1st parameter name expected")
+			}
+			par = p.paramDeclOrNil()
+		}
+		if par != nil {
 			if debug && par.Name == nil && par.Type == nil {
 				panic("(type) parameter without name or type")
 			}
