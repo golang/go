@@ -5,5 +5,5 @@ import (
 )
 
 func _() {
-	go foo. //@complete(" //", IntFoo, StructFoo, Foo)
+	go foo. //@rank(" //", Foo)
 }

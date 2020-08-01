@@ -1,5 +1,7 @@
 package func_rank
 
+import "net/http"
+
 var stringAVar = "var"    //@item(stringAVar, "stringAVar", "string", "var")
 func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc", "func() string", "func")
 type stringer struct{}    //@item(stringer, "stringer", "struct{...}", "struct")
@@ -58,4 +60,11 @@ func (foo) FooPublicMethod() int { //@item(rankFooPubMeth, "FooPublicMethod", "f
 
 func _() {
 	var _ int = foo{}. //@rank(" //", rankFooPrivField, rankFooPubField),rank(" //", rankFooPrivMeth, rankFooPubMeth),rank(" //", rankFooPrivField, rankFooPrivMeth)
+}
+
+func _() {
+	HandleFunc //@item(httpHandleFunc, "HandleFunc", "func(pattern string, handler func(ResponseWriter, *Request))", "func")
+	HandlerFunc //@item(httpHandlerFunc, "HandlerFunc", "func(http.ResponseWriter, *http.Request)", "type")
+
+	http.HandleFunc //@rank(" //", httpHandleFunc, httpHandlerFunc)
 }

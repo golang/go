@@ -5,5 +5,5 @@ import (
 )
 
 func _() {
-	foo.Foo() //@complete("F", IntFoo, StructFoo, Foo)
+	foo.Foo() //@complete("F", Foo, IntFoo, StructFoo)
 }

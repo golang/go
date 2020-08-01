@@ -340,9 +340,11 @@ func (c *completer) found(ctx context.Context, cand candidate) {
 		}
 	}
 
-	// Lower score of function calls so we prefer fields and vars over calls.
+	// Lower score of method calls so we prefer fields and vars over calls.
 	if cand.expandFuncCall {
-		cand.score *= 0.9
+		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && sig.Recv() != nil {
+			cand.score *= 0.9
+		}
 	}
 
 	// Prefer private objects over public ones.

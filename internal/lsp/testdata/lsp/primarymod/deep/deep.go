@@ -129,7 +129,7 @@ type baz struct {
 }
 
 func (b baz) _() {
-	b.Thing().val //@item(deepBazMethVal, "b.Thing().val", "int", "field")
-	b.thing.val   //@item(deepBazFieldVal, "b.thing.val", "int", "field")
-	var _ int = b //@rank(" //", deepBazFieldVal, deepBazMethVal)
+	b.Thing().val    //@item(deepBazMethVal, "b.Thing().val", "int", "field")
+	b.thing.val      //@item(deepBazFieldVal, "b.thing.val", "int", "field")
+	var _ int = bval //@rank(" //", deepBazFieldVal, deepBazMethVal)
 }

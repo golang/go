@@ -20,6 +20,7 @@ func _() {
 func _() {
 	defer func() {
 		foo.F //@complete(" //", Foo),snippet(" //", Foo, "Foo()", "Foo()")
-		foo. //@complete(" //", IntFoo, StructFoo, Foo)
+
+		foo. //@rank(" //", Foo)
 	}
 }
