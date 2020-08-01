@@ -5,5 +5,5 @@ import (
 )
 
 func _() {
-	go foo. //@rank(" //", Foo)
+	go foo. //@rank(" //", Foo, IntFoo),snippet(" //", Foo, "Foo()", "Foo()")
 }

@@ -1511,6 +1511,7 @@ const (
 	kindMap
 	kindStruct
 	kindString
+	kindFunc
 )
 
 // candidateInference holds information we have inferred about a type that can be
@@ -1639,7 +1640,7 @@ Nodes:
 			return inf
 		case *ast.CallExpr:
 			// Only consider CallExpr args if position falls between parens.
-			if node.Lparen <= c.pos && c.pos <= node.Rparen {
+			if node.Lparen < c.pos && c.pos <= node.Rparen {
 				// For type conversions like "int64(foo)" we can only infer our
 				// desired type is convertible to int64.
 				if typ := typeConversion(node, c.pkg.GetTypesInfo()); typ != nil {
@@ -1709,8 +1710,9 @@ Nodes:
 						continue Nodes
 					}
 				}
+
+				return inf
 			}
-			return inf
 		case *ast.ReturnStmt:
 			if c.enclosingFunc != nil {
 				sig := c.enclosingFunc.sig
@@ -1775,6 +1777,9 @@ Nodes:
 			case token.ARROW:
 				inf.modifiers = append(inf.modifiers, typeModifier{mod: chanRead})
 			}
+		case *ast.DeferStmt, *ast.GoStmt:
+			inf.objKind |= kindFunc
+			return inf
 		default:
 			if breaksExpectedTypeInference(node) {
 				return inf
@@ -2137,7 +2142,12 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 
 			// If we have no expected type, fall back to checking the
 			// expected "kind" of object, if available.
-			return ci.kindMatches(candType)
+			if ci.kindMatches(candType) {
+				if ci.objKind == kindFunc {
+					cand.expandFuncCall = true
+				}
+				return true
+			}
 		}
 
 		for _, expType := range expTypes {
@@ -2326,6 +2336,8 @@ func candKind(candType types.Type) objKind {
 		if t.Info()&types.IsString > 0 {
 			return kindString
 		}
+	case *types.Signature:
+		return kindFunc
 	}
 
 	return 0
