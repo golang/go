@@ -25,7 +25,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 )
 
 // Server returns a new TLS server side connection
@@ -119,28 +118,16 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 }
 
 func dial(ctx context.Context, netDialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
-	// We want the Timeout and Deadline values from dialer to cover the
-	// whole process: TCP connection and TLS handshake. This means that we
-	// also need to start our own timers now.
-	timeout := netDialer.Timeout
+	if netDialer.Timeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, netDialer.Timeout)
+		defer cancel()
+	}
 
 	if !netDialer.Deadline.IsZero() {
-		deadlineTimeout := time.Until(netDialer.Deadline)
-		if timeout == 0 || deadlineTimeout < timeout {
-			timeout = deadlineTimeout
-		}
-	}
-
-	// hsErrCh is non-nil if we might not wait for Handshake to complete.
-	var hsErrCh chan error
-	if timeout != 0 || ctx.Done() != nil {
-		hsErrCh = make(chan error, 2)
-	}
-	if timeout != 0 {
-		timer := time.AfterFunc(timeout, func() {
-			hsErrCh <- timeoutError{}
-		})
-		defer timer.Stop()
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, netDialer.Deadline)
+		defer cancel()
 	}
 
 	rawConn, err := netDialer.DialContext(ctx, network, addr)
@@ -167,34 +154,10 @@ func dial(ctx context.Context, netDialer *net.Dialer, network, addr string, conf
 	}
 
 	conn := Client(rawConn, config)
-
-	if hsErrCh == nil {
-		err = conn.Handshake()
-	} else {
-		go func() {
-			hsErrCh <- conn.Handshake()
-		}()
-
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-		case err = <-hsErrCh:
-			if err != nil {
-				// If the error was due to the context
-				// closing, prefer the context's error, rather
-				// than some random network teardown error.
-				if e := ctx.Err(); e != nil {
-					err = e
-				}
-			}
-		}
-	}
-
-	if err != nil {
+	if err := conn.HandshakeContext(ctx); err != nil {
 		rawConn.Close()
 		return nil, err
 	}
-
 	return conn, nil
 }
 
