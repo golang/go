@@ -14,7 +14,6 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -218,7 +217,7 @@ func formatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcfi
 
 	// If the request came from a different package than the one in which the
 	// types are defined, we may need to modify the qualifiers.
-	qualified = qualifyExpr(snapshot.FileSet(), qualified, srcpkg, pkg, srcfile, clonedInfo)
+	qualified = qualifyExpr(snapshot.FileSet(), qualified, srcpkg, pkg, srcfile, clonedInfo, qf)
 	fmted := formatNode(snapshot.FileSet(), qualified)
 	return fmted
 }
@@ -241,7 +240,7 @@ func varType(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, obj *typ
 }
 
 // qualifyExpr applies the "pkgName." prefix to any *ast.Ident in the expr.
-func qualifyExpr(fset *token.FileSet, expr ast.Expr, srcpkg, pkg Package, file *ast.File, clonedInfo map[token.Pos]*types.PkgName) ast.Expr {
+func qualifyExpr(fset *token.FileSet, expr ast.Expr, srcpkg, pkg Package, file *ast.File, clonedInfo map[token.Pos]*types.PkgName, qf types.Qualifier) ast.Expr {
 	ast.Inspect(expr, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ArrayType, *ast.ChanType, *ast.Ellipsis,
@@ -262,7 +261,7 @@ func qualifyExpr(fset *token.FileSet, expr ast.Expr, srcpkg, pkg Package, file *
 			if !ok {
 				return false
 			}
-			pkgName := importedPkgName(fset, srcpkg.GetTypes(), obj.Imported(), file)
+			pkgName := qf(obj.Imported())
 			if pkgName != "" {
 				x.Name = pkgName
 			}
@@ -273,31 +272,13 @@ func qualifyExpr(fset *token.FileSet, expr ast.Expr, srcpkg, pkg Package, file *
 			}
 			// Only add the qualifier if the identifier is exported.
 			if ast.IsExported(n.Name) {
-				pkgName := importedPkgName(fset, srcpkg.GetTypes(), pkg.GetTypes(), file)
+				pkgName := qf(pkg.GetTypes())
 				n.Name = pkgName + "." + n.Name
 			}
 		}
 		return false
 	})
 	return expr
-}
-
-// importedPkgName returns the package name used for pkg in srcpkg.
-func importedPkgName(fset *token.FileSet, srcpkg, pkg *types.Package, file *ast.File) string {
-	if srcpkg == pkg {
-		return ""
-	}
-	// If the file already imports the package under another name, use that.
-	for _, group := range astutil.Imports(fset, file) {
-		for _, cand := range group {
-			if strings.Trim(cand.Path.Value, `"`) == pkg.Path() {
-				if cand.Name != nil && cand.Name.Name != "" {
-					return cand.Name.Name
-				}
-			}
-		}
-	}
-	return pkg.Name()
 }
 
 // cloneExpr only clones expressions that appear in the parameters or return

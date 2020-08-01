@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -161,7 +162,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	if score := c.matcher.Score("func"); !cand.takeAddress && score >= 0 && !isInterface(expType) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
-			c.functionLiteral(t, float64(score))
+			c.functionLiteral(ctx, t, float64(score))
 		}
 	}
 }
@@ -188,42 +189,69 @@ const literalCandidateScore = highScore / 2
 
 // functionLiteral adds a function literal completion item for the
 // given signature.
-func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
+func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, matchScore float64) {
 	snip := &snippet.Builder{}
 	snip.WriteText("func(")
-	seenParamNames := make(map[string]bool)
+
+	// First we generate names for each param and keep a seen count so
+	// we know if we need to uniquify param names. For example,
+	// "func(int)" will become "func(i int)", but "func(int, int64)"
+	// will become "func(i1 int, i2 int64)".
+	var (
+		paramNames     = make([]string, sig.Params().Len())
+		paramNameCount = make(map[string]int)
+	)
+	for i := 0; i < sig.Params().Len(); i++ {
+		var (
+			p    = sig.Params().At(i)
+			name = p.Name()
+		)
+		if name == "" {
+			// If the param has no name in the signature, guess a name based
+			// on the type. Use an empty qualifier to ignore the package.
+			// For example, we want to name "http.Request" "r", not "hr".
+			name = formatVarType(ctx, c.snapshot, c.pkg, c.file, p, func(p *types.Package) string {
+				return ""
+			})
+			name = abbreviateTypeName(name)
+		}
+		paramNames[i] = name
+		if name != "_" {
+			paramNameCount[name]++
+		}
+	}
+
+	for n, c := range paramNameCount {
+		// Any names we saw more than once will need a unique suffix added
+		// on. Reset the count to 1 to act as the suffix for the first
+		// name.
+		if c >= 2 {
+			paramNameCount[n] = 1
+		} else {
+			delete(paramNameCount, n)
+		}
+	}
+
 	for i := 0; i < sig.Params().Len(); i++ {
 		if i > 0 {
 			snip.WriteText(", ")
 		}
 
-		p := sig.Params().At(i)
-		name := p.Name()
+		var (
+			p    = sig.Params().At(i)
+			name = paramNames[i]
+		)
 
-		// If the parameter has no name in the signature, we need to try
-		// come up with a parameter name.
-		if name == "" {
-			// Our parameter names are guesses, so they must be placeholders
-			// for easy correction. If placeholders are disabled, don't
-			// offer the completion.
-			if !c.opts.placeholders {
-				return
-			}
+		// Uniquify names by adding on an incrementing numeric suffix.
+		if idx, found := paramNameCount[name]; found {
+			paramNameCount[name]++
+			name = fmt.Sprintf("%s%d", name, idx)
+		}
 
-			// Try abbreviating named types. If the type isn't named, or the
-			// abbreviation duplicates a previous name, give up and use
-			// "_". The user will have to provide a name for this parameter
-			// in order to use it.
-			if named, ok := deref(p.Type()).(*types.Named); ok {
-				name = abbreviateCamel(named.Obj().Name())
-				if seenParamNames[name] {
-					name = "_"
-				} else {
-					seenParamNames[name] = true
-				}
-			} else {
-				name = "_"
-			}
+		if name != p.Name() && c.opts.placeholders {
+			// If we didn't use the signature's param name verbatim then we
+			// may have chosen a poor name. Give the user a placeholder so
+			// they can easily fix the name.
 			snip.WritePlaceholder(func(b *snippet.Builder) {
 				b.WriteText(name)
 			})
@@ -236,7 +264,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr := types.TypeString(p.Type(), c.qf)
+			typeStr := formatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf)
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
@@ -264,7 +292,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 		if name := r.Name(); name != "" {
 			snip.WriteText(name + " ")
 		}
-		snip.WriteText(types.TypeString(r.Type(), c.qf))
+		snip.WriteText(formatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf))
 	}
 	if resultsNeedParens {
 		snip.WriteText(")")
@@ -282,14 +310,38 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 	})
 }
 
-// abbreviateCamel abbreviates camel case identifiers into
-// abbreviations. For example, "fooBar" is abbreviated "fb".
-func abbreviateCamel(s string) string {
+// abbreviateTypeName abbreviates type names into acronyms. For
+// example, "fooBar" is abbreviated "fb". Care is taken to ignore
+// non-identifier runes. For example, "[]int" becomes "i", and
+// "struct { i int }" becomes "s".
+func abbreviateTypeName(s string) string {
 	var (
 		b            strings.Builder
 		useNextUpper bool
 	)
+
+	// Trim off leading non-letters. We trim everything between "[" and
+	// "]" to handle array types like "[someConst]int".
+	var inBracket bool
+	s = strings.TrimFunc(s, func(r rune) bool {
+		if inBracket {
+			inBracket = r != ']'
+			return true
+		}
+
+		if r == '[' {
+			inBracket = true
+		}
+
+		return !unicode.IsLetter(r)
+	})
+
 	for i, r := range s {
+		// Stop if we encounter a non-identifier rune.
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+			break
+		}
+
 		if i == 0 {
 			b.WriteRune(unicode.ToLower(r))
 		}
