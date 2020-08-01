@@ -881,6 +881,9 @@ func (p *parser) parseParamDecl() (f field) {
 		case token.PERIOD:
 			// qualified.typename
 			f.typ = p.parseTypeName(f.name)
+			if p.brack && p.tok == token.LBRACK || !p.brack && p.tok == token.LPAREN {
+				f.typ = p.parseTypeInstance(f.typ, lookAhead{})
+			}
 			f.name = nil
 		}
 
@@ -1141,7 +1144,7 @@ func (p *parser) parseFuncType(typeContext bool) (*ast.FuncType, *ast.Scope) {
 	if tparams != nil {
 		p.error(tparams.Pos(), "function type cannot have type parameters")
 	}
-	results := p.parseResult(scope, typeContext || p.brack)
+	results := p.parseResult(scope, typeContext)
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}, scope
 }
@@ -1244,7 +1247,7 @@ func (p *parser) parseMapType(typeContext bool) *ast.MapType {
 	p.expect(token.LBRACK)
 	key := p.parseType(true)
 	p.expect(token.RBRACK)
-	value := p.parseType(typeContext || p.brack)
+	value := p.parseType(typeContext)
 
 	return &ast.MapType{Map: pos, Key: key, Value: value}
 }
@@ -1269,7 +1272,7 @@ func (p *parser) parseChanType(typeContext bool) *ast.ChanType {
 		p.expect(token.CHAN)
 		dir = ast.RECV
 	}
-	value := p.parseType(typeContext || p.brack)
+	value := p.parseType(typeContext)
 
 	return &ast.ChanType{Begin: pos, Arrow: arrow, Dir: dir, Value: value}
 }
@@ -1317,6 +1320,12 @@ func (p *parser) parseTypeInstance(typ ast.Expr, opening lookAhead) ast.Expr {
 // we can be more aggressive: whenever we are in a literal type ending in an element
 // type, we know for sure that we are in type context.
 func (p *parser) tryIdentOrType(typeContext bool) ast.Expr {
+	// When []'s are used for type instantiation, there
+	// are no ambiguities that prevent us from moving
+	// forward with instantiation when seeing a "[".
+	if p.brack {
+		typeContext = true
+	}
 	switch p.tok {
 	case token.IDENT:
 		typ := p.parseTypeName(nil)
@@ -1328,7 +1337,7 @@ func (p *parser) tryIdentOrType(typeContext bool) ast.Expr {
 		lbrack := p.expect(token.LBRACK)
 		alen := p.parseArrayLen()
 		p.expect(token.RBRACK)
-		elt := p.parseType(typeContext || p.brack)
+		elt := p.parseType(typeContext)
 		return &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
 	case token.STRUCT:
 		return p.parseStructType()

@@ -75,6 +75,8 @@ var valids = []string{
 	`package p; func _(T []E)`,
 	`package p; func _(T [P]E)`,
 	`package p; func _(x T(P1, P2, P3))`,
+	`package p; func _(x p.T(Q))`,
+	`package p; func _(p.T(Q))`,
 
 	`package p; var _ = func()T(nil)`,
 	`package p; func _[type]()`,
@@ -83,6 +85,8 @@ var valids = []string{
 	`package p; func _[type](); func _(T []E)`,
 	`package p; func _[type](); func _(T [P]E)`,
 	`package p; func _[type](); func _(x T[P1, P2, P3])`,
+	`package p; func _[type](); func _(x p.T[Q])`,
+	`package p; func _[type](); func _(p.T[Q])`,
 
 	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
 	`package p; type _[type] int; var _ T[chan int]`,
