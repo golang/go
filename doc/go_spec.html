@@ -1272,8 +1272,8 @@ and not <a href="#Blank_identifier">blank</a>.
 <pre>
 interface {
 	String() string
-	String() string  // illegal: String not unique
-	_(x int)         // illegal: method must have non-blank name
+	String() string  // illegal: duplicate method String
+	_(x int)         // illegal: methods must have a unique non-blank name
 }
 </pre>
 
