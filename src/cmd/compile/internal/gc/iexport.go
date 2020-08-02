@@ -205,7 +205,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/types"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/src"
 	"crypto/md5"
 	"encoding/binary"
@@ -1004,7 +1004,7 @@ func (w *exportWriter) linkname(s *types.Sym) {
 
 func (w *exportWriter) symIdx(s *types.Sym) {
 	lsym := s.Linksym()
-	if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
+	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
 		// Don't export index for non-package symbols, linkname'd symbols,
 		// and symbols without an index. They can only be referenced by
 		// name.

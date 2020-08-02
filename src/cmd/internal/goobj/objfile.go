@@ -4,7 +4,7 @@
 
 // Go new object file format, reading and writing.
 
-package goobj2 // TODO: replace the goobj package?
+package goobj
 
 import (
 	"bytes"

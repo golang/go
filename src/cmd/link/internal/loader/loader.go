@@ -7,7 +7,7 @@ package loader
 import (
 	"bytes"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -30,7 +30,7 @@ type Sym int
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
 type Relocs struct {
-	rs []goobj2.Reloc
+	rs []goobj.Reloc
 
 	li uint32   // local index of symbol whose relocs we're examining
 	r  *oReader // object reader for containing package
@@ -48,21 +48,21 @@ type ExtReloc struct {
 // Reloc holds a "handle" to access a relocation record from an
 // object file.
 type Reloc struct {
-	*goobj2.Reloc
+	*goobj.Reloc
 	r *oReader
 	l *Loader
 
 	// External reloc types may not fit into a uint8 which the Go object file uses.
-	// Store it here, instead of in the byte of goobj2.Reloc.
+	// Store it here, instead of in the byte of goobj.Reloc.
 	// For Go symbols this will always be zero.
-	// goobj2.Reloc.Type() + typ is always the right type, for both Go and external
+	// goobj.Reloc.Type() + typ is always the right type, for both Go and external
 	// symbols.
 	typ objabi.RelocType
 }
 
 func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
 func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
-func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
 
 func (rel Reloc) SetType(t objabi.RelocType) {
 	if t != objabi.RelocType(uint8(t)) {
@@ -78,7 +78,7 @@ func (rel Reloc) SetType(t objabi.RelocType) {
 // Aux holds a "handle" to access an aux symbol record from an
 // object file.
 type Aux struct {
-	*goobj2.Aux
+	*goobj.Aux
 	r *oReader
 	l *Loader
 }
@@ -88,15 +88,15 @@ func (a Aux) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
 type oReader struct {
-	*goobj2.Reader
+	*goobj.Reader
 	unit         *sym.CompilationUnit
 	version      int    // version of static symbol
 	flags        uint32 // read from object file
 	pkgprefix    string
 	syms         []Sym  // Sym's global index, indexed by local index
-	ndef         int    // cache goobj2.Reader.NSym()
-	nhashed64def int    // cache goobj2.Reader.NHashed64Def()
-	nhasheddef   int    // cache goobj2.Reader.NHashedDef()
+	ndef         int    // cache goobj.Reader.NSym()
+	nhashed64def int    // cache goobj.Reader.NHashed64Def()
+	nhasheddef   int    // cache goobj.Reader.NHashedDef()
 	objidx       uint32 // index of this reader in the objs slice
 }
 
@@ -311,10 +311,10 @@ type extSymPayload struct {
 	ver      int
 	kind     sym.SymKind
 	objidx   uint32 // index of original object if sym made by cloneToExternal
-	relocs   []goobj2.Reloc
+	relocs   []goobj.Reloc
 	reltypes []objabi.RelocType // relocation types
 	data     []byte
-	auxs     []goobj2.Aux
+	auxs     []goobj.Aux
 }
 
 const (
@@ -323,7 +323,7 @@ const (
 )
 
 func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
-	nbuiltin := goobj2.NBuiltin()
+	nbuiltin := goobj.NBuiltin()
 	extReader := &oReader{objidx: extObj}
 	ldr := &Loader{
 		start:                make(map[*oReader]Sym),
@@ -383,7 +383,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 
 // Add a symbol from an object file, return the global index.
 // If the symbol already exist, it returns the index of that symbol.
-func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj2.Sym) Sym {
+func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj.Sym) Sym {
 	l := st.l
 	if l.extStart != 0 {
 		panic("addSym called after external symbol is created")
@@ -420,8 +420,8 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		// check, as same hash indicates same content.
 		var checkHash func() (symAndSize, bool)
 		var addToHashMap func(symAndSize)
-		var h64 uint64         // only used for hashed64Def
-		var h *goobj2.HashType // only used for hashedDef
+		var h64 uint64        // only used for hashed64Def
+		var h *goobj.HashType // only used for hashedDef
 		if kind == hashed64Def {
 			checkHash = func() (symAndSize, bool) {
 				h64 = r.Hash64(li - uint32(r.ndef))
@@ -607,10 +607,10 @@ func (l *Loader) toLocal(i Sym) (*oReader, uint32) {
 }
 
 // Resolve a local symbol reference. Return global index.
-func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
+func (l *Loader) resolve(r *oReader, s goobj.SymRef) Sym {
 	var rr *oReader
 	switch p := s.PkgIdx; p {
-	case goobj2.PkgIdxInvalid:
+	case goobj.PkgIdxInvalid:
 		// {0, X} with non-zero X is never a valid sym reference from a Go object.
 		// We steal this space for symbol references from external objects.
 		// In this case, X is just the global index.
@@ -621,18 +621,18 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 			panic("bad sym ref")
 		}
 		return 0
-	case goobj2.PkgIdxHashed64:
+	case goobj.PkgIdxHashed64:
 		i := int(s.SymIdx) + r.ndef
 		return r.syms[i]
-	case goobj2.PkgIdxHashed:
+	case goobj.PkgIdxHashed:
 		i := int(s.SymIdx) + r.ndef + r.nhashed64def
 		return r.syms[i]
-	case goobj2.PkgIdxNone:
+	case goobj.PkgIdxNone:
 		i := int(s.SymIdx) + r.ndef + r.nhashed64def + r.nhasheddef
 		return r.syms[i]
-	case goobj2.PkgIdxBuiltin:
+	case goobj.PkgIdxBuiltin:
 		return l.builtinSyms[s.SymIdx]
-	case goobj2.PkgIdxSelf:
+	case goobj.PkgIdxSelf:
 		rr = r
 	default:
 		pkg := r.Pkg(int(p))
@@ -1143,22 +1143,22 @@ func (l *Loader) AttrSubSymbol(i Sym) bool {
 
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
+	return l.SymAttr(i)&goobj.SymFlagReflectMethod != 0
 }
 
 // Returns whether the i-th symbol is nosplit.
 func (l *Loader) IsNoSplit(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagNoSplit != 0
+	return l.SymAttr(i)&goobj.SymFlagNoSplit != 0
 }
 
 // Returns whether this is a Go type symbol.
 func (l *Loader) IsGoType(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+	return l.SymAttr(i)&goobj.SymFlagGoType != 0
 }
 
 // Returns whether this symbol should be included in typelink.
 func (l *Loader) IsTypelink(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
+	return l.SymAttr(i)&goobj.SymFlagTypelink != 0
 }
 
 // Returns whether this symbol is an itab symbol.
@@ -1503,7 +1503,7 @@ func (l *Loader) DynidSyms() []Sym {
 // if it helps speed things up).
 func (l *Loader) SymGoType(i Sym) Sym {
 	var r *oReader
-	var auxs []goobj2.Aux
+	var auxs []goobj.Aux
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
 		r = l.objs[pp.objidx].r
@@ -1516,7 +1516,7 @@ func (l *Loader) SymGoType(i Sym) Sym {
 	for j := range auxs {
 		a := &auxs[j]
 		switch a.Type() {
-		case goobj2.AuxGotype:
+		case goobj.AuxGotype:
 			return l.resolve(r, a.Sym())
 		}
 	}
@@ -1629,22 +1629,22 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 	for i := range auxs {
 		a := &auxs[i]
 		switch a.Type() {
-		case goobj2.AuxDwarfInfo:
+		case goobj.AuxDwarfInfo:
 			auxDwarfInfo = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfInfo) != sym.SDWARFFCN {
 				panic("aux dwarf info sym with wrong type")
 			}
-		case goobj2.AuxDwarfLoc:
+		case goobj.AuxDwarfLoc:
 			auxDwarfLoc = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfLoc) != sym.SDWARFLOC {
 				panic("aux dwarf loc sym with wrong type")
 			}
-		case goobj2.AuxDwarfRanges:
+		case goobj.AuxDwarfRanges:
 			auxDwarfRanges = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfRanges) != sym.SDWARFRANGE {
 				panic("aux dwarf ranges sym with wrong type")
 			}
-		case goobj2.AuxDwarfLines:
+		case goobj.AuxDwarfLines:
 			auxDwarfLines = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfLines) != sym.SDWARFLINES {
 				panic("aux dwarf lines sym with wrong type")
@@ -1840,7 +1840,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
 
 // Relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li uint32) Relocs {
-	var rs []goobj2.Reloc
+	var rs []goobj.Reloc
 	if l.isExtReader(r) {
 		pp := l.payloads[li]
 		rs = pp.relocs
@@ -1855,55 +1855,55 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	}
 }
 
-// FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
+// FuncInfo provides hooks to access goobj.FuncInfo in the objects.
 type FuncInfo struct {
 	l       *Loader
 	r       *oReader
 	data    []byte
-	auxs    []goobj2.Aux
-	lengths goobj2.FuncInfoLengths
+	auxs    []goobj.Aux
+	lengths goobj.FuncInfoLengths
 }
 
 func (fi *FuncInfo) Valid() bool { return fi.r != nil }
 
 func (fi *FuncInfo) Args() int {
-	return int((*goobj2.FuncInfo)(nil).ReadArgs(fi.data))
+	return int((*goobj.FuncInfo)(nil).ReadArgs(fi.data))
 }
 
 func (fi *FuncInfo) Locals() int {
-	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
+	return int((*goobj.FuncInfo)(nil).ReadLocals(fi.data))
 }
 
 func (fi *FuncInfo) FuncID() objabi.FuncID {
-	return objabi.FuncID((*goobj2.FuncInfo)(nil).ReadFuncID(fi.data))
+	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
 }
 
 func (fi *FuncInfo) Pcsp() []byte {
-	pcsp, end := (*goobj2.FuncInfo)(nil).ReadPcsp(fi.data)
+	pcsp, end := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
 }
 
 func (fi *FuncInfo) Pcfile() []byte {
-	pcf, end := (*goobj2.FuncInfo)(nil).ReadPcfile(fi.data)
+	pcf, end := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
 }
 
 func (fi *FuncInfo) Pcline() []byte {
-	pcln, end := (*goobj2.FuncInfo)(nil).ReadPcline(fi.data)
+	pcln, end := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
 }
 
 // Preload has to be called prior to invoking the various methods
 // below related to pcdata, funcdataoff, files, and inltree nodes.
 func (fi *FuncInfo) Preload() {
-	fi.lengths = (*goobj2.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
+	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
 }
 
 func (fi *FuncInfo) Pcinline() []byte {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	pcinl, end := (*goobj2.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
+	pcinl, end := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
 }
 
@@ -1918,7 +1918,7 @@ func (fi *FuncInfo) Pcdata(k int) []byte {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	pcdat, end := (*goobj2.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
+	pcdat, end := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
 }
 
@@ -1933,7 +1933,7 @@ func (fi *FuncInfo) Funcdataoff(k int) int64 {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	return (*goobj2.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
+	return (*goobj.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
 }
 
 func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
@@ -1947,7 +1947,7 @@ func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
 	}
 	for j := range fi.auxs {
 		a := &fi.auxs[j]
-		if a.Type() == goobj2.AuxFuncdata {
+		if a.Type() == goobj.AuxFuncdata {
 			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
 		}
 	}
@@ -1961,16 +1961,16 @@ func (fi *FuncInfo) NumFile() uint32 {
 	return fi.lengths.NumFile
 }
 
-func (fi *FuncInfo) File(k int) goobj2.CUFileIndex {
+func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	return (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+	return (*goobj.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
 }
 
 type InlTreeNode struct {
 	Parent   int32
-	File     goobj2.CUFileIndex
+	File     goobj.CUFileIndex
 	Line     int32
 	Func     Sym
 	ParentPC int32
@@ -1987,7 +1987,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
+	node := (*goobj.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
 	return InlTreeNode{
 		Parent:   node.Parent,
 		File:     node.File,
@@ -1999,7 +1999,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
 	var r *oReader
-	var auxs []goobj2.Aux
+	var auxs []goobj.Aux
 	if l.IsExternal(i) {
 		pp := l.getPayload(i)
 		if pp.objidx == 0 {
@@ -2014,9 +2014,9 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 	}
 	for j := range auxs {
 		a := &auxs[j]
-		if a.Type() == goobj2.AuxFuncInfo {
+		if a.Type() == goobj.AuxFuncInfo {
 			b := r.Data(a.Sym().SymIdx)
-			return FuncInfo{l, r, b, auxs, goobj2.FuncInfoLengths{}}
+			return FuncInfo{l, r, b, auxs, goobj.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
@@ -2026,12 +2026,12 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
 // Does not read symbol data.
 // Returns the fingerprint of the object.
-func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj.FingerprintType {
 	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
 	}
-	r := goobj2.NewReaderFromBytes(roObject, readonly)
+	r := goobj.NewReaderFromBytes(roObject, readonly)
 	if r == nil {
 		if len(roObject) >= 8 && bytes.Equal(roObject[:8], []byte("\x00go114ld")) {
 			log.Fatalf("found object file %s in old format", f.File().Name())
@@ -2078,8 +2078,8 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 // Holds the loader along with temporary states for loading symbols.
 type loadState struct {
 	l            *Loader
-	hashed64Syms map[uint64]symAndSize          // short hashed (content-addressable) symbols, keyed by content hash
-	hashedSyms   map[goobj2.HashType]symAndSize // hashed (content-addressable) symbols, keyed by content hash
+	hashed64Syms map[uint64]symAndSize         // short hashed (content-addressable) symbols, keyed by content hash
+	hashedSyms   map[goobj.HashType]symAndSize // hashed (content-addressable) symbols, keyed by content hash
 }
 
 // Preload symbols of given kind from an object.
@@ -2139,7 +2139,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
-			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {
+			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi
 			}
@@ -2160,7 +2160,7 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, 10000),
-		hashedSyms:   make(map[goobj2.HashType]symAndSize, 15000),
+		hashedSyms:   make(map[goobj.HashType]symAndSize, 15000),
 	}
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
@@ -2199,7 +2199,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 	for i, n := 0, r.NRefFlags(); i < n; i++ {
 		rf := r.RefFlags(i)
 		gi := l.resolve(r, rf.Sym())
-		if rf.Flag2()&goobj2.SymFlagUsedInIface != 0 {
+		if rf.Flag2()&goobj.SymFlagUsedInIface != 0 {
 			l.SetAttrUsedInIface(gi, true)
 		}
 	}
@@ -2207,7 +2207,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 
 func abiToVer(abi uint16, localSymVersion int) int {
 	var v int
-	if abi == goobj2.SymABIstatic {
+	if abi == goobj.SymABIstatic {
 		// Static
 		v = localSymVersion
 	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
@@ -2297,13 +2297,13 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
-		pp.relocs = make([]goobj2.Reloc, relocs.Count())
+		pp.relocs = make([]goobj.Reloc, relocs.Count())
 		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
 			rel := relocs.At(i)
-			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
+			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
 			pp.reltypes[i] = rel.Type()
 		}
 

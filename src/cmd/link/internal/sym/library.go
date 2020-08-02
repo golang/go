@@ -4,7 +4,7 @@
 
 package sym
 
-import "cmd/internal/goobj2"
+import "cmd/internal/goobj"
 
 type Library struct {
 	Objref      string
@@ -12,8 +12,8 @@ type Library struct {
 	File        string
 	Pkg         string
 	Shlib       string
-	Fingerprint goobj2.FingerprintType
-	Autolib     []goobj2.ImportedPkg
+	Fingerprint goobj.FingerprintType
+	Autolib     []goobj.ImportedPkg
 	Imports     []*Library
 	Main        bool
 	Units       []*CompilationUnit

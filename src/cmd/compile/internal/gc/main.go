@@ -14,7 +14,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -1280,7 +1280,7 @@ func importfile(f *Val) *types.Pkg {
 		c, _ = imp.ReadByte()
 	}
 
-	var fingerprint goobj2.FingerprintType
+	var fingerprint goobj.FingerprintType
 	switch c {
 	case '\n':
 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)

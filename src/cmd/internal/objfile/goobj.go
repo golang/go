@@ -8,7 +8,7 @@ package objfile
 
 import (
 	"cmd/internal/archive"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"debug/dwarf"
@@ -22,7 +22,7 @@ import (
 
 type goobjFile struct {
 	goobj *archive.GoObj
-	r     *goobj2.Reader
+	r     *goobj.Reader
 	f     *os.File
 }
 
@@ -44,7 +44,7 @@ L:
 			if err != nil {
 				return nil, err
 			}
-			r := goobj2.NewReaderFromBytes(b, false)
+			r := goobj.NewReaderFromBytes(b, false)
 			entries = append(entries, &Entry{
 				name: e.Name,
 				raw:  &goobjFile{e.Obj, r, f},
@@ -103,7 +103,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 
 	// Name of referenced indexed symbols.
 	nrefName := r.NRefName()
-	refNames := make(map[goobj2.SymRef]string, nrefName)
+	refNames := make(map[goobj.SymRef]string, nrefName)
 	for i := 0; i < nrefName; i++ {
 		rn := r.RefName(i)
 		refNames[rn.Sym()] = rn.Name(r)
@@ -111,31 +111,31 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 
 	abiToVer := func(abi uint16) int {
 		var ver int
-		if abi == goobj2.SymABIstatic {
+		if abi == goobj.SymABIstatic {
 			// Static symbol
 			ver = 1
 		}
 		return ver
 	}
 
-	resolveSymRef := func(s goobj2.SymRef) string {
+	resolveSymRef := func(s goobj.SymRef) string {
 		var i uint32
 		switch p := s.PkgIdx; p {
-		case goobj2.PkgIdxInvalid:
+		case goobj.PkgIdxInvalid:
 			if s.SymIdx != 0 {
 				panic("bad sym ref")
 			}
 			return ""
-		case goobj2.PkgIdxHashed64:
+		case goobj.PkgIdxHashed64:
 			i = s.SymIdx + uint32(r.NSym())
-		case goobj2.PkgIdxHashed:
+		case goobj.PkgIdxHashed:
 			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def())
-		case goobj2.PkgIdxNone:
+		case goobj.PkgIdxNone:
 			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def()+r.NHasheddef())
-		case goobj2.PkgIdxBuiltin:
-			name, abi := goobj2.BuiltinName(int(s.SymIdx))
+		case goobj.PkgIdxBuiltin:
+			name, abi := goobj.BuiltinName(int(s.SymIdx))
 			return goobjName(name, abi)
-		case goobj2.PkgIdxSelf:
+		case goobj.PkgIdxSelf:
 			i = s.SymIdx
 		default:
 			return refNames[s]
@@ -166,7 +166,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
 			code = 'B'
 		}
-		if ver >= goobj2.SymABIstatic {
+		if ver >= goobj.SymABIstatic {
 			code += 'a' - 'A'
 		}
 
@@ -248,10 +248,10 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 		auxs := r.Auxs(i)
 		for j := range auxs {
 			a := &auxs[j]
-			if a.Type() != goobj2.AuxFuncInfo {
+			if a.Type() != goobj.AuxFuncInfo {
 				continue
 			}
-			if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
+			if a.Sym().PkgIdx != goobj.PkgIdxSelf {
 				panic("funcinfo symbol not defined in current package")
 			}
 			isym = a.Sym().SymIdx
@@ -260,7 +260,7 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 			continue
 		}
 		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
-		var info *goobj2.FuncInfo
+		var info *goobj.FuncInfo
 		lengths := info.ReadFuncInfoLengths(b)
 		off, end := info.ReadPcline(b)
 		pcline := r.BytesAt(pcdataBase+off, int(end-off))

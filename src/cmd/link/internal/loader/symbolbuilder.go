@@ -5,7 +5,7 @@
 package loader
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -132,7 +132,7 @@ func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
 
 // SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
 func (sb *SymbolBuilder) SetRelocSym(i int, tgt Sym) {
-	sb.relocs[i].SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(tgt)})
+	sb.relocs[i].SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(tgt)})
 }
 
 // SetRelocAdd sets the addend of the 'i'-th relocation on this sym to 'a'
@@ -142,7 +142,7 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
 
 // Add n relocations, return a handle to the relocations.
 func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
-	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)
+	sb.relocs = append(sb.relocs, make([]goobj.Reloc, n)...)
 	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
 	return sb.l.Relocs(sb.symIdx)
 }
@@ -151,7 +151,7 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 // (to set other fields).
 func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
 	j := len(sb.relocs)
-	sb.relocs = append(sb.relocs, goobj2.Reloc{})
+	sb.relocs = append(sb.relocs, goobj.Reloc{})
 	sb.reltypes = append(sb.reltypes, typ)
 	relocs := sb.Relocs()
 	return relocs.At(j), j

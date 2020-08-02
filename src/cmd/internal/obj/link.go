@@ -33,7 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/dwarf"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -631,8 +631,8 @@ type Pcln struct {
 	Pcdata      []Pcdata
 	Funcdata    []*LSym
 	Funcdataoff []int64
-	UsedFiles   map[goobj2.CUFileIndex]struct{} // file indices used while generating pcfile
-	InlTree     InlTree                         // per-function inlining tree extracted from the global tree
+	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
+	InlTree     InlTree                        // per-function inlining tree extracted from the global tree
 }
 
 type Reloc struct {
@@ -678,7 +678,7 @@ type Link struct {
 	PosTable           src.PosTable
 	InlTree            InlTree // global inlining tree used by gc/inl.go
 	DwFixups           *DwarfFixupTable
-	Imports            []goobj2.ImportedPkg
+	Imports            []goobj.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
@@ -720,7 +720,7 @@ type Link struct {
 	nonpkgdefs   []*LSym // list of defined non-package symbols
 	nonpkgrefs   []*LSym // list of referenced non-package symbols
 
-	Fingerprint goobj2.FingerprintType // fingerprint of symbol indices, to catch index mismatch
+	Fingerprint goobj.FingerprintType // fingerprint of symbol indices, to catch index mismatch
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {

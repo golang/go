@@ -32,7 +32,7 @@
 package obj
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"fmt"
 	"log"
@@ -206,7 +206,7 @@ func (ctxt *Link) NumberSyms() {
 		// may reference named symbols whose names are not fully expanded.
 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
 			if len(s.P) <= 8 && len(s.R) == 0 { // we can use short hash only for symbols without relocations
-				s.PkgIdx = goobj2.PkgIdxHashed64
+				s.PkgIdx = goobj.PkgIdxHashed64
 				s.SymIdx = hashed64idx
 				if hashed64idx != int32(len(ctxt.hashed64defs)) {
 					panic("bad index")
@@ -214,7 +214,7 @@ func (ctxt *Link) NumberSyms() {
 				ctxt.hashed64defs = append(ctxt.hashed64defs, s)
 				hashed64idx++
 			} else {
-				s.PkgIdx = goobj2.PkgIdxHashed
+				s.PkgIdx = goobj.PkgIdxHashed
 				s.SymIdx = hashedidx
 				if hashedidx != int32(len(ctxt.hasheddefs)) {
 					panic("bad index")
@@ -223,7 +223,7 @@ func (ctxt *Link) NumberSyms() {
 				hashedidx++
 			}
 		} else if isNonPkgSym(ctxt, s) {
-			s.PkgIdx = goobj2.PkgIdxNone
+			s.PkgIdx = goobj.PkgIdxNone
 			s.SymIdx = nonpkgidx
 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {
 				panic("bad index")
@@ -231,7 +231,7 @@ func (ctxt *Link) NumberSyms() {
 			ctxt.nonpkgdefs = append(ctxt.nonpkgdefs, s)
 			nonpkgidx++
 		} else {
-			s.PkgIdx = goobj2.PkgIdxSelf
+			s.PkgIdx = goobj.PkgIdxSelf
 			s.SymIdx = idx
 			if idx != int32(len(ctxt.defs)) {
 				panic("bad index")
@@ -245,15 +245,15 @@ func (ctxt *Link) NumberSyms() {
 	ipkg := int32(1) // 0 is invalid index
 	nonpkgdef := nonpkgidx
 	ctxt.traverseSyms(traverseRefs|traverseAux, func(rs *LSym) {
-		if rs.PkgIdx != goobj2.PkgIdxInvalid {
+		if rs.PkgIdx != goobj.PkgIdxInvalid {
 			return
 		}
 		if !ctxt.Flag_linkshared {
 			// Assign special index for builtin symbols.
 			// Don't do it when linking against shared libraries, as the runtime
 			// may be in a different library.
-			if i := goobj2.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
-				rs.PkgIdx = goobj2.PkgIdxBuiltin
+			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+				rs.PkgIdx = goobj.PkgIdxBuiltin
 				rs.SymIdx = int32(i)
 				rs.Set(AttrIndexed, true)
 				return
@@ -265,7 +265,7 @@ func (ctxt *Link) NumberSyms() {
 			panic("hashed refs unsupported for now")
 		}
 		if pkg == "" || pkg == "\"\"" || pkg == "_" || !rs.Indexed() {
-			rs.PkgIdx = goobj2.PkgIdxNone
+			rs.PkgIdx = goobj.PkgIdxNone
 			rs.SymIdx = nonpkgidx
 			rs.Set(AttrIndexed, true)
 			if nonpkgidx != nonpkgdef+int32(len(ctxt.nonpkgrefs)) {
