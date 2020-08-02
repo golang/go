@@ -1596,7 +1596,14 @@ Nodes:
 				e = node.Y
 			}
 			if tv, ok := c.pkg.GetTypesInfo().Types[e]; ok {
-				inf.objType = tv.Type
+				switch node.Op {
+				case token.LAND, token.LOR:
+					// Don't infer "bool" type for "&&" or "||". Often you want
+					// to compose a boolean expression from non-boolean
+					// candidates.
+				default:
+					inf.objType = tv.Type
+				}
 				break Nodes
 			}
 		case *ast.AssignStmt:
