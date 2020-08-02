@@ -6,7 +6,7 @@ package loader
 
 import (
 	"bytes"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -22,7 +22,7 @@ import (
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := uint32(len(ldr.objSyms))
 	st := loadState{l: ldr}
-	return st.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
+	return st.addSym(name, 0, or, idx, nonPkgDef, &goobj.Sym{})
 }
 
 func mkLoader() *Loader {
@@ -237,7 +237,7 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 type addFunc func(l *Loader, s Sym, s2 Sym) Sym
 
 func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc {
-	r := Reloc{&goobj2.Reloc{}, l.extReader, l, typ}
+	r := Reloc{&goobj.Reloc{}, l.extReader, l, typ}
 	r.SetOff(off)
 	r.SetSiz(siz)
 	r.SetAdd(add)

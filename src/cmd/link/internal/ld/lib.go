@@ -33,7 +33,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -404,7 +404,7 @@ func errorexit() {
 }
 
 func loadinternal(ctxt *Link, name string) *sym.Library {
-	zerofp := goobj2.FingerprintType{}
+	zerofp := goobj.FingerprintType{}
 	if ctxt.linkShared && ctxt.PackageShlib != nil {
 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
 			return addlibpath(ctxt, "internal", "internal", "", name, shlib, zerofp)
@@ -1899,7 +1899,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	return nil
 }
 
-func checkFingerprint(lib *sym.Library, libfp goobj2.FingerprintType, src string, srcfp goobj2.FingerprintType) {
+func checkFingerprint(lib *sym.Library, libfp goobj.FingerprintType, src string, srcfp goobj.FingerprintType) {
 	if libfp != srcfp {
 		Exitf("fingerprint mismatch: %s has %x, import from %s expecting %x", lib, libfp, src, srcfp)
 	}

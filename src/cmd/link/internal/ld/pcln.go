@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -157,7 +157,7 @@ func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
 // This funciton looks at a CU's file at index [i], and if it's a new filename,
 // stores that filename in the global file table, and adds it to the map lookup
 // for renumbering pcfile.
-func (state *oldPclnState) numberfile(cu *sym.CompilationUnit, i goobj2.CUFileIndex) int64 {
+func (state *oldPclnState) numberfile(cu *sym.CompilationUnit, i goobj.CUFileIndex) int64 {
 	file := cu.FileTable[i]
 	if val, ok := state.numberedFiles[file]; ok {
 		return val

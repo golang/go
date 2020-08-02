@@ -5,7 +5,7 @@
 package obj
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"encoding/binary"
 	"log"
 )
@@ -136,7 +136,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 		return l
 	}
 	pcln := arg.(*Pcln)
-	pcln.UsedFiles[goobj2.CUFileIndex(f)] = struct{}{}
+	pcln.UsedFiles[goobj.CUFileIndex(f)] = struct{}{}
 	return int32(f)
 }
 
@@ -249,7 +249,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 
 func linkpcln(ctxt *Link, cursym *LSym) {
 	pcln := &cursym.Func.Pcln
-	pcln.UsedFiles = make(map[goobj2.CUFileIndex]struct{})
+	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
 
 	npcdata := 0
 	nfuncdata := 0

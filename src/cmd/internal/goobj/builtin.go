@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package goobj2
+package goobj
 
 // Builtin (compiler-generated) function references appear
 // frequently. We assign special indices for them, so they

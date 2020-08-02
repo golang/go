@@ -32,7 +32,7 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
@@ -205,7 +205,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
 	}
 
-	zerofp := goobj2.FingerprintType{}
+	zerofp := goobj.FingerprintType{}
 	switch ctxt.BuildMode {
 	case BuildModeShared:
 		for i := 0; i < flag.NArg(); i++ {

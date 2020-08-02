@@ -10,7 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"errors"
 	"fmt"
 	"io"
@@ -318,7 +318,7 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(p, []byte(goobj2.Magic)) {
+	if !bytes.Equal(p, []byte(goobj.Magic)) {
 		return r.error(errCorruptObject)
 	}
 	r.skip(o.Size)

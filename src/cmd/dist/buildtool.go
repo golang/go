@@ -56,7 +56,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/gcprog",
 	"cmd/internal/dwarf",
 	"cmd/internal/edit",
-	"cmd/internal/goobj2",
+	"cmd/internal/goobj",
 	"cmd/internal/objabi",
 	"cmd/internal/obj",
 	"cmd/internal/obj/arm",

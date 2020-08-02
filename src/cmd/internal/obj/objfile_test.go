@@ -5,7 +5,7 @@
 package obj
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/sys"
 	"testing"
 )
@@ -43,7 +43,7 @@ func TestContentHash(t *testing.T) {
 	}
 	for _, s := range syms {
 		s.Set(AttrContentAddressable, true)
-		s.PkgIdx = goobj2.PkgIdxHashed
+		s.PkgIdx = goobj.PkgIdxHashed
 	}
 	// s3 references s0
 	r := Addrel(syms[3])
@@ -59,7 +59,7 @@ func TestContentHash(t *testing.T) {
 	r.Sym = syms[2]
 
 	// compute hashes
-	h := make([]goobj2.HashType, len(syms))
+	h := make([]goobj.HashType, len(syms))
 	w := &writer{}
 	for i := range h {
 		h[i] = w.contentHash(syms[i])

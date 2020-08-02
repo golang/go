@@ -10,7 +10,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
@@ -97,7 +97,7 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType) {
+func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
 	ir := &intReader{in, pkg}
 
 	version := ir.uint64()
