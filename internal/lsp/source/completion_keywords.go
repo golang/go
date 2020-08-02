@@ -38,9 +38,9 @@ const (
 func (c *completer) addKeywordCompletions() {
 	seen := make(map[string]bool)
 
-	if c.wantTypeName() {
-		// If we expect a type name, include "interface", "struct",
-		// "func", "chan", and "map".
+	if c.wantTypeName() && c.inference.objType == nil {
+		// If we want a type name but don't have an expected obj type,
+		// include "interface", "struct", "func", "chan", and "map".
 
 		// "interface" and "struct" are more common declaring named types.
 		// Give them a higher score if we are in a type declaration.

@@ -1135,12 +1135,29 @@ func (c *completer) lexical(ctx context.Context) error {
 	if t := c.inference.objType; t != nil {
 		t = deref(t)
 
-		// If we have an expected type and it is _not_ a named type, see
-		// if an object literal makes a good candidate. For example, if
-		// our expected type is "[]int", this will add a candidate of
-		// "[]int{}".
+		// If we have an expected type and it is _not_ a named type,
+		// handle it specially. Non-named types like "[]int" will never be
+		// considered via a lexical search, so we need to directly inject
+		// them.
 		if _, named := t.(*types.Named); !named {
+			// If our expected type is "[]int", this will add a literal
+			// candidate of "[]int{}".
 			c.literal(ctx, t, nil)
+
+			if _, isBasic := t.(*types.Basic); !isBasic {
+				// If we expect a non-basic type name (e.g. "[]int"), hack up
+				// a named type whose name is literally "[]int". This allows
+				// us to reuse our object based completion machinery.
+				fakeNamedType := candidate{
+					obj:   types.NewTypeName(token.NoPos, nil, types.TypeString(t, c.qf), t),
+					score: stdScore,
+				}
+				// Make sure the type name matches before considering
+				// candidate. This cuts down on useless candidates.
+				if c.matchingTypeName(&fakeNamedType) {
+					c.found(ctx, fakeNamedType)
+				}
+			}
 		}
 	}
 
