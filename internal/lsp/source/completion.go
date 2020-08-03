@@ -1545,12 +1545,21 @@ const (
 type objKind int
 
 const (
+	kindAny   objKind = 0
 	kindArray objKind = 1 << iota
 	kindSlice
 	kindChan
 	kindMap
 	kindStruct
 	kindString
+	kindInt
+	kindBool
+	kindBytes
+	kindPtr
+	kindFloat
+	kindComplex
+	kindError
+	kindStringer
 	kindFunc
 )
 
@@ -1749,6 +1758,9 @@ Nodes:
 							inf.objType = deslice(inf.objType)
 							// Record whether we are completing the initial variadic param.
 							inf.variadic = exprIdx == numParams-1 && len(node.Args) <= numParams
+
+							// Check if we can infer object kind from printf verb.
+							inf.objKind |= printfArgKind(c.pkg.GetTypesInfo(), node, exprIdx)
 						}
 					}
 				}
@@ -2288,6 +2300,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 	)
 	if ci.objType != nil {
 		expTypes = append(expTypes, ci.objType)
+
 		if ci.variadic {
 			variadicType = types.NewSlice(ci.objType)
 			expTypes = append(expTypes, variadicType)
@@ -2305,31 +2318,11 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			return true
 		}
 
-		if len(expTypes) == 0 {
-			// If we have no expected type but were able to apply type
-			// modifiers to our candidate type, count that as a match. This
-			// handles cases like:
-			//
-			//   var foo chan int
-			//   <-fo<>
-			//
-			// There is no exected type at "<>", but we were able to apply
-			// the "<-" type modifier to "foo", so it matches.
-			if len(ci.modifiers) > 0 {
-				return true
-			}
-
-			// If we have no expected type, fall back to checking the
-			// expected "kind" of object, if available.
-			if ci.kindMatches(candType) {
-				if ci.objKind == kindFunc {
-					cand.expandFuncCall = true
-				}
-				return true
-			}
-		}
-
 		for _, expType := range expTypes {
+			if isEmptyInterface(expType) {
+				continue
+			}
+
 			matches, untyped := ci.typeMatches(expType, candType)
 			if !matches {
 				continue
@@ -2347,6 +2340,31 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			}
 
 			return true
+		}
+
+		// If we don't have a specific expected type, fall back to coarser
+		// object kind checks.
+		if ci.objType == nil || isEmptyInterface(ci.objType) {
+			// If we were able to apply type modifiers to our candidate type,
+			// count that as a match. For example:
+			//
+			//   var foo chan int
+			//   <-fo<>
+			//
+			// We were able to apply the "<-" type modifier to "foo", so "foo"
+			// matches.
+			if len(ci.modifiers) > 0 {
+				return true
+			}
+
+			// If we didn't have an exact type match, check if our object kind
+			// matches.
+			if ci.kindMatches(candType) {
+				if ci.objKind == kindFunc {
+					cand.expandFuncCall = true
+				}
+				return true
+			}
 		}
 
 		return false
@@ -2382,7 +2400,7 @@ func (ci *candidateInference) typeMatches(expType, candType types.Type) (bool, b
 // kindMatches reports whether candType's kind matches our expected
 // kind (e.g. slice, map, etc.).
 func (ci *candidateInference) kindMatches(candType types.Type) bool {
-	return ci.objKind&candKind(candType) > 0
+	return ci.objKind > 0 && ci.objKind&candKind(candType) > 0
 }
 
 // assigneesMatch reports whether an invocation of sig matches the
@@ -2508,30 +2526,74 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 	return false
 }
 
+var (
+	// "interface { Error() string }" (i.e. error)
+	errorIntf = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+	// "interface { String() string }" (i.e. fmt.Stringer)
+	stringerIntf = types.NewInterfaceType([]*types.Func{
+		types.NewFunc(token.NoPos, nil, "String", types.NewSignature(
+			nil,
+			nil,
+			types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])),
+			false,
+		)),
+	}, nil).Complete()
+
+	byteType = types.Universe.Lookup("byte").Type()
+)
+
 // candKind returns the objKind of candType, if any.
 func candKind(candType types.Type) objKind {
+	var kind objKind
+
 	switch t := candType.Underlying().(type) {
 	case *types.Array:
-		return kindArray
+		kind |= kindArray
+		if t.Elem() == byteType {
+			kind |= kindBytes
+		}
 	case *types.Slice:
-		return kindSlice
+		kind |= kindSlice
+		if t.Elem() == byteType {
+			kind |= kindBytes
+		}
 	case *types.Chan:
-		return kindChan
+		kind |= kindChan
 	case *types.Map:
-		return kindMap
+		kind |= kindMap
 	case *types.Pointer:
+		kind |= kindPtr
+
 		// Some builtins handle array pointers as arrays, so just report a pointer
 		// to an array as an array.
 		if _, isArray := t.Elem().Underlying().(*types.Array); isArray {
-			return kindArray
+			kind |= kindArray
 		}
 	case *types.Basic:
-		if t.Info()&types.IsString > 0 {
-			return kindString
+		switch info := t.Info(); {
+		case info&types.IsString > 0:
+			kind |= kindString
+		case info&types.IsInteger > 0:
+			kind |= kindInt
+		case info&types.IsFloat > 0:
+			kind |= kindFloat
+		case info&types.IsComplex > 0:
+			kind |= kindComplex
+		case info&types.IsBoolean > 0:
+			kind |= kindBool
 		}
 	case *types.Signature:
 		return kindFunc
 	}
 
-	return 0
+	if types.Implements(candType, errorIntf) {
+		kind |= kindError
+	}
+
+	if types.Implements(candType, stringerIntf) {
+		kind |= kindStringer
+	}
+
+	return kind
 }

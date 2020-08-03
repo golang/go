@@ -457,11 +457,11 @@ func enclosingValueSpec(path []ast.Node) *ast.ValueSpec {
 	return nil
 }
 
-// typeConversion returns the type being converted to if call is a type
-// conversion expression.
-func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
+// exprObj returns the types.Object associated with the *ast.Ident or
+// *ast.SelectorExpr e.
+func exprObj(info *types.Info, e ast.Expr) types.Object {
 	var ident *ast.Ident
-	switch expr := call.Fun.(type) {
+	switch expr := e.(type) {
 	case *ast.Ident:
 		ident = expr
 	case *ast.SelectorExpr:
@@ -470,8 +470,14 @@ func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
 		return nil
 	}
 
+	return info.ObjectOf(ident)
+}
+
+// typeConversion returns the type being converted to if call is a type
+// conversion expression.
+func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
 	// Type conversion (e.g. "float64(foo)").
-	if fun, _ := info.ObjectOf(ident).(*types.TypeName); fun != nil {
+	if fun, _ := exprObj(info, call.Fun).(*types.TypeName); fun != nil {
 		return fun.Type()
 	}
 
