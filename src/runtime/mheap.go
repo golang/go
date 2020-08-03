@@ -1225,15 +1225,8 @@ HaveSpan:
 		atomic.Xadd64(&memstats.heap_released, -int64(scav))
 	}
 	// Update stats.
-	switch typ {
-	case spanAllocHeap:
+	if typ == spanAllocHeap {
 		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
-	case spanAllocStack:
-		atomic.Xadd64(&memstats.stacks_inuse, int64(nbytes))
-	case spanAllocWorkBuf:
-		atomic.Xadd64(&memstats.gcWorkBufInUse, int64(nbytes))
-	case spanAllocPtrScalarBits:
-		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, int64(nbytes))
 	}
 	if typ.manual() {
 		// Manually managed memory doesn't count toward heap_sys.
@@ -1421,15 +1414,8 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 	//
 	// Mirrors the code in allocSpan.
 	nbytes := s.npages * pageSize
-	switch typ {
-	case spanAllocHeap:
+	if typ == spanAllocHeap {
 		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
-	case spanAllocStack:
-		atomic.Xadd64(&memstats.stacks_inuse, -int64(nbytes))
-	case spanAllocWorkBuf:
-		atomic.Xadd64(&memstats.gcWorkBufInUse, -int64(nbytes))
-	case spanAllocPtrScalarBits:
-		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, -int64(nbytes))
 	}
 	if typ.manual() {
 		// Manually managed memory doesn't count toward heap_sys, so add it back.
