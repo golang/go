@@ -64,7 +64,7 @@ func basic() (uint8, uint16, uint32, uint64, int8, int16, int32, int64, float32,
 }
 
 func complex() (*int, []int, [2]int, map[int]int) {
-	return nil, nil, [2]int{}, nil // want "wrong number of return values \\(want 4, got 0\\)"
+	return nil, nil, nil, nil // want "wrong number of return values \\(want 4, got 0\\)"
 }
 
 func structsAndInterfaces() (T, url.URL, T1, I, I1, io.Reader, Client, ast2.Stmt) {
@@ -110,4 +110,13 @@ func localFuncMultipleReturn() (string, int, error, string) {
 
 func multipleUnused() (int, string, string, string) {
 	return 3, "", "", "", 4, 5 // want "wrong number of return values \\(want 4, got 3\\)"
+}
+
+func gotTooMany() int {
+	if true {
+		return 0 // want "wrong number of return values \\(want 1, got 2\\)"
+	} else {
+		return 1 // want "wrong number of return values \\(want 1, got 3\\)"
+	}
+	return 0, 5 // want "wrong number of return values \\(want 1, got 3\\)"
 }

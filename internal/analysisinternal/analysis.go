@@ -50,7 +50,7 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 		default:
 			panic("unknown basic type")
 		}
-	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
 		return ast.NewIdent("nil")
 	case *types.Struct:
 		texpr := TypeExpr(fset, f, pkg, typ) // typ because we want the name here.
@@ -60,19 +60,21 @@ func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.T
 		return &ast.CompositeLit{
 			Type: texpr,
 		}
-	case *types.Array:
-		texpr := TypeExpr(fset, f, pkg, u.Elem())
-		if texpr == nil {
-			return nil
-		}
-		return &ast.CompositeLit{
-			Type: &ast.ArrayType{
-				Elt: texpr,
-				Len: &ast.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", u.Len())},
-			},
-		}
 	}
 	return nil
+}
+
+// IsZeroValue checks whether the given expression is a 'zero value' (as determined by output of
+// analysisinternal.ZeroValue)
+func IsZeroValue(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		return e.Value == "0" || e.Value == `""`
+	case *ast.Ident:
+		return e.Name == "nil" || e.Name == "false"
+	default:
+		return false
+	}
 }
 
 func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {

@@ -111,3 +111,12 @@ func localFuncMultipleReturn() (string, int, error, string) {
 func multipleUnused() (int, string, string, string) {
 	return 3, 4, 5 // want "wrong number of return values \\(want 4, got 3\\)"
 }
+
+func gotTooMany() int {
+	if true {
+		return 0, "" // want "wrong number of return values \\(want 1, got 2\\)"
+	} else {
+		return 1, 0, nil // want "wrong number of return values \\(want 1, got 3\\)"
+	}
+	return 0, 5, false // want "wrong number of return values \\(want 1, got 3\\)"
+}

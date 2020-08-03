@@ -143,7 +143,8 @@ outer:
 				fixed[i] = match
 				remaining = append(remaining[:idx], remaining[idx+1:]...)
 			} else {
-				zv := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg, info.TypeOf(result.Type))
+				zv := analysisinternal.ZeroValue(pass.Fset, file, pass.Pkg,
+					info.TypeOf(result.Type))
 				if zv == nil {
 					return nil, nil
 				}
@@ -151,8 +152,15 @@ outer:
 			}
 		}
 
+		// Remove any non-matching "zero values" from the leftover values.
+		var nonZeroRemaining []ast.Expr
+		for _, expr := range remaining {
+			if !analysisinternal.IsZeroValue(expr) {
+				nonZeroRemaining = append(nonZeroRemaining, expr)
+			}
+		}
 		// Append leftover return values to end of new return statement.
-		fixed = append(fixed, remaining...)
+		fixed = append(fixed, nonZeroRemaining...)
 
 		newRet := &ast.ReturnStmt{
 			Return:  ret.Pos(),
@@ -200,14 +208,11 @@ func FixesError(msg string) bool {
 	if len(matches) < 3 {
 		return false
 	}
-	wantNum, err := strconv.Atoi(matches[1])
-	if err != nil {
+	if _, err := strconv.Atoi(matches[1]); err != nil {
 		return false
 	}
-	gotNum, err := strconv.Atoi(matches[2])
-	if err != nil {
+	if _, err := strconv.Atoi(matches[2]); err != nil {
 		return false
 	}
-	// Logic for handling more return values than expected is hard.
-	return wantNum >= gotNum
+	return true
 }
