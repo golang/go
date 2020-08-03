@@ -32,7 +32,6 @@ type mstats struct {
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
-	heap_alloc    uint64     // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
 	heap_inuse    uint64     // bytes in mSpanInUse spans
 	heap_released uint64     // bytes released to the os
@@ -112,11 +111,10 @@ type mstats struct {
 
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
-	// since then. heap_live <= heap_alloc, since heap_alloc
-	// includes unmarked objects that have not yet been swept (and
-	// hence goes up as we allocate and down as we sweep) while
-	// heap_live excludes these objects (and hence only goes up
-	// between GCs).
+	// since then. heap_live <= alloc, since alloc includes unmarked
+	// objects that have not yet been swept (and hence goes up as we
+	// allocate and down as we sweep) while heap_live excludes these
+	// objects (and hence only goes up between GCs).
 	//
 	// This is updated atomically without locking. To reduce
 	// contention, this is updated only when obtaining a span from
@@ -458,7 +456,7 @@ func readmemstats_m(stats *MemStats) {
 	stats.Sys = memstats.sys
 	stats.Mallocs = memstats.nmalloc
 	stats.Frees = memstats.nfree
-	stats.HeapAlloc = memstats.heap_alloc
+	stats.HeapAlloc = memstats.alloc
 	stats.HeapSys = memstats.heap_sys.load()
 	// By definition, HeapIdle is memory that was mapped
 	// for the heap but is not currently used to hold heap
@@ -639,7 +637,6 @@ func updatememstats() {
 	// Calculate derived stats.
 	memstats.total_alloc = totalAlloc
 	memstats.alloc = totalAlloc - totalFree
-	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
 
