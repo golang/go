@@ -486,7 +486,7 @@ func commandToEdits(ctx context.Context, snapshot source.Snapshot, fh source.Ver
 		return nil, fmt.Errorf("no known command for %s", cmd)
 	}
 	if !command.Applies(ctx, snapshot, fh, rng) {
-		return nil, nil
+		return nil, fmt.Errorf("cannot apply %v", command.Name)
 	}
 	return command.SuggestedFix(ctx, snapshot, fh, rng)
 }
