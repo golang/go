@@ -28,6 +28,15 @@ go get golang.org/x/tools/gopls@latest
 
 **Do not** use the `-u` flag, as it will update your dependencies to incompatible versions.
 
+To get a specific version of `gopls` (for example, to test a prerelease
+version), run:
+
+```sh
+go get golang.org/x/tools/gopls@vX.Y.Z
+```
+
+Where `vX.Y.Z` is the desired version.
+
 If you see this error:
 
 ```sh
