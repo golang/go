@@ -45,32 +45,32 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		}
 		assignment = buf.String()
 	case *ast.CallExpr: // TODO: find number of return values and do according actions.
-		return nil, nil
+		return nil, fmt.Errorf("cannot extract call expression")
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("cannot extract %T", expr)
 	}
 
 	insertBeforeStmt := analysisinternal.StmtToInsertVarBefore(path)
 	if insertBeforeStmt == nil {
-		return nil, nil
+		return nil, fmt.Errorf("cannot find location to insert extraction")
 	}
 
 	tok := fset.File(expr.Pos())
 	if tok == nil {
-		return nil, nil
+		return nil, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
 	indent := calculateIndentation(src, tok, insertBeforeStmt)
 	return &analysis.SuggestedFix{
 		TextEdits: []analysis.TextEdit{
 			{
-				Pos:     insertBeforeStmt.Pos(),
-				End:     insertBeforeStmt.End(),
-				NewText: []byte(assignment + "\n" + indent),
+				Pos:     rng.Start,
+				End:     rng.End,
+				NewText: []byte(name),
 			},
 			{
-				Pos:     rng.Start,
-				End:     rng.Start,
-				NewText: []byte(name),
+				Pos:     insertBeforeStmt.Pos(),
+				End:     insertBeforeStmt.Pos(),
+				NewText: []byte(assignment + "\n" + indent),
 			},
 		},
 	}, nil

@@ -454,12 +454,12 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err = applyTextDocumentEdits(r, edits)
+		res, err = applySuggestedFixEdits(r, edits)
 		if err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		res, err = applyTextDocumentEdits(r, action.Edit.DocumentChanges)
+		res, err = applySuggestedFixEdits(r, action.Edit.DocumentChanges)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -861,6 +861,36 @@ func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[s
 		m, err := r.data.Mapper(uri)
 		if err != nil {
 			return nil, err
+		}
+		res[uri] = string(m.Content)
+		sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
+		if err != nil {
+			return nil, err
+		}
+		res[uri] = applyEdits(res[uri], sedits)
+	}
+	return res, nil
+}
+
+func applySuggestedFixEdits(r *runner, edits []protocol.TextDocumentEdit) (map[span.URI]string, error) {
+	res := map[span.URI]string{}
+	for _, docEdits := range edits {
+		uri := docEdits.TextDocument.URI.SpanURI()
+		var m *protocol.ColumnMapper
+		// If we have already edited this file, we use the edited version (rather than the
+		// file in its original state) so that we preserve our initial changes.
+		if content, ok := res[uri]; ok {
+			m = &protocol.ColumnMapper{
+				URI: uri,
+				Converter: span.NewContentConverter(
+					uri.Filename(), []byte(content)),
+				Content: []byte(content),
+			}
+		} else {
+			var err error
+			if m, err = r.data.Mapper(uri); err != nil {
+				return nil, err
+			}
 		}
 		res[uri] = string(m.Content)
 		sedits, err := source.FromProtocolEdits(m, docEdits.Edits)

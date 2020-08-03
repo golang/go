@@ -432,7 +432,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 			Title: command.Title,
 			Kind:  protocol.RefactorExtract,
 			Command: &protocol.Command{
-				Command:   source.CommandExtractFunction.Name,
+				Command:   command.Name,
 				Arguments: jsonArgs,
 			},
 		})
