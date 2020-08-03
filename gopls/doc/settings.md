@@ -147,10 +147,6 @@ If true, this enables server side fuzzy matching of completion candidates.
 
 Default: `true`.
 
-### **staticcheck** *boolean*
-
-If true, it enables the use of the staticcheck.io analyzers.
-
 ### **matcher** *string*
 
 Defines the algorithm that is used when calculating completion candidates. Must be one of:
@@ -159,7 +155,21 @@ Defines the algorithm that is used when calculating completion candidates. Must 
 * `"caseSensitive"`
 * `"caseInsensitive"`
 
-Default: `"caseInsensitive"`.
+Default: `"caseInsensitive"`
+
+### **annotations** *map[string]bool*
+
+**noBounds** suppresses gc_details diagnostics about bounds checking.
+
+**noEscape** suppresses gc_details diagnostics about escape analysis.
+
+**noInline** suppresses gc_details diagnostics about inlining.
+
+**noNilcheck** suppresses gc_details diagnostics about generated nil checks.
+
+### **staticcheck** *boolean*
+
+If true, it enables the use of the staticcheck.io analyzers.
 
 ### **symbolMatcher** *string*
 

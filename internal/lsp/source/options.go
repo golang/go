@@ -281,6 +281,14 @@ type ExperimentalOptions struct {
 	// VerboseWorkDoneProgress controls whether the LSP server should send
 	// progress reports for all work done outside the scope of an RPC.
 	VerboseWorkDoneProgress bool
+
+	// Annotations suppress various kinds of optimization diagnostics
+	// that would be reported by the gc_details command.
+	//   noNilcheck suppresses display of nilchecks.
+	//   noEscape suppresses escape choices.
+	//   noInline suppresses inlining choices.
+	//   noBounds suppresses bounds checking diagnositcs.
+	Annotations map[string]bool
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may
@@ -525,6 +533,18 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "analyses":
 		result.setBoolMap(&o.UserEnabledAnalyses)
+
+	case "annotations":
+		result.setBoolMap(&o.Annotations)
+		for k := range o.Annotations {
+			switch k {
+			case "noEscape", "noNilcheck", "noInline", "noBounds":
+				continue
+			default:
+				result.Name += ":" + k // put mistake(s) in the message
+				result.State = OptionUnexpected
+			}
+		}
 
 	case "codelens":
 		var lensOverrides map[string]bool
