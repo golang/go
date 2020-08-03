@@ -1,4 +1,5 @@
 -- summary --
+CallHierarchyCount = 1
 CodeLensCount = 4
 CompletionsCount = 241
 CompletionSnippetCount = 81

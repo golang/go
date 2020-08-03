@@ -43,6 +43,7 @@ const (
 
 var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
+type CallHierarchy map[span.Span]*CallHierarchyResult
 type CodeLens map[span.URI][]protocol.CodeLens
 type Diagnostics map[span.URI][]*source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
@@ -74,6 +75,7 @@ type Links map[span.URI][]Link
 type Data struct {
 	Config                        packages.Config
 	Exported                      *packagestest.Exported
+	CallHierarchy                 CallHierarchy
 	CodeLens                      CodeLens
 	Diagnostics                   Diagnostics
 	CompletionItems               CompletionItems
@@ -117,6 +119,7 @@ type Data struct {
 }
 
 type Tests interface {
+	CallHierarchy(*testing.T, span.Span, *CallHierarchyResult)
 	CodeLens(*testing.T, span.URI, []protocol.CodeLens)
 	Diagnostics(*testing.T, span.URI, []*source.Diagnostic)
 	Completion(*testing.T, span.Span, Completion, CompletionItems)
@@ -197,6 +200,10 @@ type CompletionSnippet struct {
 	PlaceholderSnippet string
 }
 
+type CallHierarchyResult struct {
+	IncomingCalls, OutgoingCalls []span.Span
+}
+
 type Link struct {
 	Src          span.Span
 	Target       string
@@ -274,6 +281,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 	var data []*Data
 	for _, folder := range folders {
 		datum := &Data{
+			CallHierarchy:                 make(CallHierarchy),
 			CodeLens:                      make(CodeLens),
 			Diagnostics:                   make(Diagnostics),
 			CompletionItems:               make(CompletionItems),
@@ -425,6 +433,8 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			"link":            datum.collectLinks,
 			"suggestedfix":    datum.collectSuggestedFixes,
 			"extractfunc":     datum.collectFunctionExtractions,
+			"incomingcalls":   datum.collectIncomingCalls,
+			"outgoingcalls":   datum.collectOutgoingCalls,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -494,6 +504,16 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			})
 		}
 	}
+
+	t.Run("CallHierarchy", func(t *testing.T) {
+		t.Helper()
+		for spn, callHierarchyResult := range data.CallHierarchy {
+			t.Run(SpanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.CallHierarchy(t, spn, callHierarchyResult)
+			})
+		}
+	})
 
 	t.Run("Completion", func(t *testing.T) {
 		t.Helper()
@@ -807,6 +827,7 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
+	fmt.Fprintf(buf, "CallHierarchyCount = %v\n", len(data.CallHierarchy))
 	fmt.Fprintf(buf, "CodeLensCount = %v\n", countCodeLens(data.CodeLens))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
 	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", snippetCount)
@@ -1058,6 +1079,26 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 
 func (data *Data) collectImplementations(src span.Span, targets []span.Span) {
 	data.Implementations[src] = targets
+}
+
+func (data *Data) collectIncomingCalls(src span.Span, calls []span.Span) {
+	if data.CallHierarchy[src] != nil {
+		data.CallHierarchy[src].IncomingCalls = calls
+	} else {
+		data.CallHierarchy[src] = &CallHierarchyResult{
+			IncomingCalls: calls,
+		}
+	}
+}
+
+func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
+	if data.CallHierarchy[src] != nil {
+		data.CallHierarchy[src].OutgoingCalls = calls
+	} else {
+		data.CallHierarchy[src] = &CallHierarchyResult{
+			OutgoingCalls: calls,
+		}
+	}
 }
 
 func (data *Data) collectHoverDefinitions(src, target span.Span) {

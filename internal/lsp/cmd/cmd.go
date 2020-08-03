@@ -175,6 +175,7 @@ func (app *Application) mainCommands() []tool.Application {
 
 func (app *Application) featureCommands() []tool.Application {
 	return []tool.Application{
+		&callHierarchy{app: app},
 		&check{app: app},
 		&definition{app: app},
 		&foldingRanges{app: app},

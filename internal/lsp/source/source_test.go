@@ -96,6 +96,47 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {
+	mapper, err := r.data.Mapper(spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := mapper.Location(spn)
+	if err != nil {
+		t.Fatalf("failed for %v: %v", spn, err)
+	}
+	fh, err := r.view.Snapshot().GetFile(r.ctx, spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := source.PrepareCallHierarchy(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) == 0 {
+		t.Errorf("expected call hierarchy item to be returned for identifier at %v\n", loc.Range)
+	}
+
+	callLocation := protocol.Location{
+		URI:   items[0].URI,
+		Range: items[0].Range,
+	}
+	if callLocation != loc {
+		t.Errorf("expected source.PrepareCallHierarchy to return identifier at %v but got %v\n", loc, callLocation)
+	}
+
+	// TODO: add span comparison tests for expectedCalls once call hierarchy is implemented
+	incomingCalls, err := source.IncomingCalls(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	if len(incomingCalls) != 0 {
+		t.Errorf("expected no incoming calls but got %d", len(incomingCalls))
+	}
+	outgoingCalls, err := source.OutgoingCalls(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	if len(outgoingCalls) != 0 {
+		t.Errorf("expected no outgoing calls but got %d", len(outgoingCalls))
+	}
+}
+
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	fileID, got, err := source.FileDiagnostics(r.ctx, r.snapshot, uri)
 	if err != nil {

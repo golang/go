@@ -1,4 +1,5 @@
 -- summary --
+CallHierarchyCount = 0
 CodeLensCount = 2
 CompletionsCount = 0
 CompletionSnippetCount = 0

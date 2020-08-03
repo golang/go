@@ -100,8 +100,8 @@ func (s *Server) Implementation(ctx context.Context, params *protocol.Implementa
 	return s.implementation(ctx, params)
 }
 
-func (s *Server) IncomingCalls(context.Context, *protocol.CallHierarchyIncomingCallsParams) ([]protocol.CallHierarchyIncomingCall, error) {
-	return nil, notImplemented("IncomingCalls")
+func (s *Server) IncomingCalls(ctx context.Context, params *protocol.CallHierarchyIncomingCallsParams) ([]protocol.CallHierarchyIncomingCall, error) {
+	return s.incomingCalls(ctx, params)
 }
 
 func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
@@ -124,12 +124,12 @@ func (s *Server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeForma
 	return nil, notImplemented("OnTypeFormatting")
 }
 
-func (s *Server) OutgoingCalls(context.Context, *protocol.CallHierarchyOutgoingCallsParams) ([]protocol.CallHierarchyOutgoingCall, error) {
-	return nil, notImplemented("OutgoingCalls")
+func (s *Server) OutgoingCalls(ctx context.Context, params *protocol.CallHierarchyOutgoingCallsParams) ([]protocol.CallHierarchyOutgoingCall, error) {
+	return s.outgoingCalls(ctx, params)
 }
 
-func (s *Server) PrepareCallHierarchy(context.Context, *protocol.CallHierarchyPrepareParams) ([]protocol.CallHierarchyItem, error) {
-	return nil, notImplemented("PrepareCallHierarchy")
+func (s *Server) PrepareCallHierarchy(ctx context.Context, params *protocol.CallHierarchyPrepareParams) ([]protocol.CallHierarchyItem, error) {
+	return s.prepareCallHierarchy(ctx, params)
 }
 
 func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {

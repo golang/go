@@ -99,6 +99,50 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {
+	mapper, err := r.data.Mapper(spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := mapper.Location(spn)
+	if err != nil {
+		t.Fatalf("failed for %v: %v", spn, err)
+	}
+
+	params := &protocol.CallHierarchyPrepareParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+			Position:     loc.Range.Start,
+		},
+	}
+
+	items, err := r.server.PrepareCallHierarchy(r.ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) == 0 {
+		t.Errorf("expected call hierarchy item to be returned for identifier at %v\n", loc.Range)
+	}
+
+	callLocation := protocol.Location{
+		URI:   items[0].URI,
+		Range: items[0].Range,
+	}
+	if callLocation != loc {
+		t.Errorf("expected server.PrepareCallHierarchy to return identifier at %v but got %v\n", loc, callLocation)
+	}
+
+	// TODO: add span comparison tests for expectedCalls once call hierarchy is implemented
+	incomingCalls, err := r.server.IncomingCalls(r.ctx, &protocol.CallHierarchyIncomingCallsParams{Item: items[0]})
+	if len(incomingCalls) != 0 {
+		t.Errorf("expected no incoming calls but got %d", len(incomingCalls))
+	}
+	outgoingCalls, err := r.server.OutgoingCalls(r.ctx, &protocol.CallHierarchyOutgoingCallsParams{Item: items[0]})
+	if len(outgoingCalls) != 0 {
+		t.Errorf("expected no outgoing calls but got %d", len(outgoingCalls))
+	}
+}
+
 func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
 	if source.DetectLanguage("", uri.Filename()) != source.Mod {
 		return

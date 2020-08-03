@@ -85,7 +85,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
-			CodeActionProvider: codeActionProvider,
+			CallHierarchyProvider: true,
+			CodeActionProvider:    codeActionProvider,
 			CompletionProvider: protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},

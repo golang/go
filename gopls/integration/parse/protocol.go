@@ -87,6 +87,10 @@ func Requests(m string) interface{} {
 		return new(p.TextDocumentPositionParams)
 	case "textDocument/foldingRange":
 		return new(p.FoldingRangeParams)
+	case "textDocument/incomingCalls":
+		return new(p.CallHierarchyIncomingCallsParams)
+	case "textDocument/outgoingCalls":
+		return new(p.CallHierarchyOutgoingCallsParams)
 	}
 	log.Fatalf("request(%s) undefined", m)
 	return ""
@@ -210,6 +214,10 @@ func Responses(m string) []interface{} {
 		return []interface{}{new(p.Range), nil}
 	case "textDocument/foldingRange":
 		return []interface{}{new([]p.FoldingRange), nil}
+	case "callHierarchy/incomingCalls":
+		return []interface{}{new([]p.CallHierarchyIncomingCall), nil}
+	case "callHierarchy/outgoingCalls":
+		return []interface{}{new([]p.CallHierarchyOutgoingCall), nil}
 	}
 	log.Fatalf("responses(%q) undefined", m)
 	return nil
@@ -307,4 +315,6 @@ var fromMethod = map[string]Msgtype{
 	"textDocument/rename":                          Mreq | Mcl,
 	"textDocument/prepareRename":                   Mreq | Mcl,
 	"textDocument/foldingRange":                    Mreq | Mcl,
+	"callHierarchy/incomingCalls":                  Mreq | Mcl,
+	"callHierarchy/outgoingCalls":                  Mreq | Mcl,
 }
