@@ -131,6 +131,29 @@ func freemcache(c *mcache, recipient *mcache) {
 	})
 }
 
+// getMCache is a convenience function which tries to obtain an mcache.
+//
+// Must be running with a P when called (so the caller must be in a
+// non-preemptible state) or must be called during bootstrapping.
+func getMCache() *mcache {
+	// Grab the mcache, since that's where stats live.
+	pp := getg().m.p.ptr()
+	var c *mcache
+	if pp == nil {
+		// We will be called without a P while bootstrapping,
+		// in which case we use mcache0, which is set in mallocinit.
+		// mcache0 is cleared when bootstrapping is complete,
+		// by procresize.
+		c = mcache0
+		if c == nil {
+			throw("getMCache called with no P or outside bootstrapping")
+		}
+	} else {
+		c = pp.mcache
+	}
+	return c
+}
+
 // donate flushes data and resources which have no global
 // pool to another mcache.
 func (c *mcache) donate(d *mcache) {
