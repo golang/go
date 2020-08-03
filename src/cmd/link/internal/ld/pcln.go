@@ -6,16 +6,11 @@ package ld
 
 import (
 	"cmd/internal/goobj"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
-	"cmd/internal/src"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"encoding/binary"
 	"fmt"
-	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,27 +18,19 @@ import (
 
 // oldPclnState holds state information used during pclntab generation.  Here
 // 'ldr' is just a pointer to the context's loader, 'deferReturnSym' is the
-// index for the symbol "runtime.deferreturn", 'nameToOffset' is a helper
-// function for capturing function names, 'numberedFiles' records the file
-// number assigned to a given file symbol, 'filepaths' is a slice of expanded
-// paths (indexed by file number).
+// index for the symbol "runtime.deferreturn",
 //
 // NB: This is deprecated, and will be eliminated when pclntab_old is
 // eliminated.
 type oldPclnState struct {
 	ldr            *loader.Loader
 	deferReturnSym loader.Sym
-	numberedFiles  map[string]int64
-	filepaths      []string
 }
 
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
 	// The first and last functions found.
 	firstFunc, lastFunc loader.Sym
-
-	// The offset to the filetab.
-	filetabOffset int32
 
 	// Running total size of pclntab.
 	size int64
@@ -54,6 +41,8 @@ type pclntab struct {
 	pcheader    loader.Sym
 	funcnametab loader.Sym
 	findfunctab loader.Sym
+	cutab       loader.Sym
+	filetab     loader.Sym
 
 	// The number of functions + number of TEXT sections - 1. This is such an
 	// unexpected value because platforms that have more than one TEXT section
@@ -63,6 +52,9 @@ type pclntab struct {
 	//
 	// On most platforms this is the number of reachable functions.
 	nfunc int32
+
+	// The number of filenames in runtime.filetab.
+	nfiles uint32
 
 	// maps the function symbol to offset in runtime.funcnametab
 	// This doesn't need to reside in the state once pclntab_old's been
@@ -89,11 +81,6 @@ func makeOldPclnState(ctxt *Link) *oldPclnState {
 	state := &oldPclnState{
 		ldr:            ldr,
 		deferReturnSym: drs,
-		numberedFiles:  make(map[string]int64),
-		// NB: initial entry in filepaths below is to reserve the zero value,
-		// so that when we do a map lookup in numberedFiles fails, it will not
-		// return a value slot in filepaths.
-		filepaths: []string{""},
 	}
 
 	return state
@@ -151,78 +138,6 @@ func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
 	ftd := ftab.Data()
 	copy(ftd[start:], s)
 	return int32(start)
-}
-
-// numberfile assigns a file number to the file if it hasn't been assigned already.
-// This funciton looks at a CU's file at index [i], and if it's a new filename,
-// stores that filename in the global file table, and adds it to the map lookup
-// for renumbering pcfile.
-func (state *oldPclnState) numberfile(cu *sym.CompilationUnit, i goobj.CUFileIndex) int64 {
-	file := cu.FileTable[i]
-	if val, ok := state.numberedFiles[file]; ok {
-		return val
-	}
-	path := file
-	if strings.HasPrefix(path, src.FileSymPrefix) {
-		path = file[len(src.FileSymPrefix):]
-	}
-	val := int64(len(state.filepaths))
-	state.numberedFiles[file] = val
-	state.filepaths = append(state.filepaths, expandGoroot(path))
-	return val
-}
-
-func (state *oldPclnState) fileVal(cu *sym.CompilationUnit, i int32) int64 {
-	file := cu.FileTable[i]
-	if val, ok := state.numberedFiles[file]; ok {
-		return val
-	}
-	panic("should have been numbered first")
-}
-
-func (state *oldPclnState) renumberfiles(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, d *sym.Pcdata) {
-	// Give files numbers.
-	nf := fi.NumFile()
-	for i := uint32(0); i < nf; i++ {
-		state.numberfile(cu, fi.File(int(i)))
-	}
-
-	buf := make([]byte, binary.MaxVarintLen32)
-	newval := int32(-1)
-	var out sym.Pcdata
-	it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	for it.Init(d.P); !it.Done; it.Next() {
-		// value delta
-		oldval := it.Value
-
-		var val int32
-		if oldval == -1 {
-			val = -1
-		} else {
-			if oldval < 0 || oldval >= int32(len(cu.FileTable)) {
-				log.Fatalf("bad pcdata %d", oldval)
-			}
-			val = int32(state.fileVal(cu, oldval))
-		}
-
-		dv := val - newval
-		newval = val
-
-		// value
-		n := binary.PutVarint(buf, int64(dv))
-		out.P = append(out.P, buf[:n]...)
-
-		// pc delta
-		pc := (it.NextPC - it.PC) / it.PCScale
-		n = binary.PutUvarint(buf, uint64(pc))
-		out.P = append(out.P, buf[:n]...)
-	}
-
-	// terminating value delta
-	// we want to write varint-encoded 0, which is just 0
-	out.P = append(out.P, 0)
-
-	*d = out
 }
 
 // onlycsymbol looks at a symbol's name to report whether this is a
@@ -308,12 +223,7 @@ func (state *oldPclnState) genInlTreeSym(cu *sym.CompilationUnit, fi loader.Func
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)
-		// Usually, call.File is already numbered since the file
-		// shows up in the Pcfile table. However, two inlined calls
-		// might overlap exactly so that only the innermost file
-		// appears in the Pcfile table. In that case, this assigns
-		// the outer file a number.
-		val := state.numberfile(cu, call.File)
+		val := call.File
 		nameoff, ok := newState.funcNameOffset[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
@@ -359,11 +269,14 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
+		off = header.SetUint(ctxt.Arch, off, uint64(state.nfiles))
 		off = writeSymOffset(off, state.funcnametab)
+		off = writeSymOffset(off, state.cutab)
+		off = writeSymOffset(off, state.filetab)
 		off = writeSymOffset(off, state.pclntab)
 	}
 
-	size := int64(8 + 3*ctxt.Arch.PtrSize)
+	size := int64(8 + 6*ctxt.Arch.PtrSize)
 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
 }
 
@@ -417,6 +330,139 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, container loader.Bitmap) {
 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
 }
 
+// walkFilenames walks the filenames in the all reachable functions.
+func walkFilenames(ctxt *Link, container loader.Bitmap, f func(*sym.CompilationUnit, goobj.CUFileIndex)) {
+	ldr := ctxt.loader
+
+	// Loop through all functions, finding the filenames we need.
+	for _, ls := range ctxt.Textp {
+		s := loader.Sym(ls)
+		if !emitPcln(ctxt, s, container) {
+			continue
+		}
+
+		fi := ldr.FuncInfo(s)
+		if !fi.Valid() {
+			continue
+		}
+		fi.Preload()
+
+		cu := ldr.SymUnit(s)
+		for i, nf := 0, int(fi.NumFile()); i < nf; i++ {
+			f(cu, fi.File(i))
+		}
+		for i, ninl := 0, int(fi.NumInlTree()); i < ninl; i++ {
+			call := fi.InlTree(i)
+			f(cu, call.File)
+		}
+	}
+}
+
+// generateFilenameTabs creates LUTs needed for filename lookup. Returns a slice
+// of the index at which each CU begins in runtime.cutab.
+//
+// Function objects keep track of the files they reference to print the stack.
+// This function creates a per-CU list of filenames if CU[M] references
+// files[1-N], the following is generated:
+//
+//  runtime.cutab:
+//    CU[M]
+//     offsetToFilename[0]
+//     offsetToFilename[1]
+//     ..
+//
+//  runtime.filetab
+//     filename[0]
+//     filename[1]
+//
+// Looking up a filename then becomes:
+//  0) Given a func, and filename index [K]
+//  1) Get Func.CUIndex:       M := func.cuOffset
+//  2) Find filename offset:   fileOffset := runtime.cutab[M+K]
+//  3) Get the filename:       getcstring(runtime.filetab[fileOffset])
+func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.CompilationUnit, container loader.Bitmap) []uint32 {
+	// On a per-CU basis, keep track of all the filenames we need.
+	//
+	// Note, that we store the filenames in a separate section in the object
+	// files, and deduplicate based on the actual value. It would be better to
+	// store the filenames as symbols, using content addressable symbols (and
+	// then not loading extra filenames), and just use the hash value of the
+	// symbol name to do this cataloging.
+	//
+	// TOOD: Store filenames as symbols. (Note this would be easiest if you
+	// also move strings to ALWAYS using the larger content addressable hash
+	// function, and use that hash value for uniqueness testing.)
+	cuEntries := make([]goobj.CUFileIndex, len(compUnits))
+	fileOffsets := make(map[string]uint32)
+
+	// Walk the filenames.
+	// We store the total filename string length we need to load, and the max
+	// file index we've seen per CU so we can calculate how large the
+	// CU->global table needs to be.
+	var fileSize int64
+	walkFilenames(ctxt, container, func(cu *sym.CompilationUnit, i goobj.CUFileIndex) {
+		// Note we use the raw filename for lookup, but use the expanded filename
+		// when we save the size.
+		filename := cu.FileTable[i]
+		if _, ok := fileOffsets[filename]; !ok {
+			fileOffsets[filename] = uint32(fileSize)
+			fileSize += int64(len(expandFile(filename)) + 1) // NULL terminate
+		}
+
+		// Find the maximum file index we've seen.
+		if cuEntries[cu.PclnIndex] < i+1 {
+			cuEntries[cu.PclnIndex] = i + 1 // Store max + 1
+		}
+	})
+
+	// Calculate the size of the runtime.cutab variable.
+	var totalEntries uint32
+	cuOffsets := make([]uint32, len(cuEntries))
+	for i, entries := range cuEntries {
+		// Note, cutab is a slice of uint32, so an offset to a cu's entry is just the
+		// running total of all cu indices we've needed to store so far, not the
+		// number of bytes we've stored so far.
+		cuOffsets[i] = totalEntries
+		totalEntries += uint32(entries)
+	}
+
+	// Write cutab.
+	writeCutab := func(ctxt *Link, s loader.Sym) {
+		sb := ctxt.loader.MakeSymbolUpdater(s)
+
+		var off int64
+		for i, max := range cuEntries {
+			// Write the per CU LUT.
+			cu := compUnits[i]
+			for j := goobj.CUFileIndex(0); j < max; j++ {
+				fileOffset, ok := fileOffsets[cu.FileTable[j]]
+				if !ok {
+					// We're looping through all possible file indices. It's possible a file's
+					// been deadcode eliminated, and although it's a valid file in the CU, it's
+					// not needed in this binary. When that happens, use an invalid offset.
+					fileOffset = ^uint32(0)
+				}
+				off = sb.SetUint32(ctxt.Arch, off, fileOffset)
+			}
+		}
+	}
+	state.cutab = state.addGeneratedSym(ctxt, "runtime.cutab", int64(totalEntries*4), writeCutab)
+
+	// Write filetab.
+	writeFiletab := func(ctxt *Link, s loader.Sym) {
+		sb := ctxt.loader.MakeSymbolUpdater(s)
+
+		// Write the strings.
+		for filename, loc := range fileOffsets {
+			sb.AddStringAt(int64(loc), expandFile(filename))
+		}
+	}
+	state.nfiles = uint32(len(fileOffsets))
+	state.filetab = state.addGeneratedSym(ctxt, "runtime.filetab", fileSize, writeFiletab)
+
+	return cuOffsets
+}
+
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
@@ -425,7 +471,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	// Go 1.2's symtab layout is documented in golang.org/s/go12symtab, but the
 	// layout and data has changed since that time.
 	//
-	// As of July 2020, here's the layout of pclntab:
+	// As of August 2020, here's the layout of pclntab:
 	//
 	//  .gopclntab/__gopclntab [elf/macho section]
 	//    runtime.pclntab
@@ -438,17 +484,23 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//        offset to runtime.pclntab_old from beginning of runtime.pcheader
 	//
 	//      runtime.funcnametab
-	//         []list of null terminated function names
+	//        []list of null terminated function names
+	//
+	//      runtime.cutab
+	//        for i=0..#CUs
+	//          for j=0..#max used file index in CU[i]
+	//            uint32 offset into runtime.filetab for the filename[j]
+	//
+	//      runtime.filetab
+	//        []null terminated filename strings
 	//
 	//      runtime.pclntab_old
 	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//        end PC [thearch.ptrsize bytes]
-	//        offset to file table [4 bytes]
 	//        func structures, pcdata tables.
-	//        filetable
 
 	oldState := makeOldPclnState(ctxt)
-	state, _ := makePclntab(ctxt, container)
+	state, compUnits := makePclntab(ctxt, container)
 
 	ldr := ctxt.loader
 	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
@@ -461,6 +513,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
 	state.generatePCHeader(ctxt)
 	state.generateFuncnametab(ctxt, container)
+	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, container)
 
 	funcdataBytes := int64(0)
 	ldr.SetCarrierSym(state.pclntab, state.carrier)
@@ -583,7 +636,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		// fixed size of struct, checked below
 		off := funcstart
 
-		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 5*4 + int32(len(pcdata))*4 + int32(len(funcdata))*int32(ctxt.Arch.PtrSize)
+		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 6*4 + int32(len(pcdata))*4 + int32(len(funcdata))*int32(ctxt.Arch.PtrSize)
 		if len(funcdata) > 0 && (end&int32(ctxt.Arch.PtrSize-1) != 0) {
 			end += 4
 		}
@@ -616,17 +669,6 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 			pcsp = sym.Pcdata{P: fi.Pcsp()}
 			pcfile = sym.Pcdata{P: fi.Pcfile()}
 			pcline = sym.Pcdata{P: fi.Pcline()}
-			oldState.renumberfiles(ctxt, cu, fi, &pcfile)
-			if false {
-				// Sanity check the new numbering
-				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-				for it.Init(pcfile.P); !it.Done; it.Next() {
-					if it.Value < 1 || it.Value > int32(len(oldState.numberedFiles)) {
-						ctxt.Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.Value, len(oldState.numberedFiles))
-						errorexit()
-					}
-				}
-			}
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
@@ -641,15 +683,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = writepctab(off, pcline.P)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
 
-		// Store the compilation unit index.
-		cuIdx := ^uint16(0)
+		// Store the offset to compilation unit's file table.
+		cuIdx := ^uint32(0)
 		if cu := ldr.SymUnit(s); cu != nil {
-			if cu.PclnIndex > math.MaxUint16 {
-				panic("cu limit reached.")
-			}
-			cuIdx = uint16(cu.PclnIndex)
+			cuIdx = cuOffsets[cu.PclnIndex]
 		}
-		off = int32(ftab.SetUint16(ctxt.Arch, int64(off), cuIdx))
+		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), cuIdx))
 
 		// funcID uint8
 		var funcID objabi.FuncID
@@ -657,6 +696,8 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 			funcID = fi.FuncID()
 		}
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+
+		off += 2 // pad
 
 		// nfuncdata must be the final entry.
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
@@ -694,25 +735,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	// Final entry of table is just end pc.
 	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), state.lastFunc, ldr.SymSize(state.lastFunc))
 
-	// Start file table.
-	dSize := len(ftab.Data())
-	start := int32(dSize)
-	start += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1)
-	state.filetabOffset = start
-	ftab.SetUint32(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
-
-	nf := len(oldState.numberedFiles)
-	ftab.Grow(int64(start) + int64((nf+1)*4))
-	ftab.SetUint32(ctxt.Arch, int64(start), uint32(nf+1))
-	for i := nf; i > 0; i-- {
-		path := oldState.filepaths[i]
-		val := int64(i)
-		ftab.SetUint32(ctxt.Arch, int64(start)+val*4, uint32(ftabaddstring(ftab, path)))
-	}
-
 	ftab.SetSize(int64(len(ftab.Data())))
-
-	ctxt.NumFilesyms = len(oldState.numberedFiles)
 
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size(), funcdataBytes)

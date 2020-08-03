@@ -53,6 +53,7 @@ type LineTable struct {
 	quantum     uint32
 	ptrsize     uint32
 	funcnametab []byte
+	cutab       []byte
 	funcdata    []byte
 	functab     []byte
 	nfunctab    uint32
@@ -223,17 +224,18 @@ func (t *LineTable) parsePclnTab() {
 	switch possibleVersion {
 	case ver116:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
-		offset := t.uintptr(t.Data[8+t.ptrsize:])
+		t.nfiletab = uint32(t.uintptr(t.Data[8+t.ptrsize:]))
+		offset := t.uintptr(t.Data[8+2*t.ptrsize:])
 		t.funcnametab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+2*t.ptrsize:])
+		offset = t.uintptr(t.Data[8+3*t.ptrsize:])
+		t.cutab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+4*t.ptrsize:])
+		t.filetab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+5*t.ptrsize:])
 		t.funcdata = t.Data[offset:]
 		t.functab = t.Data[offset:]
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
-		fileoff := t.binary.Uint32(t.functab[functabsize:])
-		t.filetab = t.functab[fileoff:]
 		t.functab = t.functab[:functabsize]
-		t.nfiletab = t.binary.Uint32(t.filetab)
-		t.filetab = t.filetab[:t.nfiletab*4]
 	case ver12:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
 		t.funcdata = t.Data
@@ -330,15 +332,20 @@ func (t *LineTable) funcName(off uint32) string {
 	return s
 }
 
-// string returns a Go string found at off.
-func (t *LineTable) string(off uint32) string {
+// stringFrom returns a Go string found at off from a position.
+func (t *LineTable) stringFrom(arr []byte, off uint32) string {
 	if s, ok := t.strings[off]; ok {
 		return s
 	}
-	i := bytes.IndexByte(t.funcdata[off:], 0)
-	s := string(t.funcdata[off : off+uint32(i)])
+	i := bytes.IndexByte(arr[off:], 0)
+	s := string(arr[off : off+uint32(i)])
 	t.strings[off] = s
 	return s
+}
+
+// string returns a Go string found at off.
+func (t *LineTable) string(off uint32) string {
+	return t.stringFrom(t.funcdata, off)
 }
 
 // step advances to the next pc, value pair in the encoded table.
@@ -453,7 +460,15 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	if fno <= 0 {
 		return ""
 	}
-	return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	if t.version == ver12 {
+		return t.string(t.binary.Uint32(t.filetab[4*fno:]))
+	}
+	// Go ≥ 1.16
+	cuoff := t.binary.Uint32(f[t.ptrsize+7*4:])
+	if fnoff := t.binary.Uint32(t.cutab[(cuoff+uint32(fno))*4:]); fnoff != ^uint32(0) {
+		return t.stringFrom(t.filetab, fnoff)
+	}
+	return ""
 }
 
 // go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2 pcln table.
@@ -496,9 +511,18 @@ func (t *LineTable) initFileMap() {
 	}
 	m := make(map[string]uint32)
 
-	for i := uint32(1); i < t.nfiletab; i++ {
-		s := t.string(t.binary.Uint32(t.filetab[4*i:]))
-		m[s] = i
+	if t.version == ver12 {
+		for i := uint32(1); i < t.nfiletab; i++ {
+			s := t.string(t.binary.Uint32(t.filetab[4*i:]))
+			m[s] = i
+		}
+	} else {
+		var pos uint32
+		for i := uint32(1); i < t.nfiletab; i++ {
+			s := t.stringFrom(t.filetab, pos)
+			pos += uint32(len(s) + 1)
+			m[s] = i
+		}
 	}
 	t.fileMap = m
 }
