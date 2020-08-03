@@ -552,7 +552,7 @@ func dumpmemstats() {
 	dumpint(memstats.nfree)
 	dumpint(memstats.heap_alloc)
 	dumpint(memstats.heap_sys.load())
-	dumpint(memstats.heap_idle)
+	dumpint(memstats.heap_sys.load() - memstats.heap_inuse)
 	dumpint(memstats.heap_inuse)
 	dumpint(memstats.heap_released)
 	dumpint(memstats.heap_objects)

@@ -34,7 +34,6 @@ type mstats struct {
 	// in manually-managed spans.
 	heap_alloc    uint64     // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
-	heap_idle     uint64     // bytes in idle spans
 	heap_inuse    uint64     // bytes in mSpanInUse spans
 	heap_released uint64     // bytes released to the os
 
@@ -461,7 +460,23 @@ func readmemstats_m(stats *MemStats) {
 	stats.Frees = memstats.nfree
 	stats.HeapAlloc = memstats.heap_alloc
 	stats.HeapSys = memstats.heap_sys.load()
-	stats.HeapIdle = memstats.heap_idle
+	// By definition, HeapIdle is memory that was mapped
+	// for the heap but is not currently used to hold heap
+	// objects. It also specifically is memory that can be
+	// used for other purposes, like stacks, but this memory
+	// is subtracted out of HeapSys before it makes that
+	// transition. Put another way:
+	//
+	// heap_sys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
+	// heap_idle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
+	//
+	// or
+	//
+	// heap_sys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
+	// heap_idle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heap_inuse
+	//
+	// => heap_idle = heap_sys - heap_inuse
+	stats.HeapIdle = memstats.heap_sys.load() - memstats.heap_inuse
 	stats.HeapInuse = memstats.heap_inuse
 	stats.HeapReleased = memstats.heap_released
 	stats.HeapObjects = memstats.heap_objects
