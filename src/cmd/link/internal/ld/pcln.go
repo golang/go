@@ -78,6 +78,7 @@ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f gen
 	s := ctxt.createGeneratorSymbol(name, 0, sym.SPCLNTAB, size, f)
 	ctxt.loader.SetAttrReachable(s, true)
 	ctxt.loader.SetCarrierSym(s, state.carrier)
+	ctxt.loader.SetAttrNotInSymbolTable(s, true)
 	return s
 }
 
@@ -455,6 +456,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 
 	funcdataBytes := int64(0)
 	ldr.SetCarrierSym(state.pclntab, state.carrier)
+	ldr.SetAttrNotInSymbolTable(state.pclntab, true)
 	ftab := ldr.MakeSymbolUpdater(state.pclntab)
 	ftab.SetValue(state.size)
 	ftab.SetType(sym.SPCLNTAB)
