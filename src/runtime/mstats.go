@@ -44,15 +44,17 @@ type mstats struct {
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64     // bytes in manually-managed stack spans; updated atomically or during STW
-	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
-	mspan_inuse  uint64     // mspan structures
-	mspan_sys    sysMemStat
-	mcache_inuse uint64 // mcache structures
-	mcache_sys   sysMemStat
-	buckhash_sys sysMemStat // profiling bucket hash table
-	gc_sys       sysMemStat // updated atomically or during STW
-	other_sys    sysMemStat // updated atomically or during STW
+	stacks_inuse             uint64     // bytes in manually-managed stack spans; updated atomically or during STW
+	stacks_sys               sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+	mspan_inuse              uint64     // mspan structures
+	mspan_sys                sysMemStat
+	mcache_inuse             uint64 // mcache structures
+	mcache_sys               sysMemStat
+	buckhash_sys             sysMemStat // profiling bucket hash table
+	gcWorkBufInUse           uint64     // updated atomically or during STW
+	gcProgPtrScalarBitsInUse uint64     // updated atomically or during STW
+	gcMiscSys                sysMemStat // updated atomically or during STW
+	other_sys                sysMemStat // updated atomically or during STW
 
 	// Statistics about the garbage collector.
 
@@ -472,7 +474,10 @@ func readmemstats_m(stats *MemStats) {
 	stats.MCacheInuse = memstats.mcache_inuse
 	stats.MCacheSys = memstats.mcache_sys.load()
 	stats.BuckHashSys = memstats.buckhash_sys.load()
-	stats.GCSys = memstats.gc_sys.load()
+	// MemStats defines GCSys as an aggregate of all memory related
+	// to the memory management system, but we track this memory
+	// at a more granular level in the runtime.
+	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
 	stats.OtherSys = memstats.other_sys.load()
 	stats.NextGC = memstats.next_gc
 	stats.LastGC = memstats.last_gc_unix
@@ -557,11 +562,11 @@ func updatememstats() {
 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
 	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gc_sys.load() +
+		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
 		memstats.other_sys.load()
 
-	// We also count stacks_inuse as sys memory.
-	memstats.sys += memstats.stacks_inuse
+	// We also count stacks_inuse, gcWorkBufInUse, and gcProgPtrScalarBitsInUse as sys memory.
+	memstats.sys += memstats.stacks_inuse + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
 
 	// Calculate memory allocator stats.
 	// During program execution we only count number of frees and amount of freed memory.

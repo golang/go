@@ -41,7 +41,7 @@ func startCheckmarks() {
 
 		if bitmap == nil {
 			// Allocate bitmap on first use.
-			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gc_sys))
+			bitmap = (*checkmarksMap)(persistentalloc(unsafe.Sizeof(*bitmap), 0, &memstats.gcMiscSys))
 			if bitmap == nil {
 				throw("out of memory allocating checkmarks bitmap")
 			}

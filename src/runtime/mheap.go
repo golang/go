@@ -713,7 +713,7 @@ func (h *mheap) init() {
 		h.central[i].mcentral.init(spanClass(i))
 	}
 
-	h.pages.init(&h.lock, &memstats.gc_sys)
+	h.pages.init(&h.lock, &memstats.gcMiscSys)
 }
 
 // reclaim sweeps and reclaims at least npage pages into the heap.
@@ -1230,8 +1230,10 @@ HaveSpan:
 		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
 	case spanAllocStack:
 		atomic.Xadd64(&memstats.stacks_inuse, int64(nbytes))
-	case spanAllocPtrScalarBits, spanAllocWorkBuf:
-		memstats.gc_sys.add(int64(nbytes))
+	case spanAllocWorkBuf:
+		atomic.Xadd64(&memstats.gcWorkBufInUse, int64(nbytes))
+	case spanAllocPtrScalarBits:
+		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, int64(nbytes))
 	}
 	if typ.manual() {
 		// Manually managed memory doesn't count toward heap_sys.
@@ -1406,8 +1408,10 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
 	case spanAllocStack:
 		atomic.Xadd64(&memstats.stacks_inuse, -int64(nbytes))
-	case spanAllocPtrScalarBits, spanAllocWorkBuf:
-		memstats.gc_sys.add(-int64(nbytes))
+	case spanAllocWorkBuf:
+		atomic.Xadd64(&memstats.gcWorkBufInUse, -int64(nbytes))
+	case spanAllocPtrScalarBits:
+		atomic.Xadd64(&memstats.gcProgPtrScalarBitsInUse, -int64(nbytes))
 	}
 	if typ.manual() {
 		// Manually managed memory doesn't count toward heap_sys, so add it back.
@@ -1956,7 +1960,7 @@ func newArenaMayUnlock() *gcBitsArena {
 	var result *gcBitsArena
 	if gcBitsArenas.free == nil {
 		unlock(&gcBitsArenas.lock)
-		result = (*gcBitsArena)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
+		result = (*gcBitsArena)(sysAlloc(gcBitsChunkBytes, &memstats.gcMiscSys))
 		if result == nil {
 			throw("runtime: cannot allocate memory")
 		}

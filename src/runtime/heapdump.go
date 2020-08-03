@@ -540,6 +540,9 @@ func dumpms() {
 }
 
 func dumpmemstats() {
+	// These ints should be identical to the exported
+	// MemStats structure and should be ordered the same
+	// way too.
 	dumpint(tagMemStats)
 	dumpint(memstats.alloc)
 	dumpint(memstats.total_alloc)
@@ -560,7 +563,7 @@ func dumpmemstats() {
 	dumpint(memstats.mcache_inuse)
 	dumpint(memstats.mcache_sys.load())
 	dumpint(memstats.buckhash_sys.load())
-	dumpint(memstats.gc_sys.load())
+	dumpint(memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse)
 	dumpint(memstats.other_sys.load())
 	dumpint(memstats.next_gc)
 	dumpint(memstats.last_gc_unix)
