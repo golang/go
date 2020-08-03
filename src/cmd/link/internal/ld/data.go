@@ -1925,6 +1925,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+	if ctxt.HeadType == objabi.Haix {
+		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
+	}
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if state.datsize != int64(uint32(state.datsize)) {
