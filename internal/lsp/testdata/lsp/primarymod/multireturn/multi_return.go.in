@@ -23,6 +23,7 @@ func _() {
 	f1(f)    //@rank(")", multiF1, multiF2)
 	f2(f)    //@rank(")", multiF2, multiF3),rank(")", multiF1, multiF3)
 	f2(1, f) //@rank(")", multiF1, multiF2),rank(")", multiF1, multiF0)
+	f2(1, )  //@rank(")", multiF1, multiF2),rank(")", multiF1, multiF0)
 	f2Str()  //@rank(")", multiF2Str, multiF2)
 
 	var i int

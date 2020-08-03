@@ -1661,7 +1661,7 @@ Nodes:
 						// values, in turn getting passed in to the surrounding
 						// call. Record the assignees so we can favor function
 						// calls that return matching values.
-						if len(node.Args) <= 1 {
+						if len(node.Args) <= 1 && exprIdx == 0 {
 							for i := 0; i < sig.Params().Len(); i++ {
 								inf.assignees = append(inf.assignees, sig.Params().At(i).Type())
 							}
