@@ -61,6 +61,10 @@ type mcache struct {
 	// in this mcache are stale and need to the flushed so they
 	// can be swept. This is done in acquirep.
 	flushGen uint32
+
+	// statsSeq is a counter indicating whether this P is currently
+	// writing any stats. Its value is even when not, odd when it is.
+	statsSeq uint32
 }
 
 // A gclink is a node in a linked list of blocks, like mlink,
