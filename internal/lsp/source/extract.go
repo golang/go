@@ -477,8 +477,8 @@ func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) s
 	rng.Start = tok.Pos(offset)
 
 	offset = tok.Offset(rng.End)
-	for offset-1 >= 0 {
-		if !unicode.IsSpace(rune(content[offset-1])) {
+	for o := offset - 1; 0 <= o && o < len(content); {
+		if !unicode.IsSpace(rune(content[o])) {
 			break
 		}
 		// Move backwards one byte to find a non-whitespace character.
