@@ -503,7 +503,9 @@ func (s *mspan) sweep(preserve bool) bool {
 			// wasn't totally filled, but then swept, still has all of its
 			// free slots zeroed.
 			s.needzero = 1
-			c.smallFreeCount[spc.sizeclass()] += uintptr(nfreed)
+			stats := memstats.heapStats.acquire(c)
+			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
+			memstats.heapStats.release(c)
 		}
 		if !preserve {
 			// The caller may not have removed this span from whatever
@@ -548,8 +550,10 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			c.largeFreeCount++
-			c.largeFree += size
+			stats := memstats.heapStats.acquire(c)
+			atomic.Xadduintptr(&stats.largeFreeCount, 1)
+			atomic.Xadduintptr(&stats.largeFree, size)
+			memstats.heapStats.release(c)
 			return true
 		}
 
