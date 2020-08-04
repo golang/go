@@ -4550,7 +4550,7 @@ func (pp *p) destroy() {
 		pp.mspancache.len = 0
 		pp.pcache.flush(&mheap_.pages)
 	})
-	freemcache(pp.mcache, allp[0].mcache)
+	freemcache(pp.mcache)
 	pp.mcache = nil
 	gfpurge(pp)
 	traceProcFree(pp)
