@@ -27,25 +27,28 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		return nil, fmt.Errorf("extractVariable: cannot extract %s: %v", fset.Position(rng.Start), err)
 	}
 
-	name := generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0)
-
 	// Create new AST node for extracted code.
-	var assignment string
-	switch expr.(type) {
-	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr,
-		*ast.SliceExpr, *ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr: // TODO: stricter rules for selectorExpr.
-		assignStmt := &ast.AssignStmt{
-			Lhs: []ast.Expr{ast.NewIdent(name)},
-			Tok: token.DEFINE,
-			Rhs: []ast.Expr{expr},
+	var lhsNames []string
+	switch expr := expr.(type) {
+	// TODO: stricter rules for selectorExpr.
+	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.SliceExpr, *ast.UnaryExpr,
+		*ast.BinaryExpr, *ast.SelectorExpr:
+		lhsNames = append(lhsNames,
+			generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
+	case *ast.CallExpr:
+		tup, ok := info.TypeOf(expr).(*types.Tuple)
+		if !ok {
+			// If the call expression only has one return value, we can treat it the
+			// same as our standard extract variable case.
+			lhsNames = append(lhsNames,
+				generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
+			break
 		}
-		var buf bytes.Buffer
-		if err := format.Node(&buf, fset, assignStmt); err != nil {
-			return nil, err
+		for i := 0; i < tup.Len(); i++ {
+			// Generate a unique variable for each return value.
+			lhsNames = append(lhsNames,
+				generateAvailableIdentifier(expr.Pos(), file, path, info, "x", i))
 		}
-		assignment = buf.String()
-	case *ast.CallExpr: // TODO: find number of return values and do according actions.
-		return nil, fmt.Errorf("cannot extract call expression")
 	default:
 		return nil, fmt.Errorf("cannot extract %T", expr)
 	}
@@ -54,23 +57,35 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if insertBeforeStmt == nil {
 		return nil, fmt.Errorf("cannot find location to insert extraction")
 	}
-
 	tok := fset.File(expr.Pos())
 	if tok == nil {
 		return nil, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
-	indent := calculateIndentation(src, tok, insertBeforeStmt)
+	newLineIndent := "\n" + calculateIndentation(src, tok, insertBeforeStmt)
+
+	lhs := strings.Join(lhsNames, ", ")
+	assignStmt := &ast.AssignStmt{
+		Lhs: []ast.Expr{ast.NewIdent(lhs)},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{expr},
+	}
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, assignStmt); err != nil {
+		return nil, err
+	}
+	assignment := strings.ReplaceAll(buf.String(), "\n", newLineIndent) + newLineIndent
+
 	return &analysis.SuggestedFix{
 		TextEdits: []analysis.TextEdit{
 			{
 				Pos:     rng.Start,
 				End:     rng.End,
-				NewText: []byte(name),
+				NewText: []byte(lhs),
 			},
 			{
 				Pos:     insertBeforeStmt.Pos(),
 				End:     insertBeforeStmt.Pos(),
-				NewText: []byte(assignment + "\n" + indent),
+				NewText: []byte(assignment),
 			},
 		},
 	}, nil
@@ -95,7 +110,7 @@ func canExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 		return nil, nil, false, fmt.Errorf("node is not an expression")
 	}
 	switch expr.(type) {
-	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr,
+	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.CallExpr,
 		*ast.SliceExpr, *ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr:
 		return expr, path, true, nil
 	}
