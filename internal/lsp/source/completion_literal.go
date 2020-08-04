@@ -27,16 +27,10 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 
 	expType := c.inference.objType
 
-	if c.inference.variadicType != nil {
+	if c.inference.matchesVariadic(literalType) {
 		// Don't offer literal slice candidates for variadic arguments.
 		// For example, don't offer "[]interface{}{}" in "fmt.Print(<>)".
-		if c.inference.matchesVariadic(literalType) {
-			return
-		}
-
-		// Otherwise, consider our expected type to be the variadic
-		// element type, not the slice type.
-		expType = c.inference.variadicType
+		return
 	}
 
 	// Avoid literal candidates if the expected type is an empty

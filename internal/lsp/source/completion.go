@@ -701,7 +701,6 @@ func (c *completer) emptySwitchStmt() bool {
 // populateCommentCompletions yields completions for exported
 // symbols immediately preceding comment.
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
-
 	// Using the comment position find the line after
 	file := c.snapshot.FileSet().File(comment.End())
 	if file == nil {
@@ -1107,11 +1106,6 @@ func (c *completer) lexical(ctx context.Context) error {
 	}
 
 	if t := c.inference.objType; t != nil {
-		// Use variadic element type if we are completing variadic position.
-		if c.inference.variadicType != nil {
-			t = c.inference.variadicType
-		}
-
 		t = deref(t)
 
 		// If we have an expected type and it is _not_ a named type, see
@@ -1526,10 +1520,11 @@ type candidateInference struct {
 	// objKind is a mask of expected kinds of types such as "map", "slice", etc.
 	objKind objKind
 
-	// variadicType is the scalar variadic element type. For example,
-	// when completing "append([]T{}, <>)" objType is []T and
-	// variadicType is T.
-	variadicType types.Type
+	// variadic is true if we are completing the initial variadic
+	// parameter. For example:
+	//   append([]T{}, <>)      // objType=T variadic=true
+	//   append([]T{}, T{}, <>) // objType=T variadic=false
+	variadic bool
 
 	// modifiers are prefixes such as "*", "&" or "<-" that influence how
 	// a candidate type relates to the expected type.
@@ -1650,11 +1645,7 @@ Nodes:
 							return inf
 						}
 
-						var (
-							exprIdx         = exprAtPos(c.pos, node.Args)
-							isLastParam     = exprIdx == numParams-1
-							beyondLastParam = exprIdx >= numParams
-						)
+						exprIdx := exprAtPos(c.pos, node.Args)
 
 						// If we have one or zero arg expressions, we may be
 						// completing to a function call that returns multiple
@@ -1670,30 +1661,18 @@ Nodes:
 							inf.variadicAssignees = sig.Variadic()
 						}
 
-						if sig.Variadic() {
-							variadicType := deslice(sig.Params().At(numParams - 1).Type())
-
-							// If we are beyond the last param or we are the last
-							// param w/ further expressions, we expect a single
-							// variadic item.
-							if beyondLastParam || isLastParam && len(node.Args) > numParams {
-								inf.objType = variadicType
-								break Nodes
-							}
-
-							// Otherwise if we are at the last param then we are
-							// completing the variadic positition (i.e. we expect a
-							// slice type []T or an individual item T).
-							if isLastParam {
-								inf.variadicType = variadicType
-							}
-						}
-
 						// Make sure not to run past the end of expected parameters.
-						if beyondLastParam {
+						if exprIdx >= numParams {
 							inf.objType = sig.Params().At(numParams - 1).Type()
 						} else {
 							inf.objType = sig.Params().At(exprIdx).Type()
+						}
+
+						if sig.Variadic() && exprIdx >= (numParams-1) {
+							// If we are completing a variadic param, deslice the variadic type.
+							inf.objType = deslice(inf.objType)
+							// Record whether we are completing the initial variadic param.
+							inf.variadic = exprIdx == numParams-1 && len(node.Args) <= numParams
 						}
 					}
 				}
@@ -1850,7 +1829,7 @@ func (ci candidateInference) applyTypeNameModifiers(typ types.Type) types.Type {
 // matchesVariadic returns true if we are completing a variadic
 // parameter and candType is a compatible slice type.
 func (ci candidateInference) matchesVariadic(candType types.Type) bool {
-	return ci.variadicType != nil && types.AssignableTo(candType, ci.objType)
+	return ci.variadic && ci.objType != nil && types.AssignableTo(candType, types.NewSlice(ci.objType))
 }
 
 // findSwitchStmt returns an *ast.CaseClause's corresponding *ast.SwitchStmt or
@@ -2117,9 +2096,9 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 	expTypes := make([]types.Type, 0, 2)
 	if ci.objType != nil {
 		expTypes = append(expTypes, ci.objType)
-	}
-	if ci.variadicType != nil {
-		expTypes = append(expTypes, ci.variadicType)
+		if ci.variadic {
+			expTypes = append(expTypes, types.NewSlice(ci.objType))
+		}
 	}
 
 	return cand.anyCandType(func(candType types.Type, addressable bool) bool {
