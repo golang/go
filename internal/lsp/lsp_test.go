@@ -454,12 +454,12 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string)
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err = applySuggestedFixEdits(r, edits)
+		res, err = applyTextDocumentEdits(r, edits)
 		if err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		res, err = applySuggestedFixEdits(r, action.Edit.DocumentChanges)
+		res, err = applyTextDocumentEdits(r, action.Edit.DocumentChanges)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -855,24 +855,6 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 }
 
 func applyTextDocumentEdits(r *runner, edits []protocol.TextDocumentEdit) (map[span.URI]string, error) {
-	res := map[span.URI]string{}
-	for _, docEdits := range edits {
-		uri := docEdits.TextDocument.URI.SpanURI()
-		m, err := r.data.Mapper(uri)
-		if err != nil {
-			return nil, err
-		}
-		res[uri] = string(m.Content)
-		sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
-		if err != nil {
-			return nil, err
-		}
-		res[uri] = applyEdits(res[uri], sedits)
-	}
-	return res, nil
-}
-
-func applySuggestedFixEdits(r *runner, edits []protocol.TextDocumentEdit) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
 	for _, docEdits := range edits {
 		uri := docEdits.TextDocument.URI.SpanURI()
