@@ -23,7 +23,10 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return nil, err
 	}
-	args := []string{fmt.Sprintf("-gcflags=-json=0,%s", outDir), pkgDir.Filename()}
+	args := []string{fmt.Sprintf("-gcflags=-json=0,%s", outDir),
+		fmt.Sprintf("-o=%s", pkgDir.Filename()),
+		pkgDir.Filename(),
+	}
 	err := snapshot.RunGoCommandDirect(ctx, "build", args)
 	if err != nil {
 		return nil, err
