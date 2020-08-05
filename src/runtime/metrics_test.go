@@ -7,8 +7,10 @@ package runtime_test
 import (
 	"runtime"
 	"runtime/metrics"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -111,4 +113,40 @@ func TestReadMetricsConsistency(t *testing.T) {
 	if totalVirtual.got != totalVirtual.want {
 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
 	}
+}
+
+func BenchmarkReadMetricsLatency(b *testing.B) {
+	stop := applyGCLoad(b)
+
+	// Spend this much time measuring latencies.
+	latencies := make([]time.Duration, 0, 1024)
+	_, samples := prepareAllMetricsSamples()
+
+	// Hit metrics.Read continuously and measure.
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		start := time.Now()
+		metrics.Read(samples)
+		latencies = append(latencies, time.Now().Sub(start))
+	}
+	// Make sure to stop the timer before we wait! The load created above
+	// is very heavy-weight and not easy to stop, so we could end up
+	// confusing the benchmarking framework for small b.N.
+	b.StopTimer()
+	stop()
+
+	// Disable the default */op metrics.
+	// ns/op doesn't mean anything because it's an average, but we
+	// have a sleep in our b.N loop above which skews this significantly.
+	b.ReportMetric(0, "ns/op")
+	b.ReportMetric(0, "B/op")
+	b.ReportMetric(0, "allocs/op")
+
+	// Sort latencies then report percentiles.
+	sort.Slice(latencies, func(i, j int) bool {
+		return latencies[i] < latencies[j]
+	})
+	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
 }
