@@ -185,7 +185,7 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16
+TEXT runtime·walltime1(SB),NOSPLIT,$16-12
 	MOVD	R1, R15		// R15 is unchanged by C code
 	MOVD	g_m(g), R21	// R21 = m
 
@@ -196,6 +196,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16
 	BEQ	fallback
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R4
+	MOVD	m_vdsoSP(R21), R5
+	MOVD	R4, 32(R1)
+	MOVD	R5, 40(R1)
+
 	MOVD	LR, R14
 	MOVD	R14, m_vdsoPC(R21)
 	MOVD	R15, m_vdsoSP(R21)
@@ -214,10 +221,19 @@ noswitch:
 	MOVD	R1, R4
 	BL	(CTR)			// Call from VDSO
 	MOVD	$0, R0			// Restore R0
-	MOVD	R0, m_vdsoSP(R21)	// Clear vdsoSP
 	MOVD	0(R1), R3		// sec
 	MOVD	8(R1), R5		// nsec
 	MOVD	R15, R1			// Restore SP
+
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	40(R1), R6
+	MOVD	R6, m_vdsoSP(R21)
+	MOVD	32(R1), R6
+	MOVD	R6, m_vdsoPC(R21)
 
 finish:
 	MOVD	R3, sec+0(FP)
@@ -232,7 +248,7 @@ fallback:
 	MOVD	40(R1), R5
 	JMP	finish
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16
+TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVD	$1, R3		// CLOCK_MONOTONIC
 
 	MOVD	R1, R15		// R15 is unchanged by C code
@@ -243,6 +259,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16
 	BEQ	fallback
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R4
+	MOVD	m_vdsoSP(R21), R5
+	MOVD	R4, 32(R1)
+	MOVD	R5, 40(R1)
+
 	MOVD	LR, R14		// R14 is unchanged by C code
 	MOVD	R14, m_vdsoPC(R21)
 	MOVD	R15, m_vdsoSP(R21)
@@ -261,10 +284,19 @@ noswitch:
 	MOVD	R1, R4
 	BL	(CTR)			// Call from VDSO
 	MOVD	$0, R0			// Restore R0
-	MOVD	$0, m_vdsoSP(R21)	// Clear vdsoSP
 	MOVD	0(R1), R3		// sec
 	MOVD	8(R1), R5		// nsec
 	MOVD	R15, R1			// Restore SP
+
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	40(R1), R6
+	MOVD	R6, m_vdsoSP(R21)
+	MOVD	32(R1), R6
+	MOVD	R6, m_vdsoPC(R21)
 
 finish:
 	// sec is in R3, nsec in R5
