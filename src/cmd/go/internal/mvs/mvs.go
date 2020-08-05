@@ -9,7 +9,6 @@ package mvs
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -59,59 +58,6 @@ type Reqs interface {
 	// Previous returns the version of m.Path immediately prior to m.Version,
 	// or "none" if no such version is known.
 	Previous(m module.Version) (module.Version, error)
-}
-
-// BuildListError decorates an error that occurred gathering requirements
-// while constructing a build list. BuildListError prints the chain
-// of requirements to the module where the error occurred.
-type BuildListError struct {
-	Err   error
-	stack []buildListErrorElem
-}
-
-type buildListErrorElem struct {
-	m module.Version
-
-	// nextReason is the reason this module depends on the next module in the
-	// stack. Typically either "requires", or "upgraded to".
-	nextReason string
-}
-
-// Module returns the module where the error occurred. If the module stack
-// is empty, this returns a zero value.
-func (e *BuildListError) Module() module.Version {
-	if len(e.stack) == 0 {
-		return module.Version{}
-	}
-	return e.stack[len(e.stack)-1].m
-}
-
-func (e *BuildListError) Error() string {
-	b := &strings.Builder{}
-	stack := e.stack
-
-	// Don't print modules at the beginning of the chain without a
-	// version. These always seem to be the main module or a
-	// synthetic module ("target@").
-	for len(stack) > 0 && stack[0].m.Version == "" {
-		stack = stack[1:]
-	}
-
-	if len(stack) == 0 {
-		b.WriteString(e.Err.Error())
-	} else {
-		for _, elem := range stack[:len(stack)-1] {
-			fmt.Fprintf(b, "%s@%s %s\n\t", elem.m.Path, elem.m.Version, elem.nextReason)
-		}
-		// Ensure that the final module path and version are included as part of the
-		// error message.
-		if _, ok := e.Err.(*module.ModuleError); ok {
-			fmt.Fprintf(b, "%v", e.Err)
-		} else {
-			fmt.Fprintf(b, "%v", module.VersionError(stack[len(stack)-1].m, e.Err))
-		}
-	}
-	return b.String()
 }
 
 // BuildList returns the build list for the target module.
@@ -202,29 +148,30 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 			q = q[1:]
 
 			if node.err != nil {
-				// Construct the stack reversed (from the error to the main module),
+				pathUpgrade := map[module.Version]module.Version{}
+
+				// Construct the error path reversed (from the error to the main module),
 				// then reverse it to obtain the usual order (from the main module to
 				// the error).
-				stack := []buildListErrorElem{{m: node.m}}
+				errPath := []module.Version{node.m}
 				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
-					reason := "requires"
 					if n.upgrade == prev.m {
-						reason = "updating to"
+						pathUpgrade[n.m] = prev.m
 					}
-					stack = append(stack, buildListErrorElem{m: n.m, nextReason: reason})
+					errPath = append(errPath, n.m)
 				}
-				i, j := 0, len(stack)-1
+				i, j := 0, len(errPath)-1
 				for i < j {
-					stack[i], stack[j] = stack[j], stack[i]
+					errPath[i], errPath[j] = errPath[j], errPath[i]
 					i++
 					j--
 				}
 
-				err := &BuildListError{
-					Err:   node.err,
-					stack: stack,
+				isUpgrade := func(from, to module.Version) bool {
+					return pathUpgrade[from] == to
 				}
-				return nil, err
+
+				return nil, NewBuildListError(node.err, errPath, isUpgrade)
 			}
 
 			neighbors := node.required
