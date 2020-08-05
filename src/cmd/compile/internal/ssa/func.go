@@ -678,7 +678,8 @@ func (f *Func) invalidateCFG() {
 //  GSHS_LOGFILE
 // or standard out if that is empty or there is an error
 // opening the file.
-func (f *Func) DebugHashMatch(evname, name string) bool {
+func (f *Func) DebugHashMatch(evname string) bool {
+	name := f.fe.MyImportPath() + "." + f.Name
 	evhash := os.Getenv(evname)
 	switch evhash {
 	case "":
@@ -727,7 +728,7 @@ func (f *Func) logDebugHashMatch(evname, name string) {
 		file = os.Stdout
 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
 			var err error
-			file, err = os.Create(tmpfile)
+			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
 			}
