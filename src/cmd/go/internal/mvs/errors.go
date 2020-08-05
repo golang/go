@@ -78,16 +78,21 @@ func (e *BuildListError) Error() string {
 		b.WriteString(e.Err.Error())
 	} else {
 		for _, elem := range stack[:len(stack)-1] {
-			fmt.Fprintf(b, "%s@%s %s\n\t", elem.m.Path, elem.m.Version, elem.nextReason)
+			fmt.Fprintf(b, "%s %s\n\t", elem.m, elem.nextReason)
 		}
 		// Ensure that the final module path and version are included as part of the
 		// error message.
 		m := stack[len(stack)-1].m
-		if _, ok := e.Err.(*module.ModuleError); ok {
-			// TODO(bcmills): Also ensure that the module path and version match.
-			// (Otherwise, we may be reporting an error from a replacement without
-			// indicating the replacement path.)
-			fmt.Fprintf(b, "%v", e.Err)
+		if mErr, ok := e.Err.(*module.ModuleError); ok {
+			actual := module.Version{Path: mErr.Path, Version: mErr.Version}
+			if v, ok := mErr.Err.(*module.InvalidVersionError); ok {
+				actual.Version = v.Version
+			}
+			if actual == m {
+				fmt.Fprintf(b, "%v", e.Err)
+			} else {
+				fmt.Fprintf(b, "%s (replaced by %s): %v", m, actual, mErr.Err)
+			}
 		} else {
 			fmt.Fprintf(b, "%v", module.VersionError(m, e.Err))
 		}
