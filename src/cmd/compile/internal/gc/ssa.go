@@ -329,8 +329,8 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.f.Config = ssaConfig
 	s.f.Cache = &ssaCaches[worker]
 	s.f.Cache.Reset()
-	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
 	s.f.Name = name
+	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH")
 	s.f.PrintOrHtmlSSA = printssa
 	if fn.Func.Pragma&Nosplit != 0 {
 		s.f.NoSplit = true
@@ -6861,6 +6861,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 
 func (e *ssafn) SetWBPos(pos src.XPos) {
 	e.curfn.Func.setWBPos(pos)
+}
+
+func (e *ssafn) MyImportPath() string {
+	return myimportpath
 }
 
 func (n *Node) Typ() *types.Type {
