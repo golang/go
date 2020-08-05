@@ -4376,7 +4376,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 	case OCALLFUNC:
 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
 			sym = fn.Sym
-			if !returnResultAddr && ssa.LateCallExpansionEnabledWithin(s.f) {
+			if ssa.LateCallExpansionEnabledWithin(s.f) {
 				testLateExpansion = true
 			}
 			break
@@ -4393,7 +4393,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		}
 		if k == callNormal {
 			sym = fn.Sym
-			if !returnResultAddr && ssa.LateCallExpansionEnabledWithin(s.f) {
+			if ssa.LateCallExpansionEnabledWithin(s.f) {
 				testLateExpansion = true
 			}
 			break
@@ -4605,7 +4605,11 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 	}
 	fp := res.Field(0)
 	if returnResultAddr {
-		return s.constOffPtrSP(types.NewPtr(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
+		pt := types.NewPtr(fp.Type)
+		if testLateExpansion {
+			return s.newValue1I(ssa.OpSelectNAddr, pt, 0, call)
+		}
+		return s.constOffPtrSP(pt, fp.Offset+Ctxt.FixedFrameSize())
 	}
 
 	if testLateExpansion {
