@@ -133,7 +133,15 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 		Version: params.TextDocument.Version,
 		Text:    text,
 	}
-	return s.didModifyFiles(ctx, []source.FileModification{c}, FromDidChange)
+	if err := s.didModifyFiles(ctx, []source.FileModification{c}, FromDidChange); err != nil {
+		return err
+	}
+
+	s.changedFilesMu.Lock()
+	defer s.changedFilesMu.Unlock()
+
+	s.changedFiles[uri] = struct{}{}
+	return nil
 }
 
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
@@ -238,6 +246,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 			continue
 		}
 		snapshotSet[snapshot] = append(snapshotSet[snapshot], uri)
+		snapshotByURI[uri] = snapshot
 	}
 
 	for _, mod := range modifications {
@@ -258,7 +267,6 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 				return err
 			}
 		}
-
 	}
 
 	for snapshot, uris := range snapshotSet {
@@ -311,11 +319,14 @@ func DiagnosticWorkTitle(cause ModificationSource) string {
 }
 
 func (s *Server) wasFirstChange(uri span.URI) bool {
+	s.changedFilesMu.Lock()
+	defer s.changedFilesMu.Unlock()
+
 	if s.changedFiles == nil {
 		s.changedFiles = make(map[span.URI]struct{})
 	}
 	_, ok := s.changedFiles[uri]
-	return ok
+	return !ok
 }
 
 func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) ([]byte, error) {

@@ -64,7 +64,8 @@ type Server struct {
 	session source.Session
 
 	// changedFiles tracks files for which there has been a textDocument/didChange.
-	changedFiles map[span.URI]struct{}
+	changedFilesMu sync.Mutex
+	changedFiles   map[span.URI]struct{}
 
 	// folders is only valid between initialize and initialized, and holds the
 	// set of folders to build views for when we are ready
