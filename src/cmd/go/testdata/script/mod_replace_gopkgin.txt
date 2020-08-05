@@ -34,7 +34,7 @@ go list -m gopkg.in/src-d/go-git.v4
 # A mismatched gopkg.in path should not be able to replace a different major version.
 cd ../3-to-gomod-4
 ! go list -m gopkg.in/src-d/go-git.v3
-stderr '^go: gopkg\.in/src-d/go-git\.v3@v3.0.0-20190801152248-0d1a009cbb60: invalid version: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
+stderr '^go: gopkg\.in/src-d/go-git\.v3@v3\.2\.0 \(replaced by gopkg\.in/src-d/go-git\.v3@v3\.0\.0-20190801152248-0d1a009cbb60\): version "v3\.0\.0-20190801152248-0d1a009cbb60" invalid: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
 
 -- 4-to-4/go.mod --
 module golang.org/issue/34254
