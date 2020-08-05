@@ -118,5 +118,5 @@ func gotTooMany() int {
 	} else {
 		return 1 // want "wrong number of return values \\(want 1, got 3\\)"
 	}
-	return 0, 5 // want "wrong number of return values \\(want 1, got 3\\)"
+	return 5 // want "wrong number of return values \\(want 1, got 3\\)"
 }

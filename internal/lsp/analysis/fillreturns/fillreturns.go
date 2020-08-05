@@ -135,8 +135,14 @@ outer:
 				if !matchingTypes(info.TypeOf(val), typ) {
 					continue
 				}
+				if !analysisinternal.IsZeroValue(val) {
+					match, idx = val, j
+					break
+				}
+				// If the current match is a "zero" value, we keep searching in
+				// case we find a non-"zero" value match. If we do not find a
+				// non-"zero" value, we will use the "zero" value.
 				match, idx = val, j
-				break
 			}
 
 			if match != nil {
