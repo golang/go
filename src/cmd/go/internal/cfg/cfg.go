@@ -67,39 +67,6 @@ func defaultContext() build.Context {
 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 	}
 
-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
-
-	// Override defaults computed in go/build with defaults
-	// from go environment configuration file, if known.
-	ctxt.GOOS = envOr("GOOS", ctxt.GOOS)
-	ctxt.GOARCH = envOr("GOARCH", ctxt.GOARCH)
-
-	// The go/build rule for whether cgo is enabled is:
-	//	1. If $CGO_ENABLED is set, respect it.
-	//	2. Otherwise, if this is a cross-compile, disable cgo.
-	//	3. Otherwise, use built-in default for GOOS/GOARCH.
-	// Recreate that logic here with the new GOOS/GOARCH setting.
-	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
-		ctxt.CgoEnabled = v[0] == '1'
-	} else if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
-		ctxt.CgoEnabled = false
-	} else {
-		// Use built-in default cgo setting for GOOS/GOARCH.
-		// Note that ctxt.GOOS/GOARCH are derived from the preference list
-		// (1) environment, (2) go/env file, (3) runtime constants,
-		// while go/build.Default.GOOS/GOARCH are derived from the preference list
-		// (1) environment, (2) runtime constants.
-		// We know ctxt.GOOS/GOARCH == runtime.GOOS/GOARCH;
-		// no matter how that happened, go/build.Default will make the
-		// same decision (either the environment variables are set explicitly
-		// to match the runtime constants, or else they are unset, in which
-		// case go/build falls back to the runtime constants), so
-		// go/build.Default.GOOS/GOARCH == runtime.GOOS/GOARCH.
-		// So ctxt.CgoEnabled (== go/build.Default.CgoEnabled) is correct
-		// as is and can be left unmodified.
-		// Nothing to do here.
-	}
-
 	return ctxt
 }
 
