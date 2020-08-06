@@ -1141,3 +1141,27 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	s.gcmarkBits = nil
 	return result
 }
+
+const (
+	TimeHistSubBucketBits   = timeHistSubBucketBits
+	TimeHistNumSubBuckets   = timeHistNumSubBuckets
+	TimeHistNumSuperBuckets = timeHistNumSuperBuckets
+)
+
+type TimeHistogram timeHistogram
+
+// Counts returns the counts for the given bucket, subBucket indices.
+// Returns true if the bucket was valid, otherwise returns the counts
+// for the overflow bucket and false.
+func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
+	t := (*timeHistogram)(th)
+	i := bucket*TimeHistNumSubBuckets + subBucket
+	if i >= uint(len(t.counts)) {
+		return t.overflow, false
+	}
+	return t.counts[i], true
+}
+
+func (th *TimeHistogram) Record(duration int64) {
+	(*timeHistogram)(th).record(duration)
+}
