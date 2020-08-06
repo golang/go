@@ -65,6 +65,9 @@ Supported metrics
 	/gc/heap/objects:objects
 		Number of objects, live or unswept, occupying heap memory.
 
+	/gc/pauses:seconds
+		Distribution individual GC-related stop-the-world pause latencies.
+
 	/memory/classes/heap/free:bytes
 		Memory that is available for allocation, and may be returned
 		to the underlying system.
