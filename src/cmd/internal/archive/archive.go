@@ -14,9 +14,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
+	"time"
+	"unicode/utf8"
 )
+
+/*
+The archive format is:
+
+First, on a line by itself
+	!<arch>
+
+Then zero or more file records. Each file record has a fixed-size one-line header
+followed by data bytes followed by an optional padding byte. The header is:
+
+	%-16s%-12d%-6d%-6d%-8o%-10d`
+	name mtime uid gid mode size
+
+(note the trailing backquote). The %-16s here means at most 16 *bytes* of
+the name, and if shorter, space padded on the right.
+*/
 
 // A Data is a reference to data stored in an object file.
 // It records the offset and size of the data, so that a client can
@@ -31,9 +50,15 @@ type Archive struct {
 	Entries []Entry
 }
 
+func (a *Archive) File() *os.File { return a.f }
+
 type Entry struct {
-	Name string
-	Type EntryType
+	Name  string
+	Type  EntryType
+	Mtime int64
+	Uid   int
+	Gid   int
+	Mode  os.FileMode
 	Data
 	Obj *GoObj // nil if this entry is not a Go object file
 }
@@ -46,10 +71,27 @@ const (
 	EntryNativeObj
 )
 
+func (e *Entry) String() string {
+	return fmt.Sprintf("%s %6d/%-6d %12d %s %s",
+		(e.Mode & 0777).String(),
+		e.Uid,
+		e.Gid,
+		e.Size,
+		time.Unix(e.Mtime, 0).Format(timeFormat),
+		e.Name)
+}
+
 type GoObj struct {
 	TextHeader []byte
 	Data
 }
+
+const (
+	entryHeader = "%s%-12d%-6d%-6d%-8o%-10d`\n"
+	// In entryHeader the first entry, the name, is always printed as 16 bytes right-padded.
+	entryLen   = 16 + 12 + 6 + 6 + 8 + 10 + 1 + 1
+	timeFormat = "Jan _2 15:04 2006"
+)
 
 var (
 	archiveHeader = []byte("!<arch>\n")
@@ -182,8 +224,17 @@ func (r *objReader) skip(n int64) {
 	}
 }
 
+// New writes to f to make a new archive.
+func New(f *os.File) (*Archive, error) {
+	_, err := f.Write(archiveHeader)
+	if err != nil {
+		return nil, err
+	}
+	return &Archive{f: f}, nil
+}
+
 // Parse parses an object file or archive from f.
-func Parse(f *os.File) (*Archive, error) {
+func Parse(f *os.File, verbose bool) (*Archive, error) {
 	var r objReader
 	r.init(f)
 	t, err := r.peek(8)
@@ -199,7 +250,7 @@ func Parse(f *os.File) (*Archive, error) {
 		return nil, errNotObject
 
 	case bytes.Equal(t, archiveHeader):
-		if err := r.parseArchive(); err != nil {
+		if err := r.parseArchive(verbose); err != nil {
 			return nil, err
 		}
 	case bytes.Equal(t, goobjHeader):
@@ -208,7 +259,12 @@ func Parse(f *os.File) (*Archive, error) {
 		if err := r.parseObject(o, r.limit-off); err != nil {
 			return nil, err
 		}
-		r.a.Entries = []Entry{{f.Name(), EntryGoObj, Data{off, r.limit - off}, o}}
+		r.a.Entries = []Entry{{
+			Name: f.Name(),
+			Type: EntryGoObj,
+			Data: Data{off, r.limit - off},
+			Obj:  o,
+		}}
 	}
 
 	return r.a, nil
@@ -221,7 +277,7 @@ func trimSpace(b []byte) string {
 }
 
 // parseArchive parses a Unix archive of Go object files.
-func (r *objReader) parseArchive() error {
+func (r *objReader) parseArchive(verbose bool) error {
 	r.readFull(r.tmp[:8]) // consume header (already checked)
 	for r.offset < r.limit {
 		if err := r.readFull(r.tmp[:60]); err != nil {
@@ -237,7 +293,7 @@ func (r *objReader) parseArchive() error {
 		//	40:48 mode
 		//	48:58 size
 		//	58:60 magic - `\n
-		// We only care about name, size, and magic.
+		// We only care about name, size, and magic, unless in verbose mode.
 		// The fields are space-padded on the right.
 		// The size is in decimal.
 		// The file data - size bytes - follows the header.
@@ -252,7 +308,27 @@ func (r *objReader) parseArchive() error {
 			return errCorruptArchive
 		}
 		name := trimSpace(data[0:16])
-		size, err := strconv.ParseInt(trimSpace(data[48:58]), 10, 64)
+		var err error
+		get := func(start, end, base, bitsize int) int64 {
+			if err != nil {
+				return 0
+			}
+			var v int64
+			v, err = strconv.ParseInt(trimSpace(data[start:end]), base, bitsize)
+			return v
+		}
+		size := get(48, 58, 10, 64)
+		var (
+			mtime    int64
+			uid, gid int
+			mode     os.FileMode
+		)
+		if verbose {
+			mtime = get(16, 28, 10, 64)
+			uid = int(get(28, 34, 10, 32))
+			gid = int(get(34, 40, 10, 32))
+			mode = os.FileMode(get(40, 48, 8, 32))
+		}
 		if err != nil {
 			return errCorruptArchive
 		}
@@ -263,7 +339,15 @@ func (r *objReader) parseArchive() error {
 		}
 		switch name {
 		case "__.PKGDEF":
-			r.a.Entries = append(r.a.Entries, Entry{name, EntryPkgDef, Data{r.offset, size}, nil})
+			r.a.Entries = append(r.a.Entries, Entry{
+				Name:  name,
+				Type:  EntryPkgDef,
+				Mtime: mtime,
+				Uid:   uid,
+				Gid:   gid,
+				Mode:  mode,
+				Data:  Data{r.offset, size},
+			})
 			r.skip(size)
 		default:
 			var typ EntryType
@@ -281,7 +365,16 @@ func (r *objReader) parseArchive() error {
 				typ = EntryNativeObj
 				r.skip(size)
 			}
-			r.a.Entries = append(r.a.Entries, Entry{name, typ, Data{offset, size}, o})
+			r.a.Entries = append(r.a.Entries, Entry{
+				Name:  name,
+				Type:  typ,
+				Mtime: mtime,
+				Uid:   uid,
+				Gid:   gid,
+				Mode:  mode,
+				Data:  Data{offset, size},
+				Obj:   o,
+			})
 		}
 		if size&1 != 0 {
 			r.skip(1)
@@ -323,4 +416,45 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 	}
 	r.skip(o.Size)
 	return nil
+}
+
+// AddEntry adds an entry to the end of a, with the content from r.
+func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
+	off, err := a.f.Seek(0, io.SeekEnd)
+	if err != nil {
+		log.Fatal(err)
+	}
+	n, err := fmt.Fprintf(a.f, entryHeader, exactly16Bytes(name), mtime, uid, gid, mode, size)
+	if err != nil || n != entryLen {
+		log.Fatal("writing entry header: ", err)
+	}
+	n1, _ := io.CopyN(a.f, r, size)
+	if n1 != size {
+		log.Fatal(err)
+	}
+	if (off+size)&1 != 0 {
+		a.f.Write([]byte{0}) // pad to even byte
+	}
+	a.Entries = append(a.Entries, Entry{
+		Name:  name,
+		Type:  typ,
+		Mtime: mtime,
+		Uid:   uid,
+		Gid:   gid,
+		Mode:  mode,
+		Data:  Data{off + entryLen, size},
+	})
+}
+
+// exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
+// then pads the result with spaces to be exactly 16 bytes.
+// Fmt uses runes for its width calculation, but we need bytes in the entry header.
+func exactly16Bytes(s string) string {
+	for len(s) > 16 {
+		_, wid := utf8.DecodeLastRuneInString(s)
+		s = s[:len(s)-wid]
+	}
+	const sixteenSpaces = "                "
+	s += sixteenSpaces[:16-len(s)]
+	return s
 }

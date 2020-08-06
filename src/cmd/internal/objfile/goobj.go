@@ -27,7 +27,7 @@ type goobjFile struct {
 }
 
 func openGoFile(f *os.File) (*File, error) {
-	a, err := archive.Parse(f)
+	a, err := archive.Parse(f, false)
 	if err != nil {
 		return nil, err
 	}

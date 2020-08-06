@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"unicode/utf8"
 )
 
 var (
@@ -160,7 +161,7 @@ func TestParseGoobj(t *testing.T) {
 	}
 	defer f.Close()
 
-	a, err := Parse(f)
+	a, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +190,7 @@ func TestParseArchive(t *testing.T) {
 	}
 	defer f.Close()
 
-	a, err := Parse(f)
+	a, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +235,7 @@ func TestParseCGOArchive(t *testing.T) {
 	}
 	defer f.Close()
 
-	a, err := Parse(f)
+	a, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,5 +345,32 @@ func TestParseCGOArchive(t *testing.T) {
 	}
 	if !found2 {
 		t.Errorf(`symbol %q not found`, c2)
+	}
+}
+
+func TestExactly16Bytes(t *testing.T) {
+	var tests = []string{
+		"",
+		"a",
+		"日本語",
+		"1234567890123456",
+		"12345678901234567890",
+		"1234567890123本語4567890",
+		"12345678901234日本語567890",
+		"123456789012345日本語67890",
+		"1234567890123456日本語7890",
+		"1234567890123456日本語7日本語890",
+	}
+	for _, str := range tests {
+		got := exactly16Bytes(str)
+		if len(got) != 16 {
+			t.Errorf("exactly16Bytes(%q) is %q, length %d", str, got, len(got))
+		}
+		// Make sure it is full runes.
+		for _, c := range got {
+			if c == utf8.RuneError {
+				t.Errorf("exactly16Bytes(%q) is %q, has partial rune", str, got)
+			}
+		}
 	}
 }
