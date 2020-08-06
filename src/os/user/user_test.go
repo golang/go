@@ -132,9 +132,6 @@ func TestGroupIds(t *testing.T) {
 	if runtime.GOOS == "aix" {
 		t.Skip("skipping GroupIds, see golang.org/issue/30563")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
-		t.Skip("skipping GroupIds, see golang.org/issue/14709")
-	}
 	user, err := Current()
 	if err != nil {
 		t.Fatalf("Current(): %v", err)
