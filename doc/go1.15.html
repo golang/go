@@ -386,6 +386,23 @@ Do not send CLs removing the interior tags from such phrases.
   documentation</a> for more information.
 </p>
 
+<h3 id="commonname">X.509 CommonName deprecation</h3>
+
+<p><!-- CL 231379 -->
+  The deprecated, legacy behavior of treating the <code>CommonName</code>
+  field on X.509 certificates as a host name when no Subject Alternative Names
+  are present is now disabled by default. It can be temporarily re-enabled by
+  adding the value <code>x509ignoreCN=0</code> to the <code>GODEBUG</code>
+  environment variable.
+</p>
+
+<p>
+  Note that if the <code>CommonName</code> is an invalid host name, it's always
+  ignored, regardless of <code>GODEBUG</code> settings. Invalid names include
+  those with any characters other than letters, digits, hyphens and underscores,
+  and those with empty labels or trailing dots.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -523,15 +540,6 @@ Do not send CLs removing the interior tags from such phrases.
       certificates with trailing dots.
     </p>
 
-    <p><!-- CL 231379 -->
-      The deprecated, legacy behavior of treating the <code>CommonName</code>
-      field as a hostname when no Subject Alternative Names are present is now
-      disabled by default. It can be temporarily re-enabled by adding the value
-      <code>x509ignoreCN=0</code> to the <code>GODEBUG</code> environment
-      variable. If the <code>CommonName</code> is an invalid hostname, it's
-      always ignored.
-    </p>
-
     <p><!-- CL 217298 -->
       The new <a href="/pkg/crypto/x509/#CreateRevocationList"><code>CreateRevocationList</code></a>
       function and <a href="/pkg/crypto/x509/#RevocationList"><code>RevocationList</code></a> type
@@ -647,8 +655,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 221427 -->
-      When the flag package sees <code>-h</code> or <code>-help</code>, and
-      those flags are not defined, it now prints a usage message.
+      When the <code>flag</code> package sees <code>-h</code> or <code>-help</code>,
+      and those flags are not defined, it now prints a usage message.
       If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
       <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
       <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
@@ -893,9 +901,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
     <p><!-- CL 189318 -->
-      The goroutine profile includes the profile labels associated with each goroutine
-      at the time of profiling. This feature is not yet implemented for the profile
-      reported with <code>debug=2</code>.
+      The goroutine profile now includes the profile labels associated with each
+      goroutine at the time of profiling. This feature is not yet implemented for
+      the profile reported with <code>debug=2</code>.
     </p>
   </dd>
 </dl>
@@ -926,6 +934,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
       is more efficient.
     </p>
+  </dd>
 </dl><!-- sync -->
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>

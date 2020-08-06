@@ -1051,6 +1051,11 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 	//
 	// If all of these conditions are true, then i1 < max and i1 >= min.
 
+	// To ensure this is a loop header node.
+	if len(b.Preds) != 2 {
+		return
+	}
+
 	for _, i1 := range b.Values {
 		if i1.Op != OpPhi {
 			continue
@@ -1092,6 +1097,9 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
 					continue
 				}
 				br = negative
+			}
+			if br == unknown {
+				continue
 			}
 
 			tr, has := domainRelationTable[control.Op]

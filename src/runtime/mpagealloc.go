@@ -233,16 +233,12 @@ type pageAlloc struct {
 
 	// The address to start an allocation search with. It must never
 	// point to any memory that is not contained in inUse, i.e.
-	// inUse.contains(searchAddr) must always be true.
+	// inUse.contains(searchAddr.addr()) must always be true. The one
+	// exception to this rule is that it may take on the value of
+	// maxOffAddr to indicate that the heap is exhausted.
 	//
-	// When added with arenaBaseOffset, we guarantee that
-	// all valid heap addresses (when also added with
-	// arenaBaseOffset) below this value are allocated and
-	// not worth searching.
-	//
-	// Note that adding in arenaBaseOffset transforms addresses
-	// to a new address space with a linear view of the full address
-	// space on architectures with segmented address spaces.
+	// We guarantee that all valid heap addresses below this value
+	// are allocated and not worth searching.
 	searchAddr offAddr
 
 	// start and end represent the chunk indices
@@ -518,6 +514,30 @@ func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
 	return uintptr(scav) * pageSize
 }
 
+// findMappedAddr returns the smallest mapped offAddr that is
+// >= addr. That is, if addr refers to mapped memory, then it is
+// returned. If addr is higher than any mapped region, then
+// it returns maxOffAddr.
+//
+// s.mheapLock must be held.
+func (s *pageAlloc) findMappedAddr(addr offAddr) offAddr {
+	// If we're not in a test, validate first by checking mheap_.arenas.
+	// This is a fast path which is only safe to use outside of testing.
+	ai := arenaIndex(addr.addr())
+	if s.test || mheap_.arenas[ai.l1()] == nil || mheap_.arenas[ai.l1()][ai.l2()] == nil {
+		vAddr, ok := s.inUse.findAddrGreaterEqual(addr.addr())
+		if ok {
+			return offAddr{vAddr}
+		} else {
+			// The candidate search address is greater than any
+			// known address, which means we definitely have no
+			// free memory left.
+			return maxOffAddr
+		}
+	}
+	return addr
+}
+
 // find searches for the first (address-ordered) contiguous free region of
 // npages in size and returns a base address for that region.
 //
@@ -526,6 +546,7 @@ func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
 //
 // find also computes and returns a candidate s.searchAddr, which may or
 // may not prune more of the address space than s.searchAddr already does.
+// This candidate is always a valid s.searchAddr.
 //
 // find represents the slow path and the full radix tree search.
 //
@@ -695,7 +716,7 @@ nextLevel:
 			// We found a sufficiently large run of free pages straddling
 			// some boundary, so compute the address and return it.
 			addr := levelIndexToOffAddr(l, i).add(uintptr(base) * pageSize).addr()
-			return addr, firstFree.base
+			return addr, s.findMappedAddr(firstFree.base)
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
@@ -741,7 +762,7 @@ nextLevel:
 	// found an even narrower free window.
 	searchAddr := chunkBase(ci) + uintptr(searchIdx)*pageSize
 	foundFree(offAddr{searchAddr}, chunkBase(ci+1)-searchAddr)
-	return addr, firstFree.base
+	return addr, s.findMappedAddr(firstFree.base)
 }
 
 // alloc allocates npages worth of memory from the page heap, returning the base

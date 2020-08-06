@@ -901,6 +901,12 @@ typedef struct S32579 { unsigned char data[1]; } S32579;
 // issue 38649
 // Test that #define'd type aliases work.
 #define netbsd_gid unsigned int
+
+// issue 40494
+// Inconsistent handling of tagged enum and union types.
+enum Enum40494 { X_40494 };
+union Union40494 { int x; };
+void issue40494(enum Enum40494 e, union Union40494* up) {}
 */
 import "C"
 
@@ -2204,3 +2210,10 @@ var issue38649 C.netbsd_gid = 42
 // issue 39877
 
 var issue39877 *C.void = nil
+
+// issue 40494
+// No runtime test; just make sure it compiles.
+
+func Issue40494() {
+	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
+}

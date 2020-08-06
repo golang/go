@@ -239,11 +239,25 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		err = &NoGoError{Package: p}
 	}
 
+	// Take only the first error from a scanner.ErrorList. PackageError only
+	// has room for one position, so we report the first error with a position
+	// instead of all of the errors without a position.
+	var pos string
+	var isScanErr bool
+	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
+		isScanErr = true // For stack push/pop below.
+
+		scanPos := scanErr[0].Pos
+		scanPos.Filename = base.ShortPath(scanPos.Filename)
+		pos = scanPos.String()
+		err = errors.New(scanErr[0].Msg)
+	}
+
 	// Report the error on the importing package if the problem is with the import declaration
 	// for example, if the package doesn't exist or if the import path is malformed.
 	// On the other hand, don't include a position if the problem is with the imported package,
 	// for example there are no Go files (NoGoError), or there's a problem in the imported
-	// package's source files themselves.
+	// package's source files themselves (scanner errors).
 	//
 	// TODO(matloob): Perhaps make each of those the errors in the first group
 	// (including modload.ImportMissingError, and the corresponding
@@ -254,20 +268,9 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	// to make it easier to check for them? That would save us from having to
 	// move the modload errors into this package to avoid a package import cycle,
 	// and from having to export an error type for the errors produced in build.
-	if !isMatchErr && nogoErr != nil {
+	if !isMatchErr && (nogoErr != nil || isScanErr) {
 		stk.Push(path)
 		defer stk.Pop()
-	}
-
-	// Take only the first error from a scanner.ErrorList. PackageError only
-	// has room for one position, so we report the first error with a position
-	// instead of all of the errors without a position.
-	var pos string
-	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
-		scanPos := scanErr[0].Pos
-		scanPos.Filename = base.ShortPath(scanPos.Filename)
-		pos = scanPos.String()
-		err = errors.New(scanErr[0].Msg)
 	}
 
 	p.Error = &PackageError{
