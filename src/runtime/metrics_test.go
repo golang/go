@@ -70,6 +70,8 @@ func TestReadMetrics(t *testing.T) {
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
 		case "/memory/classes/total:bytes":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
+		case "/gc/heap/objects:objects":
+			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
 		}
 	}
 }

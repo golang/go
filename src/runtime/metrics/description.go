@@ -51,6 +51,11 @@ type Description struct {
 // descriptions of each metric in doc.go.
 var allDesc = []Description{
 	{
+		Name:        "/gc/heap/objects:objects",
+		Description: "Number of objects, live or unswept, occupying heap memory.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/memory/classes/heap/free:bytes",
 		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
 		Kind:        KindUint64,
