@@ -90,6 +90,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 	// things (e.g. allocating) so what we read can't reasonably compared
 	// to runtime values.
 
+	// Run a few GC cycles to get some of the stats to be non-zero.
+	runtime.GC()
+	runtime.GC()
+	runtime.GC()
+
 	// Read all the supported metrics through the metrics package.
 	descs, samples := prepareAllMetricsSamples()
 	metrics.Read(samples)
@@ -101,6 +106,10 @@ func TestReadMetricsConsistency(t *testing.T) {
 	var objects struct {
 		alloc, free *metrics.Float64Histogram
 		total       uint64
+	}
+	var gc struct {
+		numGC  uint64
+		pauses uint64
 	}
 	for i := range samples {
 		kind := samples[i].Value.Kind()
@@ -128,6 +137,14 @@ func TestReadMetricsConsistency(t *testing.T) {
 			objects.alloc = samples[i].Value.Float64Histogram()
 		case "/gc/heap/frees-by-size:objects":
 			objects.free = samples[i].Value.Float64Histogram()
+		case "/gc/cycles:gc-cycles":
+			gc.numGC = samples[i].Value.Uint64()
+		case "/gc/pauses:seconds":
+			h := samples[i].Value.Float64Histogram()
+			gc.pauses = 0
+			for i := range h.Counts {
+				gc.pauses += h.Counts[i]
+			}
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
@@ -158,6 +175,11 @@ func TestReadMetricsConsistency(t *testing.T) {
 				t.Errorf("object distribution counts don't match count of live objects: got %d, want %d", got, want)
 			}
 		}
+	}
+	// The current GC has at least 2 pauses per GC.
+	// Check to see if that value makes sense.
+	if gc.pauses < gc.numGC*2 {
+		t.Errorf("fewer pauses than expected: got %d, want at least %d", gc.pauses, gc.numGC*2)
 	}
 }
 

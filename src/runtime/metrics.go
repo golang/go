@@ -102,6 +102,15 @@ func initMetrics() {
 				out.scalar = in.heapStats.numObjects
 			},
 		},
+		"/gc/pauses:seconds": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				hist := out.float64HistOrInit(timeHistBuckets)
+				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
+				for i := range hist.buckets {
+					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+				}
+			},
+		},
 		"/memory/classes/heap/free:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {

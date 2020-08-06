@@ -157,6 +157,14 @@ type mstats struct {
 
 	// heapStats is a set of statistics
 	heapStats consistentHeapStats
+
+	_ uint32 // ensure gcPauseDist is aligned
+
+	// gcPauseDist represents the distribution of all GC-related
+	// application pauses in the runtime.
+	//
+	// Each individual pause is counted separately, unlike pause_ns.
+	gcPauseDist timeHistogram
 }
 
 var memstats mstats
@@ -442,6 +450,10 @@ func init() {
 	if offset := unsafe.Offsetof(memstats.heapStats); offset%8 != 0 {
 		println(offset)
 		throw("memstats.heapStats not aligned to 8 bytes")
+	}
+	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
+		println(offset)
+		throw("memstats.gcPauseDist not aligned to 8 bytes")
 	}
 	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
 	// [3]heapStatsDelta) to be 8-byte aligned.

@@ -89,6 +89,11 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/gc/pauses:seconds",
+		Description: "Distribution individual GC-related stop-the-world pause latencies.",
+		Kind:        KindFloat64Histogram,
+	},
+	{
 		Name:        "/memory/classes/heap/free:bytes",
 		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
 		Kind:        KindUint64,

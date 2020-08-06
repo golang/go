@@ -1418,6 +1418,7 @@ func gcStart(trigger gcTrigger) {
 		now = startTheWorldWithSema(trace.enabled)
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
+		memstats.gcPauseDist.record(now - work.pauseStart)
 	})
 
 	// Release the world sema before Gosched() in STW mode
@@ -1565,6 +1566,7 @@ top:
 		systemstack(func() {
 			now := startTheWorldWithSema(true)
 			work.pauseNS += now - work.pauseStart
+			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
 		semrelease(&worldsema)
 		goto top
@@ -1677,6 +1679,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	unixNow := sec*1e9 + int64(nsec)
 	work.pauseNS += now - work.pauseStart
 	work.tEnd = now
+	memstats.gcPauseDist.record(now - work.pauseStart)
 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
