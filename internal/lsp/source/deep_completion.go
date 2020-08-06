@@ -73,22 +73,19 @@ func (s *deepCompletionState) isHighScore(score float64) bool {
 	// Invariant: s.highScores is sorted with highest score first. Unclaimed
 	// positions are trailing zeros.
 
-	// First check for an unclaimed spot and claim if available.
+	// If we beat an existing score then take its spot.
 	for i, deepScore := range s.highScores {
-		if deepScore == 0 {
-			s.highScores[i] = score
-			return true
+		if score <= deepScore {
+			continue
 		}
-	}
 
-	// Otherwise, if we beat an existing score then take its spot and scoot
-	// all lower scores down one position.
-	for i, deepScore := range s.highScores {
-		if score > deepScore {
+		if deepScore != 0 && i != len(s.highScores)-1 {
+			// If this wasn't an empty slot then we need to scooch everyone
+			// down one spot.
 			copy(s.highScores[i+1:], s.highScores[i:])
-			s.highScores[i] = score
-			return true
 		}
+		s.highScores[i] = score
+		return true
 	}
 
 	return false
