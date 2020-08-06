@@ -20,6 +20,7 @@ var (
 	metrics     map[string]metricData
 
 	sizeClassBuckets []float64
+	timeHistBuckets  []float64
 )
 
 type metricData struct {
@@ -44,6 +45,7 @@ func initMetrics() {
 	for i := range sizeClassBuckets {
 		sizeClassBuckets[i] = float64(class_to_size[i])
 	}
+	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
 		"/gc/cycles/automatic:gc-cycles": {
 			deps: makeStatDepSet(sysStatsDep),
