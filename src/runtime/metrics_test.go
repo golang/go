@@ -98,6 +98,10 @@ func TestReadMetricsConsistency(t *testing.T) {
 	var totalVirtual struct {
 		got, want uint64
 	}
+	var objects struct {
+		alloc, free *metrics.Float64Histogram
+		total       uint64
+	}
 	for i := range samples {
 		kind := samples[i].Value.Kind()
 		if want := descs[samples[i].Name].Kind; kind != want {
@@ -118,10 +122,42 @@ func TestReadMetricsConsistency(t *testing.T) {
 		switch samples[i].Name {
 		case "/memory/classes/total:bytes":
 			totalVirtual.got = samples[i].Value.Uint64()
+		case "/gc/heap/objects:objects":
+			objects.total = samples[i].Value.Uint64()
+		case "/gc/heap/allocs-by-size:objects":
+			objects.alloc = samples[i].Value.Float64Histogram()
+		case "/gc/heap/frees-by-size:objects":
+			objects.free = samples[i].Value.Float64Histogram()
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
+	}
+	if len(objects.alloc.Buckets) != len(objects.free.Buckets) {
+		t.Error("allocs-by-size and frees-by-size buckets don't match in length")
+	} else if len(objects.alloc.Counts) != len(objects.free.Counts) {
+		t.Error("allocs-by-size and frees-by-size counts don't match in length")
+	} else {
+		for i := range objects.alloc.Buckets {
+			ba := objects.alloc.Buckets[i]
+			bf := objects.free.Buckets[i]
+			if ba != bf {
+				t.Errorf("bucket %d is different for alloc and free hists: %f != %f", i, ba, bf)
+			}
+		}
+		if !t.Failed() {
+			got, want := uint64(0), objects.total
+			for i := range objects.alloc.Counts {
+				if objects.alloc.Counts[i] < objects.free.Counts[i] {
+					t.Errorf("found more allocs than frees in object dist bucket %d", i)
+					continue
+				}
+				got += objects.alloc.Counts[i] - objects.free.Counts[i]
+			}
+			if got != want {
+				t.Errorf("object distribution counts don't match count of live objects: got %d, want %d", got, want)
+			}
+		}
 	}
 }
 

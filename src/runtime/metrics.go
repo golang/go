@@ -18,6 +18,8 @@ var (
 	metricsSema uint32 = 1
 	metricsInit bool
 	metrics     map[string]metricData
+
+	sizeClassBuckets []float64
 )
 
 type metricData struct {
@@ -37,6 +39,10 @@ type metricData struct {
 func initMetrics() {
 	if metricsInit {
 		return
+	}
+	sizeClassBuckets = make([]float64, _NumSizeClasses)
+	for i := range sizeClassBuckets {
+		sizeClassBuckets[i] = float64(class_to_size[i])
 	}
 	metrics = map[string]metricData{
 		"/gc/cycles/automatic:gc-cycles": {
@@ -58,6 +64,26 @@ func initMetrics() {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.sysStats.gcCyclesDone
+			},
+		},
+		"/gc/heap/allocs-by-size:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				hist := out.float64HistOrInit(sizeClassBuckets)
+				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
+				for i := range hist.buckets {
+					hist.counts[i] = uint64(in.heapStats.smallAllocCount[i])
+				}
+			},
+		},
+		"/gc/heap/frees-by-size:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				hist := out.float64HistOrInit(sizeClassBuckets)
+				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
+				for i := range hist.buckets {
+					hist.counts[i] = uint64(in.heapStats.smallFreeCount[i])
+				}
 			},
 		},
 		"/gc/heap/goal:bytes": {
@@ -368,6 +394,32 @@ type metricValue struct {
 	kind    metricKind
 	scalar  uint64         // contains scalar values for scalar Kinds.
 	pointer unsafe.Pointer // contains non-scalar values.
+}
+
+// float64HistOrInit tries to pull out an existing float64Histogram
+// from the value, but if none exists, then it allocates one with
+// the given buckets.
+func (v *metricValue) float64HistOrInit(buckets []float64) *metricFloat64Histogram {
+	var hist *metricFloat64Histogram
+	if v.kind == metricKindFloat64Histogram && v.pointer != nil {
+		hist = (*metricFloat64Histogram)(v.pointer)
+	} else {
+		v.kind = metricKindFloat64Histogram
+		hist = new(metricFloat64Histogram)
+		v.pointer = unsafe.Pointer(hist)
+	}
+	hist.buckets = buckets
+	if len(hist.counts) != len(hist.buckets)+1 {
+		hist.counts = make([]uint64, len(buckets)+1)
+	}
+	return hist
+}
+
+// metricFloat64Histogram is a runtime copy of runtime/metrics.Float64Histogram
+// and must be kept structurally identical to that type.
+type metricFloat64Histogram struct {
+	counts  []uint64
+	buckets []float64
 }
 
 // agg is used by readMetrics, and is protected by metricsSema.
