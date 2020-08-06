@@ -53,6 +53,12 @@ Supported metrics
 	/gc/cycles/total:gc-cycles
 		Count of all completed GC cycles.
 
+	/gc/heap/allocs-by-size:objects
+		Distribution of all objects allocated by approximate size.
+
+	/gc/heap/frees-by-size:objects
+		Distribution of all objects freed by approximate size.
+
 	/gc/heap/goal:bytes
 		Heap size target for the end of the GC cycle.
 
