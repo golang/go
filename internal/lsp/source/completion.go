@@ -1576,6 +1576,10 @@ type typeNameInference struct {
 
 	// wantComparable is true if we want a comparable type.
 	wantComparable bool
+
+	// seenTypeSwitchCases tracks types that have already been used by
+	// the containing type switch.
+	seenTypeSwitchCases []types.Type
 }
 
 // expectedCandidate returns information about the expected candidate
@@ -1885,10 +1889,11 @@ func breaksExpectedTypeInference(n ast.Node) bool {
 // expectTypeName returns information about the expected type name at position.
 func expectTypeName(c *completer) typeNameInference {
 	var (
-		wantTypeName   bool
-		wantComparable bool
-		modifiers      []typeModifier
-		assertableFrom types.Type
+		wantTypeName        bool
+		wantComparable      bool
+		modifiers           []typeModifier
+		assertableFrom      types.Type
+		seenTypeSwitchCases []types.Type
 	)
 
 Nodes:
@@ -1914,6 +1919,23 @@ Nodes:
 					return true
 				})
 				wantTypeName = true
+
+				// Track the types that have already been used in this
+				// switch's case statements so we don't recommend them.
+				for _, e := range swtch.Body.List {
+					for _, typeExpr := range e.(*ast.CaseClause).List {
+						// Skip if type expression contains pos. We don't want to
+						// count it as already used if the user is completing it.
+						if typeExpr.Pos() < c.pos && c.pos <= typeExpr.End() {
+							continue
+						}
+
+						if t := c.pkg.GetTypesInfo().TypeOf(typeExpr); t != nil {
+							seenTypeSwitchCases = append(seenTypeSwitchCases, t)
+						}
+					}
+				}
+
 				break Nodes
 			}
 			return typeNameInference{}
@@ -1985,10 +2007,11 @@ Nodes:
 	}
 
 	return typeNameInference{
-		wantTypeName:   wantTypeName,
-		wantComparable: wantComparable,
-		modifiers:      modifiers,
-		assertableFrom: assertableFrom,
+		wantTypeName:        wantTypeName,
+		wantComparable:      wantComparable,
+		modifiers:           modifiers,
+		assertableFrom:      assertableFrom,
+		seenTypeSwitchCases: seenTypeSwitchCases,
 	}
 }
 
@@ -2070,6 +2093,7 @@ func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) boo
 }
 
 // matchingCandidate reports whether cand matches our type inferences.
+// It mutates cand's score in certain cases.
 func (c *completer) matchingCandidate(cand *candidate) bool {
 	if isTypeName(cand.obj) {
 		return c.matchingTypeName(cand)
@@ -2289,6 +2313,14 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 			return false
 		}
 
+		// Skip this type if it has already been used in another type
+		// switch case.
+		for _, seen := range c.inference.typeName.seenTypeSwitchCases {
+			if types.Identical(candType, seen) {
+				return false
+			}
+		}
+
 		// We can expect a type name and have an expected type in cases like:
 		//
 		//   var foo []int
@@ -2303,11 +2335,13 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		return true
 	}
 
-	if typeMatches(cand.obj.Type()) {
+	t := cand.obj.Type()
+
+	if typeMatches(t) {
 		return true
 	}
 
-	if typeMatches(types.NewPointer(cand.obj.Type())) {
+	if !isInterface(t) && typeMatches(types.NewPointer(t)) {
 		cand.makePointer = true
 		return true
 	}

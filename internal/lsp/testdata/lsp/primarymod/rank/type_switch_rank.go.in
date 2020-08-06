@@ -1,5 +1,10 @@
 package rank
 
+import (
+	"fmt"
+	"go/ast"
+)
+
 func _() {
 	type basket int   //@item(basket, "basket", "int", "type")
 	var banana string //@item(banana, "banana", "string", "var")
@@ -7,5 +12,20 @@ func _() {
 	switch interface{}(pear).(type) {
 	case b: //@complete(":", basket)
 		b //@complete(" //", banana, basket)
+	}
+
+	Ident  //@item(astIdent, "Ident", "struct{...}", "struct")
+	IfStmt //@item(astIfStmt, "IfStmt", "struct{...}", "struct")
+
+	switch ast.Node(nil).(type) {
+	case *ast.Ident:
+	case *ast.I: //@rank(":", astIfStmt, astIdent)
+	}
+
+	Stringer   //@item(fmtStringer, "Stringer", "interface{...}", "interface")
+	GoStringer //@item(fmtGoStringer, "GoStringer", "interface{...}", "interface")
+
+	switch interface{}(nil).(type) {
+	case fmt.Stringer: //@rank(":", fmtStringer, fmtGoStringer)
 	}
 }
