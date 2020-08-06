@@ -7,6 +7,7 @@ package runtime
 // Metrics implementation exported to runtime/metrics.
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -38,6 +39,34 @@ func initMetrics() {
 		return
 	}
 	metrics = map[string]metricData{
+		"/gc/cycles/automatic:gc-cycles": {
+			deps: makeStatDepSet(sysStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.sysStats.gcCyclesDone - in.sysStats.gcCyclesForced
+			},
+		},
+		"/gc/cycles/forced:gc-cycles": {
+			deps: makeStatDepSet(sysStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.sysStats.gcCyclesForced
+			},
+		},
+		"/gc/cycles/total:gc-cycles": {
+			deps: makeStatDepSet(sysStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.sysStats.gcCyclesDone
+			},
+		},
+		"/gc/heap/goal:bytes": {
+			deps: makeStatDepSet(sysStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.sysStats.heapGoal
+			},
+		},
 		"/gc/heap/objects:objects": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -248,14 +277,17 @@ func (a *heapStatsAggregate) compute() {
 // heapStatsAggregate, means there could be some skew, but because of
 // these stats are independent, there's no real consistency issue here.
 type sysStatsAggregate struct {
-	stacksSys   uint64
-	mSpanSys    uint64
-	mSpanInUse  uint64
-	mCacheSys   uint64
-	mCacheInUse uint64
-	buckHashSys uint64
-	gcMiscSys   uint64
-	otherSys    uint64
+	stacksSys      uint64
+	mSpanSys       uint64
+	mSpanInUse     uint64
+	mCacheSys      uint64
+	mCacheInUse    uint64
+	buckHashSys    uint64
+	gcMiscSys      uint64
+	otherSys       uint64
+	heapGoal       uint64
+	gcCyclesDone   uint64
+	gcCyclesForced uint64
 }
 
 // compute populates the sysStatsAggregate with values from the runtime.
@@ -264,6 +296,9 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
+	a.heapGoal = atomic.Load64(&memstats.next_gc)
+	a.gcCyclesDone = uint64(memstats.numgc)
+	a.gcCyclesForced = uint64(memstats.numforcedgc)
 
 	systemstack(func() {
 		lock(&mheap_.lock)
