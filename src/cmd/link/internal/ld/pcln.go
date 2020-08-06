@@ -104,7 +104,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 	ldr := ctxt.loader
 
 	state := &pclntab{
-		funcNameOffset: make(map[loader.Sym]int32, ldr.NSym()),
+		funcNameOffset: make(map[loader.Sym]int32),
 	}
 
 	// Gather some basic stats and info.
