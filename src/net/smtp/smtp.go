@@ -241,7 +241,8 @@ func (c *Client) Auth(a Auth) error {
 
 // Mail issues a MAIL command to the server using the provided email address.
 // If the server supports the 8BITMIME extension, Mail adds the BODY=8BITMIME
-// parameter.
+// parameter. If the server supports the SMTPUTF8 extension, Mail adds the
+// SMTPUTF8 parameter.
 // This initiates a mail transaction and is followed by one or more Rcpt calls.
 func (c *Client) Mail(from string) error {
 	if err := validateLine(from); err != nil {
@@ -254,6 +255,9 @@ func (c *Client) Mail(from string) error {
 	if c.ext != nil {
 		if _, ok := c.ext["8BITMIME"]; ok {
 			cmdStr += " BODY=8BITMIME"
+		}
+		if _, ok := c.ext["SMTPUTF8"]; ok {
+			cmdStr += " SMTPUTF8"
 		}
 	}
 	_, _, err := c.cmd(250, cmdStr, from)
