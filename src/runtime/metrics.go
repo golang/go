@@ -38,6 +38,13 @@ func initMetrics() {
 		return
 	}
 	metrics = map[string]metricData{
+		"/gc/heap/objects:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.numObjects
+			},
+		},
 		"/memory/classes/heap/free:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -210,9 +217,13 @@ func (s *statDepSet) has(d statDep) bool {
 type heapStatsAggregate struct {
 	heapStatsDelta
 
+	// Derived from values in heapStatsDelta.
+
 	// inObjects is the bytes of memory occupied by objects,
-	// derived from other values in heapStats.
 	inObjects uint64
+
+	// numObjects is the number of live objects in the heap.
+	numObjects uint64
 }
 
 // compute populates the heapStatsAggregate with values from the runtime.
@@ -221,8 +232,11 @@ func (a *heapStatsAggregate) compute() {
 
 	// Calculate derived stats.
 	a.inObjects = uint64(a.largeAlloc - a.largeFree)
+	a.numObjects = uint64(a.largeAllocCount - a.largeFreeCount)
 	for i := range a.smallAllocCount {
-		a.inObjects += uint64(a.smallAllocCount[i]-a.smallFreeCount[i]) * uint64(class_to_size[i])
+		n := uint64(a.smallAllocCount[i] - a.smallFreeCount[i])
+		a.inObjects += n * uint64(class_to_size[i])
+		a.numObjects += n
 	}
 }
 

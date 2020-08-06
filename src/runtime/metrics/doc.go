@@ -44,6 +44,9 @@ the documentation of the Name field of the Description struct.
 
 Supported metrics
 
+	/gc/heap/objects:objects
+		Number of objects, live or unswept, occupying heap memory.
+
 	/memory/classes/heap/free:bytes
 		Memory that is available for allocation, and may be returned
 		to the underlying system.
