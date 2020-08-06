@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -862,8 +863,11 @@ func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error)
 	}
 
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
+	// A user may also have a gopackagesdriver binary on their machine, which
+	// works the same way as setting GOPACKAGESDRIVER.
 	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
-	v.goCommand = gopackagesdriver == "" || gopackagesdriver == "off"
+	tool, _ := exec.LookPath("gopackagesdriver")
+	v.goCommand = tool == "" && (gopackagesdriver == "" || gopackagesdriver == "off")
 	return gomod, nil
 }
 
