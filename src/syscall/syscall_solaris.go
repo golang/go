@@ -59,6 +59,20 @@ func Pipe(p []int) (err error) {
 	return
 }
 
+func pipe2(flags int) (r uintptr, w uintptr, err uintptr)
+
+func Pipe2(p []int, flags int) (err error) {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	r0, w0, e1 := pipe2(flags)
+	if e1 != 0 {
+		err = Errno(e1)
+	}
+	p[0], p[1] = int(r0), int(w0)
+	return
+}
+
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return nil, 0, EINVAL
