@@ -94,7 +94,12 @@ func canExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 	if !ok {
 		return nil, nil, false, fmt.Errorf("node is not an expression")
 	}
-	return expr, path, true, nil
+	switch expr.(type) {
+	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr,
+		*ast.SliceExpr, *ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr:
+		return expr, path, true, nil
+	}
+	return nil, nil, false, fmt.Errorf("cannot extract an %T to a variable", expr)
 }
 
 // Calculate indentation for insertion.
