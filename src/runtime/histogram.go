@@ -81,6 +81,10 @@ type timeHistogram struct {
 }
 
 // record adds the given duration to the distribution.
+//
+// Disallow preemptions and stack growths because this function
+// may run in sensitive locations.
+//go:nosplit
 func (h *timeHistogram) record(duration int64) {
 	if duration < 0 {
 		atomic.Xadd64(&h.underflow, 1)

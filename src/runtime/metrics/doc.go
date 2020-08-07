@@ -139,5 +139,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/sched/goroutines:goroutines
 		Count of live goroutines.
+
+	/sched/latencies:seconds
+		Distribution of the time goroutines have spent in the scheduler
+		in a runnable state before actually running.
 */
 package metrics
