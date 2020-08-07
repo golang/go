@@ -1878,19 +1878,24 @@ func (fi *FuncInfo) FuncID() objabi.FuncID {
 	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
 }
 
-func (fi *FuncInfo) Pcsp() []byte {
-	pcsp, end := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
-	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
+func (fi *FuncInfo) Pcsp() Sym {
+	sym := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
+	return fi.l.resolve(fi.r, sym)
 }
 
-func (fi *FuncInfo) Pcfile() []byte {
-	pcf, end := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
-	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
+func (fi *FuncInfo) Pcfile() Sym {
+	sym := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
+	return fi.l.resolve(fi.r, sym)
 }
 
-func (fi *FuncInfo) Pcline() []byte {
-	pcln, end := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
-	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
+func (fi *FuncInfo) Pcline() Sym {
+	sym := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
+	return fi.l.resolve(fi.r, sym)
+}
+
+func (fi *FuncInfo) Pcinline() Sym {
+	sym := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data)
+	return fi.l.resolve(fi.r, sym)
 }
 
 // Preload has to be called prior to invoking the various methods
@@ -1899,27 +1904,16 @@ func (fi *FuncInfo) Preload() {
 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
 }
 
-func (fi *FuncInfo) Pcinline() []byte {
+func (fi *FuncInfo) Pcdata() []Sym {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
-	pcinl, end := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
-	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
-}
-
-func (fi *FuncInfo) NumPcdata() uint32 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
+	syms := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data)
+	ret := make([]Sym, len(syms))
+	for i := range ret {
+		ret[i] = fi.l.resolve(fi.r, syms[i])
 	}
-	return fi.lengths.NumPcdata
-}
-
-func (fi *FuncInfo) Pcdata(k int) []byte {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	pcdat, end := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
-	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
+	return ret
 }
 
 func (fi *FuncInfo) NumFuncdataoff() uint32 {

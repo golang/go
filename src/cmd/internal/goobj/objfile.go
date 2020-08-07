@@ -421,8 +421,11 @@ const (
 	AuxDwarfLoc
 	AuxDwarfRanges
 	AuxDwarfLines
-
-	// TODO: more. Pcdata?
+	AuxPcsp
+	AuxPcfile
+	AuxPcline
+	AuxPcinline
+	AuxPcdata
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
@@ -825,11 +828,6 @@ func (r *Reader) Data(i uint32) []byte {
 	off := r.uint32At(dataIdxOff)
 	end := r.uint32At(dataIdxOff + 4)
 	return r.BytesAt(base+off, int(end-off))
-}
-
-// AuxDataBase returns the base offset of the aux data block.
-func (r *Reader) PcdataBase() uint32 {
-	return r.h.Offsets[BlkPcdata]
 }
 
 // NRefName returns the number of referenced symbol names.

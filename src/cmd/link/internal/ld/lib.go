@@ -2252,7 +2252,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 	var ch1 chain
 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	ri := 0
-	for pcsp.Init(info.Pcsp()); !pcsp.Done; pcsp.Next() {
+	for pcsp.Init(ldr.Data(info.Pcsp())); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
