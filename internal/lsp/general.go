@@ -31,8 +31,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	s.state = serverInitializing
 	s.stateMu.Unlock()
 
-	s.supportsWorkDoneProgress = params.Capabilities.Window.WorkDoneProgress
-	s.inProgress = map[protocol.ProgressToken]*WorkDone{}
+	s.progress.supportsWorkDoneProgress = params.Capabilities.Window.WorkDoneProgress
 
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
@@ -185,11 +184,11 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 
 	var wg sync.WaitGroup
 	if s.session.Options().VerboseWorkDoneProgress {
-		work := s.StartWork(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
+		work := s.progress.start(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
 		defer func() {
 			go func() {
 				wg.Wait()
-				work.End(ctx, "Done.")
+				work.end(ctx, "Done.")
 			}()
 		}()
 	}

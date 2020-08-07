@@ -6,30 +6,36 @@ package lsp
 
 import (
 	"context"
-	"errors"
 	"io"
 	"math/rand"
 	"strconv"
+	"sync"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
+	errors "golang.org/x/xerrors"
 )
 
-// WorkDone represents a unit of work that is reported to the client via the
-// progress API.
-type WorkDone struct {
-	client   protocol.Client
-	startErr error
-	token    protocol.ProgressToken
-	cancel   func()
-	cleanup  func()
+type progressTracker struct {
+	client                   protocol.Client
+	supportsWorkDoneProgress bool
+
+	mu         sync.Mutex
+	inProgress map[protocol.ProgressToken]*workDone
 }
 
-// StartWork issues a $/progress notification to begin a unit of work on the
+func newProgressTracker(client protocol.Client) *progressTracker {
+	return &progressTracker{
+		client:     client,
+		inProgress: make(map[protocol.ProgressToken]*workDone),
+	}
+}
+
+// start issues a $/progress notification to begin a unit of work on the
 // server. The returned WorkDone handle may be used to report incremental
 // progress, and to report work completion. In particular, it is an error to
-// call StartWork and not call End(...) on the returned WorkDone handle.
+// call start and not call end(...) on the returned WorkDone handle.
 //
 // If token is empty, a token will be randomly generated.
 //
@@ -40,24 +46,24 @@ type WorkDone struct {
 //  func Generate(ctx) (err error) {
 //    ctx, cancel := context.WithCancel(ctx)
 //    defer cancel()
-//    work := s.StartWork(ctx, "generate", "running go generate", cancel)
+//    work := s.progress.start(ctx, "generate", "running go generate", cancel)
 //    defer func() {
 //      if err != nil {
-//        work.End(ctx, fmt.Sprintf("generate failed: %v", err))
+//        work.end(ctx, fmt.Sprintf("generate failed: %v", err))
 //      } else {
-//        work.End(ctx, "done")
+//        work.end(ctx, "done")
 //      }
 //    }()
 //    // Do the work...
 //  }
 //
-func (s *Server) StartWork(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *WorkDone {
-	wd := &WorkDone{
-		client: s.client,
+func (t *progressTracker) start(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *workDone {
+	wd := &workDone{
+		client: t.client,
 		token:  token,
 		cancel: cancel,
 	}
-	if !s.supportsWorkDoneProgress {
+	if !t.supportsWorkDoneProgress {
 		wd.startErr = errors.New("workdone reporting is not supported")
 		return wd
 	}
@@ -72,9 +78,13 @@ func (s *Server) StartWork(ctx context.Context, title, message string, token pro
 			return wd
 		}
 	}
-	s.addInProgress(wd)
+	t.mu.Lock()
+	t.inProgress[wd.token] = wd
+	t.mu.Unlock()
 	wd.cleanup = func() {
-		s.removeInProgress(wd.token)
+		t.mu.Lock()
+		delete(t.inProgress, token)
+		t.mu.Unlock()
 	}
 	err := wd.client.Progress(ctx, &protocol.ProgressParams{
 		Token: wd.token,
@@ -91,8 +101,44 @@ func (s *Server) StartWork(ctx context.Context, title, message string, token pro
 	return wd
 }
 
-// Progress reports an update on WorkDone progress back to the client.
-func (wd *WorkDone) Progress(ctx context.Context, message string, percentage float64) error {
+func (t *progressTracker) cancel(ctx context.Context, token protocol.ProgressToken) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	wd, ok := t.inProgress[token]
+	if !ok {
+		return errors.Errorf("token %q not found in progress", token)
+	}
+	if wd.cancel == nil {
+		return errors.Errorf("work %q is not cancellable", token)
+	}
+	wd.cancel()
+	return nil
+}
+
+// newProgressWriter returns an io.WriterCloser that can be used
+// to report progress on a command based on the client capabilities.
+func (t *progressTracker) newWriter(ctx context.Context, title, beginMsg, msg string, token protocol.ProgressToken, cancel func()) io.WriteCloser {
+	if t.supportsWorkDoneProgress {
+		wd := t.start(ctx, title, beginMsg, token, cancel)
+		return &workDoneWriter{ctx, wd}
+	}
+	mw := &messageWriter{ctx, cancel, t.client}
+	mw.start(msg)
+	return mw
+}
+
+// workDone represents a unit of work that is reported to the client via the
+// progress API.
+type workDone struct {
+	client   protocol.Client
+	startErr error
+	token    protocol.ProgressToken
+	cancel   func()
+	cleanup  func()
+}
+
+// report reports an update on WorkDone report back to the client.
+func (wd *workDone) report(ctx context.Context, message string, percentage float64) error {
 	if wd.startErr != nil {
 		return wd.startErr
 	}
@@ -110,14 +156,14 @@ func (wd *WorkDone) Progress(ctx context.Context, message string, percentage flo
 	})
 }
 
-// End reports a workdone completion back to the client.
-func (wd *WorkDone) End(ctx context.Context, message string) error {
+// end reports a workdone completion back to the client.
+func (wd *workDone) end(ctx context.Context, message string) error {
 	if wd.startErr != nil {
 		return wd.startErr
 	}
 	err := wd.client.Progress(ctx, &protocol.ProgressParams{
 		Token: wd.token,
-		Value: protocol.WorkDoneProgressEnd{
+		Value: &protocol.WorkDoneProgressEnd{
 			Kind:    "end",
 			Message: message,
 		},
@@ -139,18 +185,6 @@ type eventWriter struct {
 func (ew *eventWriter) Write(p []byte) (n int, err error) {
 	event.Log(ew.ctx, string(p), tag.Operation.Of(ew.operation))
 	return len(p), nil
-}
-
-// newProgressWriter returns an io.WriterCloser that can be used
-// to report progress on a command based on the client capabilities.
-func (s *Server) newProgressWriter(ctx context.Context, title, beginMsg, msg string, token protocol.ProgressToken, cancel func()) io.WriteCloser {
-	if s.supportsWorkDoneProgress {
-		wd := s.StartWork(ctx, title, beginMsg, token, cancel)
-		return &workDoneWriter{ctx, wd}
-	}
-	mw := &messageWriter{ctx, cancel, s.client}
-	mw.start(msg)
-	return mw
 }
 
 // messageWriter implements progressWriter and only tells the user that
@@ -201,13 +235,13 @@ func (lw *messageWriter) Close() error {
 // be rendered done.
 type workDoneWriter struct {
 	ctx context.Context
-	wd  *WorkDone
+	wd  *workDone
 }
 
 func (wdw *workDoneWriter) Write(p []byte) (n int, err error) {
-	return len(p), wdw.wd.Progress(wdw.ctx, string(p), 0)
+	return len(p), wdw.wd.report(wdw.ctx, string(p), 0)
 }
 
 func (wdw *workDoneWriter) Close() error {
-	return wdw.wd.End(wdw.ctx, "finished")
+	return wdw.wd.end(wdw.ctx, "finished")
 }

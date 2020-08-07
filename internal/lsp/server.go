@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	errors "golang.org/x/xerrors"
 )
 
 const concurrentAnalyses = 1
@@ -29,6 +28,7 @@ func NewServer(session source.Session, client protocol.Client) *Server {
 		session:              session,
 		client:               client,
 		diagnosticsSema:      make(chan struct{}, concurrentAnalyses),
+		progress:             newProgressTracker(client),
 	}
 }
 
@@ -92,11 +92,7 @@ type Server struct {
 	// diagnosticsSema limits the concurrency of diagnostics runs, which can be expensive.
 	diagnosticsSema chan struct{}
 
-	// supportsWorkDoneProgress is set in the initializeRequest
-	// to determine if the client can support progress notifications
-	supportsWorkDoneProgress bool
-	inProgressMu             sync.Mutex
-	inProgress               map[protocol.ProgressToken]*WorkDone
+	progress *progressTracker
 }
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.
@@ -137,32 +133,6 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 		return struct{}{}, nil
 	}
 	return nil, notImplemented(method)
-}
-
-func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	s.inProgressMu.Lock()
-	defer s.inProgressMu.Unlock()
-	wd, ok := s.inProgress[params.Token]
-	if !ok {
-		return errors.Errorf("token %q not found in progress", params.Token)
-	}
-	if wd.cancel == nil {
-		return errors.Errorf("work %q is not cancellable", params.Token)
-	}
-	wd.cancel()
-	return nil
-}
-
-func (s *Server) addInProgress(wd *WorkDone) {
-	s.inProgressMu.Lock()
-	s.inProgress[wd.token] = wd
-	s.inProgressMu.Unlock()
-}
-
-func (s *Server) removeInProgress(token protocol.ProgressToken) {
-	s.inProgressMu.Lock()
-	delete(s.inProgress, token)
-	s.inProgressMu.Unlock()
 }
 
 func notImplemented(method string) error {

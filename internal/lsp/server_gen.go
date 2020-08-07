@@ -205,5 +205,5 @@ func (s *Server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 }
 
 func (s *Server) WorkDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	return s.workDoneProgressCancel(ctx, params)
+	return s.progress.cancel(ctx, params.Token)
 }

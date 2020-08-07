@@ -199,7 +199,7 @@ func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []s
 
 	ew := &eventWriter{ctx: ctx, operation: "test"}
 	msg := fmt.Sprintf("running `go test %s`", strings.Join(args, " "))
-	wc := s.newProgressWriter(ctx, "test", msg, msg, token, cancel)
+	wc := s.progress.newWriter(ctx, "test", msg, msg, token, cancel)
 	defer wc.Close()
 
 	messageType := protocol.Info
@@ -228,7 +228,7 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, ur
 	defer cancel()
 
 	er := &eventWriter{ctx: ctx, operation: "generate"}
-	wc := s.newProgressWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", token, cancel)
+	wc := s.progress.newWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", token, cancel)
 	defer wc.Close()
 	args := []string{"-x"}
 	if recursive {
