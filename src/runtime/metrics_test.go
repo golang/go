@@ -145,6 +145,10 @@ func TestReadMetricsConsistency(t *testing.T) {
 			for i := range h.Counts {
 				gc.pauses += h.Counts[i]
 			}
+		case "/sched/goroutines:goroutines":
+			if samples[i].Value.Uint64() < 1 {
+				t.Error("number of goroutines is less than one")
+			}
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
