@@ -84,6 +84,7 @@ golang.org/x/tools/go/cfg
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/analysisinternal
-# golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+# golang.org/x/xerrors v0.0.0-20200806184451-1a77d5e9f316
+## explicit
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
