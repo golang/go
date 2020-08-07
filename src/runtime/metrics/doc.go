@@ -123,5 +123,8 @@ Supported metrics
 		as read-write. Note that this does not include memory mapped
 		by code called via cgo or via the syscall package.
 		Sum of all metrics in /memory/classes.
+
+	/sched/goroutines:goroutines
+		Count of live goroutines.
 */
 package metrics

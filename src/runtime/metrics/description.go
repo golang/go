@@ -163,6 +163,11 @@ var allDesc = []Description{
 		Description: "All memory mapped by the Go runtime into the current process as read-write. Note that this does not include memory mapped by code called via cgo or via the syscall package. Sum of all metrics in /memory/classes.",
 		Kind:        KindUint64,
 	},
+	{
+		Name:        "/sched/goroutines:goroutines",
+		Description: "Count of live goroutines.",
+		Kind:        KindUint64,
+	},
 }
 
 // All returns a slice of containing metric descriptions for all supported metrics.
