@@ -330,6 +330,17 @@ func (c *completer) found(ctx context.Context, cand candidate) {
 
 	if c.matchingCandidate(&cand) {
 		cand.score *= highScore
+
+		if c.seenInSwitchCase(&cand) {
+			// If this candidate matches an expression already used in a
+			// different case clause, downrank. We only downrank a little
+			// because the user could write something like:
+			//
+			//   switch foo {
+			//   case bar:
+			//   case ba<>: // they may want "bar|baz" or "bar.baz()"
+			cand.score *= 0.9
+		}
 	} else if isTypeName(obj) {
 		// If obj is a *types.TypeName that didn't otherwise match, check
 		// if a literal object of this type makes a good candidate.
@@ -374,6 +385,18 @@ func (c *completer) found(ctx context.Context, cand candidate) {
 	}
 
 	c.deepSearch(ctx, cand)
+}
+
+// seenInSwitchCase reports whether cand has already been seen in
+// another switch case statement.
+func (c *completer) seenInSwitchCase(cand *candidate) bool {
+	for _, chain := range c.inference.seenSwitchCases {
+		if c.objChainMatches(cand.obj, chain) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // candidate represents a completion candidate.
@@ -835,6 +858,8 @@ const (
 
 // selector finds completions for the specified selector expression.
 func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
+	c.inference.objChain = objChain(c.pkg.GetTypesInfo(), sel.X)
+
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
@@ -1559,6 +1584,19 @@ type candidateInference struct {
 	// foo(bar<>)      // variadicAssignees=true
 	// foo(bar, baz<>) // variadicAssignees=false
 	variadicAssignees bool
+
+	// seenSwitchCases tracks the expressions already used in the
+	// containing switch statement's cases. Each expression is tracked
+	// as a slice of objects. For example, "case foo.bar().baz:" is
+	// tracked as []types.Object{foo, bar, baz}. Tracking the entire
+	// "chain" allows us to differentiate "a.foo" and "b.foo" when "a"
+	// and "b" are the same type.
+	seenSwitchCases [][]types.Object
+
+	// objChain contains the chain of objects representing the
+	// surrounding *ast.SelectorExpr. For example, if we are completing
+	// "foo.bar.ba<>", objChain will contain []types.Object{foo, bar}.
+	objChain []types.Object
 }
 
 // typeNameInference holds information about the expected type name at
@@ -1732,6 +1770,21 @@ Nodes:
 			if swtch, ok := findSwitchStmt(c.path[i+1:], c.pos, node).(*ast.SwitchStmt); ok {
 				if tv, ok := c.pkg.GetTypesInfo().Types[swtch.Tag]; ok {
 					inf.objType = tv.Type
+
+					// Record which objects have already been used in the case
+					// statements so we don't suggest them again.
+					for _, cc := range swtch.Body.List {
+						for _, caseExpr := range cc.(*ast.CaseClause).List {
+							// Don't record the expression we are currently completing.
+							if caseExpr.Pos() < c.pos && c.pos <= caseExpr.End() {
+								continue
+							}
+
+							if objs := objChain(c.pkg.GetTypesInfo(), caseExpr); len(objs) > 0 {
+								inf.seenSwitchCases = append(inf.seenSwitchCases, objs)
+							}
+						}
+					}
 				}
 			}
 			return inf
@@ -1792,6 +1845,46 @@ Nodes:
 	}
 
 	return inf
+}
+
+// objChain decomposes e into a chain of objects if possible. For
+// example, "foo.bar().baz" will yield []types.Object{foo, bar, baz}.
+// If any part can't be turned into an object, return nil.
+func objChain(info *types.Info, e ast.Expr) []types.Object {
+	var objs []types.Object
+
+	for e != nil {
+		switch n := e.(type) {
+		case *ast.Ident:
+			obj := info.ObjectOf(n)
+			if obj == nil {
+				return nil
+			}
+			objs = append(objs, obj)
+			e = nil
+		case *ast.SelectorExpr:
+			obj := info.ObjectOf(n.Sel)
+			if obj == nil {
+				return nil
+			}
+			objs = append(objs, obj)
+			e = n.X
+		case *ast.CallExpr:
+			if len(n.Args) > 0 {
+				return nil
+			}
+			e = n.Fun
+		default:
+			return nil
+		}
+	}
+
+	// Reverse order so the layout matches the syntactic order.
+	for i := 0; i < len(objs)/2; i++ {
+		objs[i], objs[len(objs)-1-i] = objs[len(objs)-1-i], objs[i]
+	}
+
+	return objs
 }
 
 // applyTypeModifiers applies the list of type modifiers to a type.
@@ -2125,6 +2218,40 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	cand.expandFuncCall = isFunc(cand.obj)
 
 	return false
+}
+
+// objChainMatches reports whether cand combined with the surrounding
+// object prefix matches chain.
+func (c *completer) objChainMatches(cand types.Object, chain []types.Object) bool {
+	// For example, when completing:
+	//
+	//   foo.ba<>
+	//
+	// If we are considering the deep candidate "bar.baz", cand is baz,
+	// objChain is [foo] and deepChain is [bar]. We would match the
+	// chain [foo, bar, baz].
+
+	if len(chain) != len(c.inference.objChain)+len(c.deepState.chain)+1 {
+		return false
+	}
+
+	if chain[len(chain)-1] != cand {
+		return false
+	}
+
+	for i, o := range c.inference.objChain {
+		if chain[i] != o {
+			return false
+		}
+	}
+
+	for i, o := range c.deepState.chain {
+		if chain[i+len(c.inference.objChain)] != o {
+			return false
+		}
+	}
+
+	return true
 }
 
 // candTypeMatches reports whether cand makes a good completion

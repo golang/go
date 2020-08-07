@@ -1,12 +1,12 @@
 -- summary --
 CallHierarchyCount = 1
 CodeLensCount = 4
-CompletionsCount = 241
+CompletionsCount = 239
 CompletionSnippetCount = 81
 UnimportedCompletionsCount = 6
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 8
-RankedCompletionsCount = 130
+RankedCompletionsCount = 134
 CaseSensitiveCompletionsCount = 4
 DiagnosticsCount = 44
 FoldingRangesCount = 2

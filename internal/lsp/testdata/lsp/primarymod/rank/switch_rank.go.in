@@ -1,12 +1,29 @@
 package rank
 
+import "time"
+
 func _() {
 	switch pear {
-	case : //@complete(":", pear, apple)
+	case _: //@rank("_", pear, apple)
 	}
 
-	switch pear {
-	case "hi":
-		//@complete("", apple, pear)
+	time.Monday //@item(timeMonday, "time.Monday", "time.Weekday", "const"),item(monday ,"Monday", "time.Weekday", "const")
+	time.Friday //@item(timeFriday, "time.Friday", "time.Weekday", "const"),item(friday ,"Friday", "time.Weekday", "const")
+
+	now := time.Now()
+	now.Weekday //@item(nowWeekday, "now.Weekday", "func() time.Weekday", "method")
+
+	then := time.Now()
+	then.Weekday //@item(thenWeekday, "then.Weekday", "func() time.Weekday", "method")
+
+	switch time.Weekday(0) {
+	case time.Monday, time.Tuesday:
+	case time.Wednesday, time.Thursday:
+	case time.Saturday, time.Sunday:
+	case t: //@rank(":", timeFriday, timeMonday)
+	case time.: //@rank(":", friday, monday)
+
+	case now.Weekday():
+	case week: //@rank(":", thenWeekday, nowWeekday)
 	}
 }
