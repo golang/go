@@ -462,6 +462,10 @@ type g struct {
 
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+	tracking       bool     // whether we're tracking this G for sched latency statistics
+	trackingSeq    uint8    // used to decide whether to track this G
+	runnableStamp  int64    // timestamp of when the G last became runnable, only used when tracking
+	runnableTime   int64    // the amount of time spent runnable, cleared when running, only used when tracking
 	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
 	traceseq       uint64   // trace event sequencer
 	tracelastp     puintptr // last P emitted an event for this goroutine
@@ -492,6 +496,10 @@ type g struct {
 	// determines how this corresponds to scan work debt.
 	gcAssistBytes int64
 }
+
+// gTrackingPeriod is the number of transitions out of _Grunning between
+// latency tracking runs.
+const gTrackingPeriod = 8
 
 const (
 	// tlsSlots is the number of pointer-sized slots reserved for TLS on some platforms,
@@ -824,6 +832,15 @@ type schedt struct {
 	// Acquire and hold this mutex to block sysmon from interacting
 	// with the rest of the runtime.
 	sysmonlock mutex
+
+	_ uint32 // ensure timeToRun has 8-byte alignment
+
+	// timeToRun is a distribution of scheduling latencies, defined
+	// as the sum of time a G spends in the _Grunnable state before
+	// it transitions to _Grunning.
+	//
+	// timeToRun is protected by sched.lock.
+	timeToRun timeHistogram
 }
 
 // Values for the flags field of a sigTabT.
