@@ -310,6 +310,28 @@ func DiffSignatures(spn span.Span, want, got *protocol.SignatureHelp) string {
 	return ""
 }
 
+// DiffCallHierarchyItems returns the diff between expected and actual call locations for incoming/outgoing call hierarchies
+func DiffCallHierarchyItems(gotCalls []protocol.CallHierarchyItem, expectedCalls []protocol.CallHierarchyItem) string {
+	expected := make(map[protocol.Location]bool)
+	for _, call := range expectedCalls {
+		expected[protocol.Location{URI: call.URI, Range: call.Range}] = true
+	}
+
+	got := make(map[protocol.Location]bool)
+	for _, call := range gotCalls {
+		got[protocol.Location{URI: call.URI, Range: call.Range}] = true
+	}
+	if len(got) != len(expected) {
+		return fmt.Sprintf("expected %d incoming calls but got %d", len(expected), len(got))
+	}
+	for spn := range got {
+		if !expected[spn] {
+			return fmt.Sprintf("incorrect incoming calls, expected locations %v but got locations %v", expected, got)
+		}
+	}
+	return ""
+}
+
 func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.CompletionItem {
 	var result []protocol.CompletionItem
 	for _, item := range items {

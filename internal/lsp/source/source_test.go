@@ -115,7 +115,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 		t.Fatal(err)
 	}
 	if len(items) == 0 {
-		t.Errorf("expected call hierarchy item to be returned for identifier at %v\n", loc.Range)
+		t.Fatalf("expected call hierarchy item to be returned for identifier at %v\n", loc.Range)
 	}
 
 	callLocation := protocol.Location{
@@ -126,20 +126,26 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 		t.Fatalf("expected source.PrepareCallHierarchy to return identifier at %v but got %v\n", loc, callLocation)
 	}
 
-	// TODO: add span comparison tests for expectedCalls once call hierarchy is implemented
 	incomingCalls, err := source.IncomingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(incomingCalls) != 0 {
-		t.Fatalf("expected no incoming calls but got %d", len(incomingCalls))
+	var incomingCallItems []protocol.CallHierarchyItem
+	for _, item := range incomingCalls {
+		incomingCallItems = append(incomingCallItems, item.From)
 	}
+	msg := tests.DiffCallHierarchyItems(incomingCallItems, expectedCalls.IncomingCalls)
+	if msg != "" {
+		t.Error(msg)
+	}
+
+	// TODO: add span comparison tests for expectedCalls.OutgoingCalls once OutgoingCalls is implemented
 	outgoingCalls, err := source.OutgoingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(outgoingCalls) != 0 {
-		t.Fatalf("expected no outgoing calls but got %d", len(outgoingCalls))
+		t.Errorf("expected no outgoing calls but got %d", len(outgoingCalls))
 	}
 }
 

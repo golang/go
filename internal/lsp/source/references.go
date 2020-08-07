@@ -43,8 +43,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 	return references(ctx, s, qualifiedObjs, includeDeclaration)
 }
 
-// references is a helper function used by both References and Rename,
-// to avoid recomputing qualifiedObjsAtProtocolPos.
+// references is a helper function to avoid recomputing qualifiedObjsAtProtocolPos.
 func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo

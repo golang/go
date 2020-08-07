@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -52,8 +53,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	columnMapper := file.mapper
-	loc, err := columnMapper.Location(from)
+	loc, err := file.mapper.Location(from)
 	if err != nil {
 		return err
 	}
@@ -79,14 +79,14 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 			return err
 		}
 		for i, call := range incomingCalls {
-			printString, err := toPrintString(columnMapper, call.From)
+			printString, err := callItemPrintString(ctx, conn, call.From, call.FromRanges)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("caller[%d]: %s\n", i, printString)
 		}
 
-		printString, err := toPrintString(columnMapper, item)
+		printString, err := callItemPrintString(ctx, conn, item, []protocol.Range{})
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 			return err
 		}
 		for i, call := range outgoingCalls {
-			printString, err := toPrintString(columnMapper, call.To)
+			printString, err := callItemPrintString(ctx, conn, call.To, call.FromRanges)
 			if err != nil {
 				return err
 			}
@@ -108,10 +108,30 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 	return nil
 }
 
-func toPrintString(mapper *protocol.ColumnMapper, item protocol.CallHierarchyItem) (string, error) {
-	span, err := mapper.Span(protocol.Location{URI: item.URI, Range: item.Range})
+func callItemPrintString(ctx context.Context, conn *connection, item protocol.CallHierarchyItem, rngs []protocol.Range) (string, error) {
+	file := conn.AddFile(ctx, span.URIFromURI(string(item.URI)))
+	if file.err != nil {
+		return "", file.err
+	}
+	enclosingSpan, err := file.mapper.Span(protocol.Location{URI: item.URI, Range: item.Range})
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%v %v at %v", item.Detail, item.Name, span), nil
+
+	var ranges []string
+	for _, rng := range rngs {
+		callSpan, err := file.mapper.Span(protocol.Location{URI: item.URI, Range: rng})
+		if err != nil {
+			return "", err
+		}
+
+		spn := fmt.Sprint(callSpan)
+		ranges = append(ranges, fmt.Sprintf("%s", spn[strings.Index(spn, ":")+1:]))
+	}
+
+	printString := fmt.Sprintf("function %s at %v", item.Name, enclosingSpan)
+	if len(rngs) > 0 {
+		printString = fmt.Sprintf("ranges %s in %s", strings.Join(ranges, ", "), printString)
+	}
+	return printString, nil
 }

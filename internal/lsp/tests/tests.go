@@ -201,7 +201,7 @@ type CompletionSnippet struct {
 }
 
 type CallHierarchyResult struct {
-	IncomingCalls, OutgoingCalls []span.Span
+	IncomingCalls, OutgoingCalls []protocol.CallHierarchyItem
 }
 
 type Link struct {
@@ -1082,21 +1082,55 @@ func (data *Data) collectImplementations(src span.Span, targets []span.Span) {
 }
 
 func (data *Data) collectIncomingCalls(src span.Span, calls []span.Span) {
-	if data.CallHierarchy[src] != nil {
-		data.CallHierarchy[src].IncomingCalls = calls
-	} else {
-		data.CallHierarchy[src] = &CallHierarchyResult{
-			IncomingCalls: calls,
+	for _, call := range calls {
+		m, err := data.Mapper(call.URI())
+		if err != nil {
+			data.t.Fatal(err)
+		}
+		rng, err := m.Range(call)
+		if err != nil {
+			data.t.Fatal(err)
+		}
+		// we're only comparing protocol.range
+		if data.CallHierarchy[src] != nil {
+			data.CallHierarchy[src].IncomingCalls = append(data.CallHierarchy[src].IncomingCalls,
+				protocol.CallHierarchyItem{
+					URI:   protocol.DocumentURI(call.URI()),
+					Range: rng,
+				})
+		} else {
+			data.CallHierarchy[src] = &CallHierarchyResult{
+				IncomingCalls: []protocol.CallHierarchyItem{
+					{URI: protocol.DocumentURI(call.URI()), Range: rng},
+				},
+			}
 		}
 	}
 }
 
 func (data *Data) collectOutgoingCalls(src span.Span, calls []span.Span) {
-	if data.CallHierarchy[src] != nil {
-		data.CallHierarchy[src].OutgoingCalls = calls
-	} else {
-		data.CallHierarchy[src] = &CallHierarchyResult{
-			OutgoingCalls: calls,
+	for _, call := range calls {
+		m, err := data.Mapper(call.URI())
+		if err != nil {
+			data.t.Fatal(err)
+		}
+		rng, err := m.Range(call)
+		if err != nil {
+			data.t.Fatal(err)
+		}
+		// we're only comparing protocol.range
+		if data.CallHierarchy[src] != nil {
+			data.CallHierarchy[src].OutgoingCalls = append(data.CallHierarchy[src].OutgoingCalls,
+				protocol.CallHierarchyItem{
+					URI:   protocol.DocumentURI(call.URI()),
+					Range: rng,
+				})
+		} else {
+			data.CallHierarchy[src] = &CallHierarchyResult{
+				OutgoingCalls: []protocol.CallHierarchyItem{
+					{URI: protocol.DocumentURI(call.URI()), Range: rng},
+				},
+			}
 		}
 	}
 }

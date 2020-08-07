@@ -10,13 +10,25 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 )
 
 func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {
 	var result []string
-	// TODO: add expectedCalls.IncomingCalls and expectedCalls.OutgoingCalls to this array once implemented
+	// TODO: add expectedCalls.OutgoingCalls to this array once implemented
+	for _, call := range expectedCalls.IncomingCalls {
+		mapper, err := r.data.Mapper(call.URI.SpanURI())
+		if err != nil {
+			t.Fatal(err)
+		}
+		callSpan, err := mapper.Span(protocol.Location{URI: call.URI, Range: call.Range})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result = append(result, fmt.Sprint(callSpan))
+	}
 	result = append(result, fmt.Sprint(spn))
 
 	sort.Strings(result) // to make tests deterministic
@@ -35,8 +47,8 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 }
 
-// removes all info except URI and Range from printed output and sorts the result
-// ex: "identifier: func() d at file://callhierarchy/callhierarchy.go:19:6-7" -> "file://callhierarchy/callhierarchy.go:19:6-7"
+// removes all info except function URI and Range from printed output and sorts the result
+// ex: "identifier: function d at .../callhierarchy/callhierarchy.go:19:6-7" -> ".../callhierarchy/callhierarchy.go:19:6-7"
 func cleanCallHierarchyCmdResult(output string) string {
 	var clean []string
 	for _, out := range strings.Split(output, "\n") {

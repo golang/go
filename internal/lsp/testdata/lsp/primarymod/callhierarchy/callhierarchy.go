@@ -2,34 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package callhierarchy
 
-func a() { //@mark(funcA, "a")
-	d()
+import "golang.org/x/tools/internal/lsp/callhierarchy/outgoing"
+
+func a() { //@mark(hierarchyA, "a")
+	D()
 }
 
-func b() { //@mark(funcB, "b")
-	d()
+func b() { //@mark(hierarchyB, "b")
+	D()
 }
 
-func c() { //@mark(funcC, "c")
-	d()
+// C is an exported function
+func C() { //@mark(hierarchyC, "C")
+	D()
+	D()
 }
 
-func d() { //@mark(funcD, "d"),incomingcalls("d", funcA, funcB, funcC),outgoingcalls("d", funcE, funcF, funcG)
+// To test hierarchy across function literals
+const x = func() { //@mark(hierarchyLiteral, "func")
+	D()
+}
+
+// D is exported to test incoming/outgoing calls across packages
+func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, outgoingB)
 	e()
 	f()
 	g()
+	outgoing.B()
 }
 
-func e() {} //@mark(funcE, "e")
+func e() {} //@mark(hierarchyE, "e")
 
-func f() {} //@mark(funcF, "f")
+func f() {} //@mark(hierarchyF, "f")
 
-func g() {} //@mark(funcG, "g")
-
-func main() {
-	a()
-	b()
-	c()
-}
+func g() {} //@mark(hierarchyG, "g")
