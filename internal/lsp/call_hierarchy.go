@@ -12,7 +12,8 @@ import (
 )
 
 func (s *Server) prepareCallHierarchy(ctx context.Context, params *protocol.CallHierarchyPrepareParams) ([]protocol.CallHierarchyItem, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
+	defer release()
 	if !ok {
 		return nil, err
 	}
@@ -21,7 +22,8 @@ func (s *Server) prepareCallHierarchy(ctx context.Context, params *protocol.Call
 }
 
 func (s *Server) incomingCalls(ctx context.Context, params *protocol.CallHierarchyIncomingCallsParams) ([]protocol.CallHierarchyIncomingCall, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.Item.URI, source.Go)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.Item.URI, source.Go)
+	defer release()
 	if !ok {
 		return nil, err
 	}
@@ -30,7 +32,8 @@ func (s *Server) incomingCalls(ctx context.Context, params *protocol.CallHierarc
 }
 
 func (s *Server) outgoingCalls(ctx context.Context, params *protocol.CallHierarchyOutgoingCallsParams) ([]protocol.CallHierarchyOutgoingCall, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(ctx, params.Item.URI, source.Go)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.Item.URI, source.Go)
+	defer release()
 	if !ok {
 		return nil, err
 	}

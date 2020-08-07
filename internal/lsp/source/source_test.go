@@ -105,12 +105,12 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	fh, err := r.view.Snapshot().GetFile(r.ctx, spn.URI())
+	fh, err := r.snapshot.GetFile(r.ctx, spn.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	items, err := source.PrepareCallHierarchy(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	items, err := source.PrepareCallHierarchy(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,11 +127,11 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 
 	// TODO: add span comparison tests for expectedCalls once call hierarchy is implemented
-	incomingCalls, err := source.IncomingCalls(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	incomingCalls, err := source.IncomingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if len(incomingCalls) != 0 {
 		t.Errorf("expected no incoming calls but got %d", len(incomingCalls))
 	}
-	outgoingCalls, err := source.OutgoingCalls(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
+	outgoingCalls, err := source.OutgoingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if len(outgoingCalls) != 0 {
 		t.Errorf("expected no outgoing calls but got %d", len(outgoingCalls))
 	}
