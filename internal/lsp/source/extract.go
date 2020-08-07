@@ -156,7 +156,7 @@ type returnVariable struct {
 // of the function and insert this call as well as the extracted function into
 // their proper locations.
 func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	tok, path, outer, start, ok, err := canExtractFunction(fset, rng, src, file, info)
+	tok, path, rng, outer, start, ok, err := canExtractFunction(fset, rng, src, file, info)
 	if !ok {
 		return nil, fmt.Errorf("extractFunction: cannot extract %s: %v",
 			fset.Position(rng.Start), err)
@@ -733,25 +733,28 @@ func referencesObj(info *types.Info, expr ast.Expr, obj types.Object) bool {
 }
 
 // canExtractFunction reports whether the code in the given range can be extracted to a function.
-func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, info *types.Info) (*token.File, []ast.Node, *ast.FuncDecl, ast.Node, bool, error) {
+func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, info *types.Info) (*token.File, []ast.Node, span.Range, *ast.FuncDecl, ast.Node, bool, error) {
 	if rng.Start == rng.End {
-		return nil, nil, nil, nil, false, fmt.Errorf("start and end are equal")
+		return nil, nil, span.Range{}, nil, nil, false,
+			fmt.Errorf("start and end are equal")
 	}
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		return nil, nil, nil, nil, false,
+		return nil, nil, span.Range{}, nil, nil, false,
 			fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
 	rng = adjustRangeForWhitespace(rng, tok, src)
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
-		return nil, nil, nil, nil, false, fmt.Errorf("no path enclosing interval")
+		return nil, nil, span.Range{}, nil, nil, false,
+			fmt.Errorf("no path enclosing interval")
 	}
 	// Node that encloses the selection must be a statement.
 	// TODO: Support function extraction for an expression.
 	_, ok := path[0].(ast.Stmt)
 	if !ok {
-		return nil, nil, nil, nil, false, fmt.Errorf("node is not a statement")
+		return nil, nil, span.Range{}, nil, nil, false,
+			fmt.Errorf("node is not a statement")
 	}
 
 	// Find the function declaration that encloses the selection.
@@ -763,7 +766,7 @@ func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 		}
 	}
 	if outer == nil {
-		return nil, nil, nil, nil, false, fmt.Errorf("no enclosing function")
+		return nil, nil, span.Range{}, nil, nil, false, fmt.Errorf("no enclosing function")
 	}
 
 	// Find the nodes at the start and end of the selection.
@@ -783,9 +786,10 @@ func canExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 		return n.Pos() <= rng.End
 	})
 	if start == nil || end == nil {
-		return nil, nil, nil, nil, false, fmt.Errorf("range does not map to AST nodes")
+		return nil, nil, span.Range{}, nil, nil, false,
+			fmt.Errorf("range does not map to AST nodes")
 	}
-	return tok, path, outer, start, true, nil
+	return tok, path, rng, outer, start, true, nil
 }
 
 // objUsed checks if the object is used within the range. It returns the first occurence of
