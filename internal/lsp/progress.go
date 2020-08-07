@@ -21,16 +21,17 @@ import (
 type WorkDone struct {
 	client   protocol.Client
 	startErr error
-	token    string
+	token    protocol.ProgressToken
 	cancel   func()
 	cleanup  func()
 }
 
-// StartWork creates a unique token and issues a $/progress notification to
-// begin a unit of work on the server. The returned WorkDone handle may be used
-// to report incremental progress, and to report work completion. In
-// particular, it is an error to call StartWork and not call End(...) on the
-// returned WorkDone handle.
+// StartWork issues a $/progress notification to begin a unit of work on the
+// server. The returned WorkDone handle may be used to report incremental
+// progress, and to report work completion. In particular, it is an error to
+// call StartWork and not call End(...) on the returned WorkDone handle.
+//
+// If token is empty, a token will be randomly generated.
 //
 // The progress item is considered cancellable if the given cancel func is
 // non-nil.
@@ -50,29 +51,32 @@ type WorkDone struct {
 //    // Do the work...
 //  }
 //
-func (s *Server) StartWork(ctx context.Context, title, message string, cancel func()) *WorkDone {
+func (s *Server) StartWork(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *WorkDone {
 	wd := &WorkDone{
 		client: s.client,
-		token:  strconv.FormatInt(rand.Int63(), 10),
+		token:  token,
 		cancel: cancel,
 	}
 	if !s.supportsWorkDoneProgress {
 		wd.startErr = errors.New("workdone reporting is not supported")
 		return wd
 	}
-	err := wd.client.WorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
-		Token: wd.token,
-	})
-	if err != nil {
-		wd.startErr = err
-		event.Error(ctx, "starting work for "+title, err)
-		return wd
+	if wd.token == nil {
+		wd.token = strconv.FormatInt(rand.Int63(), 10)
+		err := wd.client.WorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
+			Token: wd.token,
+		})
+		if err != nil {
+			wd.startErr = err
+			event.Error(ctx, "starting work for "+title, err)
+			return wd
+		}
 	}
 	s.addInProgress(wd)
 	wd.cleanup = func() {
 		s.removeInProgress(wd.token)
 	}
-	err = wd.client.Progress(ctx, &protocol.ProgressParams{
+	err := wd.client.Progress(ctx, &protocol.ProgressParams{
 		Token: wd.token,
 		Value: &protocol.WorkDoneProgressBegin{
 			Kind:        "begin",
@@ -139,9 +143,9 @@ func (ew *eventWriter) Write(p []byte) (n int, err error) {
 
 // newProgressWriter returns an io.WriterCloser that can be used
 // to report progress on a command based on the client capabilities.
-func (s *Server) newProgressWriter(ctx context.Context, title, beginMsg, msg string, cancel func()) io.WriteCloser {
+func (s *Server) newProgressWriter(ctx context.Context, title, beginMsg, msg string, token protocol.ProgressToken, cancel func()) io.WriteCloser {
 	if s.supportsWorkDoneProgress {
-		wd := s.StartWork(ctx, title, beginMsg, cancel)
+		wd := s.StartWork(ctx, title, beginMsg, token, cancel)
 		return &workDoneWriter{ctx, wd}
 	}
 	mw := &messageWriter{ctx, cancel, s.client}

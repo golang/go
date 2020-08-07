@@ -96,7 +96,7 @@ type Server struct {
 	// to determine if the client can support progress notifications
 	supportsWorkDoneProgress bool
 	inProgressMu             sync.Mutex
-	inProgress               map[string]*WorkDone
+	inProgress               map[protocol.ProgressToken]*WorkDone
 }
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.
@@ -140,18 +140,14 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 }
 
 func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	token, ok := params.Token.(string)
-	if !ok {
-		return errors.Errorf("expected params.Token to be string but got %T", params.Token)
-	}
 	s.inProgressMu.Lock()
 	defer s.inProgressMu.Unlock()
-	wd, ok := s.inProgress[token]
+	wd, ok := s.inProgress[params.Token]
 	if !ok {
-		return errors.Errorf("token %q not found in progress", token)
+		return errors.Errorf("token %q not found in progress", params.Token)
 	}
 	if wd.cancel == nil {
-		return errors.Errorf("work %q is not cancellable", token)
+		return errors.Errorf("work %q is not cancellable", params.Token)
 	}
 	wd.cancel()
 	return nil
@@ -163,7 +159,7 @@ func (s *Server) addInProgress(wd *WorkDone) {
 	s.inProgressMu.Unlock()
 }
 
-func (s *Server) removeInProgress(token string) {
+func (s *Server) removeInProgress(token protocol.ProgressToken) {
 	s.inProgressMu.Lock()
 	delete(s.inProgress, token)
 	s.inProgressMu.Unlock()

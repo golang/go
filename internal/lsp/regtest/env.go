@@ -54,7 +54,7 @@ type State struct {
 	// outstandingWork is a map of token->work summary. All tokens are assumed to
 	// be string, though the spec allows for numeric tokens as well.  When work
 	// completes, it is deleted from this map.
-	outstandingWork map[string]*workProgress
+	outstandingWork map[protocol.ProgressToken]*workProgress
 	completedWork   map[string]int
 }
 
@@ -119,7 +119,7 @@ func NewEnv(ctx context.Context, t *testing.T, sandbox *fake.Sandbox, ts servert
 		Server:  ts,
 		state: State{
 			diagnostics:     make(map[string]*protocol.PublishDiagnosticsParams),
-			outstandingWork: make(map[string]*workProgress),
+			outstandingWork: make(map[protocol.ProgressToken]*workProgress),
 			completedWork:   make(map[string]int),
 		},
 		waiters: make(map[int]*condition),
@@ -186,18 +186,16 @@ func (e *Env) onWorkDoneProgressCreate(_ context.Context, m *protocol.WorkDonePr
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	token := m.Token.(string)
-	e.state.outstandingWork[token] = &workProgress{}
+	e.state.outstandingWork[m.Token] = &workProgress{}
 	return nil
 }
 
 func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	token := m.Token.(string)
-	work, ok := e.state.outstandingWork[token]
+	work, ok := e.state.outstandingWork[m.Token]
 	if !ok {
-		panic(fmt.Sprintf("got progress report for unknown report %s: %v", token, m))
+		panic(fmt.Sprintf("got progress report for unknown report %v: %v", m.Token, m))
 	}
 	v := m.Value.(map[string]interface{})
 	switch kind := v["kind"]; kind {
@@ -208,9 +206,9 @@ func (e *Env) onProgress(_ context.Context, m *protocol.ProgressParams) error {
 			work.percent = pct.(float64)
 		}
 	case "end":
-		title := e.state.outstandingWork[token].title
+		title := e.state.outstandingWork[m.Token].title
 		e.state.completedWork[title] = e.state.completedWork[title] + 1
-		delete(e.state.outstandingWork, token)
+		delete(e.state.outstandingWork, m.Token)
 	}
 	e.checkConditionsLocked()
 	return nil

@@ -107,7 +107,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
-		go s.runTest(ctx, snapshot, []string{flag, funcName})
+		go s.runTest(ctx, snapshot, []string{flag, funcName}, params.WorkDoneToken)
 	case source.CommandGenerate:
 		var uri protocol.DocumentURI
 		var recursive bool
@@ -119,7 +119,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
-		go s.runGoGenerate(xcontext.Detach(ctx), snapshot, uri.SpanURI(), recursive)
+		go s.runGoGenerate(xcontext.Detach(ctx), snapshot, uri.SpanURI(), recursive, params.WorkDoneToken)
 	case source.CommandRegenerateCgo:
 		var uri protocol.DocumentURI
 		if err := source.UnmarshalArgs(params.Arguments, &uri); err != nil {
@@ -193,13 +193,13 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	return snapshot.RunGoCommandDirect(ctx, verb, args)
 }
 
-func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []string) error {
+func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []string, token protocol.ProgressToken) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	ew := &eventWriter{ctx: ctx, operation: "test"}
 	msg := fmt.Sprintf("running `go test %s`", strings.Join(args, " "))
-	wc := s.newProgressWriter(ctx, "test", msg, msg, cancel)
+	wc := s.newProgressWriter(ctx, "test", msg, msg, token, cancel)
 	defer wc.Close()
 
 	messageType := protocol.Info
@@ -223,12 +223,12 @@ func (s *Server) runTest(ctx context.Context, snapshot source.Snapshot, args []s
 // generate commands. It is exported for testing purposes.
 const GenerateWorkDoneTitle = "generate"
 
-func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, uri span.URI, recursive bool) error {
+func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, uri span.URI, recursive bool, token protocol.ProgressToken) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	er := &eventWriter{ctx: ctx, operation: "generate"}
-	wc := s.newProgressWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", cancel)
+	wc := s.newProgressWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", token, cancel)
 	defer wc.Close()
 	args := []string{"-x"}
 	if recursive {
