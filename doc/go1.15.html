@@ -655,8 +655,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 221427 -->
-      When the flag package sees <code>-h</code> or <code>-help</code>, and
-      those flags are not defined, it now prints a usage message.
+      When the <code>flag</code> package sees <code>-h</code> or <code>-help</code>,
+      and those flags are not defined, it now prints a usage message.
       If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
       <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
       <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
@@ -901,9 +901,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
     <p><!-- CL 189318 -->
-      The goroutine profile includes the profile labels associated with each goroutine
-      at the time of profiling. This feature is not yet implemented for the profile
-      reported with <code>debug=2</code>.
+      The goroutine profile now includes the profile labels associated with each
+      goroutine at the time of profiling. This feature is not yet implemented for
+      the profile reported with <code>debug=2</code>.
     </p>
   </dd>
 </dl>
@@ -934,6 +934,7 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
       is more efficient.
     </p>
+  </dd>
 </dl><!-- sync -->
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
