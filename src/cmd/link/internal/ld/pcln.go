@@ -592,9 +592,8 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		fi := ldr.FuncInfo(s)
 		if fi.Valid() {
 			fi.Preload()
-			npc := fi.NumPcdata()
-			for i := uint32(0); i < npc; i++ {
-				pcdata = append(pcdata, sym.Pcdata{P: fi.Pcdata(int(i))})
+			for _, dataSym := range fi.Pcdata() {
+				pcdata = append(pcdata, sym.Pcdata{P: ldr.Data(dataSym)})
 			}
 			nfd := fi.NumFuncdataoff()
 			for i := uint32(0); i < nfd; i++ {
@@ -666,15 +665,15 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 
 		cu := ldr.SymUnit(s)
 		if fi.Valid() {
-			pcsp = sym.Pcdata{P: fi.Pcsp()}
-			pcfile = sym.Pcdata{P: fi.Pcfile()}
-			pcline = sym.Pcdata{P: fi.Pcline()}
+			pcsp = sym.Pcdata{P: ldr.Data(fi.Pcsp())}
+			pcfile = sym.Pcdata{P: ldr.Data(fi.Pcfile())}
+			pcline = sym.Pcdata{P: ldr.Data(fi.Pcline())}
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
 			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
 			funcdata[objabi.FUNCDATA_InlTree] = its
-			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
+			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: ldr.Data(fi.Pcinline())}
 		}
 
 		// pcdata
