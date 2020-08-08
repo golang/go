@@ -96,6 +96,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
 		opts.UnimportedCompletion = false
+		opts.LiteralCompletions = true
 	})
 	want := expected(t, test, items)
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {

@@ -16,5 +16,14 @@ func _() {
 
 	// Don't add "..." to append() argument.
 	bar(append()) //@snippet("))", appendStrings, "aStrings", "aStrings")
-}
+
+	type baz struct{}
+	baz{}                       //@item(appendBazLiteral, "baz{}", "", "var")
+	var bazzes []baz            //@item(appendBazzes, "bazzes", "[]baz", "var")
+	var bazzy baz               //@item(appendBazzy, "bazzy", "baz", "var")
+	bazzes = append(bazzes, ba) //@rank(")", appendBazzy, appendBazLiteral, appendBazzes)
+
+	var b struct{ b []baz }
+	b.b                  //@item(appendNestedBaz, "b.b", "[]baz", "field")
+	b.b = append(b.b, b) //@rank(")", appendBazzy, appendBazLiteral, appendNestedBaz)
 }

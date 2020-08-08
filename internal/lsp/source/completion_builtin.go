@@ -72,10 +72,19 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 
 		inf.objType = parentInf.objType
 
-		if exprIdx > 0 {
-			inf.objType = deslice(inf.objType)
-			// Check if we are completing the variadic append() param.
-			inf.variadic = exprIdx == 1 && len(call.Args) <= 2
+		if exprIdx <= 0 {
+			break
+		}
+
+		inf.objType = deslice(inf.objType)
+
+		// Check if we are completing the variadic append() param.
+		inf.variadic = exprIdx == 1 && len(call.Args) <= 2
+
+		// Penalize the first append() argument as a candidate. You
+		// don't normally append a slice to itself.
+		if sliceChain := objChain(c.pkg.GetTypesInfo(), call.Args[0]); len(sliceChain) > 0 {
+			inf.penalized = append(inf.penalized, penalizedObj{objChain: sliceChain, penalty: 0.9})
 		}
 	case "delete":
 		if exprIdx > 0 && len(call.Args) > 0 {
