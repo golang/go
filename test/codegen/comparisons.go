@@ -456,3 +456,83 @@ func UintGeqOne(a uint8, b uint16, c uint32, d uint64) int {
 	}
 	return 0
 }
+
+func CmpToZeroU_ex1(a uint8, b uint16, c uint32, d uint64) int {
+	// wasm:"I64Eqz"-"I64LtU"
+	if 0 < a {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if 0 < b {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if 0 < c {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if 0 < d {
+		return 1
+	}
+	return 0
+}
+
+func CmpToZeroU_ex2(a uint8, b uint16, c uint32, d uint64) int {
+	// wasm:"I64Eqz"-"I64LeU"
+	if a <= 0 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if b <= 0 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if c <= 0 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if d <= 0 {
+		return 1
+	}
+	return 0
+}
+
+func CmpToOneU_ex1(a uint8, b uint16, c uint32, d uint64) int {
+	// wasm:"I64Eqz"-"I64LtU"
+	if a < 1 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if b < 1 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if c < 1 {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LtU"
+	if d < 1 {
+		return 1
+	}
+	return 0
+}
+
+func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
+	// wasm:"I64Eqz"-"I64LeU"
+	if 1 <= a {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if 1 <= b {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if 1 <= c {
+		return 1
+	}
+	// wasm:"I64Eqz"-"I64LeU"
+	if 1 <= d {
+		return 1
+	}
+	return 0
+}
