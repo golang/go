@@ -38,6 +38,7 @@ func expandCalls(f *Func) {
 	} else {
 		hiOffset = 4
 	}
+
 	pairTypes := func(et types.EType) (tHi, tLo *types.Type) {
 		tHi = tUint32
 		if et == types.TINT64 {
@@ -231,46 +232,64 @@ func expandCalls(f *Func) {
 		return x
 	}
 
+	rewriteArgs := func(v *Value, firstArg int) *Value {
+		// Thread the stores on the memory arg
+		aux := v.Aux.(*AuxCall)
+		pos := v.Pos.WithNotStmt()
+		m0 := v.Args[len(v.Args)-1]
+		mem := m0
+		for i, a := range v.Args {
+			if i < firstArg {
+				continue
+			}
+			if a == m0 { // mem is last.
+				break
+			}
+			auxI := int64(i - firstArg)
+			if a.Op == OpDereference {
+				if a.MemoryArg() != m0 {
+					f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
+				}
+				// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
+				// TODO this will be more complicated with registers in the picture.
+				src := a.Args[0]
+				dst := f.ConstOffPtrSP(src.Type, aux.OffsetOfArg(auxI), sp)
+				if a.Uses == 1 {
+					a.reset(OpMove)
+					a.Pos = pos
+					a.Type = types.TypeMem
+					a.Aux = aux.TypeOfArg(auxI)
+					a.AuxInt = aux.SizeOfArg(auxI)
+					a.SetArgs3(dst, src, mem)
+					mem = a
+				} else {
+					mem = a.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, src, mem)
+					mem.AuxInt = aux.SizeOfArg(auxI)
+				}
+			} else {
+				mem = storeArg(pos, v.Block, a, aux.TypeOfArg(auxI), aux.OffsetOfArg(auxI), mem)
+			}
+		}
+		v.resetArgs()
+		return mem
+	}
+
 	// Step 0: rewrite the calls to convert incoming args to stores.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStaticLECall:
-				// Thread the stores on the memory arg
-				m0 := v.MemoryArg()
-				mem := m0
-				pos := v.Pos.WithNotStmt()
-				aux := v.Aux.(*AuxCall)
-				for i, a := range v.Args {
-					if a == m0 { // mem is last.
-						break
-					}
-					if a.Op == OpDereference {
-						// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
-						// TODO this will be more complicated with registers in the picture.
-						if a.MemoryArg() != m0 {
-							f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
-						}
-						src := a.Args[0]
-						dst := f.ConstOffPtrSP(src.Type, aux.OffsetOfArg(int64(i)), sp)
-						if a.Uses == 1 {
-							a.reset(OpMove)
-							a.Pos = pos
-							a.Type = types.TypeMem
-							a.Aux = aux.TypeOfArg(int64(i))
-							a.AuxInt = aux.SizeOfArg(int64(i))
-							a.SetArgs3(dst, src, mem)
-							mem = a
-						} else {
-							mem = a.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(int64(i)), dst, src, mem)
-							mem.AuxInt = aux.SizeOfArg(int64(i))
-						}
-					} else {
-						mem = storeArg(pos, b, a, aux.TypeOfArg(int64(i)), aux.OffsetOfArg(int64(i)), mem)
-					}
-				}
-				v.resetArgs()
+				mem := rewriteArgs(v, 0)
 				v.SetArgs1(mem)
+			case OpClosureLECall:
+				code := v.Args[0]
+				context := v.Args[1]
+				mem := rewriteArgs(v, 2)
+				v.SetArgs3(code, context, mem)
+			case OpInterLECall:
+				code := v.Args[0]
+				mem := rewriteArgs(v, 1)
+				v.SetArgs2(code, mem)
 			}
 		}
 	}
@@ -369,6 +388,12 @@ func expandCalls(f *Func) {
 			switch v.Op {
 			case OpStaticLECall:
 				v.Op = OpStaticCall
+				v.Type = types.TypeMem
+			case OpClosureLECall:
+				v.Op = OpClosureCall
+				v.Type = types.TypeMem
+			case OpInterLECall:
+				v.Op = OpInterCall
 				v.Type = types.TypeMem
 			}
 		}
