@@ -2732,7 +2732,9 @@ const (
 	OpClosureCall
 	OpStaticCall
 	OpInterCall
+	OpClosureLECall
 	OpStaticLECall
+	OpInterLECall
 	OpSignExt8to16
 	OpSignExt8to32
 	OpSignExt8to64
@@ -34852,7 +34854,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ClosureLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
 		name:    "StaticLECall",
+		auxType: auxCallOff,
+		argLen:  -1,
+		call:    true,
+		generic: true,
+	},
+	{
+		name:    "InterLECall",
 		auxType: auxCallOff,
 		argLen:  -1,
 		call:    true,

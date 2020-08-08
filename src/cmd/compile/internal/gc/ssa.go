@@ -2556,7 +2556,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.addr(n.Left)
 
 	case ORESULT:
-		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
+		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
 			// Do the old thing
 			addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
 			return s.rawLoad(n.Type, addr)
@@ -4409,6 +4409,9 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
 		if k == callNormal {
 			codeptr = s.load(types.Types[TUINTPTR], iclosure)
+			if ssa.LateCallExpansionEnabledWithin(s.f) {
+				testLateExpansion = true
+			}
 		} else {
 			closure = iclosure
 		}
@@ -4555,16 +4558,17 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
 			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(ACArgs, ACResults), codeptr, closure, s.mem())
 		case codeptr != nil:
-			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
+			if testLateExpansion {
+				aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
+				call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+				call.AddArgs(callArgs...)
+			} else {
+				call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
+			}
 		case sym != nil:
 			if testLateExpansion {
-				var tys []*types.Type
 				aux := ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults)
-				for i := int64(0); i < aux.NResults(); i++ {
-					tys = append(tys, aux.TypeOfResult(i))
-				}
-				tys = append(tys, types.TypeMem)
-				call = s.newValue0A(ssa.OpStaticLECall, types.NewResults(tys), aux)
+				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 				call.AddArgs(callArgs...)
 			} else {
 				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults), s.mem())
@@ -4713,7 +4717,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 		}
 	case ORESULT:
 		// load return from callee
-		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
+		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
 			return s.constOffPtrSP(t, n.Xoffset)
 		}
 		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Xoffset)

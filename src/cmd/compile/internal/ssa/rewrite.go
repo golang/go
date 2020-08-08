@@ -764,6 +764,36 @@ func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
 	return StaticAuxCall(lsym, va.args, va.results)
 }
 
+// de-virtualize an InterLECall
+// 'sym' is the symbol for the itab
+func devirtLESym(v *Value, aux interface{}, sym Sym, offset int64) *obj.LSym {
+	n, ok := sym.(*obj.LSym)
+	if !ok {
+		return nil
+	}
+
+	f := v.Block.Func
+	lsym := f.fe.DerefItab(n, offset)
+	if f.pass.debug > 0 {
+		if lsym != nil {
+			f.Warnl(v.Pos, "de-virtualizing call")
+		} else {
+			f.Warnl(v.Pos, "couldn't de-virtualize call")
+		}
+	}
+	if lsym == nil {
+		return nil
+	}
+	return lsym
+}
+
+func devirtLECall(v *Value, sym *obj.LSym) *Value {
+	v.Op = OpStaticLECall
+	v.Aux.(*AuxCall).Fn = sym
+	v.RemoveArg(0)
+	return v
+}
+
 // isSamePtr reports whether p1 and p2 point to the same address.
 func isSamePtr(p1, p2 *Value) bool {
 	if p1 == p2 {
