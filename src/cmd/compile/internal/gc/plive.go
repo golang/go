@@ -140,24 +140,14 @@ type Liveness struct {
 	regMaps     []liveRegMask
 
 	cache progeffectscache
-
-	// These are only populated if open-coded defers are being used.
-	// List of vars/stack slots storing defer args
-	openDeferVars []openDeferVarInfo
-	// Map from defer arg OpVarDef to the block where the OpVarDef occurs.
-	openDeferVardefToBlockMap map[*Node]*ssa.Block
-	// Map of blocks that cannot reach a return or exit (panic)
-	nonReturnBlocks map[*ssa.Block]bool
-}
-
-type openDeferVarInfo struct {
-	n         *Node // Var/stack slot storing a defer arg
-	varsIndex int   // Index of variable in lv.vars
 }
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
 type LivenessMap struct {
 	vals map[ssa.ID]LivenessIndex
+	// The set of live, pointer-containing variables at the deferreturn
+	// call (only set when open-coded defers are used).
+	deferreturn LivenessIndex
 }
 
 func (m *LivenessMap) reset() {
@@ -168,6 +158,7 @@ func (m *LivenessMap) reset() {
 			delete(m.vals, k)
 		}
 	}
+	m.deferreturn = LivenessInvalid
 }
 
 func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
@@ -542,7 +533,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
 		if cap(lc.be) >= f.NumBlocks() {
 			lv.be = lc.be[:f.NumBlocks()]
 		}
-		lv.livenessMap = LivenessMap{lc.livenessMap.vals}
+		lv.livenessMap = LivenessMap{vals: lc.livenessMap.vals, deferreturn: LivenessInvalid}
 		lc.livenessMap.vals = nil
 	}
 	if lv.be == nil {
@@ -893,58 +884,12 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 func (lv *Liveness) prologue() {
 	lv.initcache()
 
-	if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
-		lv.openDeferVardefToBlockMap = make(map[*Node]*ssa.Block)
-		for i, n := range lv.vars {
-			if n.Name.OpenDeferSlot() {
-				lv.openDeferVars = append(lv.openDeferVars, openDeferVarInfo{n: n, varsIndex: i})
-			}
-		}
-
-		// Find any blocks that cannot reach a return or a BlockExit
-		// (panic) -- these must be because of an infinite loop.
-		reachesRet := make(map[ssa.ID]bool)
-		blockList := make([]*ssa.Block, 0, 256)
-
-		for _, b := range lv.f.Blocks {
-			if b.Kind == ssa.BlockRet || b.Kind == ssa.BlockRetJmp || b.Kind == ssa.BlockExit {
-				blockList = append(blockList, b)
-			}
-		}
-
-		for len(blockList) > 0 {
-			b := blockList[0]
-			blockList = blockList[1:]
-			if reachesRet[b.ID] {
-				continue
-			}
-			reachesRet[b.ID] = true
-			for _, e := range b.Preds {
-				blockList = append(blockList, e.Block())
-			}
-		}
-
-		lv.nonReturnBlocks = make(map[*ssa.Block]bool)
-		for _, b := range lv.f.Blocks {
-			if !reachesRet[b.ID] {
-				lv.nonReturnBlocks[b] = true
-				//fmt.Println("No reach ret", lv.f.Name, b.ID, b.Kind)
-			}
-		}
-	}
-
 	for _, b := range lv.f.Blocks {
 		be := lv.blockEffects(b)
 
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
 		for j := len(b.Values) - 1; j >= 0; j-- {
-			if b.Values[j].Op == ssa.OpVarDef {
-				n := b.Values[j].Aux.(*Node)
-				if n.Name.OpenDeferSlot() {
-					lv.openDeferVardefToBlockMap[n] = b
-				}
-			}
 			pos, e := lv.valueEffects(b.Values[j])
 			regUevar, regKill := lv.regEffects(b.Values[j])
 			if e&varkill != 0 {
@@ -957,20 +902,6 @@ func (lv *Liveness) prologue() {
 				be.uevar.vars.Set(pos)
 			}
 			be.uevar.regs |= regUevar
-		}
-	}
-}
-
-// markDeferVarsLive marks each variable storing an open-coded defer arg as
-// specially live in block b if the variable definition dominates block b.
-func (lv *Liveness) markDeferVarsLive(b *ssa.Block, newliveout *varRegVec) {
-	// Only force computation of dominators if we have a block where we need
-	// to specially mark defer args live.
-	sdom := lv.f.Sdom()
-	for _, info := range lv.openDeferVars {
-		defB := lv.openDeferVardefToBlockMap[info.n]
-		if sdom.IsAncestorEq(defB, b) {
-			newliveout.vars.Set(int32(info.varsIndex))
 		}
 	}
 }
@@ -1016,23 +947,6 @@ func (lv *Liveness) solve() {
 				for _, succ := range b.Succs[1:] {
 					newliveout.Or(newliveout, lv.blockEffects(succ.Block()).livein)
 				}
-			}
-
-			if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() &&
-				(b.Kind == ssa.BlockExit || lv.nonReturnBlocks[b]) {
-				// Open-coded defer args slots must be live
-				// everywhere in a function, since a panic can
-				// occur (almost) anywhere. Force all appropriate
-				// defer arg slots to be live in BlockExit (panic)
-				// blocks and in blocks that do not reach a return
-				// (because of infinite loop).
-				//
-				// We are assuming that the defer exit code at
-				// BlockReturn/BlockReturnJmp accesses all of the
-				// defer args (with pointers), and so keeps them
-				// live. This analysis may have to be adjusted if
-				// that changes (because of optimizations).
-				lv.markDeferVarsLive(b, &newliveout)
 			}
 
 			if !be.liveout.Eq(newliveout) {
@@ -1086,6 +1000,17 @@ func (lv *Liveness) epilogue() {
 				// zero it in case that malloc causes a stack scan.
 				n.Name.SetNeedzero(true)
 				livedefer.Set(int32(i))
+			}
+			if n.Name.OpenDeferSlot() {
+				// Open-coded defer args slots must be live
+				// everywhere in a function, since a panic can
+				// occur (almost) anywhere. Because it is live
+				// everywhere, it must be zeroed on entry.
+				livedefer.Set(int32(i))
+				// It was already marked as Needzero when created.
+				if !n.Name.Needzero() {
+					Fatalf("all pointer-containing defer arg slots should have Needzero set")
+				}
 			}
 		}
 	}
@@ -1186,6 +1111,17 @@ func (lv *Liveness) epilogue() {
 
 		// The liveness maps for this block are now complete. Compact them.
 		lv.compact(b)
+	}
+
+	// If we have an open-coded deferreturn call, make a liveness map for it.
+	if lv.fn.Func.OpenCodedDeferDisallowed() {
+		lv.livenessMap.deferreturn = LivenessInvalid
+	} else {
+		lv.livenessMap.deferreturn = LivenessIndex{
+			stackMapIndex: lv.stackMapSet.add(livedefer),
+			regMapIndex:   0, // entry regMap, containing no live registers
+			isUnsafePoint: false,
+		}
 	}
 
 	// Done compacting. Throw out the stack map set.
