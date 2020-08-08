@@ -56,6 +56,9 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.incomingCalls")
 	defer done()
 
+	// TODO: Remove this once the context is used.
+	_ = ctx // avoid staticcheck SA4006 warning
+
 	return []protocol.CallHierarchyIncomingCall{}, nil
 }
 
@@ -63,6 +66,9 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.CallHierarchyOutgoingCall, error) {
 	ctx, done := event.Start(ctx, "source.outgoingCalls")
 	defer done()
+
+	// TODO: Remove this once the context is used.
+	_ = ctx // avoid staticcheck SA4006 warning
 
 	return []protocol.CallHierarchyOutgoingCall{}, nil
 }
