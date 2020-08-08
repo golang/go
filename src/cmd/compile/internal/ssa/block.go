@@ -288,7 +288,6 @@ func (b *Block) removePred(i int) {
 		// Update the other end of the edge we moved.
 		e.b.Succs[e.i].i = i
 	}
-	b.Preds[n] = Edge{}
 	b.Preds = b.Preds[:n]
 	b.Func.invalidateCFG()
 }
@@ -304,7 +303,6 @@ func (b *Block) removeSucc(i int) {
 		// Update the other end of the edge we moved.
 		e.b.Preds[e.i].i = i
 	}
-	b.Succs[n] = Edge{}
 	b.Succs = b.Succs[:n]
 	b.Func.invalidateCFG()
 }
