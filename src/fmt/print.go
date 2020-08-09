@@ -48,13 +48,13 @@ type State interface {
 }
 
 // Formatter is implemented by any value that has a Format method.
-// The rune argument contains the verb and the State argument contains information
-// about the flags of the format specifier, but how they are interpreted is entirely
+// The State argument contains information about the flags of the format
+// specifier, but how they and the verb are interpreted is entirely
 // up to the implementation of Format.
 // The implementation of Format may call Sprint(f) or Fprint(f) etc.
 // to generate its output.
 type Formatter interface {
-	Format(f State, c rune)
+	Format(f State, verb rune)
 }
 
 // Stringer is implemented by any value that has a String method,
