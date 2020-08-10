@@ -4375,9 +4375,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 
 	switch n.Op {
 	case OCALLFUNC:
-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
-			testLateExpansion = true
-		}
+		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
 			sym = fn.Sym
 			break
@@ -4392,9 +4390,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		if fn.Op != ODOTMETH {
 			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
-			testLateExpansion = true
-		}
+		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		if k == callNormal {
 			sym = fn.Sym
 			break
@@ -4406,9 +4402,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		if fn.Op != ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
-		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
-			testLateExpansion = true
-		}
+		testLateExpansion = k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f)
 		var iclosure *ssa.Value
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
 		if k == callNormal {
