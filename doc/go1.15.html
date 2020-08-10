@@ -524,6 +524,17 @@ Do not send CLs removing the interior tags from such phrases.
       fields <code>OCSPResponse</code> and <code>SignedCertificateTimestamps</code>
       are now repopulated on client-side resumed connections.
     </p>
+
+    <p><!-- CL 227840 -->
+      <a href="/pkg/crypto/tls/#Conn"><code>tls.Conn</code></a>
+      now returns an opaque error on permanently broken connections, wrapping
+      the temporary
+      <a href="/pkg/net/http/#Error"><code>net.Error</code></a>. To access the
+      original <code>net.Error</code>, use
+      <a href="/pkg/errors/#As"><code>errors.As</code></a> (or
+      <a href="/pkg/errors/#Unwrap"><code>errors.Unwrap</code></a>) instead of a
+      type assertion.
+    </p>
   </dd>
 </dl><!-- crypto/tls -->
 
