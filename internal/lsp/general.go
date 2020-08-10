@@ -11,6 +11,8 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/event"
@@ -46,6 +48,10 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	if params.RootURI != "" && !params.RootURI.SpanURI().IsFile() {
 		return nil, fmt.Errorf("unsupported URI scheme: %v (gopls only supports file URIs)", params.RootURI)
 	}
+	if params.RootURI != "" {
+		s.rootURI = params.RootURI.SpanURI()
+	}
+
 	for _, folder := range params.WorkspaceFolders {
 		uri := span.URIFromURI(folder.URI)
 		if !uri.IsFile() {
@@ -144,20 +150,6 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
 
-	var registrations []protocol.Registration
-	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
-		registrations = append(registrations,
-			protocol.Registration{
-				ID:     "workspace/didChangeConfiguration",
-				Method: "workspace/didChangeConfiguration",
-			},
-			protocol.Registration{
-				ID:     "workspace/didChangeWorkspaceFolders",
-				Method: "workspace/didChangeWorkspaceFolders",
-			},
-		)
-	}
-
 	// TODO: this event logging may be unnecessary.
 	// The version info is included in the initialize response.
 	buf := &bytes.Buffer{}
@@ -169,9 +161,18 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 	s.pendingFolders = nil
 
-	if len(registrations) > 0 {
+	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
 		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: registrations,
+			Registrations: []protocol.Registration{
+				{
+					ID:     "workspace/didChangeConfiguration",
+					Method: "workspace/didChangeConfiguration",
+				},
+				{
+					ID:     "workspace/didChangeWorkspaceFolders",
+					Method: "workspace/didChangeWorkspaceFolders",
+				},
+			},
 		}); err != nil {
 			return err
 		}
@@ -322,10 +323,25 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, dirs map[
 	for k := range s.watchedDirectories {
 		delete(s.watchedDirectories, k)
 	}
-	var watchers []protocol.FileSystemWatcher
+	// Work-around microsoft/vscode#100870 by making sure that we are,
+	// at least, watching the user's entire workspace. This will still be
+	// applied to every folder in the workspace.
+	watchers := []protocol.FileSystemWatcher{{
+		GlobPattern: "**/*.{go,mod,sum}",
+		Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
+	}}
 	for dir := range dirs {
+		filename := dir.Filename()
+		// If the directory is within the root URI, we're already watching it
+		// via the relative path above.
+		if isSubdirectory(s.rootURI.Filename(), filename) {
+			continue
+		}
+		// If microsoft/vscode#100870 is resolved before
+		// microsoft/vscode#104387, we will need a work-around for Windows
+		// drive letter casing.
 		watchers = append(watchers, protocol.FileSystemWatcher{
-			GlobPattern: fmt.Sprintf("%s/**/*.{go,mod,sum}", dir),
+			GlobPattern: fmt.Sprintf("%s/**/*.{go,mod,sum}", filename),
 			Kind:        float64(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
 		})
 	}
@@ -346,6 +362,11 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, dirs map[
 		s.watchedDirectories[dir] = struct{}{}
 	}
 	return nil
+}
+
+func isSubdirectory(root, leaf string) bool {
+	rel, err := filepath.Rel(root, leaf)
+	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
 func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, o *source.Options) error {

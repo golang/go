@@ -64,6 +64,9 @@ type Server struct {
 
 	session source.Session
 
+	// rootURI is the root of the workspace opened in the editor (if any).
+	rootURI span.URI
+
 	// changedFiles tracks files for which there has been a textDocument/didChange.
 	changedFilesMu sync.Mutex
 	changedFiles   map[span.URI]struct{}

@@ -160,7 +160,7 @@ func isWindowsDrivePath(path string) bool {
 
 // isWindowsDriveURI returns true if the file URI is of the format used by
 // Windows URIs. The url.Parse package does not specially handle Windows paths
-// (see golang/go#6027). We check if the URI path has a drive prefix (e.g. "/C:").
+// (see golang/go#6027), so we check if the URI path has a drive prefix (e.g. "/C:").
 func isWindowsDriveURIPath(uri string) bool {
 	if len(uri) < 4 {
 		return false
