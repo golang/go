@@ -867,7 +867,7 @@ func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error)
 	// works the same way as setting GOPACKAGESDRIVER.
 	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
 	tool, _ := exec.LookPath("gopackagesdriver")
-	v.goCommand = tool == "" && (gopackagesdriver == "" || gopackagesdriver == "off")
+	v.goCommand = gopackagesdriver == "off" || (gopackagesdriver == "" && tool == "")
 	return gomod, nil
 }
 
