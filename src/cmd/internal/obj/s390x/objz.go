@@ -283,17 +283,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			ACMPUBNE:
 			q = p
 			p.Mark |= BRANCH
-			if p.Pcond != nil {
-				q := p.Pcond
-				for q.As == obj.ANOP {
-					q = q.Link
-					p.Pcond = q
-				}
-			}
-
-		case obj.ANOP:
-			q.Link = p.Link /* q is non-nop */
-			p.Link.Mark |= p.Mark
 
 		default:
 			q = p
