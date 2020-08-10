@@ -573,7 +573,9 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 		return fixes, nil
 	}
 
-	addStdlibCandidates(p, p.missingRefs)
+	if err := addStdlibCandidates(p, p.missingRefs); err != nil {
+		return nil, err
+	}
 	p.assumeSiblingImportsValid()
 	if fixes, done := p.fix(); done {
 		return fixes, nil
@@ -601,10 +603,14 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	notSelf := func(p *pkg) bool {
 		return p.packageName != filePkg || p.dir != filepath.Dir(filename)
 	}
+	goenv, err := env.goEnv()
+	if err != nil {
+		return err
+	}
 	// Start off with the standard library.
 	for importPath, exports := range stdlib {
 		p := &pkg{
-			dir:             filepath.Join(env.goroot(), "src", importPath),
+			dir:             filepath.Join(goenv["GOROOT"], "src", importPath),
 			importPathShort: importPath,
 			packageName:     path.Base(importPath),
 			relevance:       MaxRelevance,
@@ -779,33 +785,44 @@ type ProcessEnv struct {
 	// If Logf is non-nil, debug logging is enabled through this function.
 	Logf func(format string, args ...interface{})
 
+	initialized bool
+
 	resolver Resolver
 }
 
-func (e *ProcessEnv) goroot() string {
-	return e.mustGetEnv("GOROOT")
-}
-
-func (e *ProcessEnv) gopath() string {
-	return e.mustGetEnv("GOPATH")
-}
-
-func (e *ProcessEnv) mustGetEnv(k string) string {
-	v, ok := e.Env[k]
-	if !ok {
-		panic(fmt.Sprintf("%v not set in evaluated environment", k))
+func (e *ProcessEnv) goEnv() (map[string]string, error) {
+	if err := e.init(); err != nil {
+		return nil, err
 	}
-	return v
+	return e.Env, nil
+}
+
+func (e *ProcessEnv) matchFile(dir, name string) (bool, error) {
+	return build.Default.MatchFile(dir, name)
 }
 
 // CopyConfig copies the env's configuration into a new env.
 func (e *ProcessEnv) CopyConfig() *ProcessEnv {
-	copy := *e
-	copy.resolver = nil
-	return &copy
+	copy := &ProcessEnv{
+		GocmdRunner: e.GocmdRunner,
+		initialized: e.initialized,
+		BuildFlags:  e.BuildFlags,
+		Logf:        e.Logf,
+		WorkingDir:  e.WorkingDir,
+		resolver:    nil,
+		Env:         map[string]string{},
+	}
+	for k, v := range e.Env {
+		copy.Env[k] = v
+	}
+	return copy
 }
 
 func (e *ProcessEnv) init() error {
+	if e.initialized {
+		return nil
+	}
+
 	foundAllRequired := true
 	for _, k := range RequiredGoEnvVars {
 		if _, ok := e.Env[k]; !ok {
@@ -814,6 +831,7 @@ func (e *ProcessEnv) init() error {
 		}
 	}
 	if foundAllRequired {
+		e.initialized = true
 		return nil
 	}
 
@@ -832,6 +850,7 @@ func (e *ProcessEnv) init() error {
 	for k, v := range goEnv {
 		e.Env[k] = v
 	}
+	e.initialized = true
 	return nil
 }
 
@@ -858,10 +877,14 @@ func (e *ProcessEnv) GetResolver() (Resolver, error) {
 	return e.resolver, nil
 }
 
-func (e *ProcessEnv) buildContext() *build.Context {
+func (e *ProcessEnv) buildContext() (*build.Context, error) {
 	ctx := build.Default
-	ctx.GOROOT = e.goroot()
-	ctx.GOPATH = e.gopath()
+	goenv, err := e.goEnv()
+	if err != nil {
+		return nil, err
+	}
+	ctx.GOROOT = goenv["GOROOT"]
+	ctx.GOPATH = goenv["GOPATH"]
 
 	// As of Go 1.14, build.Context has a Dir field
 	// (see golang.org/issue/34860).
@@ -877,7 +900,7 @@ func (e *ProcessEnv) buildContext() *build.Context {
 		dir.SetString(e.WorkingDir)
 	}
 
-	return &ctx
+	return &ctx, nil
 }
 
 func (e *ProcessEnv) invokeGo(ctx context.Context, verb string, args ...string) (*bytes.Buffer, error) {
@@ -892,10 +915,14 @@ func (e *ProcessEnv) invokeGo(ctx context.Context, verb string, args ...string) 
 	return e.GocmdRunner.Run(ctx, inv)
 }
 
-func addStdlibCandidates(pass *pass, refs references) {
+func addStdlibCandidates(pass *pass, refs references) error {
+	goenv, err := pass.env.goEnv()
+	if err != nil {
+		return err
+	}
 	add := func(pkg string) {
 		// Prevent self-imports.
-		if path.Base(pkg) == pass.f.Name.Name && filepath.Join(pass.env.goroot(), "src", pkg) == pass.srcDir {
+		if path.Base(pkg) == pass.f.Name.Name && filepath.Join(goenv["GOROOT"], "src", pkg) == pass.srcDir {
 			return
 		}
 		exports := copyExports(stdlib[pkg])
@@ -916,6 +943,7 @@ func addStdlibCandidates(pass *pass, refs references) {
 			}
 		}
 	}
+	return nil
 }
 
 // A Resolver does the build-system-specific parts of goimports.
@@ -1112,21 +1140,24 @@ func (r *gopathResolver) ClearForNewScan() {
 
 func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
 	names := map[string]string{}
+	bctx, err := r.env.buildContext()
+	if err != nil {
+		return nil, err
+	}
 	for _, path := range importPaths {
-		names[path] = importPathToName(r.env, path, srcDir)
+		names[path] = importPathToName(bctx, path, srcDir)
 	}
 	return names, nil
 }
 
 // importPathToName finds out the actual package name, as declared in its .go files.
-// If there's a problem, it returns "".
-func importPathToName(env *ProcessEnv, importPath, srcDir string) (packageName string) {
+func importPathToName(bctx *build.Context, importPath, srcDir string) string {
 	// Fast path for standard library without going to disk.
 	if _, ok := stdlib[importPath]; ok {
 		return path.Base(importPath) // stdlib packages always match their paths.
 	}
 
-	buildPkg, err := env.buildContext().Import(importPath, srcDir, build.FindOnly)
+	buildPkg, err := bctx.Import(importPath, srcDir, build.FindOnly)
 	if err != nil {
 		return ""
 	}
@@ -1287,8 +1318,18 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 	}
 	stop := r.cache.ScanAndListen(ctx, processDir)
 	defer stop()
+
+	goenv, err := r.env.goEnv()
+	if err != nil {
+		return err
+	}
+	var roots []gopathwalk.Root
+	roots = append(roots, gopathwalk.Root{filepath.Join(goenv["GOROOT"], "src"), gopathwalk.RootGOROOT})
+	for _, p := range filepath.SplitList(goenv["GOPATH"]) {
+		roots = append(roots, gopathwalk.Root{filepath.Join(p, "src"), gopathwalk.RootGOPATH})
+	}
 	// The callback is not necessarily safe to use in the goroutine below. Process roots eagerly.
-	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), callback.rootFound)
+	roots = filterRoots(roots, callback.rootFound)
 	// We can't cancel walks, because we need them to finish to have a usable
 	// cache. Instead, run them in a separate goroutine and detach.
 	scanDone := make(chan struct{})
@@ -1348,8 +1389,6 @@ func VendorlessPath(ipath string) string {
 }
 
 func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, includeTest bool) (string, []string, error) {
-	var exports []string
-
 	// Look for non-test, buildable .go files which could provide exports.
 	all, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -1361,7 +1400,7 @@ func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, incl
 		if !strings.HasSuffix(name, ".go") || (!includeTest && strings.HasSuffix(name, "_test.go")) {
 			continue
 		}
-		match, err := env.buildContext().MatchFile(dir, fi.Name())
+		match, err := env.matchFile(dir, fi.Name())
 		if err != nil || !match {
 			continue
 		}
@@ -1373,6 +1412,7 @@ func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, incl
 	}
 
 	var pkgName string
+	var exports []string
 	fset := token.NewFileSet()
 	for _, fi := range files {
 		select {

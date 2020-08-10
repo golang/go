@@ -1568,8 +1568,8 @@ var _ = bytes.Buffer
 		},
 	}.test(t, func(t *goimportTest) {
 		// Run in GOROOT/src so that the std module shows up in go list -m all.
-		t.env.WorkingDir = filepath.Join(t.env.goroot(), "src")
-		got, err := t.processNonModule(filepath.Join(t.env.goroot(), "src/x.go"), []byte(input), nil)
+		t.env.WorkingDir = filepath.Join(t.goroot, "src")
+		got, err := t.processNonModule(filepath.Join(t.goroot, "src/x.go"), []byte(input), nil)
 		if err != nil {
 			t.Fatalf("Process() = %v", err)
 		}
@@ -1591,7 +1591,7 @@ var _ = ecdsa.GenerateKey
 			Files: fm{"x.go": "package x"},
 		},
 	}.test(t, func(t *goimportTest) {
-		got, err := t.processNonModule(filepath.Join(t.env.goroot(), "src/crypto/ecdsa/foo.go"), []byte(input), nil)
+		got, err := t.processNonModule(filepath.Join(t.goroot, "src/crypto/ecdsa/foo.go"), []byte(input), nil)
 		if err != nil {
 			t.Fatalf("Process() = %v", err)
 		}
@@ -1646,6 +1646,7 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 			// packagestest clears out GOROOT to work around golang/go#32849,
 			// which isn't relevant here. Fill it back in so we can find the standard library.
 			it.env.Env["GOROOT"] = build.Default.GOROOT
+			it.goroot = build.Default.GOROOT
 
 			fn(it)
 		})
@@ -1662,6 +1663,7 @@ func (c testConfig) processTest(t *testing.T, module, file string, contents []by
 
 type goimportTest struct {
 	*testing.T
+	goroot   string
 	env      *ProcessEnv
 	exported *packagestest.Exported
 }

@@ -652,6 +652,7 @@ var proxyDir string
 type modTest struct {
 	*testing.T
 	env      *ProcessEnv
+	gopath   string
 	resolver *ModuleResolver
 	cleanup  func()
 }
@@ -714,6 +715,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 	}
 	return &modTest{
 		T:        t,
+		gopath:   env.Env["GOPATH"],
 		env:      env,
 		resolver: resolver.(*ModuleResolver),
 		cleanup:  func() { removeDir(dir) },
@@ -841,7 +843,7 @@ package x
 import _ "rsc.io/quote"
 `, "")
 	defer mt.cleanup()
-	want := filepath.Join(mt.resolver.env.gopath(), "pkg/mod", "rsc.io/quote@v1.5.2")
+	want := filepath.Join(mt.gopath, "pkg/mod", "rsc.io/quote@v1.5.2")
 
 	found := mt.assertScanFinds("rsc.io/quote", "quote")
 	modDir, _ := mt.resolver.modInfo(found.dir)
