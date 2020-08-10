@@ -104,6 +104,7 @@ func DefaultOptions() Options {
 				CommandRegenerateCgo.Name:     true,
 				CommandToggleDetails.Name:     false,
 			},
+			ExpandWorkspaceToModule: true,
 		},
 		DebuggingOptions: DebuggingOptions{
 			CompletionBudget:   100 * time.Millisecond,
@@ -226,6 +227,10 @@ type UserOptions struct {
 
 	// Gofumpt indicates if we should run gofumpt formatting.
 	Gofumpt bool
+
+	// ExpandWorkspaceToModule is true if we should expand the scope of the
+	// workspace to include the modules containing the workspace folders.
+	ExpandWorkspaceToModule bool
 }
 
 type ImportShortcut int
@@ -575,6 +580,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "gofumpt":
 		result.setBool(&o.Gofumpt)
+
+	case "expandWorkspaceToModule":
+		result.setBool(&o.ExpandWorkspaceToModule)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

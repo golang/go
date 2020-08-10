@@ -194,6 +194,13 @@ func WithGOPROXY(goproxy string) RunOption {
 	})
 }
 
+// WithLimitWorkspaceScope sets the LimitWorkspaceScope configuration.
+func WithLimitWorkspaceScope() RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.editor.LimitWorkspaceScope = true
+	})
+}
+
 type TestFunc func(t *testing.T, env *Env)
 
 // Run executes the test function in the default configured gopls execution

@@ -1118,3 +1118,33 @@ func main() {}
 		)
 	})
 }
+
+// This tests the functionality of the "limitWorkspaceScope"
+func TestLimitWorkspaceScope(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.com
+-- a/main.go --
+package main
+
+func main() {}
+-- main.go --
+package main
+
+func main() {
+	var x int
+}
+`
+	withOptions(WithRootPath("a")).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("a/main.go")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "x"),
+		)
+	})
+	withOptions(WithRootPath("a"), WithLimitWorkspaceScope()).run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("a/main.go")
+		env.Await(
+			NoDiagnostics("main.go"),
+		)
+	})
+}

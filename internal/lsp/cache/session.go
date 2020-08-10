@@ -193,7 +193,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		v.session.cache.options(&v.options)
 	}
 	// Set the module-specific information.
-	if err := v.setBuildInformation(ctx, folder, options.Env, v.options.TempModfile); err != nil {
+	if err := v.setBuildInformation(ctx, folder, options); err != nil {
 		return nil, nil, func() {}, err
 	}
 

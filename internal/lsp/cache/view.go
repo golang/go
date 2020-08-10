@@ -743,12 +743,12 @@ func (v *View) maybeReinitialize() {
 	v.initializeOnce = &once
 }
 
-func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []string, modfileFlagEnabled bool) error {
+func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options source.Options) error {
 	if err := checkPathCase(folder.Filename()); err != nil {
 		return fmt.Errorf("invalid workspace configuration: %w", err)
 	}
 	// Make sure to get the `go env` before continuing with initialization.
-	modFile, err := v.setGoEnv(ctx, env)
+	modFile, err := v.setGoEnv(ctx, options.Env)
 	if err != nil {
 		return err
 	}
@@ -763,7 +763,7 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	}
 
 	v.root = v.folder
-	if v.modURI != "" {
+	if options.ExpandWorkspaceToModule && v.modURI != "" {
 		v.root = span.URIFromPath(filepath.Dir(v.modURI.Filename()))
 	}
 
@@ -772,7 +772,7 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	v.setBuildConfiguration()
 
 	// The user has disabled the use of the -modfile flag or has no go.mod file.
-	if !modfileFlagEnabled || v.modURI == "" {
+	if !options.TempModfile || v.modURI == "" {
 		return nil
 	}
 	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {

@@ -69,6 +69,10 @@ type EditorConfig struct {
 	// config option.
 	SymbolMatcher *string
 
+	// LimitWorkspaceScope is true if the user does not want to expand their
+	// workspace scope to the entire module.
+	LimitWorkspaceScope bool
+
 	// WithoutWorkspaceFolders is used to simulate opening a single file in the
 	// editor, without a workspace root. In that case, the client sends neither
 	// workspace folders nor a root URI.
@@ -170,6 +174,7 @@ func (e *Editor) configuration() map[string]interface{} {
 	config := map[string]interface{}{
 		"verboseWorkDoneProgress": true,
 		"env":                     e.overlayEnv(),
+		"expandWorkspaceToModule": !e.Config.LimitWorkspaceScope,
 	}
 
 	if e.Config.CodeLens != nil {

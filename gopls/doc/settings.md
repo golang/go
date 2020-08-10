@@ -50,18 +50,27 @@ Default: `false`.
 
 This controls where points documentation for given package in `textDocument/documentLink`.
 It might be one of:
+
 * `"godoc.org"`
 * `"pkg.go.dev"`
 If company chooses to use its own `godoc.org`, its address can be used as well.
 
 Default: `"pkg.go.dev"`.
 
-### **local** string
+### **local** *string*
 
 This is the equivalent of the `goimports -local` flag, which puts imports beginning with this string after 3rd-party packages.
 It should be the prefix of the import path whose imports should be grouped separately.
 
 Default: `""`.
+
+### **expandWorkspaceToModule** *boolean*
+
+This is true if `gopls` should expand the scope of the workspace to include the
+modules containing the workspace folders. Set this to false to avoid loading
+your entire module. This is particularly useful for those working in a monorepo.
+
+Default: `true`.
 
 ## Experimental
 
