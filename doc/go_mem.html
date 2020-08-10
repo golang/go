@@ -213,7 +213,7 @@ usually in a different goroutine.
 </p>
 
 <p class="rule">
-A send on a channel happens before the corresponding
+A send on a channel starts before the corresponding
 receive from that channel completes.
 </p>
 
@@ -256,7 +256,7 @@ yields a program with the same guaranteed behavior.
 </p>
 
 <p class="rule">
-A receive from an unbuffered channel happens before
+A receive from an unbuffered channel starts before
 the send on that channel completes.
 </p>
 
@@ -296,7 +296,7 @@ crash, or do something else.)
 </p>
 
 <p class="rule">
-The <i>k</i>th receive on a channel with capacity <i>C</i> happens before the <i>k</i>+<i>C</i>th send from that channel completes.
+The <i>k</i>th receive on a channel with capacity <i>C</i> starts before the <i>k</i>+<i>C</i>th send from that channel completes.
 </p>
 
 <p>
