@@ -66,7 +66,13 @@ tools_dir=$(readlink -f "${script_dir}/../../..")
 cd "${tools_dir}/gopls"
 temp_gopls=$(mktemp -p "$PWD")
 trap "rm -f \"${temp_gopls}\"" EXIT
-go build -o "${temp_gopls}"
+# For consistency across environments, use golang docker to build rather than
+# the local go command.
+${SUDO_IF_NEEDED}docker run --rm -t \
+  -v "${tools_dir}:/src/tools" \
+  -w "/src/tools/gopls" \
+  golang:latest \
+  go build -o $(basename ${temp_gopls})
 
 # Build the test harness. Here we are careful to pass in a very limited build
 # context so as to optimize caching.
