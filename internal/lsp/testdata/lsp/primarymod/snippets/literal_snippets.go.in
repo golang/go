@@ -199,6 +199,12 @@ func _() {
 	ptrStruct{
 		p: &ptrSt, //@rank(",", litPtrStruct)
 	}
+
+	&ptrStruct{} //@item(litPtrStructPtr, "&ptrStruct{}", "", "var")
+
+	&ptrStruct{
+		p: ptrSt, //@rank(",", litPtrStructPtr)
+	}
 }
 
 func _() {
