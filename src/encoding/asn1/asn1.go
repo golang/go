@@ -22,7 +22,6 @@ package asn1
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -305,9 +304,9 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 	offset = initOffset
 	var ret64 int64
 	for shifted := 0; offset < len(bytes); shifted++ {
-		// 5 * 7 bits per byte == 35 bits of data
-		// Thus the representation is either non-minimal or too large for an int32
-		if shifted == 5 {
+		// n shifted bytes * 7 bits per byte should be less than the  max number of bits
+		// Thus the representation is either non-minimal or too large for the system
+		if shifted * 7 > strconv.IntSize {
 			err = StructuralError{"base 128 integer too large"}
 			return
 		}
@@ -324,7 +323,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 		if b&0x80 == 0 {
 			ret = int(ret64)
 			// Ensure that the returned value fits in an int on all platforms
-			if ret64 > math.MaxInt32 {
+			if ret64 > int64(^uint(0) >> 1) {
 				err = StructuralError{"base 128 integer too large"}
 			}
 			return
