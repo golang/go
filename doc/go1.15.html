@@ -657,11 +657,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
-    <p><!-- CL 191783 -->
-      Decoding a JSON array into a slice no longer reuses any existing slice elements,
-      following the rules that the package documentation already stated.
-    </p>
-
     <p><!-- CL 199837 -->
       The package now has an internal limit to the maximum depth of
       nesting when decoding. This reduces the possibility that a
