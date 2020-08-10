@@ -14,13 +14,21 @@ Do not send CLs removing the interior tags from such phrases.
   main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.15</h2>
+<h2 id="introduction">Introduction to Go 1.15</h2>
 
 <p>
-  <strong>
-    Go 1.15 is not yet released. These are work-in-progress
-    release notes. Go 1.15 is expected to be released in August 2020.
-  </strong>
+  The latest Go release, version 1.15, arrives six months after <a href="go1.14">Go 1.14</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat.html">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
+</p>
+
+<p>
+  Go 1.15 includes <a href="#linker">substantial improvements to the linker</a>,
+  improves <a href="#runtime">allocation for small objects at high core counts</a>, and
+  deprecates <a href="#commonname">X.509 CommonName</a>.
+  <code>GOPROXY</code> now supports skipping proxies that return errors and
+  a new <a href="#time/tzdata">embedded tzdata package</a> has been added.
 </p>
 
 <h2 id="language">Changes to the language</h2>
