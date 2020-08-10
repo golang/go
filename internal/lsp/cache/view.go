@@ -126,9 +126,10 @@ type View struct {
 	// Only possible with Go versions 1.14 and above.
 	tmpMod bool
 
-	// goCommand indicates if the user is using the go command or some other
-	// build system.
-	goCommand bool
+	// noGopackagesDriver is true if the user has no value set for the
+	// GOPACKAGESDRIVER environment variable and no gopackagesdriver binary on
+	// their machine.
+	noGopackagesDriver bool
 
 	// `go env` variables that need to be tracked by gopls.
 	gocache, gomodcache, gopath, goprivate string
@@ -793,9 +794,9 @@ func (v *View) setBuildConfiguration() (isValid bool) {
 	defer func() {
 		v.hasValidBuildConfiguration = isValid
 	}()
-	// Since we only really understand the `go` command, if the user is not
-	// using the go command, assume that their configuration is valid.
-	if !v.goCommand {
+	// Since we only really understand the `go` command, if the user has a
+	// different GOPACKAGESDRIVER, assume that their configuration is valid.
+	if !v.noGopackagesDriver {
 		return true
 	}
 	// Check if the user is working within a module.
@@ -860,11 +861,17 @@ func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error)
 	}
 
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
+	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
+	for _, s := range configEnv {
+		split := strings.SplitN(s, "=", 2)
+		if split[0] == "GOPACKAGESDRIVER" {
+			gopackagesdriver = split[1]
+		}
+	}
 	// A user may also have a gopackagesdriver binary on their machine, which
 	// works the same way as setting GOPACKAGESDRIVER.
-	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
 	tool, _ := exec.LookPath("gopackagesdriver")
-	v.goCommand = gopackagesdriver == "off" || (gopackagesdriver == "" && tool == "")
+	v.noGopackagesDriver = gopackagesdriver == "off" || (gopackagesdriver == "" && tool == "")
 	return gomod, nil
 }
 
