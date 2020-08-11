@@ -212,7 +212,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
 	// due to stack probes inserted to avoid stack/heap collisions.
 	// See issue #20427.
 
-	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
@@ -250,7 +250,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 ret:
-	MOVQ	BP, SP		// Restore real SP
+	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
 	// If we are not in a signal handler, we'll restore vdsoSP to 0,
@@ -277,7 +277,7 @@ fallback:
 TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
-	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
 	get_tls(CX)
 	MOVQ	g(CX), AX
@@ -315,7 +315,7 @@ noswitch:
 	MOVQ	0(SP), AX	// sec
 	MOVQ	8(SP), DX	// nsec
 ret:
-	MOVQ	BP, SP		// Restore real SP
+	MOVQ	R12, SP		// Restore real SP
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
 	// If we are not in a signal handler, we'll restore vdsoSP to 0,
