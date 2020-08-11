@@ -432,41 +432,11 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader, flushInterval 
 		buf = p.BufferPool.Get()
 		defer p.BufferPool.Put(buf)
 	}
-	_, err := p.copyBuffer(dst, src, buf)
+	_, err := io.CopyBuffer(dst, src, buf)
+	if err != nil && err != io.EOF && err != context.Canceled {
+		p.logf("httputil: ReverseProxy read error during body copy: %v", err)
+	}
 	return err
-}
-
-// copyBuffer returns any write errors or non-EOF read errors, and the amount
-// of bytes written.
-func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
-	if len(buf) == 0 {
-		buf = make([]byte, 32*1024)
-	}
-	var written int64
-	for {
-		nr, rerr := src.Read(buf)
-		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("httputil: ReverseProxy read error during body copy: %v", rerr)
-		}
-		if nr > 0 {
-			nw, werr := dst.Write(buf[:nr])
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if werr != nil {
-				return written, werr
-			}
-			if nr != nw {
-				return written, io.ErrShortWrite
-			}
-		}
-		if rerr != nil {
-			if rerr == io.EOF {
-				rerr = nil
-			}
-			return written, rerr
-		}
-	}
 }
 
 func (p *ReverseProxy) logf(format string, args ...interface{}) {
