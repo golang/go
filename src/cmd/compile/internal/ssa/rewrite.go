@@ -1379,6 +1379,15 @@ func needRaceCleanup(sym Sym, v *Value) bool {
 			}
 		}
 	}
+	if symNamed(sym, "runtime.racefuncenter") {
+		// If we're removing racefuncenter, remove its argument as well.
+		if v.Args[0].Op != OpStore {
+			return false
+		}
+		mem := v.Args[0].Args[2]
+		v.Args[0].reset(OpCopy)
+		v.Args[0].AddArg(mem)
+	}
 	return true
 }
 
