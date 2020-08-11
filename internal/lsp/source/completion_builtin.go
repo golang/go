@@ -60,8 +60,11 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 	var (
 		exprIdx = exprAtPos(c.pos, call.Args)
 
-		// Maintain any type name inference from our parent's context.
-		inf = candidateInference{typeName: parentInf.typeName}
+		// Propagate certain properties from our parent's inference.
+		inf = candidateInference{
+			typeName:  parentInf.typeName,
+			modifiers: parentInf.modifiers,
+		}
 	)
 
 	switch obj.Name() {

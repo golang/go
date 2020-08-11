@@ -26,4 +26,10 @@ func _() {
 	var b struct{ b []baz }
 	b.b                  //@item(appendNestedBaz, "b.b", "[]baz", "field")
 	b.b = append(b.b, b) //@rank(")", appendBazzy, appendBazLiteral, appendNestedBaz)
+
+	var aStringsPtr *[]string //@item(appendStringsPtr, "aStringsPtr", "*[]string", "var")
+	"*aStringsPtr"            //@item(appendStringsDeref, "*aStringsPtr", "*[]string", "var")
+	foo(append(nil, a))       //@snippet("))", appendStringsDeref, "*aStringsPtr...", "*aStringsPtr...")
+
+	foo(append(nil, *a)) //@snippet("))", appendStringsPtr, "aStringsPtr...", "aStringsPtr...")
 }

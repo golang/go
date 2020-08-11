@@ -49,11 +49,6 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 		snip = c.functionCallSnippet(label, s.params)
 		detail = "func" + s.format()
-
-		// Add variadic "..." if we are using a function result to fill in a variadic parameter.
-		if sig.Results().Len() == 1 && c.inference.matchesVariadic(sig.Results().At(0).Type()) {
-			snip.WriteText("...")
-		}
 		return nil
 	}
 
@@ -82,12 +77,6 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 			if err := expandFuncCall(sig); err != nil {
 				return CompletionItem{}, err
 			}
-		}
-
-		// Add variadic "..." if we are using a variable to fill in a variadic parameter.
-		if c.inference.matchesVariadic(obj.Type()) {
-			snip = &snippet.Builder{}
-			snip.WriteText(insert + "...")
 		}
 	case *types.Func:
 		sig, ok := obj.Type().Underlying().(*types.Signature)
@@ -153,6 +142,14 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 
 		label = prefixOp + label
+	}
+
+	// Add variadic "..." if we are filling in a variadic param.
+	if cand.variadic {
+		insert += "..."
+		if snip != nil {
+			snip.WriteText("...")
+		}
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")

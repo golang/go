@@ -422,6 +422,10 @@ type candidate struct {
 	// For example, dereference=2 turns "foo" into "**foo" when formatting.
 	dereference int
 
+	// variadic is true if this candidate fills a variadic param and
+	// needs "..." appended.
+	variadic bool
+
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
@@ -2278,11 +2282,15 @@ func (c *completer) objChainMatches(cand types.Object, chain []types.Object) boo
 // candidate given the candidate inference. cand's score may be
 // mutated to downrank the candidate in certain situations.
 func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
-	expTypes := make([]types.Type, 0, 2)
+	var (
+		expTypes     = make([]types.Type, 0, 2)
+		variadicType types.Type
+	)
 	if ci.objType != nil {
 		expTypes = append(expTypes, ci.objType)
 		if ci.variadic {
-			expTypes = append(expTypes, types.NewSlice(ci.objType))
+			variadicType = types.NewSlice(ci.objType)
+			expTypes = append(expTypes, variadicType)
 		}
 	}
 
@@ -2325,6 +2333,10 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			matches, untyped := ci.typeMatches(expType, candType)
 			if !matches {
 				continue
+			}
+
+			if expType == variadicType {
+				cand.variadic = true
 			}
 
 			// Lower candidate score for untyped conversions. This avoids
