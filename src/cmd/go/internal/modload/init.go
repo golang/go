@@ -22,6 +22,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
@@ -130,6 +131,10 @@ func Init() {
 		}
 		mustUseModules = false
 		return
+	}
+
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
 	}
 
 	// Disable any prompting for passwords by Git.

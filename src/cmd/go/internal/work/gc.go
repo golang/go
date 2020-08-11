@@ -18,6 +18,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
@@ -145,7 +146,25 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 	}
 
 	for _, f := range gofiles {
-		args = append(args, mkAbs(p.Dir, f))
+		f := mkAbs(p.Dir, f)
+
+		// Handle overlays. Convert path names using OverlayPath
+		// so these paths can be handed directly to tools.
+		// Deleted files won't show up in when scanning directories earlier,
+		// so OverlayPath will never return "" (meaning a deleted file) here.
+		// TODO(#39958): Handle -trimprefix and other cases where
+		// tools depend on the names of the files that are passed in.
+		// TODO(#39958): Handle cases where the package directory
+		// doesn't exist on disk (this can happen when all the package's
+		// files are in an overlay): the code expects the package directory
+		// to exist and runs some tools in that directory.
+		// TODO(#39958): Process the overlays when the
+		// gofiles, cgofiles, cfiles, sfiles, and cxxfiles variables are
+		// created in (*Builder).build. Doing that requires rewriting the
+		// code that uses those values to expect absolute paths.
+		f, _ = fsys.OverlayPath(f)
+
+		args = append(args, f)
 	}
 
 	output, err = b.runOut(a, p.Dir, nil, args...)
@@ -246,6 +265,8 @@ func (a *Action) trimpath() string {
 			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
 		}
 	}
+
+	// TODO(#39958): Add rewrite rules for overlaid files.
 
 	return rewrite
 }
