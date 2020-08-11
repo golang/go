@@ -368,7 +368,12 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 		}
 	}
 	files := ctxt.PosTable.FileTable()
+	usedFiles := make([]goobj.CUFileIndex, 0, len(pc.UsedFiles))
 	for f := range pc.UsedFiles {
+		usedFiles = append(usedFiles, f)
+	}
+	sort.Slice(usedFiles, func(i, j int) bool { return usedFiles[i] < usedFiles[j] })
+	for _, f := range usedFiles {
 		if filesym := ctxt.Lookup(files[f]); filesym != nil {
 			fn(fsym, filesym)
 		}
