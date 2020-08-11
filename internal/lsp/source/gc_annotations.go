@@ -23,11 +23,16 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return nil, err
 	}
+	tmpFile, err := ioutil.TempFile(os.TempDir(), "gopls-x")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmpFile.Name())
 	args := []string{fmt.Sprintf("-gcflags=-json=0,%s", outDir),
-		fmt.Sprintf("-o=%s", pkgDir.Filename()),
+		fmt.Sprintf("-o=%s", tmpFile.Name()),
 		pkgDir.Filename(),
 	}
-	err := snapshot.RunGoCommandDirect(ctx, "build", args)
+	err = snapshot.RunGoCommandDirect(ctx, "build", args)
 	if err != nil {
 		return nil, err
 	}
