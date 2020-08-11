@@ -108,3 +108,31 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	}
 	return nil, nil
 }
+
+//loginAuth
+type loginAuth struct {
+	username, password string
+	host               string
+}
+
+func LoginAuth(username, password, host string) Auth {
+	return &loginAuth{username, password, host}
+}
+
+func (a *loginAuth) Start(server *ServerInfo) (string, []byte, error) {
+	if !server.TLS && !isLocalhost(server.Name) {
+		return "", nil, errors.New("unencrypted connection")
+	}
+	if server.Name != a.host {
+		return "", nil, errors.New("wrong host name")
+	}
+	resp := []byte(a.username)
+	return "LOGIN", resp, nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		return []byte(a.password), nil
+	}
+	return nil, nil
+}
