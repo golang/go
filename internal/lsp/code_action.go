@@ -51,6 +51,10 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	switch fh.Kind() {
 	case source.Mod:
+		// TODO: Support code actions for views with multiple modules.
+		if snapshot.View().ModFile() == "" {
+			return nil, nil
+		}
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
 			modQuickFixes, err := moduleQuickFixes(ctx, snapshot, diagnostics)
 			if err == source.ErrTmpModfileUnsupported {

@@ -52,7 +52,10 @@ func (mth *modTidyHandle) tidy(ctx context.Context, snapshot *snapshot) (*source
 }
 
 func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.TidiedModule, error) {
-	if !s.view.tmpMod {
+	if fh.Kind() != source.Mod {
+		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
+	}
+	if s.view.workspaceMode&tempModfile == 0 {
 		return nil, source.ErrTmpModfileUnsupported
 	}
 	if handle := s.getModTidyHandle(fh.URI()); handle != nil {
@@ -75,7 +78,7 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
-		view:            s.view.root.Filename(),
+		view:            s.view.folder.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
 		gomod:           fh.FileIdentity(),
@@ -103,7 +106,7 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 				err: err,
 			}
 		}
-		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, true, "mod", []string{"tidy"})
+		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, cfg, true, "mod", []string{"tidy"})
 		if err != nil {
 			return &modTidyData{err: err}
 		}

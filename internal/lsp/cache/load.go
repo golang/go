@@ -8,6 +8,9 @@ import (
 	"context"
 	"fmt"
 	"go/types"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -62,6 +65,8 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 				q = "./..."
 			}
 			query = append(query, q)
+		case moduleLoadScope:
+			query = append(query, fmt.Sprintf("%s/...", scope))
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
 			// build system, don't load subdirectories.
@@ -84,8 +89,20 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	defer done()
 
 	cfg := s.config(ctx)
+
 	cleanup := func() {}
-	if s.view.tmpMod {
+	switch {
+	case s.view.workspaceMode&workspaceModule != 0:
+		var (
+			tmpDir span.URI
+			err    error
+		)
+		tmpDir, cleanup, err = s.tempWorkspaceModule(ctx)
+		if err != nil {
+			return err
+		}
+		cfg.Dir = tmpDir.Filename()
+	case s.view.workspaceMode&tempModfile != 0:
 		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
 			return err
@@ -129,7 +146,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 		return errors.Errorf("%v: %w", err, source.PackagesLoadError)
 	}
-
 	for _, pkg := range pkgs {
 		if !containsDir || s.view.Options().VerboseOutput {
 			event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.PackagePath.Of(pkg.PkgPath), tag.Files.Of(pkg.CompiledGoFiles))
@@ -163,6 +179,37 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	s.clearAndRebuildImportGraph()
 
 	return nil
+}
+
+// tempWorkspaceModule creates a temporary directory for use with
+// packages.Loads that occur from within the workspace module.
+func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup func(), err error) {
+	cleanup = func() {}
+	if len(s.view.modules) == 0 {
+		return "", cleanup, nil
+	}
+	if s.view.workspaceModule == nil {
+		return "", cleanup, nil
+	}
+	content, err := s.view.workspaceModule.Format()
+	if err != nil {
+		return "", cleanup, err
+	}
+	// Create a temporary working directory for the go command that contains
+	// the workspace module file.
+	name, err := ioutil.TempDir("", "gopls-mod")
+	if err != nil {
+		return "", cleanup, err
+	}
+	cleanup = func() {
+		os.RemoveAll(name)
+	}
+	filename := filepath.Join(name, "go.mod")
+	if err := ioutil.WriteFile(filename, content, 0644); err != nil {
+		cleanup()
+		return "", cleanup, err
+	}
+	return span.URIFromPath(filepath.Dir(filename)), cleanup, nil
 }
 
 func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {

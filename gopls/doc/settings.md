@@ -205,4 +205,9 @@ modules containing the workspace folders. Set this to false to avoid loading
 your entire module. This is particularly useful for those working in a monorepo.
 
 Default: `true`.
+### **experimentalWorkspaceModule** *bool*
+experimentalWorkspaceModule opts a user into the experimental support
+for multi-module workspaces.
+
+Default: `false`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->

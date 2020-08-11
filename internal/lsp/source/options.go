@@ -338,6 +338,10 @@ type ExperimentalOptions struct {
 	// modules containing the workspace folders. Set this to false to avoid loading
 	// your entire module. This is particularly useful for those working in a monorepo.
 	ExpandWorkspaceToModule bool
+
+	// ExperimentalWorkspaceModule opts a user into the experimental support
+	// for multi-module workspaces.
+	ExperimentalWorkspaceModule bool
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may
@@ -646,6 +650,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 
 	case "expandWorkspaceToModule":
 		result.setBool(&o.ExpandWorkspaceToModule)
+
+	case "experimentalWorkspaceModule":
+		result.setBool(&o.ExperimentalWorkspaceModule)
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

@@ -196,6 +196,9 @@ func (mwh *modWhyHandle) why(ctx context.Context, snapshot *snapshot) (map[strin
 }
 
 func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
+	if fh.Kind() != source.Mod {
+		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
+	}
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
@@ -285,6 +288,9 @@ type moduleUpgrade struct {
 }
 
 func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
+	if fh.Kind() != source.Mod {
+		return nil, fmt.Errorf("%s is not a go.mod file", fh.URI())
+	}
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
@@ -318,7 +324,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		// Run "go list -mod readonly -u -m all" to be able to see which deps can be
 		// upgraded without modifying mod file.
 		args := []string{"-u", "-m", "-json", "all"}
-		if !snapshot.view.tmpMod || containsVendor(fh.URI()) {
+		if s.view.workspaceMode&tempModfile == 0 || containsVendor(fh.URI()) {
 			// Use -mod=readonly if the module contains a vendor directory
 			// (see golang/go#38711).
 			args = append([]string{"-mod", "readonly"}, args...)

@@ -84,6 +84,10 @@ type EditorConfig struct {
 
 	// EnableStaticcheck enables staticcheck analyzers.
 	EnableStaticcheck bool
+
+	// ExperimentalWorkspaceModule enables the experimental support for
+	// multi-module workspaces.
+	ExperimentalWorkspaceModule bool
 }
 
 // NewEditor Creates a new Editor.
@@ -191,6 +195,9 @@ func (e *Editor) configuration() map[string]interface{} {
 	}
 	if e.Config.EnableStaticcheck {
 		config["staticcheck"] = true
+	}
+	if e.Config.ExperimentalWorkspaceModule {
+		config["experimentalWorkspaceModule"] = true
 	}
 
 	return config

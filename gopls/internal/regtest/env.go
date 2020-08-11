@@ -700,6 +700,39 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	}
 }
 
+// NoDiagnosticAtRegexp expects that there is no diagnostic entry at the start
+// position matching the regexp search string re in the buffer specified by
+// name. Note that this currently ignores the end position.
+// This should only be used in combination with OnceMet for a given condition,
+// otherwise it may always succeed.
+func (e *Env) NoDiagnosticAtRegexp(name, re string) DiagnosticExpectation {
+	e.T.Helper()
+	pos := e.RegexpSearch(name, re)
+	expectation := NoDiagnosticAt(name, pos.Line, pos.Column)
+	expectation.description += fmt.Sprintf(" (location of %q)", re)
+	return expectation
+}
+
+// NoDiagnosticAt asserts that there is no diagnostic entry at the position
+// specified by line and col, for the workdir-relative path name.
+// This should only be used in combination with OnceMet for a given condition,
+// otherwise it may always succeed.
+func NoDiagnosticAt(name string, line, col int) DiagnosticExpectation {
+	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
+		for _, d := range diags.Diagnostics {
+			if d.Range.Start.Line == float64(line) && d.Range.Start.Character == float64(col) {
+				return false
+			}
+		}
+		return true
+	}
+	return DiagnosticExpectation{
+		isMet:       isMet,
+		description: fmt.Sprintf("no diagnostic at {line:%d, column:%d}", line, col),
+		path:        name,
+	}
+}
+
 // DiagnosticsFor returns the current diagnostics for the file. It is useful
 // after waiting on AnyDiagnosticAtCurrentVersion, when the desired diagnostic
 // is not simply described by DiagnosticAt.

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/gocommand"
@@ -63,6 +64,16 @@ type View struct {
 	// root is the root directory of this view. If we are in GOPATH mode, this
 	// is just the folder. If we are in module mode, this is the module root.
 	root span.URI
+
+	// TODO: The modules and workspaceModule fields should probably be moved to
+	// the snapshot and invalidated on file changes.
+
+	// modules is the set of modules currently in this workspace.
+	modules map[span.URI]*module
+
+	// workspaceModule is an in-memory representation of the go.mod file for
+	// the workspace module.
+	workspaceModule *modfile.File
 
 	// importsMu guards imports-related state, particularly the ProcessEnv.
 	importsMu sync.Mutex
@@ -122,9 +133,9 @@ type View struct {
 	// The real go.mod and go.sum files that are attributed to a view.
 	modURI, sumURI span.URI
 
-	// True if this view runs go commands using temporary mod files.
-	// Only possible with Go versions 1.14 and above.
-	tmpMod bool
+	// workspaceMode describes the way in which the view's workspace should be
+	// loaded.
+	workspaceMode workspaceMode
 
 	// hasGopackagesDriver is true if the user has a value set for the
 	// GOPACKAGESDRIVER environment variable or a gopackagesdriver binary on
@@ -139,6 +150,19 @@ type View struct {
 	goEnv map[string]string
 }
 
+type workspaceMode int
+
+const (
+	standard workspaceMode = 1 << iota
+
+	// tempModfile indicates whether or not the -modfile flag should be used.
+	tempModfile
+
+	// workspaceModule indicates support for the experimental workspace module
+	// feature.
+	workspaceModule
+)
+
 type builtinPackageHandle struct {
 	handle *memoize.Handle
 }
@@ -146,6 +170,10 @@ type builtinPackageHandle struct {
 type builtinPackageData struct {
 	parsed *source.BuiltinPackage
 	err    error
+}
+type module struct {
+	rootURI        span.URI
+	modURI, sumURI span.URI
 }
 
 // fileBase holds the common functionality for all files.
@@ -436,7 +464,7 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 	v.optionsMu.Unlock()
 
 	// Add -modfile to the build flags, if we are using it.
-	if v.tmpMod && modFH != nil {
+	if v.workspaceMode&tempModfile != 0 && modFH != nil {
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
@@ -643,7 +671,29 @@ func (v *View) initialize(ctx context.Context, s *snapshot, firstAttempt bool) {
 			}
 		}()
 
-		err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin"))
+		// If we have multiple modules, we need to load them by paths.
+		var scopes []interface{}
+		if len(v.modules) > 0 {
+			// TODO(rstambler): Retry the initial workspace load for whichever
+			// modules we failed to load.
+			for _, mod := range v.modules {
+				fh, err := s.GetFile(ctx, mod.modURI)
+				if err != nil {
+					v.initializedErr = err
+					continue
+				}
+				parsed, err := s.ParseMod(ctx, fh)
+				if err != nil {
+					v.initializedErr = err
+					continue
+				}
+				path := parsed.File.Module.Mod.Path
+				scopes = append(scopes, moduleLoadScope(path))
+			}
+		} else {
+			scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
+		}
+		err := s.load(ctx, append(scopes, packagePath("builtin"))...)
 		if ctx.Err() != nil {
 			return
 		}
@@ -738,18 +788,15 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options
 		v.root = span.URIFromPath(filepath.Dir(v.modURI.Filename()))
 	}
 
-	// Now that we have set all required fields,
-	// check if the view has a valid build configuration.
-	v.setBuildConfiguration()
-
 	// The user has disabled the use of the -modfile flag or has no go.mod file.
 	if !options.TempModfile || v.modURI == "" {
 		return nil
 	}
+	v.workspaceMode = standard
 	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {
 		return err
 	} else if modfileFlag {
-		v.tmpMod = true
+		v.workspaceMode |= tempModfile
 	}
 	return nil
 }
@@ -770,8 +817,12 @@ func (v *View) setBuildConfiguration() (isValid bool) {
 	if v.hasGopackagesDriver {
 		return true
 	}
-	// Check if the user is working within a module.
+	// Check if the user is working within a module or if we have found
+	// multiple modules in the workspace.
 	if v.modURI != "" {
+		return true
+	}
+	if len(v.modules) > 0 {
 		return true
 	}
 	// The user may have a multiple directories in their GOPATH.

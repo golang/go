@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/fake"
 )
 
 const workspaceProxy = `
@@ -153,6 +154,60 @@ replace random.org => %s
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
 			UnregistrationMatching("didChangeWatchedFiles"),
 			RegistrationMatching("didChangeWatchedFiles"),
+		)
+	})
+}
+
+const workspaceModuleProxy = `
+-- b.com@v1.2.3/go.mod --
+module b.com
+
+go 1.12
+-- b.com@v1.2.3/b/b.go --
+package b
+
+func Hello() {}
+`
+
+func TestAutomaticWorkspaceModule_Interdependent(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+-- modb/go.mod --
+module b.com
+
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+`
+	withOptions(
+		WithProxyFiles(workspaceModuleProxy),
+		WithEditorConfig(fake.EditorConfig{ExperimentalWorkspaceModule: true}),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.Await(
+			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
+			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			env.NoDiagnosticAtRegexp("moda/a/a.go", `"b.com/b"`),
 		)
 	})
 }

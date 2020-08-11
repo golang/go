@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/event"
@@ -168,7 +169,8 @@ func (s *snapshot) configWithDir(ctx context.Context, dir string) *packages.Conf
 }
 
 func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []string) error {
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, false, verb, args)
+	cfg := s.config(ctx)
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, false, verb, args)
 	if err != nil {
 		return err
 	}
@@ -179,7 +181,8 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []s
 }
 
 func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, true, verb, args)
+	cfg := s.config(ctx)
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +192,8 @@ func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string)
 }
 
 func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []string, stdout, stderr io.Writer) error {
-	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, true, verb, args)
+	cfg := s.config(ctx)
+	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
 	if err != nil {
 		return err
 	}
@@ -198,10 +202,9 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, verb string, args []st
 }
 
 // Assumes that modURI is only provided when the -modfile flag is enabled.
-func (s *snapshot) goCommandInvocation(ctx context.Context, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
+func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config, allowTempModfile bool, verb string, args []string) (tmpURI span.URI, runner *gocommand.Runner, inv *gocommand.Invocation, cleanup func(), err error) {
 	cleanup = func() {} // fallback
-	cfg := s.config(ctx)
-	if allowTempModfile && s.view.tmpMod {
+	if allowTempModfile && s.view.workspaceMode&tempModfile != 0 {
 		modFH, err := s.GetFile(ctx, s.view.modURI)
 		if err != nil {
 			return "", nil, nil, cleanup, err
@@ -1228,4 +1231,67 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	})
 	s.builtin = &builtinPackageHandle{handle: h}
 	return nil
+}
+
+const workspaceModuleVersion = "v0.0.0-00010101000000-000000000000"
+
+// buildWorkspaceModule generates a workspace module given the modules in the
+// the workspace.
+func (s *snapshot) buildWorkspaceModule(ctx context.Context) (*modfile.File, error) {
+	file := &modfile.File{}
+	file.AddModuleStmt("gopls-workspace")
+
+	paths := make(map[string]*module)
+	for _, mod := range s.view.modules {
+		fh, err := s.view.snapshot.GetFile(ctx, mod.modURI)
+		if err != nil {
+			return nil, err
+		}
+		parsed, err := s.ParseMod(ctx, fh)
+		if err != nil {
+			return nil, err
+		}
+		path := parsed.File.Module.Mod.Path
+		paths[path] = mod
+		file.AddNewRequire(path, workspaceModuleVersion, false)
+		if err := file.AddReplace(path, "", mod.rootURI.Filename(), ""); err != nil {
+			return nil, err
+		}
+	}
+	// Go back through all of the modules to handle any of their replace
+	// statements.
+	for _, module := range s.view.modules {
+		fh, err := s.view.snapshot.GetFile(ctx, module.modURI)
+		if err != nil {
+			return nil, err
+		}
+		pmf, err := s.view.snapshot.ParseMod(ctx, fh)
+		if err != nil {
+			return nil, err
+		}
+		// If any of the workspace modules have replace directives, they need
+		// to be reflected in the workspace module.
+		for _, rep := range pmf.File.Replace {
+			// Don't replace any modules that are in our workspace--we should
+			// always use the version in the workspace.
+			if _, ok := paths[rep.Old.Path]; ok {
+				continue
+			}
+			newPath := rep.New.Path
+			newVersion := rep.New.Version
+			// If a replace points to a module in the workspace, make sure we
+			// direct it to version of the module in the workspace.
+			if mod, ok := paths[rep.New.Path]; ok {
+				newPath = mod.rootURI.Filename()
+				newVersion = ""
+			} else if rep.New.Version == "" && !filepath.IsAbs(rep.New.Path) {
+				// Make any relative paths absolute.
+				newPath = filepath.Join(module.rootURI.Filename(), rep.New.Path)
+			}
+			if err := file.AddReplace(rep.Old.Path, rep.Old.Version, newPath, newVersion); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return file, nil
 }
