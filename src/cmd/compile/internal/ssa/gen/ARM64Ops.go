@@ -507,6 +507,7 @@ func init() {
 				clobbers: buildReg("R20 R30"),
 			},
 			faultOnNilArg0: true,
+			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
 		},
 
 		// large zeroing
@@ -547,6 +548,7 @@ func init() {
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
+			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// large move

@@ -13119,6 +13119,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxInt64,
 		argLen:         3,
 		faultOnNilArg0: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128},   // DI
@@ -13196,6 +13197,7 @@ var opcodeTable = [...]opInfo{
 		clobberFlags:   true,
 		faultOnNilArg0: true,
 		faultOnNilArg1: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -20734,6 +20736,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxInt64,
 		argLen:         2,
 		faultOnNilArg0: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1048576}, // R20
@@ -20760,6 +20763,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		faultOnNilArg0: true,
 		faultOnNilArg1: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2097152}, // R21
