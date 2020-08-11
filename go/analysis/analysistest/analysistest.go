@@ -97,12 +97,22 @@ type Testing interface {
 func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Result {
 	r := Run(t, dir, a, patterns...)
 
-	// file -> message -> edits
-	fileEdits := make(map[*token.File]map[string][]diff.TextEdit)
-	fileContents := make(map[*token.File][]byte)
-
-	// Validate edits, prepare the fileEdits map and read the file contents.
+	// Process each result (package) separately, matching up the suggested
+	// fixes into a diff, which we will compare to the .golden file.  We have
+	// to do this per-result in case a file appears in two packages, such as in
+	// packages with tests, where mypkg/a.go will appear in both mypkg and
+	// mypkg.test.  In that case, the analyzer may suggest the same set of
+	// changes to a.go for each package.  If we merge all the results, those
+	// changes get doubly applied, which will cause conflicts or mismatches.
+	// Validating the results separately means as long as the two analyses
+	// don't produce conflicting suggestions for a single file, everything
+	// should match up.
 	for _, act := range r {
+		// file -> message -> edits
+		fileEdits := make(map[*token.File]map[string][]diff.TextEdit)
+		fileContents := make(map[*token.File][]byte)
+
+		// Validate edits, prepare the fileEdits map and read the file contents.
 		for _, diag := range act.Diagnostics {
 			for _, sf := range diag.SuggestedFixes {
 				for _, edit := range sf.TextEdits {
@@ -142,78 +152,78 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 				}
 			}
 		}
-	}
 
-	for file, fixes := range fileEdits {
-		// Get the original file contents.
-		orig, ok := fileContents[file]
-		if !ok {
-			t.Errorf("could not find file contents for %s", file.Name())
-			continue
-		}
-
-		// Get the golden file and read the contents.
-		ar, err := txtar.ParseFile(file.Name() + ".golden")
-		if err != nil {
-			t.Errorf("error reading %s.golden: %v", file.Name(), err)
-			continue
-		}
-
-		if len(ar.Files) > 0 {
-			// one virtual file per kind of suggested fix
-
-			if len(ar.Comment) != 0 {
-				// we allow either just the comment, or just virtual
-				// files, not both. it is not clear how "both" should
-				// behave.
-				t.Errorf("%s.golden has leading comment; we don't know what to do with it", file.Name())
+		for file, fixes := range fileEdits {
+			// Get the original file contents.
+			orig, ok := fileContents[file]
+			if !ok {
+				t.Errorf("could not find file contents for %s", file.Name())
 				continue
 			}
 
-			for sf, edits := range fixes {
-				found := false
-				for _, vf := range ar.Files {
-					if vf.Name == sf {
-						found = true
-						out := diff.ApplyEdits(string(orig), edits)
-						// the file may contain multiple trailing
-						// newlines if the user places empty lines
-						// between files in the archive. normalize
-						// this to a single newline.
-						want := string(bytes.TrimRight(vf.Data, "\n")) + "\n"
-						formatted, err := format.Source([]byte(out))
-						if err != nil {
-							continue
+			// Get the golden file and read the contents.
+			ar, err := txtar.ParseFile(file.Name() + ".golden")
+			if err != nil {
+				t.Errorf("error reading %s.golden: %v", file.Name(), err)
+				continue
+			}
+
+			if len(ar.Files) > 0 {
+				// one virtual file per kind of suggested fix
+
+				if len(ar.Comment) != 0 {
+					// we allow either just the comment, or just virtual
+					// files, not both. it is not clear how "both" should
+					// behave.
+					t.Errorf("%s.golden has leading comment; we don't know what to do with it", file.Name())
+					continue
+				}
+
+				for sf, edits := range fixes {
+					found := false
+					for _, vf := range ar.Files {
+						if vf.Name == sf {
+							found = true
+							out := diff.ApplyEdits(string(orig), edits)
+							// the file may contain multiple trailing
+							// newlines if the user places empty lines
+							// between files in the archive. normalize
+							// this to a single newline.
+							want := string(bytes.TrimRight(vf.Data, "\n")) + "\n"
+							formatted, err := format.Source([]byte(out))
+							if err != nil {
+								continue
+							}
+							if want != string(formatted) {
+								d := myers.ComputeEdits("", want, string(formatted))
+								t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, d))
+							}
+							break
 						}
-						if want != string(formatted) {
-							d := myers.ComputeEdits("", want, string(formatted))
-							t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(fmt.Sprintf("%s.golden [%s]", file.Name(), sf), "actual", want, d))
-						}
-						break
+					}
+					if !found {
+						t.Errorf("no section for suggested fix %q in %s.golden", sf, file.Name())
 					}
 				}
-				if !found {
-					t.Errorf("no section for suggested fix %q in %s.golden", sf, file.Name())
+			} else {
+				// all suggested fixes are represented by a single file
+
+				var catchallEdits []diff.TextEdit
+				for _, edits := range fixes {
+					catchallEdits = append(catchallEdits, edits...)
 				}
-			}
-		} else {
-			// all suggested fixes are represented by a single file
 
-			var catchallEdits []diff.TextEdit
-			for _, edits := range fixes {
-				catchallEdits = append(catchallEdits, edits...)
-			}
+				out := diff.ApplyEdits(string(orig), catchallEdits)
+				want := string(ar.Comment)
 
-			out := diff.ApplyEdits(string(orig), catchallEdits)
-			want := string(ar.Comment)
-
-			formatted, err := format.Source([]byte(out))
-			if err != nil {
-				continue
-			}
-			if want != string(formatted) {
-				d := myers.ComputeEdits("", want, string(formatted))
-				t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(file.Name()+".golden", "actual", want, d))
+				formatted, err := format.Source([]byte(out))
+				if err != nil {
+					continue
+				}
+				if want != string(formatted) {
+					d := myers.ComputeEdits("", want, string(formatted))
+					t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(file.Name()+".golden", "actual", want, d))
+				}
 			}
 		}
 	}
@@ -320,7 +330,6 @@ func loadPackages(dir string, patterns ...string) ([]*packages.Package, error) {
 // specified by the contents of "// want ..." comments in the package's
 // source files, which must have been parsed with comments enabled.
 func check(t Testing, gopath string, pass *analysis.Pass, diagnostics []analysis.Diagnostic, facts map[types.Object][]analysis.Fact) {
-
 	type key struct {
 		file string
 		line int

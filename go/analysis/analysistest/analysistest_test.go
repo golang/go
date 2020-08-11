@@ -33,7 +33,8 @@ func TestTheTest(t *testing.T) {
 	// which (by default) reports calls to functions named 'println'.
 	findcall.Analyzer.Flags.Set("name", "println")
 
-	filemap := map[string]string{"a/b.go": `package main // want package:"found"
+	filemap := map[string]string{
+		"a/b.go": `package main // want package:"found"
 
 func main() {
 	// The expectation is ill-formed:
@@ -108,7 +109,12 @@ func main() {
 
 // OK (facts and diagnostics on same line)
 func println(...interface{}) { println_TEST_() } // want println:"found" "call of println(...)"
-`}
+`,
+		"a/b_test.go": `package main
+
+// Test file shouldn't mess with things (issue #40574)
+`,
+	}
 	dir, cleanup, err := analysistest.WriteFiles(filemap)
 	if err != nil {
 		t.Fatal(err)
@@ -120,6 +126,15 @@ func println(...interface{}) { println_TEST_() } // want println:"found" "call o
 	analysistest.RunWithSuggestedFixes(t2, dir, findcall.Analyzer, "a")
 
 	want := []string{
+		`a/b.go:5: in 'want' comment: unexpected ":"`,
+		`a/b.go:6: in 'want' comment: got String after foo, want ':'`,
+		`a/b.go:7: in 'want' comment: got EOF, want regular expression`,
+		`a/b.go:8: in 'want' comment: invalid char escape`,
+		`a/b.go:11:9: diagnostic "call of println(...)" does not match pattern "wrong expectation text"`,
+		`a/b.go:14:9: unexpected diagnostic: call of println(...)`,
+		`a/b.go:11: no diagnostic was reported matching "wrong expectation text"`,
+		`a/b.go:17: no diagnostic was reported matching "unsatisfied expectation"`,
+		// duplicate copies of each message from the test package (see issue #40574)
 		`a/b.go:5: in 'want' comment: unexpected ":"`,
 		`a/b.go:6: in 'want' comment: got String after foo, want ':'`,
 		`a/b.go:7: in 'want' comment: got EOF, want regular expression`,
