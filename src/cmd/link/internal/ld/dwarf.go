@@ -1908,11 +1908,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	d.synthesizeslicetypes(ctxt, dwtypes.Child)
 	d.synthesizemaptypes(ctxt, dwtypes.Child)
 	d.synthesizechantypes(ctxt, dwtypes.Child)
-
-	// NB: at this stage we have all the DIE objects constructed, but
-	// they have loader.Sym attributes and not sym.Symbol attributes.
-	// At the point when loadlibfull runs we will need to visit
-	// every DIE constructed and convert the symbols.
 }
 
 // dwarfGenerateDebugSyms constructs debug_line, debug_frame, and
