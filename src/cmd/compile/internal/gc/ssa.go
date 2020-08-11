@@ -4374,11 +4374,11 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 
 	switch n.Op {
 	case OCALLFUNC:
+		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+			testLateExpansion = true
+		}
 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
 			sym = fn.Sym
-			if ssa.LateCallExpansionEnabledWithin(s.f) {
-				testLateExpansion = true
-			}
 			break
 		}
 		closure = s.expr(fn)
@@ -4386,19 +4386,16 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 			// Deferred nil function needs to panic when the function is invoked,
 			// not the point of defer statement.
 			s.maybeNilCheckClosure(closure, k)
-			if k == callNormal && ssa.LateCallExpansionEnabledWithin(s.f) {
-				testLateExpansion = true
-			}
 		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
 			s.Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
+		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+			testLateExpansion = true
+		}
 		if k == callNormal {
 			sym = fn.Sym
-			if ssa.LateCallExpansionEnabledWithin(s.f) {
-				testLateExpansion = true
-			}
 			break
 		}
 		closure = s.getMethodClosure(fn)
@@ -4408,13 +4405,13 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		if fn.Op != ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
+		if k != callDeferStack && ssa.LateCallExpansionEnabledWithin(s.f) {
+			testLateExpansion = true
+		}
 		var iclosure *ssa.Value
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
 		if k == callNormal {
 			codeptr = s.load(types.Types[TUINTPTR], iclosure)
-			if ssa.LateCallExpansionEnabledWithin(s.f) {
-				testLateExpansion = true
-			}
 		} else {
 			closure = iclosure
 		}
@@ -4549,9 +4546,21 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		// call target
 		switch {
 		case k == callDefer:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc, ACArgs, ACResults), s.mem())
+			aux := ssa.StaticAuxCall(deferproc, ACArgs, ACResults)
+			if testLateExpansion {
+				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+				call.AddArgs(callArgs...)
+			} else {
+				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+			}
 		case k == callGo:
-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc, ACArgs, ACResults), s.mem())
+			aux := ssa.StaticAuxCall(newproc, ACArgs, ACResults)
+			if testLateExpansion {
+				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+				call.AddArgs(callArgs...)
+			} else {
+				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+			}
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr
