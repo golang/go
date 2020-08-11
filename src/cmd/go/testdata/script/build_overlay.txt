@@ -1,0 +1,64 @@
+[short] skip
+
+# Test building in overlays.
+# TODO(matloob): add a test case where the destination file in the replace map
+#   isn't a go file. Either completely exclude that case in fs.IsDirWithGoFiles
+#   if the compiler doesn't allow it, or test that it works all the way.
+
+# The main package (m) is contained in an overlay. It imports m/dir2 which has one
+# file in an overlay and one file outside the overlay, which in turn imports m/dir,
+# which only has source files in the overlay.
+
+! go build .
+go build -overlay overlay.json -o main$GOEXE .
+exec ./main$goexe
+stdout '^hello$'
+
+-- go.mod --
+// TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
+module m
+
+go 1.16
+
+-- dir2/h.go --
+package dir2
+
+func PrintMessage() {
+    printMessage()
+}
+-- dir/foo.txt --
+The build action code currently expects the package directory
+to exist, so it can run the compiler in that directory.
+TODO(matloob): Remove this requirement.
+-- overlay.json --
+{
+    "Replace": {
+        "f.go": "overlay/f.go",
+        "dir/g.go": "overlay/dir_g.go",
+        "dir2/i.go": "overlay/dir2_i.go"
+    }
+}
+-- overlay/f.go --
+package main
+
+import "m/dir2"
+
+func main() {
+    dir2.PrintMessage()
+}
+-- overlay/dir_g.go --
+package dir
+
+import "fmt"
+
+func PrintMessage() {
+    fmt.Println("hello")
+}
+-- overlay/dir2_i.go --
+package dir2
+
+import "m/dir"
+
+func printMessage() {
+    dir.PrintMessage()
+}

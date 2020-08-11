@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
@@ -196,6 +197,10 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
+
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
 	// Only if we're listing all environment variables ("go env")

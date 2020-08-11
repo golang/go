@@ -9,6 +9,7 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -24,6 +25,9 @@ func BuildInit() {
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
+	if err := fsys.Init(base.Cwd); err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	// Make sure -pkgdir is absolute, because we run commands
 	// in different directories.

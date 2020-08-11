@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -438,57 +439,9 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// We don't care about build tags, not even "+build ignore".
 	// We're just looking for a plausible directory.
 	res := haveGoFilesCache.Do(dir, func() interface{} {
-		ok, err := isDirWithGoFiles(dir)
+		ok, err := fsys.IsDirWithGoFiles(dir)
 		return goFilesEntry{haveGoFiles: ok, err: err}
 	}).(goFilesEntry)
 
 	return dir, res.haveGoFiles, res.err
-}
-
-func isDirWithGoFiles(dir string) (bool, error) {
-	f, err := os.Open(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	defer f.Close()
-
-	names, firstErr := f.Readdirnames(-1)
-	if firstErr != nil {
-		if fi, err := f.Stat(); err == nil && !fi.IsDir() {
-			return false, nil
-		}
-
-		// Rewrite the error from ReadDirNames to include the path if not present.
-		// See https://golang.org/issue/38923.
-		var pe *os.PathError
-		if !errors.As(firstErr, &pe) {
-			firstErr = &os.PathError{Op: "readdir", Path: dir, Err: firstErr}
-		}
-	}
-
-	for _, name := range names {
-		if strings.HasSuffix(name, ".go") {
-			info, err := os.Stat(filepath.Join(dir, name))
-			if err == nil && info.Mode().IsRegular() {
-				// If any .go source file exists, the package exists regardless of
-				// errors for other source files. Leave further error reporting for
-				// later.
-				return true, nil
-			}
-			if firstErr == nil {
-				if os.IsNotExist(err) {
-					// If the file was concurrently deleted, or was a broken symlink,
-					// convert the error to an opaque error instead of one matching
-					// os.IsNotExist.
-					err = errors.New(err.Error())
-				}
-				firstErr = err
-			}
-		}
-	}
-
-	return false, firstErr
 }

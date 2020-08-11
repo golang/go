@@ -11,12 +11,15 @@ import (
 	"fmt"
 	"go/build"
 	"internal/cfg"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"cmd/go/internal/fsys"
 
 	"cmd/internal/objabi"
 )
@@ -102,6 +105,15 @@ func defaultContext() build.Context {
 		// So ctxt.CgoEnabled (== go/build.Default.CgoEnabled) is correct
 		// as is and can be left unmodified.
 		// Nothing to do here.
+	}
+
+	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+		return fsys.Open(path)
+	}
+	ctxt.ReadDir = fsys.ReadDir
+	ctxt.IsDir = func(path string) bool {
+		isDir, err := fsys.IsDir(path)
+		return err == nil && isDir
 	}
 
 	return ctxt

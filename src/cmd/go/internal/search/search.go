@@ -264,6 +264,7 @@ func (m *Match) MatchDirs() {
 	}
 
 	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+		// TODO(#39958): Handle walk for overlays.
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
 		}
