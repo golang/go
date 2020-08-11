@@ -394,7 +394,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
-		if Vn != nil && len(Vn.targs) > 0 {
+		if Vn != nil && len(Vn.tparams) > 0 {
 			// Be careful: The number of type arguments may not match
 			// the number of receiver parameters. If so, an error was
 			// reported earlier but the length discrepancy is still
