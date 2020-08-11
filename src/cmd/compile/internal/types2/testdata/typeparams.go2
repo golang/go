@@ -66,7 +66,7 @@ func new(type T)() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new(int)()
 
-func _(type T)(map[T /* ERROR invalid map key type */]int) // w/o contract we don't know if T is comparable
+func _(type T)(map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
 
 func f1(type T1)(struct{T1}) int
 var _ = f1(int)(struct{T1}{})

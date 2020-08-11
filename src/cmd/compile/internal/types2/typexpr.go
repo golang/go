@@ -550,7 +550,11 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		// it is safe to continue in any case (was issue 6667).
 		check.atEnd(func() {
 			if !Comparable(typ.key) {
-				check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
+				var why string
+				if typ.key.TypeParam() != nil {
+					why = " (missing comparable constraint)"
+				}
+				check.errorf(e.Key.Pos(), "invalid map key type %s%s", typ.key, why)
 			}
 		})
 
