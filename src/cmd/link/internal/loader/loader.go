@@ -93,11 +93,12 @@ type oReader struct {
 	version      int    // version of static symbol
 	flags        uint32 // read from object file
 	pkgprefix    string
-	syms         []Sym  // Sym's global index, indexed by local index
-	ndef         int    // cache goobj.Reader.NSym()
-	nhashed64def int    // cache goobj.Reader.NHashed64Def()
-	nhasheddef   int    // cache goobj.Reader.NHashedDef()
-	objidx       uint32 // index of this reader in the objs slice
+	syms         []Sym    // Sym's global index, indexed by local index
+	pkg          []uint32 // indices of referenced package by PkgIdx (index into loader.objs array)
+	ndef         int      // cache goobj.Reader.NSym()
+	nhashed64def int      // cache goobj.Reader.NHashed64Def()
+	nhasheddef   int      // cache goobj.Reader.NHashedDef()
+	objidx       uint32   // index of this reader in the objs slice
 }
 
 // Total number of defined symbols (package symbols, hashed symbols, and
@@ -219,7 +220,7 @@ type Loader struct {
 
 	deferReturnTramp map[Sym]bool // whether the symbol is a trampoline of a deferreturn call
 
-	objByPkg map[string]*oReader // map package path to its Go object reader
+	objByPkg map[string]uint32 // map package path to the index of its Go object reader
 
 	anonVersion int // most recently assigned ext static sym pseudo-version
 
@@ -331,7 +332,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
 		extReader:            extReader,
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
-		objByPkg:             make(map[string]*oReader),
+		objByPkg:             make(map[string]uint32),
 		outer:                make(map[Sym]Sym),
 		sub:                  make(map[Sym]Sym),
 		dynimplib:            make(map[Sym]string),
@@ -370,7 +371,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	}
 	pkg = objabi.PathToPrefix(pkg) // the object file contains escaped package path
 	if _, ok := l.objByPkg[pkg]; !ok {
-		l.objByPkg[pkg] = r
+		l.objByPkg[pkg] = r.objidx
 	}
 	i := Sym(len(l.objSyms))
 	l.start[r] = i
@@ -635,12 +636,7 @@ func (l *Loader) resolve(r *oReader, s goobj.SymRef) Sym {
 	case goobj.PkgIdxSelf:
 		rr = r
 	default:
-		pkg := r.Pkg(int(p))
-		var ok bool
-		rr, ok = l.objByPkg[pkg]
-		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
-		}
+		rr = l.objs[r.pkg[p]].r
 	}
 	return l.toGlobal(rr, s.SymIdx)
 }
@@ -2193,6 +2189,18 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		if osym.UsedInIface() {
 			l.SetAttrUsedInIface(gi, true)
 		}
+	}
+
+	// referenced packages
+	npkg := r.NPkg()
+	r.pkg = make([]uint32, npkg)
+	for i := 1; i < npkg; i++ { // PkgIdx 0 is a dummy invalid package
+		pkg := r.Pkg(i)
+		objidx, ok := l.objByPkg[pkg]
+		if !ok {
+			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+		}
+		r.pkg[i] = objidx
 	}
 
 	// load flags of package refs
