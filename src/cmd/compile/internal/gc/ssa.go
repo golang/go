@@ -4421,6 +4421,7 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 
 	var call *ssa.Value
 	if k == callDeferStack {
+		testLateExpansion = ssa.LateCallExpansionEnabledWithin(s.f)
 		// Make a defer struct d on the stack.
 		t := deferstruct(stksize)
 		d := tempAt(n.Pos, s.curfn, t)
@@ -4471,10 +4472,17 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 		}
 
 		// Call runtime.deferprocStack with pointer to _defer record.
-		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
-		s.store(types.Types[TUINTPTR], arg0, addr)
 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(Ctxt.FixedFrameSize())})
-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults), s.mem())
+		aux := ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults)
+		if testLateExpansion {
+			callArgs = append(callArgs, addr, s.mem())
+			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			call.AddArgs(callArgs...)
+		} else {
+			arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
+			s.store(types.Types[TUINTPTR], arg0, addr)
+			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+		}
 		if stksize < int64(Widthptr) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
