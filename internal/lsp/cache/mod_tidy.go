@@ -87,15 +87,20 @@ func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.T
 
 		snapshot := arg.(*snapshot)
 		pm, err := snapshot.ParseMod(ctx, fh)
-		if err != nil {
-			return &modTidyData{err: err}
-		}
-		if len(pm.ParseErrors) > 0 {
+		if err != nil || len(pm.ParseErrors) > 0 {
+			if err == nil {
+				err = fmt.Errorf("could not parse module to tidy: %v", pm.ParseErrors)
+			}
+			var errors []source.Error
+			if pm != nil {
+				errors = pm.ParseErrors
+			}
 			return &modTidyData{
 				tidied: &source.TidiedModule{
 					Parsed: pm,
+					Errors: errors,
 				},
-				err: fmt.Errorf("could not parse module to tidy: %v", pm.ParseErrors),
+				err: err,
 			}
 		}
 		tmpURI, runner, inv, cleanup, err := snapshot.goCommandInvocation(ctx, true, "mod", []string{"tidy"})
@@ -359,7 +364,7 @@ func missingModuleError(snapshot source.Snapshot, pm *source.ParsedModule, req *
 		return source.Error{}, err
 	}
 	fix := &source.SuggestedFix{
-		Title: "Add %s to your go.mod file",
+		Title: fmt.Sprintf("Add %s to your go.mod file", req.Mod.Path),
 		Edits: map[span.URI][]protocol.TextEdit{
 			pm.Mapper.URI: edits,
 		},

@@ -71,10 +71,15 @@ func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*sour
 		}
 		data.parsed.File, data.err = modfile.Parse(modFH.URI().Filename(), contents, nil)
 		if data.err != nil {
-			// Attempt to convert the error to a non-fatal parse error.
+			// Attempt to convert the error to a standardized parse error.
 			if parseErr, extractErr := extractModParseErrors(modFH.URI(), m, data.err, contents); extractErr == nil {
-				data.err = nil
 				data.parsed.ParseErrors = []source.Error{*parseErr}
+			}
+			// If the file was still parsed, we don't want to treat this as a
+			// fatal error. Note: This currently cannot happen as modfile.Parse
+			// always returns an error when the file is nil.
+			if data.parsed.File != nil {
+				data.err = nil
 			}
 		}
 		return data

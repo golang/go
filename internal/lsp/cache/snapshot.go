@@ -1153,7 +1153,7 @@ func (s *snapshot) findWorkspaceDirectories(ctx context.Context, modFH source.Fi
 		return m
 	}
 	for _, r := range mod.File.Replace {
-		// We may be replacing a module with a different version. not a path
+		// We may be replacing a module with a different version, not a path
 		// on disk.
 		if r.New.Version != "" {
 			continue
