@@ -28,6 +28,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
+	t.Parallel()
+
 	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list: %v\n%s", err, out)
@@ -190,6 +192,13 @@ func TestDWARFiOS(t *testing.T) {
 	}
 	if err := exec.Command("xcrun", "--help").Run(); err != nil {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+	}
+	// Check to see if the ios tools are installed. It's possible to have the command line tools
+	// installed without the iOS sdk.
+	if output, err := exec.Command("xcodebuild -showsdks").CombinedOutput(); err != nil {
+		t.Skipf("error running xcodebuild, required for iOS cross build: %v", err)
+	} else if !strings.Contains(string(output), "iOS SDK") {
+		t.Skipf("iOS SDK not detected.")
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
 	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.

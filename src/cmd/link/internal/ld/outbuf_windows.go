@@ -10,7 +10,15 @@ import (
 	"unsafe"
 )
 
+// Mmap maps the output file with the given size. It unmaps the old mapping
+// if it is already mapped. It also flushes any in-heap data to the new
+// mapping.
 func (out *OutBuf) Mmap(filesize uint64) error {
+	oldlen := len(out.buf)
+	if oldlen != 0 {
+		out.munmap()
+	}
+
 	err := out.f.Truncate(int64(filesize))
 	if err != nil {
 		Exitf("resize output file failed: %v", err)
@@ -28,6 +36,13 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 		return err
 	}
 	*(*reflect.SliceHeader)(unsafe.Pointer(&out.buf)) = reflect.SliceHeader{Data: ptr, Len: int(filesize), Cap: int(filesize)}
+
+	// copy heap to new mapping
+	if uint64(oldlen+len(out.heap)) > filesize {
+		panic("mmap size too small")
+	}
+	copy(out.buf[oldlen:], out.heap)
+	out.heap = out.heap[:0]
 	return nil
 }
 

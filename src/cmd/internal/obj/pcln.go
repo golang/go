@@ -5,6 +5,7 @@
 package obj
 
 import (
+	"cmd/internal/goobj"
 	"encoding/binary"
 	"log"
 )
@@ -130,28 +131,13 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := linkgetlineFromPos(ctxt, p.Pos)
+	f, l := getFileIndexAndLine(ctxt, p.Pos)
 	if arg == nil {
 		return l
 	}
 	pcln := arg.(*Pcln)
-
-	if f == pcln.Lastfile {
-		return int32(pcln.Lastindex)
-	}
-
-	for i, file := range pcln.File {
-		if file == f {
-			pcln.Lastfile = f
-			pcln.Lastindex = i
-			return int32(i)
-		}
-	}
-	i := len(pcln.File)
-	pcln.File = append(pcln.File, f)
-	pcln.Lastfile = f
-	pcln.Lastindex = i
-	return int32(i)
+	pcln.UsedFiles[goobj.CUFileIndex(f)] = struct{}{}
+	return int32(f)
 }
 
 // pcinlineState holds the state used to create a function's inlining
@@ -263,6 +249,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 
 func linkpcln(ctxt *Link, cursym *LSym) {
 	pcln := &cursym.Func.Pcln
+	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
 
 	npcdata := 0
 	nfuncdata := 0

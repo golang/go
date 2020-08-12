@@ -27,17 +27,6 @@ func expandpkg(t0 string, pkg string) string {
 	return strings.Replace(t0, `"".`, pkg+".", -1)
 }
 
-func resolveABIAlias(s *sym.Symbol) *sym.Symbol {
-	if s.Type != sym.SABIALIAS {
-		return s
-	}
-	target := s.R[0].Sym
-	if target.Type == sym.SABIALIAS {
-		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", s, target))
-	}
-	return target
-}
-
 // TODO:
 //	generate debugging section in binary.
 //	once the dust settles, try to move some code to
@@ -50,18 +39,12 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
-		if *flagU {
-			errorexit()
-		}
 		return
 	}
 
 	bdata := make([]byte, length)
 	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
-		if *flagU {
-			errorexit()
-		}
 		return
 	}
 	data := string(bdata)
@@ -73,9 +56,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 			line, data = data[:i], data[i+1:]
 		} else {
 			line, data = data, ""
-		}
-		if line == "safe" {
-			lib.Safe = true
 		}
 		if line == "main" {
 			lib.Main = true
@@ -93,9 +73,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 		i := strings.IndexByte(data[p0+1:], '\n')
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
-			if *flagU {
-				errorexit()
-			}
 			return
 		}
 		p0 += 1 + i
@@ -106,9 +83,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 		}
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
-			if *flagU {
-				errorexit()
-			}
 			return
 		}
 		p1 += p0
@@ -320,24 +294,24 @@ func adddynlib(ctxt *Link, lib string) {
 	seenlib[lib] = true
 
 	if ctxt.IsELF {
-		dsu := ctxt.loader.MakeSymbolUpdater(ctxt.DynStr2)
+		dsu := ctxt.loader.MakeSymbolUpdater(ctxt.DynStr)
 		if dsu.Size() == 0 {
 			dsu.Addstring("")
 		}
-		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic2)
-		Elfwritedynent2(ctxt.Arch, du, DT_NEEDED, uint64(dsu.Addstring(lib)))
+		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic)
+		Elfwritedynent(ctxt.Arch, du, DT_NEEDED, uint64(dsu.Addstring(lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
 	}
 }
 
-func Adddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
+func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
 	if ldr.SymDynid(s) >= 0 || target.LinkMode == LinkExternal {
 		return
 	}
 
 	if target.IsELF {
-		elfadddynsym2(ldr, target, syms, s)
+		elfadddynsym(ldr, target, syms, s)
 	} else if target.HeadType == objabi.Hdarwin {
 		ldr.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
 	} else if target.HeadType == objabi.Hwindows {
@@ -351,19 +325,15 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
 		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
-			bld := l.MakeSymbolUpdater(i)
-			bld.SetSpecial(true)
-			bld.SetNotInSymbolTable(true)
-			if bld.Reachable() {
+			if l.AttrReachable(i) {
+				l.SetAttrSpecial(i, true)
+				l.SetAttrNotInSymbolTable(i, true)
 				buf.WriteString(name[9:])
 				for p := l.Reachparent[i]; p != 0; p = l.Reachparent[p] {
 					buf.WriteString("\t")
 					buf.WriteString(l.SymName(p))
 				}
 				buf.WriteString("\n")
-
-				bld.SetType(sym.SCONST)
-				bld.SetValue(0)
 			}
 		}
 	}
@@ -383,13 +353,13 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 func (ctxt *Link) addexport() {
 	// Track undefined external symbols during external link.
 	if ctxt.LinkMode == LinkExternal {
-		for _, s := range ctxt.Textp2 {
+		for _, s := range ctxt.Textp {
 			if ctxt.loader.AttrSpecial(s) || ctxt.loader.AttrSubSymbol(s) {
 				continue
 			}
 			relocs := ctxt.loader.Relocs(s)
 			for i := 0; i < relocs.Count(); i++ {
-				if rs := relocs.At2(i).Sym(); rs != 0 {
+				if rs := relocs.At(i).Sym(); rs != 0 {
 					if ctxt.loader.SymType(rs) == sym.Sxxx && !ctxt.loader.AttrLocal(rs) {
 						// sanity check
 						if len(ctxt.loader.Data(rs)) != 0 {
@@ -408,8 +378,8 @@ func (ctxt *Link) addexport() {
 		return
 	}
 
-	for _, exp := range ctxt.dynexp2 {
-		Adddynsym2(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
+	for _, exp := range ctxt.dynexp {
+		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
 	}
 	for _, lib := range dynlib {
 		adddynlib(ctxt, lib)

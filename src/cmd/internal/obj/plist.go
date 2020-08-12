@@ -127,6 +127,8 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	if s.OnList() {
 		ctxt.Diag("symbol %s listed multiple times", s.Name)
 	}
+	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+	s.Func.FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -139,26 +141,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s
-	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
-
-	// When using new object files, the DWARF symbols are unnamed aux
-	// symbols and don't need to be added to ctxt.Data.
-	// But the old object file still needs them.
-	if !ctxt.Flag_go115newobj {
-		info.Type = objabi.SDWARFINFO
-		info.Set(AttrDuplicateOK, s.DuplicateOK())
-		if loc != nil {
-			loc.Type = objabi.SDWARFLOC
-			loc.Set(AttrDuplicateOK, s.DuplicateOK())
-			ctxt.Data = append(ctxt.Data, loc)
-		}
-		ranges.Type = objabi.SDWARFRANGE
-		ranges.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, info, ranges)
-		lines.Type = objabi.SDWARFLINES
-		lines.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, lines)
-	}
+	ctxt.dwarfSym(s)
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
@@ -188,6 +171,9 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 		}
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
+	}
+	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
+		s.Set(AttrStatic, true)
 	}
 }
 

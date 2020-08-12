@@ -10,7 +10,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
@@ -97,7 +97,7 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType) {
+func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
 	ir := &intReader{in, pkg}
 
 	version := ir.uint64()
@@ -316,6 +316,7 @@ func (r *importReader) doDecl(n *Node) {
 		resumecheckwidth()
 
 		if underlying.IsInterface() {
+			r.typeExt(t)
 			break
 		}
 
@@ -346,6 +347,7 @@ func (r *importReader) doDecl(n *Node) {
 		}
 		t.Methods().Set(ms)
 
+		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
@@ -697,18 +699,27 @@ func (r *importReader) linkname(s *types.Sym) {
 }
 
 func (r *importReader) symIdx(s *types.Sym) {
-	if Ctxt.Flag_go115newobj {
-		lsym := s.Linksym()
-		idx := int32(r.int64())
-		if idx != -1 {
-			if s.Linkname != "" {
-				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
-			}
-			lsym.SymIdx = idx
-			lsym.Set(obj.AttrIndexed, true)
+	lsym := s.Linksym()
+	idx := int32(r.int64())
+	if idx != -1 {
+		if s.Linkname != "" {
+			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
 		}
+		lsym.SymIdx = idx
+		lsym.Set(obj.AttrIndexed, true)
 	}
 }
+
+func (r *importReader) typeExt(t *types.Type) {
+	i, pi := r.int64(), r.int64()
+	if i != -1 && pi != -1 {
+		typeSymIdx[t] = [2]int64{i, pi}
+	}
+}
+
+// Map imported type T to the index of type descriptor symbols of T and *T,
+// so we can use index to reference the symbol.
+var typeSymIdx = make(map[*types.Type][2]int64)
 
 func (r *importReader) doInline(n *Node) {
 	if len(n.Func.Inl.Body) != 0 {

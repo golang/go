@@ -166,7 +166,7 @@ func dumpLinkerObj(bout *bio.Writer) {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	obj.WriteObjFile(Ctxt, bout, myimportpath)
+	obj.WriteObjFile(Ctxt, bout)
 }
 
 func addptabs() {
@@ -291,10 +291,8 @@ func addGCLocals() {
 		}
 		if x := s.Func.StackObjects; x != nil {
 			attr := int16(obj.RODATA)
-			if s.DuplicateOK() {
-				attr |= obj.DUPOK
-			}
 			ggloblsym(x, int32(len(x.P)), attr)
+			x.Set(obj.AttrStatic, true)
 		}
 		if x := s.Func.OpenCodedDeferInfo; x != nil {
 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
@@ -358,6 +356,7 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 		// string data
 		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+		symdata.Set(obj.AttrContentAddressable, true)
 	}
 
 	return symdata

@@ -40,7 +40,12 @@ func Open(name string) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Reader{f: f, Reader: bufio.NewReader(f)}, nil
+	return NewReader(f), nil
+}
+
+// NewReader returns a Reader from an open file.
+func NewReader(f *os.File) *Reader {
+	return &Reader{f: f, Reader: bufio.NewReader(f)}
 }
 
 func (r *Reader) MustSeek(offset int64, whence int) int64 {

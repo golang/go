@@ -44,12 +44,13 @@ func linknew(arch *sys.Arch) *Link {
 	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
 	ctxt := &Link{
 		Target:        Target{Arch: arch},
-		Syms:          sym.NewSymbols(),
+		version:       sym.SymVerStatic,
 		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
 		Out:           NewOutBuf(arch),
 		LibraryByPkg:  make(map[string]*sym.Library),
 		numelfsym:     1,
 		ErrorReporter: ErrorReporter{ErrorReporter: ler},
+		generatorSyms: make(map[loader.Sym]generatorFunc),
 	}
 
 	if objabi.GOARCH != arch.Name {

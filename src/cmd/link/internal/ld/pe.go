@@ -472,8 +472,8 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	ctxt.Out.SeekSet(int64(sect.pointerToRawData))
 	sect.checkOffset(ctxt.Out.Offset())
 
-	init_entry := ctxt.Syms.Lookup(*flagEntrySymbol, 0)
-	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
+	init_entry := ctxt.loader.Lookup(*flagEntrySymbol, 0)
+	addr := uint64(ctxt.loader.SymValue(init_entry)) - ctxt.loader.SymSect(init_entry).Vaddr
 	switch objabi.GOARCH {
 	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
@@ -489,58 +489,64 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		ctxt.Out.Write8(0)
 	}
 
+	ldr := ctxt.loader
+
 	// relocsect relocates symbols from first in section sect, and returns
 	// the total number of relocations emitted.
-	relocsect := func(sect *sym.Section, syms []*sym.Symbol, base uint64) int {
+	relocsect := func(sect *sym.Section, syms []loader.Sym, base uint64) int {
 		// If main section has no bits, nothing to relocate.
 		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 			return 0
 		}
-		relocs := 0
+		nrelocs := 0
 		sect.Reloff = uint64(ctxt.Out.Offset())
 		for i, s := range syms {
-			if !s.Attr.Reachable() {
+			if !ldr.AttrReachable(s) {
 				continue
 			}
-			if uint64(s.Value) >= sect.Vaddr {
+			if uint64(ldr.SymValue(s)) >= sect.Vaddr {
 				syms = syms[i:]
 				break
 			}
 		}
 		eaddr := int32(sect.Vaddr + sect.Length)
-		for _, sym := range syms {
-			if !sym.Attr.Reachable() {
+		for _, s := range syms {
+			if !ldr.AttrReachable(s) {
 				continue
 			}
-			if sym.Value >= int64(eaddr) {
+			if ldr.SymValue(s) >= int64(eaddr) {
 				break
 			}
-			for ri := range sym.R {
-				r := &sym.R[ri]
-				if r.Done {
+			// Compute external relocations on the go, and pass to PEreloc1
+			// to stream out.
+			relocs := ldr.Relocs(s)
+			for ri := 0; ri < relocs.Count(); ri++ {
+				r := relocs.At(ri)
+				rr, ok := extreloc(ctxt, ldr, s, r)
+				if !ok {
 					continue
 				}
-				if r.Xsym == nil {
-					Errorf(sym, "missing xsym in relocation")
+				if rr.Xsym == 0 {
+					ctxt.Errorf(s, "missing xsym in relocation")
 					continue
 				}
-				if r.Xsym.Dynid < 0 {
-					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+				if ldr.SymDynid(rr.Xsym) < 0 {
+					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
 				}
-				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
-					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
-				relocs++
+				nrelocs++
 			}
 		}
 		sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
-		return relocs
+		return nrelocs
 	}
 
 	sects := []struct {
 		peSect *peSection
 		seg    *sym.Segment
-		syms   []*sym.Symbol
+		syms   []loader.Sym
 	}{
 		{f.textSect, &Segtext, ctxt.Textp},
 		{f.rdataSect, &Segrodata, ctxt.datap},
@@ -560,8 +566,8 @@ dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != sect.Sym ||
-			si.secSym().Sect != sect {
+		if si.secSym() != loader.Sym(sect.Sym) ||
+			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
 		for _, pesect := range f.sections {
@@ -576,12 +582,12 @@ dwarfLoop:
 	}
 
 	f.ctorsSect.emitRelocations(ctxt.Out, func() int {
-		dottext := ctxt.Syms.Lookup(".text", 0)
+		dottext := ldr.Lookup(".text", 0)
 		ctxt.Out.Write32(0)
-		ctxt.Out.Write32(uint32(dottext.Dynid))
+		ctxt.Out.Write32(uint32(ldr.SymDynid(dottext)))
 		switch objabi.GOARCH {
 		default:
-			Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
+			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
 		case "386":
 			ctxt.Out.Write16(IMAGE_REL_I386_DIR32)
 		case "amd64":
@@ -595,12 +601,12 @@ dwarfLoop:
 
 // writeSymbol appends symbol s to file f symbol table.
 // It also sets s.Dynid to written symbol number.
-func (f *peFile) writeSymbol(out *OutBuf, s *sym.Symbol, value int64, sectidx int, typ uint16, class uint8) {
-	if len(s.Name) > 8 {
+func (f *peFile) writeSymbol(out *OutBuf, ldr *loader.Loader, s loader.Sym, name string, value int64, sectidx int, typ uint16, class uint8) {
+	if len(name) > 8 {
 		out.Write32(0)
-		out.Write32(uint32(f.stringTable.add(s.Name)))
+		out.Write32(uint32(f.stringTable.add(name)))
 	} else {
-		out.WriteStringN(s.Name, 8)
+		out.WriteStringN(name, 8)
 	}
 	out.Write32(uint32(value))
 	out.Write16(uint16(sectidx))
@@ -608,31 +614,32 @@ func (f *peFile) writeSymbol(out *OutBuf, s *sym.Symbol, value int64, sectidx in
 	out.Write8(class)
 	out.Write8(0) // no aux entries
 
-	s.Dynid = int32(f.symbolCount)
+	ldr.SetSymDynid(s, int32(f.symbolCount))
 
 	f.symbolCount++
 }
 
 // mapToPESection searches peFile f for s symbol's location.
 // It returns PE section index, and offset within that section.
-func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int, offset int64, err error) {
-	if s.Sect == nil {
-		return 0, 0, fmt.Errorf("could not map %s symbol with no section", s.Name)
+func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkMode) (pesectidx int, offset int64, err error) {
+	sect := ldr.SymSect(s)
+	if sect == nil {
+		return 0, 0, fmt.Errorf("could not map %s symbol with no section", ldr.SymName(s))
 	}
-	if s.Sect.Seg == &Segtext {
-		return f.textSect.index, int64(uint64(s.Value) - Segtext.Vaddr), nil
+	if sect.Seg == &Segtext {
+		return f.textSect.index, int64(uint64(ldr.SymValue(s)) - Segtext.Vaddr), nil
 	}
-	if s.Sect.Seg == &Segrodata {
-		return f.rdataSect.index, int64(uint64(s.Value) - Segrodata.Vaddr), nil
+	if sect.Seg == &Segrodata {
+		return f.rdataSect.index, int64(uint64(ldr.SymValue(s)) - Segrodata.Vaddr), nil
 	}
-	if s.Sect.Seg != &Segdata {
-		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .rdata or .data section", s.Name)
+	if sect.Seg != &Segdata {
+		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .rdata or .data section", ldr.SymName(s))
 	}
-	v := uint64(s.Value) - Segdata.Vaddr
+	v := uint64(ldr.SymValue(s)) - Segdata.Vaddr
 	if linkmode != LinkExternal {
 		return f.dataSect.index, int64(v), nil
 	}
-	if s.Type == sym.SDATA {
+	if ldr.SymType(s) == sym.SDATA {
 		return f.dataSect.index, int64(v), nil
 	}
 	// Note: although address of runtime.edata (type sym.SDATA) is at the start of .bss section
@@ -645,60 +652,100 @@ func (f *peFile) mapToPESection(s *sym.Symbol, linkmode LinkMode) (pesectidx int
 
 // writeSymbols writes all COFF symbol table records.
 func (f *peFile) writeSymbols(ctxt *Link) {
+	ldr := ctxt.loader
+	addsym := func(s loader.Sym) {
+		t := ldr.SymType(s)
+		if ldr.SymSect(s) == nil && t != sym.SDYNIMPORT && t != sym.SHOSTOBJ && t != sym.SUNDEFEXT {
+			return
+		}
 
-	put := func(ctxt *Link, s *sym.Symbol, name string, type_ SymbolType, addr int64) {
-		if s == nil {
-			return
-		}
-		if s.Sect == nil && type_ != UndefinedSym {
-			return
-		}
-		switch type_ {
-		default:
-			return
-		case DataSym, BSSSym, TextSym, UndefinedSym:
-		}
+		name := ldr.SymName(s)
 
 		// Only windows/386 requires underscore prefix on external symbols.
-		if ctxt.Arch.Family == sys.I386 &&
-			ctxt.LinkMode == LinkExternal &&
-			(s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT || s.Attr.CgoExport()) {
-			s.Name = "_" + s.Name
+		if ctxt.Is386() && ctxt.IsExternal() &&
+			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s)) {
+			name = "_" + name
 		}
 
-		var typ uint16
-		if ctxt.LinkMode == LinkExternal {
-			typ = IMAGE_SYM_TYPE_NULL
+		var peSymType uint16
+		if ctxt.IsExternal() {
+			peSymType = IMAGE_SYM_TYPE_NULL
 		} else {
 			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
-			typ = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
-			typ = 0x0308 // "array of structs"
+			// peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
+			peSymType = 0x0308 // "array of structs"
 		}
-		sect, value, err := f.mapToPESection(s, ctxt.LinkMode)
+		sect, value, err := f.mapToPESection(ldr, s, ctxt.LinkMode)
 		if err != nil {
-			if type_ == UndefinedSym {
-				typ = IMAGE_SYM_DTYPE_FUNCTION
+			if t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
+				peSymType = IMAGE_SYM_DTYPE_FUNCTION
 			} else {
-				Errorf(s, "addpesym: %v", err)
+				ctxt.Errorf(s, "addpesym: %v", err)
 			}
 		}
 		class := IMAGE_SYM_CLASS_EXTERNAL
-		if s.IsFileLocal() || s.Attr.VisibilityHidden() || s.Attr.Local() {
+		if ldr.IsFileLocal(s) || ldr.AttrVisibilityHidden(s) || ldr.AttrLocal(s) {
 			class = IMAGE_SYM_CLASS_STATIC
 		}
-		f.writeSymbol(ctxt.Out, s, value, sect, typ, uint8(class))
+		f.writeSymbol(ctxt.Out, ldr, s, name, value, sect, peSymType, uint8(class))
 	}
 
 	if ctxt.LinkMode == LinkExternal {
 		// Include section symbols as external, because
 		// .ctors and .debug_* section relocations refer to it.
 		for _, pesect := range f.sections {
-			sym := ctxt.Syms.Lookup(pesect.name, 0)
-			f.writeSymbol(ctxt.Out, sym, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
+			s := ldr.LookupOrCreateSym(pesect.name, 0)
+			f.writeSymbol(ctxt.Out, ldr, s, pesect.name, 0, pesect.index, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_STATIC)
 		}
 	}
 
-	genasmsym(ctxt, put)
+	// Add special runtime.text and runtime.etext symbols.
+	s := ldr.Lookup("runtime.text", 0)
+	if ldr.SymType(s) == sym.STEXT {
+		addsym(s)
+	}
+	s = ldr.Lookup("runtime.etext", 0)
+	if ldr.SymType(s) == sym.STEXT {
+		addsym(s)
+	}
+
+	// Add text symbols.
+	for _, s := range ctxt.Textp {
+		addsym(s)
+	}
+
+	shouldBeInSymbolTable := func(s loader.Sym) bool {
+		if ldr.AttrNotInSymbolTable(s) {
+			return false
+		}
+		name := ldr.RawSymName(s) // TODO: try not to read the name
+		if name == "" || name[0] == '.' {
+			return false
+		}
+		return true
+	}
+
+	// Add data symbols and external references.
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		t := ldr.SymType(s)
+		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+			if t == sym.STLSBSS {
+				continue
+			}
+			if !shouldBeInSymbolTable(s) {
+				continue
+			}
+			addsym(s)
+		}
+
+		switch t {
+		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			addsym(s)
+		}
+	}
 }
 
 // writeSymbolTableAndStringTable writes out symbol and string tables for peFile f.
@@ -965,13 +1012,11 @@ func Peinit(ctxt *Link) {
 	if ctxt.LinkMode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
 		for _, name := range [2]string{"__image_base__", "_image_base__"} {
-			s := ctxt.loader.LookupOrCreateSym(name, 0)
-			sb := ctxt.loader.MakeSymbolUpdater(s)
+			sb := ctxt.loader.CreateSymForUpdate(name, 0)
 			sb.SetType(sym.SDATA)
 			sb.SetValue(PEBASE)
-			ctxt.loader.SetAttrReachable(s, true)
-			ctxt.loader.SetAttrSpecial(s, true)
-			ctxt.loader.SetAttrLocal(s, true)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+			ctxt.loader.SetAttrLocal(sb.Sym(), true)
 		}
 	}
 
@@ -1069,22 +1114,22 @@ func initdynimport(ctxt *Link) *Dll {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := ldr.CreateSymForUpdate(dynName, 0)
-				dynSym.SetReachable(true)
 				dynSym.SetType(sym.SHOSTOBJ)
-				sb.AddReloc(loader.Reloc{Sym: dynSym.Sym(), Type: objabi.R_ADDR, Off: 0, Size: uint8(ctxt.Arch.PtrSize)})
+				r, _ := sb.AddRel(objabi.R_ADDR)
+				r.SetSym(dynSym.Sym())
+				r.SetSiz(uint8(ctxt.Arch.PtrSize))
 			}
 		}
 	} else {
 		dynamic := ldr.CreateSymForUpdate(".windynamic", 0)
-		dynamic.SetReachable(true)
 		dynamic.SetType(sym.SWINDOWS)
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
 				sb := ldr.MakeSymbolUpdater(m.s)
 				sb.SetType(sym.SWINDOWS)
-				dynamic.PrependSub(m.s)
 				sb.SetValue(dynamic.Size())
 				dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
+				dynamic.AddInteriorSym(m.s)
 			}
 
 			dynamic.SetSize(dynamic.Size() + int64(ctxt.Arch.PtrSize))
@@ -1109,7 +1154,7 @@ func peimporteddlls() []string {
 func addimports(ctxt *Link, datsect *peSection) {
 	ldr := ctxt.loader
 	startoff := ctxt.Out.Offset()
-	dynamic := ctxt.Syms.Lookup(".windynamic", 0)
+	dynamic := ldr.LookupOrCreateSym(".windynamic", 0)
 
 	// skip import descriptor table (will write it later)
 	n := uint64(0)
@@ -1130,7 +1175,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 		for m := d.ms; m != nil; m = m.next {
 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
 			ctxt.Out.Write16(0) // hint
-			strput(ctxt.Out, ldr.Syms[m.s].Extname())
+			strput(ctxt.Out, ldr.SymExtname(m.s))
 		}
 	}
 
@@ -1165,7 +1210,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 	endoff := ctxt.Out.Offset()
 
 	// write FirstThunks (allocated in .data section)
-	ftbase := uint64(dynamic.Value) - uint64(datsect.virtualAddress) - PEBASE
+	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - PEBASE
 
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
@@ -1205,8 +1250,8 @@ func addimports(ctxt *Link, datsect *peSection) {
 	// update data directory
 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.virtualAddress
 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.virtualSize
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(ldr.SymValue(dynamic) - PEBASE)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(ldr.SymSize(dynamic))
 
 	out.SeekSet(endoff)
 }
@@ -1235,7 +1280,7 @@ func addexports(ctxt *Link) {
 	nexport := len(dexport)
 	size := binary.Size(&e) + 10*nexport + len(*flagOutfile) + 1
 	for _, s := range dexport {
-		size += len(ldr.Syms[s].Extname()) + 1
+		size += len(ldr.SymExtname(s)) + 1
 	}
 
 	if nexport == 0 {
@@ -1271,7 +1316,7 @@ func addexports(ctxt *Link) {
 
 	// put EXPORT Address Table
 	for _, s := range dexport {
-		out.Write32(uint32(ldr.Syms[s].Value - PEBASE))
+		out.Write32(uint32(ldr.SymValue(s) - PEBASE))
 	}
 
 	// put EXPORT Name Pointer Table
@@ -1279,7 +1324,7 @@ func addexports(ctxt *Link) {
 
 	for _, s := range dexport {
 		out.Write32(uint32(v))
-		v += len(ldr.Syms[s].Extname()) + 1
+		v += len(ldr.SymExtname(s)) + 1
 	}
 
 	// put EXPORT Ordinal Table
@@ -1291,8 +1336,8 @@ func addexports(ctxt *Link) {
 	out.WriteStringN(*flagOutfile, len(*flagOutfile)+1)
 
 	for _, s := range dexport {
-		ss := ldr.Syms[s]
-		out.WriteStringN(ss.Extname(), len(ss.Extname())+1)
+		name := ldr.SymExtname(s)
+		out.WriteStringN(name, len(name)+1)
 	}
 	sect.pad(out, uint32(size))
 }
@@ -1300,8 +1345,6 @@ func addexports(ctxt *Link) {
 // peBaseRelocEntry represents a single relocation entry.
 type peBaseRelocEntry struct {
 	typeOff uint16
-	rel     *sym.Reloc
-	sym     *sym.Symbol // For debug
 }
 
 // peBaseRelocBlock represents a Base Relocation Block. A block
@@ -1338,13 +1381,13 @@ func (rt *peBaseRelocTable) init(ctxt *Link) {
 	rt.blocks = make(map[uint32]peBaseRelocBlock)
 }
 
-func (rt *peBaseRelocTable) addentry(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
+func (rt *peBaseRelocTable) addentry(ldr *loader.Loader, s loader.Sym, r *loader.Reloc) {
 	// pageSize is the size in bytes of a page
 	// described by a base relocation block.
 	const pageSize = 0x1000
 	const pageMask = pageSize - 1
 
-	addr := s.Value + int64(r.Off) - int64(PEBASE)
+	addr := ldr.SymValue(s) + int64(r.Off()) - int64(PEBASE)
 	page := uint32(addr &^ pageMask)
 	off := uint32(addr & pageMask)
 
@@ -1355,12 +1398,10 @@ func (rt *peBaseRelocTable) addentry(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
 
 	e := peBaseRelocEntry{
 		typeOff: uint16(off & 0xFFF),
-		rel:     r,
-		sym:     s,
 	}
 
 	// Set entry type
-	switch r.Siz {
+	switch r.Siz() {
 	default:
 		Exitf("unsupported relocation size %d\n", r.Siz)
 	case 4:
@@ -1392,30 +1433,32 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
 	}
 }
 
-func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
-	for ri := 0; ri < len(s.R); ri++ {
-		r := &s.R[ri]
+func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
+	relocs := ldr.Relocs(s)
+	for ri := 0; ri < relocs.Count(); ri++ {
+		r := relocs.At(ri)
+		if r.Type() >= objabi.ElfRelocOffset {
+			continue
+		}
+		if r.Siz() == 0 { // informational relocation
+			continue
+		}
+		if r.Type() == objabi.R_DWARFFILEREF {
+			continue
+		}
+		rs := r.Sym()
+		rs = ldr.ResolveABIAlias(rs)
+		if rs == 0 {
+			continue
+		}
+		if !ldr.AttrReachable(s) {
+			continue
+		}
 
-		if r.Sym == nil {
-			continue
-		}
-		if !r.Sym.Attr.Reachable() {
-			continue
-		}
-		if r.Type >= objabi.ElfRelocOffset {
-			continue
-		}
-		if r.Siz == 0 { // informational relocation
-			continue
-		}
-		if r.Type == objabi.R_DWARFFILEREF {
-			continue
-		}
-
-		switch r.Type {
+		switch r.Type() {
 		default:
 		case objabi.R_ADDR:
-			rt.addentry(ctxt, s, r)
+			rt.addentry(ldr, s, &r)
 		}
 	}
 }
@@ -1437,11 +1480,12 @@ func addPEBaseReloc(ctxt *Link) {
 	rt.init(ctxt)
 
 	// Get relocation information
+	ldr := ctxt.loader
 	for _, s := range ctxt.Textp {
-		addPEBaseRelocSym(ctxt, s, &rt)
+		addPEBaseRelocSym(ldr, s, &rt)
 	}
 	for _, s := range ctxt.datap {
-		addPEBaseRelocSym(ctxt, s, &rt)
+		addPEBaseRelocSym(ldr, s, &rt)
 	}
 
 	// Write relocation information
@@ -1470,7 +1514,6 @@ func setpersrc(ctxt *Link, sym loader.Sym) {
 	}
 
 	rsrcsym = sym
-	ctxt.loader.SetAttrReachable(rsrcsym, true)
 }
 
 func addpersrc(ctxt *Link) {
@@ -1478,18 +1521,18 @@ func addpersrc(ctxt *Link) {
 		return
 	}
 
-	rsrc := ctxt.loader.Syms[rsrcsym]
-	data := rsrc.P
+	data := ctxt.loader.Data(rsrcsym)
 	size := len(data)
 	h := pefile.addSection(".rsrc", size, size)
 	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	for ri := range rsrc.R {
-		r := &rsrc.R[ri]
-		p := data[r.Off:]
-		val := uint32(int64(h.virtualAddress) + r.Add)
+	relocs := ctxt.loader.Relocs(rsrcsym)
+	for i := 0; i < relocs.Count(); i++ {
+		r := relocs.At(i)
+		p := data[r.Off():]
+		val := uint32(int64(h.virtualAddress) + r.Add())
 
 		// 32-bit little-endian
 		p[0] = byte(val)
@@ -1508,7 +1551,7 @@ func addpersrc(ctxt *Link) {
 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
 }
 
-func Asmbpe(ctxt *Link) {
+func asmbPe(ctxt *Link) {
 	switch ctxt.Arch.Family {
 	default:
 		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)

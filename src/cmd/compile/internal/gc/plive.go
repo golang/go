@@ -1563,6 +1563,7 @@ func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
 	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
 		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
 			lsym.P = tmpSym.P
+			lsym.Set(obj.AttrContentAddressable, true)
 		})
 	}
 	if !go115ReduceLiveness {

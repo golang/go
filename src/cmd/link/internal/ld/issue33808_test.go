@@ -29,6 +29,7 @@ func TestIssue33808(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "TestIssue33808")
 	if err != nil {

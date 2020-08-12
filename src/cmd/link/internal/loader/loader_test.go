@@ -6,6 +6,7 @@ package loader
 
 import (
 	"bytes"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -19,16 +20,13 @@ import (
 // do anything interesting with this symbol (such as look at its
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
-	idx := len(ldr.objSyms)
-	s, ok := ldr.AddSym(name, 0, or, idx, nonPkgDef, false, sym.SRODATA)
-	if !ok {
-		t.Errorf("AddrSym failed for '" + name + "'")
-	}
-	return s
+	idx := uint32(len(ldr.objSyms))
+	st := loadState{l: ldr}
+	return st.addSym(name, 0, or, idx, nonPkgDef, &goobj.Sym{})
 }
 
 func mkLoader() *Loader {
-	edummy := func(s *sym.Symbol, str string, off int) {}
+	edummy := func(str string, off int) {}
 	er := ErrorReporter{}
 	ldr := NewLoader(0, edummy, &er)
 	er.ldr = ldr
@@ -72,7 +70,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	// Suppose we create some more symbols, which triggers a grow.
 	// Make sure the symbol builder's payload pointer is valid,
 	// even across a grow.
-	ldr.growSyms(9999)
+	for i := 0; i < 9999; i++ {
+		ldr.CreateStaticSym("dummy")
+	}
 
 	// Check get/set symbol type
 	es3typ := sb3.Type()
@@ -160,12 +160,18 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	}
 
 	// Add some relocations to the new symbols.
-	r1 := Reloc{0, 1, objabi.R_ADDR, 0, ts1}
-	r2 := Reloc{3, 8, objabi.R_CALL, 0, ts2}
-	r3 := Reloc{7, 1, objabi.R_USETYPE, 0, ts3}
-	sb1.AddReloc(r1)
-	sb1.AddReloc(r2)
-	sb2.AddReloc(r3)
+	r1, _ := sb1.AddRel(objabi.R_ADDR)
+	r1.SetOff(0)
+	r1.SetSiz(1)
+	r1.SetSym(ts1)
+	r2, _ := sb1.AddRel(objabi.R_CALL)
+	r2.SetOff(3)
+	r2.SetSiz(8)
+	r2.SetSym(ts2)
+	r3, _ := sb2.AddRel(objabi.R_USETYPE)
+	r3.SetOff(7)
+	r3.SetSiz(1)
+	r3.SetSym(ts3)
 
 	// Add some data to the symbols.
 	d1 := []byte{1, 2, 3}
@@ -176,7 +182,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	// Now invoke the usual loader interfaces to make sure
 	// we're getting the right things back for these symbols.
 	// First relocations...
-	expRel := [][]Reloc{[]Reloc{r1, r2}, []Reloc{r3}}
+	expRel := [][]Reloc{{r1, r2}, {r3}}
 	for k, sb := range []*SymbolBuilder{sb1, sb2} {
 		rsl := sb.Relocs()
 		exp := expRel[k]
@@ -208,11 +214,6 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	if 0 != es1val {
 		t.Errorf("expected IsReflectMethod(es1) value of 0, got %v", irm)
 	}
-
-	// Writing data to a materialized symbol should mark it reachable.
-	if !sb1.Reachable() || !sb2.Reachable() {
-		t.Fatalf("written-to materialized symbols should be reachable")
-	}
 }
 
 func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
@@ -220,13 +221,13 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 		return false
 	}
 	for i := 0; i < s1.Count(); i++ {
-		r1 := s1.At2(i)
+		r1 := s1.At(i)
 		r2 := &s2[i]
-		if r1.Sym() != r2.Sym ||
-			r1.Type() != r2.Type ||
-			r1.Off() != r2.Off ||
-			r1.Add() != r2.Add ||
-			r1.Siz() != r2.Size {
+		if r1.Sym() != r2.Sym() ||
+			r1.Type() != r2.Type() ||
+			r1.Off() != r2.Off() ||
+			r1.Add() != r2.Add() ||
+			r1.Siz() != r2.Siz() {
 			return false
 		}
 	}
@@ -234,6 +235,15 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
 }
 
 type addFunc func(l *Loader, s Sym, s2 Sym) Sym
+
+func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc {
+	r := Reloc{&goobj.Reloc{}, l.extReader, l, typ}
+	r.SetOff(off)
+	r.SetSiz(siz)
+	r.SetAdd(add)
+	r.SetSym(sym)
+	return r
+}
 
 func TestAddDataMethods(t *testing.T) {
 	ldr := mkLoader()
@@ -303,7 +313,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDR, Size: 8, Add: 3, Sym: 6}},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDR, 0, 8, 3, 6)},
 		},
 		{
 			which: "AddAddrPlus4",
@@ -314,7 +324,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDR, Size: 4, Add: 3, Sym: 7}},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDR, 0, 4, 3, 7)},
 		},
 		{
 			which: "AddCURelativeAddrPlus",
@@ -325,7 +335,7 @@ func TestAddDataMethods(t *testing.T) {
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDRCUOFF, Size: 8, Add: 7, Sym: 8}},
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
 		},
 	}
 
@@ -345,9 +355,6 @@ func TestAddDataMethods(t *testing.T) {
 			t.Errorf("testing Loader.%s: expected data %v got %v",
 				tp.which, tp.expData, ldr.Data(mi))
 		}
-		if !ldr.AttrReachable(mi) {
-			t.Fatalf("testing Loader.%s: sym updated should be reachable", tp.which)
-		}
 		relocs := ldr.Relocs(mi)
 		if !sameRelocSlice(&relocs, tp.expRel) {
 			t.Fatalf("testing Loader.%s: got relocslice %+v wanted %+v",
@@ -365,6 +372,7 @@ func TestOuterSub(t *testing.T) {
 	// Populate loader with some symbols.
 	addDummyObjSym(t, ldr, or, "type.uint8")
 	es1 := ldr.LookupOrCreateSym("outer", 0)
+	ldr.MakeSymbolUpdater(es1).SetSize(101)
 	es2 := ldr.LookupOrCreateSym("sub1", 0)
 	es3 := ldr.LookupOrCreateSym("sub2", 0)
 	es4 := ldr.LookupOrCreateSym("sub3", 0)
@@ -380,7 +388,7 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Establish first outer/sub relationship
-	ldr.PrependSub(es1, es2)
+	ldr.AddInteriorSym(es1, es2)
 	if ldr.OuterSym(es1) != 0 {
 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
 	}
@@ -395,7 +403,7 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Establish second outer/sub relationship
-	ldr.PrependSub(es1, es3)
+	ldr.AddInteriorSym(es1, es3)
 	if ldr.OuterSym(es1) != 0 {
 		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
 	}
@@ -413,9 +421,9 @@ func TestOuterSub(t *testing.T) {
 	}
 
 	// Some more
-	ldr.PrependSub(es1, es4)
-	ldr.PrependSub(es1, es5)
-	ldr.PrependSub(es1, es6)
+	ldr.AddInteriorSym(es1, es4)
+	ldr.AddInteriorSym(es1, es5)
+	ldr.AddInteriorSym(es1, es6)
 
 	// Set values.
 	ldr.SetSymValue(es2, 7)
