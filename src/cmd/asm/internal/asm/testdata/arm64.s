@@ -1630,4 +1630,84 @@ again:
 	MSR	R17, ZCR_EL1                       // 111218d5
 	SYS	$32768, R1                         // 018008d5
 	SYS	$32768                             // 1f8008d5
+
+// TLBI instruction
+	TLBI	VMALLE1IS                          // 1f8308d5
+	TLBI	VMALLE1                            // 1f8708d5
+	TLBI	ALLE2IS                            // 1f830cd5
+	TLBI	ALLE1IS                            // 9f830cd5
+	TLBI	VMALLS12E1IS                       // df830cd5
+	TLBI	ALLE2                              // 1f870cd5
+	TLBI	ALLE1                              // 9f870cd5
+	TLBI	VMALLS12E1                         // df870cd5
+	TLBI	ALLE3IS                            // 1f830ed5
+	TLBI	ALLE3                              // 1f870ed5
+	TLBI	VMALLE1OS                          // 1f8108d5
+	TLBI	ALLE2OS                            // 1f810cd5
+	TLBI	ALLE1OS                            // 9f810cd5
+	TLBI	VMALLS12E1OS                       // df810cd5
+	TLBI	ALLE3OS                            // 1f810ed5
+	TLBI	VAE1IS, R0                         // 208308d5
+	TLBI	ASIDE1IS, R1                       // 418308d5
+	TLBI	VAAE1IS, R2                        // 628308d5
+	TLBI	VALE1IS, R3                        // a38308d5
+	TLBI	VAALE1IS, R4                       // e48308d5
+	TLBI	VAE1, R5                           // 258708d5
+	TLBI	ASIDE1, R6                         // 468708d5
+	TLBI	VAAE1, R7                          // 678708d5
+	TLBI	VALE1, R8                          // a88708d5
+	TLBI	VAALE1, R9                         // e98708d5
+	TLBI	IPAS2E1IS, R10                     // 2a800cd5
+	TLBI	IPAS2LE1IS, R11                    // ab800cd5
+	TLBI	VAE2IS, R12                        // 2c830cd5
+	TLBI	VALE2IS, R13                       // ad830cd5
+	TLBI	IPAS2E1, R14                       // 2e840cd5
+	TLBI	IPAS2LE1, R15                      // af840cd5
+	TLBI	VAE2, R16                          // 30870cd5
+	TLBI	VALE2, R17                         // b1870cd5
+	TLBI	VAE3IS, ZR                         // 3f830ed5
+	TLBI	VALE3IS, R19                       // b3830ed5
+	TLBI	VAE3, R20                          // 34870ed5
+	TLBI	VALE3, R21                         // b5870ed5
+	TLBI	VAE1OS, R22                        // 368108d5
+	TLBI	ASIDE1OS, R23                      // 578108d5
+	TLBI	VAAE1OS, R24                       // 788108d5
+	TLBI	VALE1OS, R25                       // b98108d5
+	TLBI	VAALE1OS, R26                      // fa8108d5
+	TLBI	RVAE1IS, R27                       // 3b8208d5
+	TLBI	RVAAE1IS, ZR                       // 7f8208d5
+	TLBI	RVALE1IS, R29                      // bd8208d5
+	TLBI	RVAALE1IS, R30                     // fe8208d5
+	TLBI	RVAE1OS, ZR                        // 3f8508d5
+	TLBI	RVAAE1OS, R0                       // 608508d5
+	TLBI	RVALE1OS, R1                       // a18508d5
+	TLBI	RVAALE1OS, R2                      // e28508d5
+	TLBI	RVAE1, R3                          // 238608d5
+	TLBI	RVAAE1, R4                         // 648608d5
+	TLBI	RVALE1, R5                         // a58608d5
+	TLBI	RVAALE1, R6                        // e68608d5
+	TLBI	RIPAS2E1IS, R7                     // 47800cd5
+	TLBI	RIPAS2LE1IS, R8                    // c8800cd5
+	TLBI	VAE2OS, R9                         // 29810cd5
+	TLBI	VALE2OS, R10                       // aa810cd5
+	TLBI	RVAE2IS, R11                       // 2b820cd5
+	TLBI	RVALE2IS, R12                      // ac820cd5
+	TLBI	IPAS2E1OS, R13                     // 0d840cd5
+	TLBI	RIPAS2E1, R14                      // 4e840cd5
+	TLBI	RIPAS2E1OS, R15                    // 6f840cd5
+	TLBI	IPAS2LE1OS, R16                    // 90840cd5
+	TLBI	RIPAS2LE1, R17                     // d1840cd5
+	TLBI	RIPAS2LE1OS, ZR                    // ff840cd5
+	TLBI	RVAE2OS, R19                       // 33850cd5
+	TLBI	RVALE2OS, R20                      // b4850cd5
+	TLBI	RVAE2, R21                         // 35860cd5
+	TLBI	RVALE2, R22                        // b6860cd5
+	TLBI	VAE3OS, R23                        // 37810ed5
+	TLBI	VALE3OS, R24                       // b8810ed5
+	TLBI	RVAE3IS, R25                       // 39820ed5
+	TLBI	RVALE3IS, R26                      // ba820ed5
+	TLBI	RVAE3OS, R27                       // 3b850ed5
+	TLBI	RVALE3OS, ZR                       // bf850ed5
+	TLBI	RVAE3, R29                         // 3d860ed5
+	TLBI	RVALE3, R30                        // be860ed5
 	END
