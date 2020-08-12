@@ -41,7 +41,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// use copy_file_range(2) again.
 			atomic.StoreInt32(&copyFileRangeSupported, 0)
 			return 0, false, nil
-		case syscall.EXDEV, syscall.EINVAL:
+		case syscall.EXDEV, syscall.EINVAL, syscall.EOPNOTSUPP:
 			// Prior to Linux 5.3, it was not possible to
 			// copy_file_range across file systems. Similarly to
 			// the ENOSYS case above, if we see EXDEV, we have
@@ -52,6 +52,9 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			// dst or src refer to a pipe rather than a regular
 			// file. This is another case where no data has been
 			// transfered, so we consider it unhandled.
+			//
+			// If the file is on NFS, we can see EOPNOTSUPP.
+			// See issue #40731.
 			return 0, false, nil
 		case nil:
 			if n == 0 {
