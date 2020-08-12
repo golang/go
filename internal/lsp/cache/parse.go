@@ -13,6 +13,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"reflect"
+	"strconv"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -343,24 +344,78 @@ func trimAST(file *ast.File) {
 		case *ast.CommClause:
 			n.Body = nil
 		case *ast.CompositeLit:
-			// Leave elts in place for [...]T
-			// array literals, because they can
-			// affect the expression's type.
-			if !isEllipsisArray(n.Type) {
-				n.Elts = nil
+			// types.Info.Types for long slice/array literals are particularly
+			// expensive. Try to clear them out.
+			at, ok := n.Type.(*ast.ArrayType)
+			if !ok {
+				break
 			}
+			// Removing the elements from an ellipsis array changes its type.
+			// Try to set the length explicitly so we can continue.
+			if _, ok := at.Len.(*ast.Ellipsis); ok {
+				length, ok := arrayLength(n)
+				if !ok {
+					break
+				}
+				at.Len = &ast.BasicLit{
+					Kind:     token.INT,
+					Value:    fmt.Sprint(length),
+					ValuePos: at.Len.Pos(),
+				}
+			}
+			n.Elts = nil
 		}
 		return true
 	})
 }
 
-func isEllipsisArray(n ast.Expr) bool {
-	at, ok := n.(*ast.ArrayType)
-	if !ok {
-		return false
+// arrayLength returns the length of some simple forms of ellipsis array literal.
+// Notably, it handles the tables in golang.org/x/text.
+func arrayLength(array *ast.CompositeLit) (int, bool) {
+	litVal := func(expr ast.Expr) (int, bool) {
+		lit, ok := expr.(*ast.BasicLit)
+		if !ok {
+			return 0, false
+		}
+		val, err := strconv.ParseInt(lit.Value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return int(val), true
 	}
-	_, ok = at.Len.(*ast.Ellipsis)
-	return ok
+	largestKey := -1
+	for _, elt := range array.Elts {
+		kve, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		switch key := kve.Key.(type) {
+		case *ast.BasicLit:
+			if val, ok := litVal(key); ok && largestKey < val {
+				largestKey = val
+			}
+		case *ast.BinaryExpr:
+			// golang.org/x/text uses subtraction (and only subtraction) in its indices.
+			if key.Op != token.SUB {
+				break
+			}
+			x, ok := litVal(key.X)
+			if !ok {
+				break
+			}
+			y, ok := litVal(key.Y)
+			if !ok {
+				break
+			}
+			if val := x - y; largestKey < val {
+				largestKey = val
+			}
+		}
+	}
+	if largestKey != -1 {
+		return largestKey + 1, true
+	}
+	return len(array.Elts), true
 }
 
 // fixAST inspects the AST and potentially modifies any *ast.BadStmts so that it can be
