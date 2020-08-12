@@ -372,10 +372,22 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
 	h := sha1.New()
+	var tmp [14]byte
+
+	// Include the size of the symbol in the hash.
+	// This preserves the length of symbols, preventing the following two symbols
+	// from hashing the same:
+	//
+	//    [2]int{1,2} ≠ [10]int{1,2,0,0,0...}
+	//
+	// In this case, if the smaller symbol is alive, the larger is not kept unless
+	// needed.
+	binary.LittleEndian.PutUint64(tmp[:8], uint64(s.Size))
+	h.Write(tmp[:8])
+
 	// The compiler trims trailing zeros _sometimes_. We just do
 	// it always.
 	h.Write(bytes.TrimRight(s.P, "\x00"))
-	var tmp [14]byte
 	for i := range s.R {
 		r := &s.R[i]
 		binary.LittleEndian.PutUint32(tmp[:4], uint32(r.Off))
