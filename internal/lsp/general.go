@@ -197,11 +197,18 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 	dirsToWatch := map[span.URI]struct{}{}
 	for _, folder := range folders {
 		uri := span.URIFromURI(folder.URI)
+		work := s.progress.start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
 		view, snapshot, release, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
+			work.end(ctx, fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
+		go func() {
+			view.AwaitInitialized(ctx)
+			work.end(ctx, "Finished loading packages.")
+		}()
+
 		for _, dir := range snapshot.WorkspaceDirectories(ctx) {
 			dirsToWatch[dir] = struct{}{}
 		}

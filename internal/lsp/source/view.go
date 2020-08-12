@@ -141,6 +141,9 @@ type View interface {
 	// Shutdown closes this view, and detaches it from its session.
 	Shutdown(ctx context.Context)
 
+	// AwaitInitialized waits until a view is initialized
+	AwaitInitialized(ctx context.Context)
+
 	// WriteEnv writes the view-specific environment to the io.Writer.
 	WriteEnv(ctx context.Context, w io.Writer) error
 

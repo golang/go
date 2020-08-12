@@ -654,7 +654,8 @@ func (v *View) initialize(ctx context.Context, s *snapshot, firstAttempt bool) {
 	})
 }
 
-func (v *View) awaitInitialized(ctx context.Context) {
+// AwaitInitialized waits until a view is initialized
+func (v *View) AwaitInitialized(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		return
@@ -677,7 +678,7 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 	v.cancelBackground()
 
 	// Do not clone a snapshot until its view has finished initializing.
-	v.awaitInitialized(ctx)
+	v.AwaitInitialized(ctx)
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
