@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
@@ -797,6 +798,10 @@ opswitch:
 		fromType := n.Left.Type
 		toType := n.Type
 
+		if !fromType.IsInterface() {
+			markTypeUsedInInterface(fromType)
+		}
+
 		// typeword generates the type word of the interface value.
 		typeword := func() *Node {
 			if toType.IsEmptyInterface() {
@@ -1551,8 +1556,7 @@ opswitch:
 		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
-			vstat := staticname(n.Type)
-			vstat.MarkReadonly()
+			vstat := readonlystaticname(n.Type)
 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 			n = vstat
 			n = typecheck(n, ctxExpr)
@@ -1603,6 +1607,12 @@ opswitch:
 
 	lineno = lno
 	return n
+}
+
+// markTypeUsedInInterface marks that type t is converted to an interface.
+// This information is used in the linker in dead method elimination.
+func markTypeUsedInInterface(t *types.Type) {
+	typenamesym(t).Linksym().Set(obj.AttrUsedInIface, true)
 }
 
 // rtconvfn returns the parameter and result types that will be used by a

@@ -33,7 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/dwarf"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -400,6 +400,7 @@ type FuncInfo struct {
 	Args     int32
 	Locals   int32
 	Align    int32
+	FuncID   objabi.FuncID
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
@@ -514,6 +515,15 @@ const (
 	// new object file format).
 	AttrIndexed
 
+	// Only applied on type descriptor symbols, UsedInIface indicates this type is
+	// converted to an interface.
+	//
+	// Used by the linker to determine what methods can be pruned.
+	AttrUsedInIface
+
+	// ContentAddressable indicates this is a content-addressable symbol.
+	AttrContentAddressable
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -522,22 +532,24 @@ const (
 	attrABIBase
 )
 
-func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
-func (a Attribute) MakeTypelink() bool  { return a&AttrMakeTypelink != 0 }
-func (a Attribute) CFunc() bool         { return a&AttrCFunc != 0 }
-func (a Attribute) NoSplit() bool       { return a&AttrNoSplit != 0 }
-func (a Attribute) Leaf() bool          { return a&AttrLeaf != 0 }
-func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
-func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
-func (a Attribute) ReflectMethod() bool { return a&AttrReflectMethod != 0 }
-func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
-func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
-func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
-func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
-func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
-func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
-func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
-func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
+func (a Attribute) DuplicateOK() bool        { return a&AttrDuplicateOK != 0 }
+func (a Attribute) MakeTypelink() bool       { return a&AttrMakeTypelink != 0 }
+func (a Attribute) CFunc() bool              { return a&AttrCFunc != 0 }
+func (a Attribute) NoSplit() bool            { return a&AttrNoSplit != 0 }
+func (a Attribute) Leaf() bool               { return a&AttrLeaf != 0 }
+func (a Attribute) SeenGlobl() bool          { return a&AttrSeenGlobl != 0 }
+func (a Attribute) OnList() bool             { return a&AttrOnList != 0 }
+func (a Attribute) ReflectMethod() bool      { return a&AttrReflectMethod != 0 }
+func (a Attribute) Local() bool              { return a&AttrLocal != 0 }
+func (a Attribute) Wrapper() bool            { return a&AttrWrapper != 0 }
+func (a Attribute) NeedCtxt() bool           { return a&AttrNeedCtxt != 0 }
+func (a Attribute) NoFrame() bool            { return a&AttrNoFrame != 0 }
+func (a Attribute) Static() bool             { return a&AttrStatic != 0 }
+func (a Attribute) WasInlined() bool         { return a&AttrWasInlined != 0 }
+func (a Attribute) TopFrame() bool           { return a&AttrTopFrame != 0 }
+func (a Attribute) Indexed() bool            { return a&AttrIndexed != 0 }
+func (a Attribute) UsedInIface() bool        { return a&AttrUsedInIface != 0 }
+func (a Attribute) ContentAddressable() bool { return a&AttrContentAddressable != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -573,6 +585,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrWasInlined, s: ""},
 	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
+	{bit: AttrContentAddressable, s: ""},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.
@@ -618,10 +631,8 @@ type Pcln struct {
 	Pcdata      []Pcdata
 	Funcdata    []*LSym
 	Funcdataoff []int64
-	File        []string
-	Lastfile    string
-	Lastindex   int
-	InlTree     InlTree // per-function inlining tree extracted from the global tree
+	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
+	InlTree     InlTree                        // per-function inlining tree extracted from the global tree
 }
 
 type Reloc struct {
@@ -656,10 +667,10 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Flag_go115newobj   bool // use new object file format
 	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string
+	Pkgpath            string           // the current package's import path, "" if unknown
 	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
 	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
@@ -667,7 +678,7 @@ type Link struct {
 	PosTable           src.PosTable
 	InlTree            InlTree // global inlining tree used by gc/inl.go
 	DwFixups           *DwarfFixupTable
-	Imports            []goobj2.ImportedPkg
+	Imports            []goobj.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
@@ -693,15 +704,23 @@ type Link struct {
 	// actually diverge.
 	ABIAliases []*LSym
 
+	// Constant symbols (e.g. $i64.*) are data symbols created late
+	// in the concurrent phase. To ensure a deterministic order, we
+	// add them to a separate list, sort at the end, and append it
+	// to Data.
+	constSyms []*LSym
+
 	// pkgIdx maps package path to index. The index is used for
 	// symbol reference in the object file.
 	pkgIdx map[string]int32
 
-	defs       []*LSym // list of defined symbols in the current package
-	nonpkgdefs []*LSym // list of defined non-package symbols
-	nonpkgrefs []*LSym // list of referenced non-package symbols
+	defs         []*LSym // list of defined symbols in the current package
+	hashed64defs []*LSym // list of defined short (64-bit or less) hashed (content-addressable) symbols
+	hasheddefs   []*LSym // list of defined hashed (content-addressable) symbols
+	nonpkgdefs   []*LSym // list of defined non-package symbols
+	nonpkgrefs   []*LSym // list of referenced non-package symbols
 
-	Fingerprint goobj2.FingerprintType // fingerprint of symbol indices, to catch index mismatch
+	Fingerprint goobj.FingerprintType // fingerprint of symbol indices, to catch index mismatch
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {

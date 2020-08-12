@@ -18,20 +18,8 @@ import (
 	"strings"
 )
 
-// TODO(go115newobj): clean up. Some constant prefixes here are no longer
-// needed in the new object files.
-
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
-
-// RangePrefix is the prefix for all the symbols containing DWARF location lists.
-const LocPrefix = "go.loc."
-
-// RangePrefix is the prefix for all the symbols containing DWARF range lists.
-const RangePrefix = "go.range."
-
-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
-const DebugLinesPrefix = "go.debuglines."
 
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
@@ -398,9 +386,9 @@ func expandPseudoForm(form uint8) uint8 {
 
 // Abbrevs() returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
-func Abbrevs() [DW_NABRV]dwAbbrev {
+func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
-		return abbrevs
+		return abbrevs[:]
 	}
 	for i := 1; i < DW_NABRV; i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
@@ -408,7 +396,7 @@ func Abbrevs() [DW_NABRV]dwAbbrev {
 		}
 	}
 	abbrevsFinalized = true
-	return abbrevs
+	return abbrevs[:]
 }
 
 // abbrevs is a raw table of abbrev entries; it needs to be post-processed

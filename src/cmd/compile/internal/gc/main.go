@@ -14,7 +14,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -281,10 +281,11 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
-	flag.BoolVar(&Ctxt.Flag_go115newobj, "go115newobj", true, "use new object file format")
 	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
 
 	objabi.Flagparse(usage)
+
+	Ctxt.Pkgpath = myimportpath
 
 	for _, f := range strings.Split(spectre, ",") {
 		f = strings.TrimSpace(f)
@@ -315,7 +316,7 @@ func Main(archInit func(*Arch)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "go115newobj")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024
@@ -790,7 +791,7 @@ func Main(archInit func(*Arch)) {
 	// Write object data to disk.
 	timings.Start("be", "dumpobj")
 	dumpdata()
-	Ctxt.NumberSyms(false)
+	Ctxt.NumberSyms()
 	dumpobj()
 	if asmhdr != "" {
 		dumpasmhdr()
@@ -1279,7 +1280,7 @@ func importfile(f *Val) *types.Pkg {
 		c, _ = imp.ReadByte()
 	}
 
-	var fingerprint goobj2.FingerprintType
+	var fingerprint goobj.FingerprintType
 	switch c {
 	case '\n':
 		yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
@@ -1489,7 +1490,7 @@ func recordFlags(flags ...string) {
 		return
 	}
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)
@@ -1501,7 +1502,7 @@ func recordFlags(flags ...string) {
 // compiled, so that the linker can save it in the compile unit's DIE.
 func recordPackageName() {
 	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + myimportpath)
-	s.Type = objabi.SDWARFINFO
+	s.Type = objabi.SDWARFCUINFO
 	// Sometimes (for example when building tests) we can link
 	// together two package main archives. So allow dups.
 	s.Set(obj.AttrDuplicateOK, true)

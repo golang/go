@@ -5,42 +5,27 @@
 package ld
 
 import (
-	"bytes"
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"container/heap"
 	"fmt"
 	"unicode"
 )
 
 var _ = fmt.Print
 
-type workQueue []loader.Sym
-
-// Implement container/heap.Interface.
-func (q *workQueue) Len() int           { return len(*q) }
-func (q *workQueue) Less(i, j int) bool { return (*q)[i] < (*q)[j] }
-func (q *workQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
-func (q *workQueue) Push(i interface{}) { *q = append(*q, i.(loader.Sym)) }
-func (q *workQueue) Pop() interface{}   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
-
-// Functions for deadcode pass to use.
-// Deadcode pass should call push/pop, not Push/Pop.
-func (q *workQueue) push(i loader.Sym) { heap.Push(q, i) }
-func (q *workQueue) pop() loader.Sym   { return heap.Pop(q).(loader.Sym) }
-func (q *workQueue) empty() bool       { return len(*q) == 0 }
-
 type deadcodePass struct {
 	ctxt *Link
 	ldr  *loader.Loader
-	wq   workQueue
+	wq   heap // work queue, using min-heap for beter locality
 
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectSeen     bool               // whether we have seen a reflect method call
+
+	methodsigstmp []methodsig // scratch buffer for decoding method signatures
 }
 
 func (d *deadcodePass) init() {
@@ -49,7 +34,6 @@ func (d *deadcodePass) init() {
 	if objabi.Fieldtrack_enabled != 0 {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
-	heap.Init(&d.wq)
 
 	if d.ctxt.BuildMode == BuildModeShared {
 		// Mark all symbols defined in this library as reachable when
@@ -87,7 +71,7 @@ func (d *deadcodePass) init() {
 			if exportsIdx != 0 {
 				relocs := d.ldr.Relocs(exportsIdx)
 				for i := 0; i < relocs.Count(); i++ {
-					d.mark(relocs.At2(i).Sym(), 0)
+					d.mark(relocs.At(i).Sym(), 0)
 				}
 			}
 		}
@@ -110,6 +94,7 @@ func (d *deadcodePass) init() {
 }
 
 func (d *deadcodePass) flood() {
+	var methods []methodref
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
@@ -117,22 +102,24 @@ func (d *deadcodePass) flood() {
 
 		isgotype := d.ldr.IsGoType(symIdx)
 		relocs := d.ldr.Relocs(symIdx)
+		var usedInIface bool
 
 		if isgotype {
+			usedInIface = d.ldr.AttrUsedInIface(symIdx)
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
 				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
 					if d.ctxt.Debugvlog > 1 {
-						d.ctxt.Logf("reached iface method: %s\n", sig)
+						d.ctxt.Logf("reached iface method: %v\n", sig)
 					}
 					d.ifaceMethod[sig] = true
 				}
 			}
 		}
 
-		var methods []methodref
+		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At2(i)
+			r := relocs.At(i)
 			t := r.Type()
 			if t == objabi.R_WEAKADDROFF {
 				continue
@@ -141,7 +128,9 @@ func (d *deadcodePass) flood() {
 				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
 				}
-				methods = append(methods, methodref{src: symIdx, r: i})
+				if usedInIface {
+					methods = append(methods, methodref{src: symIdx, r: i})
+				}
 				i += 2
 				continue
 			}
@@ -151,12 +140,28 @@ func (d *deadcodePass) flood() {
 				// do nothing for now as we still load all type symbols.
 				continue
 			}
-			d.mark(r.Sym(), symIdx)
+			rs := r.Sym()
+			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
+				// If a type is converted to an interface, it is possible to obtain an
+				// interface with a "child" type of it using reflection (e.g. obtain an
+				// interface of T from []chan T). We need to traverse its "child" types
+				// with UsedInIface attribute set.
+				// When visiting the child type (chan T in the example above), it will
+				// have UsedInIface set, so it in turn will mark and (re)visit its children
+				// (e.g. T above).
+				// We unset the reachable bit here, so if the child type is already visited,
+				// it will be visited again.
+				// Note that a type symbol can be visited at most twice, one without
+				// UsedInIface and one with. So termination is still guaranteed.
+				d.ldr.SetAttrUsedInIface(rs, true)
+				d.ldr.SetAttrReachable(rs, false)
+			}
+			d.mark(rs, symIdx)
 		}
 		naux := d.ldr.NAux(symIdx)
 		for i := 0; i < naux; i++ {
-			a := d.ldr.Aux2(symIdx, i)
-			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
+			a := d.ldr.Aux(symIdx, i)
+			if a.Type() == goobj.AuxGotype && !d.ctxt.linkShared {
 				// A symbol being reachable doesn't imply we need its
 				// type descriptor. Don't mark it.
 				// TODO: when -linkshared, the GCProg generation code
@@ -191,6 +196,9 @@ func (d *deadcodePass) flood() {
 			}
 			for i, m := range methodsigs {
 				methods[i].m = m
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("markable method: %v of sym %v %s\n", m, symIdx, d.ldr.SymName(symIdx))
+				}
 			}
 			d.markableMethods = append(d.markableMethods, methods...)
 		}
@@ -219,9 +227,9 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 
 func (d *deadcodePass) markMethod(m methodref) {
 	relocs := d.ldr.Relocs(m.src)
-	d.mark(relocs.At2(m.r).Sym(), m.src)
-	d.mark(relocs.At2(m.r+1).Sym(), m.src)
-	d.mark(relocs.At2(m.r+2).Sym(), m.src)
+	d.mark(relocs.At(m.r).Sym(), m.src)
+	d.mark(relocs.At(m.r+1).Sym(), m.src)
+	d.mark(relocs.At(m.r+2).Sym(), m.src)
 }
 
 // deadcode marks all reachable symbols.
@@ -298,22 +306,12 @@ func deadcode(ctxt *Link) {
 		}
 		d.flood()
 	}
+}
 
-	n := ldr.NSym()
-
-	if ctxt.BuildMode != BuildModeShared {
-		// Keep a itablink if the symbol it points at is being kept.
-		// (When BuildModeShared, always keep itablinks.)
-		for i := 1; i < n; i++ {
-			s := loader.Sym(i)
-			if ldr.IsItabLink(s) {
-				relocs := ldr.Relocs(s)
-				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
-					ldr.SetAttrReachable(s, true)
-				}
-			}
-		}
-	}
+// methodsig is a typed method signature (name + type).
+type methodsig struct {
+	name string
+	typ  loader.Sym // type descriptor symbol of the function
 }
 
 // methodref holds the relocations from a receiver type symbol to its
@@ -326,52 +324,27 @@ type methodref struct {
 }
 
 func (m methodref) isExported() bool {
-	for _, r := range m.m {
+	for _, r := range m.m.name {
 		return unicode.IsUpper(r)
 	}
 	panic("methodref has no signature")
 }
 
-// decodeMethodSig2 decodes an array of method signature information.
+// decodeMethodSig decodes an array of method signature information.
 // Each element of the array is size bytes. The first 4 bytes is a
 // nameOff for the method name, and the next 4 bytes is a typeOff for
 // the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
 func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, off, size, count int) []methodsig {
-	var buf bytes.Buffer
-	var methods []methodsig
+	if cap(d.methodsigstmp) < count {
+		d.methodsigstmp = append(d.methodsigstmp[:0], make([]methodsig, count)...)
+	}
+	var methods = d.methodsigstmp[:count]
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetypeName(ldr, symIdx, relocs, off))
-		mtypSym := decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
-		// FIXME: add some sort of caching here, since we may see some of the
-		// same symbols over time for param types.
-		mrelocs := ldr.Relocs(mtypSym)
-		mp := ldr.Data(mtypSym)
-
-		buf.WriteRune('(')
-		inCount := decodetypeFuncInCount(arch, mp)
-		for i := 0; i < inCount; i++ {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			a := decodetypeFuncInType(ldr, arch, mtypSym, &mrelocs, i)
-			buf.WriteString(ldr.SymName(a))
-		}
-		buf.WriteString(") (")
-		outCount := decodetypeFuncOutCount(arch, mp)
-		for i := 0; i < outCount; i++ {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			a := decodetypeFuncOutType(ldr, arch, mtypSym, &mrelocs, i)
-			buf.WriteString(ldr.SymName(a))
-		}
-		buf.WriteRune(')')
-
+		methods[i].name = decodetypeName(ldr, symIdx, relocs, off)
+		methods[i].typ = decodeRelocSym(ldr, symIdx, relocs, int32(off+4))
 		off += size
-		methods = append(methods, methodsig(buf.String()))
-		buf.Reset()
 	}
 	return methods
 }

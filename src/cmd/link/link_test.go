@@ -119,6 +119,8 @@ func TestIssue28429(t *testing.T) {
 func TestUnresolved(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "unresolved-")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -184,6 +186,8 @@ func TestIssue33979(t *testing.T) {
 	if runtime.GOOS == "aix" {
 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "unresolved-")
 	if err != nil {
@@ -274,6 +278,8 @@ func TestBuildForTvOS(t *testing.T) {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
 	}
 
+	t.Parallel()
+
 	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
 	if err != nil {
 		t.Skip("failed to locate appletvos SDK, skipping")
@@ -324,6 +330,8 @@ func main() { println(X) }
 func TestXFlag(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestXFlag")
 	if err != nil {
 		t.Fatal(err)
@@ -349,6 +357,8 @@ func main() { }
 
 func TestMacOSVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
 	if err != nil {
@@ -427,6 +437,8 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
 	}
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
 	if err != nil {
 		t.Fatal(err)
@@ -487,6 +499,8 @@ func TestStrictDup(t *testing.T) {
 	// Check that -strictdups flag works.
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
 	if err != nil {
 		t.Fatal(err)
@@ -535,37 +549,6 @@ func TestStrictDup(t *testing.T) {
 	}
 }
 
-func TestOldLink(t *testing.T) {
-	// Test that old object file format still works.
-	// TODO(go115newobj): delete.
-
-	testenv.MustHaveGoBuild(t)
-
-	// Check that the old linker exists (we don't ship it in binary releases,
-	// see issue 39509).
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "-n", "oldlink")
-	if err := cmd.Run(); err != nil {
-		t.Skip("skipping because cannot find installed cmd/oldlink binary")
-	}
-
-	tmpdir, err := ioutil.TempDir("", "TestOldLink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	src := filepath.Join(tmpdir, "main.go")
-	err = ioutil.WriteFile(src, []byte("package main; func main(){}\n"), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cmd = exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
-	}
-}
-
 const testFuncAlignSrc = `
 package main
 import (
@@ -601,6 +584,8 @@ func TestFuncAlign(t *testing.T) {
 		t.Skip("skipping on non-linux/arm64 platform")
 	}
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
 	if err != nil {
@@ -668,6 +653,8 @@ func TestTrampoline(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
 	if err != nil {
 		t.Fatal(err)
@@ -701,6 +688,8 @@ func TestIndexMismatch(t *testing.T) {
 	// This shouldn't happen with "go build". We invoke the compiler and the linker
 	// manually, and try to "trick" the linker with an inconsistent object file.
 	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
 
 	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
 	if err != nil {
@@ -762,6 +751,8 @@ func TestPErsrc(t *testing.T) {
 		t.Skipf("this is a windows/amd64-only test")
 	}
 
+	t.Parallel()
+
 	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
 	if err != nil {
 		t.Fatal(err)
@@ -785,5 +776,25 @@ func TestPErsrc(t *testing.T) {
 	}
 	if !bytes.Contains(b, []byte("Hello Gophers!")) {
 		t.Fatalf("binary does not contain expected content")
+	}
+}
+
+func TestContentAddressableSymbols(t *testing.T) {
+	// Test that the linker handles content-addressable symbols correctly.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join("testdata", "testHashedSyms", "p.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
 	}
 }

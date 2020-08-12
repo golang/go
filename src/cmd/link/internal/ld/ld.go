@@ -32,7 +32,7 @@
 package ld
 
 import (
-	"cmd/internal/goobj2"
+	"cmd/internal/goobj"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io/ioutil"
@@ -156,7 +156,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 	return pname, isshlib
 }
 
-func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType) *sym.Library {
+func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj.FingerprintType) *sym.Library {
 	pkg := pkgname(ctxt, lib)
 
 	// already loaded?
@@ -192,7 +192,7 @@ func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType
  *	fingerprint: if not 0, expected fingerprint for import from srcref
  *	             fingerprint is 0 if the library is not imported (e.g. main)
  */
-func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint goobj2.FingerprintType) *sym.Library {
+func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint goobj.FingerprintType) *sym.Library {
 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
 		return l
 	}
@@ -253,11 +253,11 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.loader.SetAttrLocal(ifs, true)
 	initfunc.SetType(sym.STEXT)
 
-	// Add the init func and/or addmoduledata to Textp2.
+	// Add the init func and/or addmoduledata to Textp.
 	if ctxt.BuildMode == BuildModePlugin {
-		ctxt.Textp2 = append(ctxt.Textp2, amd)
+		ctxt.Textp = append(ctxt.Textp, amd)
 	}
-	ctxt.Textp2 = append(ctxt.Textp2, initfunc.Sym())
+	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
 	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)

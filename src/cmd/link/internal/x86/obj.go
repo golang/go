@@ -45,16 +45,19 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		// 0xCC is INT $3 - breakpoint instruction
+		CodePad: []byte{0xCC},
 
-		Adddynrel2:       adddynrel2,
+		Plan9Magic: uint32(4*11*11 + 7),
+
+		Adddynrel:        adddynrel,
 		Archinit:         archinit,
-		Archreloc2:       archreloc2,
+		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb,
-		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
+		ElfrelocSize:     8,
 		Elfsetupplt:      elfsetupplt,
-		Gentext2:         gentext2,
+		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 		PEreloc1:         pereloc1,
 

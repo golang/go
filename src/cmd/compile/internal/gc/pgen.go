@@ -428,9 +428,10 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
 
 	decls, dwarfVars := createDwarfVars(fnsym, fn.Func, apdecls)
 
-	// For each type referenced by the functions auto vars, attach a
-	// dummy relocation to the function symbol to insure that the type
-	// included in DWARF processing during linking.
+	// For each type referenced by the functions auto vars but not
+	// already referenced by a dwarf var, attach a dummy relocation to
+	// the function symbol to insure that the type included in DWARF
+	// processing during linking.
 	typesyms := []*obj.LSym{}
 	for t, _ := range fnsym.Func.Autot {
 		typesyms = append(typesyms, t)
@@ -480,7 +481,7 @@ func declPos(decl *Node) src.XPos {
 
 // createSimpleVars creates a DWARF entry for every variable declared in the
 // function, claiming that they are permanently on the stack.
-func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createSimpleVars(fnsym *obj.LSym, apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	var vars []*dwarf.Var
 	var decls []*Node
 	selected := make(map[*Node]bool)
@@ -490,13 +491,13 @@ func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 		}
 
 		decls = append(decls, n)
-		vars = append(vars, createSimpleVar(n))
+		vars = append(vars, createSimpleVar(fnsym, n))
 		selected[n] = true
 	}
 	return decls, vars, selected
 }
 
-func createSimpleVar(n *Node) *dwarf.Var {
+func createSimpleVar(fnsym *obj.LSym, n *Node) *dwarf.Var {
 	var abbrev int
 	offs := n.Xoffset
 
@@ -519,6 +520,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 	}
 
 	typename := dwarf.InfoPrefix + typesymname(n.Type)
+	delete(fnsym.Func.Autot, ngotype(n).Linksym())
 	inlIndex := 0
 	if genDwarfInline > 1 {
 		if n.Name.InlFormal() || n.Name.InlLocal() {
@@ -546,7 +548,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
 
 // createComplexVars creates recomposed DWARF vars with location lists,
 // suitable for describing optimized code.
-func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+func createComplexVars(fnsym *obj.LSym, fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 	debugInfo := fn.DebugInfo
 
 	// Produce a DWARF variable entry for each user variable.
@@ -561,7 +563,7 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
 		}
 
-		if dvar := createComplexVar(fn, ssa.VarID(varID)); dvar != nil {
+		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
 			decls = append(decls, n)
 			vars = append(vars, dvar)
 		}
@@ -578,9 +580,9 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 	var decls []*Node
 	var selected map[*Node]bool
 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
-		decls, vars, selected = createComplexVars(fn)
+		decls, vars, selected = createComplexVars(fnsym, fn)
 	} else {
-		decls, vars, selected = createSimpleVars(apDecls)
+		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
 
 	dcl := apDecls
@@ -616,7 +618,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
 			// Args not of SSA-able type are treated here; they
 			// are homed on the stack in a single place for the
 			// entire call.
-			vars = append(vars, createSimpleVar(n))
+			vars = append(vars, createSimpleVar(fnsym, n))
 			decls = append(decls, n)
 			continue
 		}
@@ -712,7 +714,7 @@ func stackOffset(slot ssa.LocalSlot) int32 {
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.
-func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
+func createComplexVar(fnsym *obj.LSym, fn *Func, varID ssa.VarID) *dwarf.Var {
 	debug := fn.DebugInfo
 	n := debug.Vars[varID].(*Node)
 
@@ -727,6 +729,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
 	}
 
 	gotype := ngotype(n).Linksym()
+	delete(fnsym.Func.Autot, gotype)
 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
 	inlIndex := 0
 	if genDwarfInline > 1 {

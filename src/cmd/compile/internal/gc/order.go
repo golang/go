@@ -206,8 +206,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		// TODO: expand this to all static composite literal nodes?
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
-		vstat := staticname(n.Type)
-		vstat.MarkReadonly()
+		vstat := readonlystaticname(n.Type)
 		var s InitSchedule
 		s.staticassign(vstat, n)
 		if s.out != nil {
