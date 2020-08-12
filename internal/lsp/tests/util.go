@@ -322,11 +322,11 @@ func DiffCallHierarchyItems(gotCalls []protocol.CallHierarchyItem, expectedCalls
 		got[protocol.Location{URI: call.URI, Range: call.Range}] = true
 	}
 	if len(got) != len(expected) {
-		return fmt.Sprintf("expected %d incoming calls but got %d", len(expected), len(got))
+		return fmt.Sprintf("expected %d calls but got %d", len(expected), len(got))
 	}
 	for spn := range got {
 		if !expected[spn] {
-			return fmt.Sprintf("incorrect incoming calls, expected locations %v but got locations %v", expected, got)
+			return fmt.Sprintf("incorrect calls, expected locations %v but got locations %v", expected, got)
 		}
 	}
 	return ""

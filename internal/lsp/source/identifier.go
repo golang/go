@@ -91,6 +91,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	return nil, findErr
 }
 
+// ErrNoIdentFound is error returned when no identifer is found at a particular position
 var ErrNoIdentFound = errors.New("no identifier found")
 
 func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
@@ -183,7 +184,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 			result.Declaration.typeSwitchImplicit = typ
 		} else {
 			// Probably a type error.
-			return nil, errors.Errorf("no object for ident %v", result.Name)
+			return nil, errors.Errorf("%w for ident %v", errNoObjectFound, result.Name)
 		}
 	}
 

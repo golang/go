@@ -21,20 +21,22 @@ func C() { //@mark(hierarchyC, "C")
 }
 
 // To test hierarchy across function literals
-const x = func() { //@mark(hierarchyLiteral, "func")
+var x = func() { //@mark(hierarchyLiteral, "func"),mark(hierarchyLiteralOut, "x")
 	D()
 }
 
 // D is exported to test incoming/outgoing calls across packages
-func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, outgoingB)
+func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierarchyB, hierarchyC, hierarchyLiteral, incomingA),outgoingcalls(hierarchyD, hierarchyE, hierarchyF, hierarchyG, hierarchyLiteralOut, outgoingB)
 	e()
-	f()
+	x()
+	F()
 	g()
 	outgoing.B()
 }
 
 func e() {} //@mark(hierarchyE, "e")
 
-func f() {} //@mark(hierarchyF, "f")
+// F is an exported function
+func F() {} //@mark(hierarchyF, "F")
 
 func g() {} //@mark(hierarchyG, "g")

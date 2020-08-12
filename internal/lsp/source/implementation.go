@@ -196,6 +196,7 @@ type qualifiedObject struct {
 }
 
 var errBuiltin = errors.New("builtin object")
+var errNoObjectFound = errors.New("no object found")
 
 // qualifiedObjsAtProtocolPos returns info for all the type.Objects
 // referenced at the given position. An object will be returned for
@@ -228,7 +229,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			} else {
 				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)
 				if obj == nil {
-					return nil, fmt.Errorf("no object for %q", leaf.Name)
+					return nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
 				}
 				objs = append(objs, obj)
 			}
@@ -236,7 +237,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			// Look up the implicit *types.PkgName.
 			obj := searchpkg.GetTypesInfo().Implicits[leaf]
 			if obj == nil {
-				return nil, fmt.Errorf("no object for import %q", importPath(leaf))
+				return nil, fmt.Errorf("%w for import %q", errNoObjectFound, importPath(leaf))
 			}
 			objs = append(objs, obj)
 		}
@@ -272,7 +273,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 	// Return an error if no objects were found since callers will assume that
 	// the slice has at least 1 element.
 	if len(qualifiedObjs) == 0 {
-		return nil, fmt.Errorf("no object found")
+		return nil, errNoObjectFound
 	}
 	return qualifiedObjs, nil
 }

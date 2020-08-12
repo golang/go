@@ -128,7 +128,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 
 	incomingCalls, err := source.IncomingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	var incomingCallItems []protocol.CallHierarchyItem
 	for _, item := range incomingCalls {
@@ -136,16 +136,20 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 	msg := tests.DiffCallHierarchyItems(incomingCallItems, expectedCalls.IncomingCalls)
 	if msg != "" {
-		t.Error(msg)
+		t.Error(fmt.Sprintf("incoming calls differ: %s", msg))
 	}
 
-	// TODO: add span comparison tests for expectedCalls.OutgoingCalls once OutgoingCalls is implemented
 	outgoingCalls, err := source.OutgoingCalls(r.ctx, r.snapshot, fh, loc.Range.Start)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	if len(outgoingCalls) != 0 {
-		t.Errorf("expected no outgoing calls but got %d", len(outgoingCalls))
+	var outgoingCallItems []protocol.CallHierarchyItem
+	for _, item := range outgoingCalls {
+		outgoingCallItems = append(outgoingCallItems, item.To)
+	}
+	msg = tests.DiffCallHierarchyItems(outgoingCallItems, expectedCalls.OutgoingCalls)
+	if msg != "" {
+		t.Error(fmt.Sprintf("outgoing calls differ: %s", msg))
 	}
 }
 

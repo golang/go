@@ -16,47 +16,70 @@ import (
 )
 
 func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {
-	var result []string
-	// TODO: add expectedCalls.OutgoingCalls to this array once implemented
-	for _, call := range expectedCalls.IncomingCalls {
-		mapper, err := r.data.Mapper(call.URI.SpanURI())
-		if err != nil {
-			t.Fatal(err)
+	collectCallSpansString := func(callItems []protocol.CallHierarchyItem) string {
+		var callSpans []string
+		for _, call := range callItems {
+			mapper, err := r.data.Mapper(call.URI.SpanURI())
+			if err != nil {
+				t.Fatal(err)
+			}
+			callSpan, err := mapper.Span(protocol.Location{URI: call.URI, Range: call.Range})
+			if err != nil {
+				t.Fatal(err)
+			}
+			callSpans = append(callSpans, fmt.Sprint(callSpan))
 		}
-		callSpan, err := mapper.Span(protocol.Location{URI: call.URI, Range: call.Range})
-		if err != nil {
-			t.Fatal(err)
-		}
-		result = append(result, fmt.Sprint(callSpan))
+		// to make tests deterministic
+		sort.Strings(callSpans)
+		return r.Normalize(strings.Join(callSpans, "\n"))
 	}
-	result = append(result, fmt.Sprint(spn))
 
-	sort.Strings(result) // to make tests deterministic
-	expect := r.Normalize(strings.Join(result, "\n"))
+	expectIn, expectOut := collectCallSpansString(expectedCalls.IncomingCalls), collectCallSpansString(expectedCalls.OutgoingCalls)
+	expectIdent := r.Normalize(fmt.Sprint(spn))
 
 	uri := spn.URI()
 	filename := uri.Filename()
 	target := filename + fmt.Sprintf(":%v:%v", spn.Start().Line(), spn.Start().Column())
 
 	got, stderr := r.NormalizeGoplsCmd(t, "call_hierarchy", target)
-	got = cleanCallHierarchyCmdResult(got)
 	if stderr != "" {
-		t.Errorf("call_hierarchy failed for %s: %s", target, stderr)
-	} else if expect != got {
-		t.Errorf("call_hierarchy failed for %s expected:\n%s\ngot:\n%s", target, expect, got)
+		t.Fatalf("call_hierarchy failed for %s: %s", target, stderr)
 	}
+
+	gotIn, gotIdent, gotOut := cleanCallHierarchyCmdResult(got)
+	if expectIn != gotIn {
+		t.Errorf("incoming calls call_hierarchy failed for %s expected:\n%s\ngot:\n%s", target, expectIn, gotIn)
+	}
+	if expectIdent != gotIdent {
+		t.Errorf("call_hierarchy failed for %s expected:\n%s\ngot:\n%s", target, expectIdent, gotIdent)
+	}
+	if expectOut != gotOut {
+		t.Errorf("outgoing calls call_hierarchy failed for %s expected:\n%s\ngot:\n%s", target, expectOut, gotOut)
+	}
+
 }
 
-// removes all info except function URI and Range from printed output and sorts the result
+// parses function URI and Range from call hierarchy cmd output to
+// incoming, identifier and outgoing calls (returned in that order)
 // ex: "identifier: function d at .../callhierarchy/callhierarchy.go:19:6-7" -> ".../callhierarchy/callhierarchy.go:19:6-7"
-func cleanCallHierarchyCmdResult(output string) string {
-	var clean []string
+func cleanCallHierarchyCmdResult(output string) (incoming, ident, outgoing string) {
+	var incomingCalls, outgoingCalls []string
 	for _, out := range strings.Split(output, "\n") {
 		if out == "" {
 			continue
 		}
-		clean = append(clean, out[strings.LastIndex(out, " ")+1:])
+
+		callLocation := out[strings.LastIndex(out, " ")+1:]
+		if strings.HasPrefix(out, "caller") {
+			incomingCalls = append(incomingCalls, callLocation)
+		} else if strings.HasPrefix(out, "callee") {
+			outgoingCalls = append(outgoingCalls, callLocation)
+		} else {
+			ident = callLocation
+		}
 	}
-	sort.Strings(clean)
-	return strings.Join(clean, "\n")
+	sort.Strings(incomingCalls)
+	sort.Strings(outgoingCalls)
+	incoming, outgoing = strings.Join(incomingCalls, "\n"), strings.Join(outgoingCalls, "\n")
+	return
 }
