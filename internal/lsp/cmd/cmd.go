@@ -14,7 +14,6 @@ import (
 	"go/token"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"sync"
@@ -24,6 +23,7 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -242,7 +242,8 @@ func CloseTestConnections(ctx context.Context) {
 
 func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
 	connection := newConnection(app)
-	conn, err := net.Dial("tcp", remote)
+	network, addr := parseAddr(remote)
+	conn, err := lsprpc.ConnectToRemote(ctx, network, addr)
 	if err != nil {
 		return nil, err
 	}
