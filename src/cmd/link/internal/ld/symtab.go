@@ -627,6 +627,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, pcln.filetab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
+	// The pctab slice
+	moduledata.AddAddr(ctxt.Arch, pcln.pctab)
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
+	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
 	// The pclntab slice
 	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))

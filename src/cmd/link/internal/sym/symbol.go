@@ -33,7 +33,3 @@ func VersionToABI(v int) (obj.ABI, bool) {
 	}
 	return ^obj.ABI(0), false
 }
-
-type Pcdata struct {
-	P []byte
-}
