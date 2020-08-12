@@ -59,9 +59,12 @@ type LineTable struct {
 	nfunctab    uint32
 	filetab     []byte
 	nfiletab    uint32
-	fileMap     map[string]uint32
 	funcNames   map[uint32]string // cache the function names
 	strings     map[uint32]string // interned substrings of Data, keyed by offset
+	// fileMap varies depending on the version of the object file.
+	// For ver12, it maps the name to the index in the file table.
+	// For ver116, it maps the name to the offset in filetab.
+	fileMap map[string]uint32
 }
 
 // NOTE(rsc): This is wrong for GOARCH=arm, which uses a quantum of 4,
@@ -388,7 +391,7 @@ func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
 // to file number. Since most functions come from a single file, these
 // are usually short and quick to scan. If a file match is found, then the
 // code goes to the expense of looking for a simultaneous line number match.
-func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32) uint64 {
+func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum, line int32, cutab []byte) uint64 {
 	if filetab == 0 || linetab == 0 {
 		return 0
 	}
@@ -401,8 +404,12 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
 	linePC := entry
 	fileStartPC := filePC
 	for t.step(&fp, &filePC, &fileVal, filePC == entry) {
-		if fileVal == filenum && fileStartPC < filePC {
-			// fileVal is in effect starting at fileStartPC up to
+		fileIndex := fileVal
+		if t.version == ver116 {
+			fileIndex = int32(t.binary.Uint32(cutab[fileVal*4:]))
+		}
+		if fileIndex == filenum && fileStartPC < filePC {
+			// fileIndex is in effect starting at fileStartPC up to
 			// but not including filePC, and it's the file we want.
 			// Run the PC table looking for a matching line number
 			// or until we reach filePC.
@@ -457,13 +464,16 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	entry := t.uintptr(f)
 	filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 	fno := t.pcvalue(filetab, entry, pc)
-	if fno <= 0 {
-		return ""
-	}
 	if t.version == ver12 {
+		if fno <= 0 {
+			return ""
+		}
 		return t.string(t.binary.Uint32(t.filetab[4*fno:]))
 	}
 	// Go ≥ 1.16
+	if fno < 0 { // 0 is valid for ≥ 1.16
+		return ""
+	}
 	cuoff := t.binary.Uint32(f[t.ptrsize+7*4:])
 	if fnoff := t.binary.Uint32(t.cutab[(cuoff+uint32(fno))*4:]); fnoff != ^uint32(0) {
 		return t.stringFrom(t.filetab, fnoff)
@@ -471,7 +481,7 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	return ""
 }
 
-// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2 pcln table.
+// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2/1.16 pcln table.
 func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	defer func() {
 		if recover() != nil {
@@ -480,20 +490,25 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	}()
 
 	t.initFileMap()
-	filenum := t.fileMap[file]
-	if filenum == 0 {
+	filenum, ok := t.fileMap[file]
+	if !ok {
 		return 0
 	}
 
 	// Scan all functions.
 	// If this turns out to be a bottleneck, we could build a map[int32][]int32
 	// mapping file number to a list of functions with code from that file.
+	var cutab []byte
 	for i := uint32(0); i < t.nfunctab; i++ {
 		f := t.funcdata[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
 		entry := t.uintptr(f)
 		filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
 		linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
-		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line))
+		if t.version == ver116 {
+			cuoff := t.binary.Uint32(f[t.ptrsize+7*4:]) * 4
+			cutab = t.cutab[cuoff:]
+		}
+		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line), cutab)
 		if pc != 0 {
 			return pc
 		}
@@ -518,10 +533,10 @@ func (t *LineTable) initFileMap() {
 		}
 	} else {
 		var pos uint32
-		for i := uint32(1); i < t.nfiletab; i++ {
+		for i := uint32(0); i < t.nfiletab; i++ {
 			s := t.stringFrom(t.filetab, pos)
+			m[s] = pos
 			pos += uint32(len(s) + 1)
-			m[s] = i
 		}
 	}
 	t.fileMap = m
