@@ -581,9 +581,9 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	gp+24(FP), R9
 	MOVQ	fn+32(FP), R12
 	CMPQ	R13, $0    // m
-	JEQ  nog1
+	JEQ	nog1
 	CMPQ	R9, $0    // g
-	JEQ	 nog1
+	JEQ	nog1
 	LEAQ	m_tls(R13), R8
 #ifdef GOOS_android
 	// Android stores the TLS offset in runtime·tls_g.
