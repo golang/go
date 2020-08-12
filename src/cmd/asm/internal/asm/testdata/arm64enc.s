@@ -397,7 +397,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    SXTH R17, R25                              // 393e4093
    SXTW R0, R27                               // 1b7c4093
    SYSL $285440, R12                          // 0c5b2cd5
-   //TODO TLBI
+   TLBI VAE1IS, R1                            // 218308d5
    TSTW $0x80000007, R9                       // TSTW $2147483655, R9          // 3f0d0172
    TST $0xfffffff0, LR                        // TST $4294967280, R30          // df6f7cf2
    TSTW R10@>21, R2                           // 5f54ca6a
