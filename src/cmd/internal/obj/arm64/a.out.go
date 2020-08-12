@@ -143,26 +143,6 @@ const (
 	REG_V30
 	REG_V31
 
-	// The EQ in
-	// 	CSET	EQ, R0
-	// is encoded as TYPE_REG, even though it's not really a register.
-	COND_EQ
-	COND_NE
-	COND_HS
-	COND_LO
-	COND_MI
-	COND_PL
-	COND_VS
-	COND_VC
-	COND_HI
-	COND_LS
-	COND_GE
-	COND_LT
-	COND_GT
-	COND_LE
-	COND_AL
-	COND_NV
-
 	REG_RSP = REG_V31 + 32 // to differentiate ZR/SP, REG_RSP&0x1f = 31
 )
 
@@ -197,28 +177,10 @@ const (
 // a special register and the low bits select the register.
 // SYSREG_END is the last item in the automatically generated system register
 // declaration, and it is defined in the sysRegEnc.go file.
+// Define the special register after REG_SPECIAL, the first value of it should be
+// REG_{name} = SYSREG_END + iota.
 const (
 	REG_SPECIAL = obj.RBaseARM64 + 1<<12
-	REG_DAIFSet = SYSREG_END + iota
-	REG_DAIFClr
-	REG_PLDL1KEEP
-	REG_PLDL1STRM
-	REG_PLDL2KEEP
-	REG_PLDL2STRM
-	REG_PLDL3KEEP
-	REG_PLDL3STRM
-	REG_PLIL1KEEP
-	REG_PLIL1STRM
-	REG_PLIL2KEEP
-	REG_PLIL2STRM
-	REG_PLIL3KEEP
-	REG_PLIL3STRM
-	REG_PSTL1KEEP
-	REG_PSTL1STRM
-	REG_PSTL2KEEP
-	REG_PSTL2STRM
-	REG_PSTL3KEEP
-	REG_PSTL3STRM
 )
 
 // Register assignments:
@@ -388,7 +350,8 @@ const (
 	C_SHIFT  // Rn<<2
 	C_EXTREG // Rn.UXTB[<<3]
 	C_SPR    // REG_NZCV
-	C_COND   // EQ, NE, etc
+	C_COND   // condition code, EQ, NE, etc.
+	C_SPOP   // special operand, PLDL1KEEP, VMALLE1IS, etc.
 	C_ARNG   // Vn.<T>
 	C_ELEM   // Vn.<T>[index]
 	C_LIST   // [V1, V2, V3]
@@ -1084,4 +1047,55 @@ const (
 	ARNG_H
 	ARNG_S
 	ARNG_D
+)
+
+//go:generate stringer -type SpecialOperand -trimprefix SPOP_
+type SpecialOperand int
+
+const (
+	// PRFM
+	SPOP_PLDL1KEEP SpecialOperand = iota     // must be the first one
+	SPOP_BEGIN     SpecialOperand = iota - 1 // set as the lower bound
+	SPOP_PLDL1STRM
+	SPOP_PLDL2KEEP
+	SPOP_PLDL2STRM
+	SPOP_PLDL3KEEP
+	SPOP_PLDL3STRM
+	SPOP_PLIL1KEEP
+	SPOP_PLIL1STRM
+	SPOP_PLIL2KEEP
+	SPOP_PLIL2STRM
+	SPOP_PLIL3KEEP
+	SPOP_PLIL3STRM
+	SPOP_PSTL1KEEP
+	SPOP_PSTL1STRM
+	SPOP_PSTL2KEEP
+	SPOP_PSTL2STRM
+	SPOP_PSTL3KEEP
+	SPOP_PSTL3STRM
+
+	// PSTATE fields
+	SPOP_DAIFSet
+	SPOP_DAIFClr
+
+	// Condition code, EQ, NE, etc. Their relative order to EQ is matter.
+	SPOP_EQ
+	SPOP_NE
+	SPOP_HS
+	SPOP_LO
+	SPOP_MI
+	SPOP_PL
+	SPOP_VS
+	SPOP_VC
+	SPOP_HI
+	SPOP_LS
+	SPOP_GE
+	SPOP_LT
+	SPOP_GT
+	SPOP_LE
+	SPOP_AL
+	SPOP_NV
+	// Condition code end.
+
+	SPOP_END
 )

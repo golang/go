@@ -19,6 +19,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -389,8 +390,19 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
-		// We have a symbol. Parse $sym±offset(symkind)
-		p.symbolReference(a, name, prefix)
+		switch p.arch.Family {
+		case sys.ARM64:
+			// arm64 special operands.
+			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+				break
+			}
+			fallthrough
+		default:
+			// We have a symbol. Parse $sym±offset(symkind)
+			p.symbolReference(a, name, prefix)
+		}
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return
