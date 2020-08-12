@@ -436,6 +436,19 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- bufio -->
 
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- CL 223777 -->
+      Creating a derived <code>Context</code> using a nil parent is now explicitly
+      disallowed. Any attempt to do so with the
+      <a href="/pkg/context/#WithValue"><code>WithValue</code></a>,
+      <a href="/pkg/context/#WithDeadline"><code>WithDeadline</code></a>, or
+      <a href="/pkg/context/#WithCancel"><code>WithCancel</code></a> functions
+      will cause a panic.
+    </p>
+  </dd>
+</dl><!-- context -->
+
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>
     <p><!-- CL 231417, CL 225460 -->
