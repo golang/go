@@ -304,8 +304,9 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 	offset = initOffset
 	var ret64 int64
 	for shifted := 0; offset < len(bytes); shifted++ {
-		// n shifted bytes * 7 bits per byte should be less than the  max number of bits
-		// Thus the representation is either non-minimal or too large for the system
+		// n shifted bytes * 7 bits per byte should be less than or equal to the max number
+		// of bits. If greater, the representation is either non-minimal or too large for
+		// the platform
 		if shifted * 7 > strconv.IntSize {
 			err = StructuralError{"base 128 integer too large"}
 			return
