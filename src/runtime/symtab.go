@@ -345,6 +345,7 @@ type pcHeader struct {
 	funcnameOffset uintptr // offset to the funcnametab variable from pcHeader
 	cuOffset       uintptr // offset to the cutab variable from pcHeader
 	filetabOffset  uintptr // offset to the filetab variable from pcHeader
+	pctabOffset    uintptr // offset to the pctab varible from pcHeader
 	pclnOffset     uintptr // offset to the pclntab variable from pcHeader
 }
 
@@ -358,6 +359,7 @@ type moduledata struct {
 	funcnametab  []byte
 	cutab        []uint32
 	filetab      []byte
+	pctab        []byte
 	pclntable    []byte
 	ftab         []functab
 	findfunctab  uintptr
@@ -721,7 +723,7 @@ type pcvalueCache struct {
 type pcvalueCacheEnt struct {
 	// targetpc and off together are the key of this cache entry.
 	targetpc uintptr
-	off      int32
+	off      uint32
 	// val is the value of this cached pcvalue entry.
 	val int32
 }
@@ -736,7 +738,7 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
 
 // Returns the PCData value, and the PC where this value starts.
 // TODO: the start PC is returned only when cache is nil.
-func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
+func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, strict bool) (int32, uintptr) {
 	if off == 0 {
 		return -1, 0
 	}
@@ -770,7 +772,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 		return -1, 0
 	}
 	datap := f.datap
-	p := datap.pclntable[off:]
+	p := datap.pctab[off:]
 	pc := f.entry
 	prevpc := pc
 	val := int32(-1)
@@ -812,7 +814,7 @@ func pcvalue(f funcInfo, off int32, targetpc uintptr, cache *pcvalueCache, stric
 
 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
-	p = datap.pclntable[off:]
+	p = datap.pctab[off:]
 	pc = f.entry
 	val = -1
 	for {
@@ -893,7 +895,7 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 // funcMaxSPDelta returns the maximum spdelta at any point in f.
 func funcMaxSPDelta(f funcInfo) int32 {
 	datap := f.datap
-	p := datap.pclntable[f.pcsp:]
+	p := datap.pctab[f.pcsp:]
 	pc := f.entry
 	val := int32(-1)
 	max := int32(0)
@@ -909,20 +911,20 @@ func funcMaxSPDelta(f funcInfo) int32 {
 	}
 }
 
-func pcdatastart(f funcInfo, table int32) int32 {
-	return *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
+func pcdatastart(f funcInfo, table uint32) uint32 {
+	return *(*uint32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
 }
 
-func pcdatavalue(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache) int32 {
-	if table < 0 || table >= f.npcdata {
+func pcdatavalue(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache) int32 {
+	if table >= f.npcdata {
 		return -1
 	}
 	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
 	return r
 }
 
-func pcdatavalue1(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
-	if table < 0 || table >= f.npcdata {
+func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
+	if table >= f.npcdata {
 		return -1
 	}
 	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
@@ -931,8 +933,8 @@ func pcdatavalue1(f funcInfo, table int32, targetpc uintptr, cache *pcvalueCache
 
 // Like pcdatavalue, but also return the start PC of this PCData value.
 // It doesn't take a cache.
-func pcdatavalue2(f funcInfo, table int32, targetpc uintptr) (int32, uintptr) {
-	if table < 0 || table >= f.npcdata {
+func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
+	if table >= f.npcdata {
 		return -1, 0
 	}
 	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)

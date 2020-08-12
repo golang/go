@@ -58,6 +58,7 @@ type LineTable struct {
 	functab     []byte
 	nfunctab    uint32
 	filetab     []byte
+	pctab       []byte // points to the pctables.
 	nfiletab    uint32
 	funcNames   map[uint32]string // cache the function names
 	strings     map[uint32]string // interned substrings of Data, keyed by offset
@@ -235,6 +236,8 @@ func (t *LineTable) parsePclnTab() {
 		offset = t.uintptr(t.Data[8+4*t.ptrsize:])
 		t.filetab = t.Data[offset:]
 		offset = t.uintptr(t.Data[8+5*t.ptrsize:])
+		t.pctab = t.Data[offset:]
+		offset = t.uintptr(t.Data[8+6*t.ptrsize:])
 		t.funcdata = t.Data[offset:]
 		t.functab = t.Data[offset:]
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
@@ -244,6 +247,7 @@ func (t *LineTable) parsePclnTab() {
 		t.funcdata = t.Data
 		t.funcnametab = t.Data
 		t.functab = t.Data[8+t.ptrsize:]
+		t.pctab = t.Data
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
 		fileoff := t.binary.Uint32(t.functab[functabsize:])
 		t.functab = t.functab[:functabsize]
@@ -373,7 +377,7 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
 // off is the offset to the beginning of the pc-value table,
 // and entry is the start PC for the corresponding function.
 func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
-	p := t.funcdata[off:]
+	p := t.pctab[off:]
 
 	val := int32(-1)
 	pc := entry
@@ -396,8 +400,8 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
 		return 0
 	}
 
-	fp := t.funcdata[filetab:]
-	fl := t.funcdata[linetab:]
+	fp := t.pctab[filetab:]
+	fl := t.pctab[linetab:]
 	fileVal := int32(-1)
 	filePC := entry
 	lineVal := int32(-1)

@@ -43,6 +43,7 @@ type pclntab struct {
 	findfunctab loader.Sym
 	cutab       loader.Sym
 	filetab     loader.Sym
+	pctab       loader.Sym
 
 	// The number of functions + number of TEXT sections - 1. This is such an
 	// unexpected value because platforms that have more than one TEXT section
@@ -273,10 +274,11 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		off = writeSymOffset(off, state.funcnametab)
 		off = writeSymOffset(off, state.cutab)
 		off = writeSymOffset(off, state.filetab)
+		off = writeSymOffset(off, state.pctab)
 		off = writeSymOffset(off, state.pclntab)
 	}
 
-	size := int64(8 + 6*ctxt.Arch.PtrSize)
+	size := int64(8 + 7*ctxt.Arch.PtrSize)
 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
 }
 
@@ -463,6 +465,68 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 	return cuOffsets
 }
 
+// generatePctab creates the runtime.pctab variable, holding all the
+// deduplicated pcdata.
+func (state *pclntab) generatePctab(ctxt *Link, container loader.Bitmap) {
+	ldr := ctxt.loader
+
+	// Pctab offsets of 0 are considered invalid in the runtime. We respect
+	// that by just padding a single byte at the beginning of runtime.pctab,
+	// that way no real offsets can be zero.
+	size := int64(1)
+
+	// Walk the functions, finding offset to store each pcdata.
+	seen := make(map[loader.Sym]struct{})
+	saveOffset := func(pcSym loader.Sym) {
+		if _, ok := seen[pcSym]; !ok {
+			datSize := ldr.SymSize(pcSym)
+			if datSize != 0 {
+				ldr.SetSymValue(pcSym, size)
+			} else {
+				// Invalid PC data, record as zero.
+				ldr.SetSymValue(pcSym, 0)
+			}
+			size += datSize
+			seen[pcSym] = struct{}{}
+		}
+	}
+	for _, s := range ctxt.Textp {
+		if !emitPcln(ctxt, s, container) {
+			continue
+		}
+		fi := ldr.FuncInfo(s)
+		if !fi.Valid() {
+			continue
+		}
+		fi.Preload()
+
+		pcSyms := []loader.Sym{fi.Pcsp(), fi.Pcfile(), fi.Pcline()}
+		for _, pcSym := range pcSyms {
+			saveOffset(pcSym)
+		}
+		for _, pcSym := range fi.Pcdata() {
+			saveOffset(pcSym)
+		}
+		if fi.NumInlTree() > 0 {
+			saveOffset(fi.Pcinline())
+		}
+	}
+
+	// TODO: There is no reason we need a generator for this variable, and it
+	// could be moved to a carrier symbol. However, carrier symbols containing
+	// carrier symbols don't work yet (as of Aug 2020). Once this is fixed,
+	// runtime.pctab could just be a carrier sym.
+	writePctab := func(ctxt *Link, s loader.Sym) {
+		ldr := ctxt.loader
+		sb := ldr.MakeSymbolUpdater(s)
+		for sym := range seen {
+			sb.SetBytesAt(ldr.SymValue(sym), ldr.Data(sym))
+		}
+	}
+
+	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, writePctab)
+}
+
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
@@ -494,6 +558,9 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//      runtime.filetab
 	//        []null terminated filename strings
 	//
+	//      runtime.pctab
+	//        []byte of deduplicated pc data.
+	//
 	//      runtime.pclntab_old
 	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//        end PC [thearch.ptrsize bytes]
@@ -514,6 +581,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	state.generatePCHeader(ctxt)
 	state.generateFuncnametab(ctxt, container)
 	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, container)
+	state.generatePctab(ctxt, container)
 
 	funcdataBytes := int64(0)
 	ldr.SetCarrierSym(state.pclntab, state.carrier)
@@ -524,21 +592,6 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	ftab.SetReachable(true)
 
 	ftab.Grow(int64(state.nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
-
-	szHint := len(ctxt.Textp) * 2
-	pctaboff := make(map[string]uint32, szHint)
-	writepctab := func(off int32, p []byte) int32 {
-		start, ok := pctaboff[string(p)]
-		if !ok {
-			if len(p) > 0 {
-				start = uint32(len(ftab.Data()))
-				ftab.AddBytes(p)
-			}
-			pctaboff[string(p)] = start
-		}
-		newoff := int32(ftab.SetUint32(ctxt.Arch, int64(off), start))
-		return newoff
-	}
 
 	setAddr := (*loader.SymbolBuilder).SetAddrPlus
 	if ctxt.IsExe() && ctxt.IsInternal() {
@@ -555,10 +608,6 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		}
 	}
 
-	pcsp := sym.Pcdata{}
-	pcfile := sym.Pcdata{}
-	pcline := sym.Pcdata{}
-	pcdata := []sym.Pcdata{}
 	funcdata := []loader.Sym{}
 	funcdataoff := []int64{}
 
@@ -583,18 +632,13 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		}
 		prevFunc = s
 
-		pcsp.P = pcsp.P[:0]
-		pcline.P = pcline.P[:0]
-		pcfile.P = pcfile.P[:0]
-		pcdata = pcdata[:0]
+		var numPCData int32
 		funcdataoff = funcdataoff[:0]
 		funcdata = funcdata[:0]
 		fi := ldr.FuncInfo(s)
 		if fi.Valid() {
 			fi.Preload()
-			for _, dataSym := range fi.Pcdata() {
-				pcdata = append(pcdata, sym.Pcdata{P: ldr.Data(dataSym)})
-			}
+			numPCData = int32(len(fi.Pcdata()))
 			nfd := fi.NumFuncdataoff()
 			for i := uint32(0); i < nfd; i++ {
 				funcdataoff = append(funcdataoff, fi.Funcdataoff(int(i)))
@@ -602,15 +646,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 			funcdata = fi.Funcdata(funcdata)
 		}
 
+		writeInlPCData := false
 		if fi.Valid() && fi.NumInlTree() > 0 {
-
-			if len(pcdata) <= objabi.PCDATA_InlTreeIndex {
-				// Create inlining pcdata table.
-				newpcdata := make([]sym.Pcdata, objabi.PCDATA_InlTreeIndex+1)
-				copy(newpcdata, pcdata)
-				pcdata = newpcdata
+			writeInlPCData = true
+			if numPCData <= objabi.PCDATA_InlTreeIndex {
+				numPCData = objabi.PCDATA_InlTreeIndex + 1
 			}
-
 			if len(funcdataoff) <= objabi.FUNCDATA_InlTree {
 				// Create inline tree funcdata.
 				newfuncdata := make([]loader.Sym, objabi.FUNCDATA_InlTree+1)
@@ -635,7 +676,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		// fixed size of struct, checked below
 		off := funcstart
 
-		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 6*4 + int32(len(pcdata))*4 + int32(len(funcdata))*int32(ctxt.Arch.PtrSize)
+		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 6*4 + numPCData*4 + int32(len(funcdata))*int32(ctxt.Arch.PtrSize)
 		if len(funcdata) > 0 && (end&int32(ctxt.Arch.PtrSize-1) != 0) {
 			end += 4
 		}
@@ -664,23 +705,21 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
 		cu := ldr.SymUnit(s)
-		if fi.Valid() {
-			pcsp = sym.Pcdata{P: ldr.Data(fi.Pcsp())}
-			pcfile = sym.Pcdata{P: ldr.Data(fi.Pcfile())}
-			pcline = sym.Pcdata{P: ldr.Data(fi.Pcline())}
-		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
 			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
 			funcdata[objabi.FUNCDATA_InlTree] = its
-			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: ldr.Data(fi.Pcinline())}
 		}
 
 		// pcdata
-		off = writepctab(off, pcsp.P)
-		off = writepctab(off, pcfile.P)
-		off = writepctab(off, pcline.P)
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
+		if fi.Valid() {
+			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcsp()))))
+			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcfile()))))
+			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcline()))))
+		} else {
+			off += 12
+		}
+		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(numPCData)))
 
 		// Store the offset to compilation unit's file table.
 		cuIdx := ^uint32(0)
@@ -700,9 +739,17 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 
 		// nfuncdata must be the final entry.
 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
-		for i := range pcdata {
-			off = writepctab(off, pcdata[i].P)
+
+		// Output the pcdata.
+		if fi.Valid() {
+			for i, pcSym := range fi.Pcdata() {
+				ftab.SetUint32(ctxt.Arch, int64(off+int32(i*4)), uint32(ldr.SymValue(pcSym)))
+			}
+			if writeInlPCData {
+				ftab.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(fi.Pcinline())))
+			}
 		}
+		off += numPCData * 4
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
@@ -724,7 +771,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		}
 
 		if off != end {
-			ctxt.Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcdata), len(funcdata), ctxt.Arch.PtrSize)
+			ctxt.Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, numPCData, len(funcdata), ctxt.Arch.PtrSize)
 			errorexit()
 		}
 
