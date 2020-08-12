@@ -592,13 +592,25 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	stk+8(FP), SI
 	MOVQ	$0, DX
 	MOVQ	$0, R10
-
+	MOVQ    $0, R8
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
-	MOVQ	mp+16(FP), R8
+	MOVQ	mp+16(FP), R13
 	MOVQ	gp+24(FP), R9
 	MOVQ	fn+32(FP), R12
-
+	CMPQ	R13, $0    // m
+	JEQ	nog1
+	CMPQ	R9, $0    // g
+	JEQ	nog1
+	LEAQ	m_tls(R13), R8
+#ifdef GOOS_android
+	// Android stores the TLS offset in runtime·tls_g.
+	SUBQ	runtime·tls_g(SB), R8
+#else
+	ADDQ	$8, R8	// ELF wants to use -8(FS)
+#endif
+	ORQ 	$0x00080000, DI //add flag CLONE_SETTLS(0x00080000) to call clone
+nog1:
 	MOVL	$SYS_clone, AX
 	SYSCALL
 
@@ -612,27 +624,23 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVQ	SI, SP
 
 	// If g or m are nil, skip Go-related setup.
-	CMPQ	R8, $0    // m
-	JEQ	nog
+	CMPQ	R13, $0    // m
+	JEQ	nog2
 	CMPQ	R9, $0    // g
-	JEQ	nog
+	JEQ	nog2
 
 	// Initialize m->procid to Linux tid
 	MOVL	$SYS_gettid, AX
 	SYSCALL
-	MOVQ	AX, m_procid(R8)
-
-	// Set FS to point at m->tls.
-	LEAQ	m_tls(R8), DI
-	CALL	runtime·settls(SB)
+	MOVQ	AX, m_procid(R13)
 
 	// In child, set up new stack
 	get_tls(CX)
-	MOVQ	R8, g_m(R9)
+	MOVQ	R13, g_m(R9)
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
-nog:
+nog2:
 	// Call fn
 	CALL	R12
 
