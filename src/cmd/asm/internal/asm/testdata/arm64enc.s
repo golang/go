@@ -134,7 +134,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
    CSINV LO, R2, R11, R14                     // 4e308bda
    CSNEGW HS, R16, R29, R10                   // 0a269d5a
    CSNEG NE, R21, R19, R11                    // ab1693da
-   //TODO DC
+   DC IVAC, R1                                // 217608d5
    DCPS1 $11378                               // 418ea5d4
    DCPS2 $10699                               // 6239a5d4
    DCPS3 $24415                               // e3ebabd4

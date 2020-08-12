@@ -1710,4 +1710,34 @@ again:
 	TLBI	RVALE3OS, ZR                       // bf850ed5
 	TLBI	RVAE3, R29                         // 3d860ed5
 	TLBI	RVALE3, R30                        // be860ed5
+
+// DC instruction
+	DC	IVAC, R0                           // 207608d5
+	DC	ISW, R1                            // 417608d5
+	DC	CSW, R2                            // 427a08d5
+	DC	CISW, R3                           // 437e08d5
+	DC	ZVA, R4                            // 24740bd5
+	DC	CVAC, R5                           // 257a0bd5
+	DC	CVAU, R6                           // 267b0bd5
+	DC	CIVAC, R7                          // 277e0bd5
+	DC	IGVAC, R8                          // 687608d5
+	DC	IGSW, R9                           // 897608d5
+	DC	IGDVAC, R10                        // aa7608d5
+	DC	IGDSW, R11                         // cb7608d5
+	DC	CGSW, R12                          // 8c7a08d5
+	DC	CGDSW, R13                         // cd7a08d5
+	DC	CIGSW, R14                         // 8e7e08d5
+	DC	CIGDSW, R15                        // cf7e08d5
+	DC	GVA, R16                           // 70740bd5
+	DC	GZVA, R17                          // 91740bd5
+	DC	CGVAC, ZR                          // 7f7a0bd5
+	DC	CGDVAC, R19                        // b37a0bd5
+	DC	CGVAP, R20                         // 747c0bd5
+	DC	CGDVAP, R21                        // b57c0bd5
+	DC	CGVADP, R22                        // 767d0bd5
+	DC	CGDVADP, R23                       // b77d0bd5
+	DC	CIGVAC, R24                        // 787e0bd5
+	DC	CIGDVAC, R25                       // b97e0bd5
+	DC	CVAP, R26                          // 3a7c0bd5
+	DC	CVADP, R27                         // 3b7d0bd5
 	END

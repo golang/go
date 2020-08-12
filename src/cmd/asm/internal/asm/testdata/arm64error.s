@@ -437,4 +437,9 @@ TEXT errors(SB),$0
 	TLBI	ALLE3OS, ZR                                      // ERROR "extraneous register at operand 2"
 	TLBI	VAE1IS                                           // ERROR "missing register at operand 2"
 	TLBI	RVALE3                                           // ERROR "missing register at operand 2"
+	DC	PLDL1KEEP                                        // ERROR "illegal argument"
+	DC	VMALLE1IS                                        // ERROR "illegal argument"
+	DC	VAE1IS                                           // ERROR "illegal argument"
+	DC	VAE1IS, R0                                       // ERROR "illegal argument"
+	DC	IVAC                                             // ERROR "missing register at operand 2"
 	RET
