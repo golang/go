@@ -998,6 +998,35 @@ var sysInstFields = map[SpecialOperand]struct {
 	SPOP_RVALE3OS:     {6, 8, 5, 5, true},
 	SPOP_RVAE3:        {6, 8, 6, 1, true},
 	SPOP_RVALE3:       {6, 8, 6, 5, true},
+	// DC
+	SPOP_IVAC:    {0, 7, 6, 1, true},
+	SPOP_ISW:     {0, 7, 6, 2, true},
+	SPOP_CSW:     {0, 7, 10, 2, true},
+	SPOP_CISW:    {0, 7, 14, 2, true},
+	SPOP_ZVA:     {3, 7, 4, 1, true},
+	SPOP_CVAC:    {3, 7, 10, 1, true},
+	SPOP_CVAU:    {3, 7, 11, 1, true},
+	SPOP_CIVAC:   {3, 7, 14, 1, true},
+	SPOP_IGVAC:   {0, 7, 6, 3, true},
+	SPOP_IGSW:    {0, 7, 6, 4, true},
+	SPOP_IGDVAC:  {0, 7, 6, 5, true},
+	SPOP_IGDSW:   {0, 7, 6, 6, true},
+	SPOP_CGSW:    {0, 7, 10, 4, true},
+	SPOP_CGDSW:   {0, 7, 10, 6, true},
+	SPOP_CIGSW:   {0, 7, 14, 4, true},
+	SPOP_CIGDSW:  {0, 7, 14, 6, true},
+	SPOP_GVA:     {3, 7, 4, 3, true},
+	SPOP_GZVA:    {3, 7, 4, 4, true},
+	SPOP_CGVAC:   {3, 7, 10, 3, true},
+	SPOP_CGDVAC:  {3, 7, 10, 5, true},
+	SPOP_CGVAP:   {3, 7, 12, 3, true},
+	SPOP_CGDVAP:  {3, 7, 12, 5, true},
+	SPOP_CGVADP:  {3, 7, 13, 3, true},
+	SPOP_CGDVADP: {3, 7, 13, 5, true},
+	SPOP_CIGVAC:  {3, 7, 14, 3, true},
+	SPOP_CIGDVAC: {3, 7, 14, 5, true},
+	SPOP_CVAP:    {3, 7, 12, 1, true},
+	SPOP_CVADP:   {3, 7, 13, 1, true},
 }
 
 // Used for padinng NOOP instruction
@@ -2963,11 +2992,10 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYS:
 			oprangeset(AAT, t)
-			oprangeset(ADC, t)
 			oprangeset(AIC, t)
 
 		case ATLBI:
-			break
+			oprangeset(ADC, t)
 
 		case ASYSL, AHINT:
 			break
@@ -5609,9 +5637,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
-	case 107: /* tlbi */
+	case 107: /* tlbi, dc */
 		op, ok := sysInstFields[SpecialOperand(p.From.Offset)]
-		if !ok || (p.As == ATLBI && op.cn != 8) {
+		if !ok || (p.As == ATLBI && op.cn != 8) || (p.As == ADC && op.cn != 7) {
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
 		}
