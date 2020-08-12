@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"io/ioutil"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,16 +51,12 @@ func (mth *modTidyHandle) tidy(ctx context.Context, snapshot *snapshot) (*source
 	return data.tidied, data.err
 }
 
-func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
+func (s *snapshot) ModTidy(ctx context.Context, fh source.FileHandle) (*source.TidiedModule, error) {
 	if !s.view.tmpMod {
 		return nil, source.ErrTmpModfileUnsupported
 	}
-	if handle := s.getModTidyHandle(); handle != nil {
+	if handle := s.getModTidyHandle(fh.URI()); handle != nil {
 		return handle.tidy(ctx, s)
-	}
-	modFH, err := s.GetFile(ctx, s.view.modURI)
-	if err != nil {
-		return nil, err
 	}
 	workspacePkgs, err := s.WorkspacePackages(ctx)
 	if err != nil {
@@ -74,24 +71,22 @@ func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
 	overlayHash := hashUnsavedOverlays(s.files)
 	s.mu.Unlock()
 
-	var (
-		modURI = s.view.modURI
-		cfg    = s.config(ctx)
-	)
+	// Make sure to use the module root in the configuration.
+	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modTidyKey{
 		sessionID:       s.view.session.id,
 		view:            s.view.root.Filename(),
 		imports:         importHash,
 		unsavedOverlays: overlayHash,
-		gomod:           modFH.FileIdentity(),
+		gomod:           fh.FileIdentity(),
 		cfg:             hashConfig(cfg),
 	}
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
-		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(modURI))
+		ctx, done := event.Start(ctx, "cache.ModTidyHandle", tag.URI.Of(fh.URI()))
 		defer done()
 
 		snapshot := arg.(*snapshot)
-		pm, err := snapshot.ParseMod(ctx, modFH)
+		pm, err := snapshot.ParseMod(ctx, fh)
 		if err != nil {
 			return &modTidyData{err: err}
 		}
@@ -142,7 +137,7 @@ func (s *snapshot) ModTidy(ctx context.Context) (*source.TidiedModule, error) {
 
 	mth := &modTidyHandle{handle: h}
 	s.mu.Lock()
-	s.modTidyHandle = mth
+	s.modTidyHandles[fh.URI()] = mth
 	s.mu.Unlock()
 
 	return mth.tidy(ctx, s)

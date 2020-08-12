@@ -34,7 +34,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 	if err != nil {
 		return nil, err
 	}
-	tidied, err := snapshot.ModTidy(ctx)
+	tidied, err := snapshot.ModTidy(ctx, fh)
 	if err == source.ErrTmpModfileUnsupported {
 		return nil, nil
 	}

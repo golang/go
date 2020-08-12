@@ -79,14 +79,17 @@ type Snapshot interface {
 	// ParseMod is used to parse go.mod files.
 	ParseMod(ctx context.Context, fh FileHandle) (*ParsedModule, error)
 
-	// ModWhy returns the results of `go mod why` for the snapshot's module.
-	ModWhy(ctx context.Context) (map[string]string, error)
+	// ModWhy returns the results of `go mod why` for the module specified by
+	// the given go.mod file.
+	ModWhy(ctx context.Context, fh FileHandle) (map[string]string, error)
 
-	// ModUpgrade returns the possible updates for the snapshot's module.
-	ModUpgrade(ctx context.Context) (map[string]string, error)
+	// ModUpgrade returns the possible updates for the module specified by the
+	// given go.mod file.
+	ModUpgrade(ctx context.Context, fh FileHandle) (map[string]string, error)
 
-	// ModTidy returns the results of `go mod tidy` for the snapshot's module.
-	ModTidy(ctx context.Context) (*TidiedModule, error)
+	// ModTidy returns the results of `go mod tidy` for the module specified by
+	// the given go.mod file.
+	ModTidy(ctx context.Context, fh FileHandle) (*TidiedModule, error)
 
 	// BuiltinPackage returns information about the special builtin package.
 	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)

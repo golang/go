@@ -187,6 +187,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		workspacePackages: make(map[packageID]packagePath),
 		unloadableFiles:   make(map[span.URI]struct{}),
 		parseModHandles:   make(map[span.URI]*parseModHandle),
+		modTidyHandles:    make(map[span.URI]*modTidyHandle),
+		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
+		modWhyHandles:     make(map[span.URI]*modWhyHandle),
 	}
 
 	if v.session.cache.options != nil {

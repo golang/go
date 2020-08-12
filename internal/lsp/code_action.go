@@ -459,7 +459,7 @@ func moduleQuickFixes(ctx context.Context, snapshot source.Snapshot, diagnostics
 	if err != nil {
 		return nil, err
 	}
-	tidied, err := snapshot.ModTidy(ctx)
+	tidied, err := snapshot.ModTidy(ctx, modFH)
 	if err == source.ErrTmpModfileUnsupported {
 		return nil, nil
 	}
@@ -510,11 +510,11 @@ func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
 }
 
 func goModTidy(ctx context.Context, snapshot source.Snapshot) (*protocol.CodeAction, error) {
-	tidied, err := snapshot.ModTidy(ctx)
+	modFH, err := snapshot.GetFile(ctx, snapshot.View().ModFile())
 	if err != nil {
 		return nil, err
 	}
-	modFH, err := snapshot.GetFile(ctx, snapshot.View().ModFile())
+	tidied, err := snapshot.ModTidy(ctx, modFH)
 	if err != nil {
 		return nil, err
 	}

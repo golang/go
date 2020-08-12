@@ -48,10 +48,9 @@ func (mh *parseModHandle) parse(ctx context.Context, snapshot *snapshot) (*sourc
 }
 
 func (s *snapshot) ParseMod(ctx context.Context, modFH source.FileHandle) (*source.ParsedModule, error) {
-	if handle := s.getModHandle(modFH.URI()); handle != nil {
+	if handle := s.getParseModHandle(modFH.URI()); handle != nil {
 		return handle.parse(ctx, s)
 	}
-
 	h := s.generation.Bind(modFH.FileIdentity(), func(ctx context.Context, _ memoize.Arg) interface{} {
 		_, done := event.Start(ctx, "cache.ParseModHandle", tag.URI.Of(modFH.URI()))
 		defer done()
@@ -189,17 +188,18 @@ func (mwh *modWhyHandle) why(ctx context.Context, snapshot *snapshot) (map[strin
 	return data.why, data.err
 }
 
-func (s *snapshot) ModWhy(ctx context.Context) (map[string]string, error) {
+func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	fh, err := s.GetFile(ctx, s.view.modURI)
-	if err != nil {
-		return nil, err
+	if handle := s.getModWhyHandle(fh.URI()); handle != nil {
+		return handle.why(ctx, s)
 	}
+	// Make sure to use the module root as the working directory.
+	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
-		cfg:       hashConfig(s.config(ctx)),
+		cfg:       hashConfig(cfg),
 		mod:       fh.FileIdentity(),
 		view:      s.view.root.Filename(),
 		verb:      why,
@@ -242,10 +242,10 @@ func (s *snapshot) ModWhy(ctx context.Context) (map[string]string, error) {
 
 	mwh := &modWhyHandle{handle: h}
 	s.mu.Lock()
-	s.modWhyHandle = mwh
+	s.modWhyHandles[fh.URI()] = mwh
 	s.mu.Unlock()
 
-	return s.modWhyHandle.why(ctx, s)
+	return mwh.why(ctx, s)
 }
 
 type modUpgradeHandle struct {
@@ -259,7 +259,7 @@ type modUpgradeData struct {
 	err error
 }
 
-func (muh *modUpgradeHandle) Upgrades(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
+func (muh *modUpgradeHandle) upgrades(ctx context.Context, snapshot *snapshot) (map[string]string, error) {
 	v, err := muh.handle.Get(ctx, snapshot.generation, snapshot)
 	if v == nil {
 		return nil, err
@@ -268,15 +268,15 @@ func (muh *modUpgradeHandle) Upgrades(ctx context.Context, snapshot *snapshot) (
 	return data.upgrades, data.err
 }
 
-func (s *snapshot) ModUpgrade(ctx context.Context) (map[string]string, error) {
+func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	fh, err := s.GetFile(ctx, s.view.modURI)
-	if err != nil {
-		return nil, err
+	if handle := s.getModUpgradeHandle(fh.URI()); handle != nil {
+		return handle.upgrades(ctx, s)
 	}
-	cfg := s.config(ctx)
+	// Use the module root as the working directory.
+	cfg := s.configWithDir(ctx, filepath.Dir(fh.URI().Filename()))
 	key := modKey{
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
@@ -340,10 +340,10 @@ func (s *snapshot) ModUpgrade(ctx context.Context) (map[string]string, error) {
 	})
 	muh := &modUpgradeHandle{handle: h}
 	s.mu.Lock()
-	s.modUpgradeHandle = muh
+	s.modUpgradeHandles[fh.URI()] = muh
 	s.mu.Unlock()
 
-	return s.modUpgradeHandle.Upgrades(ctx, s)
+	return muh.upgrades(ctx, s)
 }
 
 // containsVendor reports whether the module has a vendor folder.

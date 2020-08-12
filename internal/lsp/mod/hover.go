@@ -64,7 +64,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}
 
 	// Get the `go mod why` results for the given file.
-	why, err := snapshot.ModWhy(ctx)
+	why, err := snapshot.ModWhy(ctx, fh)
 	if err != nil {
 		return nil, err
 	}

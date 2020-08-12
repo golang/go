@@ -32,7 +32,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil {
 		return nil, err
 	}
-	upgrades, err := snapshot.ModUpgrade(ctx)
+	upgrades, err := snapshot.ModUpgrade(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
