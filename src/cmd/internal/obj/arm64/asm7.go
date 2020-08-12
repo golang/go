@@ -838,7 +838,8 @@ var optab = []Optab{
 	{AMSR, C_REG, C_NONE, C_NONE, C_SPR, 36, 4, 0, 0, 0},
 	{AMOVD, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
 	{AMSR, C_VCON, C_NONE, C_NONE, C_SPR, 37, 4, 0, 0, 0},
-	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPR, 91, 4, 0, 0, 0},
+	{AMSR, C_VCON, C_NONE, C_NONE, C_SPOP, 37, 4, 0, 0, 0},
+	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPOP, 91, 4, 0, 0, 0},
 	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_LCON, 91, 4, 0, 0, 0},
 	{ADMB, C_VCON, C_NONE, C_NONE, C_NONE, 51, 4, 0, 0, 0},
 	{AHINT, C_VCON, C_NONE, C_NONE, C_NONE, 52, 4, 0, 0, 0},
@@ -873,40 +874,35 @@ var optab = []Optab{
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
 
-/*
- * valid pstate field values, and value to use in instruction
- */
+// Valid pstate field values, and value to use in instruction.
+// Doesn't include special registers.
 var pstatefield = []struct {
-	reg int16
+	opd SpecialOperand
 	enc uint32
 }{
-	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
-	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
-	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+	{SPOP_DAIFSet, 3<<16 | 4<<12 | 6<<5},
+	{SPOP_DAIFClr, 3<<16 | 4<<12 | 7<<5},
 }
 
-var prfopfield = []struct {
-	reg int16
-	enc uint32
-}{
-	{REG_PLDL1KEEP, 0},
-	{REG_PLDL1STRM, 1},
-	{REG_PLDL2KEEP, 2},
-	{REG_PLDL2STRM, 3},
-	{REG_PLDL3KEEP, 4},
-	{REG_PLDL3STRM, 5},
-	{REG_PLIL1KEEP, 8},
-	{REG_PLIL1STRM, 9},
-	{REG_PLIL2KEEP, 10},
-	{REG_PLIL2STRM, 11},
-	{REG_PLIL3KEEP, 12},
-	{REG_PLIL3STRM, 13},
-	{REG_PSTL1KEEP, 16},
-	{REG_PSTL1STRM, 17},
-	{REG_PSTL2KEEP, 18},
-	{REG_PSTL2STRM, 19},
-	{REG_PSTL3KEEP, 20},
-	{REG_PSTL3STRM, 21},
+var prfopfield = map[SpecialOperand]uint32{
+	SPOP_PLDL1KEEP: 0,
+	SPOP_PLDL1STRM: 1,
+	SPOP_PLDL2KEEP: 2,
+	SPOP_PLDL2STRM: 3,
+	SPOP_PLDL3KEEP: 4,
+	SPOP_PLDL3STRM: 5,
+	SPOP_PLIL1KEEP: 8,
+	SPOP_PLIL1STRM: 9,
+	SPOP_PLIL2KEEP: 10,
+	SPOP_PLIL2STRM: 11,
+	SPOP_PLIL3KEEP: 12,
+	SPOP_PLIL3STRM: 13,
+	SPOP_PSTL1KEEP: 16,
+	SPOP_PSTL1STRM: 17,
+	SPOP_PSTL2KEEP: 18,
+	SPOP_PSTL2STRM: 19,
+	SPOP_PSTL3KEEP: 20,
+	SPOP_PSTL3STRM: 21,
 }
 
 // Used for padinng NOOP instruction
@@ -1676,8 +1672,6 @@ func rclass(r int16) int {
 		return C_FREG
 	case REG_V0 <= r && r <= REG_V31:
 		return C_VREG
-	case COND_EQ <= r && r <= COND_NV:
-		return C_COND
 	case r == REGSP:
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
@@ -1953,8 +1947,14 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 
 	case obj.TYPE_BRANCH:
 		return C_SBRA
-	}
 
+	case obj.TYPE_SPECIAL:
+		opd := SpecialOperand(a.Offset)
+		if SPOP_EQ <= opd && opd <= SPOP_NV {
+			return C_COND
+		}
+		return C_SPOP
+	}
 	return C_GOK
 }
 
@@ -3526,12 +3526,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 18: /* csel cond,Rn,Rm,Rd; cinc/cinv/cneg cond,Rn,Rd; cset cond,Rd */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
-		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV || (cond == SPOP_AL || cond == SPOP_NV) && p.From3Type() == obj.TYPE_NONE {
 			c.ctxt.Diag("invalid condition: %v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		r := int(p.Reg)
@@ -3554,11 +3553,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 19: /* CCMN cond, (Rm|uimm5),Rn, uimm4 -> ccmn Rn,Rm,uimm4,cond */
 		nzcv := int(p.To.Offset)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 		var rf int
 		if p.GetFrom3().Type == obj.TYPE_REG {
@@ -3919,10 +3918,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opirr(p, AMSR)
 		o1 |= uint32((p.From.Offset & 0xF) << 8) /* Crm */
 		v := uint32(0)
-		for i := 0; i < len(pstatefield); i++ {
-			if pstatefield[i].reg == p.To.Reg {
-				v = pstatefield[i].enc
-				break
+		// PSTATEfield can be special registers and special operands.
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
+			v = 0<<16 | 4<<12 | 5<<5
+		} else if p.To.Type == obj.TYPE_SPECIAL {
+			opd := SpecialOperand(p.To.Offset)
+			for _, pf := range pstatefield {
+				if pf.opd == opd {
+					v = pf.enc
+					break
+				}
 			}
 		}
 
@@ -4220,11 +4225,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 57: /* floating point conditional compare */
 		o1 = c.oprrr(p, p.As)
 
-		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		cond := SpecialOperand(p.From.Offset)
+		if cond < SPOP_EQ || cond > SPOP_NV {
 			c.ctxt.Diag("invalid condition\n%v", p)
 		} else {
-			cond -= COND_EQ
+			cond -= SPOP_EQ
 		}
 
 		nzcv := int(p.To.Offset)
@@ -4976,22 +4981,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
 		imm := uint32(p.From.Offset)
 		r := p.From.Reg
-		v := uint32(0xff)
+		var v uint32
+		var ok bool
 		if p.To.Type == obj.TYPE_CONST {
 			v = uint32(p.To.Offset)
-			if v > 31 {
-				c.ctxt.Diag("illegal prefetch operation\n%v", p)
-			}
+			ok = v <= 31
 		} else {
-			for i := 0; i < len(prfopfield); i++ {
-				if prfopfield[i].reg == p.To.Reg {
-					v = prfopfield[i].enc
-					break
-				}
-			}
-			if v == 0xff {
-				c.ctxt.Diag("illegal prefetch operation:\n%v", p)
-			}
+			v, ok = prfopfield[SpecialOperand(p.To.Offset)]
+		}
+		if !ok {
+			c.ctxt.Diag("illegal prefetch operation:\n%v", p)
 		}
 
 		o1 = c.opirr(p, p.As)
