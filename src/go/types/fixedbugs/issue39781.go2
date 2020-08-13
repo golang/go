@@ -1,0 +1,16 @@
+package main
+
+func F[type
+	V1 interface{ type V4 },
+	V2 interface{ type V3 },
+	V3 interface{ type V2 },
+	V4 interface{ type V1 },
+]() {}
+
+type MyInt int
+
+func main() {
+	F[int, int, int, int]()
+	F[int, int, MyInt, int]()
+	F[int /* ERROR int does not satisfy interface\{type V4\} \(int not found in string\) */, int, int, string]()
+}

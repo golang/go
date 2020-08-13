@@ -885,6 +885,11 @@ func optype(typ Type) Type {
 		// (type T interface { type T }).
 		// See also issue #39680.
 		if u := t.Bound().allTypes; u != nil && u != typ {
+			// Prevents infinite recursion
+			if t2 := u.TypeParam(); t2 != nil && t2.Bound().allTypes == typ {
+				return theTop
+			}
+
 			// u != typ and u is a type parameter => u.Under() != typ, so this is ok
 			return u.Under()
 		}
