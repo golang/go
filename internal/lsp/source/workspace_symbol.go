@@ -418,10 +418,25 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 	if !node.Pos().IsValid() || !node.End().IsValid() {
 		return
 	}
+
+	// Arbitrary factors to apply to the match score for the purpose of
+	// downranking results.
+	//
+	// There is no science behind this, other than the principle that symbols
+	// outside of a workspace should be downranked. Adjust as necessary.
+	const (
+		nonWorkspaceFactor = 0.5
+	)
+	factor := 1.0
+	if !sc.current.isWorkspace {
+		factor *= nonWorkspaceFactor
+	}
 	symbol, score := sc.symbolizer(name, sc.current.pkg, sc.matcher)
+	score *= factor
 	if score <= sc.res[len(sc.res)-1].score {
 		return
 	}
+
 	mrng := newMappedRange(sc.current.snapshot.FileSet(), sc.curFile.Mapper, node.Pos(), node.End())
 	rng, err := mrng.Range()
 	if err != nil {
