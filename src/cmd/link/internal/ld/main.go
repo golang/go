@@ -341,6 +341,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}(f, s)
 	}
 	wg.Wait()
+
+	// Generate additional symbols for the native symbol table just prior
+	// to code generation.
+	bench.Start("GenSymsLate")
+	if thearch.GenSymsLate != nil {
+		thearch.GenSymsLate(ctxt, ctxt.loader)
+	}
+
 	bench.Start("Asmb2")
 	asmb2(ctxt)
 
