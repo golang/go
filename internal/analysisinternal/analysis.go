@@ -402,14 +402,14 @@ func equivalentTypes(want, got types.Type) bool {
 func FindBestMatch(pattern string, idents []*ast.Ident) ast.Expr {
 	fuzz := fuzzy.NewMatcher(pattern)
 	var bestFuzz ast.Expr
-	highScore := float32(-1) // minimum score is -1 (no match)
+	highScore := float32(0) // minimum score is 0 (no match)
 	for _, ident := range idents {
 		// TODO: Improve scoring algorithm.
 		score := fuzz.Score(ident.Name)
 		if score > highScore {
 			highScore = score
 			bestFuzz = ident
-		} else if score == -1 {
+		} else if score == 0 {
 			// Order matters in the fuzzy matching algorithm. If we find no match
 			// when matching the target to the identifier, try matching the identifier
 			// to the target.

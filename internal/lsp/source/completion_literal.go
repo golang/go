@@ -104,7 +104,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	}
 
 	// If prefix matches the type name, client may want a composite literal.
-	if score := c.matcher.Score(matchName); score >= 0 {
+	if score := c.matcher.Score(matchName); score > 0 {
 		if cand.takeAddress {
 			if sel != nil {
 				// If we are in a selector we must place the "&" before the selector.
@@ -146,7 +146,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	// If prefix matches "make", client may want a "make()"
 	// invocation. We also include the type name to allow for more
 	// flexible fuzzy matching.
-	if score := c.matcher.Score("make." + matchName); !cand.takeAddress && score >= 0 {
+	if score := c.matcher.Score("make." + matchName); !cand.takeAddress && score > 0 {
 		switch literalType.Underlying().(type) {
 		case *types.Slice:
 			// The second argument to "make()" for slices is required, so default to "0".
@@ -159,7 +159,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	}
 
 	// If prefix matches "func", client may want a function literal.
-	if score := c.matcher.Score("func"); !cand.takeAddress && score >= 0 && !isInterface(expType) {
+	if score := c.matcher.Score("func"); !cand.takeAddress && score > 0 && !isInterface(expType) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
 			c.functionLiteral(ctx, t, float64(score))

@@ -71,8 +71,8 @@ var matcherTests = []struct {
 	{
 		pattern: "abc",
 		tests: []scoreTest{
-			{"def", eq, -1},
-			{"abd", eq, -1},
+			{"def", eq, 0},
+			{"abd", eq, 0},
 			{"abc", ge, 0},
 			{"Abc", ge, 0},
 			{"Ab stuff c", ge, 0},
@@ -81,8 +81,8 @@ var matcherTests = []struct {
 	{
 		pattern: "Abc",
 		tests: []scoreTest{
-			{"def", eq, -1},
-			{"abd", eq, -1},
+			{"def", eq, 0},
+			{"abd", eq, 0},
 			{"abc", ge, 0},
 			{"Abc", ge, 0},
 			{"Ab stuff c", ge, 0},
@@ -103,7 +103,7 @@ func TestScore(t *testing.T) {
 		for _, sct := range tc.tests {
 			score := m.Score(sct.candidate)
 			if !sct.comparator.eval(score, sct.ref) {
-				t.Errorf("not true that m.Score(%s)[=%v] %s %v", sct.candidate, score, sct.comparator, sct.ref)
+				t.Errorf("m.Score(%q) = %.2g, want %s %v", sct.candidate, score, sct.comparator, sct.ref)
 			}
 		}
 	}
@@ -196,7 +196,7 @@ func TestFuzzyMatcherRanges(t *testing.T) {
 		matcher := fuzzy.NewMatcher(tc.p)
 		score := matcher.Score(tc.str)
 		if tc.want == "" {
-			if score >= 0 {
+			if score > 0 {
 				t.Errorf("Score(%s, %s) = %v; want: <= 0", tc.p, tc.str, score)
 			}
 			continue

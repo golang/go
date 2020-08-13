@@ -135,7 +135,7 @@ func (m *Matcher) Score(candidate string) float32 {
 	}
 
 	m.lastCandidateMatched = false
-	return -1
+	return 0
 }
 
 const minScore = -10000
