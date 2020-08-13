@@ -16,17 +16,6 @@ import (
 	"strings"
 )
 
-// oldPclnState holds state information used during pclntab generation.  Here
-// 'ldr' is just a pointer to the context's loader, 'deferReturnSym' is the
-// index for the symbol "runtime.deferreturn",
-//
-// NB: This is deprecated, and will be eliminated when pclntab_old is
-// eliminated.
-type oldPclnState struct {
-	ldr            *loader.Loader
-	deferReturnSym loader.Sym
-}
-
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
 	// The first and last functions found.
@@ -56,12 +45,6 @@ type pclntab struct {
 
 	// The number of filenames in runtime.filetab.
 	nfiles uint32
-
-	// maps the function symbol to offset in runtime.funcnametab
-	// This doesn't need to reside in the state once pclntab_old's been
-	// deleted -- it can live in generateFuncnametab.
-	// TODO(jfaller): Delete me!
-	funcNameOffset map[loader.Sym]int32
 }
 
 // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
@@ -76,35 +59,26 @@ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f gen
 	return s
 }
 
-func makeOldPclnState(ctxt *Link) *oldPclnState {
-	ldr := ctxt.loader
-	drs := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
-	state := &oldPclnState{
-		ldr:            ldr,
-		deferReturnSym: drs,
-	}
-
-	return state
-}
-
 // makePclntab makes a pclntab object, and assembles all the compilation units
-// we'll need to write pclntab.
-func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit) {
+// we'll need to write pclntab. Returns the pclntab structure, a slice of the
+// CompilationUnits we need, and a slice of the function symbols we need to
+// generate pclntab.
+func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit, []loader.Sym) {
 	ldr := ctxt.loader
 
-	state := &pclntab{
-		funcNameOffset: make(map[loader.Sym]int32),
-	}
+	state := &pclntab{}
 
 	// Gather some basic stats and info.
 	seenCUs := make(map[*sym.CompilationUnit]struct{})
 	prevSect := ldr.SymSect(ctxt.Textp[0])
 	compUnits := []*sym.CompilationUnit{}
+	funcs := []loader.Sym{}
 
 	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s, container) {
 			continue
 		}
+		funcs = append(funcs, s)
 		state.nfunc++
 		if state.firstFunc == 0 {
 			state.firstFunc = s
@@ -130,15 +104,7 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 			compUnits = append(compUnits, cu)
 		}
 	}
-	return state, compUnits
-}
-
-func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
-	start := len(ftab.Data())
-	ftab.Grow(int64(start + len(s) + 1)) // make room for s plus trailing NUL
-	ftd := ftab.Data()
-	copy(ftd[start:], s)
-	return int32(start)
+	return state, compUnits, funcs
 }
 
 // onlycsymbol looks at a symbol's name to report whether this is a
@@ -163,11 +129,13 @@ func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
 	return !container.Has(s)
 }
 
-func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 {
+func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
+	ldr := ctxt.loader
+	target := ctxt.Target
 	deferreturn := uint32(0)
 	lastWasmAddr := uint32(0)
 
-	relocs := state.ldr.Relocs(s)
+	relocs := ldr.Relocs(s)
 	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At(ri)
 		if target.IsWasm() && r.Type() == objabi.R_ADDR {
@@ -178,7 +146,7 @@ func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint
 			// set the resumption point to PC_B.
 			lastWasmAddr = uint32(r.Add())
 		}
-		if r.Type().IsDirectCall() && (r.Sym() == state.deferReturnSym || state.ldr.IsDeferReturnTramp(r.Sym())) {
+		if r.Type().IsDirectCall() && (r.Sym() == deferReturnSym || ldr.IsDeferReturnTramp(r.Sym())) {
 			if target.IsWasm() {
 				deferreturn = lastWasmAddr - 1
 			} else {
@@ -211,8 +179,8 @@ func (state *oldPclnState) computeDeferReturn(target *Target, s loader.Sym) uint
 
 // genInlTreeSym generates the InlTree sym for a function with the
 // specified FuncInfo.
-func (state *oldPclnState) genInlTreeSym(cu *sym.CompilationUnit, fi loader.FuncInfo, arch *sys.Arch, newState *pclntab) loader.Sym {
-	ldr := state.ldr
+func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch *sys.Arch, nameOffsets map[loader.Sym]uint32) loader.Sym {
+	ldr := ctxt.loader
 	its := ldr.CreateExtSym("", 0)
 	inlTreeSym := ldr.MakeSymbolUpdater(its)
 	// Note: the generated symbol is given a type of sym.SGOFUNC, as a
@@ -225,7 +193,7 @@ func (state *oldPclnState) genInlTreeSym(cu *sym.CompilationUnit, fi loader.Func
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)
 		val := call.File
-		nameoff, ok := newState.funcNameOffset[call.Func]
+		nameoff, ok := nameOffsets[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
@@ -282,16 +250,12 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
 }
 
-// walkFuncs iterates over the Textp, calling a function for each unique
+// walkFuncs iterates over the funcs, calling a function for each unique
 // function and inlined function.
-func (state *pclntab) walkFuncs(ctxt *Link, container loader.Bitmap, f func(loader.Sym)) {
+func walkFuncs(ctxt *Link, funcs []loader.Sym, f func(loader.Sym)) {
 	ldr := ctxt.loader
 	seen := make(map[loader.Sym]struct{})
-	for _, ls := range ctxt.Textp {
-		s := loader.Sym(ls)
-		if !emitPcln(ctxt, s, container) {
-			continue
-		}
+	for _, s := range funcs {
 		if _, ok := seen[s]; !ok {
 			f(s)
 			seen[s] = struct{}{}
@@ -312,37 +276,37 @@ func (state *pclntab) walkFuncs(ctxt *Link, container loader.Bitmap, f func(load
 	}
 }
 
-// generateFuncnametab creates the function name table.
-func (state *pclntab) generateFuncnametab(ctxt *Link, container loader.Bitmap) {
+// generateFuncnametab creates the function name table. Returns a map of
+// func symbol to the name offset in runtime.funcnamtab.
+func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[loader.Sym]uint32 {
+	nameOffsets := make(map[loader.Sym]uint32, state.nfunc)
+
 	// Write the null terminated strings.
 	writeFuncNameTab := func(ctxt *Link, s loader.Sym) {
 		symtab := ctxt.loader.MakeSymbolUpdater(s)
-		for s, off := range state.funcNameOffset {
+		for s, off := range nameOffsets {
 			symtab.AddStringAt(int64(off), ctxt.loader.SymName(s))
 		}
 	}
 
 	// Loop through the CUs, and calculate the size needed.
 	var size int64
-	state.walkFuncs(ctxt, container, func(s loader.Sym) {
-		state.funcNameOffset[s] = int32(size)
+	walkFuncs(ctxt, funcs, func(s loader.Sym) {
+		nameOffsets[s] = uint32(size)
 		size += int64(ctxt.loader.SymNameLen(s)) + 1 // NULL terminate
 	})
 
 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
+	return nameOffsets
 }
 
-// walkFilenames walks the filenames in the all reachable functions.
-func walkFilenames(ctxt *Link, container loader.Bitmap, f func(*sym.CompilationUnit, goobj.CUFileIndex)) {
+// walkFilenames walks funcs, calling a function for each filename used in each
+// function's line table.
+func walkFilenames(ctxt *Link, funcs []loader.Sym, f func(*sym.CompilationUnit, goobj.CUFileIndex)) {
 	ldr := ctxt.loader
 
 	// Loop through all functions, finding the filenames we need.
-	for _, ls := range ctxt.Textp {
-		s := loader.Sym(ls)
-		if !emitPcln(ctxt, s, container) {
-			continue
-		}
-
+	for _, s := range funcs {
 		fi := ldr.FuncInfo(s)
 		if !fi.Valid() {
 			continue
@@ -382,7 +346,7 @@ func walkFilenames(ctxt *Link, container loader.Bitmap, f func(*sym.CompilationU
 //  1) Get Func.CUIndex:       M := func.cuOffset
 //  2) Find filename offset:   fileOffset := runtime.cutab[M+K]
 //  3) Get the filename:       getcstring(runtime.filetab[fileOffset])
-func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.CompilationUnit, container loader.Bitmap) []uint32 {
+func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.CompilationUnit, funcs []loader.Sym) []uint32 {
 	// On a per-CU basis, keep track of all the filenames we need.
 	//
 	// Note, that we store the filenames in a separate section in the object
@@ -402,7 +366,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 	// file index we've seen per CU so we can calculate how large the
 	// CU->global table needs to be.
 	var fileSize int64
-	walkFilenames(ctxt, container, func(cu *sym.CompilationUnit, i goobj.CUFileIndex) {
+	walkFilenames(ctxt, funcs, func(cu *sym.CompilationUnit, i goobj.CUFileIndex) {
 		// Note we use the raw filename for lookup, but use the expanded filename
 		// when we save the size.
 		filename := cu.FileTable[i]
@@ -467,7 +431,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 
 // generatePctab creates the runtime.pctab variable, holding all the
 // deduplicated pcdata.
-func (state *pclntab) generatePctab(ctxt *Link, container loader.Bitmap) {
+func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 	ldr := ctxt.loader
 
 	// Pctab offsets of 0 are considered invalid in the runtime. We respect
@@ -490,10 +454,7 @@ func (state *pclntab) generatePctab(ctxt *Link, container loader.Bitmap) {
 			seen[pcSym] = struct{}{}
 		}
 	}
-	for _, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s, container) {
-			continue
-		}
+	for _, s := range funcs {
 		fi := ldr.FuncInfo(s)
 		if !fi.Valid() {
 			continue
@@ -566,8 +527,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//        end PC [thearch.ptrsize bytes]
 	//        func structures, pcdata tables.
 
-	oldState := makeOldPclnState(ctxt)
-	state, compUnits := makePclntab(ctxt, container)
+	state, compUnits, funcs := makePclntab(ctxt, container)
 
 	ldr := ctxt.loader
 	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
@@ -579,9 +539,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	// rational form.
 	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
 	state.generatePCHeader(ctxt)
-	state.generateFuncnametab(ctxt, container)
-	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, container)
-	state.generatePctab(ctxt, container)
+	nameOffsets := state.generateFuncnametab(ctxt, funcs)
+	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, funcs)
+	state.generatePctab(ctxt, funcs)
+
+	// Used to when computing defer return.
+	deferReturnSym := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
 
 	funcdataBytes := int64(0)
 	ldr.SetCarrierSym(state.pclntab, state.carrier)
@@ -613,11 +576,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 
 	var nfunc int32
 	prevFunc := ctxt.Textp[0]
-	for _, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s, container) {
-			continue
-		}
-
+	for _, s := range funcs {
 		thisSect := ldr.SymSect(s)
 		prevSect := ldr.SymSect(prevFunc)
 		if thisSect != prevSect {
@@ -686,7 +645,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = int32(setAddr(ftab, ctxt.Arch, int64(off), s, 0))
 
 		// name int32
-		nameoff, ok := state.funcNameOffset[s]
+		nameoff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
@@ -701,13 +660,13 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
 
 		// deferreturn
-		deferreturn := oldState.computeDeferReturn(&ctxt.Target, s)
+		deferreturn := computeDeferReturn(ctxt, deferReturnSym, s)
 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
 
 		cu := ldr.SymUnit(s)
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
-			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
+			its := genInlTreeSym(ctxt, cu, fi, ctxt.Arch, nameOffsets)
 			funcdata[objabi.FUNCDATA_InlTree] = its
 		}
 
