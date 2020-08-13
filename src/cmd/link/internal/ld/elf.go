@@ -506,6 +506,9 @@ func Elfinit(ctxt *Link) {
 		if ctxt.Arch.Family == sys.MIPS64 {
 			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
 		}
+		if ctxt.Arch.Family == sys.RISCV64 {
+			ehdr.flags = 0x4 /* RISCV Float ABI Double */
+		}
 		elf64 = true
 
 		ehdr.phoff = ELF64HDRSIZE      /* Must be ELF64HDRSIZE: first PHdr must follow ELF header */
