@@ -1961,6 +1961,31 @@
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 
+// for late-expanded calls
+(Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
+	&& isSameCall(call.Aux, "runtime.newobject")
+	=> mem
+
+(Store (SelectN [0] call:(StaticLECall _ _)) x mem:(SelectN [1] call))
+	&& isConstZero(x)
+	&& isSameCall(call.Aux, "runtime.newobject")
+	=> mem
+
+(Store (OffPtr (SelectN [0] call:(StaticLECall _ _))) x mem:(SelectN [1] call))
+	&& isConstZero(x)
+	&& isSameCall(call.Aux, "runtime.newobject")
+	=> mem
+
+(NilCheck (SelectN [0] call:(StaticLECall _ _)) (SelectN [1] call))
+	&& isSameCall(call.Aux, "runtime.newobject")
+	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+	=> (Invalid)
+
+(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) (SelectN [1] call))
+	&& isSameCall(call.Aux, "runtime.newobject")
+	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+	=> (Invalid)
+
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])
 (NeqPtr x x) => (ConstBool [false])
@@ -2016,6 +2041,17 @@
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(s1, s2, s3)
 	=> (Move {t.Elem()} [int64(sz)] dst src mem)
+
+// Inline small or disjoint runtime.memmove calls with constant length.
+// See the comment in op Move in genericOps.go for discussion of the type.
+(SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
+	&& sz >= 0
+	&& call.Uses == 1 // this will exclude all calls with results
+	&& isSameCall(sym, "runtime.memmove")
+	&& dst.Type.IsPtr() // avoids TUINTPTR, see issue 30061
+	&& isInlinableMemmove(dst, src, int64(sz), config)
+	&& clobber(call)
+	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
 
 // De-virtualize interface calls into static calls.
 // Note that (ITab (IMake)) doesn't get
@@ -2411,6 +2447,7 @@
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
 
+// TODO this does not fire before call expansion; is that acceptable?
 (StaticCall {sym} x) && needRaceCleanup(sym, v) => x
 
 // Collapse moving A -> B -> C into just A -> C.
