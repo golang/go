@@ -1334,7 +1334,7 @@ func removeBranch(b *Block, branch branch) {
 // isNonNegative reports whether v is known to be greater or equal to zero.
 func isNonNegative(v *Value) bool {
 	if !v.Type.IsInteger() {
-		panic("isNonNegative bad type")
+		v.Fatalf("isNonNegative bad type: %v", v.Type)
 	}
 	// TODO: return true if !v.Type.IsSigned()
 	// SSA isn't type-safe enough to do that now (issue 37753).
