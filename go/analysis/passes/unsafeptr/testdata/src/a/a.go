@@ -18,6 +18,7 @@ func f() {
 	// only allowed pointer arithmetic is ptr +/-/&^ num.
 	// num+ptr is technically okay but still flagged: write ptr+num instead.
 	x = unsafe.Pointer(uintptr(x) + 1)
+	x = unsafe.Pointer(((uintptr((x))) + 1))
 	x = unsafe.Pointer(1 + uintptr(x))          // want "possible misuse of unsafe.Pointer"
 	x = unsafe.Pointer(uintptr(x) + uintptr(x)) // want "possible misuse of unsafe.Pointer"
 	x = unsafe.Pointer(uintptr(x) - 1)
@@ -28,9 +29,12 @@ func f() {
 	// certain uses of reflect are okay
 	var v reflect.Value
 	x = unsafe.Pointer(v.Pointer())
+	x = unsafe.Pointer(v.Pointer() + 1) // want "possible misuse of unsafe.Pointer"
 	x = unsafe.Pointer(v.UnsafeAddr())
+	x = unsafe.Pointer((v.UnsafeAddr()))
 	var s1 *reflect.StringHeader
 	x = unsafe.Pointer(s1.Data)
+	x = unsafe.Pointer(s1.Data + 1) // want "possible misuse of unsafe.Pointer"
 	var s2 *reflect.SliceHeader
 	x = unsafe.Pointer(s2.Data)
 	var s3 reflect.StringHeader
