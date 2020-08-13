@@ -696,20 +696,24 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 
 	// See which of the workspace packages are missing metadata.
 	s.mu.Lock()
-	var pkgPaths []interface{}
+	pkgPathSet := map[packagePath]struct{}{}
 	for id, pkgPath := range s.workspacePackages {
 		// Don't try to reload "command-line-arguments" directly.
 		if pkgPath == "command-line-arguments" {
 			continue
 		}
 		if s.metadata[id] == nil {
-			pkgPaths = append(pkgPaths, pkgPath)
+			pkgPathSet[pkgPath] = struct{}{}
 		}
 	}
 	s.mu.Unlock()
 
-	if len(pkgPaths) == 0 {
+	if len(pkgPathSet) == 0 {
 		return nil
+	}
+	var pkgPaths []interface{}
+	for pkgPath := range pkgPathSet {
+		pkgPaths = append(pkgPaths, pkgPath)
 	}
 	return s.load(ctx, pkgPaths...)
 }
