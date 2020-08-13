@@ -77,13 +77,21 @@ func defPredeclaredTypes() {
 		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
 
+	// any
+	{
+		typ := &Named{underlying: &emptyInterface}
+		def(NewTypeName(token.NoPos, nil, "any", typ))
+	}
+
 	// Error has a nil package in its qualified name since it is in no package
-	res := NewVar(token.NoPos, nil, "", Typ[String])
-	sig := &Signature{results: NewTuple(res)}
-	err := NewFunc(token.NoPos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
-	sig.recv = NewVar(token.NoPos, nil, "", typ)
-	def(NewTypeName(token.NoPos, nil, "error", typ))
+	{
+		res := NewVar(token.NoPos, nil, "", Typ[String])
+		sig := &Signature{results: NewTuple(res)}
+		err := NewFunc(token.NoPos, nil, "Error", sig)
+		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
+		sig.recv = NewVar(token.NoPos, nil, "", typ)
+		def(NewTypeName(token.NoPos, nil, "error", typ))
+	}
 }
 
 var predeclaredConsts = [...]struct {
