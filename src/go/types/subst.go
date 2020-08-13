@@ -191,7 +191,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 				break
 			}
 			for _, t := range unpack(targBound.allTypes) {
-				if !iface.includes(t.Under()) {
+				if !iface.isSatisfiedBy(t) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
@@ -200,9 +200,9 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			break
 		}
 
-		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
-		if !iface.includes(targ.Under()) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
+		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+		if !iface.isSatisfiedBy(targ) {
+			check.softErrorf(pos, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, targ.Under(), iface.allTypes)
 			break
 		}
 	}

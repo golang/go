@@ -963,13 +963,13 @@ func intersect(x, y Type) (r Type) {
 
 	xtypes := unpack(x)
 	ytypes := unpack(y)
-	// Compute the list rtypes which contains only
+	// Compute the list rtypes which includes only
 	// types that are in both xtypes and ytypes.
 	// Quadratic algorithm, but good enough for now.
 	// TODO(gri) fix this
 	var rtypes []Type
 	for _, x := range xtypes {
-		if contains(ytypes, x) {
+		if includes(ytypes, x) {
 			rtypes = append(rtypes, x)
 		}
 	}
@@ -1161,7 +1161,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 			if t := t.Interface(); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
-			if contains(uniques, t) {
+			if includes(uniques, t) {
 				check.softErrorf(types[i].Pos(), "duplicate type %s in type list", t)
 			}
 			uniques = append(uniques, t)
@@ -1171,8 +1171,8 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 	return list
 }
 
-// contains reports whether typ is in list
-func contains(list []Type, typ Type) bool {
+// includes reports whether typ is in list.
+func includes(list []Type, typ Type) bool {
 	for _, e := range list {
 		if Identical(typ, e) {
 			return true
