@@ -188,4 +188,4 @@ Defines the algorithm that is used when calculating workspace symbol results. Mu
 * `"caseSensitive"`
 * `"caseInsensitive"`
 
-Default: `"caseInsensitive"`.
+Default: `"fuzzy"`.

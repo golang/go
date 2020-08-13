@@ -105,6 +105,22 @@ See [Settings](settings.md) for more information about the available configurati
 
 This contains exactly the same set of values that are in the global configuration, but it is fetched for every workspace folder separately. The editor can choose to respond with different values per-folder.
 
+## Special Features
+
+### Symbol Queries
+
+Gopls supports some extended syntax for `workspace/symbol` requests, when using
+the `fuzzy` symbol matcher (the default). Inspired by the popular fuzzy matcher
+[FZF](https://github.com/junegunn/fzf), the following special characters are
+supported within symbol queries:
+
+| Character | Usage     | Match        |
+| --------- | --------- | ------------ |
+| `'`       | `'abc`    | exact        |
+| `^`       | `^printf` | exact prefix |
+| `$`       | `printf$` | exact suffix |
+
+
 ## Command line support
 
 Much of the functionality of `gopls` is available through a command line interface.

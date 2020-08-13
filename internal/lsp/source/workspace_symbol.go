@@ -155,10 +155,7 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 	var m matcherFunc
 	switch matcher {
 	case SymbolFuzzy:
-		fm := fuzzy.NewMatcher(query)
-		m = func(s string) float64 {
-			return float64(fm.Score(s))
-		}
+		m = parseQuery(query)
 	case SymbolCaseSensitive:
 		m = func(s string) float64 {
 			if strings.Contains(s, query) {
@@ -192,6 +189,84 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 		matcher:    m,
 		symbolizer: s,
 	}
+}
+
+// parseQuery parses a field-separated symbol query, extracting the special
+// characters listed below, and returns a matcherFunc corresponding to the AND
+// of all field queries.
+//
+// Special characters:
+//   ^  match exact prefix
+//   $  match exact suffix
+//   '  match exact
+//
+// In all three of these special queries, matches are 'smart-cased', meaning
+// they are case sensitive if the symbol query contains any upper-case
+// characters, and case insensitive otherwise.
+func parseQuery(q string) matcherFunc {
+	fields := strings.Fields(q)
+	if len(fields) == 0 {
+		return func(string) float64 { return 0 }
+	}
+	var funcs []matcherFunc
+	for _, field := range fields {
+		var f matcherFunc
+		switch {
+		case strings.HasPrefix(field, "^"):
+			prefix := field[1:]
+			f = smartCase(prefix, func(s string) float64 {
+				if strings.HasPrefix(s, prefix) {
+					return 1
+				}
+				return 0
+			})
+		case strings.HasPrefix(field, "'"):
+			exact := field[1:]
+			f = smartCase(exact, func(s string) float64 {
+				if strings.Contains(s, exact) {
+					return 1
+				}
+				return 0
+			})
+		case strings.HasSuffix(field, "$"):
+			suffix := field[0 : len(field)-1]
+			f = smartCase(suffix, func(s string) float64 {
+				if strings.HasSuffix(s, suffix) {
+					return 1
+				}
+				return 0
+			})
+		default:
+			fm := fuzzy.NewMatcher(field)
+			f = func(s string) float64 {
+				return float64(fm.Score(s))
+			}
+		}
+		funcs = append(funcs, f)
+	}
+	return comboMatcher(funcs).match
+}
+
+// smartCase returns a matcherFunc that is case-sensitive if q contains any
+// upper-case characters, and case-insensitive otherwise.
+func smartCase(q string, m matcherFunc) matcherFunc {
+	insensitive := strings.ToLower(q) == q
+	return func(s string) float64 {
+		if insensitive {
+			s = strings.ToLower(s)
+		}
+		return m(s)
+	}
+}
+
+type comboMatcher []matcherFunc
+
+func (c comboMatcher) match(s string) float64 {
+	score := 1.0
+	for _, f := range c {
+		score *= f(s)
+	}
+	return score
 }
 
 // walk walks views, gathers symbols, and returns the results.
