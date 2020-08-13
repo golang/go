@@ -152,7 +152,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		if _, err := s.buildPackageHandle(ctx, m.id, source.ParseFull); err != nil {
+		if _, err := s.buildPackageHandle(ctx, m.id); err != nil {
 			return err
 		}
 	}

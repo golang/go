@@ -56,7 +56,11 @@ type packageData struct {
 }
 
 // buildPackageHandle returns a packageHandle for a given package and mode.
-func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
+func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packageHandle, error) {
+	mode := source.ParseExported
+	if _, ok := s.isWorkspacePackage(id); ok {
+		mode = source.ParseFull
+	}
 	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
 	}
@@ -141,11 +145,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys []packageHandleKey
 	for _, depID := range depList {
-		mode := source.ParseExported
-		if _, ok := s.isWorkspacePackage(depID); ok {
-			mode = source.ParseFull
-		}
-		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
+		depHandle, err := s.buildPackageHandle(ctx, depID)
 		if err != nil {
 			event.Error(ctx, "no dep handle", err, tag.Package.Of(string(depID)))
 			if ctx.Err() != nil {

@@ -283,7 +283,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI) ([]source.
 	// Get the list of IDs from the snapshot again, in case it has changed.
 	var pkgs []source.Package
 	for _, id := range s.getIDsForURI(uri) {
-		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
+		pkg, err := s.checkedPackage(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -292,8 +292,8 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI) ([]source.
 	return pkgs, nil
 }
 
-func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
-	ph, err := s.buildPackageHandle(ctx, id, mode)
+func (s *snapshot) checkedPackage(ctx context.Context, id packageID) (*pkg, error) {
+	ph, err := s.buildPackageHandle(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 
 	var pkgs []source.Package
 	for id := range ids {
-		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
+		pkg, err := s.checkedPackage(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +448,7 @@ func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, err
 	}
 	var pkgs []source.Package
 	for _, pkgID := range s.workspacePackageIDs() {
-		pkg, err := s.checkedPackage(ctx, pkgID, source.ParseFull)
+		pkg, err := s.checkedPackage(ctx, pkgID)
 		if err != nil {
 			return nil, err
 		}
@@ -464,27 +464,19 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 
 	// The WorkspaceSymbols implementation relies on this function returning
 	// workspace packages first.
-	wsPackages := s.workspacePackageIDs()
-	var otherPackages []packageID
+	ids := s.workspacePackageIDs()
 	s.mu.Lock()
 	for id := range s.metadata {
 		if _, ok := s.workspacePackages[id]; ok {
 			continue
 		}
-		otherPackages = append(otherPackages, id)
+		ids = append(ids, id)
 	}
 	s.mu.Unlock()
 
 	var pkgs []source.Package
-	for _, id := range wsPackages {
-		pkg, err := s.checkedPackage(ctx, id, source.ParseFull)
-		if err != nil {
-			return nil, err
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	for _, id := range otherPackages {
-		pkg, err := s.checkedPackage(ctx, id, source.ParseExported)
+	for _, id := range ids {
+		pkg, err := s.checkedPackage(ctx, id)
 		if err != nil {
 			return nil, err
 		}
