@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
-	"golang.org/x/xerrors"
+	errors "golang.org/x/xerrors"
 )
 
 // idWithAnalysis is used to track if the diagnostics for a given file were
@@ -93,6 +93,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// Diagnose all of the packages in the workspace.
 	wsPkgs, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, nil
+		}
 		// Try constructing a more helpful error message out of this error.
 		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
 			return nil, nil
@@ -355,7 +358,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 	if modErr == nil {
 		return false
 	}
-	if xerrors.Is(loadErr, source.PackagesLoadError) {
+	if errors.Is(loadErr, source.PackagesLoadError) {
 		fh, err := snapshot.GetFile(ctx, modURI)
 		if err != nil {
 			return false
