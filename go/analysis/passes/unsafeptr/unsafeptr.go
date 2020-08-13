@@ -37,16 +37,29 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
+		(*ast.StarExpr)(nil),
+		(*ast.UnaryExpr)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		x := n.(*ast.CallExpr)
-		if len(x.Args) != 1 {
-			return
-		}
-		if hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
-			hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
-			!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
-			pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
+		switch x := n.(type) {
+		case *ast.CallExpr:
+			if len(x.Args) == 1 &&
+				hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
+				hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
+				!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
+				pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
+			}
+		case *ast.StarExpr:
+			if t := pass.TypesInfo.Types[x].Type; isReflectHeader(t) {
+				pass.ReportRangef(x, "possible misuse of %s", t)
+			}
+		case *ast.UnaryExpr:
+			if x.Op != token.AND {
+				return
+			}
+			if t := pass.TypesInfo.Types[x.X].Type; isReflectHeader(t) {
+				pass.ReportRangef(x, "possible misuse of %s", t)
+			}
 		}
 	})
 	return nil, nil
@@ -144,7 +157,7 @@ func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
 // isReflectHeader reports whether t is reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeader(t types.Type) bool {
 	if named, ok := t.(*types.Named); ok {
-		if obj := named.Obj(); obj.Pkg().Path() == "reflect" {
+		if obj := named.Obj(); obj.Pkg() != nil && obj.Pkg().Path() == "reflect" {
 			switch obj.Name() {
 			case "SliceHeader", "StringHeader":
 				return true
