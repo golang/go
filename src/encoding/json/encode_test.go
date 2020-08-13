@@ -187,6 +187,7 @@ var (
 	pointerCycleIndirect = &PointerCycleIndirect{}
 	mapCycle             = make(map[string]interface{})
 	sliceCycle           = []interface{}{nil}
+	sliceNoCycle         = []interface{}{nil, nil}
 )
 
 func init() {
@@ -199,10 +200,20 @@ func init() {
 
 	mapCycle["x"] = mapCycle
 	sliceCycle[0] = sliceCycle
+	sliceNoCycle[1] = sliceNoCycle[:1]
+	for i := startDetectingCyclesAfter; i > 0; i-- {
+		sliceNoCycle = []interface{}{sliceNoCycle}
+	}
 }
 
 func TestSamePointerNoCycle(t *testing.T) {
 	if _, err := Marshal(samePointerNoCycle); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSliceNoCycle(t *testing.T) {
+	if _, err := Marshal(sliceNoCycle); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
