@@ -183,7 +183,11 @@ type PointerCycleIndirect struct {
 	Ptrs []interface{}
 }
 
-var pointerCycleIndirect = &PointerCycleIndirect{}
+var (
+	pointerCycleIndirect = &PointerCycleIndirect{}
+	mapCycle             = make(map[string]interface{})
+	sliceCycle           = []interface{}{nil}
+)
 
 func init() {
 	ptr := &SamePointerNoCycle{}
@@ -192,6 +196,9 @@ func init() {
 
 	pointerCycle.Ptr = pointerCycle
 	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
+
+	mapCycle["x"] = mapCycle
+	sliceCycle[0] = sliceCycle
 }
 
 func TestSamePointerNoCycle(t *testing.T) {
@@ -206,6 +213,8 @@ var unsupportedValues = []interface{}{
 	math.Inf(1),
 	pointerCycle,
 	pointerCycleIndirect,
+	mapCycle,
+	sliceCycle,
 }
 
 func TestUnsupportedValues(t *testing.T) {
