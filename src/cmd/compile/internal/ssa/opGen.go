@@ -2855,6 +2855,7 @@ const (
 	OpSelect1
 	OpSelectN
 	OpSelectNAddr
+	OpMakeResult
 	OpAtomicLoad8
 	OpAtomicLoad32
 	OpAtomicLoad64
@@ -35722,6 +35723,11 @@ var opcodeTable = [...]opInfo{
 		name:    "SelectNAddr",
 		auxType: auxInt64,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MakeResult",
+		argLen:  -1,
 		generic: true,
 	},
 	{

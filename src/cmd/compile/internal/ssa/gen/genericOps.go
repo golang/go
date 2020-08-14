@@ -538,8 +538,9 @@ var genericOps = []opData{
 	// pseudo-ops for breaking Tuple
 	{name: "Select0", argLength: 1, zeroWidth: true},  // the first component of a tuple
 	{name: "Select1", argLength: 1, zeroWidth: true},  // the second component of a tuple
-	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=tuple, auxint=field index.  Returns the auxint'th member.
-	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=tuple, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
+	{name: "SelectN", argLength: 1, aux: "Int64"},     // arg0=result, auxint=field index.  Returns the auxint'th member.
+	{name: "SelectNAddr", argLength: 1, aux: "Int64"}, // arg0=result, auxint=field index.  Returns the address of auxint'th member. Used for un-SSA-able result types.
+	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
 
 	// Atomic operations used for semantically inlining sync/atomic and
 	// runtime/internal/atomic. Atomic loads return a new memory so that
