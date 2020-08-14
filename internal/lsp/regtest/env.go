@@ -375,11 +375,11 @@ func NoOutstandingWork() SimpleExpectation {
 	}
 }
 
-// EmptyShowMessage asserts that the editor has not received a ShowMessage.
-func EmptyShowMessage(title string) SimpleExpectation {
+// NoShowMessage asserts that the editor has not received a ShowMessage.
+func NoShowMessage() SimpleExpectation {
 	check := func(s State) (Verdict, interface{}) {
 		if len(s.showMessage) == 0 {
-			return Met, title
+			return Met, "no ShowMessage"
 		}
 		return Unmeetable, nil
 	}

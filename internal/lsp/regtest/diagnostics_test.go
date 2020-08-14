@@ -541,12 +541,34 @@ func f() {
 				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
 				NoDiagnostics("a.go"),
 			),
-			EmptyShowMessage(""),
+			NoShowMessage(),
 		)
 		// introduce an error, expect no Show Message
 		env.RegexpReplace("a.go", "func", "fun")
-		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), EmptyShowMessage(""))
+		env.Await(env.DiagnosticAtRegexp("a.go", "fun"), NoShowMessage())
 	})
+}
+
+func TestNonGoFolder(t *testing.T) {
+	const files = `
+-- hello.txt --
+hi mom
+`
+	for _, go111module := range []string{"on", "off", ""} {
+		t.Run(fmt.Sprintf("GO111MODULE_%v", go111module), func(t *testing.T) {
+			withOptions(WithEditorConfig(fake.EditorConfig{
+				Env: map[string]string{"GO111MODULE": go111module},
+			})).run(t, files, func(t *testing.T, env *Env) {
+				env.OpenFile("hello.txt")
+				env.Await(
+					OnceMet(
+						CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+						NoShowMessage(),
+					),
+				)
+			})
+		})
+	}
 }
 
 // Tests golang/go#38602.

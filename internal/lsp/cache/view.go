@@ -734,7 +734,6 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options
 		v.sumURI = span.URIFromPath(sumFilename)
 	}
 
-	v.root = v.folder
 	if options.ExpandWorkspaceToModule && v.modURI != "" {
 		v.root = span.URIFromPath(filepath.Dir(v.modURI.Filename()))
 	}

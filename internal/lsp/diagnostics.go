@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -317,7 +318,20 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, modErr, loadErr error) bool {
 	modURI := snapshot.View().ModFile()
 
-	// We currently only have workarounds for errors associated with modules.
+	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
+	var hasGo bool
+	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
+		if !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+		hasGo = true
+		return errors.New("done")
+	})
+	if !hasGo {
+		return true
+	}
+
+	// All other workarounds are for errors associated with modules.
 	if modURI == "" {
 		return false
 	}

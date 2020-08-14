@@ -170,6 +170,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		cancel:             cancel,
 		name:               name,
 		folder:             folder,
+		root:               folder,
 		filesByURI:         make(map[span.URI]*fileBase),
 		filesByBase:        make(map[string][]*fileBase),
 	}
