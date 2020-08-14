@@ -42,7 +42,7 @@ const (
 	// roughly 100µs.
 	//
 	// Must be a multiple of the pageInUse bitmap element size and
-	// must also evenly divid pagesPerArena.
+	// must also evenly divide pagesPerArena.
 	pagesPerReclaimerChunk = 512
 )
 
