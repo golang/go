@@ -17,6 +17,10 @@
 // Please report any issues.
 package plugin
 
+import (
+	"os"
+)
+
 // Plugin is a loaded Go plugin.
 type Plugin struct {
 	pluginpath string
@@ -30,6 +34,13 @@ type Plugin struct {
 // It is safe for concurrent use by multiple goroutines.
 func Open(path string) (*Plugin, error) {
 	return open(path)
+}
+
+// Open opens a Go plugin from a File over its file descriptor.
+// If a path has already been opened, then the existing *Plugin is returned.
+// It is safe for concurrent use by multiple goroutines.
+func OpenFile(file *os.File) (*Plugin, error) {
+	return openFile(file)
 }
 
 // Lookup searches for a symbol named symName in plugin p.

@@ -43,6 +43,7 @@ func open(name string) (*Plugin, error) {
 	cPath := make([]byte, C.PATH_MAX+1)
 	cRelName := make([]byte, len(name)+1)
 	copy(cRelName, name)
+
 	if C.realpath(
 		(*C.char)(unsafe.Pointer(&cRelName[0])),
 		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
@@ -51,6 +52,10 @@ func open(name string) (*Plugin, error) {
 
 	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
 
+	return openPath(name, filepath, cPath)
+}
+
+func openPath(name, filepath string, cPath []byte) (*Plugin, error) {
 	pluginsMu.Lock()
 	if p := plugins[filepath]; p != nil {
 		pluginsMu.Unlock()

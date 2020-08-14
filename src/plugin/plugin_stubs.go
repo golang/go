@@ -6,12 +6,19 @@
 
 package plugin
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 func lookup(p *Plugin, symName string) (Symbol, error) {
 	return nil, errors.New("plugin: not implemented")
 }
 
 func open(name string) (*Plugin, error) {
+	return nil, errors.New("plugin: not implemented")
+}
+
+func openFile(f *os.File) (*Plugin, error) {
 	return nil, errors.New("plugin: not implemented")
 }
