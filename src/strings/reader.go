@@ -73,7 +73,7 @@ func (r *Reader) ReadByte() (byte, error) {
 	return b, nil
 }
 
-// UnreadByte implemnts the io.ByteScanner interface.
+// UnreadByte implements the io.ByteScanner interface.
 func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadByte: at beginning of string")
