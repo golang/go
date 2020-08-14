@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+# github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99
 ## explicit
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
