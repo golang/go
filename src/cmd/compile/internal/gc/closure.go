@@ -108,7 +108,17 @@ func typecheckclosure(clo *Node, top int) {
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
 	disableExport(xfunc.Func.Nname.Sym)
-	declare(xfunc.Func.Nname, PFUNC)
+	if xfunc.Func.Nname.Sym.Def != nil {
+		// The only case we can reach here is when the outer function was redeclared.
+		// In that case, don't bother to redeclare the closure. Otherwise, we will get
+		// a spurious error message, see #17758. While we are here, double check that
+		// we already reported other error.
+		if nsavederrors+nerrors == 0 {
+			Fatalf("unexpected symbol collision %v", xfunc.Func.Nname.Sym)
+		}
+	} else {
+		declare(xfunc.Func.Nname, PFUNC)
+	}
 	xfunc = typecheck(xfunc, ctxStmt)
 
 	// Type check the body now, but only if we're inside a function.
