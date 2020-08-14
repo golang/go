@@ -394,6 +394,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpSqrt(v)
 	case OpStaticCall:
 		return rewriteValuegeneric_OpStaticCall(v)
+	case OpStaticLECall:
+		return rewriteValuegeneric_OpStaticLECall(v)
 	case OpStore:
 		return rewriteValuegeneric_OpStore(v)
 	case OpStringLen:
@@ -20767,6 +20769,36 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	// match: (SelectN [0] (MakeResult a ___))
+	// result: a
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpMakeResult || len(v_0.Args) < 1 {
+			break
+		}
+		a := v_0.Args[0]
+		v.copyOf(a)
+		return true
+	}
+	// match: (SelectN [1] (MakeResult a b ___))
+	// result: b
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpMakeResult || len(v_0.Args) < 2 {
+			break
+		}
+		b := v_0.Args[1]
+		v.copyOf(b)
+		return true
+	}
+	// match: (SelectN [2] (MakeResult a b c ___))
+	// result: c
+	for {
+		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpMakeResult || len(v_0.Args) < 3 {
+			break
+		}
+		c := v_0.Args[2]
+		v.copyOf(c)
+		return true
+	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
 	// cond: sz >= 0 && call.Uses == 1 && isSameCall(sym, "runtime.memmove") && dst.Type.IsPtr() && isInlinableMemmove(dst, src, int64(sz), config) && clobber(call)
 	// result: (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
@@ -21363,6 +21395,44 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 			break
 		}
 		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon)
+	// result: (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		callAux := auxToCall(v.Aux)
+		mem := v.Args[3]
+		sptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAddr {
+			break
+		}
+		scon := auxToSym(v_1.Aux)
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpSB {
+			break
+		}
+		v_2 := v.Args[2]
+		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 1 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEq8, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v1.AddArg2(sptr, mem)
+		v2 := b.NewValue0(v.Pos, OpConst8, typ.Int8)
+		v2.AuxInt = int8ToAuxInt(int8(read8(scon, 0)))
+		v0.AddArg2(v1, v2)
+		v.AddArg2(v0, mem)
 		return true
 	}
 	return false
