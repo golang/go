@@ -100,6 +100,9 @@ var valids = []string{
 	`package p; type _[A,] struct{}`,
 	`package p; type _ [A+B]struct{}`, // this is an array!
 
+	`package p; type _[A]struct{}`,     // this is an array
+	`package p; type _[A] struct{ A }`, // this is not an array!
+
 	// optional "type" keyword for generic functions using square brackets
 	`package p; func _[]()`,
 	`package p; func _[T]()`,

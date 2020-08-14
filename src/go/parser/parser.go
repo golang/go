@@ -939,10 +939,14 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 	}
 
 	pos := p.pos
+	if name0 != nil {
+		pos = name0.Pos()
+	}
+
 	var list []field
 	var named int // number of parameters that have an explicit name and type
 
-	for p.tok != closing && p.tok != token.EOF {
+	for name0 != nil || p.tok != closing && p.tok != token.EOF {
 		var par field
 		if tparams {
 			par = p.parseTParamDecl(name0)
@@ -2807,10 +2811,18 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 			p.exprLev++
 			x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
 			p.exprLev--
-			name0, _ := x.(*ast.Ident)
-			if name0 != nil && p.tok != token.RBRACK {
-				// generic type without "type" keyword
+			if name0, _ := x.(*ast.Ident); name0 != nil {
+				// array type or generic type without "type" keyword;
+				// assume a generic type and then decide based on next token and use of name0
+				next := p.tok
+				pbrack := p.brack // changed by parseGenericType; restore if we have an array type
 				p.parseGenericType(spec, lbrack, name0, token.RBRACK)
+				if next == token.RBRACK && !usesName(spec.Type, name0.Name) {
+					// assume array type
+					p.brack = pbrack
+					spec.TParams = nil
+					spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: spec.Type}
+				}
 			} else {
 				// array type
 				// TODO(gri) should resolve all identifiers in x (doesn't matter for this prototype)
@@ -2854,6 +2866,27 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	spec.Comment = p.lineComment
 
 	return spec
+}
+
+// uses reports whether name appears anywhere in x except as array length.
+func usesName(x ast.Expr, name string) (used bool) {
+	ast.Inspect(x, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Ident:
+			if n.Name == name {
+				used = true
+			}
+			return false
+		case *ast.ArrayType:
+			// ignore n.Len (and for slices, n.Len == nil)
+			if usesName(n.Elt, name) {
+				used = true
+			}
+			return false
+		}
+		return true
+	})
+	return
 }
 
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
