@@ -6,7 +6,7 @@
 
 package p
 
-type t [10000]*int
+type t [20000]*int
 
 func (t) f() {
 }
