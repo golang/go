@@ -95,6 +95,11 @@ enum E {
 	Enum2 = 2,
 };
 
+union U {
+	float f32;
+	uint64_t u64;
+};
+
 typedef unsigned char cgo_uuid_t[20];
 
 void uuid_generate(cgo_uuid_t x) {
@@ -1031,6 +1036,24 @@ func testCastToEnum(t *testing.T) {
 	e = C.enum_E(C.Enum2)
 	if e != 2 {
 		t.Error("bad enum", C.Enum2)
+	}
+}
+
+func testUnion(t *testing.T) {
+	var u C.union_U
+
+	goU64 := (*uint64)(unsafe.Pointer(&u))
+	*goU64 = math.MaxUint64
+
+	if *goU64 != math.MaxUint64 {
+		t.Error("failed to assign value to union", *goU64)
+	}
+
+	goF32 := (*float32)(unsafe.Pointer(&u))
+	*goF32 = 1.0
+
+	if *goF32 != 1.0 {
+		t.Error("failed to assign value to union", *goF32)
 	}
 }
 

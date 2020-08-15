@@ -79,6 +79,7 @@ func TestCthread(t *testing.T)               { testCthread(t) }
 func TestEnum(t *testing.T)                  { testEnum(t) }
 func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
 func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
+func TestUnion(t *testing.T)                 { testUnion(t) }
 func TestErrno(t *testing.T)                 { testErrno(t) }
 func TestFpVar(t *testing.T)                 { testFpVar(t) }
 func TestHandle(t *testing.T)                { testHandle(t) }
