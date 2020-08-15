@@ -837,6 +837,9 @@ var optab = []Optab{
 	{obj.APCDATA, C_VCON, C_NONE, C_NONE, C_VCON, 0, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_VCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code

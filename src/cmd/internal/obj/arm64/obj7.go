@@ -468,73 +468,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	/*
 	 * find leaf subroutines
-	 * strip NOPs
-	 * expand RET
 	 */
-	q := (*obj.Prog)(nil)
-	var q1 *obj.Prog
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ATEXT:
 			p.Mark |= LEAF
 
-		case obj.ARET:
-			break
-
-		case obj.ANOP:
-			if p.Link != nil {
-				q1 = p.Link
-				q.Link = q1 /* q is non-nop */
-				q1.Mark |= p.Mark
-			}
-			continue
-
 		case ABL,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
 			c.cursym.Func.Text.Mark &^= LEAF
-			fallthrough
-
-		case ACBNZ,
-			ACBZ,
-			ACBNZW,
-			ACBZW,
-			ATBZ,
-			ATBNZ,
-			AB,
-			ABEQ,
-			ABNE,
-			ABCS,
-			ABHS,
-			ABCC,
-			ABLO,
-			ABMI,
-			ABPL,
-			ABVS,
-			ABVC,
-			ABHI,
-			ABLS,
-			ABGE,
-			ABLT,
-			ABGT,
-			ABLE,
-			AADR, /* strange */
-			AADRP:
-			q1 = p.Pcond
-
-			if q1 != nil {
-				for q1.As == obj.ANOP {
-					q1 = q1.Link
-					p.Pcond = q1
-				}
-			}
-
-			break
 		}
-
-		q = p
 	}
 
+	var q *obj.Prog
+	var q1 *obj.Prog
 	var retjmp *obj.LSym
 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
 		o := p.As
