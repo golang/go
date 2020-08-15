@@ -56,6 +56,20 @@ var Go = &Command{
 	// Commands initialized in package main
 }
 
+// hasFlag reports whether a command or any of its subcommands contain the given
+// flag.
+func hasFlag(c *Command, name string) bool {
+	if f := c.Flag.Lookup(name); f != nil {
+		return true
+	}
+	for _, sub := range c.Commands {
+		if hasFlag(sub, name) {
+			return true
+		}
+	}
+	return false
+}
+
 // LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
 func (c *Command) LongName() string {
 	name := c.UsageLine
