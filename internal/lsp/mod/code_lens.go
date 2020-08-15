@@ -36,10 +36,12 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil {
 		return nil, err
 	}
+
 	var (
 		codelens    []protocol.CodeLens
 		allUpgrades []string
 	)
+
 	for _, req := range pm.File.Require {
 		dep := req.Mod.Path
 		latest, ok := upgrades[dep]
@@ -51,7 +53,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		if err != nil {
 			return nil, err
 		}
-		jsonArgs, err := source.MarshalArgs(uri, []string{dep})
+		upgradeDepArgs, err := source.MarshalArgs(uri, []string{dep})
 		if err != nil {
 			return nil, err
 		}
@@ -60,19 +62,53 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Command: protocol.Command{
 				Title:     fmt.Sprintf("Upgrade dependency to %s", latest),
 				Command:   source.CommandUpgradeDependency.Name,
-				Arguments: jsonArgs,
+				Arguments: upgradeDepArgs,
 			},
 		})
 		allUpgrades = append(allUpgrades, dep)
 	}
+
+	module := pm.File.Module
+	if module == nil || module.Syntax == nil {
+		return codelens, nil
+	}
+	// Get the range of the module directive.
+	rng, err := positionsToRange(uri, pm.Mapper, module.Syntax.Start, module.Syntax.End)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add go mod vendor and go mod tidy lenses
+	goModArgs, err := source.MarshalArgs(uri)
+	if err != nil {
+		return nil, err
+	}
+	codelens = append(codelens, protocol.CodeLens{
+		Range: rng,
+		Command: protocol.Command{
+			Title:     "Sync vendor directory",
+			Command:   source.CommandVendor.Name,
+			Arguments: goModArgs,
+		},
+	})
+	tidied, err := snapshot.ModTidy(ctx, fh)
+	if err != nil && err != source.ErrTmpModfileUnsupported {
+		return nil, err
+	}
+	if len(tidied.Errors) > 0 {
+		codelens = append(codelens, protocol.CodeLens{
+			Range: rng,
+			Command: protocol.Command{
+				Title:     "Remove unused dependencies",
+				Command:   source.CommandTidy.Name,
+				Arguments: goModArgs,
+			},
+		})
+	}
+
 	// If there is at least 1 upgrade, add an "Upgrade all dependencies" to the module statement.
-	if module := pm.File.Module; len(allUpgrades) > 0 && module != nil && module.Syntax != nil {
-		// Get the range of the module directive.
-		rng, err := positionsToRange(uri, pm.Mapper, module.Syntax.Start, module.Syntax.End)
-		if err != nil {
-			return nil, err
-		}
-		jsonArgs, err := source.MarshalArgs(uri, append([]string{"-u"}, allUpgrades...))
+	if len(allUpgrades) > 0 {
+		upgradeDepArgs, err := source.MarshalArgs(uri, append([]string{"-u"}, allUpgrades...))
 		if err != nil {
 			return nil, err
 		}
@@ -81,11 +117,11 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 			Command: protocol.Command{
 				Title:     "Upgrade all dependencies",
 				Command:   source.CommandUpgradeDependency.Name,
-				Arguments: jsonArgs,
+				Arguments: upgradeDepArgs,
 			},
 		})
 	}
-	return codelens, err
+	return codelens, nil
 }
 
 func positionsToRange(uri span.URI, m *protocol.ColumnMapper, s, e modfile.Position) (protocol.Range, error) {

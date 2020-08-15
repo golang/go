@@ -132,6 +132,76 @@ require golang.org/x/hello v1.3.3
 	}, WithProxyFiles(proxyWithLatest))
 }
 
+func TestUnusedDependenciesCodelens(t *testing.T) {
+	const proxy = `
+-- golang.org/x/hello@v1.0.0/go.mod --
+module golang.org/x/hello
+
+go 1.14
+-- golang.org/x/hello@v1.0.0/hi/hi.go --
+package hi
+
+var Goodbye error
+-- golang.org/x/unused@v1.0.0/go.mod --
+module golang.org/x/unused
+
+go 1.14
+-- golang.org/x/unused@v1.0.0/nouse/nouse.go --
+package nouse
+
+var NotUsed error
+`
+
+	const shouldRemoveDep = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+require golang.org/x/hello v1.0.0
+require golang.org/x/unused v1.0.0
+-- main.go --
+package main
+
+import "golang.org/x/hello/hi"
+
+func main() {
+	_ = hi.Goodbye
+}
+`
+	runner.Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		lenses := env.CodeLens("go.mod")
+		want := "Remove unused dependencies"
+		var found protocol.CodeLens
+		for _, lens := range lenses {
+			if lens.Command.Title == want {
+				found = lens
+				break
+			}
+		}
+		if found.Command.Command == "" {
+			t.Fatalf("did not find lens %q, got %v", want, lenses)
+		}
+		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
+			Command:   found.Command.Command,
+			Arguments: found.Command.Arguments,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		got := env.ReadWorkspaceFile("go.mod")
+		const wantGoMod = `module mod.com
+
+go 1.14
+
+require golang.org/x/hello v1.0.0
+`
+		if got != wantGoMod {
+			t.Fatalf("go.mod tidy failed:\n%s", tests.Diff(wantGoMod, got))
+		}
+	}, WithProxyFiles(proxy))
+}
+
 func TestRegenerateCgo(t *testing.T) {
 	testenv.NeedsTool(t, "cgo")
 	testenv.NeedsGo1Point(t, 15)
