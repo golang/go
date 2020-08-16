@@ -1099,29 +1099,34 @@ func checkMode(t *testing.T, path string, mode FileMode) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
 	}
-	if dir.Mode()&0777 != mode {
+	if dir.Mode()&ModePerm != mode {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
 	}
 }
 
 func TestChmod(t *testing.T) {
-	// Chmod is not supported under windows.
-	if runtime.GOOS == "windows" {
-		return
-	}
 	f := newFile("TestChmod", t)
 	defer Remove(f.Name())
 	defer f.Close()
+	// Creation mode is read write
 
-	if err := Chmod(f.Name(), 0456); err != nil {
-		t.Fatalf("chmod %s 0456: %s", f.Name(), err)
+	fm := FileMode(0456)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0444) // read-only file
 	}
-	checkMode(t, f.Name(), 0456)
+	if err := Chmod(f.Name(), fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 
-	if err := f.Chmod(0123); err != nil {
-		t.Fatalf("chmod %s 0123: %s", f.Name(), err)
+	fm = FileMode(0123)
+	if runtime.GOOS == "windows" {
+		fm = FileMode(0666) // read-write file
 	}
-	checkMode(t, f.Name(), 0123)
+	if err := f.Chmod(fm); err != nil {
+		t.Fatalf("chmod %s %#o: %s", f.Name(), fm, err)
+	}
+	checkMode(t, f.Name(), fm)
 }
 
 func checkSize(t *testing.T, f *File, size int64) {

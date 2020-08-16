@@ -886,6 +886,33 @@ func (fd *FD) FindNextFile(data *syscall.Win32finddata) error {
 	return syscall.FindNextFile(fd.Sysfd, data)
 }
 
+// Fchmod updates syscall.ByHandleFileInformation.Fileattributes when needed.
+func (fd *FD) Fchmod(mode uint32) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+
+	var d syscall.ByHandleFileInformation
+	if err := syscall.GetFileInformationByHandle(fd.Sysfd, &d); err != nil {
+		return err
+	}
+	attrs := d.FileAttributes
+	if mode&syscall.S_IWRITE != 0 {
+		attrs &^= syscall.FILE_ATTRIBUTE_READONLY
+	} else {
+		attrs |= syscall.FILE_ATTRIBUTE_READONLY
+	}
+	if attrs == d.FileAttributes {
+		return nil
+	}
+
+	var du windows.FILE_BASIC_INFO
+	du.FileAttributes = attrs
+	l := uint32(unsafe.Sizeof(d))
+	return windows.SetFileInformationByHandle(fd.Sysfd, windows.FileBasicInfo, uintptr(unsafe.Pointer(&du)), l)
+}
+
 // Fchdir wraps syscall.Fchdir.
 func (fd *FD) Fchdir() error {
 	if err := fd.incref(); err != nil {
