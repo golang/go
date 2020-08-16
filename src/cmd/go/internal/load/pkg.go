@@ -2291,11 +2291,17 @@ func GoFilesPackage(gofiles []string) *Package {
 		".F", ".for", ".f90",
 	}
 
-	for _, f := range gofiles {
+    for _, f := range gofiles {
+        fileExtensionValid := false
 		for _, ext := range validFileTypes {
-			if strings.HasSuffix(f, ext) {
-				break
+            if strings.HasSuffix(f, ext) {
+                fileExtensionValid = true
+                break
             }
+        }
+
+        if fileExtensionValid {
+            continue
         }
         
         pkg := new(Package)
