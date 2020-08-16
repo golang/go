@@ -2137,6 +2137,48 @@ func Packages(ctx context.Context, args []string) []*Package {
 	return pkgs
 }
 
+// fileHasValidSourceExtension will determine if the specified file
+// ends in one of the valid source file extensions.
+func fileHasValidSourceExtension(name string) bool {
+    // This is a list of valid file exensions that can be accepted in
+	// the named files passed to the `go build` command.
+	validFileTypes := []string{
+		".go", ".c", ".s", ".S", ".sx", ".cc", ".cpp", ".cxx", ".f",
+		".F", ".for", ".f90",
+    }
+    
+    for _,ext := range validFileTypes {
+        if strings.HasSuffix(name, ext) {
+            return true
+        }
+    }
+
+    return false
+}
+
+// validateSourceFile will determine if the provided file name exists
+// within the current directory, ends in one of the valid file
+// exensions, and is not a directory. It will return a corresponding
+// error, or nil if the specified name is valid.
+func validateSourceFile(name string) error {
+    if !fileHasValidSourceExtension(name) {
+        return fmt.Errorf("invalid file type: %s", name)
+    }
+
+	// We need to test whether the path is an actual Go file and not a
+    // package path or pattern ending in '.go' (see golang.org/issue/34653).
+    fi, err := os.Stat(name)
+    if err != nil {
+        return err
+    }
+
+    if fi.IsDir() {
+        return fmt.Errorf("invalid directory listed as source file: %s", name)
+    }
+
+    return nil
+}
+
 // PackagesAndErrors is like 'packages' but returns a
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
@@ -2146,16 +2188,10 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	defer span.Done()
 
 	for _, p := range patterns {
-		// Listing is only supported with all patterns referring to either:
-		// - Files that are part of the same directory.
-		// - Explicit package paths or patterns.
-		if strings.HasSuffix(p, ".go") {
-			// We need to test whether the path is an actual Go file and not a
-			// package path or pattern ending in '.go' (see golang.org/issue/34653).
-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-				return []*Package{GoFilesPackage(patterns)}
-			}
-		}
+        err := validateSourceFile(p)
+        if err == nil {
+            return []*Package{GoFilesPackage(patterns)}
+        }
 	}
 
 	matches := ImportPaths(patterns)
@@ -2284,34 +2320,18 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 func GoFilesPackage(gofiles []string) *Package {
 	ModInit()
 
-	// This is a list of valid file exensions that can be accepted in
-	// the named files passed to the `go build` command.
-	validFileTypes := []string{
-		".go", ".c", ".s", ".S", ".sx", ".cc", ".cpp", ".cxx", ".f",
-		".F", ".for", ".f90",
-	}
-
 	for _, f := range gofiles {
-		fileExtensionValid := false
-		for _, ext := range validFileTypes {
-			if strings.HasSuffix(f, ext) {
-				fileExtensionValid = true
-				break
-			}
-		}
-
-		if fileExtensionValid {
-			continue
-		}
-
-		pkg := new(Package)
-		pkg.Internal.Local = true
-		pkg.Internal.CmdlineFiles = true
-		pkg.Name = f
-		pkg.Error = &PackageError{
-			Err: fmt.Errorf("invalid named file: %s", pkg.Name),
-		}
-		return pkg
+        err := validateSourceFile(f)
+		if err != nil {
+            pkg := new(Package)
+    		pkg.Internal.Local = true
+    		pkg.Internal.CmdlineFiles = true
+    		pkg.Name = f
+    		pkg.Error = &PackageError{
+    			Err: err,
+    		}
+    		return pkg
+        }
 	}
 
 	var stk ImportStack
