@@ -2284,16 +2284,26 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 func GoFilesPackage(gofiles []string) *Package {
 	ModInit()
 
+	// This is a list of valid file exensions that can be accepted in
+	// the named files passed to the `go build` command.
+	extensionIsValid := false
+	validFileTypes := []string{
+		".go", ".c", ".s", ".S", ".sx", ".cc", ".cpp", ".cxx", ".f",
+		".F", ".for", ".f90"
+	}
+
 	for _, f := range gofiles {
-		if !strings.HasSuffix(f, ".go") {
-			pkg := new(Package)
-			pkg.Internal.Local = true
-			pkg.Internal.CmdlineFiles = true
-			pkg.Name = f
-			pkg.Error = &PackageError{
-				Err: fmt.Errorf("named files must be .go files: %s", pkg.Name),
+		for _, ext := range validFileTypes {
+			if !strings.HasSuffix(f, ext) {
+				pkg := new(Package)
+				pkg.Internal.Local = true
+				pkg.Internal.CmdlineFiles = true
+				pkg.Name = f
+				pkg.Error = &PackageError{
+					Err: fmt.Errorf("invalid named file: %s", pkg.Name),
+				}
+				return pkg
 			}
-			return pkg
 		}
 	}
 
