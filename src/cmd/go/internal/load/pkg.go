@@ -2166,7 +2166,8 @@ func validateSourceFile(name string) error {
 	}
 
 	// We need to test whether the path is an actual Go file and not a
-	// package path or pattern ending in '.go' (see golang.org/issue/34653).
+	// package path or pattern ending in one of the valid extensions.
+	// (see golang.org/issue/34653).
 	fi, err := os.Stat(name)
 	if err != nil {
 		return err
