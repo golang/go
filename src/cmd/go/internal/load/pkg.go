@@ -2165,8 +2165,8 @@ func validateSourceFile(name string) error {
 		return fmt.Errorf("invalid file type: %s", name)
 	}
 
-	// We need to test whether the path is an actual Go file and not a
-	// package path or pattern ending in one of the valid extensions.
+	// We need to test whether the path is an actual Source file and
+	// not a package path or pattern ending in one of the valid extensions.
 	// (see golang.org/issue/34653).
 	fi, err := os.Stat(name)
 	if err != nil {
