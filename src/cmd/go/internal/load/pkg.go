@@ -2293,17 +2293,19 @@ func GoFilesPackage(gofiles []string) *Package {
 
 	for _, f := range gofiles {
 		for _, ext := range validFileTypes {
-			if !strings.HasSuffix(f, ext) {
-				pkg := new(Package)
-				pkg.Internal.Local = true
-				pkg.Internal.CmdlineFiles = true
-				pkg.Name = f
-				pkg.Error = &PackageError{
-					Err: fmt.Errorf("invalid named file: %s", pkg.Name),
-				}
-				return pkg
-			}
+			if strings.HasSuffix(f, ext) {
+				break
+            }
+        }
+        
+        pkg := new(Package)
+		pkg.Internal.Local = true
+		pkg.Internal.CmdlineFiles = true
+		pkg.Name = f
+		pkg.Error = &PackageError{
+			Err: fmt.Errorf("invalid named file: %s", pkg.Name),
 		}
+		return pkg
 	}
 
 	var stk ImportStack
