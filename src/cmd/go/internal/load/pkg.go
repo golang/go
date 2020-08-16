@@ -2288,7 +2288,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	// the named files passed to the `go build` command.
 	validFileTypes := []string{
 		".go", ".c", ".s", ".S", ".sx", ".cc", ".cpp", ".cxx", ".f",
-		".F", ".for", ".f90"
+		".F", ".for", ".f90",
 	}
 
 	for _, f := range gofiles {
