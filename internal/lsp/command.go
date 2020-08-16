@@ -53,10 +53,12 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		switch params.Command {
 		case source.CommandTest.Name, source.CommandGenerate.Name, source.CommandToggleDetails.Name:
 			// TODO(PJW): for Toggle, not an error if it is being disabled
-			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			err := fmt.Errorf("cannot run command %s: unsaved files in the view", params.Command)
+			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
-				Message: fmt.Sprintf("cannot run command %s: unsaved files in the view", params.Command),
+				Message: err.Error(),
 			})
+			return nil, err
 		}
 	}
 	// If the command has a suggested fix function available, use it and apply
