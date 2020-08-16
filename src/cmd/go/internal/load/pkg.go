@@ -2286,7 +2286,6 @@ func GoFilesPackage(gofiles []string) *Package {
 
 	// This is a list of valid file exensions that can be accepted in
 	// the named files passed to the `go build` command.
-	extensionIsValid := false
 	validFileTypes := []string{
 		".go", ".c", ".s", ".S", ".sx", ".cc", ".cpp", ".cxx", ".f",
 		".F", ".for", ".f90"
