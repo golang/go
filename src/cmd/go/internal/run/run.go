@@ -72,12 +72,12 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		files := args[:i]
 		for _, file := range files {
 			if strings.HasSuffix(file, "_test.go") {
-				// GoFilesPackage is going to assign this to TestGoFiles.
+				// SourceFilesPackage is going to assign this to TestGoFiles.
 				// Reject since it won't be part of the build.
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(files)
+		p = load.SourceFilesPackage(files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		pkgs := load.PackagesAndErrors(ctx, args[:1])
 		if len(pkgs) == 0 {

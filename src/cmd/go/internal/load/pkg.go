@@ -2191,7 +2191,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 	for _, p := range patterns {
 		err := validateSourceFile(p)
 		if err == nil {
-			return []*Package{GoFilesPackage(patterns)}
+			return []*Package{SourceFilesPackage(patterns)}
 		}
 	}
 
@@ -2315,13 +2315,14 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 	return pkgs
 }
 
-// GoFilesPackage creates a package for building a collection of Go files
-// (typically named on the command line). The target is named p.a for
-// package p or named after the first Go file for package main.
-func GoFilesPackage(gofiles []string) *Package {
+// SourceFilesPackage creates a package for building a collection of
+// Source files (typically named on the command line). The target is
+// named p.a for package p or named after the first Go file for
+// package main.
+func SourceFilesPackage(sourcefiles []string) *Package {
 	ModInit()
 
-	for _, f := range gofiles {
+	for _, f := range sourcefiles {
 		err := validateSourceFile(f)
 		if err != nil {
 			pkg := new(Package)
@@ -2345,13 +2346,13 @@ func GoFilesPackage(gofiles []string) *Package {
 	// consistently, the files must all be in the same directory.
 	var dirent []os.FileInfo
 	var dir string
-	for _, file := range gofiles {
+	for _, file := range sourcefiles {
 		fi, err := os.Stat(file)
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
 		if fi.IsDir() {
-			base.Fatalf("%s is a directory, should be a Go file", file)
+			base.Fatalf("%s is a directory, should be a Source file", file)
 		}
 		dir1, _ := filepath.Split(file)
 		if dir1 == "" {
@@ -2367,7 +2368,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
-		ModImportFromFiles(gofiles)
+		ModImportFromFiles(sourcefiles)
 	}
 
 	var err error
@@ -2387,7 +2388,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.Target = ""
-	pkg.Match = gofiles
+	pkg.Match = sourcefiles
 
 	if pkg.Name == "main" {
 		exe := pkg.DefaultExecName() + cfg.ExeSuffix
