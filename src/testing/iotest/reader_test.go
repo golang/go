@@ -224,3 +224,13 @@ func TestDataErrReader_emptyReader(t *testing.T) {
 		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
 	}
 }
+
+func TestErrReader(t *testing.T) {
+	n, err := ErrReader().Read([]byte{})
+	if err != ErrIO {
+		t.Errorf("ErrReader.Read(any) should have returned ErrIO, returned %v", err)
+	}
+	if n != 0 {
+		t.Errorf("ErrReader.Read(any) should have read 0 bytes, read %v", n)
+	}
+}
