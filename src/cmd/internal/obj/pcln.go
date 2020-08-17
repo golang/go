@@ -278,21 +278,6 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
 	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
 
-	// Check that all the Progs used as inline markers are still reachable.
-	// See issue #40473.
-	inlMarkProgs := make(map[*Prog]struct{}, len(cursym.Func.InlMarks))
-	for _, inlMark := range cursym.Func.InlMarks {
-		inlMarkProgs[inlMark.p] = struct{}{}
-	}
-	for p := cursym.Func.Text; p != nil; p = p.Link {
-		if _, ok := inlMarkProgs[p]; ok {
-			delete(inlMarkProgs, p)
-		}
-	}
-	if len(inlMarkProgs) > 0 {
-		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
-	}
-
 	pcinlineState := new(pcinlineState)
 	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
 	for _, inlMark := range cursym.Func.InlMarks {
