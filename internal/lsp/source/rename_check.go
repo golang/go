@@ -120,10 +120,12 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 		fileScope := pkg.GetTypesInfo().Scopes[f]
 		b, prev := fileScope.LookupParent(r.to, token.NoPos)
 		if b == fileScope {
-			r.errorf(from.Pos(), "renaming this %s %q to %q would conflict",
-				objectKind(from), from.Name(), r.to)
-			r.errorf(prev.Pos(), "\twith this %s",
-				objectKind(prev))
+			r.errorf(from.Pos(), "renaming this %s %q to %q would conflict", objectKind(from), from.Name(), r.to)
+			var prevPos token.Pos
+			if prev != nil {
+				prevPos = prev.Pos()
+			}
+			r.errorf(prevPos, "\twith this %s", objectKind(prev))
 			return // since checkInPackageBlock would report redundant errors
 		}
 	}
