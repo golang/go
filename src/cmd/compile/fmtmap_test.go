@@ -136,6 +136,7 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/types.EType %s":             "",
 	"cmd/compile/internal/types.EType %v":             "",
 	"cmd/internal/obj.ABI %v":                         "",
+	"cmd/internal/src.XPos %v":                        "",
 	"error %v":                                        "",
 	"float64 %.2f":                                    "",
 	"float64 %.3f":                                    "",
