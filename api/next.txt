@@ -1,0 +1,5 @@
+pkg unicode, const Version = "13.0.0"
+pkg unicode, var Chorasmian *RangeTable
+pkg unicode, var Dives_Akuru *RangeTable
+pkg unicode, var Khitan_Small_Script *RangeTable
+pkg unicode, var Yezidi *RangeTable
