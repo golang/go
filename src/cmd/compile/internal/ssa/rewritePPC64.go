@@ -3852,6 +3852,27 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ADD l:(MULLD x y) z)
+	// cond: objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD x y z)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			l := v_0
+			if l.Op != OpPPC64MULLD {
+				continue
+			}
+			y := l.Args[1]
+			x := l.Args[0]
+			z := v_1
+			if !(objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+				continue
+			}
+			v.reset(OpPPC64MADDLD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
 	// match: (ADD (SLDconst x [c]) (SRDconst x [d]))
 	// cond: d == 64-c
 	// result: (ROTLconst [c] x)
