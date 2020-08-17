@@ -26,14 +26,6 @@ func (zeroReader) Read(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-// signGenericWrapper is identical to Sign except that it unconditionally calls signGeneric directly
-// rather than going through the sign function that might call assembly code.
-func signGenericWrapper(privateKey PrivateKey, msg []byte) []byte {
-	sig := make([]byte, SignatureSize)
-	signGeneric(sig, privateKey, msg)
-	return sig
-}
-
 func TestUnmarshalMarshal(t *testing.T) {
 	pub, _, _ := GenerateKey(rand.Reader)
 
@@ -53,33 +45,22 @@ func TestUnmarshalMarshal(t *testing.T) {
 }
 
 func TestSignVerify(t *testing.T) {
-	t.Run("Generic", func(t *testing.T) { testSignVerify(t, signGenericWrapper, verifyGeneric) })
-	t.Run("Native", func(t *testing.T) { testSignVerify(t, Sign, Verify) })
-}
-
-func testSignVerify(t *testing.T, signImpl func(privateKey PrivateKey, message []byte) []byte,
-	verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
 	message := []byte("test message")
-	sig := signImpl(private, message)
-	if !verifyImpl(public, message, sig) {
+	sig := Sign(private, message)
+	if !Verify(public, message, sig) {
 		t.Errorf("valid signature rejected")
 	}
 
 	wrongMessage := []byte("wrong message")
-	if verifyImpl(public, wrongMessage, sig) {
+	if Verify(public, wrongMessage, sig) {
 		t.Errorf("signature of different message accepted")
 	}
 }
 
 func TestCryptoSigner(t *testing.T) {
-	t.Run("Generic", func(t *testing.T) { testCryptoSigner(t, verifyGeneric) })
-	t.Run("Native", func(t *testing.T) { testCryptoSigner(t, Verify) })
-}
-
-func testCryptoSigner(t *testing.T, verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
@@ -102,7 +83,7 @@ func testCryptoSigner(t *testing.T, verifyImpl func(publicKey PublicKey, message
 		t.Fatalf("error from Sign(): %s", err)
 	}
 
-	if !verifyImpl(public, message, signature) {
+	if !Verify(public, message, signature) {
 		t.Errorf("Verify failed on signature from Sign()")
 	}
 }
@@ -130,12 +111,6 @@ func TestEqual(t *testing.T) {
 }
 
 func TestGolden(t *testing.T) {
-	t.Run("Generic", func(t *testing.T) { testGolden(t, signGenericWrapper, verifyGeneric) })
-	t.Run("Native", func(t *testing.T) { testGolden(t, Sign, Verify) })
-}
-
-func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byte) []byte,
-	verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
 	// sign.input.gz is a selection of test cases from
 	// https://ed25519.cr.yp.to/python/sign.input
 	testDataZ, err := os.Open("testdata/sign.input.gz")
@@ -177,12 +152,12 @@ func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byt
 		copy(priv[:], privBytes)
 		copy(priv[32:], pubKey)
 
-		sig2 := signImpl(priv[:], msg)
+		sig2 := Sign(priv[:], msg)
 		if !bytes.Equal(sig, sig2[:]) {
 			t.Errorf("different signature result on line %d: %x vs %x", lineNo, sig, sig2)
 		}
 
-		if !verifyImpl(pubKey, msg, sig2) {
+		if !Verify(pubKey, msg, sig2) {
 			t.Errorf("signature failed to verify on line %d", lineNo)
 		}
 
@@ -206,11 +181,6 @@ func testGolden(t *testing.T, signImpl func(privateKey PrivateKey, message []byt
 }
 
 func TestMalleability(t *testing.T) {
-	t.Run("Generic", func(t *testing.T) { testMalleability(t, verifyGeneric) })
-	t.Run("Native", func(t *testing.T) { testMalleability(t, Verify) })
-}
-
-func testMalleability(t *testing.T, verifyImpl func(publicKey PublicKey, message, sig []byte) bool) {
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
 	// that s be in [0, order). This prevents someone from adding a multiple of
 	// order to s and obtaining a second valid signature for the same message.
@@ -229,7 +199,7 @@ func testMalleability(t *testing.T, verifyImpl func(publicKey PublicKey, message
 		0xb1, 0x08, 0xc3, 0xbd, 0xae, 0x36, 0x9e, 0xf5, 0x49, 0xfa,
 	}
 
-	if verifyImpl(publicKey, msg, sig) {
+	if Verify(publicKey, msg, sig) {
 		t.Fatal("non-canonical signature accepted")
 	}
 }

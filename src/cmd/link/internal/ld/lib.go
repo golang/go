@@ -2192,17 +2192,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
 		su.SetSize(int64(elfsym.Size))
 		if elfsym.Section != elf.SHN_UNDEF {
-			// If it's not undefined, mark the symbol as reachable
-			// so as to protect it from dead code elimination,
-			// even if there aren't any explicit references to it.
-			// Under the previous sym.Symbol based regime this
-			// wasn't necessary, but for the loader-based deadcode
-			// it is definitely needed.
-			//
-			// FIXME: have a more general/flexible mechanism for this?
-			//
-			l.SetAttrReachable(s, true)
-
 			// Set .File for the library that actually defines the symbol.
 			l.SetSymPkg(s, libpath)
 

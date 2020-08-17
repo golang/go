@@ -199,7 +199,7 @@ type VerifyOptions struct {
 	IsBoring func(*Certificate) bool
 
 	// DNSName, if set, is checked against the leaf certificate with
-	// Certificate.VerifyHostname.
+	// Certificate.VerifyHostname or the platform verifier.
 	DNSName string
 
 	// Intermediates is an optional pool of certificates that are not trust
@@ -214,20 +214,16 @@ type VerifyOptions struct {
 	// chain. If zero, the current time is used.
 	CurrentTime time.Time
 
-	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
-	// certificate is accepted if it contains any of the listed values. An empty
-	// list means ExtKeyUsageServerAuth. To accept any key usage, include
-	// ExtKeyUsageAny.
-	//
-	// Certificate chains are required to nest these extended key usage values.
-	// (This matches the Windows CryptoAPI behavior, but not the spec.)
+	// KeyUsages specifies which Extended Key Usage values are acceptable. A
+	// chain is accepted if it allows any of the listed values. An empty list
+	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
 
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
-	// validating.
+	// validating. It does not apply to the platform verifier.
 	MaxConstraintComparisions int
 }
 
@@ -747,8 +743,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
 //
-// If opts.Roots is nil and system roots are unavailable the returned error
-// will be of type SystemRootsError.
+// If opts.Roots is nil, the platform verifier might be used, and
+// verification details might differ from what is described below. If system
+// roots are unavailable the returned error will be of type SystemRootsError.
 //
 // Name constraints in the intermediates will be applied to all names claimed
 // in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
@@ -762,9 +759,10 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // it indicates that at least one additional label must be prepended to
 // the constrained name to be considered valid.
 //
-// Extended Key Usage values are enforced down a chain, so an intermediate or
-// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
-// list.
+// Extended Key Usage values are enforced nested down a chain, so an intermediate
+// or root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list. (While this is not specified, it is common practice in order to limit
+// the types of certificates a CA can issue.)
 //
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {

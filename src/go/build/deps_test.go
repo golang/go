@@ -10,6 +10,7 @@ package build
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -385,7 +386,7 @@ var depsRules = `
 	< golang.org/x/crypto/poly1305
 	< golang.org/x/crypto/chacha20poly1305
 	< golang.org/x/crypto/hkdf
-	< crypto/x509/internal/macOS
+	< crypto/x509/internal/macos
 	< crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
@@ -517,8 +518,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 }
 
 func TestDependencies(t *testing.T) {
-	iOS := runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
-	if iOS {
+	if !testenv.HasSrc() {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
 		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
@@ -803,6 +803,26 @@ func (p *depsParser) nextToken() string {
 			p.text = p.text[i:]
 			p.lastWord = t
 			return t
+		}
+	}
+}
+
+// TestStdlibLowercase tests that all standard library package names are
+// lowercase. See Issue 40065.
+func TestStdlibLowercase(t *testing.T) {
+	if !testenv.HasSrc() {
+		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
+	}
+
+	ctxt := Default
+	all, err := listStdPkgs(ctxt.GOROOT)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, pkgname := range all {
+		if strings.ToLower(pkgname) != pkgname {
+			t.Errorf("package %q should not use upper-case path", pkgname)
 		}
 	}
 }

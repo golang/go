@@ -132,7 +132,7 @@ func main() {
 
 	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
 		systemstack(func() {
-			newm(sysmon, nil)
+			newm(sysmon, nil, -1)
 		})
 	}
 
@@ -562,7 +562,7 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	fastrandinit() // must run before mcommoninit
-	mcommoninit(_g_.m)
+	mcommoninit(_g_.m, -1)
 	cpuinit()       // must run before alginit
 	alginit()       // maps must not be used before this call
 	modulesinit()   // provides activeModules
@@ -623,7 +623,22 @@ func checkmcount() {
 	}
 }
 
-func mcommoninit(mp *m) {
+// mReserveID returns the next ID to use for a new m. This new m is immediately
+// considered 'running' by checkdead.
+//
+// sched.lock must be held.
+func mReserveID() int64 {
+	if sched.mnext+1 < sched.mnext {
+		throw("runtime: thread ID overflow")
+	}
+	id := sched.mnext
+	sched.mnext++
+	checkmcount()
+	return id
+}
+
+// Pre-allocated ID may be passed as 'id', or omitted by passing -1.
+func mcommoninit(mp *m, id int64) {
 	_g_ := getg()
 
 	// g0 stack won't make sense for user (and is not necessary unwindable).
@@ -632,12 +647,12 @@ func mcommoninit(mp *m) {
 	}
 
 	lock(&sched.lock)
-	if sched.mnext+1 < sched.mnext {
-		throw("runtime: thread ID overflow")
+
+	if id >= 0 {
+		mp.id = id
+	} else {
+		mp.id = mReserveID()
 	}
-	mp.id = sched.mnext
-	sched.mnext++
-	checkmcount()
 
 	mp.fastrand[0] = uint32(int64Hash(uint64(mp.id), fastrandseed))
 	mp.fastrand[1] = uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
@@ -1068,7 +1083,7 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 			notewakeup(&mp.park)
 		} else {
 			// Start M to run P.  Do not start another M below.
-			newm(nil, p)
+			newm(nil, p, -1)
 		}
 	}
 
@@ -1413,12 +1428,13 @@ type cgothreadstart struct {
 // Allocate a new m unassociated with any thread.
 // Can use p for allocation context if needed.
 // fn is recorded as the new m's m.mstartfn.
+// id is optional pre-allocated m ID. Omit by passing -1.
 //
 // This function is allowed to have write barriers even if the caller
 // isn't because it borrows _p_.
 //
 //go:yeswritebarrierrec
-func allocm(_p_ *p, fn func()) *m {
+func allocm(_p_ *p, fn func(), id int64) *m {
 	_g_ := getg()
 	acquirem() // disable GC because it can be called from sysmon
 	if _g_.m.p == 0 {
@@ -1447,7 +1463,7 @@ func allocm(_p_ *p, fn func()) *m {
 
 	mp := new(m)
 	mp.mstartfn = fn
-	mcommoninit(mp)
+	mcommoninit(mp, id)
 
 	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
 	// Windows and Plan 9 will layout sched stack on OS stack.
@@ -1586,7 +1602,7 @@ func oneNewExtraM() {
 	// The sched.pc will never be returned to, but setting it to
 	// goexit makes clear to the traceback routines where
 	// the goroutine stack ends.
-	mp := allocm(nil, nil)
+	mp := allocm(nil, nil, -1)
 	gp := malg(4096)
 	gp.sched.pc = funcPC(goexit) + sys.PCQuantum
 	gp.sched.sp = gp.stack.hi
@@ -1757,9 +1773,11 @@ var newmHandoff struct {
 // Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
 // May run with m.p==nil, so write barriers are not allowed.
+//
+// id is optional pre-allocated m ID. Omit by passing -1.
 //go:nowritebarrierrec
-func newm(fn func(), _p_ *p) {
-	mp := allocm(_p_, fn)
+func newm(fn func(), _p_ *p, id int64) {
+	mp := allocm(_p_, fn, id)
 	mp.nextp.set(_p_)
 	mp.sigmask = initSigmask
 	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
@@ -1828,7 +1846,7 @@ func startTemplateThread() {
 		releasem(mp)
 		return
 	}
-	newm(templateThread, nil)
+	newm(templateThread, nil, -1)
 	releasem(mp)
 }
 
@@ -1923,16 +1941,31 @@ func startm(_p_ *p, spinning bool) {
 		}
 	}
 	mp := mget()
-	unlock(&sched.lock)
 	if mp == nil {
+		// No M is available, we must drop sched.lock and call newm.
+		// However, we already own a P to assign to the M.
+		//
+		// Once sched.lock is released, another G (e.g., in a syscall),
+		// could find no idle P while checkdead finds a runnable G but
+		// no running M's because this new M hasn't started yet, thus
+		// throwing in an apparent deadlock.
+		//
+		// Avoid this situation by pre-allocating the ID for the new M,
+		// thus marking it as 'running' before we drop sched.lock. This
+		// new M will eventually run the scheduler to execute any
+		// queued G's.
+		id := mReserveID()
+		unlock(&sched.lock)
+
 		var fn func()
 		if spinning {
 			// The caller incremented nmspinning, so set m.spinning in the new M.
 			fn = mspinning
 		}
-		newm(fn, _p_)
+		newm(fn, _p_, id)
 		return
 	}
+	unlock(&sched.lock)
 	if mp.spinning {
 		throw("startm: m is spinning")
 	}
@@ -5192,7 +5225,9 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
 
 	atomic.StoreRel(&pp.runqtail, t)
 	if !q.empty() {
+		lock(&sched.lock)
 		globrunqputbatch(q, int32(qsize))
+		unlock(&sched.lock)
 	}
 }
 

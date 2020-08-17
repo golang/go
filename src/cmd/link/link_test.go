@@ -541,6 +541,13 @@ func TestOldLink(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
+	// Check that the old linker exists (we don't ship it in binary releases,
+	// see issue 39509).
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "-n", "oldlink")
+	if err := cmd.Run(); err != nil {
+		t.Skip("skipping because cannot find installed cmd/oldlink binary")
+	}
+
 	tmpdir, err := ioutil.TempDir("", "TestOldLink")
 	if err != nil {
 		t.Fatal(err)
@@ -553,7 +560,7 @@ func TestOldLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
+	cmd = exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
 	}

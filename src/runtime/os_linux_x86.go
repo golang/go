@@ -7,7 +7,10 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 //go:noescape
 func uname(utsname *new_utsname) int
@@ -53,6 +56,36 @@ func osArchInit() {
 	major, minor, patch, ok := parseRelease(rel)
 	if !ok {
 		return
+	}
+
+	if major == 5 && minor == 4 && patch < 2 {
+		// All 5.4 versions of Ubuntu are patched.
+		procVersion := []byte("/proc/version\000")
+		f := open(&procVersion[0], _O_RDONLY, 0)
+		if f >= 0 {
+			var buf [512]byte
+			p := noescape(unsafe.Pointer(&buf[0]))
+			n := read(f, p, int32(len(buf)))
+			closefd(f)
+
+			needle := []byte("Ubuntu")
+		contains:
+			for i, c := range buf[:n] {
+				if c != needle[0] {
+					continue
+				}
+				if int(n)-i < len(needle) {
+					break
+				}
+				for j, c2 := range needle {
+					if c2 != buf[i+j] {
+						continue contains
+					}
+				}
+				// This is an Ubuntu system.
+				return
+			}
+		}
 	}
 
 	if major == 5 && (minor == 2 || minor == 3 && patch < 15 || minor == 4 && patch < 2) {
