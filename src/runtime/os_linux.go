@@ -249,6 +249,10 @@ func sysargs(argc int32, argv **byte) {
 	sysauxv(buf[:])
 }
 
+// startupRandomData holds random bytes initialized at startup. These come from
+// the ELF AT_RANDOM auxiliary vector.
+var startupRandomData []byte
+
 func sysauxv(auxv []uintptr) int {
 	var i int
 	for ; auxv[i] != _AT_NULL; i += 2 {
