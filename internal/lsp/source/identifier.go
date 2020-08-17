@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 	"strconv"
 
 	"golang.org/x/tools/internal/event"
@@ -57,19 +58,37 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
-	if err != nil {
-		return nil, fmt.Errorf("getting file for Identifier: %w", err)
-	}
-	spn, err := pgf.Mapper.PointSpan(pos)
+	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckAll)
 	if err != nil {
 		return nil, err
 	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
-	if err != nil {
-		return nil, err
+	if len(pkgs) == 0 {
+		return nil, fmt.Errorf("no packages for file %v", fh.URI())
 	}
-	return findIdentifier(ctx, snapshot, pkg, pgf.File, rng.Start)
+	sort.Slice(pkgs, func(i, j int) bool {
+		return len(pkgs[i].CompiledGoFiles()) < len(pkgs[j].CompiledGoFiles())
+	})
+	var findErr error
+	for _, pkg := range pkgs {
+		pgf, err := pkg.File(fh.URI())
+		if err != nil {
+			return nil, err
+		}
+		spn, err := pgf.Mapper.PointSpan(pos)
+		if err != nil {
+			return nil, err
+		}
+		rng, err := spn.Range(pgf.Mapper.Converter)
+		if err != nil {
+			return nil, err
+		}
+		var ident *IdentifierInfo
+		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf.File, rng.Start)
+		if findErr == nil {
+			return ident, nil
+		}
+	}
+	return nil, findErr
 }
 
 var ErrNoIdentFound = errors.New("no identifier found")

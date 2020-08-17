@@ -199,9 +199,10 @@ var errBuiltin = errors.New("builtin object")
 
 // qualifiedObjsAtProtocolPos returns info for all the type.Objects
 // referenced at the given position. An object will be returned for
-// every package that the file belongs to.
+// every package that the file belongs to, in every typechecking mode
+// applicable.
 func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
-	pkgs, err := s.PackagesForFile(ctx, fh.URI())
+	pkgs, err := s.PackagesForFile(ctx, fh.URI(), TypecheckAll)
 	if err != nil {
 		return nil, err
 	}

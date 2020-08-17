@@ -197,7 +197,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	pkgs, err := snapshot.PackagesForFile(ctx, uri.SpanURI())
+	pkgs, err := snapshot.PackagesForFile(ctx, uri.SpanURI(), source.TypecheckWorkspace)
 	if err != nil {
 		return err
 	}

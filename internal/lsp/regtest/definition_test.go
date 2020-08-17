@@ -6,6 +6,7 @@ package regtest
 
 import (
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -45,24 +46,20 @@ const stdlibDefinition = `
 -- go.mod --
 module mod.com
 
-go 1.12
 -- main.go --
 package main
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
 func main() {
-	fmt.Println(time.Now())
+	fmt.Printf()
 }`
 
 func TestGoToStdlibDefinition_Issue37045(t *testing.T) {
 	runner.Run(t, stdlibDefinition, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		name, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "Now"))
-		if got, want := path.Base(name), "time.go"; got != want {
+		name, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Printf)`))
+		if got, want := path.Base(name), "print.go"; got != want {
 			t.Errorf("GoToDefinition: got file %q, want %q", name, want)
 		}
 
@@ -74,6 +71,25 @@ func TestGoToStdlibDefinition_Issue37045(t *testing.T) {
 		}
 		if newPos != pos {
 			t.Errorf("GoToDefinition is not idempotent: got %v, want %v", newPos, pos)
+		}
+	})
+}
+
+func TestUnexportedStdlib_Issue40809(t *testing.T) {
+	runner.Run(t, stdlibDefinition, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		name, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Printf)`))
+		env.OpenFile(name)
+
+		name, pos := env.GoToDefinition(name, env.RegexpSearch(name, `(newPrinter)\(\)`))
+		content, _ := env.Hover(name, pos)
+		if !strings.Contains(content.Value, "newPrinter") {
+			t.Fatal("definition of newPrinter went to the incorrect place")
+		}
+
+		refs := env.References(name, pos)
+		if len(refs) < 5 {
+			t.Errorf("expected 5+ references to newPrinter, found: %#v", refs)
 		}
 	})
 }

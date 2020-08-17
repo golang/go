@@ -255,7 +255,7 @@ func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
 	return hashContents([]byte(strings.Join(unsaved, "")))
 }
 
-func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI) ([]source.Package, error) {
+func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode) ([]source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
 	// Check if we should reload metadata for the file. We don't invalidate IDs
@@ -283,17 +283,33 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI) ([]source.
 	// Get the list of IDs from the snapshot again, in case it has changed.
 	var pkgs []source.Package
 	for _, id := range s.getIDsForURI(uri) {
-		pkg, err := s.checkedPackage(ctx, id)
-		if err != nil {
-			return nil, err
+		var parseModes []source.ParseMode
+		switch mode {
+		case source.TypecheckAll:
+			if s.workspaceParseMode(id) == source.ParseFull {
+				parseModes = []source.ParseMode{source.ParseFull}
+			} else {
+				parseModes = []source.ParseMode{source.ParseExported, source.ParseFull}
+			}
+		case source.TypecheckFull:
+			parseModes = []source.ParseMode{source.ParseFull}
+		case source.TypecheckWorkspace:
+			parseModes = []source.ParseMode{s.workspaceParseMode(id)}
 		}
-		pkgs = append(pkgs, pkg)
+
+		for _, parseMode := range parseModes {
+			pkg, err := s.checkedPackage(ctx, id, parseMode)
+			if err != nil {
+				return nil, err
+			}
+			pkgs = append(pkgs, pkg)
+		}
 	}
 	return pkgs, nil
 }
 
-func (s *snapshot) checkedPackage(ctx context.Context, id packageID) (*pkg, error) {
-	ph, err := s.buildPackageHandle(ctx, id)
+func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
+	ph, err := s.buildPackageHandle(ctx, id, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +328,7 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 
 	var pkgs []source.Package
 	for id := range ids {
-		pkg, err := s.checkedPackage(ctx, id)
+		pkg, err := s.checkedPackage(ctx, id, s.workspaceParseMode(id))
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +464,7 @@ func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, err
 	}
 	var pkgs []source.Package
 	for _, pkgID := range s.workspacePackageIDs() {
-		pkg, err := s.checkedPackage(ctx, pkgID)
+		pkg, err := s.checkedPackage(ctx, pkgID, s.workspaceParseMode(pkgID))
 		if err != nil {
 			return nil, err
 		}
@@ -476,7 +492,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 
 	var pkgs []source.Package
 	for _, id := range ids {
-		pkg, err := s.checkedPackage(ctx, id)
+		pkg, err := s.checkedPackage(ctx, id, s.workspaceParseMode(id))
 		if err != nil {
 			return nil, err
 		}

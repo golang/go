@@ -94,20 +94,21 @@ type Snapshot interface {
 	// BuiltinPackage returns information about the special builtin package.
 	BuiltinPackage(ctx context.Context) (*BuiltinPackage, error)
 
-	// PackagesForFile returns the packages that this file belongs to.
-	PackagesForFile(ctx context.Context, uri span.URI) ([]Package, error)
+	// PackagesForFile returns the packages that this file belongs to, checked
+	// in mode.
+	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode) ([]Package, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
-	// dependencies of this file's package.
+	// dependencies of this file's package, checked in TypecheckWorkspace mode.
 	GetReverseDependencies(ctx context.Context, id string) ([]Package, error)
 
-	// CachedImportPaths returns all the imported packages loaded in this snapshot,
-	// indexed by their import path.
+	// CachedImportPaths returns all the imported packages loaded in this
+	// snapshot, indexed by their import path and checked in TypecheckWorkspace
+	// mode.
 	CachedImportPaths(ctx context.Context) (map[string]Package, error)
 
-	// KnownPackages returns all the packages loaded in this snapshot.
-	// Workspace packages may be parsed in ParseFull mode, whereas transitive
-	// dependencies will be in ParseExported mode.
+	// KnownPackages returns all the packages loaded in this snapshot, checked
+	// in TypecheckWorkspace mode.
 	KnownPackages(ctx context.Context) ([]Package, error)
 
 	// WorkspacePackages returns the snapshot's top-level packages.
@@ -323,7 +324,7 @@ type ParseMode int
 const (
 	// ParseHeader specifies that the main package declaration and imports are needed.
 	// This is the mode used when attempting to examine the package graph structure.
-	ParseHeader = ParseMode(iota)
+	ParseHeader ParseMode = iota
 
 	// ParseExported specifies that the public symbols are needed, but things like
 	// private symbols and function bodies are not.
@@ -335,6 +336,23 @@ const (
 	// This is used for files of direct interest where the entire contents must
 	// be considered.
 	ParseFull
+)
+
+// TypecheckMode controls what kind of parsing should be done (see ParseMode)
+// while type checking a package.
+type TypecheckMode int
+
+const (
+	// Invalid default value.
+	TypecheckUnknown TypecheckMode = iota
+	// TypecheckFull means to use ParseFull.
+	TypecheckFull
+	// TypecheckWorkspace means to use ParseFull for workspace packages, and
+	// ParseExported for others.
+	TypecheckWorkspace
+	// TypecheckAll means ParseFull for workspace packages, and both Full and
+	// Exported for others. Only valid for some functions.
+	TypecheckAll
 )
 
 type VersionedFileHandle interface {

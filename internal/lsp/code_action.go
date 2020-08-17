@@ -119,7 +119,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		pkgs, err := snapshot.PackagesForFile(ctx, fh.URI())
+		pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckFull)
 		if err != nil {
 			return nil, err
 		}

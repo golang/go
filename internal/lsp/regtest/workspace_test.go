@@ -106,8 +106,9 @@ func TestReferences(t *testing.T) {
 				opts = append(opts, WithRootPath(tt.rootPath))
 			}
 			withOptions(opts...).run(t, workspaceModule, func(t *testing.T, env *Env) {
-				env.OpenFile("pkg/inner/inner.go")
-				locations := env.ReferencesAtRegexp("pkg/inner/inner.go", "SaySomething")
+				f := "pkg/inner/inner.go"
+				env.OpenFile(f)
+				locations := env.References(f, env.RegexpSearch(f, `SaySomething`))
 				want := 3
 				if got := len(locations); got != want {
 					t.Fatalf("expected %v locations, got %v", want, got)

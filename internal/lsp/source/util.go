@@ -69,7 +69,7 @@ func (s mappedRange) URI() span.URI {
 // getParsedFile is a convenience function that extracts the Package and ParsedGoFile for a File in a Snapshot.
 // selectPackage is typically Narrowest/WidestPackageHandle below.
 func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, *ParsedGoFile, error) {
-	phs, err := snapshot.PackagesForFile(ctx, fh.URI())
+	phs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckWorkspace)
 	if err != nil {
 		return nil, nil, err
 	}

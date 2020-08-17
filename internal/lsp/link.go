@@ -99,7 +99,8 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 
 func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
-	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI())
+	// We don't actually need type information, so any typecheck mode is fine.
+	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestNonWorkspaceReferences(t *testing.T) {
+func TestStdlibReferences(t *testing.T) {
 	const files = `
 -- go.mod --
 module mod.com

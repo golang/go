@@ -56,11 +56,7 @@ type packageData struct {
 }
 
 // buildPackageHandle returns a packageHandle for a given package and mode.
-func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packageHandle, error) {
-	mode := source.ParseExported
-	if _, ok := s.isWorkspacePackage(id); ok {
-		mode = source.ParseFull
-	}
+func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
 	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
 	}
@@ -145,7 +141,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys []packageHandleKey
 	for _, depID := range depList {
-		depHandle, err := s.buildPackageHandle(ctx, depID)
+		depHandle, err := s.buildPackageHandle(ctx, depID, s.workspaceParseMode(depID))
 		if err != nil {
 			event.Error(ctx, "no dep handle", err, tag.Package.Of(string(depID)))
 			if ctx.Err() != nil {
@@ -161,6 +157,14 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	}
 	ph.key = checkPackageKey(ctx, ph.m.id, compiledGoFiles, m.config, depKeys, mode)
 	return ph, deps, nil
+}
+
+func (s *snapshot) workspaceParseMode(id packageID) source.ParseMode {
+	if _, ws := s.isWorkspacePackage(id); ws {
+		return source.ParseFull
+	} else {
+		return source.ParseExported
+	}
 }
 
 func checkPackageKey(ctx context.Context, id packageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey, mode source.ParseMode) packageHandleKey {
