@@ -88,16 +88,15 @@ func (r *timeoutReader) Read(p []byte) (int, error) {
 	return r.r.Read(p)
 }
 
-// ErrIO is a fake IO error.
-var ErrIO = errors.New("io")
-
-// ErrReader returns a fake error every time it is read from.
-func ErrReader() io.Reader {
-	return errReader(0)
+// ErrReader returns an io.Reader that returns 0, err from all Read calls.
+func ErrReader(err error) io.Reader {
+	return &alwaysErrReader{err: err}
 }
 
-type errReader int
+type alwaysErrReader struct {
+	err error
+}
 
-func (r errReader) Read(p []byte) (int, error) {
-	return 0, ErrIO
+func (aer *alwaysErrReader) Read(p []byte) (int, error) {
+	return 0, aer.err
 }
