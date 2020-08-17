@@ -6,12 +6,12 @@
 package sets
 
 // A Set is a set of elements of some type.
-type Set[type Elem comparable] struct {
+type Set[Elem comparable] struct {
 	m map[Elem]struct{}
 }
 
 // Make makes a new set.
-func Make[type Elem comparable]() Set[Elem] {
+func Make[Elem comparable]() Set[Elem] {
 	return Set[Elem]{m: make(map[Elem]struct{})}
 }
 
@@ -48,7 +48,7 @@ func (s Set[Elem]) Values() []Elem {
 }
 
 // Equal reports whether two sets contain the same elements.
-func Equal[type Elem comparable](s1, s2 Set[Elem]) bool {
+func Equal[Elem comparable](s1, s2 Set[Elem]) bool {
 	if len(s1.m) != len(s2.m) {
 		return false
 	}

@@ -9,7 +9,7 @@ package list
 // perhaps with different type names.
 
 // Element is an element of a linked list.
-type Element[type TElem] struct {
+type Element[TElem any] struct {
 	// Next and previous pointers in the doubly-linked list of elements.
 	// To simplify the implementation, internally a list l is implemented
 	// as a ring, such that &l.root is both the next element of the last
@@ -42,7 +42,7 @@ func (e *Element[TElem]) Prev() *Element[TElem] {
 
 // List represents a doubly linked list.
 // The zero value for List is an empty list ready to use.
-type List[type TElem] struct {
+type List[TElem any] struct {
 	root Element[TElem] // sentinel list element, only &root, root.prev, and root.next are used
 	len  int     // current list length excluding (this) sentinel element
 }
@@ -56,7 +56,7 @@ func (l *List[TElem]) Init() *List[TElem] {
 }
 
 // New returns an initialized list.
-func New[type TElem]() *List[TElem] { return new(List[TElem]).Init() }
+func New[TElem any]() *List[TElem] { return new(List[TElem]).Init() }
 
 // Len returns the number of elements of list l.
 // The complexity is O(1).
@@ -235,7 +235,7 @@ func (l *List[TElem]) PushFrontList(other *List[TElem]) {
 }
 
 // Transform runs a transform function on a list returning a new list.
-func Transform[type TElem1, TElem2](lst *List[TElem1], f func(TElem1) TElem2) *List[TElem2] {
+func Transform[TElem1, TElem2 any](lst *List[TElem1], f func(TElem1) TElem2) *List[TElem2] {
 	ret := New[TElem2]()
 	for p := lst.Front(); p != nil; p = p.Next() {
 		ret.PushBack(f(p.Value))

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func checkListLen[type TElem](t *testing.T, l *List[TElem], len int) bool {
+func checkListLen[TElem any](t *testing.T, l *List[TElem], len int) bool {
 	if n := l.Len(); n != len {
 		t.Errorf("l.Len() = %d, want %d", n, len)
 		return false
@@ -17,7 +17,7 @@ func checkListLen[type TElem](t *testing.T, l *List[TElem], len int) bool {
 	return true
 }
 
-func checkListPointers[type TElem](t *testing.T, l *List[TElem], es []*Element[TElem]) {
+func checkListPointers[TElem any](t *testing.T, l *List[TElem], es []*Element[TElem]) {
 	root := &l.root
 
 	if !checkListLen(t, l, len(es)) {
@@ -143,7 +143,7 @@ func TestList(t *testing.T) {
 	checkListPointers(t, l2, []*(Element[int]){})
 }
 
-func checkList[type TElem comparable](t *testing.T, l *List[TElem], es []interface{}) {
+func checkList[TElem comparable](t *testing.T, l *List[TElem], es []interface{}) {
 	if !checkListLen(t, l, len(es)) {
 		return
 	}

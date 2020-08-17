@@ -12,7 +12,7 @@ import (
 
 // ReadAll reads from c until the channel is closed or the context is
 // canceled, returning all the values read.
-func ReadAll[type Elem](ctx context.Context, c <-chan Elem) []Elem {
+func ReadAll[Elem any](ctx context.Context, c <-chan Elem) []Elem {
 	var r []Elem
 	for {
 		select {
@@ -30,7 +30,7 @@ func ReadAll[type Elem](ctx context.Context, c <-chan Elem) []Elem {
 // Merge merges two channels into a single channel.
 // This will leave a goroutine running until either both channels are closed
 // or the context is canceled, at which point the returned channel is closed.
-func Merge[type Elem](ctx context.Context, c1, c2 <-chan Elem) <-chan Elem {
+func Merge[Elem any](ctx context.Context, c1, c2 <-chan Elem) <-chan Elem {
 	r := make(chan Elem)
 	go func(ctx context.Context, c1, c2 <-chan Elem, r chan<- Elem) {
 		defer close(r)
@@ -60,7 +60,7 @@ func Merge[type Elem](ctx context.Context, c1, c2 <-chan Elem) <-chan Elem {
 // is sent on the returned channel. This will leave a goroutine running
 // until c is closed or the context is canceled, at which point the
 // returned channel is closed.
-func Filter[type Elem](ctx context.Context, c <-chan Elem, f func(Elem) bool) <-chan Elem {
+func Filter[Elem any](ctx context.Context, c <-chan Elem, f func(Elem) bool) <-chan Elem {
 	r := make(chan Elem)
 	go func(ctx context.Context, c <-chan Elem, f func(Elem) bool, r chan<- Elem) {
 		defer close(r)
@@ -84,7 +84,7 @@ func Filter[type Elem](ctx context.Context, c <-chan Elem, f func(Elem) bool) <-
 // Sink returns a channel that discards all values sent to it.
 // This will leave a goroutine running until the context is canceled
 // or the returned channel is closed.
-func Sink[type Elem](ctx context.Context) chan<- Elem {
+func Sink[Elem any](ctx context.Context) chan<- Elem {
 	r := make(chan Elem)
 	go func(ctx context.Context, r <-chan Elem) {
 		for {
@@ -103,12 +103,12 @@ func Sink[type Elem](ctx context.Context) chan<- Elem {
 
 // An Exclusive is a value that may only be used by a single goroutine
 // at a time. This is implemented using channels rather than a mutex.
-type Exclusive[type Val] struct {
+type Exclusive[Val any] struct {
 	c chan Val
 }
 
 // MakeExclusive makes an initialized exclusive value.
-func MakeExclusive[type Val](initial Val) *Exclusive[Val] {
+func MakeExclusive[Val any](initial Val) *Exclusive[Val] {
 	r := &Exclusive[Val]{
 		c: make(chan Val, 1),
 	}
@@ -152,7 +152,7 @@ func (e *Exclusive[Val]) Release(v Val) {
 //
 // This is a convenient way to exit a goroutine sending values when
 // the receiver stops reading them.
-func Ranger[type Elem]() (*Sender[Elem], *Receiver[Elem]) {
+func Ranger[Elem any]() (*Sender[Elem], *Receiver[Elem]) {
 	c := make(chan Elem)
 	d := make(chan struct{})
 	s := &Sender[Elem]{
@@ -168,7 +168,7 @@ func Ranger[type Elem]() (*Sender[Elem], *Receiver[Elem]) {
 }
 
 // A Sender is used to send values to a Receiver.
-type Sender[type Elem] struct {
+type Sender[Elem any] struct {
 	values chan<- Elem
 	done   <-chan struct{}
 }
@@ -194,7 +194,7 @@ func (s *Sender[Elem]) Close() {
 }
 
 // A Receiver receives values from a Sender.
-type Receiver[type Elem] struct {
+type Receiver[Elem any] struct {
 	values <-chan Elem
 	done   chan<- struct{}
 }

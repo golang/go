@@ -10,31 +10,31 @@ import "errors"
 // A Graph is a collection of nodes. A node may have an arbitrary number
 // of edges. An edge connects two nodes. Both nodes and edges must be
 // comparable. This is an undirected simple graph.
-type Graph[type Node NodeC[Edge], Edge EdgeC[Node]] struct {
+type Graph[Node NodeC[Edge], Edge EdgeC[Node]] struct {
 	nodes []Node
 }
 
 // NodeC is the contraints on a node in a graph, given the Edge type.
-type NodeC[type Edge] interface {
+type NodeC[Edge any] interface {
 	comparable
 	Edges() []Edge
 }
 
 // Edgec is the constraints on an edge in a graph, given the Node type.
-type EdgeC[type Node] interface {
+type EdgeC[Node any] interface {
 	comparable
 	Nodes() (a, b Node)
 }
 
 // New creates a new Graph from a collection of Nodes.
-func New[type Node NodeC[Edge], Edge EdgeC[Node]](nodes []Node) *Graph[Node, Edge] {
+func New[Node NodeC[Edge], Edge EdgeC[Node]](nodes []Node) *Graph[Node, Edge] {
 	return &Graph[Node, Edge]{nodes: nodes}
 }
 
 // nodePath holds the path to a node during ShortestPath.
 // This should ideally be a type defined inside ShortestPath,
 // but the translator tool doesn't support that.
-type nodePath[type Node NodeC[Edge], Edge EdgeC[Node]] struct {
+type nodePath[Node NodeC[Edge], Edge EdgeC[Node]] struct {
 	node Node
 	path []Edge
 }
@@ -79,12 +79,12 @@ type GraphP[type *Node NodeCP[Edge], *Edge EdgeCP[Node]] struct {
 }
 
 // NodeCP is the contraint on a Node in a GraphP.
-type NodeCP[type Edge] interface {
+type NodeCP[Edge any] interface {
 	Edges() []*Edge
 }
 
 // EdgeCP is the contraint on an Edge in a GraphP.
-type EdgeCP[type Node] interface {
+type EdgeCP[Node any] interface {
 	Nodes() (a, b *Node)
 }
 

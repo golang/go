@@ -15,13 +15,13 @@ import (
 )
 
 // Map is an ordered map.
-type Map[type K, V] struct {
+type Map[K, V any] struct {
 	root    *node[K, V]
 	compare func(K, K) int
 }
 
 // node is the type of a node in the binary tree.
-type node[type K, V] struct {
+type node[K, V any] struct {
 	key         K
 	val         V
 	left, right *node[K, V]
@@ -30,14 +30,14 @@ type node[type K, V] struct {
 // New returns a new map. It takes a comparison function that compares two
 // keys and returns < 0 if the first is less, == 0 if they are equal,
 // > 0 if the first is greater.
-func New[type K, V](compare func(K, K) int) *Map[K, V] {
+func New[K, V any](compare func(K, K) int) *Map[K, V] {
 	return &Map[K, V]{compare: compare}
 }
 
 // NewOrdered returns a new map whose key is an ordered type.
 // This is like New, but does not require providing a compare function.
 // The map compare function uses the obvious key ordering.
-func NewOrdered[type K constraints.Ordered, V interface{}]() *Map[K, V] {
+func NewOrdered[K constraints.Ordered, V any]() *Map[K, V] {
 	return New[K, V](func(k1, k2 K) int {
 		switch {
 		case k1 < k2:
@@ -92,7 +92,7 @@ func (m *Map[K, V]) Find(key K) (V, bool) {
 }
 
 // keyValue is a pair of key and value used while iterating.
-type keyValue[type K, V] struct {
+type keyValue[K, V any] struct {
 	key K
 	val V
 }
@@ -119,7 +119,7 @@ func (m *Map[K, V]) Iterate() *Iterator[K, V] {
 }
 
 // Iterator is used to iterate over the map.
-type Iterator[type K, V] struct {
+type Iterator[K, V any] struct {
 	r *chans.Receiver[keyValue[K, V]]
 }
 
