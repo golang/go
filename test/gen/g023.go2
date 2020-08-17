@@ -8,7 +8,7 @@ package p
 
 import "net/url"
 
-type S[type T] struct {
+type S[T any] struct {
 	f T
 }
 

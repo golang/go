@@ -6,11 +6,11 @@ package main
 
 import "./a"
 
-type S[type T] struct {
+type S[T any] struct {
 	F T
 }
 
-func NewS[type T](v T) S[T] {
+func NewS[T any](v T) S[T] {
 	return S[T]{F: v}
 }
 

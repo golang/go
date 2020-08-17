@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func FromStrings3[type T](s []string, set func(*T, string)) []T {
+func FromStrings3[T any](s []string, set func(*T, string)) []T {
 	results := make([]T, len(s))
 	for i, v := range s {
 		set(&results[i], v)

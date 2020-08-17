@@ -6,7 +6,7 @@
 
 package main
 
-type T[type A] struct {
+type T[A any] struct {
 	V A
 }
 

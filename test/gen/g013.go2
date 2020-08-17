@@ -6,9 +6,9 @@
 
 package main
 
-type Gen[type A] func() (A, bool)
+type Gen[A any] func() (A, bool)
 
-func combine[type T1, T2, T](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T] {
+func combine[T1, T2, T any](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T] {
     return func() (T, bool) {
         var t T
         t1, ok := g1()
@@ -23,14 +23,14 @@ func combine[type T1, T2, T](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T]
     }
 }
 
-type Pair[type A, B] struct {
+type Pair[A, B any] struct {
 	A A
 	B B
 }
 
-func NewPair[type A, B](a A, b B) Pair[A, B] { return Pair[A, B]{a, b} }
+func NewPair[A, B any](a A, b B) Pair[A, B] { return Pair[A, B]{a, b} }
 
-func Combine2[type A, B](ga Gen[A], gb Gen[B]) Gen[Pair[A, B]] {
+func Combine2[A, B any](ga Gen[A], gb Gen[B]) Gen[Pair[A, B]] {
     return combine(ga, gb, NewPair(A, B))
 }
 

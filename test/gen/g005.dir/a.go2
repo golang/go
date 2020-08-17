@@ -4,7 +4,7 @@
 
 package a
 
-type Stack[type E] []E
+type Stack[E any] []E
 
 func (s *Stack[E]) Push(e E) {
 	*s = append(*s, e)

@@ -4,6 +4,6 @@
 
 package a
 
-type S[type T] struct {
+type S[T any] struct {
 	F T
 }

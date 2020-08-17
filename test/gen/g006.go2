@@ -20,7 +20,7 @@ type Ordered interface {
 		string
 }
 
-type orderedSlice[type Elem Ordered] []Elem
+type orderedSlice[Elem Ordered] []Elem
 
 func (s orderedSlice[Elem]) Len() int           { return len(s) }
 func (s orderedSlice[Elem]) Less(i, j int) bool {
@@ -35,7 +35,7 @@ func (s orderedSlice[Elem]) Less(i, j int) bool {
 }
 func (s orderedSlice[Elem]) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func OrderedSlice[type Elem Ordered](s []Elem) {
+func OrderedSlice[Elem Ordered](s []Elem) {
 	sort.Sort(orderedSlice[Elem](s))
 }
 
@@ -55,7 +55,7 @@ func TestSortOrderedStrings() bool {
 	return testOrdered("strings", strings, sort.Strings)
 }
 
-func testOrdered[type Elem Ordered](name string, s []Elem, sorter func([]Elem)) bool {
+func testOrdered[Elem Ordered](name string, s []Elem, sorter func([]Elem)) bool {
 	s1 := make([]Elem, len(s))
 	copy(s1, s)
 	s2 := make([]Elem, len(s))
@@ -76,7 +76,7 @@ func testOrdered[type Elem Ordered](name string, s []Elem, sorter func([]Elem)) 
 	return ok
 }
 
-func sliceEq[type Elem Ordered](s1, s2 []Elem) bool {
+func sliceEq[Elem Ordered](s1, s2 []Elem) bool {
 	for i, v1 := range s1 {
 		v2 := s2[i]
 		if v1 != v2 {

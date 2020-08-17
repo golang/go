@@ -7,7 +7,7 @@
 // Issue 39688.
 package p
 
-type S[type T] T
+type S[T any] T
 
 func (*S[T]) M() {}
 

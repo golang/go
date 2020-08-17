@@ -7,17 +7,17 @@
 // Issue 39692
 package p
 
-type S1[type T1, T2] struct {
+type S1[T1, T2 any] struct {
 	f1 T1
 	f2 T2
 }
 
-type S2[type T1, T2] struct {
+type S2[T1, T2 any] struct {
 	f1 T1
 	f2 T2
 }
 
-func F1[type T](v T) T {
+func F1[T any](v T) T {
 	return v
 }
 

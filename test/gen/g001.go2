@@ -8,7 +8,7 @@ package main
 
 import "fmt"
 
-func Print[type T](s []T) {
+func Print[T any](s []T) {
 	for _, v := range s {
 		fmt.Println(v)
 	}

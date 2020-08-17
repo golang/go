@@ -8,7 +8,7 @@ package p
 
 type I interface{}
 
-type S[type T] struct {
+type S[T any] struct {
 	*T
 }
 

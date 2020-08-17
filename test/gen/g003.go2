@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-type Pair[type F1, F2] struct {
+type Pair[F1, F2 any] struct {
 	f1 F1
 	f2 F2
 }

@@ -11,12 +11,12 @@ import (
 	"strconv"
 )
 
-type Setter2[type B] interface {
+type Setter2[B any] interface {
 	Set(string)
 	type *B
 }
 
-func FromStrings2[type T interface{}, PT Setter2[T]](s []string) []T {
+func FromStrings2[T any, PT Setter2[T]](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
 		p := PT(&result[i])

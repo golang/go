@@ -8,7 +8,7 @@ package main
 
 import "fmt"
 
-type Value[type T] struct {
+type Value[T any] struct {
 	val T
 }
 

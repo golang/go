@@ -7,7 +7,7 @@
 // Issue 39743.
 package p
 
-type S[type T] struct{}
+type S[T any] struct{}
 
 func (s S[_]) M() {}	// ERROR "_"
 

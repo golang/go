@@ -7,7 +7,7 @@
 // Issue 39741.
 package p
 
-func F[type T]() {
+func F[T any]() {
 	type S struct{}
 }
 

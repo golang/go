@@ -10,7 +10,7 @@ import "fmt"
 
 type Any interface{}
 
-type Function[type a Any, b Any] interface {
+type Function[a, b any] interface {
 	Apply(x a) b
 }
 
@@ -26,7 +26,7 @@ func (this pos) Apply(x int) bool {
 	return x > 0
 }
 
-type compose[type a Any, b Any, c Any] struct {
+type compose[a, b, c any] struct {
 	f Function[a, b]
 	g Function[b, c]
 }
@@ -35,7 +35,7 @@ func (this compose[a, b, c]) Apply(x a) c {
 	return this.g.Apply(this.f.Apply(x))
 }
 
-type Eq[type a] interface {
+type Eq[a any] interface {
 	Equal(a) bool
 }
 
@@ -45,17 +45,17 @@ func (this Int) Equal(that int) bool {
 	return int(this) == that
 }
 
-type List[type a Any] interface {
+type List[a any] interface {
 	Match(casenil Function[Nil[a], Any], casecons Function[Cons[a], Any]) Any
 }
 
-type Nil[type a Any] struct{}
+type Nil[a any] struct{}
 
 func (xs Nil[a]) Match(casenil Function[Nil[a], Any], casecons Function[Cons[a], Any]) Any {
 	return casenil.Apply(xs)
 }
 
-type Cons[type a Any] struct {
+type Cons[a any] struct {
 	Head a
 	Tail List[a]
 }
@@ -64,13 +64,13 @@ func (xs Cons[a]) Match(casenil Function[Nil[a], Any], casecons Function[Cons[a]
 	return casecons.Apply(xs)
 }
 
-type mapNil[type a Any, b Any] struct{}
+type mapNil[a, b any] struct{}
 
 func (m mapNil[a, b]) Apply(_ Nil[a]) Any {
 	return Nil[b]{}
 }
 
-type mapCons[type a Any, b Any] struct {
+type mapCons[a, b any] struct {
 	f Function[a, b]
 }
 
@@ -78,7 +78,7 @@ func (m mapCons[a, b]) Apply(xs Cons[a]) Any {
 	return Cons[b]{m.f.Apply(xs.Head), Map[a, b](m.f, xs.Tail)}
 }
 
-func Map[type a, b Any](f Function[a, b], xs List[a]) List[b] {
+func Map[a, b any](f Function[a, b], xs List[a]) List[b] {
 	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(List[b])
 }
 

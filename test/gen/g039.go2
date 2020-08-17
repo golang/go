@@ -6,15 +6,15 @@
 
 package p
 
-type top[type T, T2] struct {
+type top[T, T2 any] struct {
 	p *parent[T, T2]
 }
 
-type parent[type T, T2] struct {
+type parent[T, T2 any] struct {
 	child[T, T2]
 }
 
-type child[type T, T2] struct {
+type child[T, T2 any] struct {
 	T2
 }
 

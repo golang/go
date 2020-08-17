@@ -8,7 +8,7 @@ import "./a"
 
 type S = a.S
 
-func F1[type T](T) {}
+func F1[T any](T) {}
 
 func F2() { F1(S[string]{}) }
 

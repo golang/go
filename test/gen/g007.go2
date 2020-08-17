@@ -9,11 +9,11 @@
 
 package p
 
-type S[type T] struct {
+type S[T any] struct {
 	f T
 }
 
-func SliceS[type T]() S[[]T] {
+func SliceS[T any]() S[[]T] {
 	return S[[]T]{nil}
 }
 
