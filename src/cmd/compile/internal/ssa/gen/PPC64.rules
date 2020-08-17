@@ -11,6 +11,9 @@
 (Sub32F ...) => (FSUBS ...)
 (Sub64F ...) => (FSUB ...)
 
+// Combine 64 bit integer multiply and adds
+(ADD l:(MULLD x y) z) && objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
+
 (Mod16 x y) => (Mod32 (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))

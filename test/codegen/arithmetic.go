@@ -253,16 +253,20 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
 	// arm64:"MUL","ADD\t[$]3074457345618258602","ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
-	// ppc64:"MULLD","ADD","ROTL\t[$]63"
-	// ppc64le:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
+	// ppc64/power9:"MADDLD","ROTL\t[$]63"
+	// ppc64le/power9:"MADDLD","ROTL\t[$]63"
 	evenS := n2%6 == 0
 
 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
 	// arm64:"MUL","ADD\t[$]485440633518672410",-"ROR",-"DIV"
 	// arm:"MUL","ADD\t[$]113025455",-".*udiv"
-	// ppc64:"MULLD","ADD",-"ROTL"
-	// ppc64le:"MULLD","ADD",-"ROTL"
+	// ppc64/power8:"MULLD","ADD",-"ROTL"
+	// ppc64/power9:"MADDLD",-"ROTL"
+	// ppc64le/power8:"MULLD","ADD",-"ROTL"
+	// ppc64le/power9:"MADDLD",-"ROTL"
 	oddS := n2%19 == 0
 
 	return evenU, oddU, evenS, oddS
