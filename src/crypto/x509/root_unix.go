@@ -13,17 +13,6 @@ import (
 	"strings"
 )
 
-// Possible directories with certificate files; stop after successfully
-// reading at least one file from a directory.
-var certDirectories = []string{
-	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
-	"/system/etc/security/cacerts", // Android
-	"/usr/local/share/certs",       // FreeBSD
-	"/etc/pki/tls/certs",           // Fedora/RHEL
-	"/etc/openssl/certs",           // NetBSD
-	"/var/ssl/certs",               // AIX
-}
-
 const (
 	// certFileEnv is the environment variable which identifies where to locate
 	// the SSL certificate file. If set this overrides the system default.
