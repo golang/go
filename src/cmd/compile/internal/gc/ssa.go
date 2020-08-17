@@ -4740,7 +4740,7 @@ func (s *state) getClosureAndRcvr(fn *Node) (*ssa.Value, *ssa.Value) {
 	s.nilCheck(itab)
 	itabidx := fn.Xoffset + 2*int64(Widthptr) + 8 // offset of fun field in runtime.itab
 	closure := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.UintptrPtr, itabidx, itab)
-	rcvr := s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
+	rcvr := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, i)
 	return closure, rcvr
 }
 
@@ -6904,56 +6904,38 @@ func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
 }
 
 func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	ptrType := types.NewPtr(types.Types[TUINT8])
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this string up into two separate variables.
-		p := e.splitSlot(&name, ".ptr", 0, ptrType)
-		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
-		return p, l
-	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off}, ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)}
+	// Split this string up into two separate variables.
+	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+	return p, l
 }
 
 func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
 	u := types.Types[TUINTPTR]
 	t := types.NewPtr(types.Types[TUINT8])
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this interface up into two separate variables.
-		f := ".itab"
-		if n.Type.IsEmptyInterface() {
-			f = ".type"
-		}
-		c := e.splitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
-		d := e.splitSlot(&name, ".data", u.Size(), t)
-		return c, d
+	// Split this interface up into two separate variables.
+	f := ".itab"
+	if n.Type.IsEmptyInterface() {
+		f = ".type"
 	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: u, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
+	c := e.SplitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
+	d := e.SplitSlot(&name, ".data", u.Size(), t)
+	return c, d
 }
 
 func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	ptrType := types.NewPtr(name.Type.Elem())
 	lenType := types.Types[TINT]
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this slice up into three separate variables.
-		p := e.splitSlot(&name, ".ptr", 0, ptrType)
-		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
-		c := e.splitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
-		return p, l, c
-	}
-	// Return the three parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off},
-		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)},
-		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(2*Widthptr)}
+	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+	c := e.SplitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+	return p, l, c
 }
 
 func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	s := name.Type.Size() / 2
 	var t *types.Type
 	if s == 8 {
@@ -6961,53 +6943,35 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) 
 	} else {
 		t = types.Types[TFLOAT32]
 	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this complex up into two separate variables.
-		r := e.splitSlot(&name, ".real", 0, t)
-		i := e.splitSlot(&name, ".imag", t.Size(), t)
-		return r, i
-	}
-	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
+	r := e.SplitSlot(&name, ".real", 0, t)
+	i := e.SplitSlot(&name, ".imag", t.Size(), t)
+	return r, i
 }
 
 func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N.(*Node)
 	var t *types.Type
 	if name.Type.IsSigned() {
 		t = types.Types[TINT32]
 	} else {
 		t = types.Types[TUINT32]
 	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Split this int64 up into two separate variables.
-		if thearch.LinkArch.ByteOrder == binary.BigEndian {
-			return e.splitSlot(&name, ".hi", 0, t), e.splitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
-		}
-		return e.splitSlot(&name, ".hi", t.Size(), t), e.splitSlot(&name, ".lo", 0, types.Types[TUINT32])
-	}
-	// Return the two parts of the larger variable.
 	if thearch.LinkArch.ByteOrder == binary.BigEndian {
-		return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: types.Types[TUINT32], Off: name.Off + 4}
+		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
 	}
-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: types.Types[TUINT32], Off: name.Off}
+	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[TUINT32])
 }
 
 func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
-	n := name.N.(*Node)
 	st := name.Type
 	ft := st.FieldType(i)
 	var offset int64
 	for f := 0; f < i; f++ {
 		offset += st.FieldType(f).Size()
 	}
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		// Note: the _ field may appear several times.  But
-		// have no fear, identically-named but distinct Autos are
-		// ok, albeit maybe confusing for a debugger.
-		return e.splitSlot(&name, "."+st.FieldName(i), offset, ft)
-	}
-	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
+	// Note: the _ field may appear several times.  But
+	// have no fear, identically-named but distinct Autos are
+	// ok, albeit maybe confusing for a debugger.
+	return e.SplitSlot(&name, "."+st.FieldName(i), offset, ft)
 }
 
 func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
@@ -7017,19 +6981,23 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
 		e.Fatalf(n.Pos, "bad array size")
 	}
 	et := at.Elem()
-	if n.Class() == PAUTO && !n.Name.Addrtaken() {
-		return e.splitSlot(&name, "[0]", 0, et)
-	}
-	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
+	return e.SplitSlot(&name, "[0]", 0, et)
 }
 
 func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
 	return itabsym(it, offset)
 }
 
-// splitSlot returns a slot representing the data of parent starting at offset.
-func (e *ssafn) splitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
-	s := &types.Sym{Name: parent.N.(*Node).Sym.Name + suffix, Pkg: localpkg}
+// SplitSlot returns a slot representing the data of parent starting at offset.
+func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+	node := parent.N.(*Node)
+
+	if node.Class() != PAUTO || node.Name.Addrtaken() {
+		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
+		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+	}
+
+	s := &types.Sym{Name: node.Sym.Name + suffix, Pkg: localpkg}
 
 	n := &Node{
 		Name: new(Name),

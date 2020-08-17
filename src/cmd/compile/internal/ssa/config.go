@@ -149,6 +149,7 @@ type Frontend interface {
 	SplitStruct(LocalSlot, int) LocalSlot
 	SplitArray(LocalSlot) LocalSlot              // array must be length 1
 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
 	// DerefItab dereferences an itab function
 	// entry, given the symbol of the itab and

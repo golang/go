@@ -9,7 +9,6 @@
 (Int64Hi (Int64Make hi _)) => hi
 (Int64Lo (Int64Make _ lo)) => lo
 
-
 (Load <t> ptr mem) && is64BitInt(t) && !config.BigEndian && t.IsSigned() =>
 	(Int64Make
 		(Load <typ.Int32> (OffPtr <typ.Int32Ptr> [4] ptr) mem)
@@ -143,6 +142,10 @@
 (Trunc64to32 (Int64Make _ lo)) => lo
 (Trunc64to16 (Int64Make _ lo)) => (Trunc32to16 lo)
 (Trunc64to8 (Int64Make _ lo)) => (Trunc32to8 lo)
+// Most general
+(Trunc64to32 x) => (Int64Lo x)
+(Trunc64to16 x) => (Trunc32to16 (Int64Lo x))
+(Trunc64to8 x) => (Trunc32to8 (Int64Lo x))
 
 (Lsh32x64 _ (Int64Make (Const32 [c]) _)) && c != 0 => (Const32 [0])
 (Rsh32x64 x (Int64Make (Const32 [c]) _)) && c != 0 => (Signmask x)
@@ -175,156 +178,174 @@
 // turn x64 non-constant shifts to x32 shifts
 // if high 32-bit of the shift is nonzero, make a huge shift
 (Lsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Lsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Lsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Lsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Lsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Lsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Lsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Lsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Lsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Lsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Lsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Lsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 (Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
-	(Rsh8Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+       (Rsh8Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
+
+// Most general
+(Lsh64x64 x y)  => (Lsh64x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh64x64 x y)  => (Rsh64x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh64Ux64 x y) => (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh32x64 x y)  => (Lsh32x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh32x64 x y)  => (Rsh32x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh32Ux64 x y) => (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh16x64 x y)  => (Lsh16x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh16x64 x y)  => (Rsh16x32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh16Ux64 x y) => (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Lsh8x64 x y)   => (Lsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh8x64 x y)   => (Rsh8x32   x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+(Rsh8Ux64 x y)  => (Rsh8Ux32  x (Or32 <typ.UInt32> (Zeromask (Int64Hi y)) (Int64Lo y)))
+
+// Clean up constants a little
+(Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c == 0 => y
+(Or32 <typ.UInt32> (Zeromask (Const32 [c])) y) && c != 0 => (Const32 <typ.UInt32> [-1])
 
 // 64x left shift
 // result.hi = hi<<s | lo>>(32-s) | lo<<(s-32) // >> is unsigned, large shifts result 0
 // result.lo = lo<<s
-(Lsh64x32 (Int64Make hi lo) s) =>
+(Lsh64x32 x s) =>
 	(Int64Make
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Lsh32x32 <typ.UInt32> hi s)
+				(Lsh32x32 <typ.UInt32> (Int64Hi x) s)
 				(Rsh32Ux32 <typ.UInt32>
-					lo
+					(Int64Lo x)
 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
 			(Lsh32x32 <typ.UInt32>
-				lo
+				(Int64Lo x)
 				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32]))))
-		(Lsh32x32 <typ.UInt32> lo s))
-(Lsh64x16 (Int64Make hi lo) s) =>
+		(Lsh32x32 <typ.UInt32> (Int64Lo x) s))
+(Lsh64x16 x s) =>
 	(Int64Make
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Lsh32x16 <typ.UInt32> hi s)
+				(Lsh32x16 <typ.UInt32> (Int64Hi x) s)
 				(Rsh32Ux16 <typ.UInt32>
-					lo
+					(Int64Lo x)
 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
 			(Lsh32x16 <typ.UInt32>
-				lo
+				(Int64Lo x)
 				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32]))))
-		(Lsh32x16 <typ.UInt32> lo s))
-(Lsh64x8 (Int64Make hi lo) s) =>
+		(Lsh32x16 <typ.UInt32> (Int64Lo x) s))
+(Lsh64x8 x s) =>
 	(Int64Make
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Lsh32x8 <typ.UInt32> hi s)
+				(Lsh32x8 <typ.UInt32> (Int64Hi x) s)
 				(Rsh32Ux8 <typ.UInt32>
-					lo
+					(Int64Lo x)
 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
 			(Lsh32x8 <typ.UInt32>
-				lo
+				(Int64Lo x)
 				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32]))))
-		(Lsh32x8 <typ.UInt32> lo s))
+		(Lsh32x8 <typ.UInt32> (Int64Lo x) s))
 
 // 64x unsigned right shift
 // result.hi = hi>>s
 // result.lo = lo>>s | hi<<(32-s) | hi>>(s-32) // >> is unsigned, large shifts result 0
-(Rsh64Ux32 (Int64Make hi lo) s) =>
+(Rsh64Ux32 x s) =>
 	(Int64Make
-		(Rsh32Ux32 <typ.UInt32> hi s)
+		(Rsh32Ux32 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux32 <typ.UInt32> lo s)
+				(Rsh32Ux32 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x32 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
 			(Rsh32Ux32 <typ.UInt32>
-				hi
+				(Int64Hi x)
 				(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))))
-(Rsh64Ux16 (Int64Make hi lo) s) =>
+(Rsh64Ux16 x s) =>
 	(Int64Make
-		(Rsh32Ux16 <typ.UInt32> hi s)
+		(Rsh32Ux16 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux16 <typ.UInt32> lo s)
+				(Rsh32Ux16 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x16 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
 			(Rsh32Ux16 <typ.UInt32>
-				hi
+				(Int64Hi x)
 				(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))))
-(Rsh64Ux8 (Int64Make hi lo) s) =>
+(Rsh64Ux8 x s) =>
 	(Int64Make
-		(Rsh32Ux8 <typ.UInt32> hi s)
+		(Rsh32Ux8 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux8 <typ.UInt32> lo s)
+				(Rsh32Ux8 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x8 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
 			(Rsh32Ux8 <typ.UInt32>
-				hi
+				(Int64Hi x)
 				(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))))
 
 // 64x signed right shift
 // result.hi = hi>>s
 // result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&zeromask(s>>5) // hi>>(s-32) is signed, large shifts result 0/-1
-(Rsh64x32 (Int64Make hi lo) s) =>
+(Rsh64x32 x s) =>
 	(Int64Make
-		(Rsh32x32 <typ.UInt32> hi s)
+		(Rsh32x32 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux32 <typ.UInt32> lo s)
+				(Rsh32Ux32 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x32 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub32 <typ.UInt32> (Const32 <typ.UInt32> [32]) s)))
 			(And32 <typ.UInt32>
 				(Rsh32x32 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub32 <typ.UInt32> s (Const32 <typ.UInt32> [32])))
 				(Zeromask
 					(Rsh32Ux32 <typ.UInt32> s (Const32 <typ.UInt32> [5]))))))
-(Rsh64x16 (Int64Make hi lo) s) =>
+(Rsh64x16 x s) =>
 	(Int64Make
-		(Rsh32x16 <typ.UInt32> hi s)
+		(Rsh32x16 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux16 <typ.UInt32> lo s)
+				(Rsh32Ux16 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x16 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub16 <typ.UInt16> (Const16 <typ.UInt16> [32]) s)))
 			(And32 <typ.UInt32>
 				(Rsh32x16 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub16 <typ.UInt16> s (Const16 <typ.UInt16> [32])))
 				(Zeromask
 					(ZeroExt16to32
 						(Rsh16Ux32 <typ.UInt16> s (Const32 <typ.UInt32> [5])))))))
-(Rsh64x8 (Int64Make hi lo) s) =>
+(Rsh64x8 x s) =>
 	(Int64Make
-		(Rsh32x8 <typ.UInt32> hi s)
+		(Rsh32x8 <typ.UInt32> (Int64Hi x) s)
 		(Or32 <typ.UInt32>
 			(Or32 <typ.UInt32>
-				(Rsh32Ux8 <typ.UInt32> lo s)
+				(Rsh32Ux8 <typ.UInt32> (Int64Lo x) s)
 				(Lsh32x8 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub8 <typ.UInt8> (Const8 <typ.UInt8> [32]) s)))
 			(And32 <typ.UInt32>
 				(Rsh32x8 <typ.UInt32>
-					hi
+					(Int64Hi x)
 					(Sub8 <typ.UInt8> s (Const8 <typ.UInt8> [32])))
 				(Zeromask
 					(ZeroExt8to32
