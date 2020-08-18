@@ -6,12 +6,13 @@ package lsp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"path"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -94,47 +95,78 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		return nil, nil
 	}
-	// Default commands that don't have suggested fix functions.
+	title := command.Title
+	if title == "" {
+		title = command.Name
+	}
+	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
+	// Start progress prior to spinning off a goroutine specifically so that
+	// clients are aware of the work item before the command completes. This
+	// matters for regtests, where having a continuous thread of work is
+	// convenient for assertions.
+	work := s.progress.start(ctx, title, "starting...", params.WorkDoneToken, cancel)
+	go func() {
+		defer cancel()
+		err := s.runCommand(ctx, work, command, params.Arguments)
+		switch {
+		case errors.Is(err, context.Canceled):
+			work.end(command.Name + " canceled")
+		case err != nil:
+			event.Error(ctx, fmt.Sprintf("%s: command error", command.Name), err)
+			work.end(command.Name + " failed")
+			// Show a message when work completes with error, because the progress end
+			// message is typically dismissed immediately by LSP clients.
+			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("An error occurred running %s: check the gopls logs.", command.Name),
+			})
+		default:
+			work.end(command.Name + " complete")
+		}
+	}()
+	return nil, nil
+}
+
+func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) error {
 	switch command {
 	case source.CommandTest:
 		var uri protocol.DocumentURI
 		var tests, benchmarks []string
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &tests, &benchmarks); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &uri, &tests, &benchmarks); err != nil {
+			return err
 		}
 		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
 		defer release()
 		if !ok {
-			return nil, err
+			return err
 		}
-		go s.runTests(ctx, snapshot, uri, params.WorkDoneToken, tests, benchmarks)
+		return s.runTests(ctx, snapshot, uri, work, tests, benchmarks)
 	case source.CommandGenerate:
 		var uri protocol.DocumentURI
 		var recursive bool
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &recursive); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &uri, &recursive); err != nil {
+			return err
 		}
 		snapshot, _, ok, release, err := s.beginFileRequest(ctx, uri, source.UnknownKind)
 		defer release()
 		if !ok {
-			return nil, err
+			return err
 		}
-		go s.runGoGenerate(xcontext.Detach(ctx), snapshot, uri.SpanURI(), recursive, params.WorkDoneToken)
+		return s.runGoGenerate(ctx, snapshot, uri.SpanURI(), recursive, work)
 	case source.CommandRegenerateCgo:
 		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(params.Arguments, &uri); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &uri); err != nil {
+			return err
 		}
 		mod := source.FileModification{
 			URI:    uri.SpanURI(),
 			Action: source.InvalidateMetadata,
 		}
-		err := s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
-		return nil, err
+		return s.didModifyFiles(ctx, []source.FileModification{mod}, FromRegenerateCgo)
 	case source.CommandTidy, source.CommandVendor:
 		var uri protocol.DocumentURI
-		if err := source.UnmarshalArgs(params.Arguments, &uri); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &uri); err != nil {
+			return err
 		}
 		// The flow for `go mod tidy` and `go mod vendor` is almost identical,
 		// so we combine them into one case for convenience.
@@ -142,20 +174,18 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if command == source.CommandVendor {
 			a = "vendor"
 		}
-		err := s.directGoModCommand(ctx, uri, "mod", []string{a}...)
-		return nil, err
+		return s.directGoModCommand(ctx, uri, "mod", []string{a}...)
 	case source.CommandUpgradeDependency:
 		var uri protocol.DocumentURI
 		var goCmdArgs []string
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &goCmdArgs); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &uri, &goCmdArgs); err != nil {
+			return err
 		}
-		err := s.directGoModCommand(ctx, uri, "get", goCmdArgs...)
-		return nil, err
+		return s.directGoModCommand(ctx, uri, "get", goCmdArgs...)
 	case source.CommandToggleDetails:
 		var fileURI span.URI
-		if err := source.UnmarshalArgs(params.Arguments, &fileURI); err != nil {
-			return nil, err
+		if err := source.UnmarshalArgs(args, &fileURI); err != nil {
+			return err
 		}
 		pkgDir := span.URIFromPath(path.Dir(fileURI.Filename()))
 		s.gcOptimizationDetailsMu.Lock()
@@ -171,16 +201,15 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		// so find the snapshot
 		sv, err := s.session.ViewOf(fileURI)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		snapshot, release := sv.Snapshot(ctx)
 		defer release()
 		s.diagnoseSnapshot(snapshot)
-		return nil, nil
 	default:
-		return nil, fmt.Errorf("unknown command: %s", params.Command)
+		return fmt.Errorf("unsupported command: %s", command.Name)
 	}
-	return nil, nil
+	return nil
 }
 
 func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentURI, verb string, args ...string) error {
@@ -193,10 +222,7 @@ func (s *Server) directGoModCommand(ctx context.Context, uri protocol.DocumentUR
 	return snapshot.RunGoCommandDirect(ctx, verb, args)
 }
 
-func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, token protocol.ProgressToken, tests, benchmarks []string) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri protocol.DocumentURI, work *workDone, tests, benchmarks []string) error {
 	pkgs, err := snapshot.PackagesForFile(ctx, uri.SpanURI(), source.TypecheckWorkspace)
 	if err != nil {
 		return err
@@ -218,17 +244,15 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	} else {
 		return errors.New("No functions were provided")
 	}
-	msg := fmt.Sprintf("Running %s...", title)
-	wc := s.progress.newWriter(ctx, title, msg, msg, token, cancel)
-	defer wc.Close()
 
-	stderr := io.MultiWriter(ew, wc)
+	out := io.MultiWriter(ew, workDoneWriter{work})
 
-	// run `go test -run Func` on each test
+	// Run `go test -run Func` on each test.
 	var failedTests int
 	for _, funcName := range tests {
-		args := []string{pkgPath, "-run", fmt.Sprintf("^%s$", funcName)}
-		if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
+		args := []string{pkgPath, "-v", "-count=1", "-run", fmt.Sprintf("^%s$", funcName)}
+		log.Printf("running with these args: %v", args)
+		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -236,11 +260,11 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 		}
 	}
 
-	// run `go test -run=^$ -bench Func` on each test
+	// Run `go test -run=^$ -bench Func` on each test.
 	var failedBenchmarks int
 	for _, funcName := range tests {
-		args := []string{pkgPath, "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)}
-		if err := snapshot.RunGoCommandPiped(ctx, "test", args, ew, stderr); err != nil {
+		args := []string{pkgPath, "-v", "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)}
+		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
@@ -267,33 +291,23 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	})
 }
 
-// GenerateWorkDoneTitle is the title used in progress reporting for go
-// generate commands. It is exported for testing purposes.
-const GenerateWorkDoneTitle = "generate"
-
-func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, uri span.URI, recursive bool, token protocol.ProgressToken) error {
+func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, uri span.URI, recursive bool, work *workDone) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	er := &eventWriter{ctx: ctx, operation: "generate"}
-	wc := s.progress.newWriter(ctx, GenerateWorkDoneTitle, "running go generate", "started go generate, check logs for progress", token, cancel)
-	defer wc.Close()
 	args := []string{"-x"}
 	if recursive {
 		args = append(args, "./...")
 	}
 
-	stderr := io.MultiWriter(er, wc)
+	stderr := io.MultiWriter(er, workDoneWriter{work})
 
 	if err := snapshot.RunGoCommandPiped(ctx, "generate", args, er, stderr); err != nil {
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
-		event.Error(ctx, "generate: command error", err, tag.Directory.Of(uri.Filename()))
-		return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-			Type:    protocol.Error,
-			Message: "go generate exited with an error, check gopls logs",
-		})
+		return err
 	}
-	return nil
+	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+		Type:    protocol.Info,
+		Message: "go generate complete",
+	})
 }

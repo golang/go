@@ -185,7 +185,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		defer func() {
 			go func() {
 				diagnosticWG.Wait()
-				work.end(ctx, "Done.")
+				work.end("Done.")
 			}()
 		}()
 	}

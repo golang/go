@@ -6,7 +6,6 @@ package lsp
 
 import (
 	"context"
-	"io"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -32,15 +32,16 @@ func newProgressTracker(client protocol.Client) *progressTracker {
 	}
 }
 
-// start issues a $/progress notification to begin a unit of work on the
-// server. The returned WorkDone handle may be used to report incremental
+// start notifies the client of work being done on the server. It uses either
+// ShowMessage RPCs or $/progress messages, depending on the capabilities of
+// the client.  The returned WorkDone handle may be used to report incremental
 // progress, and to report work completion. In particular, it is an error to
 // call start and not call end(...) on the returned WorkDone handle.
 //
 // If token is empty, a token will be randomly generated.
 //
 // The progress item is considered cancellable if the given cancel func is
-// non-nil.
+// non-nil. In this case, cancel is called when the work done
 //
 // Example:
 //  func Generate(ctx) (err error) {
@@ -59,25 +60,29 @@ func newProgressTracker(client protocol.Client) *progressTracker {
 //
 func (t *progressTracker) start(ctx context.Context, title, message string, token protocol.ProgressToken, cancel func()) *workDone {
 	wd := &workDone{
+		ctx:    xcontext.Detach(ctx),
 		client: t.client,
 		token:  token,
 		cancel: cancel,
 	}
 	if !t.supportsWorkDoneProgress {
-		wd.startErr = errors.New("workdone reporting is not supported")
+		go wd.openStartMessage(message)
 		return wd
 	}
 	if wd.token == nil {
-		wd.token = strconv.FormatInt(rand.Int63(), 10)
+		token = strconv.FormatInt(rand.Int63(), 10)
 		err := wd.client.WorkDoneProgressCreate(ctx, &protocol.WorkDoneProgressCreateParams{
-			Token: wd.token,
+			Token: token,
 		})
 		if err != nil {
-			wd.startErr = err
+			wd.err = err
 			event.Error(ctx, "starting work for "+title, err)
 			return wd
 		}
+		wd.token = token
 	}
+	// At this point we have a token that the client knows about. Store the token
+	// before starting work.
 	t.mu.Lock()
 	t.inProgress[wd.token] = wd
 	t.mu.Unlock()
@@ -111,38 +116,82 @@ func (t *progressTracker) cancel(ctx context.Context, token protocol.ProgressTok
 	if wd.cancel == nil {
 		return errors.Errorf("work %q is not cancellable", token)
 	}
-	wd.cancel()
+	wd.doCancel()
 	return nil
-}
-
-// newProgressWriter returns an io.WriterCloser that can be used
-// to report progress on a command based on the client capabilities.
-func (t *progressTracker) newWriter(ctx context.Context, title, beginMsg, msg string, token protocol.ProgressToken, cancel func()) io.WriteCloser {
-	if t.supportsWorkDoneProgress {
-		wd := t.start(ctx, title, beginMsg, token, cancel)
-		return &workDoneWriter{ctx, wd}
-	}
-	mw := &messageWriter{ctx, cancel, t.client}
-	mw.start(msg)
-	return mw
 }
 
 // workDone represents a unit of work that is reported to the client via the
 // progress API.
 type workDone struct {
-	client   protocol.Client
-	startErr error
-	token    protocol.ProgressToken
-	cancel   func()
-	cleanup  func()
+	// ctx is detached, for sending $/progress updates.
+	ctx    context.Context
+	client protocol.Client
+	// If token is nil, this workDone object uses the ShowMessage API, rather
+	// than $/progress.
+	token protocol.ProgressToken
+	// err is set if progress reporting is broken for some reason (for example,
+	// if there was an initial error creating a token).
+	err error
+
+	cancelMu  sync.Mutex
+	cancelled bool
+	cancel    func()
+
+	cleanup func()
+}
+
+func (wd *workDone) openStartMessage(msg string) {
+	go func() {
+		if wd.cancel == nil {
+			err := wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Log,
+				Message: msg,
+			})
+			if err != nil {
+				event.Error(wd.ctx, "error sending message request", err)
+			}
+			return
+		}
+		const cancel = "Cancel"
+		item, err := wd.client.ShowMessageRequest(wd.ctx, &protocol.ShowMessageRequestParams{
+			Type:    protocol.Log,
+			Message: msg,
+			Actions: []protocol.MessageActionItem{{
+				Title: cancel,
+			}},
+		})
+		if err != nil {
+			event.Error(wd.ctx, "error sending message request", err)
+			return
+		}
+		if item != nil && item.Title == cancel {
+			wd.doCancel()
+		}
+	}()
+}
+
+func (wd *workDone) doCancel() {
+	wd.cancelMu.Lock()
+	defer wd.cancelMu.Unlock()
+	if !wd.cancelled {
+		wd.cancel()
+	}
 }
 
 // report reports an update on WorkDone report back to the client.
-func (wd *workDone) report(ctx context.Context, message string, percentage float64) error {
-	if wd.startErr != nil {
-		return wd.startErr
+func (wd *workDone) report(message string, percentage float64) {
+	wd.cancelMu.Lock()
+	cancelled := wd.cancelled
+	wd.cancelMu.Unlock()
+	if cancelled {
+		return
 	}
-	return wd.client.Progress(ctx, &protocol.ProgressParams{
+	if wd.err != nil || wd.token == nil {
+		// Not using the workDone API, so we do nothing. It would be far too spammy
+		// to send incremental messages.
+		return
+	}
+	err := wd.client.Progress(wd.ctx, &protocol.ProgressParams{
 		Token: wd.token,
 		Value: &protocol.WorkDoneProgressReport{
 			Kind: "report",
@@ -154,24 +203,38 @@ func (wd *workDone) report(ctx context.Context, message string, percentage float
 			Percentage:  percentage,
 		},
 	})
+	if err != nil {
+		event.Error(wd.ctx, "reporting progress", err)
+	}
 }
 
 // end reports a workdone completion back to the client.
-func (wd *workDone) end(ctx context.Context, message string) error {
-	if wd.startErr != nil {
-		return wd.startErr
-	}
-	err := wd.client.Progress(ctx, &protocol.ProgressParams{
-		Token: wd.token,
-		Value: &protocol.WorkDoneProgressEnd{
-			Kind:    "end",
+func (wd *workDone) end(message string) {
+	var err error
+	switch {
+	case wd.err != nil:
+		// There is a prior error.
+	case wd.token == nil:
+		// We're falling back to message-based reporting.
+		err = wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Info,
 			Message: message,
-		},
-	})
+		})
+	default:
+		err = wd.client.Progress(wd.ctx, &protocol.ProgressParams{
+			Token: wd.token,
+			Value: &protocol.WorkDoneProgressEnd{
+				Kind:    "end",
+				Message: message,
+			},
+		})
+	}
+	if err != nil {
+		event.Error(wd.ctx, "ending work", err)
+	}
 	if wd.cleanup != nil {
 		wd.cleanup()
 	}
-	return err
 }
 
 // eventWriter writes every incoming []byte to
@@ -187,61 +250,14 @@ func (ew *eventWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// messageWriter implements progressWriter and only tells the user that
-// a command has started through window/showMessage, but does not report
-// anything afterwards. This is because each log shows up as a separate window
-// and therefore would be obnoxious to show every incoming line. Request
-// cancellation happens synchronously through the ShowMessageRequest response.
-type messageWriter struct {
-	ctx    context.Context
-	cancel func()
-	client protocol.Client
-}
-
-func (lw *messageWriter) Write(p []byte) (n int, err error) {
-	return len(p), nil
-}
-
-func (lw *messageWriter) start(msg string) {
-	go func() {
-		const cancel = "Cancel"
-		item, err := lw.client.ShowMessageRequest(lw.ctx, &protocol.ShowMessageRequestParams{
-			Type:    protocol.Log,
-			Message: msg,
-			Actions: []protocol.MessageActionItem{{
-				Title: "Cancel",
-			}},
-		})
-		if err != nil {
-			event.Error(lw.ctx, "error sending message request", err)
-			return
-		}
-		if item != nil && item.Title == "Cancel" {
-			lw.cancel()
-		}
-	}()
-}
-
-func (lw *messageWriter) Close() error {
-	return lw.client.ShowMessage(lw.ctx, &protocol.ShowMessageParams{
-		Type:    protocol.Info,
-		Message: "go generate has finished",
-	})
-}
-
-// workDoneWriter implements progressWriter by sending $/progress notifications
-// to the client. Request cancellations happens separately through the
-// window/workDoneProgress/cancel request, in which case the given context will
-// be rendered done.
+// workDoneWriter wraps a workDone handle to provide a Writer interface,
+// so that workDone reporting can more easily be hooked into commands.
 type workDoneWriter struct {
-	ctx context.Context
-	wd  *workDone
+	wd *workDone
 }
 
-func (wdw *workDoneWriter) Write(p []byte) (n int, err error) {
-	return len(p), wdw.wd.report(wdw.ctx, string(p), 0)
-}
-
-func (wdw *workDoneWriter) Close() error {
-	return wdw.wd.end(wdw.ctx, "finished")
+func (wdw workDoneWriter) Write(p []byte) (n int, err error) {
+	wdw.wd.report(string(p), 0)
+	// Don't fail just because of a failure to report progress.
+	return len(p), nil
 }

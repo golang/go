@@ -190,7 +190,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		defer func() {
 			go func() {
 				wg.Wait()
-				work.end(ctx, "Done.")
+				work.end("Done.")
 			}()
 		}()
 	}
@@ -201,12 +201,12 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		view, snapshot, release, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
-			work.end(ctx, fmt.Sprintf("Error loading packages: %s", err))
+			work.end(fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
 		go func() {
 			view.AwaitInitialized(ctx)
-			work.end(ctx, "Finished loading packages.")
+			work.end("Finished loading packages.")
 		}()
 
 		for _, dir := range snapshot.WorkspaceDirectories(ctx) {

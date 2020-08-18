@@ -9,7 +9,6 @@ import (
 	"io"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -217,7 +216,7 @@ func (e *Env) RunGenerate(dir string) {
 	if err := e.Editor.RunGenerate(e.Ctx, dir); err != nil {
 		e.T.Fatal(err)
 	}
-	e.Await(CompletedWork(lsp.GenerateWorkDoneTitle, 1))
+	e.Await(NoOutstandingWork())
 	// Ideally the fake.Workspace would handle all synthetic file watching, but
 	// we help it out here as we need to wait for the generate command to
 	// complete before checking the filesystem.

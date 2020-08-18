@@ -60,9 +60,9 @@ const (
 }
 
 // This test confirms the full functionality of the code lenses for updating
-// dependencies in a go.mod file. It checks for the code lens that suggests an
-// update and then executes the command associated with that code lens.
-// A regression test for golang/go#39446.
+// dependencies in a go.mod file. It checks for the code lens that suggests
+// an update and then executes the command associated with that code lens. A
+// regression test for golang/go#39446.
 func TestUpdateCodelens(t *testing.T) {
 	const proxyWithLatest = `
 -- golang.org/x/hello@v1.3.3/go.mod --
@@ -119,6 +119,7 @@ func main() {
 		}); err != nil {
 			t.Fatal(err)
 		}
+		env.Await(NoOutstandingWork())
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
 
@@ -189,6 +190,7 @@ func main() {
 		}); err != nil {
 			t.Fatal(err)
 		}
+		env.Await(NoOutstandingWork())
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
 
