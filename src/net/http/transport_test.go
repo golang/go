@@ -41,6 +41,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -3408,12 +3409,6 @@ func TestTransportIssue10457(t *testing.T) {
 	}
 }
 
-type errorReader struct {
-	err error
-}
-
-func (e errorReader) Read(p []byte) (int, error) { return 0, e.err }
-
 type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
@@ -3610,7 +3605,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
 		io.Reader
 		io.Closer
 	}{
-		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), errorReader{fakeErr}),
+		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), iotest.ErrReader(fakeErr)),
 		closerFunc(func() error {
 			select {
 			case didClose <- true:

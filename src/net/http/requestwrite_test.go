@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -349,7 +350,7 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
+			errReader := iotest.ErrReader(err)
 			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
 		},
 
@@ -369,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
+			errReader := iotest.ErrReader(err)
 			return ioutil.NopCloser(errReader)
 		},
 
