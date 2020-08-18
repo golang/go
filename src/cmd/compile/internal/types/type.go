@@ -1026,7 +1026,7 @@ func (t *Type) cmp(x *Type) Cmp {
 
 	case TSSA:
 		tname := t.Extra.(string)
-		xname := t.Extra.(string)
+		xname := x.Extra.(string) //see issue #40837
 		// desire fast sorting, not pretty sorting.
 		if len(tname) == len(xname) {
 			if tname == xname {
