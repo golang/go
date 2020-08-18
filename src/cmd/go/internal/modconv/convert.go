@@ -7,12 +7,13 @@ package modconv
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/par"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -41,52 +42,46 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 
 	// Convert requirements block, which may use raw SHA1 hashes as versions,
 	// to valid semver requirement list, respecting major versions.
-	versions := make([]*module.Version, len(mf.Require))
-	replace := make(map[string]*modfile.Replace)
+	var (
+		work    par.Work
+		mu      sync.Mutex
+		need    = make(map[string]string)
+		replace = make(map[string]*modfile.Replace)
+	)
 
 	for _, r := range mf.Replace {
 		replace[r.New.Path] = r
 		replace[r.Old.Path] = r
 	}
-
-	type token struct{}
-	sem := make(chan token, runtime.GOMAXPROCS(0))
-	for i, r := range mf.Require {
+	for _, r := range mf.Require {
 		m := r.Mod
 		if m.Path == "" {
 			continue
 		}
 		if re, ok := replace[m.Path]; ok {
-			m = re.New
+			work.Add(re.New)
+			continue
 		}
-		sem <- token{}
-		go func(i int, m module.Version) {
-			repo, info, err := modfetch.ImportRepoRev(m.Path, m.Version)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), m.Path, m.Version, err)
-				return
-			}
-
-			path := repo.ModulePath()
-			versions[i].Path = path
-			versions[i].Version = info.Version
-
-			<-sem
-		}(i, m)
-	}
-	// Fill semaphore channel to wait for all tasks to finish.
-	for n := cap(sem); n > 0; n-- {
-		sem <- token{}
+		work.Add(r.Mod)
 	}
 
-	need := map[string]string{}
-	for _, v := range versions {
+	work.Do(10, func(item interface{}) {
+		r := item.(module.Version)
+		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), r.Path, r.Version, err)
+			return
+		}
+		mu.Lock()
+		path := repo.ModulePath()
 		// Don't use semver.Max here; need to preserve +incompatible suffix.
-		if needv, ok := need[v.Path]; !ok || semver.Compare(needv, v.Version) < 0 {
-			need[v.Path] = v.Version
+		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
+			need[path] = info.Version
 		}
-	}
-	paths := make([]string, 0, len(need))
+		mu.Unlock()
+	})
+
+	var paths []string
 	for path := range need {
 		paths = append(paths, path)
 	}

@@ -5,15 +5,15 @@
 package modcmd
 
 import (
-	"cmd/go/internal/modfetch"
 	"context"
 	"encoding/json"
 	"os"
-	"runtime"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/par"
 	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
@@ -90,7 +90,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		args = []string{"all"}
 	} else if modload.HasModRoot() {
-		modload.InitMod(ctx) // to fill Target
+		modload.InitMod() // to fill Target
 		targetAtLatest := modload.Target.Path + "@latest"
 		targetAtUpgrade := modload.Target.Path + "@upgrade"
 		targetAtPatch := modload.Target.Path + "@patch"
@@ -102,42 +102,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	downloadModule := func(m *moduleJSON) {
-		var err error
-		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
-		m.Zip, err = modfetch.DownloadZip(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.Sum = modfetch.Sum(mod)
-		m.Dir, err = modfetch.Download(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-	}
-
 	var mods []*moduleJSON
+	var work par.Work
 	listU := false
 	listVersions := false
-	type token struct{}
-	sem := make(chan token, runtime.GOMAXPROCS(0))
 	for _, info := range modload.ListModules(ctx, args, listU, listVersions) {
 		if info.Replace != nil {
 			info = info.Replace
@@ -156,17 +124,40 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			m.Error = info.Error.Err
 			continue
 		}
-		sem <- token{}
-		go func() {
-			downloadModule(m)
-			<-sem
-		}()
+		work.Add(m)
 	}
 
-	// Fill semaphore channel to wait for goroutines to finish.
-	for n := cap(sem); n > 0; n-- {
-		sem <- token{}
-	}
+	work.Do(10, func(item interface{}) {
+		m := item.(*moduleJSON)
+		var err error
+		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
+		if err != nil {
+			m.Error = err.Error()
+			return
+		}
+		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
+		if err != nil {
+			m.Error = err.Error()
+			return
+		}
+		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
+		if err != nil {
+			m.Error = err.Error()
+			return
+		}
+		mod := module.Version{Path: m.Path, Version: m.Version}
+		m.Zip, err = modfetch.DownloadZip(mod)
+		if err != nil {
+			m.Error = err.Error()
+			return
+		}
+		m.Sum = modfetch.Sum(mod)
+		m.Dir, err = modfetch.Download(mod)
+		if err != nil {
+			m.Error = err.Error()
+			return
+		}
+	})
 
 	if *downloadJSON {
 		for _, m := range mods {

@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"go/build"
@@ -111,7 +110,7 @@ var _ load.ImportPathError = &AmbiguousImportError{}
 // Import returns an ImportMissingError as the error.
 // If Import can identify a module that could be added to supply the package,
 // the ImportMissingError records that module.
-func Import(ctx context.Context, path string) (m module.Version, dir string, err error) {
+func Import(path string) (m module.Version, dir string, err error) {
 	if strings.Contains(path, "@") {
 		return module.Version{}, "", fmt.Errorf("import path should not have @version")
 	}
@@ -166,7 +165,7 @@ func Import(ctx context.Context, path string) (m module.Version, dir string, err
 			// Avoid possibly downloading irrelevant modules.
 			continue
 		}
-		root, isLocal, err := fetch(ctx, m)
+		root, isLocal, err := fetch(m)
 		if err != nil {
 			// Report fetch error.
 			// Note that we don't know for sure this module is necessary,
@@ -249,7 +248,7 @@ func Import(ctx context.Context, path string) (m module.Version, dir string, err
 			return len(mods[i].Path) > len(mods[j].Path)
 		})
 		for _, m := range mods {
-			root, isLocal, err := fetch(ctx, m)
+			root, isLocal, err := fetch(m)
 			if err != nil {
 				// Report fetch error as above.
 				return module.Version{}, "", err
@@ -286,7 +285,7 @@ func Import(ctx context.Context, path string) (m module.Version, dir string, err
 
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPackage(ctx, path, "latest", Allowed)
+	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever

@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -225,7 +224,7 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
 //
 // The isLocal return value reports whether the replacement,
 // if any, is local to the filesystem.
-func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, err error) {
+func fetch(mod module.Version) (dir string, isLocal bool, err error) {
 	if mod == Target {
 		return ModRoot(), true, nil
 	}
@@ -255,6 +254,6 @@ func fetch(ctx context.Context, mod module.Version) (dir string, isLocal bool, e
 		mod = r
 	}
 
-	dir, err = modfetch.Download(ctx, mod)
+	dir, err = modfetch.Download(mod)
 	return dir, false, err
 }

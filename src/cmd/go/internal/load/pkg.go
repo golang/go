@@ -42,10 +42,10 @@ var (
 	ModBinDir            func() string                                                                            // return effective bin directory
 	ModLookup            func(parentPath string, parentIsStd bool, path string) (dir, realPath string, err error) // lookup effective meaning of import
 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
-	ModImportPaths       func(ctx context.Context, args []string) []*search.Match                                 // expand import paths
+	ModImportPaths       func(args []string) []*search.Match                                                      // expand import paths
 	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
 	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
-	ModImportFromFiles   func(context.Context, []string)                                                          // update go.mod to add modules for imports in these files
+	ModImportFromFiles   func([]string)                                                                           // update go.mod to add modules for imports in these files
 	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
 )
 
@@ -553,7 +553,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 		})
 		packageDataCache.Delete(p.ImportPath)
 	}
-	return LoadImport(context.TODO(), arg, base.Cwd, nil, stk, nil, 0)
+	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -605,11 +605,11 @@ const (
 // LoadImport does not set tool flags and should only be used by
 // this package, as part of a bigger load operation, and by GOPATH-based "go get".
 // TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
-func LoadImport(ctx context.Context, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
-	return loadImport(ctx, nil, path, srcDir, parent, stk, importPos, mode)
+func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	return loadImport(nil, path, srcDir, parent, stk, importPos, mode)
 }
 
-func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	if path == "" {
 		panic("LoadImport called with empty package path")
 	}
@@ -657,7 +657,7 @@ func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
 		// in order to return partial information.
-		p.load(ctx, path, stk, importPos, bp, err)
+		p.load(path, stk, importPos, bp, err)
 
 		if !cfg.ModulesEnabled && path != cleanImport(path) {
 			p.Error = &PackageError{
@@ -1591,7 +1591,7 @@ func (p *Package) DefaultExecName() string {
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 // stk contains the import stack, not including path itself.
-func (p *Package) load(ctx context.Context, path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
+func (p *Package) load(path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
 	p.copyBuild(bp)
 
 	// The localPrefix is the path we interpret ./ imports relative to.
@@ -1800,7 +1800,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		if path == "C" {
 			continue
 		}
-		p1 := LoadImport(ctx, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		p1 := LoadImport(path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
 
 		path = p1.ImportPath
 		importPaths[i] = path
@@ -2073,7 +2073,7 @@ func PackageList(roots []*Package) []*Package {
 // TestPackageList returns the list of packages in the dag rooted at roots
 // as visited in a depth-first post-order traversal, including the test
 // imports of the roots. This ignores errors in test packages.
-func TestPackageList(ctx context.Context, roots []*Package) []*Package {
+func TestPackageList(roots []*Package) []*Package {
 	seen := map[*Package]bool{}
 	all := []*Package{}
 	var walk func(*Package)
@@ -2089,7 +2089,7 @@ func TestPackageList(ctx context.Context, roots []*Package) []*Package {
 	}
 	walkTest := func(root *Package, path string) {
 		var stk ImportStack
-		p1 := LoadImport(ctx, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		p1 := LoadImport(path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
 		if p1.Error == nil {
 			walk(p1)
 		}
@@ -2112,7 +2112,7 @@ func TestPackageList(ctx context.Context, roots []*Package) []*Package {
 // TODO(jayconrod): delete this function and set flags automatically
 // in LoadImport instead.
 func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
-	p := LoadImport(context.TODO(), path, srcDir, parent, stk, importPos, mode)
+	p := LoadImport(path, srcDir, parent, stk, importPos, mode)
 	setToolFlags(p)
 	return p
 }
@@ -2153,12 +2153,12 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
 			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-				return []*Package{GoFilesPackage(ctx, patterns)}
+				return []*Package{GoFilesPackage(patterns)}
 			}
 		}
 	}
 
-	matches := ImportPaths(ctx, patterns)
+	matches := ImportPaths(patterns)
 	var (
 		pkgs    []*Package
 		stk     ImportStack
@@ -2174,7 +2174,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
 			}
-			p := loadImport(ctx, pre, pkg, base.Cwd, nil, &stk, nil, 0)
+			p := loadImport(pre, pkg, base.Cwd, nil, &stk, nil, 0)
 			p.Match = append(p.Match, m.Pattern())
 			p.Internal.CmdlinePkg = true
 			if m.IsLiteral() {
@@ -2228,9 +2228,9 @@ func setToolFlags(pkgs ...*Package) {
 	}
 }
 
-func ImportPaths(ctx context.Context, args []string) []*search.Match {
+func ImportPaths(args []string) []*search.Match {
 	if ModInit(); cfg.ModulesEnabled {
-		return ModImportPaths(ctx, args)
+		return ModImportPaths(args)
 	}
 	return search.ImportPaths(args)
 }
@@ -2281,7 +2281,7 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 // GoFilesPackage creates a package for building a collection of Go files
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
-func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
+func GoFilesPackage(gofiles []string) *Package {
 	ModInit()
 
 	for _, f := range gofiles {
@@ -2329,7 +2329,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
-		ModImportFromFiles(ctx, gofiles)
+		ModImportFromFiles(gofiles)
 	}
 
 	var err error
@@ -2345,7 +2345,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	pkg := new(Package)
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true
-	pkg.load(ctx, "command-line-arguments", &stk, nil, bp, err)
+	pkg.load("command-line-arguments", &stk, nil, bp, err)
 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.Target = ""

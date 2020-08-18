@@ -76,7 +76,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		mods := modload.ListModules(ctx, args, listU, listVersions)
 		byModule := make(map[module.Version][]string)
-		for _, path := range loadALL(ctx) {
+		for _, path := range loadALL() {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
 				byModule[m] = append(byModule[m], path)
@@ -105,8 +105,8 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		matches := modload.ImportPaths(ctx, args) // resolve to packages
-		loadALL(ctx)                              // rebuild graph, from main module (not from named packages)
+		matches := modload.ImportPaths(args) // resolve to packages
+		loadALL()                            // rebuild graph, from main module (not from named packages)
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {

@@ -9,12 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
+	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 
 	"golang.org/x/mod/module"
@@ -22,42 +22,31 @@ import (
 
 func ListModules(ctx context.Context, args []string, listU, listVersions bool) []*modinfo.ModulePublic {
 	mods := listModules(ctx, args, listVersions)
-
-	type token struct{}
-	sem := make(chan token, runtime.GOMAXPROCS(0))
 	if listU || listVersions {
+		var work par.Work
 		for _, m := range mods {
-			add := func(m *modinfo.ModulePublic) {
-				sem <- token{}
-				go func() {
-					if listU {
-						addUpdate(ctx, m)
-					}
-					if listVersions {
-						addVersions(m)
-					}
-					<-sem
-				}()
-			}
-
-			add(m)
+			work.Add(m)
 			if m.Replace != nil {
-				add(m.Replace)
+				work.Add(m.Replace)
 			}
 		}
+		work.Do(10, func(item interface{}) {
+			m := item.(*modinfo.ModulePublic)
+			if listU {
+				addUpdate(m)
+			}
+			if listVersions {
+				addVersions(m)
+			}
+		})
 	}
-	// Fill semaphore channel to wait for all tasks to finish.
-	for n := cap(sem); n > 0; n-- {
-		sem <- token{}
-	}
-
 	return mods
 }
 
 func listModules(ctx context.Context, args []string, listVersions bool) []*modinfo.ModulePublic {
 	LoadBuildList(ctx)
 	if len(args) == 0 {
-		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true)}
+		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
 	}
 
 	var mods []*modinfo.ModulePublic
@@ -83,7 +72,7 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				}
 			}
 
-			info, err := Query(ctx, path, vers, current, nil)
+			info, err := Query(path, vers, current, nil)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
@@ -92,7 +81,7 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				})
 				continue
 			}
-			mods = append(mods, moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false))
+			mods = append(mods, moduleInfo(module.Version{Path: path, Version: info.Version}, false))
 			continue
 		}
 
@@ -117,7 +106,7 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				matched = true
 				if !matchedBuildList[i] {
 					matchedBuildList[i] = true
-					mods = append(mods, moduleInfo(ctx, m, true))
+					mods = append(mods, moduleInfo(m, true))
 				}
 			}
 		}
@@ -127,9 +116,9 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 					// Don't make the user provide an explicit '@latest' when they're
 					// explicitly asking what the available versions are.
 					// Instead, resolve the module, even if it isn't an existing dependency.
-					info, err := Query(ctx, arg, "latest", "", nil)
+					info, err := Query(arg, "latest", "", nil)
 					if err == nil {
-						mods = append(mods, moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false))
+						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
 					} else {
 						mods = append(mods, &modinfo.ModulePublic{
 							Path:  arg,

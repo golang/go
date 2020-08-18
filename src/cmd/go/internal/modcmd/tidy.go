@@ -40,7 +40,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go mod tidy: no arguments allowed")
 	}
 
-	modload.LoadALL(ctx)
+	modload.LoadALL()
 	modload.TidyBuildList()
 	modload.TrimGoSum()
 	modload.WriteGoMod()

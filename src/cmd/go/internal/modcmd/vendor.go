@@ -48,7 +48,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go mod vendor: vendor takes no arguments")
 	}
-	pkgs := modload.LoadVendor(ctx)
+	pkgs := modload.LoadVendor()
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
