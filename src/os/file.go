@@ -255,7 +255,10 @@ func Mkdir(name string, perm FileMode) error {
 	if runtime.GOOS == "windows" && isWindowsNulName(name) {
 		return &PathError{"mkdir", name, syscall.ENOTDIR}
 	}
-	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
+	longName := fixLongPath(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Mkdir(longName, syscallMode(perm))
+	})
 
 	if e != nil {
 		return &PathError{"mkdir", name, e}

@@ -558,3 +558,7 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
 func newRawConn(file *File) (*rawConn, error) {
 	return nil, syscall.EPLAN9
 }
+
+func ignoringEINTR(fn func() error) error {
+	return fn()
+}
