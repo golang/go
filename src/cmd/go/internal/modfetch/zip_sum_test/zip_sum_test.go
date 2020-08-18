@@ -16,7 +16,6 @@
 package zip_sum_test
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
@@ -120,7 +119,7 @@ func TestZipSums(t *testing.T) {
 		name := fmt.Sprintf("%s@%s", strings.ReplaceAll(test.m.Path, "/", "_"), test.m.Version)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			zipPath, err := modfetch.DownloadZip(context.Background(), test.m)
+			zipPath, err := modfetch.DownloadZip(test.m)
 			if err != nil {
 				if *updateTestData {
 					t.Logf("%s: could not download module: %s (will remove from testdata)", test.m, err)

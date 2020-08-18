@@ -7,7 +7,6 @@ package modfetch
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,6 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/robustio"
-	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -36,7 +34,7 @@ var downloadCache par.Cache
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
-func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+func Download(mod module.Version) (dir string, err error) {
 	if cfg.GOMODCACHE == "" {
 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
@@ -49,7 +47,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 		err error
 	}
 	c := downloadCache.Do(mod, func() interface{} {
-		dir, err := download(ctx, mod)
+		dir, err := download(mod)
 		if err != nil {
 			return cached{"", err}
 		}
@@ -59,10 +57,7 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	return c.dir, c.err
 }
 
-func download(ctx context.Context, mod module.Version) (dir string, err error) {
-	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
-	defer span.Done()
-
+func download(mod module.Version) (dir string, err error) {
 	// If the directory exists, and no .partial file exists, the module has
 	// already been completely extracted. .partial files may be created when a
 	// module zip directory is extracted in place instead of being extracted to a
@@ -77,7 +72,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	// To avoid cluttering the cache with extraneous files,
 	// DownloadZip uses the same lockfile as Download.
 	// Invoke DownloadZip before locking the file.
-	zipfile, err := DownloadZip(ctx, mod)
+	zipfile, err := DownloadZip(mod)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +142,6 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 		return "", err
 	}
 
-	ctx, span = trace.StartSpan(ctx, "unzip "+zipfile)
 	if unzipInPlace {
 		if err := ioutil.WriteFile(partialPath, nil, 0666); err != nil {
 			return "", err
@@ -177,7 +171,6 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 			return "", err
 		}
 	}
-	defer span.Done()
 
 	if !cfg.ModCacheRW {
 		// Make dir read-only only *after* renaming it.
@@ -202,7 +195,7 @@ var downloadZipCache par.Cache
 
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
-func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
+func DownloadZip(mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
 	type cached struct {
 		zipfile string
@@ -237,7 +230,7 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
 			return cached{"", err}
 		}
-		if err := downloadZip(ctx, mod, zipfile); err != nil {
+		if err := downloadZip(mod, zipfile); err != nil {
 			return cached{"", err}
 		}
 		return cached{zipfile, nil}
@@ -245,10 +238,7 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 	return c.zipfile, c.err
 }
 
-func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
-	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
-	defer span.Done()
-
+func downloadZip(mod module.Version, zipfile string) (err error) {
 	// Clean up any remaining tempfiles from previous runs.
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.

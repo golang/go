@@ -52,8 +52,8 @@ var loaded *loader
 // ImportPaths returns the set of packages matching the args (patterns),
 // on the target platform. Modules may be added to the build list
 // to satisfy new imports.
-func ImportPaths(ctx context.Context, patterns []string) []*search.Match {
-	matches := ImportPathsQuiet(ctx, patterns, imports.Tags())
+func ImportPaths(patterns []string) []*search.Match {
+	matches := ImportPathsQuiet(patterns, imports.Tags())
 	search.WarnUnmatched(matches)
 	return matches
 }
@@ -62,7 +62,7 @@ func ImportPaths(ctx context.Context, patterns []string) []*search.Match {
 // no matches. It also lets the caller specify a set of build tags to match
 // packages. The build tags should typically be imports.Tags() or
 // imports.AnyTags(); a nil map has no special meaning.
-func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bool) []*search.Match {
+func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 	updateMatches := func(matches []*search.Match, iterating bool) {
 		for _, m := range matches {
 			switch {
@@ -103,7 +103,7 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
 
 			case strings.Contains(m.Pattern(), "..."):
 				m.Errs = m.Errs[:0]
-				matchPackages(ctx, m, loaded.tags, includeStd, buildList)
+				matchPackages(m, loaded.tags, includeStd, buildList)
 
 			case m.Pattern() == "all":
 				loaded.testAll = true
@@ -111,7 +111,7 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
 					// Enumerate the packages in the main module.
 					// We'll load the dependencies as we find them.
 					m.Errs = m.Errs[:0]
-					matchPackages(ctx, m, loaded.tags, omitStd, []module.Version{Target})
+					matchPackages(m, loaded.tags, omitStd, []module.Version{Target})
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
@@ -129,7 +129,7 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
 		}
 	}
 
-	InitMod(ctx)
+	InitMod()
 
 	var matches []*search.Match
 	for _, pattern := range search.CleanPatterns(patterns) {
@@ -338,8 +338,8 @@ func pathInModuleCache(dir string) string {
 
 // ImportFromFiles adds modules to the build list as needed
 // to satisfy the imports in the named Go source files.
-func ImportFromFiles(ctx context.Context, gofiles []string) {
-	InitMod(ctx)
+func ImportFromFiles(gofiles []string) {
+	InitMod()
 
 	tags := imports.Tags()
 	imports, testImports, err := imports.ScanFiles(gofiles, tags)
@@ -391,7 +391,7 @@ func DirImportPath(dir string) string {
 func LoadBuildList(ctx context.Context) []module.Version {
 	ctx, span := trace.StartSpan(ctx, "LoadBuildList")
 	defer span.Done()
-	InitMod(ctx)
+	InitMod()
 	ReloadBuildList()
 	WriteGoMod()
 	return buildList
@@ -409,20 +409,20 @@ func ReloadBuildList() []module.Version {
 // It adds modules to the build list as needed to satisfy new imports.
 // This set is useful for deciding whether a particular import is needed
 // anywhere in a module.
-func LoadALL(ctx context.Context) []string {
-	return loadAll(ctx, true)
+func LoadALL() []string {
+	return loadAll(true)
 }
 
 // LoadVendor is like LoadALL but only follows test dependencies
 // for tests in the main module. Tests in dependency modules are
 // ignored completely.
 // This set is useful for identifying the which packages to include in a vendor directory.
-func LoadVendor(ctx context.Context) []string {
-	return loadAll(ctx, false)
+func LoadVendor() []string {
+	return loadAll(false)
 }
 
-func loadAll(ctx context.Context, testAll bool) []string {
-	InitMod(ctx)
+func loadAll(testAll bool) []string {
+	InitMod()
 
 	loaded = newLoader(imports.AnyTags())
 	loaded.isALL = true
@@ -430,7 +430,7 @@ func loadAll(ctx context.Context, testAll bool) []string {
 	if !testAll {
 		loaded.testRoots = true
 	}
-	all := TargetPackages(ctx, "...")
+	all := TargetPackages("...")
 	loaded.load(func() []string { return all.Pkgs })
 	checkMultiplePaths()
 	WriteGoMod()
@@ -453,13 +453,13 @@ func loadAll(ctx context.Context, testAll bool) []string {
 // TargetPackages returns the list of packages in the target (top-level) module
 // matching pattern, which may be relative to the working directory, under all
 // build tag settings.
-func TargetPackages(ctx context.Context, pattern string) *search.Match {
+func TargetPackages(pattern string) *search.Match {
 	// TargetPackages is relative to the main module, so ensure that the main
 	// module is a thing that can contain packages.
 	ModRoot()
 
 	m := search.NewMatch(pattern)
-	matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{Target})
+	matchPackages(m, imports.AnyTags(), omitStd, []module.Version{Target})
 	return m
 }
 
@@ -817,8 +817,7 @@ func (ld *loader) doPkg(item interface{}) {
 			return
 		}
 
-		// TODO(matloob): Handle TODO context. This needs to be threaded through Do.
-		pkg.mod, pkg.dir, pkg.err = Import(context.TODO(), pkg.path)
+		pkg.mod, pkg.dir, pkg.err = Import(pkg.path)
 		if pkg.dir == "" {
 			return
 		}
