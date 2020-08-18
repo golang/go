@@ -1932,7 +1932,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.cutab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.filetab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pctab", 0), sect)
-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.functab", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
 	if ctxt.HeadType == objabi.Haix {
 		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
@@ -2519,7 +2519,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.defineInternal("runtime.cutab", sym.SRODATA)
 	ctxt.defineInternal("runtime.filetab", sym.SRODATA)
 	ctxt.defineInternal("runtime.pctab", sym.SRODATA)
-	ctxt.defineInternal("runtime.pclntab_old", sym.SRODATA)
+	ctxt.defineInternal("runtime.functab", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))

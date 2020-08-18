@@ -18,6 +18,9 @@ import (
 
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
+	// The size of the func object in the runtime.
+	funcSize uint32
+
 	// The first and last functions found.
 	firstFunc, lastFunc loader.Sym
 
@@ -66,7 +69,10 @@ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f gen
 func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit, []loader.Sym) {
 	ldr := ctxt.loader
 
-	state := &pclntab{}
+	state := &pclntab{
+		// This is the size of the _func object in runtime/runtime2.go.
+		funcSize: uint32(ctxt.Arch.PtrSize + 9*4),
+	}
 
 	// Gather some basic stats and info.
 	seenCUs := make(map[*sym.CompilationUnit]struct{})
@@ -214,6 +220,22 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		inlTreeSym.SetUint32(arch, int64(i*20+16), uint32(call.ParentPC))
 	}
 	return its
+}
+
+// makeInlSyms returns a map of loader.Sym that are created inlSyms.
+func makeInlSyms(ctxt *Link, funcs []loader.Sym, nameOffsets map[loader.Sym]uint32) map[loader.Sym]loader.Sym {
+	ldr := ctxt.loader
+	// Create the inline symbols we need.
+	inlSyms := make(map[loader.Sym]loader.Sym)
+	for _, s := range funcs {
+		if fi := ldr.FuncInfo(s); fi.Valid() {
+			fi.Preload()
+			if fi.NumInlTree() > 0 {
+				inlSyms[s] = genInlTreeSym(ctxt, ldr.SymUnit(s), fi, ctxt.Arch, nameOffsets)
+			}
+		}
+	}
+	return inlSyms
 }
 
 // generatePCHeader creates the runtime.pcheader symbol, setting it up as a
@@ -488,6 +510,327 @@ func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, writePctab)
 }
 
+// numPCData returns the number of PCData syms for the FuncInfo.
+// NB: Preload must be called on valid FuncInfos before calling this function.
+func numPCData(fi loader.FuncInfo) uint32 {
+	if !fi.Valid() {
+		return 0
+	}
+	numPCData := uint32(len(fi.Pcdata()))
+	if fi.NumInlTree() > 0 {
+		if numPCData < objabi.PCDATA_InlTreeIndex+1 {
+			numPCData = objabi.PCDATA_InlTreeIndex + 1
+		}
+	}
+	return numPCData
+}
+
+// Helper types for iterating pclntab.
+type pclnSetAddr func(*loader.SymbolBuilder, *sys.Arch, int64, loader.Sym, int64) int64
+type pclnSetUint func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64
+
+// generateFunctab creates the runtime.functab
+//
+// runtime.functab contains two things:
+//
+//   - pc->func look up table.
+//   - array of func objects, interleaved with pcdata and funcdata
+//
+// Because of timing in the linker, generating this table takes two passes.
+// The first pass is executed early in the link, and it creates any needed
+// relocations to layout the data. The pieces that need relocations are:
+//   1) the PC->func table.
+//   2) The entry points in the func objects.
+//   3) The funcdata.
+// (1) and (2) are handled in walkPCToFunc. (3) is handled in walkFuncdata.
+//
+// After relocations, once we know where to write things in the output buffer,
+// we execute the second pass, which is actually writing the data.
+func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+	// Calculate the size of the table.
+	size, startLocations := state.calculateFunctabSize(ctxt, funcs)
+
+	// If we are internally linking a static executable, the function addresses
+	// are known, so we can just use them instead of emitting relocations. For
+	// other cases we still need to emit relocations.
+	//
+	// This boolean just helps us figure out which callback to use.
+	useSymValue := ctxt.IsExe() && ctxt.IsInternal()
+
+	writePcln := func(ctxt *Link, s loader.Sym) {
+		ldr := ctxt.loader
+		sb := ldr.MakeSymbolUpdater(s)
+
+		// Create our callbacks.
+		var setAddr pclnSetAddr
+		if useSymValue {
+			// We need to write the offset.
+			setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+				if v := ldr.SymValue(tgt); v != 0 {
+					s.SetUint(arch, off, uint64(v+add))
+				}
+				return 0
+			}
+		} else {
+			// We already wrote relocations.
+			setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 { return 0 }
+		}
+
+		// Write the data.
+		writePcToFunc(ctxt, sb, funcs, startLocations, setAddr, (*loader.SymbolBuilder).SetUint)
+		writeFuncs(ctxt, sb, funcs, inlSyms, startLocations, cuOffsets, nameOffsets)
+		state.writeFuncData(ctxt, sb, funcs, inlSyms, startLocations, setAddr, (*loader.SymbolBuilder).SetUint)
+	}
+
+	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, writePcln)
+
+	// Create the relocations we need.
+	ldr := ctxt.loader
+	sb := ldr.MakeSymbolUpdater(state.pclntab)
+
+	var setAddr pclnSetAddr
+	if useSymValue {
+		// If we should use the symbol value, and we don't have one, write a relocation.
+		setAddr = func(sb *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+			if v := ldr.SymValue(tgt); v == 0 {
+				sb.SetAddrPlus(arch, off, tgt, add)
+			}
+			return 0
+		}
+	} else {
+		// If we're externally linking, write a relocation.
+		setAddr = (*loader.SymbolBuilder).SetAddrPlus
+	}
+	setUintNOP := func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64 { return 0 }
+	writePcToFunc(ctxt, sb, funcs, startLocations, setAddr, setUintNOP)
+	if !useSymValue {
+		// Generate relocations for funcdata when externally linking.
+		state.writeFuncData(ctxt, sb, funcs, inlSyms, startLocations, setAddr, setUintNOP)
+	}
+}
+
+// funcData returns the funcdata and offsets for the FuncInfo.
+// The funcdata and offsets are written into runtime.functab after each func
+// object. This is a helper function to make querying the FuncInfo object
+// cleaner.
+//
+// Note, the majority of fdOffsets are 0, meaning there is no offset between
+// the compiler's generated symbol, and what the runtime needs. They are
+// plumbed through for no loss of generality.
+//
+// NB: Preload must be called on the FuncInfo before calling.
+// NB: fdSyms and fdOffs are used as scratch space.
+func funcData(fi loader.FuncInfo, inlSym loader.Sym, fdSyms []loader.Sym, fdOffs []int64) ([]loader.Sym, []int64) {
+	fdSyms, fdOffs = fdSyms[:0], fdOffs[:0]
+	if fi.Valid() {
+		numOffsets := int(fi.NumFuncdataoff())
+		for i := 0; i < numOffsets; i++ {
+			fdOffs = append(fdOffs, fi.Funcdataoff(i))
+		}
+		fdSyms = fi.Funcdata(fdSyms)
+		if fi.NumInlTree() > 0 {
+			if len(fdSyms) < objabi.FUNCDATA_InlTree+1 {
+				fdSyms = append(fdSyms, make([]loader.Sym, objabi.FUNCDATA_InlTree+1-len(fdSyms))...)
+				fdOffs = append(fdOffs, make([]int64, objabi.FUNCDATA_InlTree+1-len(fdOffs))...)
+			}
+			fdSyms[objabi.FUNCDATA_InlTree] = inlSym
+		}
+	}
+	return fdSyms, fdOffs
+}
+
+// calculateFunctabSize calculates the size of the pclntab, and the offsets in
+// the output buffer for individual func entries.
+func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64, []uint32) {
+	ldr := ctxt.loader
+	startLocations := make([]uint32, len(funcs))
+
+	// Allocate space for the pc->func table. This structure consists of a pc
+	// and an offset to the func structure. After that, we have a single pc
+	// value that marks the end of the last function in the binary.
+	size := int64(int(state.nfunc)*2*ctxt.Arch.PtrSize + ctxt.Arch.PtrSize)
+
+	// Now find the space for the func objects. We do this in a running manner,
+	// so that we can find individual starting locations, and because funcdata
+	// requires alignment.
+	for i, s := range funcs {
+		size = Rnd(size, int64(ctxt.Arch.PtrSize))
+		startLocations[i] = uint32(size)
+		fi := ldr.FuncInfo(s)
+		size += int64(state.funcSize)
+		if fi.Valid() {
+			fi.Preload()
+			numFuncData := int(fi.NumFuncdataoff())
+			if fi.NumInlTree() > 0 {
+				if numFuncData < objabi.FUNCDATA_InlTree+1 {
+					numFuncData = objabi.FUNCDATA_InlTree + 1
+				}
+			}
+			size += int64(numPCData(fi) * 4)
+			if numFuncData > 0 { // Func data is aligned.
+				size = Rnd(size, int64(ctxt.Arch.PtrSize))
+			}
+			size += int64(numFuncData * ctxt.Arch.PtrSize)
+		}
+	}
+
+	return size, startLocations
+}
+
+// writePcToFunc writes the PC->func lookup table.
+// This function walks the pc->func lookup table, executing callbacks
+// to generate relocations and writing the values for the table.
+func writePcToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, startLocations []uint32, setAddr pclnSetAddr, setUint pclnSetUint) {
+	ldr := ctxt.loader
+	var prevFunc loader.Sym
+	prevSect := ldr.SymSect(funcs[0])
+	funcIndex := 0
+	for i, s := range funcs {
+		if thisSect := ldr.SymSect(s); thisSect != prevSect {
+			// With multiple text sections, there may be a hole here in the
+			// address space. We use an invalid funcoff value to mark the hole.
+			// See also runtime/symtab.go:findfunc
+			prevFuncSize := int64(ldr.SymSize(prevFunc))
+			setAddr(sb, ctxt.Arch, int64(funcIndex*2*ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
+			setUint(sb, ctxt.Arch, int64((funcIndex*2+1)*ctxt.Arch.PtrSize), ^uint64(0))
+			funcIndex++
+			prevSect = thisSect
+		}
+		prevFunc = s
+		// TODO: We don't actually need these relocations, provided we go to a
+		// module->func look-up-table like we do for filenames. We could have a
+		// single relocation for the module, and have them all laid out as
+		// offsets from the beginning of that module.
+		setAddr(sb, ctxt.Arch, int64(funcIndex*2*ctxt.Arch.PtrSize), s, 0)
+		setUint(sb, ctxt.Arch, int64((funcIndex*2+1)*ctxt.Arch.PtrSize), uint64(startLocations[i]))
+		funcIndex++
+
+		// Write the entry location.
+		setAddr(sb, ctxt.Arch, int64(startLocations[i]), s, 0)
+	}
+
+	// Final entry of table is just end pc.
+	setAddr(sb, ctxt.Arch, int64(funcIndex)*2*int64(ctxt.Arch.PtrSize), prevFunc, ldr.SymSize(prevFunc))
+}
+
+// writeFuncData writes the funcdata tables.
+//
+// This function executes a callback for each funcdata needed in
+// runtime.functab. It should be called once for internally linked static
+// binaries, or twice (once to generate the needed relocations) for other
+// build modes.
+//
+// Note the output of this function is interwoven with writeFuncs, but this is
+// a separate function, because it's needed in different passes in
+// generateFunctab.
+func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations []uint32, setAddr pclnSetAddr, setUint pclnSetUint) {
+	ldr := ctxt.loader
+	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+	for i, s := range funcs {
+		fi := ldr.FuncInfo(s)
+		if !fi.Valid() {
+			continue
+		}
+		fi.Preload()
+
+		// funcdata, must be pointer-aligned and we're only int32-aligned.
+		// Missing funcdata will be 0 (nil pointer).
+		funcdata, funcdataoff := funcData(fi, inlSyms[s], funcdata, funcdataoff)
+		if len(funcdata) > 0 {
+			off := int64(startLocations[i] + state.funcSize + numPCData(fi)*4)
+			off = Rnd(off, int64(ctxt.Arch.PtrSize))
+			for j := range funcdata {
+				dataoff := off + int64(ctxt.Arch.PtrSize*j)
+				if funcdata[j] == 0 {
+					setUint(sb, ctxt.Arch, dataoff, uint64(funcdataoff[j]))
+					continue
+				}
+				// TODO: Does this need deduping?
+				setAddr(sb, ctxt.Arch, dataoff, funcdata[j], funcdataoff[j])
+			}
+		}
+	}
+}
+
+// writeFuncs writes the func structures and pcdata to runtime.functab.
+func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+	ldr := ctxt.loader
+	deferReturnSym := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
+	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+
+	// Write the individual func objects.
+	for i, s := range funcs {
+		fi := ldr.FuncInfo(s)
+		if fi.Valid() {
+			fi.Preload()
+		}
+
+		// Note we skip the space for the entry value -- that's handled inn
+		// walkPCToFunc. We don't write it here, because it might require a
+		// relocation.
+		off := startLocations[i] + uint32(ctxt.Arch.PtrSize) // entry
+
+		// name int32
+		nameoff, ok := nameOffsets[s]
+		if !ok {
+			panic("couldn't find function name offset")
+		}
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(nameoff)))
+
+		// args int32
+		// TODO: Move into funcinfo.
+		args := uint32(0)
+		if fi.Valid() {
+			args = uint32(fi.Args())
+		}
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), args))
+
+		// deferreturn
+		deferreturn := computeDeferReturn(ctxt, deferReturnSym, s)
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), deferreturn))
+
+		// pcdata
+		if fi.Valid() {
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcsp()))))
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcfile()))))
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcline()))))
+		} else {
+			off += 12
+		}
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(numPCData(fi))))
+
+		// Store the offset to compilation unit's file table.
+		cuIdx := ^uint32(0)
+		if cu := ldr.SymUnit(s); cu != nil {
+			cuIdx = cuOffsets[cu.PclnIndex]
+		}
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), cuIdx))
+
+		// funcID uint8
+		var funcID objabi.FuncID
+		if fi.Valid() {
+			funcID = fi.FuncID()
+		}
+		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+
+		off += 2 // pad
+
+		// nfuncdata must be the final entry.
+		funcdata, funcdataoff = funcData(fi, 0, funcdata, funcdataoff)
+		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
+
+		// Output the pcdata.
+		if fi.Valid() {
+			for j, pcSym := range fi.Pcdata() {
+				sb.SetUint32(ctxt.Arch, int64(off+uint32(j*4)), uint32(ldr.SymValue(pcSym)))
+			}
+			if fi.NumInlTree() > 0 {
+				sb.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(fi.Pcinline())))
+			}
+		}
+	}
+}
+
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
@@ -522,10 +865,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//      runtime.pctab
 	//        []byte of deduplicated pc data.
 	//
-	//      runtime.pclntab_old
+	//      runtime.functab
 	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//        end PC [thearch.ptrsize bytes]
-	//        func structures, pcdata tables.
+	//        func structures, pcdata offsets, func data.
 
 	state, compUnits, funcs := makePclntab(ctxt, container)
 
@@ -534,217 +877,12 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	ldr.MakeSymbolUpdater(state.carrier).SetType(sym.SPCLNTAB)
 	ldr.SetAttrReachable(state.carrier, true)
 
-	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
-	// It contains the pieces of runtime.pclntab that haven't moved to a more
-	// rational form.
-	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
 	state.generatePCHeader(ctxt)
 	nameOffsets := state.generateFuncnametab(ctxt, funcs)
 	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, funcs)
 	state.generatePctab(ctxt, funcs)
-
-	// Used to when computing defer return.
-	deferReturnSym := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
-
-	funcdataBytes := int64(0)
-	ldr.SetCarrierSym(state.pclntab, state.carrier)
-	ldr.SetAttrNotInSymbolTable(state.pclntab, true)
-	ftab := ldr.MakeSymbolUpdater(state.pclntab)
-	ftab.SetValue(state.size)
-	ftab.SetType(sym.SPCLNTAB)
-	ftab.SetReachable(true)
-
-	ftab.Grow(int64(state.nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
-
-	setAddr := (*loader.SymbolBuilder).SetAddrPlus
-	if ctxt.IsExe() && ctxt.IsInternal() {
-		// Internal linking static executable. At this point the function
-		// addresses are known, so we can just use them instead of emitting
-		// relocations.
-		// For other cases we are generating a relocatable binary so we
-		// still need to emit relocations.
-		setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
-			if v := ldr.SymValue(tgt); v != 0 {
-				return s.SetUint(arch, off, uint64(v+add))
-			}
-			return s.SetAddrPlus(arch, off, tgt, add)
-		}
-	}
-
-	funcdata := []loader.Sym{}
-	funcdataoff := []int64{}
-
-	var nfunc int32
-	prevFunc := ctxt.Textp[0]
-	for _, s := range funcs {
-		thisSect := ldr.SymSect(s)
-		prevSect := ldr.SymSect(prevFunc)
-		if thisSect != prevSect {
-			// With multiple text sections, there may be a hole here
-			// in the address space (see the comment above). We use an
-			// invalid funcoff value to mark the hole. See also
-			// runtime/symtab.go:findfunc
-			prevFuncSize := int64(ldr.SymSize(prevFunc))
-			setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
-			ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
-			nfunc++
-		}
-		prevFunc = s
-
-		var numPCData int32
-		funcdataoff = funcdataoff[:0]
-		funcdata = funcdata[:0]
-		fi := ldr.FuncInfo(s)
-		if fi.Valid() {
-			fi.Preload()
-			numPCData = int32(len(fi.Pcdata()))
-			nfd := fi.NumFuncdataoff()
-			for i := uint32(0); i < nfd; i++ {
-				funcdataoff = append(funcdataoff, fi.Funcdataoff(int(i)))
-			}
-			funcdata = fi.Funcdata(funcdata)
-		}
-
-		writeInlPCData := false
-		if fi.Valid() && fi.NumInlTree() > 0 {
-			writeInlPCData = true
-			if numPCData <= objabi.PCDATA_InlTreeIndex {
-				numPCData = objabi.PCDATA_InlTreeIndex + 1
-			}
-			if len(funcdataoff) <= objabi.FUNCDATA_InlTree {
-				// Create inline tree funcdata.
-				newfuncdata := make([]loader.Sym, objabi.FUNCDATA_InlTree+1)
-				newfuncdataoff := make([]int64, objabi.FUNCDATA_InlTree+1)
-				copy(newfuncdata, funcdata)
-				copy(newfuncdataoff, funcdataoff)
-				funcdata = newfuncdata
-				funcdataoff = newfuncdataoff
-			}
-		}
-
-		dSize := len(ftab.Data())
-		funcstart := int32(dSize)
-		funcstart += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1) // align to ptrsize
-
-		setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
-		ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
-
-		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
-		// and package debug/gosym.
-
-		// fixed size of struct, checked below
-		off := funcstart
-
-		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 6*4 + numPCData*4 + int32(len(funcdata))*int32(ctxt.Arch.PtrSize)
-		if len(funcdata) > 0 && (end&int32(ctxt.Arch.PtrSize-1) != 0) {
-			end += 4
-		}
-		ftab.Grow(int64(end))
-
-		// entry uintptr
-		off = int32(setAddr(ftab, ctxt.Arch, int64(off), s, 0))
-
-		// name int32
-		nameoff, ok := nameOffsets[s]
-		if !ok {
-			panic("couldn't find function name offset")
-		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(nameoff)))
-
-		// args int32
-		// TODO: Move into funcinfo.
-		args := uint32(0)
-		if fi.Valid() {
-			args = uint32(fi.Args())
-		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
-
-		// deferreturn
-		deferreturn := computeDeferReturn(ctxt, deferReturnSym, s)
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), deferreturn))
-
-		cu := ldr.SymUnit(s)
-
-		if fi.Valid() && fi.NumInlTree() > 0 {
-			its := genInlTreeSym(ctxt, cu, fi, ctxt.Arch, nameOffsets)
-			funcdata[objabi.FUNCDATA_InlTree] = its
-		}
-
-		// pcdata
-		if fi.Valid() {
-			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcsp()))))
-			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcfile()))))
-			off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcline()))))
-		} else {
-			off += 12
-		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(numPCData)))
-
-		// Store the offset to compilation unit's file table.
-		cuIdx := ^uint32(0)
-		if cu := ldr.SymUnit(s); cu != nil {
-			cuIdx = cuOffsets[cu.PclnIndex]
-		}
-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), cuIdx))
-
-		// funcID uint8
-		var funcID objabi.FuncID
-		if fi.Valid() {
-			funcID = fi.FuncID()
-		}
-		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
-
-		off += 2 // pad
-
-		// nfuncdata must be the final entry.
-		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
-
-		// Output the pcdata.
-		if fi.Valid() {
-			for i, pcSym := range fi.Pcdata() {
-				ftab.SetUint32(ctxt.Arch, int64(off+int32(i*4)), uint32(ldr.SymValue(pcSym)))
-			}
-			if writeInlPCData {
-				ftab.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(fi.Pcinline())))
-			}
-		}
-		off += numPCData * 4
-
-		// funcdata, must be pointer-aligned and we're only int32-aligned.
-		// Missing funcdata will be 0 (nil pointer).
-		if len(funcdata) > 0 {
-			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
-				off += 4
-			}
-			for i := range funcdata {
-				dataoff := int64(off) + int64(ctxt.Arch.PtrSize)*int64(i)
-				if funcdata[i] == 0 {
-					ftab.SetUint(ctxt.Arch, dataoff, uint64(funcdataoff[i]))
-					continue
-				}
-				// TODO: Dedup.
-				funcdataBytes += int64(len(ldr.Data(funcdata[i])))
-				setAddr(ftab, ctxt.Arch, dataoff, funcdata[i], funcdataoff[i])
-			}
-			off += int32(len(funcdata)) * int32(ctxt.Arch.PtrSize)
-		}
-
-		if off != end {
-			ctxt.Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, numPCData, len(funcdata), ctxt.Arch.PtrSize)
-			errorexit()
-		}
-
-		nfunc++
-	}
-
-	// Final entry of table is just end pc.
-	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), state.lastFunc, ldr.SymSize(state.lastFunc))
-
-	ftab.SetSize(int64(len(ftab.Data())))
-
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size(), funcdataBytes)
-	}
+	inlSyms := makeInlSyms(ctxt, funcs, nameOffsets)
+	state.generateFunctab(ctxt, funcs, inlSyms, cuOffsets, nameOffsets)
 
 	return state
 }
