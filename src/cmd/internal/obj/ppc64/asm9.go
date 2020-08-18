@@ -1584,8 +1584,9 @@ func buildop(ctxt *obj.Link) {
 		case ALXV: /* lxv */
 			opset(ALXV, r0)
 
-		case ALXVL: /* lxvl */
+		case ALXVL: /* lxvl, lxvll, lxvx */
 			opset(ALXVLL, r0)
+			opset(ALXVX, r0)
 
 		case ASTXVD2X: /* stxvd2x, stxvdsx, stxvw4x, stxvh8x, stxvb16x */
 			opset(ASTXVW4X, r0)
@@ -1595,8 +1596,9 @@ func buildop(ctxt *obj.Link) {
 		case ASTXV: /* stxv */
 			opset(ASTXV, r0)
 
-		case ASTXVL: /* stxvl, stxvll */
+		case ASTXVL: /* stxvl, stxvll, stvx */
 			opset(ASTXVLL, r0)
+			opset(ASTXVX, r0)
 
 		case ALXSDX: /* lxsdx  */
 			opset(ALXSDX, r0)
@@ -5020,11 +5022,13 @@ func (c *ctxt9) opload(a obj.As) uint32 {
 	case AMOVW:
 		return OPVCC(58, 0, 0, 0) | 1<<1 /* lwa */
 	case ALXV:
-		return OPDQ(61, 1, 0) /* lxv - ISA v3.00 */
+		return OPDQ(61, 1, 0) /* lxv - ISA v3.0 */
 	case ALXVL:
-		return OPVXX1(31, 269, 0) /* lxvl - ISA v3.00 */
+		return OPVXX1(31, 269, 0) /* lxvl - ISA v3.0 */
 	case ALXVLL:
-		return OPVXX1(31, 301, 0) /* lxvll - ISA v3.00 */
+		return OPVXX1(31, 301, 0) /* lxvll - ISA v3.0 */
+	case ALXVX:
+		return OPVXX1(31, 268, 0) /* lxvx - ISA v3.0 */
 
 		/* no AMOVWU */
 	case AMOVB, AMOVBZ:
@@ -5122,8 +5126,6 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		return OPVCC(31, 309, 0, 0) /* ldmx */
 
 	/* Vector (VMX/Altivec) instructions */
-	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
-	/* are enabled starting at POWER6 (ISA 2.05). */
 	case ALVEBX:
 		return OPVCC(31, 7, 0, 0) /* lvebx - v2.03 */
 	case ALVEHX:
@@ -5141,7 +5143,8 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 		/* End of vector instructions */
 
 	/* Vector scalar (VSX) instructions */
-	/* ISA 2.06 enables these for POWER7. */
+	case ALXVX:
+		return OPVXX1(31, 268, 0) /* lxvx - ISA v3.0 */
 	case ALXVD2X:
 		return OPVXX1(31, 844, 0) /* lxvd2x - v2.06 */
 	case ALXVW4X:
@@ -5208,6 +5211,8 @@ func (c *ctxt9) opstore(a obj.As) uint32 {
 		return OPVXX1(31, 397, 0) /* stxvl ISA 3.0 */
 	case ASTXVLL:
 		return OPVXX1(31, 429, 0) /* stxvll ISA 3.0 */
+	case ASTXVX:
+		return OPVXX1(31, 396, 0) /* stxvx - ISA v3.0 */
 
 	}
 
@@ -5271,8 +5276,6 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVCC(31, 181, 0, 0) /* stdux */
 
 	/* Vector (VMX/Altivec) instructions */
-	/* ISA 2.03 enables these for PPC970. For POWERx processors, these */
-	/* are enabled starting at POWER6 (ISA 2.05). */
 	case ASTVEBX:
 		return OPVCC(31, 135, 0, 0) /* stvebx - v2.03 */
 	case ASTVEHX:
@@ -5286,15 +5289,16 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		/* End of vector instructions */
 
 	/* Vector scalar (VSX) instructions */
-	/* ISA 2.06 enables these for POWER7. */
+	case ASTXVX:
+		return OPVXX1(31, 396, 0) /* stxvx - v3.0 */
 	case ASTXVD2X:
 		return OPVXX1(31, 972, 0) /* stxvd2x - v2.06 */
 	case ASTXVW4X:
 		return OPVXX1(31, 908, 0) /* stxvw4x - v2.06 */
 	case ASTXVH8X:
-		return OPVXX1(31, 940, 0) /* stxvh8x - v3.00 */
+		return OPVXX1(31, 940, 0) /* stxvh8x - v3.0 */
 	case ASTXVB16X:
-		return OPVXX1(31, 1004, 0) /* stxvb16x - v3.00 */
+		return OPVXX1(31, 1004, 0) /* stxvb16x - v3.0 */
 
 	case ASTXSDX:
 		return OPVXX1(31, 716, 0) /* stxsdx - v2.06 */
