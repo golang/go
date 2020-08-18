@@ -328,7 +328,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 	ldr := &Loader{
 		start:                make(map[*oReader]Sym),
 		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
-		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
+		objSyms:              make([]objSym, 1, 1),         // This will get overwritten later.
 		extReader:            extReader,
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]*oReader),
@@ -2016,8 +2016,9 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 	return FuncInfo{}
 }
 
-// Preload a package: add autolibs, add defined package symbols to the symbol table.
-// Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+// Preload a package: adds autolib.
+// Does not add defined package or non-packaged symbols to the symbol table.
+// These are done in LoadSyms.
 // Does not read symbol data.
 // Returns the fingerprint of the object.
 func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj.FingerprintType {
@@ -2060,8 +2061,6 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
 	}
 
 	l.addObj(lib.Pkg, or)
-	st := loadState{l: l}
-	st.preloadSyms(or, pkgDef)
 
 	// The caller expects us consuming all the data
 	f.MustSeek(length, os.SEEK_CUR)
@@ -2144,17 +2143,30 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 	}
 }
 
-// Add hashed (content-addressable) symbols, non-package symbols, and
+// Add syms, hashed (content-addressable) symbols, non-package symbols, and
 // references to external symbols (which are always named).
-func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
+func (l *Loader) LoadSyms(arch *sys.Arch) {
+	// Allocate space for symbols, making a guess as to how much space we need.
+	// This function was determined empirically by looking at the cmd/compile on
+	// Darwin, and picking factors for hashed and hashed64 syms.
+	var symSize, hashedSize, hashed64Size int
+	for _, o := range l.objs[goObjStart:] {
+		symSize += o.r.ndef + o.r.nhasheddef/2 + o.r.nhashed64def/2 + o.r.NNonpkgdef()
+		hashedSize += o.r.nhasheddef / 2
+		hashed64Size += o.r.nhashed64def / 2
+	}
+	// Index 0 is invalid for symbols.
+	l.objSyms = make([]objSym, 1, symSize)
+
 	l.npkgsyms = l.NSym()
-	// Preallocate some space (a few hundreds KB) for some symbols.
-	// As of Go 1.15, linking cmd/compile has ~8000 hashed64 symbols and
-	// ~13000 hashed symbols.
 	st := loadState{
 		l:            l,
-		hashed64Syms: make(map[uint64]symAndSize, 10000),
-		hashedSyms:   make(map[goobj.HashType]symAndSize, 15000),
+		hashed64Syms: make(map[uint64]symAndSize, hashed64Size),
+		hashedSyms:   make(map[goobj.HashType]symAndSize, hashedSize),
+	}
+
+	for _, o := range l.objs[goObjStart:] {
+		st.preloadSyms(o.r, pkgDef)
 	}
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
