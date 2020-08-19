@@ -113,7 +113,7 @@ var ignorePrefixes = []string{
 
 // File suffixes that use build tags introduced since Go 1.4.
 // These must not be copied into the bootstrap build directory.
-// Also igonore test files.
+// Also ignore test files.
 var ignoreSuffixes = []string{
 	"_arm64.s",
 	"_arm64.go",
