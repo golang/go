@@ -77,7 +77,7 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 	ctx = protocol.WithClient(ctx, client)
 	conn.Go(ctx,
 		protocol.Handlers(
-			handshaker(session, executable,
+			handshaker(session, executable, s.logConnections,
 				protocol.ServerHandler(server,
 					jsonrpc2.MethodNotFound))))
 	if s.logConnections {
@@ -497,7 +497,7 @@ const (
 	sessionsMethod  = "gopls/sessions"
 )
 
-func handshaker(session *cache.Session, goplsPath string, handler jsonrpc2.Handler) jsonrpc2.Handler {
+func handshaker(session *cache.Session, goplsPath string, logHandshakes bool, handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return func(ctx context.Context, reply jsonrpc2.Replier, r jsonrpc2.Request) error {
 		switch r.Method() {
 		case handshakeMethod:
@@ -506,11 +506,15 @@ func handshaker(session *cache.Session, goplsPath string, handler jsonrpc2.Handl
 			// client.
 			var req handshakeRequest
 			if err := json.Unmarshal(r.Params(), &req); err != nil {
-				log.Printf("Error processing handshake for session %s: %v", session.ID(), err)
+				if logHandshakes {
+					log.Printf("Error processing handshake for session %s: %v", session.ID(), err)
+				}
 				sendError(ctx, reply, err)
 				return nil
 			}
-			log.Printf("Session %s: got handshake. Logfile: %q, Debug addr: %q", session.ID(), req.Logfile, req.DebugAddr)
+			if logHandshakes {
+				log.Printf("Session %s: got handshake. Logfile: %q, Debug addr: %q", session.ID(), req.Logfile, req.DebugAddr)
+			}
 			event.Log(ctx, "Handshake session update",
 				cache.KeyUpdateSession.Of(session),
 				tag.DebugAddress.Of(req.DebugAddr),
