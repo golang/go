@@ -6,8 +6,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -105,7 +107,11 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		stream = protocol.LoggingStream(stream, di.LogWriter)
 	}
 	conn := jsonrpc2.NewConn(stream)
-	return ss.ServeStream(ctx, conn)
+	err := ss.ServeStream(ctx, conn)
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+	return err
 }
 
 // parseAddr parses the -listen flag in to a network, and address.
