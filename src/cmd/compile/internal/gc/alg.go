@@ -429,8 +429,7 @@ func hashfor(t *types.Type) *Node {
 	}
 
 	n := newname(sym)
-	n.SetClass(PFUNC)
-	n.Sym.SetFunc(true)
+	setNodeNameFunc(n)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
