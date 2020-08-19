@@ -2580,10 +2580,11 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 				req.logf("writeErrCh resv: %T/%#v", err, err)
 			}
 			if err != nil {
-				pc.close(fmt.Errorf("write error: %v", err))
-				return nil, pc.mapRoundTripError(req, startBytesWritten, err)
-			}
-			if d := pc.t.ResponseHeaderTimeout; d > 0 {
+				d := pc.t.ResponseHeaderTimeout
+				if d == 0 {
+					pc.close(fmt.Errorf("write error: %v", err))
+					return nil, pc.mapRoundTripError(req, startBytesWritten, err)
+				}
 				if debugRoundTrip {
 					req.logf("starting timer for %v", d)
 				}
