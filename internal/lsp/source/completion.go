@@ -559,6 +559,9 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	// If we're inside a comment return comment completions
 	for _, comment := range pgf.File.Comments {
 		if comment.Pos() < rng.Start && rng.Start <= comment.End() {
+			// deep completion doesn't work properly in comments since we don't
+			// have a type object to complete further
+			c.deepState.maxDepth = 0
 			c.populateCommentCompletions(ctx, comment)
 			return c.items, c.getSurrounding(), nil
 		}
@@ -721,8 +724,7 @@ func (c *completer) emptySwitchStmt() bool {
 	}
 }
 
-// populateCommentCompletions yields completions for exported
-// symbols immediately preceding comment.
+// populateCommentCompletions yields completions for comments preceding or in declarationss
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
 	// Using the comment position find the line after
 	file := c.snapshot.FileSet().File(comment.End())
@@ -730,22 +732,18 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 		return
 	}
 
-	line := file.Line(comment.End())
-	if file.LineCount() < line+1 {
-		return
-	}
-
-	nextLinePos := file.LineStart(line + 1)
-	if !nextLinePos.IsValid() {
-		return
-	}
+	commentLine := file.Line(comment.End())
 
 	// comment is valid, set surrounding as word boundaries around cursor
 	c.setSurroundingForComment(comment)
+	cursorText := c.surrounding.content
 
 	// Using the next line pos, grab and parse the exported symbol on that line
 	for _, n := range c.file.Decls {
-		if n.Pos() != nextLinePos {
+		declLine := file.Line(n.Pos())
+		// if the comment is not in, directly above or on the same line as a declaration
+		if declLine != commentLine && declLine != commentLine+1 &&
+			!(n.Pos() <= comment.Pos() && comment.End() <= n.End()) {
 			continue
 		}
 		switch node := n.(type) {
@@ -755,23 +753,85 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				switch spec := spec.(type) {
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						if name.String() == "_" || !name.IsExported() {
+						if name.String() == "_" || !strings.HasPrefix(name.String(), cursorText) {
 							continue
 						}
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
 						c.found(ctx, candidate{obj: obj, score: stdScore})
 					}
 				case *ast.TypeSpec:
-					if spec.Name.String() == "_" || !spec.Name.IsExported() {
+					// add TypeSpec fields to completion
+					switch typeNode := spec.Type.(type) {
+					case *ast.StructType:
+						c.addFieldItems(ctx, typeNode.Fields)
+					case *ast.FuncType:
+						c.addFieldItems(ctx, typeNode.Params)
+						c.addFieldItems(ctx, typeNode.Results)
+					case *ast.InterfaceType:
+						c.addFieldItems(ctx, typeNode.Methods)
+					}
+
+					if spec.Name.String() == "_" || !strings.HasPrefix(spec.Name.String(), cursorText) {
 						continue
 					}
+
 					obj := c.pkg.GetTypesInfo().ObjectOf(spec.Name)
-					c.found(ctx, candidate{obj: obj, score: stdScore})
+					// Type name should get a higher score than fields but not highScore by default
+					// since field near a comment cursor gets a highScore
+					score := stdScore * 1.1
+					// If type declaration is on the line after comment, give it a highScore.
+					if declLine == commentLine+1 {
+						score = highScore
+					}
+
+					// we use c.item in addFieldItems so we have to use c.item here to ensure scoring
+					// order is maintained. c.found manipulates the score
+					if item, err := c.item(ctx, candidate{obj: obj, name: obj.Name(), score: score}); err == nil {
+						c.items = append(c.items, item)
+					}
 				}
 			}
 		// handle functions
 		case *ast.FuncDecl:
-			if node.Name.String() == "_" || !node.Name.IsExported() {
+			c.addFieldItems(ctx, node.Recv)
+			c.addFieldItems(ctx, node.Type.Params)
+			c.addFieldItems(ctx, node.Type.Results)
+
+			// collect receiver struct fields
+			if node.Recv != nil {
+				for _, fields := range node.Recv.List {
+					for _, name := range fields.Names {
+						obj := c.pkg.GetTypesInfo().ObjectOf(name)
+						if obj == nil {
+							continue
+						}
+
+						recvType := obj.Type().Underlying()
+						if ptr, ok := recvType.(*types.Pointer); ok {
+							recvType = ptr.Elem()
+						}
+						recvStruct, ok := recvType.Underlying().(*types.Struct)
+						if !ok {
+							continue
+						}
+						for i := 0; i < recvStruct.NumFields(); i++ {
+							field := recvStruct.Field(i)
+							if !strings.HasPrefix(field.Name(), cursorText) {
+								continue
+							}
+							// we use c.item in addFieldItems so we have to use c.item here to ensure scoring
+							// order is maintained. c.found maniplulates the score
+							item, err := c.item(ctx, candidate{obj: field, name: field.Name(), score: lowScore})
+							if err != nil {
+								continue
+							}
+							c.items = append(c.items, item)
+						}
+					}
+				}
+			}
+
+			if node.Name.String() == "_" || !strings.HasPrefix(node.Name.String(), cursorText) {
 				continue
 			}
 
@@ -780,13 +840,13 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				continue
 			}
 
-			// We don't want expandFuncCall inside comments. We add this directly to the
-			// completions list because using c.found sets expandFuncCall to true by default
+			// We don't want to expandFuncCall inside comments.
+			// c.found() doesn't respect this setting
 			item, err := c.item(ctx, candidate{
 				obj:            obj,
 				name:           obj.Name(),
 				expandFuncCall: false,
-				score:          stdScore,
+				score:          highScore,
 			})
 			if err != nil {
 				continue
@@ -833,6 +893,45 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 func isValidIdentifierChar(char byte) bool {
 	charRune := rune(char)
 	return unicode.In(charRune, unicode.Letter, unicode.Digit) || char == '_'
+}
+
+// adds struct fields, interface methods, function declaration fields to completion
+func (c *completer) addFieldItems(ctx context.Context, fields *ast.FieldList) {
+	if fields == nil {
+		return
+	}
+
+	cursor := c.surrounding.cursor
+	surroundingPrefix := c.surrounding.content
+	for _, field := range fields.List {
+		for _, name := range field.Names {
+			if name.String() == "_" ||
+				!strings.HasPrefix(name.String(), surroundingPrefix) {
+				continue
+			}
+			obj := c.pkg.GetTypesInfo().ObjectOf(name)
+
+			// if we're in a field comment/doc, score that field as more relevant
+			score := stdScore
+			if field.Comment != nil && field.Comment.Pos() <= cursor && cursor <= field.Comment.End() {
+				score = highScore
+			} else if field.Doc != nil && field.Doc.Pos() <= cursor && cursor <= field.Doc.End() {
+				score = highScore
+			}
+
+			cand := candidate{
+				obj:            obj,
+				name:           obj.Name(),
+				expandFuncCall: false,
+				score:          score,
+			}
+			// We don't want to expandFuncCall inside comments.
+			// c.found() doesn't respect this setting
+			if item, err := c.item(ctx, cand); err == nil {
+				c.items = append(c.items, item)
+			}
+		}
+	}
 }
 
 func (c *completer) wantStructFieldCompletions() bool {

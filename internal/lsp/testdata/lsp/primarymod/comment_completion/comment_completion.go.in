@@ -1,0 +1,70 @@
+package comment_completion
+
+var p bool
+
+//@complete(re"$")
+
+func _() {
+	var a int
+
+	switch a {
+	case 1:
+		//@complete(re"$")
+		_ = a
+	}
+
+	var b chan int
+	select {
+	case <-b:
+		//@complete(re"$")
+		_ = b
+	}
+
+	var (
+		//@complete(re"$")
+		_ = a
+	)
+}
+
+// //@complete(" ", variableC)
+var C string //@item(variableC, "C", "string", "var") //@complete(" ", variableC)
+
+// //@complete(" ", constant)
+const Constant = "example" //@item(constant, "Constant", "string", "const") //@complete(" ", constant)
+
+// //@complete(" ", structType, fieldA, fieldB)
+type StructType struct { //@item(structType, "StructType", "struct{...}", "struct") //@complete(" ", structType, fieldA, fieldB)
+	// //@complete(" ", fieldA, structType, fieldB)
+	A string //@item(fieldA, "A", "string", "field") //@complete(" ", fieldA, structType, fieldB)
+	b int    //@item(fieldB, "b", "int", "field") //@complete(" ", fieldB, structType, fieldA)
+}
+
+// //@complete(" ", method, paramX, resultY, structRecv, fieldA, fieldB)
+func (structType *StructType) Method(X int) (Y int) { //@item(structRecv, "structType", "*StructType", "var"),item(method, "Method", "func(X int) (Y int)", "method"),item(paramX, "X", "int", "var"),item(resultY, "Y", "int", "var")
+	// //@complete(" ", method, paramX, resultY, structRecv, fieldA, fieldB)
+	return
+}
+
+// //@complete(" ", newType)
+type NewType string //@item(newType, "NewType", "string", "type") //@complete(" ", newType)
+
+// //@complete(" ", testInterface, testA, testB)
+type TestInterface interface { //@item(testInterface, "TestInterface", "interface{...}", "interface")
+	// //@complete(" ", testA, testInterface, testB)
+	TestA(L string) (M int) //@item(testA, "TestA", "func(L string) (M int)", "method"),item(paramL, "L", "var", "string"),item(resM, "M", "var", "int") //@complete(" ", testA, testInterface, testB)
+	TestB(N int) bool       //@item(testB, "TestB", "func(N int) bool", "method"),item(paramN, "N", "var", "int") //@complete(" ", testB, testInterface, testA)
+}
+
+// //@complete(" ", function)
+func Function() int { //@item(function, "Function", "func() int", "func") //@complete(" ", function)
+	// //@complete(" ", function)
+	return 0
+}
+
+// This tests multiline block comments and completion with prefix
+// Lorem Ipsum Multili//@complete("Multi", multiline)
+// Lorem ipsum dolor sit ametom
+func Multiline() int { //@item(multiline, "Multiline", "func() int", "func")
+	// //@complete(" ", multiline)
+	return 0
+}

@@ -1,29 +1,5 @@
 package complit
 
-// exported comment completions
-
-// //@complete(" ", cVar)
-var C string //@item(cVar, "C", "string", "var")
-
-// //@complete(" ", exportedConst)
-const ExportedConst = "example" //@item(exportedConst, "ExportedConst", "string", "const")
-
-// //@complete(" ", exportedType)
-type ExportedType struct { //@item(exportedType, "ExportedType", "struct{...}", "struct")
-}
-
-// //@complete(" ", exportedFunc)
-func ExportedFunc() int { //@item(exportedFunc, "ExportedFunc", "func() int", "func")
-	return 0
-}
-
-// This tests multiline block comments and completion with prefix
-// Lorem Ipsum Multi//@complete(" ", multilineWithPrefix)
-// Lorem ipsum dolor sit ametom
-func MultilineWithPrefix() int { //@item(multilineWithPrefix, "MultilineWithPrefix", "func() int", "func")
-	return 0
-}
-
 // general completions
 
 type position struct { //@item(structPosition, "position", "struct{...}", "struct")
@@ -32,7 +8,7 @@ type position struct { //@item(structPosition, "position", "struct{...}", "struc
 
 func _() {
 	_ = position{
-		//@complete("", fieldX, fieldY, exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
+		//@complete("", fieldX, fieldY, structPosition)
 	}
 	_ = position{
 		X: 1,
@@ -44,7 +20,7 @@ func _() {
 	}
 	_ = []*position{
         {
-            //@complete("", fieldX, fieldY, exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
+            //@complete("", fieldX, fieldY, structPosition)
         },
 	}
 }
@@ -60,7 +36,7 @@ func _() {
 	}
 
 	_ = map[int]int{
-		//@complete("", abVar, exportedFunc, multilineWithPrefix, aaVar, structPosition, cVar, exportedConst, exportedType)
+		//@complete("", abVar, aaVar, structPosition)
 	}
 
 	_ = []string{a: ""} //@complete(":", abVar, aaVar)
@@ -68,7 +44,7 @@ func _() {
 
 	_ = position{X: a}   //@complete("}", abVar, aaVar)
 	_ = position{a}      //@complete("}", abVar, aaVar)
-	_ = position{a, }      //@complete("}", abVar, exportedFunc, multilineWithPrefix, aaVar, structPosition, cVar, exportedConst, exportedType)
+	_ = position{a, }      //@complete("}", abVar, aaVar, structPosition)
 
 	_ = []int{a}  //@complete("}", abVar, aaVar)
 	_ = [1]int{a} //@complete("}", abVar, aaVar)
@@ -110,7 +86,7 @@ func _() {
 
 func _() {
 	_ := position{
-		X: 1, //@complete("X", fieldX),complete(" 1", exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
-		Y: ,  //@complete(":", fieldY),complete(" ,", exportedFunc, multilineWithPrefix, structPosition, cVar, exportedConst, exportedType)
+		X: 1, //@complete("X", fieldX),complete(" 1", structPosition)
+		Y: ,  //@complete(":", fieldY),complete(" ,", structPosition)
 	}
 }
