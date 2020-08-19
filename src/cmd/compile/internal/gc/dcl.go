@@ -985,10 +985,14 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
-// disableExport prevents sym from being included in package export
-// data. To be effectual, it must be called before declare.
-func disableExport(sym *types.Sym) {
-	sym.SetOnExportList(true)
+// setNodeNameFunc marks a node as a function.
+func setNodeNameFunc(n *Node) {
+	if n.Op != ONAME || n.Class() != Pxxx {
+		Fatalf("expected ONAME/Pxxx node, got %v", n)
+	}
+
+	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 }
 
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
@@ -1000,7 +1004,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
-	declare(fn.Func.Nname, PFUNC)
+	setNodeNameFunc(fn.Func.Nname)
 	funchdr(fn)
 	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
 	return fn

@@ -1543,7 +1543,6 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	tfn.List.Set(structargs(method.Type.Params(), true))
 	tfn.Rlist.Set(structargs(method.Type.Results(), false))
 
-	disableExport(newnam)
 	fn := dclfunc(newnam, tfn)
 	fn.Func.SetDupok(true)
 
@@ -1631,8 +1630,7 @@ func hashmem(t *types.Type) *Node {
 	sym := Runtimepkg.Lookup("memhash")
 
 	n := newname(sym)
-	n.SetClass(PFUNC)
-	n.Sym.SetFunc(true)
+	setNodeNameFunc(n)
 	n.Type = functype(nil, []*Node{
 		anonfield(types.NewPtr(t)),
 		anonfield(types.Types[TUINTPTR]),
