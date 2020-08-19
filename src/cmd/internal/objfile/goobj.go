@@ -17,13 +17,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 )
 
 type goobjFile struct {
 	goobj *archive.GoObj
 	r     *goobj.Reader
 	f     *os.File
+	arch  *sys.Arch
 }
 
 func openGoFile(f *os.File) (*File, error) {
@@ -45,9 +45,16 @@ L:
 				return nil, err
 			}
 			r := goobj.NewReaderFromBytes(b, false)
+			var arch *sys.Arch
+			for _, a := range sys.Archs {
+				if a.Name == e.Obj.Arch {
+					arch = a
+					break
+				}
+			}
 			entries = append(entries, &Entry{
 				name: e.Name,
-				raw:  &goobjFile{e.Obj, r, f},
+				raw:  &goobjFile{e.Obj, r, f, arch},
 			})
 			continue
 		case archive.EntryNativeObj:
@@ -223,17 +230,8 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 // Returns "",0,nil if unknown.
 // This function implements the Liner interface in preference to pcln() above.
 func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
-	// TODO: this is really inefficient. Binary search? Memoize last result?
 	r := f.r
-	var arch *sys.Arch
-	archname := f.goarch()
-	for _, a := range sys.Archs {
-		if a.Name == archname {
-			arch = a
-			break
-		}
-	}
-	if arch == nil {
+	if f.arch == nil {
 		return "", 0, nil
 	}
 	pcdataBase := r.PcdataBase()
@@ -264,10 +262,10 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
 		lengths := info.ReadFuncInfoLengths(b)
 		off, end := info.ReadPcline(b)
 		pcline := r.BytesAt(pcdataBase+off, int(end-off))
-		line := int(pcValue(pcline, pc-addr, arch))
+		line := int(pcValue(pcline, pc-addr, f.arch))
 		off, end = info.ReadPcfile(b)
 		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
-		fileID := pcValue(pcfile, pc-addr, arch)
+		fileID := pcValue(pcfile, pc-addr, f.arch)
 		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
 		fileName := r.File(int(globalFileID))
 		// Note: we provide only the name in the Func structure.
@@ -332,11 +330,7 @@ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
 }
 
 func (f *goobjFile) goarch() string {
-	hs := strings.Fields(string(f.goobj.TextHeader))
-	if len(hs) >= 4 {
-		return hs[3]
-	}
-	return ""
+	return f.goobj.Arch
 }
 
 func (f *goobjFile) loadAddress() (uint64, error) {
