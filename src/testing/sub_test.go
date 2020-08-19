@@ -483,9 +483,11 @@ func TestTRun(t *T) {
 					signal: make(chan bool),
 					name:   "Test",
 					w:      buf,
-					chatty: tc.chatty,
 				},
 				context: ctx,
+			}
+			if tc.chatty {
+				root.chatty = newChattyPrinter(root.w)
 			}
 			ok := root.Run(tc.desc, tc.f)
 			ctx.release()
@@ -665,10 +667,12 @@ func TestBRun(t *T) {
 					signal: make(chan bool),
 					name:   "root",
 					w:      buf,
-					chatty: tc.chatty,
 				},
 				benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
 				benchTime: benchTimeFlag{d: 1 * time.Microsecond},
+			}
+			if tc.chatty {
+				root.chatty = newChattyPrinter(root.w)
 			}
 			root.runN(1)
 			if ok != !tc.failed {
@@ -741,9 +745,13 @@ func TestParallelSub(t *T) {
 	}
 }
 
-type funcWriter func([]byte) (int, error)
+type funcWriter struct {
+	write func([]byte) (int, error)
+}
 
-func (fw funcWriter) Write(b []byte) (int, error) { return fw(b) }
+func (fw *funcWriter) Write(b []byte) (int, error) {
+	return fw.write(b)
+}
 
 func TestRacyOutput(t *T) {
 	var runs int32  // The number of running Writes
@@ -761,9 +769,10 @@ func TestRacyOutput(t *T) {
 
 	var wg sync.WaitGroup
 	root := &T{
-		common:  common{w: funcWriter(raceDetector), chatty: true},
+		common:  common{w: &funcWriter{raceDetector}},
 		context: newTestContext(1, newMatcher(regexp.MatchString, "", "")),
 	}
+	root.chatty = newChattyPrinter(root.w)
 	root.Run("", func(t *T) {
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
