@@ -693,8 +693,8 @@ func candidateImportName(pkg *pkg) string {
 	return ""
 }
 
-// GetAllCandidates gets all of the packages starting with prefix that can be
-// imported by filename, sorted by import path.
+// GetAllCandidates calls wrapped for each package whose name starts with
+// searchPrefix, and can be imported from filename with the package name filePkg.
 func GetAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {
@@ -713,6 +713,35 @@ func GetAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix
 			if !strings.HasPrefix(pkg.packageName, searchPrefix) {
 				return false
 			}
+			wrapped(ImportFix{
+				StmtInfo: ImportInfo{
+					ImportPath: pkg.importPathShort,
+					Name:       candidateImportName(pkg),
+				},
+				IdentName: pkg.packageName,
+				FixType:   AddImport,
+				Relevance: pkg.relevance,
+			})
+			return false
+		},
+	}
+	return getCandidatePkgs(ctx, callback, filename, filePkg, env)
+}
+
+// GetImportPaths calls wrapped for each package whose import path starts with
+// searchPrefix, and can be imported from filename with the package name filePkg.
+func GetImportPaths(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
+	callback := &scanCallback{
+		rootFound: func(gopathwalk.Root) bool {
+			return true
+		},
+		dirFound: func(pkg *pkg) bool {
+			if !canUse(filename, pkg.dir) {
+				return false
+			}
+			return strings.HasPrefix(pkg.importPathShort, searchPrefix)
+		},
+		packageNameLoaded: func(pkg *pkg) bool {
 			wrapped(ImportFix{
 				StmtInfo: ImportInfo{
 					ImportPath: pkg.importPathShort,
