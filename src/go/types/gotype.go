@@ -290,7 +290,8 @@ func checkPkgFiles(files []*ast.File) {
 
 	// if checkPkgFiles is called multiple times, set up conf only once
 	conf := types.Config{
-		FakeImportC: true,
+		InferFromConstraints: true,
+		FakeImportC:          true,
 		Error: func(err error) {
 			if !*allErrors && errorCount >= 10 {
 				panic(bailout{})

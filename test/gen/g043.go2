@@ -1,0 +1,38 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 40859.
+package main
+
+import (
+	"fmt"
+)
+
+type Number interface {
+	type int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64
+}
+
+type MySlice []int
+
+type SC[type E] interface {
+	type []E
+}
+
+func DoubleDefined[type S SC[E], E Number](s S) S {
+	r := make(S, len(s))
+	for i, v := range s {
+		r[i] = v + v
+	}
+	return r
+}
+
+func main() {
+	// Expicit types work fine
+	fmt.Println(DoubleDefined[MySlice, int](MySlice{1}))
+
+	// Constraint type inference does not work?
+	fmt.Println(DoubleDefined(MySlice{1}))
+}

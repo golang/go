@@ -83,8 +83,9 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 
 		var merr multiErr
 		conf := types.Config{
-			Importer: importer,
-			Error:    merr.add,
+			InferFromConstraints: true,
+			Importer:             importer,
+			Error:                merr.add,
 		}
 		path := importPath
 		if path == "" {
@@ -131,8 +132,9 @@ func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, er
 	}
 	var merr multiErr
 	conf := types.Config{
-		Importer: importer,
-		Error:    merr.add,
+		InferFromConstraints: true,
+		Importer:             importer,
+		Error:                merr.add,
 	}
 	tpkg, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info)
 	if err != nil {
