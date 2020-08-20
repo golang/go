@@ -145,6 +145,17 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VZIP2	V10.D2, V13.D2, V3.D2           // a379ca4e
 	VZIP1	V17.S2, V4.S2, V26.S2           // 9a38910e
 	VZIP2	V25.S2, V14.S2, V25.S2          // d979990e
+	VUXTL	V30.B8, V30.H8                  // dea7082f
+	VUXTL	V30.H4, V29.S4                  // dda7102f
+	VUXTL	V29.S2, V2.D2                   // a2a7202f
+	VUXTL2	V30.H8, V30.S4                  // dea7106f
+	VUXTL2	V29.S4, V2.D2                   // a2a7206f
+	VUXTL2	V30.B16, V2.H8                  // c2a7086f
+	VBIT	V21.B16, V25.B16, V4.B16        // 241fb56e
+	VBSL	V23.B16, V3.B16, V7.B16         // 671c776e
+	VCMTST	V2.B8, V29.B8, V2.B8            // a28f220e
+	VCMTST	V2.D2, V23.D2, V3.D2            // e38ee24e
+	VSUB	V2.B8, V30.B8, V30.B8           // de87222e
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
@@ -185,6 +196,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	$(0.1796875), F2                // 02f0681e
 	FMOVS	$(0.96875), F3                  // 03f02d1e
 	FMOVD	$(28.0), F4                     // 0490671e
+
+// move a large constant to a Vd.
+	FMOVD	$0x8040201008040201, V20         // FMOVD	$-9205322385119247871, V20
+	FMOVQ	$0x8040201008040202, V29         // FMOVQ	$-9205322385119247870, V29
 
 	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
 	FMOVS	(R2)(R6<<2), F4                               // 447866bc

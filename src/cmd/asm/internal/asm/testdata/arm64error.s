@@ -340,4 +340,9 @@ TEXT errors(SB),$0
 	MRS	PMSWINC_EL0, R3                                  // ERROR "system register is not readable"
 	MRS	OSLAR_EL1, R3                                    // ERROR "system register is not readable"
 	VLD3R.P	24(R15), [V15.H4,V16.H4,V17.H4]                  // ERROR "invalid post-increment offset"
+	VBIT	V1.H4, V12.H4, V3.H4                             // ERROR "invalid arrangement"
+	VBSL	V1.D2, V12.D2, V3.D2                             // ERROR "invalid arrangement"
+	VUXTL	V30.D2, V30.H8                                   // ERROR "operand mismatch"
+	VUXTL2	V20.B8, V21.H8                                   // ERROR "operand mismatch"
+	VUXTL	V3.D2, V4.B8                                     // ERROR "operand mismatch"
 	RET

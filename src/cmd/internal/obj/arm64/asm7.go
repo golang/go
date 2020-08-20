@@ -393,6 +393,11 @@ var optab = []Optab{
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
 
+	// Move a large constant to a Vn.
+	{AFMOVQ, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+	{AFMOVD, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+	{AFMOVS, C_LCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+
 	/* jump operations */
 	{AB, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
 	{ABL, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
@@ -403,11 +408,13 @@ var optab = []Optab{
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_REG, 6, 4, 0, 0, 0},
 	{obj.ARET, C_NONE, C_NONE, C_NONE, C_ZOREG, 6, 4, 0, 0, 0},
 	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 7, 4, 0, 0, 0},
-	{AADRP, C_SBRA, C_NONE, C_NONE, C_REG, 60, 4, 0, 0, 0},
-	{AADR, C_SBRA, C_NONE, C_NONE, C_REG, 61, 4, 0, 0, 0},
 	{ACBZ, C_REG, C_NONE, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
 	{ATBZ, C_VCON, C_REG, C_NONE, C_SBRA, 40, 4, 0, 0, 0},
 	{AERET, C_NONE, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
+
+	// get a PC-relative address
+	{AADRP, C_SBRA, C_NONE, C_NONE, C_REG, 60, 4, 0, 0, 0},
+	{AADR, C_SBRA, C_NONE, C_NONE, C_REG, 61, 4, 0, 0, 0},
 
 	{ACLREX, C_NONE, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
 	{ACLREX, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},
@@ -473,6 +480,7 @@ var optab = []Optab{
 	{AVTBL, C_ARNG, C_NONE, C_LIST, C_ARNG, 100, 4, 0, 0, 0},
 	{AVUSHR, C_VCON, C_ARNG, C_NONE, C_ARNG, 95, 4, 0, 0, 0},
 	{AVZIP1, C_ARNG, C_ARNG, C_NONE, C_ARNG, 72, 4, 0, 0, 0},
+	{AVUXTL, C_ARNG, C_NONE, C_NONE, C_ARNG, 102, 4, 0, 0, 0},
 
 	/* conditional operations */
 	{ACSEL, C_COND, C_REG, C_REG, C_REG, 18, 4, 0, 0, 0},
@@ -2657,7 +2665,7 @@ func buildop(ctxt *obj.Link) {
 		case AFCSELD:
 			oprangeset(AFCSELS, t)
 
-		case AFMOVS, AFMOVD:
+		case AFMOVS, AFMOVD, AFMOVQ:
 			break
 
 		case AFCVTZSD:
@@ -2740,6 +2748,9 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVCMEQ, t)
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
+			oprangeset(AVBSL, t)
+			oprangeset(AVBIT, t)
+			oprangeset(AVCMTST, t)
 
 		case AVADD:
 			oprangeset(AVSUB, t)
@@ -2786,6 +2797,9 @@ func buildop(ctxt *obj.Link) {
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
+
+		case AVUXTL:
+			oprangeset(AVUXTL2, t)
 
 		case AVLD1R:
 			oprangeset(AVLD2, t)
@@ -4163,7 +4177,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = 0
 		rel.Type = objabi.R_ARM64_GOTPCREL
 
-	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls Vm.<T>, Vn.<T>, Vd.<T> */
+	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls/vbit/vbsl/vcmtst/vsub Vm.<T>, Vn.<T>, Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
 		af3 := int((p.Reg >> 5) & 15)
 		at := int((p.To.Reg >> 5) & 15)
@@ -4204,17 +4218,24 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
-		if (p.As == AVORR || p.As == AVAND || p.As == AVEOR) &&
-			(af != ARNG_16B && af != ARNG_8B) {
-			c.ctxt.Diag("invalid arrangement: %v", p)
-		} else if (p.As == AVFMLA || p.As == AVFMLS) &&
-			(af != ARNG_2D && af != ARNG_2S && af != ARNG_4S) {
-			c.ctxt.Diag("invalid arrangement: %v", p)
-		} else if p.As == AVORR {
-			size = 2
-		} else if p.As == AVAND || p.As == AVEOR {
+		switch p.As {
+		case AVORR, AVAND, AVEOR, AVBIT, AVBSL:
+			if af != ARNG_16B && af != ARNG_8B {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		case AVFMLA, AVFMLS:
+			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		}
+		switch p.As {
+		case AVAND, AVEOR:
 			size = 0
-		} else if p.As == AVFMLA || p.As == AVFMLS {
+		case AVBSL:
+			size = 1
+		case AVORR, AVBIT:
+			size = 2
+		case AVFMLA, AVFMLS:
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -5096,6 +5117,59 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = q<<30 | 0xe<<24 | len<<13
 		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
 
+	case 101: // FOMVQ/FMOVD $vcon, Vd -> load from constant pool.
+		o1 = c.omovlit(p.As, p, &p.From, int(p.To.Reg))
+
+	case 102: // VUXTL{2} Vn.<Tb>, Vd.<Ta>
+		af := int((p.From.Reg >> 5) & 15)
+		at := int((p.To.Reg >> 5) & 15)
+		var Q, immh uint32
+		switch at {
+		case ARNG_8H:
+			if af == ARNG_8B {
+				immh = 1
+				Q = 0
+			} else if af == ARNG_16B {
+				immh = 1
+				Q = 1
+			} else {
+				c.ctxt.Diag("operand mismatch: %v\n", p)
+			}
+		case ARNG_4S:
+			if af == ARNG_4H {
+				immh = 2
+				Q = 0
+			} else if af == ARNG_8H {
+				immh = 2
+				Q = 1
+			} else {
+				c.ctxt.Diag("operand mismatch: %v\n", p)
+			}
+		case ARNG_2D:
+			if af == ARNG_2S {
+				immh = 4
+				Q = 0
+			} else if af == ARNG_4S {
+				immh = 4
+				Q = 1
+			} else {
+				c.ctxt.Diag("operand mismatch: %v\n", p)
+			}
+		default:
+			c.ctxt.Diag("operand mismatch: %v\n", p)
+		}
+
+		if p.As == AVUXTL && Q == 1 {
+			c.ctxt.Diag("operand mismatch: %v\n", p)
+		}
+		if p.As == AVUXTL2 && Q == 0 {
+			c.ctxt.Diag("operand mismatch: %v\n", p)
+		}
+
+		o1 = c.oprrr(p, p.As)
+		rf := int((p.From.Reg) & 31)
+		rt := int((p.To.Reg) & 31)
+		o1 |= Q<<30 | immh<<19 | uint32((rf&31)<<5) | uint32(rt&31)
 	}
 	out[0] = o1
 	out[1] = o2
@@ -5662,6 +5736,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 	case AVADD:
 		return 7<<25 | 1<<21 | 1<<15 | 1<<10
 
+	case AVSUB:
+		return 0x17<<25 | 1<<21 | 1<<15 | 1<<10
+
 	case AVADDP:
 		return 7<<25 | 1<<21 | 1<<15 | 15<<10
 
@@ -5724,6 +5801,18 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVLD2R, AVLD4R:
 		return 0xD<<24 | 3<<21
+
+	case AVBIT:
+		return 1<<29 | 0x75<<21 | 7<<10
+
+	case AVBSL:
+		return 1<<29 | 0x73<<21 | 7<<10
+
+	case AVCMTST:
+		return 0xE<<24 | 1<<21 | 0x23<<10
+
+	case AVUXTL, AVUXTL2:
+		return 0x5e<<23 | 0x29<<10
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6565,6 +6654,10 @@ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 		case AFMOVD:
 			fp = 1
 			w = 1 /* 64-bit SIMD/FP */
+
+		case AFMOVQ:
+			fp = 1
+			w = 2 /* 128-bit SIMD/FP */
 
 		case AMOVD:
 			if p.Pool.As == ADWORD {
