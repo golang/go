@@ -81,13 +81,21 @@ func TestUnexportedStdlib_Issue40809(t *testing.T) {
 		name, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Printf)`))
 		env.OpenFile(name)
 
-		name, pos := env.GoToDefinition(name, env.RegexpSearch(name, `(newPrinter)\(\)`))
+		pos := env.RegexpSearch(name, `:=\s*(newPrinter)\(\)`)
+
+		// Check that we can find references on a reference
+		refs := env.References(name, pos)
+		if len(refs) < 5 {
+			t.Errorf("expected 5+ references to newPrinter, found: %#v", refs)
+		}
+
+		name, pos = env.GoToDefinition(name, pos)
 		content, _ := env.Hover(name, pos)
 		if !strings.Contains(content.Value, "newPrinter") {
 			t.Fatal("definition of newPrinter went to the incorrect place")
 		}
-
-		refs := env.References(name, pos)
+		// And on the definition too.
+		refs = env.References(name, pos)
 		if len(refs) < 5 {
 			t.Errorf("expected 5+ references to newPrinter, found: %#v", refs)
 		}

@@ -216,7 +216,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 		}
 		path := pathEnclosingObjNode(astFile, pos)
 		if path == nil {
-			return nil, ErrNoIdentFound
+			continue
 		}
 		var objs []types.Object
 		switch leaf := path[0].(type) {
