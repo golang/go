@@ -339,4 +339,5 @@ TEXT errors(SB),$0
 	MRS	ICV_EOIR1_EL1, R3                                // ERROR "system register is not readable"
 	MRS	PMSWINC_EL0, R3                                  // ERROR "system register is not readable"
 	MRS	OSLAR_EL1, R3                                    // ERROR "system register is not readable"
+	VLD3R.P	24(R15), [V15.H4,V16.H4,V17.H4]                  // ERROR "invalid post-increment offset"
 	RET

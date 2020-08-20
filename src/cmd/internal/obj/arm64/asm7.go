@@ -2898,6 +2898,7 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	}
 	opcode := (list >> 12) & 15
 	q := (list >> 30) & 1
+	size := (list >> 10) & 3
 	if offset == 0 {
 		return
 	}
@@ -2913,8 +2914,16 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	default:
 		c.ctxt.Diag("invalid register numbers in ARM64 register list: %v", p)
 	}
-	if !(q == 0 && offset == n*8) && !(q == 1 && offset == n*16) {
-		c.ctxt.Diag("invalid post-increment offset: %v", p)
+
+	switch as {
+	case AVLD1R, AVLD2R, AVLD3R, AVLD4R:
+		if offset != n*(1<<uint(size)) {
+			c.ctxt.Diag("invalid post-increment offset: %v", p)
+		}
+	default:
+		if !(q == 0 && offset == n*8) && !(q == 1 && offset == n*16) {
+			c.ctxt.Diag("invalid post-increment offset: %v", p)
+		}
 	}
 
 	switch as {
