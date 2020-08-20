@@ -42,6 +42,48 @@ func SubMem(arr []int, b, c, d int) int {
 	return arr[0] - arr[1]
 }
 
+func SubFromConst(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	b := 40 - a
+	return b
+}
+
+func SubFromConstNeg(a int) int {
+	// ppc64le: `ADD\t[$]40,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]40,\sR[0-9]+,\sR`
+	c := 40 - (-a)
+	return c
+}
+
+func SubSubFromConst(a int) int {
+	// ppc64le: `ADD\t[$]20,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]20,\sR[0-9]+,\sR`
+	c := 40 - (20 - a)
+	return c
+}
+
+func AddSubFromConst(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]60,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]60,\sR`
+	c := 40 + (20 - a)
+	return c
+}
+
+func NegSubFromConst(a int) int {
+	// ppc64le: `ADD\t[$]-20,\sR[0-9]+,\sR`
+	// ppc64: `ADD\t[$]-20,\sR[0-9]+,\sR`
+	c := -(20 - a)
+	return c
+}
+
+func NegAddFromConstNeg(a int) int {
+	// ppc64le: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	// ppc64: `SUBC\tR[0-9]+,\s[$]40,\sR`
+	c := -(-40 + a)
+	return c
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
