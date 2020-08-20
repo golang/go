@@ -428,8 +428,6 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64ADD(v)
 	case OpPPC64ADDconst:
 		return rewriteValuePPC64_OpPPC64ADDconst(v)
-	case OpPPC64ADDconstForCarry:
-		return rewriteValuePPC64_OpPPC64ADDconstForCarry(v)
 	case OpPPC64AND:
 		return rewriteValuePPC64_OpPPC64AND(v)
 	case OpPPC64ANDN:
@@ -570,8 +568,6 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64MOVWstorezero(v)
 	case OpPPC64MTVSRD:
 		return rewriteValuePPC64_OpPPC64MTVSRD(v)
-	case OpPPC64MaskIfNotCarry:
-		return rewriteValuePPC64_OpPPC64MaskIfNotCarry(v)
 	case OpPPC64NOR:
 		return rewriteValuePPC64_OpPPC64NOR(v)
 	case OpPPC64NotEqual:
@@ -4071,40 +4067,6 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(int32(c + int64(d)))
 		v.Aux = symToAux(sym)
 		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64ADDconstForCarry(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (ADDconstForCarry [c] (MOVDconst [d]))
-	// cond: c < 0 && (c < 0 || int64(c) + d >= 0)
-	// result: (FlagCarryClear)
-	for {
-		c := auxIntToInt16(v.AuxInt)
-		if v_0.Op != OpPPC64MOVDconst {
-			break
-		}
-		d := auxIntToInt64(v_0.AuxInt)
-		if !(c < 0 && (c < 0 || int64(c)+d >= 0)) {
-			break
-		}
-		v.reset(OpPPC64FlagCarryClear)
-		return true
-	}
-	// match: (ADDconstForCarry [c] (MOVDconst [d]))
-	// cond: c < 0 && c >= 0 && int64(c) + d < 0
-	// result: (FlagCarrySet)
-	for {
-		c := auxIntToInt16(v.AuxInt)
-		if v_0.Op != OpPPC64MOVDconst {
-			break
-		}
-		d := auxIntToInt64(v_0.AuxInt)
-		if !(c < 0 && c >= 0 && int64(c)+d < 0) {
-			break
-		}
-		v.reset(OpPPC64FlagCarrySet)
 		return true
 	}
 	return false
@@ -10370,50 +10332,6 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *Value) bool {
 		v0.AuxInt = int32ToAuxInt(off)
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64MaskIfNotCarry(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _)))
-	// cond: c < 0 && d > 0 && int64(c) + d < 0
-	// result: (MOVDconst [-1])
-	for {
-		if v_0.Op != OpPPC64ADDconstForCarry {
-			break
-		}
-		c := auxIntToInt16(v_0.AuxInt)
-		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpPPC64ANDconst {
-			break
-		}
-		d := auxIntToInt64(v_0_0.AuxInt)
-		if !(c < 0 && d > 0 && int64(c)+d < 0) {
-			break
-		}
-		v.reset(OpPPC64MOVDconst)
-		v.AuxInt = int64ToAuxInt(-1)
-		return true
-	}
-	// match: (MaskIfNotCarry (FlagCarrySet))
-	// result: (MOVDconst [0])
-	for {
-		if v_0.Op != OpPPC64FlagCarrySet {
-			break
-		}
-		v.reset(OpPPC64MOVDconst)
-		v.AuxInt = int64ToAuxInt(0)
-		return true
-	}
-	// match: (MaskIfNotCarry (FlagCarryClear))
-	// result: (MOVDconst [-1])
-	for {
-		if v_0.Op != OpPPC64FlagCarryClear {
-			break
-		}
-		v.reset(OpPPC64MOVDconst)
-		v.AuxInt = int64ToAuxInt(-1)
 		return true
 	}
 	return false

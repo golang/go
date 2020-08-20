@@ -276,17 +276,10 @@
 (Rsh8Ux8 x y) => (SRW  (ZeroExt8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
 (Lsh8x8 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
 
-// Cleaning up shift ops when input is masked
-(MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _))) && c < 0 && d > 0 && int64(c) + d < 0 => (MOVDconst [-1])
+// Cleaning up shift ops
 (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPU (ANDconst [d] y) (MOVDconst [c]))) && c >= d => (ANDconst [d] y)
 (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPUconst [c] (ANDconst [d] y))) && c >= d => (ANDconst [d] y)
 (ORN x (MOVDconst [-1])) => x
-
-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 && (c <  0 || int64(c) + d >= 0) => (FlagCarryClear)
-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 &&  c >= 0 && int64(c) + d <  0  => (FlagCarrySet)
-
-(MaskIfNotCarry (FlagCarrySet)) => (MOVDconst [0])
-(MaskIfNotCarry (FlagCarryClear)) => (MOVDconst [-1])
 
 (S(RAD|RD|LD) x (MOVDconst [c])) => (S(RAD|RD|LD)const [c&63 | (c>>6&1*63)] x)
 (S(RAW|RW|LW) x (MOVDconst [c])) => (S(RAW|RW|LW)const [c&31 | (c>>5&1*31)] x)
