@@ -492,7 +492,12 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	// Check if completion at this position is valid. If not, return early.
 	switch n := path[0].(type) {
 	case *ast.BasicLit:
-		// Skip completion inside any kind of literal.
+		// Skip completion inside literals except for ImportSpec
+		if len(path) > 1 {
+			if _, ok := path[1].(*ast.ImportSpec); ok {
+				break
+			}
+		}
 		return nil, nil, nil
 	case *ast.CallExpr:
 		if n.Ellipsis.IsValid() && pos > n.Ellipsis && pos <= n.Ellipsis+token.Pos(len("...")) {
@@ -567,7 +572,18 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	defer c.sortItems()
 
-	// If we're inside a comment return comment completions
+	// Inside import blocks, return completions for unimported packages.
+	for _, importSpec := range pgf.File.Imports {
+		if !(importSpec.Path.Pos() <= rng.Start && rng.Start <= importSpec.Path.End()) {
+			continue
+		}
+		if err := c.populateImportCompletions(ctx, importSpec); err != nil {
+			return nil, nil, err
+		}
+		return c.items, c.getSurrounding(), nil
+	}
+
+	// Inside comments, offer completions for the name of the relevant symbol.
 	for _, comment := range pgf.File.Comments {
 		if comment.Pos() < rng.Start && rng.Start <= comment.End() {
 			// deep completion doesn't work properly in comments since we don't
@@ -735,7 +751,91 @@ func (c *completer) emptySwitchStmt() bool {
 	}
 }
 
-// populateCommentCompletions yields completions for comments preceding or in declarations
+// populateImportCompletions yields completions for an import path around the cursor.
+//
+// Completions are suggested at the directory depth of the given import path so
+// that we don't overwhelm the user with a large list of possibilities. As an
+// example, a completion for the prefix "golang" results in "golang.org/".
+// Completions for "golang.org/" yield its subdirectories
+// (i.e. "golang.org/x/"). The user is meant to accept completion suggestions
+// until they reach a complete import path.
+func (c *completer) populateImportCompletions(ctx context.Context, searchImport *ast.ImportSpec) error {
+	c.surrounding = &Selection{
+		content:     searchImport.Path.Value,
+		cursor:      c.pos,
+		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, searchImport.Path.Pos(), searchImport.Path.End()),
+	}
+
+	seenImports := make(map[string]struct{})
+	for _, importSpec := range c.file.Imports {
+		if importSpec.Path.Value == searchImport.Path.Value {
+			continue
+		}
+		importPath, err := strconv.Unquote(importSpec.Path.Value)
+		if err != nil {
+			return err
+		}
+		seenImports[importPath] = struct{}{}
+	}
+
+	prefixEnd := c.pos - searchImport.Path.ValuePos
+	// Extract the text between the quotes (if any) in an import spec.
+	// prefix is the part of import path before the cursor.
+	prefix := strings.Trim(searchImport.Path.Value[:prefixEnd], `"`)
+
+	// The number of directories in the import path gives us the depth at
+	// which to search.
+	depth := len(strings.Split(prefix, "/")) - 1
+
+	var mu sync.Mutex // guard c.items locally, since searchImports is called in parallel
+	seen := make(map[string]struct{})
+	searchImports := func(pkg imports.ImportFix) {
+		path := pkg.StmtInfo.ImportPath
+		if _, ok := seenImports[path]; ok {
+			return
+		}
+
+		// Any package path containing fewer directories than the search
+		// prefix is not a match.
+		pkgDirList := strings.Split(path, "/")
+		if len(pkgDirList) < depth+1 {
+			return
+		}
+		pkgToConsider := strings.Join(pkgDirList[:depth+1], "/")
+
+		score := float64(pkg.Relevance)
+		if len(pkgDirList)-1 == depth {
+			score *= highScore
+		} else {
+			// For incomplete package paths, add a terminal slash to indicate that the
+			// user should keep triggering completions.
+			pkgToConsider += "/"
+		}
+
+		if _, ok := seen[pkgToConsider]; ok {
+			return
+		}
+		seen[pkgToConsider] = struct{}{}
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkgToConsider, pkg.IdentName))
+		// Running goimports logic in completions is expensive, and the
+		// (*completer).found method imposes a 100ms budget. Work-around this
+		// by adding to c.items directly.
+		cand := candidate{obj: obj, name: `"` + pkgToConsider + `"`, score: score}
+		if item, err := c.item(ctx, cand); err == nil {
+			c.items = append(c.items, item)
+		}
+	}
+
+	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		return imports.GetImportPaths(ctx, searchImports, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
+	})
+}
+
+// populateCommentCompletions yields completions for comments preceding or in declarations.
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
 	// If the completion was triggered by a period, ignore it. These types of
 	// completions will not be useful in comments.

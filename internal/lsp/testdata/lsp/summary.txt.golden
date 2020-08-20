@@ -1,7 +1,7 @@
 -- summary --
 CallHierarchyCount = 1
 CodeLensCount = 5
-CompletionsCount = 247
+CompletionsCount = 254
 CompletionSnippetCount = 85
 UnimportedCompletionsCount = 6
 DeepCompletionsCount = 5

@@ -1,0 +1,41 @@
+package importedcomplit
+
+import (
+	"golang.org/x/tools/internal/lsp/foo"
+
+	// import completions
+	"fm" //@complete("\" //", fmtImport)
+	"go/pars" //@complete("\" //", parserImport)
+	"golang.org/x/tools/internal/lsp/signa" //@complete("na\" //", signatureImport)
+	"golang.org/x/too" //@complete("\" //", toolsImport)
+	"crypto/elli" //@complete("\" //", cryptoImport)
+	"golang.org/x/tools/internal/lsp/sign" //@complete("\" //", signatureImport)
+	namedParser "go/pars" //@complete("\" //", parserImport)
+)
+
+func _() {
+	var V int //@item(icVVar, "V", "int", "var")
+	_ = foo.StructFoo{V} //@complete("}", Value, icVVar)
+}
+
+func _() {
+	var (
+		aa string //@item(icAAVar, "aa", "string", "var")
+		ab int    //@item(icABVar, "ab", "int", "var")
+	)
+
+	_ = foo.StructFoo{a} //@complete("}", abVar, aaVar)
+
+	var s struct {
+		AA string //@item(icFieldAA, "AA", "string", "field")
+		AB int    //@item(icFieldAB, "AB", "int", "field")
+	}
+
+	_ = foo.StructFoo{s.} //@complete("}", icFieldAB, icFieldAA)
+}
+
+/* "fmt" */ //@item(fmtImport, "\"fmt\"", "\"fmt\"", "package")
+/* "go/parser" */ //@item(parserImport, "\"go/parser\"", "\"go/parser\"", "package")
+/* "golang.org/x/tools/internal/lsp/signature" */ //@item(signatureImport, "\"golang.org/x/tools/internal/lsp/signature\"", "\"golang.org/x/tools/internal/lsp/signature\"", "package")
+/* "golang.org/x/tools/" */ //@item(toolsImport, "\"golang.org/x/tools/\"", "\"golang.org/x/tools/\"", "package")
+/* "crypto/elliptic" */ //@item(cryptoImport, "\"crypto/elliptic\"", "\"crypto/elliptic\"", "package")

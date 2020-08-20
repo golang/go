@@ -615,7 +615,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			packageName:     path.Base(importPath),
 			relevance:       MaxRelevance,
 		}
-		if notSelf(p) && wrappedCallback.packageNameLoaded(p) {
+		if notSelf(p) && wrappedCallback.dirFound(p) && wrappedCallback.packageNameLoaded(p) {
 			wrappedCallback.exportsLoaded(p, exports)
 		}
 	}
