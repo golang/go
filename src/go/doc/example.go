@@ -486,7 +486,7 @@ func classifyExamples(p *Package, examples []*Example) {
 			ids[f.Name] = &f.Examples
 		}
 		for _, m := range t.Methods {
-			if !token.IsExported(m.Name) || m.Level != 0 { // avoid forwarded methods from embedding
+			if !token.IsExported(m.Name) {
 				continue
 			}
 			ids[strings.TrimPrefix(m.Recv, "*")+"_"+m.Name] = &m.Examples
