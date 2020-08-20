@@ -25,6 +25,10 @@ When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
 or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
 compiler. The CC or CXX environment variables may be set to determine
 the C or C++ compiler, respectively, to use.
+
+Non .go files cannot be included in named files when invoking the go
+build command. If you need to specify non .go named files to build you
+should instead use build constraints. (see 'go help buildconstraint')
 	`,
 }
 
