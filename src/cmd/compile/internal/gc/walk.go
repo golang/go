@@ -968,6 +968,7 @@ opswitch:
 	case OANDNOT:
 		n.Left = walkexpr(n.Left, init)
 		n.Op = OAND
+		n.SetImplicit(true) // for walkCheckPtrArithmetic
 		n.Right = nod(OBITNOT, n.Right, nil)
 		n.Right = typecheck(n.Right, ctxExpr)
 		n.Right = walkexpr(n.Right, init)
@@ -3993,8 +3994,12 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 		case OADD:
 			walk(n.Left)
 			walk(n.Right)
-		case OSUB, OANDNOT:
+		case OSUB:
 			walk(n.Left)
+		case OAND:
+			if n.Implicit() { // was OANDNOT
+				walk(n.Left)
+			}
 		case OCONVNOP:
 			if n.Left.Type.Etype == TUNSAFEPTR {
 				n.Left = cheapexpr(n.Left, init)
