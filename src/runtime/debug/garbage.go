@@ -139,6 +139,11 @@ func SetMaxThreads(threads int) int {
 // manipulation of memory may cause faults at non-nil addresses in less
 // dramatic situations; SetPanicOnFault allows such programs to request
 // that the runtime trigger only a panic, not a crash.
+// The runtime.Error that the runtime panics with may have an additional method:
+//     Addr() uintptr
+// If that method exists, it returns the memory address which triggered the fault.
+// The results of Addr are best-effort and the veracity of the result
+// may depend on the platform.
 // SetPanicOnFault applies only to the current goroutine.
 // It returns the previous setting.
 func SetPanicOnFault(enabled bool) bool {

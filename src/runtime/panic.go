@@ -212,6 +212,11 @@ func panicmem() {
 	panic(memoryError)
 }
 
+func panicmemAddr(addr uintptr) {
+	panicCheck2("invalid memory address or nil pointer dereference")
+	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
+}
+
 // Create a new deferred function fn with siz bytes of arguments.
 // The compiler turns a defer statement into a call to this.
 //go:nosplit

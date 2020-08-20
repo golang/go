@@ -242,8 +242,11 @@ func sigpanic() {
 
 	switch g.sig {
 	case _EXCEPTION_ACCESS_VIOLATION:
-		if g.sigcode1 < 0x1000 || g.paniconfault {
+		if g.sigcode1 < 0x1000 {
 			panicmem()
+		}
+		if g.paniconfault {
+			panicmemAddr(g.sigcode1)
 		}
 		print("unexpected fault address ", hex(g.sigcode1), "\n")
 		throw("fault")
