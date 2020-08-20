@@ -562,30 +562,30 @@ type writerOnly struct {
 }
 
 // ReadFrom is here to optimize copying from an *os.File regular file
-// to a *net.TCPConn with sendfile.
+// to a *net.TCPConn with sendfile, or from a supported src type such
+// as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+	bufp := copyBufPool.Get().(*[]byte)
+	buf := *bufp
+	defer copyBufPool.Put(bufp)
+
 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
-	// own ReadFrom method). If not, or if our src isn't a regular
-	// file, just fall back to the normal copy method.
+	// own ReadFrom method). If not, just fall back to the normal
+	// copy method.
 	rf, ok := w.conn.rwc.(io.ReaderFrom)
 	if !ok {
-		bufp := copyBufPool.Get().(*[]byte)
-		defer copyBufPool.Put(bufp)
-		return io.CopyBuffer(writerOnly{w}, src, *bufp)
+		return io.CopyBuffer(writerOnly{w}, src, buf)
 	}
 
 	// sendfile path:
 
-	// do not start actually writing response until src is readable
-	// if body length is <= sniffLen, sendfile/splice path will do
-	// little anyway
-	bufp := shortBufPool.Get().(*[]byte)
-	buf := *bufp
-	defer shortBufPool.Put(bufp)
+	// Do not start actually writing response until src is readable.
+	// If body length is <= sniffLen, sendfile/splice path will do
+	// little anyway. This small read also satisfies sniffing the
+	// body in case Content-Type is missing.
+	ns, err := src.Read(buf[:sniffLen])
 
-	ns, err := src.Read(buf)
-
-	isEOF := errors.Is(err, io.EOF)
+	isEOF := (err == io.EOF)
 	if isEOF {
 		err = nil
 	} else if err != nil {
@@ -596,8 +596,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 		w.WriteHeader(StatusOK)
 	}
 
-	// write the small amount we read normally, satisfying needsSniff()
-	_, err = w.Write(buf[:ns])
+	_, err = w.Write(buf[:ns]) // write the small amount we read normally
 	n += int64(ns)
 	if err != nil || isEOF {
 		return n, err
@@ -814,13 +813,6 @@ var (
 var copyBufPool = sync.Pool{
 	New: func() interface{} {
 		b := make([]byte, 32*1024)
-		return &b
-	},
-}
-
-var shortBufPool = sync.Pool{
-	New: func() interface{} {
-		b := make([]byte, sniffLen)
 		return &b
 	},
 }
