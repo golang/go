@@ -203,9 +203,9 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			return fallbackOrder
 		}
 		if c.goos == "linux" {
-			// glibc says the default is "dns [!UNAVAIL=return] files"
+			// Work as expected
 			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
-			return hostLookupDNSFiles
+			return hostLookupFilesDNS
 		}
 		return hostLookupFilesDNS
 	}
