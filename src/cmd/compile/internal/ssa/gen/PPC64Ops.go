@@ -175,6 +175,7 @@ func init() {
 		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
+		{name: "SUBFCconst", argLength: 1, reg: gp11, asm: "SUBC", aux: "Int64"},  // auxInt - arg0 (with carry)
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
 
