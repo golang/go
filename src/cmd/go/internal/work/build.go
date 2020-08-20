@@ -32,6 +32,10 @@ along with their dependencies, but it does not install the results.
 If the arguments to build are a list of .go files from a single directory,
 build treats them as a list of source files specifying a single package.
 
+Only .go files are accepted when naming files. If you wish to build a
+subset of files that include non .go files you should instead use
+build constraints. (see 'go help buildconstraint')
+
 When compiling packages, build ignores files that end in '_test.go'.
 
 When compiling a single main package, build writes
