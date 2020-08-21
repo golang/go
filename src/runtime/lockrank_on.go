@@ -86,6 +86,18 @@ func lockWithRank(l *mutex, rank lockRank) {
 	})
 }
 
+//go:systemstack
+func printHeldLocks(gp *g) {
+	if gp.m.locksHeldLen == 0 {
+		println("<none>")
+		return
+	}
+
+	for j, held := range gp.m.locksHeld[:gp.m.locksHeldLen] {
+		println(j, ":", held.rank.String(), held.rank, unsafe.Pointer(gp.m.locksHeld[j].lockAddr))
+	}
+}
+
 // acquireLockRank acquires a rank which is not associated with a mutex lock
 //go:nosplit
 func acquireLockRank(rank lockRank) {
@@ -109,6 +121,8 @@ func acquireLockRank(rank lockRank) {
 
 // checkRanks checks if goroutine g, which has mostly recently acquired a lock
 // with rank 'prevRank', can now acquire a lock with rank 'rank'.
+//
+//go:systemstack
 func checkRanks(gp *g, prevRank, rank lockRank) {
 	rankOK := false
 	if rank < prevRank {
@@ -135,9 +149,7 @@ func checkRanks(gp *g, prevRank, rank lockRank) {
 	if !rankOK {
 		printlock()
 		println(gp.m.procid, " ======")
-		for j, held := range gp.m.locksHeld[:gp.m.locksHeldLen] {
-			println(j, ":", held.rank.String(), held.rank, unsafe.Pointer(gp.m.locksHeld[j].lockAddr))
-		}
+		printHeldLocks(gp)
 		throw("lock ordering problem")
 	}
 }
@@ -210,5 +222,57 @@ func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 		gp.m.locksHeldLen++
 		checkRanks(gp, gp.m.locksHeld[i-1].rank, rank)
 		gp.m.locksHeldLen--
+	})
+}
+
+//go:systemstack
+func checkLockHeld(gp *g, l *mutex) bool {
+	for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
+		if gp.m.locksHeld[i].lockAddr == uintptr(unsafe.Pointer(l)) {
+			return true
+		}
+	}
+	return false
+}
+
+// assertLockHeld throws if l is not held by the caller.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertLockHeld(l *mutex) {
+	gp := getg()
+
+	systemstack(func() {
+		held := checkLockHeld(gp, l)
+		if !held {
+			printlock()
+			print("caller requires lock ", l, " (rank ", l.rank.String(), "), holding:\n")
+			printHeldLocks(gp)
+			throw("not holding required lock!")
+		}
+	})
+}
+
+// assertRankHeld throws if a mutex with rank r is not held by the caller.
+//
+// This is less precise than assertLockHeld, but can be used in places where a
+// pointer to the exact mutex is not available.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//go:nosplit
+func assertRankHeld(r lockRank) {
+	gp := getg()
+
+	systemstack(func() {
+		for i := gp.m.locksHeldLen - 1; i >= 0; i-- {
+			if gp.m.locksHeld[i].rank == r {
+				return
+			}
+		}
+
+		printlock()
+		print("caller requires lock with rank ", r.String(), "), holding:\n")
+		printHeldLocks(gp)
+		throw("not holding required lock!")
 	})
 }

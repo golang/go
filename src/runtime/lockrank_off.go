@@ -44,3 +44,11 @@ func releaseLockRank(rank lockRank) {
 //go:nosplit
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 }
+
+//go:nosplit
+func assertLockHeld(l *mutex) {
+}
+
+//go:nosplit
+func assertRankHeld(r lockRank) {
+}
