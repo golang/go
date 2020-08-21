@@ -94,7 +94,32 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		if err != nil {
 			return nil, err
 		}
-
+	case extendedError:
+		perr := e.primary
+		msg = perr.Msg
+		kind = source.TypeError
+		if !perr.Pos.IsValid() {
+			return nil, fmt.Errorf("invalid position for type error %v", e)
+		}
+		spn, err = typeErrorRange(snapshot, fset, pkg, perr.Pos)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range e.secondaries {
+			var x source.RelatedInformation
+			x.Message = s.Msg
+			xspn, err := typeErrorRange(snapshot, fset, pkg, s.Pos)
+			if err != nil {
+				return nil, fmt.Errorf("invalid position for type error %v", s)
+			}
+			x.URI = xspn.URI()
+			rng, err := spanToRange(snapshot, pkg, xspn)
+			if err != nil {
+				return nil, err
+			}
+			x.Range = rng
+			related = append(related, x)
+		}
 	case *analysis.Diagnostic:
 		spn, err = span.NewRange(fset, e.Pos, e.End).Span()
 		if err != nil {
@@ -111,6 +136,8 @@ func sourceError(ctx context.Context, snapshot *snapshot, pkg *pkg, e interface{
 		if err != nil {
 			return nil, err
 		}
+	default:
+		panic(fmt.Sprintf("%T unexpected", e))
 	}
 	rng, err := spanToRange(snapshot, pkg, spn)
 	if err != nil {

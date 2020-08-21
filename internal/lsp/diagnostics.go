@@ -156,7 +156,7 @@ If you believe this is a mistake, please file an issue: https://github.com/golan
 				return
 			}
 
-			// Add all reports to the global map, checking for duplciates.
+			// Add all reports to the global map, checking for duplicates.
 			reportsMu.Lock()
 			for id, diags := range pkgReports {
 				key := idWithAnalysis{
@@ -307,7 +307,8 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			})
 		}
 		reports = append(reports, protocol.Diagnostic{
-			Message:            strings.TrimSpace(diag.Message), // go list returns errors prefixed by newline
+			// diag.Message might start with \n or \t
+			Message:            strings.TrimSpace(diag.Message),
 			Range:              diag.Range,
 			Severity:           diag.Severity,
 			Source:             diag.Source,

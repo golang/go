@@ -159,6 +159,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[VersionedFi
 			Message:  e.Message,
 			Range:    e.Range,
 			Severity: protocol.SeverityError,
+			Related:  e.Related,
 		}
 		set, ok := diagSets[e.URI]
 		if !ok {
