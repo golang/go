@@ -62,7 +62,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			var under Type
 			if res != nil {
 				// Calling Under() here may lead to endless instantiations.
-				// Test case: type T(type P) T(P)
+				// Test case: type T[P any] T[P]
 				// TODO(gri) investigate if that's a bug or to be expected.
 				under = res.Underlying()
 			}
@@ -451,7 +451,7 @@ func typeListString(list []Type) string {
 }
 
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
-// A nil type may appear in pathological cases such as type T(type P) []func(_ T([]_))
+// A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
 // where an array/slice element is accessed before it is set up.
 func (subst *subster) typOrNil(typ Type) Type {
 	if typ == nil {

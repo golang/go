@@ -19,7 +19,7 @@ import (
 // (even if that also contains possibly the same type parameters). This
 // is crucial to infer the type parameters of self-recursive calls:
 //
-//	func f[type P](a P) { f(a) }
+//	func f[P any](a P) { f(a) }
 //
 // For the call f(a) we want to infer that the type argument for P is P.
 // During unification, the parameter type P must be resolved to the type
@@ -258,7 +258,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	// For type unification, do not shortcut (x == y) for identical
 	// types. Instead keep comparing them element-wise to unify the
 	// matching (and equal type parameter types). A simple test case
-	// where this matters is: func f[type P](a P) { f(a) } .
+	// where this matters is: func f[P any](a P) { f(a) } .
 
 	switch x := x.(type) {
 	case *Basic:

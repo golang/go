@@ -6,7 +6,7 @@ package p
 
 import "unsafe"
 
-func _[type T](x T) {
+func _[T any](x T) {
 	_ = unsafe /* ERROR undefined */ .Alignof(x)
 	_ = unsafe /* ERROR undefined */ .Sizeof(x)
 }

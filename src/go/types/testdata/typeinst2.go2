@@ -4,53 +4,53 @@
 
 package p
 
-type List(type E) []E
-var _ List(List(List(int)))
-var _ List(List(List(int))) = [](List(List(int))){}
+type List[E any] []E
+var _ List[List[List[int]]]
+var _ List[List[List[int]]] = []List[List[int]]{}
 
 type (
-	T1(type P1) struct {
-		f1 T2(P1, float32)
+	T1[P1 any] struct {
+		f1 T2[P1, float32]
 	}
 
-	T2(type P2, P3) struct {
+	T2[P2, P3 any] struct {
 		f2 P2
 		f3 P3
 	}
 )
 
 func _() {
-	var x1 T1(int)
-	var x2 T2(int, float32)
+	var x1 T1[int]
+	var x2 T2[int, float32]
 
 	x1.f1.f2 = 0
 	x1.f1 = x2
 }
 
-type T3(type P) T1(T2(P, P))
+type T3[P any] T1[T2[P, P]]
 
 func _() {
-	var x1 T3(int)
-	var x2 T2(int, int)
+	var x1 T3[int]
+	var x2 T2[int, int]
 	x1.f1.f2 = x2
 }
 
-func f(type P) (x P) List(P) {
-	return List(P){x}
+func f[P any] (x P) List[P] {
+	return List[P]{x}
 }
 
 var (
 	_ []int = f(0)
-	_ []float32 = f(float32)(10)
-	_ List(complex128) = f(1i)
-	_ [](List(int)) = f(List(int){})
-        _ List(List(int)) = [](List(int)){}
-        _ = [](List(int)){}
+	_ []float32 = f[float32](10)
+	_ List[complex128] = f(1i)
+	_ []List[int] = f(List[int]{})
+        _ List[List[int]] = []List[int]{}
+        _ = []List[int]{}
 )
 
 // Parameterized types with methods
 
-func (l List(E)) Head() (_ E, _ bool) {
+func (l List[E]) Head() (_ E, _ bool) {
 	if len(l) > 0 {
 		return l[0], true
 	}
@@ -59,63 +59,63 @@ func (l List(E)) Head() (_ E, _ bool) {
 
 // A test case for instantiating types with other types (extracted from map.go2)
 
-type Pair(type K) struct {
+type Pair[K any] struct {
 	key K
 }
 
-type Receiver(type T) struct {
+type Receiver[T any] struct {
 	values T
 }
 
-type Iterator(type K) struct {
-	r Receiver(Pair(K))
+type Iterator[K any] struct {
+	r Receiver[Pair[K]]
 }
 
-func Values (type T) (r Receiver(T)) T {
+func Values [T any] (r Receiver[T]) T {
         return r.values
 }
 
-func (it Iterator(K)) Next() K {
-        return Values(Pair(K))(it.r).key
+func (it Iterator[K]) Next() K {
+        return Values[Pair[K]](it.r).key
 }
 
 // A more complex test case testing type bounds (extracted from linalg.go2 and reduced to essence)
 
-type NumericAbs(type T) interface {
+type NumericAbs[T any] interface {
 	Abs() T
 }
 
-func AbsDifference(type T NumericAbs)(x T)
+func AbsDifference[T NumericAbs](x T)
 
-type OrderedAbs(type T) T
+type OrderedAbs[T any] T
 
-func (a OrderedAbs(T)) Abs() OrderedAbs(T)
+func (a OrderedAbs[T]) Abs() OrderedAbs[T]
 
-func OrderedAbsDifference(type T)(x T) {
-	AbsDifference(OrderedAbs(T)(x))
+func OrderedAbsDifference[T any](x T) {
+	AbsDifference(OrderedAbs[T](x))
 }
 
 // same code, reduced to essence
 
-func g(type P interface{ m() P })(x P)
+func g[P interface{ m() P }](x P)
 
-type T4(type P) P
+type T4[P any] P
 
-func (_ T4(P)) m() T4(P)
+func (_ T4[P]) m() T4[P]
 
-func _(type Q)(x Q) {
-	g(T4(Q)(x))
+func _[Q any](x Q) {
+	g(T4[Q](x))
 }
 
 // Another test case that caused  problems in the past
 
-type T5(type _ interface { a() }, _ interface{}) struct{}
+type T5[_ interface { a() }, _ interface{}] struct{}
 
-type A(type P) struct{ x P }
+type A[P any] struct{ x P }
 
-func (_ A(P)) a() {}
+func (_ A[P]) a() {}
 
-var _ T5(A(int), int)
+var _ T5[A[int], int]
 
 // Invoking methods with parameterized receiver types uses
 // type inference to determine the actual type arguments matching
@@ -126,22 +126,22 @@ var _ T5(A(int), int)
 // of the actual receiver and the method's receiver type.
 // The following code tests this mechanism.
 
-type R1(type A) struct{}
-func (_ R1(A)) vm()
-func (_ *R1(A)) pm()
+type R1[A any] struct{}
+func (_ R1[A]) vm()
+func (_ *R1[A]) pm()
 
-func _(type T)(r R1(T), p *R1(T)) {
+func _[T any](r R1[T], p *R1[T]) {
 	r.vm()
 	r.pm()
 	p.vm()
 	p.pm()
 }
 
-type R2(type A, B) struct{}
-func (_ R2(A, B)) vm()
-func (_ *R2(A, B)) pm()
+type R2[A, B any] struct{}
+func (_ R2[A, B]) vm()
+func (_ *R2[A, B]) pm()
 
-func _(type T)(r R2(T, int), p *R2(string, T)) {
+func _[T any](r R2[T, int], p *R2[string, T]) {
 	r.vm()
 	r.pm()
 	p.vm()
@@ -175,12 +175,12 @@ type _ interface {
 // Interface type lists can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
-func add1(type T interface{type MyInt})(x T) T {
+func add1[T interface{type MyInt}](x T) T {
 	return x + 1
 }
 
 type MyString string
-func double(type T interface{type MyInt, MyString})(x T) T {
+func double[T interface{type MyInt, MyString}](x T) T {
 	return x + x
 }
 
@@ -204,22 +204,22 @@ type I0 interface {
 	E0
 }
 
-func f0(type T I0)()
-var _ = f0(int)
-var _ = f0(bool)
-var _ = f0(string)
-var _ = f0(float64 /* ERROR does not satisfy I0 */ )
+func f0[T I0]()
+var _ = f0[int]
+var _ = f0[bool]
+var _ = f0[string]
+var _ = f0[float64 /* ERROR does not satisfy I0 */ ]
 
 type I01 interface {
 	E0
 	E1
 }
 
-func f01(type T I01)()
-var _ = f01(int)
-var _ = f01(bool /* ERROR does not satisfy I0 */ )
-var _ = f01(string)
-var _ = f01(float64 /* ERROR does not satisfy I0 */ )
+func f01[T I01]()
+var _ = f01[int]
+var _ = f01[bool /* ERROR does not satisfy I0 */ ]
+var _ = f01[string]
+var _ = f01[float64 /* ERROR does not satisfy I0 */ ]
 
 type I012 interface {
 	E0
@@ -227,30 +227,30 @@ type I012 interface {
 	E2
 }
 
-func f012(type T I012)()
-var _ = f012(int /* ERROR does not satisfy I012 */ )
-var _ = f012(bool /* ERROR does not satisfy I012 */ )
-var _ = f012(string /* ERROR does not satisfy I012 */ )
-var _ = f012(float64 /* ERROR does not satisfy I012 */ )
+func f012[T I012]()
+var _ = f012[int /* ERROR does not satisfy I012 */ ]
+var _ = f012[bool /* ERROR does not satisfy I012 */ ]
+var _ = f012[string /* ERROR does not satisfy I012 */ ]
+var _ = f012[float64 /* ERROR does not satisfy I012 */ ]
 
 type I12 interface {
 	E1
 	E2
 }
 
-func f12(type T I12)()
-var _ = f12(int /* ERROR does not satisfy I12 */ )
-var _ = f12(bool /* ERROR does not satisfy I12 */ )
-var _ = f12(string /* ERROR does not satisfy I12 */ )
-var _ = f12(float64)
+func f12[T I12]()
+var _ = f12[int /* ERROR does not satisfy I12 */ ]
+var _ = f12[bool /* ERROR does not satisfy I12 */ ]
+var _ = f12[string /* ERROR does not satisfy I12 */ ]
+var _ = f12[float64]
 
 type I0_ interface {
 	E0
 	type int
 }
 
-func f0_(type T I0_)()
-var _ = f0_(int)
-var _ = f0_(bool /* ERROR does not satisfy I0_ */ )
-var _ = f0_(string /* ERROR does not satisfy I0_ */ )
-var _ = f0_(float64 /* ERROR does not satisfy I0_ */ )
+func f0_[T I0_]()
+var _ = f0_[int]
+var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
+var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
+var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]

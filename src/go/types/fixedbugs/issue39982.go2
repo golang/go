@@ -5,32 +5,32 @@
 package p
 
 type (
-	T(type _) struct{}
-	S(type _) struct {
-		data T(*T(int))
+	T[_ any] struct{}
+	S[_ any] struct {
+		data T[*T[int]]
 	}
 )
 
 func _() {
-	_ = S(int){
-		data: T(*T(int)){},
+	_ = S[int]{
+		data: T[*T[int]]{},
 	}
 }
 
 // full test case from issue
 
 type (
-	Element(type TElem) struct{}
+	Element[TElem any] struct{}
 
-	entry(type K comparable) struct{}
+	entry[K comparable] struct{}
 
-	Cache(type K comparable) struct {
-		data map[K]*Element(*entry(K))
+	Cache[K comparable] struct {
+		data map[K]*Element[*entry[K]]
 	}
 )
 
 func _() {
-	_ = Cache(int){
-		data: make(map[int](*Element(*entry(int)))),
+	_ = Cache[int]{
+		data: make(map[int](*Element[*entry[int]])),
 	}
 }

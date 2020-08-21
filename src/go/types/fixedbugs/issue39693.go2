@@ -9,6 +9,6 @@ type Number interface {
 	float64 /* ERROR float64 is not an interface */
 }
 
-func Add(type T Number)(a, b T) T {
+func Add[T Number](a, b T) T {
 	return a /* ERROR not defined */ + b
 }

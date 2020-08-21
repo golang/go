@@ -407,7 +407,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			var under Type
 			if T != nil {
 				// Calling Under() here may lead to endless instantiations.
-				// Test case: type T(type P) *T(P)
+				// Test case: type T[P any] *T[P]
 				// TODO(gri) investigate if that's a bug or to be expected
 				// (see also analogous comment in Checker.instantiate).
 				under = T.Underlying()

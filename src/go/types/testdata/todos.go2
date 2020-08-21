@@ -8,14 +8,15 @@
 
 package p
 
-// Composite literals that require parentheses around their types.
-// Should investigate if it makes sense to be smarter when parsing
-// at the cost of more complex rules.
-type T1(type P) struct{}
-type T2(type P, Q) struct{}
+// When using []'s instead of ()'s for type parameters
+// we don't need extra parentheses for some composite
+// literal types.
+type T1[P any] struct{}
+type T2[P, Q any] struct{}
 
 func _() {
-   _ = []T1 /* ERROR instantiation */ (int){} // this doesn't work
-   _ = [](T1(int)){}                          // this works
-   _ = [](T2(int, string)){}                  // T2(int, float) cannot be a conversion - should not need ()'s
+   _ = []T1[int]{}            // ok if we use []'s
+   _ = [](T1[int]){}
+   _ = []T2[int, string]{}    // ok if we use []'s
+   _ = [](T2[int, string]){}
 }

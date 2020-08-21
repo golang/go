@@ -4,7 +4,7 @@
 
 package p
 
-func _(type T interface{type map[string]int})(x T) {
+func _[T interface{type map[string]int}](x T) {
 	_ = x == nil
 }
 
@@ -14,10 +14,10 @@ type PathParamsConstraint interface {
         type map[string]string, []struct{key, value string}
 }
 
-type PathParams(type T PathParamsConstraint) struct {
+type PathParams[T PathParamsConstraint] struct {
 	t T
 }
 
-func (pp *PathParams(T)) IsNil() bool {
+func (pp *PathParams[T]) IsNil() bool {
 	return pp.t == nil // this must succeed
 }

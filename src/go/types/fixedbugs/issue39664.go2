@@ -4,12 +4,12 @@
 
 package p
 
-type T(type _) struct {}
+type T[_ any] struct {}
 
 func (T /* ERROR instantiation */ ) m()
 
 func _() {
 	var x interface { m() }
-	x = T(int){}
+	x = T[int]{}
 	_ = x
 }

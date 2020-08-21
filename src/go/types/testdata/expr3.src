@@ -7,8 +7,9 @@ package expr3
 import "time"
 
 func indexes() {
+	var x int
 	_ = 1 /* ERROR "cannot index" */ [0]
-	_ = indexes /* ERROR "cannot index" */ [0]
+	_ = x /* ERROR "cannot index" */ [0]
 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
 
 	var a [10]int
