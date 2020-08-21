@@ -835,6 +835,25 @@ func TestHello(t *testing.T) {
 	})
 }
 
+// Reproduces golang/go#40825.
+func TestEmptyGOPATHXTest_40825(t *testing.T) {
+	t.Skip("bug isn't fixed yet")
+	const files = `
+-- x.go --
+package x
+-- x_test.go --
+`
+
+	withOptions(InGOPATH()).run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("x_test.go")
+		env.EditBuffer("x_test.go", fake.NewEdit(0, 0, 0, 0, "pack"))
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+			NoShowMessage(),
+		)
+	})
+}
+
 func TestIgnoredFiles(t *testing.T) {
 	const ws = `
 -- go.mod --
