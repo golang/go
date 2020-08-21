@@ -16,3 +16,4 @@ func Test9510(t *testing.T)     { test9510(t) }
 func Test20266(t *testing.T)    { test20266(t) }
 func Test26213(t *testing.T)    { test26213(t) }
 func TestGCC68255(t *testing.T) { testGCC68255(t) }
+func Test40954(t *testing.T)    { test40954(t) }
