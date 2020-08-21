@@ -46,6 +46,7 @@ golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
 ## explicit
+golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
 golang.org/x/tools/go/analysis/internal/facts
