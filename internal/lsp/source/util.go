@@ -582,7 +582,8 @@ func prevStmt(pos token.Pos, path []ast.Node) ast.Stmt {
 	return nil
 }
 
-// formatZeroValue produces Go code representing the zero value of T.
+// formatZeroValue produces Go code representing the zero value of T. It
+// returns the empty string if T is invalid.
 func formatZeroValue(T types.Type, qf types.Qualifier) string {
 	switch u := T.Underlying().(type) {
 	case *types.Basic:
@@ -594,7 +595,7 @@ func formatZeroValue(T types.Type, qf types.Qualifier) string {
 		case u.Info()&types.IsBoolean > 0:
 			return "false"
 		default:
-			panic(fmt.Sprintf("unhandled basic type: %v", u))
+			return ""
 		}
 	case *types.Pointer, *types.Interface, *types.Chan, *types.Map, *types.Slice, *types.Signature:
 		return "nil"
