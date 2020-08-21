@@ -264,13 +264,17 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, ident.Pos(), ident.End()),
 	}
 
+	c.setMatcherFromPrefix(c.surrounding.Prefix())
+}
+
+func (c *completer) setMatcherFromPrefix(prefix string) {
 	switch c.opts.matcher {
 	case Fuzzy:
-		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix())
+		c.matcher = fuzzy.NewMatcher(prefix)
 	case CaseSensitive:
-		c.matcher = prefixMatcher(c.surrounding.Prefix())
+		c.matcher = prefixMatcher(prefix)
 	default:
-		c.matcher = insensitivePrefixMatcher(strings.ToLower(c.surrounding.Prefix()))
+		c.matcher = insensitivePrefixMatcher(strings.ToLower(prefix))
 	}
 }
 
@@ -736,7 +740,6 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 
 	// comment is valid, set surrounding as word boundaries around cursor
 	c.setSurroundingForComment(comment)
-	cursorText := c.surrounding.content
 
 	// Using the next line pos, grab and parse the exported symbol on that line
 	for _, n := range c.file.Decls {
@@ -753,7 +756,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				switch spec := spec.(type) {
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						if name.String() == "_" || !strings.HasPrefix(name.String(), cursorText) {
+						if name.String() == "_" {
 							continue
 						}
 						obj := c.pkg.GetTypesInfo().ObjectOf(name)
@@ -771,7 +774,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 						c.addFieldItems(ctx, typeNode.Methods)
 					}
 
-					if spec.Name.String() == "_" || !strings.HasPrefix(spec.Name.String(), cursorText) {
+					if spec.Name.String() == "_" {
 						continue
 					}
 
@@ -816,9 +819,6 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 						}
 						for i := 0; i < recvStruct.NumFields(); i++ {
 							field := recvStruct.Field(i)
-							if !strings.HasPrefix(field.Name(), cursorText) {
-								continue
-							}
 							// we use c.item in addFieldItems so we have to use c.item here to ensure scoring
 							// order is maintained. c.found maniplulates the score
 							item, err := c.item(ctx, candidate{obj: field, name: field.Name(), score: lowScore})
@@ -831,7 +831,7 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 				}
 			}
 
-			if node.Name.String() == "_" || !strings.HasPrefix(node.Name.String(), cursorText) {
+			if node.Name.String() == "_" {
 				continue
 			}
 
@@ -886,6 +886,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper,
 			token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
 	}
+	c.setMatcherFromPrefix(c.surrounding.Prefix())
 }
 
 // isValidIdentifierChar returns true if a byte is a valid go identifier character
@@ -902,11 +903,9 @@ func (c *completer) addFieldItems(ctx context.Context, fields *ast.FieldList) {
 	}
 
 	cursor := c.surrounding.cursor
-	surroundingPrefix := c.surrounding.content
 	for _, field := range fields.List {
 		for _, name := range field.Names {
-			if name.String() == "_" ||
-				!strings.HasPrefix(name.String(), surroundingPrefix) {
+			if name.String() == "_" {
 				continue
 			}
 			obj := c.pkg.GetTypesInfo().ObjectOf(name)
