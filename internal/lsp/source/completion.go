@@ -241,6 +241,10 @@ type Selection struct {
 	mappedRange
 }
 
+func (p Selection) Content() string {
+	return p.content
+}
+
 func (p Selection) Prefix() string {
 	return p.content[:p.cursor-p.spanRange.Start]
 }

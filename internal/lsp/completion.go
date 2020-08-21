@@ -42,6 +42,17 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
+	// Span treats an end of file as the beginning of the next line, which for
+	// a final line ending without a newline is incorrect and leads to
+	// completions being ignored. We adjust the ending in case ange end is on a
+	// different line here.
+	// This should be removed after the resolution of golang/go#41029
+	if rng.Start.Line != rng.End.Line {
+		rng.End = protocol.Position{
+			Character: rng.Start.Character + float64(len(surrounding.Content())),
+			Line:      rng.Start.Line,
+		}
+	}
 
 	// When using deep completions/fuzzy matching, report results as incomplete so
 	// client fetches updated completions after every key stroke.

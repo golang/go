@@ -114,6 +114,8 @@ func positionFromOffset(f *token.File, offset int) (string, int, int, error) {
 	}
 	pos := f.Pos(offset)
 	p := f.Position(pos)
+	// TODO(golang/go#41029): Consider returning line, column instead of line+1, 1 if
+	// the file's last character is not a newline.
 	if offset == f.Size() {
 		return p.Filename, p.Line + 1, 1, nil
 	}
