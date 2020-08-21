@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -104,24 +105,24 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	// clients are aware of the work item before the command completes. This
 	// matters for regtests, where having a continuous thread of work is
 	// convenient for assertions.
-	work := s.progress.start(ctx, title, "starting...", params.WorkDoneToken, cancel)
+	work := s.progress.start(ctx, title, title+": running...", params.WorkDoneToken, cancel)
 	go func() {
 		defer cancel()
 		err := s.runCommand(ctx, work, command, params.Arguments)
 		switch {
 		case errors.Is(err, context.Canceled):
-			work.end(command.Name + " canceled")
+			work.end(title + ": canceled")
 		case err != nil:
-			event.Error(ctx, fmt.Sprintf("%s: command error", command.Name), err)
-			work.end(command.Name + " failed")
+			event.Error(ctx, fmt.Sprintf("%s: command error", title), err)
+			work.end(title + ": failed")
 			// Show a message when work completes with error, because the progress end
 			// message is typically dismissed immediately by LSP clients.
 			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
-				Message: fmt.Sprintf("An error occurred running %s: check the gopls logs.", command.Name),
+				Message: fmt.Sprintf("%s: An error occurred: %v", title, err),
 			})
 		default:
-			work.end(command.Name + " complete")
+			work.end(command.Name + ": completed")
 		}
 	}()
 	return nil, nil
@@ -233,19 +234,9 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 	pkgPath := pkgs[0].PkgPath()
 
 	// create output
+	buf := &bytes.Buffer{}
 	ew := &eventWriter{ctx: ctx, operation: "test"}
-	var title string
-	if len(tests) > 0 && len(benchmarks) > 0 {
-		title = "tests and benchmarks"
-	} else if len(tests) > 0 {
-		title = "tests"
-	} else if len(benchmarks) > 0 {
-		title = "benchmarks"
-	} else {
-		return errors.New("No functions were provided")
-	}
-
-	out := io.MultiWriter(ew, workDoneWriter{work})
+	out := io.MultiWriter(ew, workDoneWriter{work}, buf)
 
 	// Run `go test -run Func` on each test.
 	var failedTests int
@@ -262,7 +253,7 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 
 	// Run `go test -run=^$ -bench Func` on each test.
 	var failedBenchmarks int
-	for _, funcName := range tests {
+	for _, funcName := range benchmarks {
 		args := []string{pkgPath, "-v", "-run=^$", "-bench", fmt.Sprintf("^%s$", funcName)}
 		if err := snapshot.RunGoCommandPiped(ctx, "test", args, out, out); err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -272,17 +263,28 @@ func (s *Server) runTests(ctx context.Context, snapshot source.Snapshot, uri pro
 		}
 	}
 
-	messageType := protocol.Info
-	message := fmt.Sprintf("all %s passed", title)
-	if failedTests > 0 || failedBenchmarks > 0 {
-		messageType = protocol.Error
+	var title string
+	if len(tests) > 0 && len(benchmarks) > 0 {
+		title = "tests and benchmarks"
+	} else if len(tests) > 0 {
+		title = "tests"
+	} else if len(benchmarks) > 0 {
+		title = "benchmarks"
+	} else {
+		return errors.New("No functions were provided")
 	}
+	message := fmt.Sprintf("all %s passed", title)
 	if failedTests > 0 && failedBenchmarks > 0 {
 		message = fmt.Sprintf("%d / %d tests failed and %d / %d benchmarks failed", failedTests, len(tests), failedBenchmarks, len(benchmarks))
 	} else if failedTests > 0 {
 		message = fmt.Sprintf("%d / %d tests failed", failedTests, len(tests))
 	} else if failedBenchmarks > 0 {
 		message = fmt.Sprintf("%d / %d benchmarks failed", failedBenchmarks, len(benchmarks))
+	}
+	messageType := protocol.Info
+	if failedTests > 0 || failedBenchmarks > 0 {
+		messageType = protocol.Error
+		message += "\n" + buf.String()
 	}
 
 	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
@@ -306,8 +308,5 @@ func (s *Server) runGoGenerate(ctx context.Context, snapshot source.Snapshot, ur
 	if err := snapshot.RunGoCommandPiped(ctx, "generate", args, er, stderr); err != nil {
 		return err
 	}
-	return s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-		Type:    protocol.Info,
-		Message: "go generate complete",
-	})
+	return nil
 }

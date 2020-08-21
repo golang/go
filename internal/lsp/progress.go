@@ -66,7 +66,19 @@ func (t *progressTracker) start(ctx context.Context, title, message string, toke
 		cancel: cancel,
 	}
 	if !t.supportsWorkDoneProgress {
-		go wd.openStartMessage(message)
+		// Previous iterations of this fallback attempted to retain cancellation
+		// support by using ShowMessageCommand with a 'Cancel' button, but this is
+		// not ideal as the 'Cancel' dialog stays open even after the command
+		// completes.
+		//
+		// Just show a simple message. Clients can implement workDone progress
+		// reporting to get cancellation support.
+		if err := wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
+			Type:    protocol.Log,
+			Message: message,
+		}); err != nil {
+			event.Error(ctx, "showing start message for "+title, err)
+		}
 		return wd
 	}
 	if wd.token == nil {
@@ -138,36 +150,6 @@ type workDone struct {
 	cancel    func()
 
 	cleanup func()
-}
-
-func (wd *workDone) openStartMessage(msg string) {
-	go func() {
-		if wd.cancel == nil {
-			err := wd.client.ShowMessage(wd.ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Log,
-				Message: msg,
-			})
-			if err != nil {
-				event.Error(wd.ctx, "error sending message request", err)
-			}
-			return
-		}
-		const cancel = "Cancel"
-		item, err := wd.client.ShowMessageRequest(wd.ctx, &protocol.ShowMessageRequestParams{
-			Type:    protocol.Log,
-			Message: msg,
-			Actions: []protocol.MessageActionItem{{
-				Title: cancel,
-			}},
-		})
-		if err != nil {
-			event.Error(wd.ctx, "error sending message request", err)
-			return
-		}
-		if item != nil && item.Title == cancel {
-			wd.doCancel()
-		}
-	}()
 }
 
 func (wd *workDone) doCancel() {

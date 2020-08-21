@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -21,8 +20,6 @@ type fakeClient struct {
 
 	mu                                        sync.Mutex
 	created, begun, reported, messages, ended int
-
-	cancel chan struct{}
 }
 
 func (c *fakeClient) checkToken(token protocol.ProgressToken) {
@@ -66,19 +63,8 @@ func (c *fakeClient) ShowMessage(context.Context, *protocol.ShowMessageParams) e
 	return nil
 }
 
-func (c *fakeClient) ShowMessageRequest(ctx context.Context, params *protocol.ShowMessageRequestParams) (*protocol.MessageActionItem, error) {
-	select {
-	case <-ctx.Done():
-	case <-c.cancel:
-		return &params.Actions[0], nil
-	}
-	return nil, nil
-}
-
 func setup(token protocol.ProgressToken) (context.Context, *progressTracker, *fakeClient) {
-	c := &fakeClient{
-		cancel: make(chan struct{}),
-	}
+	c := &fakeClient{}
 	tracker := newProgressTracker(c)
 	tracker.supportsWorkDoneProgress = true
 	return context.Background(), tracker, c
@@ -94,7 +80,7 @@ func TestProgressTracker_Reporting(t *testing.T) {
 	}{
 		{
 			name:         "unsupported",
-			wantMessages: 1,
+			wantMessages: 2,
 		},
 		{
 			name:         "random token",
@@ -171,26 +157,5 @@ func TestProgressTracker_Cancellation(t *testing.T) {
 		if !canceled {
 			t.Errorf("tracker.cancel(...): cancel not called")
 		}
-	}
-}
-
-func TestProgressTracker_MessageCancellation(t *testing.T) {
-	// Test that progress is canceled via the showMessageRequest dialog,
-	// when workDone is not supported.
-	ctx, tracker, client := setup(nil)
-	tracker.supportsWorkDoneProgress = false
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	canceled := make(chan struct{})
-	canceler := func() { close(canceled) }
-	tracker.start(ctx, "work", "message", nil, canceler)
-
-	close(client.cancel)
-
-	select {
-	case <-canceled:
-	case <-ctx.Done():
-		t.Errorf("timed out waiting for cancel")
 	}
 }

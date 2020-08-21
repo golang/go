@@ -59,37 +59,44 @@ var Commands = []*Command{
 var (
 	// CommandTest runs `go test` for a specific test function.
 	CommandTest = &Command{
-		Name: "test",
+		Name:  "test",
+		Title: "Run test(s)",
 	}
 
 	// CommandGenerate runs `go generate` for a given directory.
 	CommandGenerate = &Command{
-		Name: "generate",
+		Name:  "generate",
+		Title: "Run go generate",
 	}
 
 	// CommandTidy runs `go mod tidy` for a module.
 	CommandTidy = &Command{
-		Name: "tidy",
+		Name:  "tidy",
+		Title: "Run go mod tidy",
 	}
 
 	// CommandVendor runs `go mod vendor` for a module.
 	CommandVendor = &Command{
-		Name: "vendor",
+		Name:  "vendor",
+		Title: "Run go mod vendor",
 	}
 
 	// CommandUpgradeDependency upgrades a dependency.
 	CommandUpgradeDependency = &Command{
-		Name: "upgrade_dependency",
+		Name:  "upgrade_dependency",
+		Title: "Upgrade dependency",
 	}
 
 	// CommandRegenerateCgo regenerates cgo definitions.
 	CommandRegenerateCgo = &Command{
-		Name: "regenerate_cgo",
+		Name:  "regenerate_cgo",
+		Title: "Regenerate cgo",
 	}
 
 	// CommandToggleDetails controls calculation of gc annotations.
 	CommandToggleDetails = &Command{
-		Name: "gc_details",
+		Name:  "gc_details",
+		Title: "Toggle gc_details",
 	}
 
 	// CommandFillStruct is a gopls command to fill a struct with default
