@@ -71,8 +71,14 @@ func (c *pageCache) allocN(npages uintptr) (uintptr, uintptr) {
 // into s. Then, it clears the cache, such that empty returns
 // true.
 //
-// p.mheapLock must be held or the world must be stopped.
+// p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
 func (c *pageCache) flush(p *pageAlloc) {
+	assertLockHeld(p.mheapLock)
+
 	if c.empty() {
 		return
 	}
@@ -103,7 +109,13 @@ func (c *pageCache) flush(p *pageAlloc) {
 // chunk.
 //
 // p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
 func (p *pageAlloc) allocToCache() pageCache {
+	assertLockHeld(p.mheapLock)
+
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
 	if chunkIndex(p.searchAddr.addr()) >= p.end {

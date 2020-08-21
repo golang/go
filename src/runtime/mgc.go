@@ -821,6 +821,8 @@ func pollFractionalWorkerExit() bool {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcSetTriggerRatio(triggerRatio float64) {
+	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
 	// Compute the next GC goal, which is when the allocated heap
 	// has grown by GOGC/100 over the heap marked by the last
 	// cycle.
@@ -960,6 +962,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func gcEffectiveGrowthRatio() float64 {
+	assertWorldStoppedOrLockHeld(&mheap_.lock)
+
 	egogc := float64(atomic.Load64(&memstats.next_gc)-memstats.heap_marked) / float64(memstats.heap_marked)
 	if egogc < 0 {
 		// Shouldn't happen, but just in case.
