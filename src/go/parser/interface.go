@@ -56,6 +56,7 @@ const (
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
 	UseBrackets                                    // use square brackets with type parameters
+	UnifiedParamLists                              // use same syntax for type and ordinary parameter lists (implies UseBrackets)
 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 

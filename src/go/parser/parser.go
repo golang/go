@@ -82,7 +82,7 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
-	p.brack = mode&UseBrackets != 0
+	p.brack = mode&UseBrackets != 0 || mode&UnifiedParamLists != 0
 
 	p.next()
 }
@@ -853,14 +853,24 @@ type field struct {
 	typ  ast.Expr
 }
 
-func (p *parser) parseParamDecl() (f field) {
+func (p *parser) parseParamDecl(name *ast.Ident) (f field) {
 	if p.trace {
 		defer un(trace(p, "ParamDeclOrNil"))
 	}
 
+	ptok := p.tok
+	if name != nil {
+		p.tok = token.IDENT // force token.IDENT case in switch below
+	}
+
 	switch p.tok {
 	case token.IDENT:
-		f.name = p.parseIdent()
+		if name != nil {
+			f.name = name
+			p.tok = ptok
+		} else {
+			f.name = p.parseIdent()
+		}
 		switch p.tok {
 		case token.IDENT, token.MUL, token.ARROW, token.FUNC, token.CHAN, token.MAP, token.STRUCT, token.INTERFACE, token.LPAREN:
 			// name type
@@ -950,11 +960,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 		var par field
 		if tparams {
 			par = p.parseTParamDecl(name0)
-			name0 = nil // 1st name was consumed if present
 		} else {
-			assert(name0 == nil, "no 1st parameter name expected")
-			par = p.parseParamDecl()
+			par = p.parseParamDecl(name0)
 		}
+		name0 = nil // 1st name was consumed if present
 		if par.name != nil || par.typ != nil {
 			list = append(list, par)
 			if par.name != nil && par.typ != nil {
@@ -1044,16 +1053,16 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 	return
 }
 
-func (p *parser) parseTypeParams(scope *ast.Scope, name0 *ast.Ident, closing token.Token) *ast.FieldList {
+func (p *parser) parseTypeParams(scope *ast.Scope, name0 *ast.Ident, closing token.Token) []*ast.Field {
 	if p.trace {
 		defer un(trace(p, "TypeParams"))
 	}
 
-	fields := p.parseParameterList(scope, name0, closing, true)
+	params := p.parseParameterList(scope, name0, closing, true)
 
 	// determine which form we have (list of type parameters with optional
 	// type bound, or type parameters, all with interfaces as type bounds)
-	for _, f := range fields {
+	for _, f := range params {
 		if len(f.Names) == 0 {
 			assert(f.Type != nil, "expected non-nil type")
 			f.Names = []*ast.Ident{f.Type.(*ast.Ident)}
@@ -1061,7 +1070,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope, name0 *ast.Ident, closing tok
 		}
 	}
 
-	return &ast.FieldList{List: fields}
+	return params
 }
 
 func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTParams bool) (tparams, params *ast.FieldList) {
@@ -1073,15 +1082,20 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 	lparen := opening.pos
 	if acceptTParams {
 		if opening.tok == token.LBRACK {
-			// assume [type T](params) syntax
-			p.brack = true
-			if p.tok == token.TYPE {
-				p.next()
+			var list []*ast.Field
+			if p.mode&UnifiedParamLists != 0 {
+				// assume [T any](params) syntax
+				list = p.parseParameterList(scope, nil, token.RBRACK, false)
+			} else {
+				// assume [type T](params) syntax
+				p.brack = true
+				if p.tok == token.TYPE {
+					p.next()
+				}
+				list = p.parseTypeParams(scope, nil, token.RBRACK)
 			}
-			tparams = p.parseTypeParams(scope, nil, token.RBRACK)
-			tparams.Opening = opening.pos
-			tparams.Closing = p.expect(token.RBRACK)
-
+			rbrack := p.expect(token.RBRACK)
+			tparams = &ast.FieldList{Opening: lparen, List: list, Closing: rbrack}
 			lparen = p.expect(token.LPAREN)
 		} else {
 			// assume (type T)(params) syntax
@@ -1090,19 +1104,15 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 			}
 			if !p.brack && p.tok == token.TYPE {
 				p.next()
-				tparams = p.parseTypeParams(scope, nil, token.RPAREN)
+				list := p.parseTypeParams(scope, nil, token.RPAREN)
 				rparen := p.expect(token.RPAREN)
-
-				// fix parentheses positions
-				tparams.Opening = lparen
-				tparams.Closing = rparen
-
+				tparams = &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
 				lparen = p.expect(token.LPAREN)
 			}
 		}
 	} else {
 		if opening.tok != token.LPAREN {
-			p.errorExpected(opening.pos, "'('")
+			p.errorExpected(lparen, "'('")
 		}
 	}
 
@@ -1161,38 +1171,100 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	doc := p.leadComment
 	var idents []*ast.Ident
 	var typ ast.Expr
-	if p.tok == token.IDENT {
+	if p.mode&UnifiedParamLists != 0 {
 		x := p.parseTypeName(nil)
-		if ident, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.LPAREN || p.brack && p.tok == token.LBRACK) {
-			// method or instantiated type
-			opening := lookAhead{p.pos, p.tok}
-			p.next()
-			if opening.tok == token.LBRACK && p.tok != token.TYPE {
-				// embedded instantiated interface
+		if ident, _ := x.(*ast.Ident); ident != nil {
+			switch p.tok {
+			case token.LBRACK:
+				// generic method or embedded instantiated type
+				lbrack := p.pos
+				p.next()
+				p.exprLev++
+				x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
+				p.exprLev--
+				if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.COMMA && p.tok != token.RBRACK {
+					// generic method m[T any]
+					scope := ast.NewScope(nil) // method scope
+					list := p.parseParameterList(scope, name0, token.RBRACK, false)
+					rbrack := p.expect(token.RBRACK)
+					tparams := &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
+					_, params := p.parseParameters(scope, lookAhead{}, false)
+					results := p.parseResult(scope, true)
+					idents = []*ast.Ident{ident}
+					typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+				} else {
+					// embedded instantiated type
+					// TODO(gri) should resolve all identifiers in x (doesn't matter for this prototype)
+					list := []ast.Expr{x}
+					if p.atComma("type argument list", token.RBRACK) {
+						p.exprLev++
+						for p.tok != token.RBRACK && p.tok != token.EOF {
+							list = append(list, p.parseType(true))
+							if !p.atComma("type argument list", token.RBRACK) {
+								break
+							}
+							p.next()
+						}
+						p.exprLev--
+					}
+					rbrack := p.expectClosing(token.RBRACK, "type argument list")
+					typ = &ast.CallExpr{Fun: ident, Lparen: lbrack, Args: list, Rparen: rbrack, Brackets: true}
+				}
+			case token.LPAREN:
+				// ordinary method
+				scope := ast.NewScope(nil) // method scope
+				_, params := p.parseParameters(scope, lookAhead{}, false)
+				results := p.parseResult(scope, true)
+				idents = []*ast.Ident{ident}
+				typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+			default:
+				// embedded type
 				typ = x
 				p.resolve(typ)
-				typ = p.parseTypeInstance(typ, opening)
-			} else {
-				idents = []*ast.Ident{ident}
-				scope := ast.NewScope(nil) // method scope
-				tparams, params := p.parseParameters(scope, opening, true)
-				results := p.parseResult(scope, true)
-				typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
 			}
 		} else {
-			// embedded interface
+			// embedded, possibly instantiated type
 			typ = x
-			p.resolve(typ)
-			if p.brack && p.tok == token.LBRACK {
+			if p.tok == token.LBRACK {
 				// embedded instantiated interface
 				typ = p.parseTypeInstance(typ, lookAhead{})
 			}
 		}
 	} else {
-		// embedded, possibly generic interface
-		// (using enclosing parentheses to distinguish it from a method declaration)
-		// TODO(gri) if p.brack is set, don't allow parenthesized embedded type
-		typ = p.parseType(true)
+		if p.tok == token.IDENT {
+			x := p.parseTypeName(nil)
+			if ident, _ := x.(*ast.Ident); ident != nil && (p.tok == token.LPAREN || p.brack && p.tok == token.LBRACK) {
+				// method or embedded instantiated type
+				opening := lookAhead{p.pos, p.tok}
+				p.next()
+				if opening.tok == token.LBRACK && p.tok != token.TYPE {
+					// embedded instantiated type
+					typ = x
+					p.resolve(typ)
+					typ = p.parseTypeInstance(typ, opening)
+				} else {
+					// method
+					idents = []*ast.Ident{ident}
+					scope := ast.NewScope(nil) // method scope
+					tparams, params := p.parseParameters(scope, opening, true)
+					results := p.parseResult(scope, true)
+					typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+				}
+			} else {
+				// embedded, possibly instantiated type
+				typ = x
+				p.resolve(typ)
+				if p.brack && p.tok == token.LBRACK {
+					// embedded instantiated interface
+					typ = p.parseTypeInstance(typ, lookAhead{})
+				}
+			}
+		} else {
+			// embedded, possibly instantiated type
+			// (using enclosing parentheses to distinguish it from a method declaration)
+			// TODO(gri) if p.brack is set, don't allow parenthesized embedded type
+			typ = p.parseType(true)
+		}
 	}
 	p.expectSemi() // call before accessing p.linecomment
 
@@ -2771,10 +2843,16 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 		p.brack = true // switch to using []'s instead of ()'s from now on
 	}
 	p.openScope()
-	tparams := p.parseTypeParams(p.topScope, name0, closeTok)
-	tparams.Opening = openPos
-	tparams.Closing = p.expect(closeTok)
-	spec.TParams = tparams
+	var list []*ast.Field
+	if p.mode&UnifiedParamLists != 0 {
+		list = p.parseParameterList(p.topScope, name0, closeTok, false)
+	} else {
+		list = p.parseTypeParams(p.topScope, name0, closeTok)
+	}
+	closePos := p.expect(closeTok)
+	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+	// Type aliases must not be parameterized but accept aliases
+	// anyway and complain in type checker for more robust parsing.
 	if p.tok == token.ASSIGN {
 		// type alias
 		spec.Assign = p.pos
@@ -2798,47 +2876,73 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	spec := &ast.TypeSpec{Doc: doc, Name: ident}
 	p.declare(spec, nil, p.topScope, ast.Typ, ident)
 
-	if p.tok == token.LBRACK {
+	switch p.tok {
+	case token.LBRACK:
 		lbrack := p.pos
 		p.next()
-		switch p.tok {
-		case token.TYPE:
-			// generic type
-			p.next()
-			p.parseGenericType(spec, lbrack, nil, token.RBRACK)
-		case token.IDENT:
-			// array type or generic type without "type" keyword
-			p.exprLev++
-			x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
-			p.exprLev--
-			if name0, _ := x.(*ast.Ident); name0 != nil {
-				// array type or generic type without "type" keyword;
-				// assume a generic type and then decide based on next token and use of name0
-				next := p.tok
-				pbrack := p.brack // changed by parseGenericType; restore if we have an array type
-				p.parseGenericType(spec, lbrack, name0, token.RBRACK)
-				if next == token.RBRACK && !usesName(spec.Type, name0.Name) {
-					// assume array type
-					p.brack = pbrack
-					spec.TParams = nil
-					spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: spec.Type}
+		if p.mode&UnifiedParamLists != 0 {
+			if p.tok == token.IDENT {
+				// array type or generic type [T any]
+				p.exprLev++
+				x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
+				p.exprLev--
+				if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.RBRACK {
+					// generic type [T any];
+					p.parseGenericType(spec, lbrack, name0, token.RBRACK)
+				} else {
+					// array type
+					// TODO(gri) should resolve all identifiers in x (doesn't matter for this prototype)
+					p.expect(token.RBRACK)
+					elt := p.parseType(true)
+					spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: elt}
 				}
 			} else {
 				// array type
-				// TODO(gri) should resolve all identifiers in x (doesn't matter for this prototype)
+				alen := p.parseArrayLen()
 				p.expect(token.RBRACK)
 				elt := p.parseType(true)
-				spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: elt}
+				spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
 			}
-		default:
-			// array type
-			alen := p.parseArrayLen()
-			p.expect(token.RBRACK)
-			elt := p.parseType(true)
-			spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+		} else {
+			switch p.tok {
+			case token.TYPE:
+				// generic type
+				p.next()
+				p.parseGenericType(spec, lbrack, nil, token.RBRACK)
+			case token.IDENT:
+				// array type or generic type without "type" keyword
+				p.exprLev++
+				x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
+				p.exprLev--
+				if name0, _ := x.(*ast.Ident); name0 != nil {
+					// array type or generic type without "type" keyword;
+					// assume a generic type and then decide based on next token and use of name0
+					next := p.tok
+					pbrack := p.brack // changed by parseGenericType; restore if we have an array type
+					p.parseGenericType(spec, lbrack, name0, token.RBRACK)
+					if next == token.RBRACK && !usesName(spec.Type, name0.Name) {
+						// assume array type
+						p.brack = pbrack
+						spec.TParams = nil
+						spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: spec.Type}
+					}
+				} else {
+					// array type
+					// TODO(gri) should resolve all identifiers in x (doesn't matter for this prototype)
+					p.expect(token.RBRACK)
+					elt := p.parseType(true)
+					spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: elt}
+				}
+			default:
+				// array type
+				alen := p.parseArrayLen()
+				p.expect(token.RBRACK)
+				elt := p.parseType(true)
+				spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+			}
 		}
 
-	} else if p.tok == token.LPAREN {
+	case token.LPAREN:
 		lparen := p.pos
 		p.next()
 		if !p.brack && p.tok == token.TYPE {
@@ -2852,7 +2956,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 			spec.Type = &ast.ParenExpr{Lparen: lparen, X: typ, Rparen: rparen}
 		}
 
-	} else {
+	default:
 		// no type parameters
 		if p.tok == token.ASSIGN {
 			// type alias
