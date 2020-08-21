@@ -1832,6 +1832,7 @@ const (
 	OpPPC64FSUBS
 	OpPPC64MULLD
 	OpPPC64MULLW
+	OpPPC64MADDLD
 	OpPPC64MULHD
 	OpPPC64MULHW
 	OpPPC64MULHDU
@@ -13119,6 +13120,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxInt64,
 		argLen:         3,
 		faultOnNilArg0: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128},   // DI
@@ -13196,6 +13198,7 @@ var opcodeTable = [...]opInfo{
 		clobberFlags:   true,
 		faultOnNilArg0: true,
 		faultOnNilArg1: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -20734,6 +20737,7 @@ var opcodeTable = [...]opInfo{
 		auxType:        auxInt64,
 		argLen:         2,
 		faultOnNilArg0: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1048576}, // R20
@@ -20760,6 +20764,7 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		faultOnNilArg0: true,
 		faultOnNilArg1: true,
+		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2097152}, // R21
@@ -24371,6 +24376,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MADDLD",
+		argLen: 3,
+		asm:    ppc64.AMADDLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{2, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:        "MULHD",
 		argLen:      2,
 		commutative: true,
@@ -26885,7 +26905,7 @@ var opcodeTable = [...]opInfo{
 				{0, 1048576}, // R20
 				{1, 2097152}, // R21
 			},
-			clobbers: 576460746931503104, // R16 R17 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			clobbers: 576460746931312640, // R11 R12 R18 R19 R22 R23 R24 R25 R26 R27 R28 R29 R31 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 		},
 	},
 	{

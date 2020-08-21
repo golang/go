@@ -480,7 +480,6 @@ const (
 	AttrWrapper
 	AttrNeedCtxt
 	AttrNoFrame
-	AttrSeenGlobl
 	AttrOnList
 	AttrStatic
 
@@ -537,7 +536,6 @@ func (a Attribute) MakeTypelink() bool       { return a&AttrMakeTypelink != 0 }
 func (a Attribute) CFunc() bool              { return a&AttrCFunc != 0 }
 func (a Attribute) NoSplit() bool            { return a&AttrNoSplit != 0 }
 func (a Attribute) Leaf() bool               { return a&AttrLeaf != 0 }
-func (a Attribute) SeenGlobl() bool          { return a&AttrSeenGlobl != 0 }
 func (a Attribute) OnList() bool             { return a&AttrOnList != 0 }
 func (a Attribute) ReflectMethod() bool      { return a&AttrReflectMethod != 0 }
 func (a Attribute) Local() bool              { return a&AttrLocal != 0 }
@@ -574,7 +572,6 @@ var textAttrStrings = [...]struct {
 	{bit: AttrCFunc, s: "CFUNC"},
 	{bit: AttrNoSplit, s: "NOSPLIT"},
 	{bit: AttrLeaf, s: "LEAF"},
-	{bit: AttrSeenGlobl, s: ""},
 	{bit: AttrOnList, s: ""},
 	{bit: AttrReflectMethod, s: "REFLECTMETHOD"},
 	{bit: AttrLocal, s: "LOCAL"},

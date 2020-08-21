@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"internal/testenv"
 	"regexp"
 	"strings"
@@ -49,10 +50,12 @@ func TestImport(t *testing.T) {
 	}(allowMissingModuleImports)
 	AllowMissingModuleImports()
 
+	ctx := context.Background()
+
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
-			m, dir, err := Import(tt.path)
+			m, dir, err := Import(ctx, tt.path)
 			if err == nil {
 				t.Fatalf("Import(%q) = %v, %v, nil; expected error", tt.path, m, dir)
 			}

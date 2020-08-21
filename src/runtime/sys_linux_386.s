@@ -39,8 +39,6 @@
 #define SYS_socketcall		102
 #define SYS_setittimer		104
 #define SYS_clone		120
-#define SYS_uname		122
-#define SYS_mlock		150
 #define SYS_sched_yield 	158
 #define SYS_nanosleep		162
 #define SYS_rt_sigreturn	173
@@ -807,21 +805,4 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	MOVL	$0, BX  // NULL
 	INVOKE_SYSCALL
 	MOVL	AX, ret+0(FP)
-	RET
-
-// func uname(utsname *new_utsname) int
-TEXT ·uname(SB),NOSPLIT,$0-8
-	MOVL    $SYS_uname, AX
-	MOVL    utsname+0(FP), BX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+4(FP)
-	RET
-
-// func mlock(addr, len uintptr) int
-TEXT ·mlock(SB),NOSPLIT,$0-12
-	MOVL    $SYS_mlock, AX
-	MOVL    addr+0(FP), BX
-	MOVL    len+4(FP), CX
-	INVOKE_SYSCALL
-	MOVL	AX, ret+8(FP)
 	RET

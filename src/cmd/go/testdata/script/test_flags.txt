@@ -10,13 +10,29 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
 ! stderr .
 
 # For backward-compatibility with previous releases of the 'go' command,
-# arguments that appear after unrecognized flags should not be  treated
+# arguments that appear after unrecognized flags should not be treated
 # as packages, even if they are unambiguously not arguments to flags.
 # Even though ./x looks like a package path, the real package should be
 # the implicit '.'.
 ! go test --answer=42 ./x
 stderr '^no Go files in .+$'
 ! stderr '/x'
+
+# However, *flags* that appear after unrecognized flags should still be
+# interpreted as flags, under the (possibly-erroneous) assumption that
+# unrecognized flags are non-boolean.
+
+go test -v -x ./x -timeout 24h -boolflag=true foo -timeout 25h
+stdout 'args: foo -timeout 25h'
+stdout 'timeout: 24h0m0s$'  # -timeout is unambiguously not a flag, so the real flag wins.
+
+go test -v -x ./x -timeout 24h -boolflag foo -timeout 25h
+stdout 'args: foo -test\.timeout=25h0m0s'  # For legacy reasons, '-timeout ' is erroneously rewritten to -test.timeout; see https://golang.org/issue/40763.
+stdout 'timeout: 24h0m0s$'  # Actual flag wins.
+
+go test -v -x ./x -timeout 24h -stringflag foo -timeout 25h
+stdout 'args: $'
+stdout 'timeout: 25h0m0s$'  # Later flag wins.
 
 # An explicit '-outputdir=' argument should set test.outputdir
 # to the 'go' command's working directory, not zero it out
@@ -30,23 +46,23 @@ exists ./cover.out
 # with the 'test.' prefix in the GOFLAGS entry...
 env GOFLAGS='-test.timeout=24h0m0s -count=1'
 go test -v -x ./x
-stdout '.*: 24h0m0s$'
+stdout 'timeout: 24h0m0s$'
 stderr '-test.count=1'
 
 # ...or without.
 env GOFLAGS='-timeout=24h0m0s -count=1'
 go test -v -x ./x
-stdout '.*: 24h0m0s$'
+stdout 'timeout: 24h0m0s$'
 stderr '-test.count=1'
 
 # Arguments from the command line should override GOFLAGS...
 go test -v -x -timeout=25h0m0s ./x
-stdout '.*: 25h0m0s$'
+stdout 'timeout: 25h0m0s$'
 stderr '-test.count=1'
 
 # ...even if they use a different flag name.
 go test -v -x -test.timeout=26h0m0s ./x
-stdout '.*: 26h0m0s$'
+stdout 'timeout: 26h0m0s$'
 stderr '-test\.timeout=26h0m0s'
 ! stderr 'timeout=24h0m0s'
 stderr '-test.count=1'
@@ -99,11 +115,18 @@ package x
 
 import (
 	"flag"
+	"strings"
 	"testing"
 )
 
 var _ = flag.String("usage_message", "", "dummy flag to check usage message")
+var boolflag = flag.Bool("boolflag", false, "ignored boolean flag")
+var stringflag = flag.String("stringflag", "", "ignored string flag")
 
 func TestLogTimeout(t *testing.T) {
-	t.Log(flag.Lookup("test.timeout").Value)
+	t.Logf("timeout: %v", flag.Lookup("test.timeout").Value)
+}
+
+func TestLogArgs(t *testing.T) {
+	t.Logf("args: %s", strings.Join(flag.Args(), " "))
 }

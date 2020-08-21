@@ -14593,6 +14593,18 @@ func rewriteValueARM64_OpARM64MULW(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MVN(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MVN (XOR x y))
+	// result: (EON x y)
+	for {
+		if v_0.Op != OpARM64XOR {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64EON)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (MVN (MOVDconst [c]))
 	// result: (MOVDconst [^c])
 	for {
@@ -21976,6 +21988,31 @@ func rewriteValueARM64_OpLeq16U(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Leq16U x zero:(MOVDconst [0]))
+	// result: (Eq16 x zero)
+	for {
+		x := v_0
+		zero := v_1
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpEq16)
+		v.AddArg2(x, zero)
+		return true
+	}
+	// match: (Leq16U (MOVDconst [1]) x)
+	// result: (Neq16 (MOVDconst [0]) x)
+	for {
+		if v_0.Op != OpARM64MOVDconst || auxIntToInt64(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq16U x y)
 	// result: (LessEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -22028,6 +22065,32 @@ func rewriteValueARM64_OpLeq32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Leq32U x zero:(MOVDconst [0]))
+	// result: (Eq32 x zero)
+	for {
+		x := v_0
+		zero := v_1
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpEq32)
+		v.AddArg2(x, zero)
+		return true
+	}
+	// match: (Leq32U (MOVDconst [1]) x)
+	// result: (Neq32 (MOVDconst [0]) x)
+	for {
+		if v_0.Op != OpARM64MOVDconst || auxIntToInt64(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq32U x y)
 	// result: (LessEqualU (CMPW x y))
 	for {
@@ -22076,6 +22139,32 @@ func rewriteValueARM64_OpLeq64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Leq64U x zero:(MOVDconst [0]))
+	// result: (Eq64 x zero)
+	for {
+		x := v_0
+		zero := v_1
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpEq64)
+		v.AddArg2(x, zero)
+		return true
+	}
+	// match: (Leq64U (MOVDconst [1]) x)
+	// result: (Neq64 (MOVDconst [0]) x)
+	for {
+		if v_0.Op != OpARM64MOVDconst || auxIntToInt64(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq64U x y)
 	// result: (LessEqualU (CMP x y))
 	for {
@@ -22114,6 +22203,31 @@ func rewriteValueARM64_OpLeq8U(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Leq8U x zero:(MOVDconst [0]))
+	// result: (Eq8 x zero)
+	for {
+		x := v_0
+		zero := v_1
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpEq8)
+		v.AddArg2(x, zero)
+		return true
+	}
+	// match: (Leq8U (MOVDconst [1]) x)
+	// result: (Neq8 (MOVDconst [0]) x)
+	for {
+		if v_0.Op != OpARM64MOVDconst || auxIntToInt64(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq8U x y)
 	// result: (LessEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 	for {
@@ -22156,6 +22270,31 @@ func rewriteValueARM64_OpLess16U(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Less16U zero:(MOVDconst [0]) x)
+	// result: (Neq16 zero x)
+	for {
+		zero := v_0
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq16)
+		v.AddArg2(zero, x)
+		return true
+	}
+	// match: (Less16U x (MOVDconst [1]))
+	// result: (Eq16 x (MOVDconst [0]))
+	for {
+		x := v_0
+		if v_1.Op != OpARM64MOVDconst || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (Less16U x y)
 	// result: (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -22208,6 +22347,32 @@ func rewriteValueARM64_OpLess32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Less32U zero:(MOVDconst [0]) x)
+	// result: (Neq32 zero x)
+	for {
+		zero := v_0
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq32)
+		v.AddArg2(zero, x)
+		return true
+	}
+	// match: (Less32U x (MOVDconst [1]))
+	// result: (Eq32 x (MOVDconst [0]))
+	for {
+		x := v_0
+		if v_1.Op != OpARM64MOVDconst || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (Less32U x y)
 	// result: (LessThanU (CMPW x y))
 	for {
@@ -22256,6 +22421,32 @@ func rewriteValueARM64_OpLess64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Less64U zero:(MOVDconst [0]) x)
+	// result: (Neq64 zero x)
+	for {
+		zero := v_0
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq64)
+		v.AddArg2(zero, x)
+		return true
+	}
+	// match: (Less64U x (MOVDconst [1]))
+	// result: (Eq64 x (MOVDconst [0]))
+	for {
+		x := v_0
+		if v_1.Op != OpARM64MOVDconst || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (Less64U x y)
 	// result: (LessThanU (CMP x y))
 	for {
@@ -22294,6 +22485,31 @@ func rewriteValueARM64_OpLess8U(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Less8U zero:(MOVDconst [0]) x)
+	// result: (Neq8 zero x)
+	for {
+		zero := v_0
+		if zero.Op != OpARM64MOVDconst || auxIntToInt64(zero.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq8)
+		v.AddArg2(zero, x)
+		return true
+	}
+	// match: (Less8U x (MOVDconst [1]))
+	// result: (Eq8 x (MOVDconst [0]))
+	for {
+		x := v_0
+		if v_1.Op != OpARM64MOVDconst || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (Less8U x y)
 	// result: (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 	for {

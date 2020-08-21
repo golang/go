@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -55,10 +57,10 @@ import (
 //
 // If path is the path of the main module and the query is "latest",
 // Query returns Target.Version as the version.
-func Query(path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func Query(ctx context.Context, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
-		info, err = queryProxy(proxy, path, query, current, allowed)
+		info, err = queryProxy(ctx, proxy, path, query, current, allowed)
 		return err
 	})
 	return info, err
@@ -75,7 +77,10 @@ func (queryDisabledError) Error() string {
 	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 }
 
-func queryProxy(proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+func queryProxy(ctx context.Context, proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
+	defer span.Done()
+
 	if current != "" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
 	}
@@ -243,7 +248,7 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	if err != nil {
 		return nil, err
 	}
-	releases, prereleases, err := filterVersions(path, versions, ok, preferIncompatible)
+	releases, prereleases, err := filterVersions(ctx, path, versions, ok, preferIncompatible)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +332,7 @@ func matchSemverPrefix(p, v string) bool {
 // 	1. versions that do not satisfy the 'ok' predicate, and
 // 	2. "+incompatible" versions, if a compatible one satisfies the predicate
 // 	   and the incompatible version is not preferred.
-func filterVersions(path string, versions []string, ok func(module.Version) bool, preferIncompatible bool) (releases, prereleases []string, err error) {
+func filterVersions(ctx context.Context, path string, versions []string, ok func(module.Version) bool, preferIncompatible bool) (releases, prereleases []string, err error) {
 	var lastCompatible string
 	for _, v := range versions {
 		if !ok(module.Version{Path: path, Version: v}) {
@@ -343,7 +348,7 @@ func filterVersions(path string, versions []string, ok func(module.Version) bool
 				// https://golang.org/issue/34165.) Note that we even prefer a
 				// compatible pre-release over an incompatible release.
 
-				ok, err := versionHasGoMod(module.Version{Path: path, Version: lastCompatible})
+				ok, err := versionHasGoMod(ctx, module.Version{Path: path, Version: lastCompatible})
 				if err != nil {
 					return nil, nil, err
 				}
@@ -380,12 +385,12 @@ type QueryResult struct {
 // If the package is in the main module, QueryPackage considers only the main
 // module and only the version "latest", without checking for other possible
 // modules.
-func QueryPackage(path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+func QueryPackage(ctx context.Context, path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
 	m := search.NewMatch(path)
 	if m.IsLocal() || !m.IsLiteral() {
 		return nil, fmt.Errorf("pattern %s is not an importable package", path)
 	}
-	return QueryPattern(path, query, allowed)
+	return QueryPattern(ctx, path, query, allowed)
 }
 
 // QueryPattern looks up the module(s) containing at least one package matching
@@ -401,7 +406,10 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) ([]Quer
 // If any matching package is in the main module, QueryPattern considers only
 // the main module and only the version "latest", without checking for other
 // possible modules.
-func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+func QueryPattern(ctx context.Context, pattern, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
+	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
+	defer span.Done()
+
 	base := pattern
 
 	firstError := func(m *search.Match) error {
@@ -417,7 +425,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		base = pathpkg.Dir(pattern[:i+3])
 		match = func(mod module.Version, root string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
-			matchPackages(m, imports.AnyTags(), omitStd, []module.Version{mod})
+			matchPackages(ctx, m, imports.AnyTags(), omitStd, []module.Version{mod})
 			return m
 		}
 	} else {
@@ -469,15 +477,18 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 	}
 
 	err := modfetch.TryProxies(func(proxy string) error {
-		queryModule := func(path string) (r QueryResult, err error) {
+		queryModule := func(ctx context.Context, path string) (r QueryResult, err error) {
+			ctx, span := trace.StartSpan(ctx, "modload.QueryPattern.queryModule ["+proxy+"] "+path)
+			defer span.Done()
+
 			current := findCurrentVersion(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(proxy, path, query, current, allowed)
+			r.Rev, err = queryProxy(ctx, proxy, path, query, current, allowed)
 			if err != nil {
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
-			root, isLocal, err := fetch(r.Mod)
+			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
@@ -498,7 +509,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		}
 
 		var err error
-		results, err = queryPrefixModules(candidateModules, queryModule)
+		results, err = queryPrefixModules(ctx, candidateModules, queryModule)
 		return err
 	})
 
@@ -542,7 +553,10 @@ type prefixResult struct {
 	err error
 }
 
-func queryPrefixModules(candidateModules []string, queryModule func(path string) (QueryResult, error)) (found []QueryResult, err error) {
+func queryPrefixModules(ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
+	ctx, span := trace.StartSpan(ctx, "modload.queryPrefixModules")
+	defer span.Done()
+
 	// If the path we're attempting is not in the module cache and we don't have a
 	// fetch result cached either, we'll end up making a (potentially slow)
 	// request to the proxy or (often even slower) the origin server.
@@ -555,8 +569,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 	var wg sync.WaitGroup
 	wg.Add(len(candidateModules))
 	for i, p := range candidateModules {
+		ctx := trace.StartGoroutine(ctx)
 		go func(p string, r *result) {
-			r.QueryResult, r.err = queryModule(p)
+			r.QueryResult, r.err = queryModule(ctx, p)
 			wg.Done()
 		}(p, &results[i])
 	}
@@ -698,8 +713,8 @@ func (e *PackageNotInModuleError) ImportPath() string {
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.
-func ModuleHasRootPackage(m module.Version) (bool, error) {
-	root, isLocal, err := fetch(m)
+func ModuleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+	root, isLocal, err := fetch(ctx, m)
 	if err != nil {
 		return false, err
 	}
@@ -707,8 +722,8 @@ func ModuleHasRootPackage(m module.Version) (bool, error) {
 	return ok, err
 }
 
-func versionHasGoMod(m module.Version) (bool, error) {
-	root, _, err := fetch(m)
+func versionHasGoMod(ctx context.Context, m module.Version) (bool, error) {
+	root, _, err := fetch(ctx, m)
 	if err != nil {
 		return false, err
 	}

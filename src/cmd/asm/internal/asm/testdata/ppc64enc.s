@@ -595,11 +595,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	LXV 16(R3), VS1                 // f4230011
 	LXVL R3, R4, VS1                // 7c23221a
 	LXVLL R3, R4, VS1               // 7c23225a
+	LXVX R3, R4, VS1                // 7c232218
 	LXSDX (R3)(R4), VS1             // 7c241c98
 	STXVD2X VS1, (R3)(R4)           // 7c241f98
 	STXV VS1,16(R3)                 // f4230015
 	STXVL VS1, R3, R4               // 7c23231a
 	STXVLL VS1, R3, R4              // 7c23235a
+	STXVX VS1, R3, R4               // 7c232318
 	STXSDX VS1, (R3)(R4)            // 7c241d98
 	LXSIWAX (R3)(R4), VS1           // 7c241898
 	STXSIWX VS1, (R3)(R4)           // 7c241918

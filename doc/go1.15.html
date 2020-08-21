@@ -357,7 +357,10 @@ Do not send CLs removing the interior tags from such phrases.
   The linker now defaults to internal linking mode
   for <code>-buildmode=pie</code> on
   <code>linux/amd64</code> and <code>linux/arm64</code>, so these
-  configurations no longer require a C linker.
+  configurations no longer require a C linker. External linking
+  mode (which was the default in Go 1.14 for
+  <code>-buildmode=pie</code>) can still be requested with
+  <code>-ldflags=-linkmode=external</code> flag.
 </p>
 
 <h2 id="objdump">Objdump</h2>
@@ -432,6 +435,19 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- bufio -->
+
+<dl id="context"><dt><a href="/pkg/context/">context</a></dt>
+  <dd>
+    <p><!-- CL 223777 -->
+      Creating a derived <code>Context</code> using a nil parent is now explicitly
+      disallowed. Any attempt to do so with the
+      <a href="/pkg/context/#WithValue"><code>WithValue</code></a>,
+      <a href="/pkg/context/#WithDeadline"><code>WithDeadline</code></a>, or
+      <a href="/pkg/context/#WithCancel"><code>WithCancel</code></a> functions
+      will cause a panic.
+    </p>
+  </dd>
+</dl><!-- context -->
 
 <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
   <dd>

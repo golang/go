@@ -183,6 +183,9 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 					hostObjSyms[s] = struct{}{}
 				}
 				havedynamic = 1
+				if lib != "" && ctxt.IsDarwin() {
+					machoadddynlib(lib, ctxt.LinkMode)
+				}
 			}
 
 			continue

@@ -336,11 +336,11 @@ func TestRlimit(t *testing.T) {
 	}
 	set := rlimit
 	set.Cur = set.Max - 1
-	if runtime.GOOS == "darwin" && set.Cur > 10240 {
-		// The max file limit is 10240, even though
-		// the max returned by Getrlimit is 1<<63-1.
-		// This is OPEN_MAX in sys/syslimits.h.
-		set.Cur = 10240
+	if runtime.GOOS == "darwin" && set.Cur > 4096 {
+		// rlim_min for RLIMIT_NOFILE should be equal to
+		// or lower than kern.maxfilesperproc, which on
+		// some machines are 4096. See #40564.
+		set.Cur = 4096
 	}
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
 	if err != nil {
@@ -353,8 +353,8 @@ func TestRlimit(t *testing.T) {
 	}
 	set = rlimit
 	set.Cur = set.Max - 1
-	if runtime.GOOS == "darwin" && set.Cur > 10240 {
-		set.Cur = 10240
+	if runtime.GOOS == "darwin" && set.Cur > 4096 {
+		set.Cur = 4096
 	}
 	if set != get {
 		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)

@@ -1789,7 +1789,6 @@ func ChanOf(dir ChanDir, t Type) Type {
 	}
 
 	// Look in known types.
-	// TODO: Precedence when constructing string.
 	var s string
 	switch dir {
 	default:
@@ -1799,7 +1798,16 @@ func ChanOf(dir ChanDir, t Type) Type {
 	case RecvDir:
 		s = "<-chan " + typ.String()
 	case BothDir:
-		s = "chan " + typ.String()
+		typeStr := typ.String()
+		if typeStr[0] == '<' {
+			// typ is recv chan, need parentheses as "<-" associates with leftmost
+			// chan possible, see:
+			// * https://golang.org/ref/spec#Channel_types
+			// * https://github.com/golang/go/issues/39897
+			s = "chan (" + typeStr + ")"
+		} else {
+			s = "chan " + typeStr
+		}
 	}
 	for _, tt := range typesByString(s) {
 		ch := (*chanType)(unsafe.Pointer(tt))

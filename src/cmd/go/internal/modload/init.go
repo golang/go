@@ -6,6 +6,7 @@ package modload
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +21,6 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
@@ -161,12 +161,6 @@ func Init() {
 	}
 
 	// We're in module mode. Install the hooks to make it work.
-
-	if c := cache.Default(); c == nil {
-		// With modules, there are no install locations for packages
-		// other than the build cache.
-		base.Fatalf("go: cannot use modules with build cache disabled")
-	}
 
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) == 0 || list[0] == "" {
@@ -331,11 +325,15 @@ func die() {
 }
 
 // InitMod sets Target and, if there is a main module, parses the initial build
-// list from its go.mod file, creating and populating that file if needed.
+// list from its go.mod file. If InitMod is called by 'go mod init', InitMod
+// will populate go.mod in memory, possibly importing dependencies from a
+// legacy configuration file. For other commands, InitMod may make other
+// adjustments in memory, like adding a go directive. WriteGoMod should be
+// called later to write changes out to disk.
 //
 // As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
 // already have an explicit value.
-func InitMod() {
+func InitMod(ctx context.Context) {
 	if len(buildList) > 0 {
 		return
 	}
@@ -352,7 +350,6 @@ func InitMod() {
 		// Running go mod init: do legacy module conversion
 		legacyModInit()
 		modFileToBuildList()
-		WriteGoMod()
 		return
 	}
 
@@ -363,7 +360,7 @@ func InitMod() {
 	}
 
 	var fixed bool
-	f, err := modfile.Parse(gomod, data, fixVersion(&fixed))
+	f, err := modfile.Parse(gomod, data, fixVersion(ctx, &fixed))
 	if err != nil {
 		// Errors returned by modfile.Parse begin with file:line.
 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
@@ -391,9 +388,6 @@ func InitMod() {
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
 		checkVendorConsistency()
-	} else {
-		// TODO(golang.org/issue/33326): if cfg.BuildMod != "readonly"?
-		WriteGoMod()
 	}
 }
 
@@ -404,7 +398,7 @@ func InitMod() {
 // and does nothing for versions that already appear to be canonical.
 //
 // The VersionFixer sets 'fixed' if it ever returns a non-canonical version.
-func fixVersion(fixed *bool) modfile.VersionFixer {
+func fixVersion(ctx context.Context, fixed *bool) modfile.VersionFixer {
 	return func(path, vers string) (resolved string, err error) {
 		defer func() {
 			if err == nil && resolved != vers {
@@ -436,7 +430,7 @@ func fixVersion(fixed *bool) modfile.VersionFixer {
 			}
 		}
 
-		info, err := Query(path, vers, "", nil)
+		info, err := Query(ctx, path, vers, "", nil)
 		if err != nil {
 			return "", err
 		}
@@ -797,9 +791,10 @@ func WriteGoMod() {
 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
 		}
 	}
+
 	// Always update go.sum, even if we didn't change go.mod: we may have
 	// downloaded modules that we didn't have before.
-	modfetch.WriteGoSum()
+	modfetch.WriteGoSum(keepSums())
 
 	if !dirty && cfg.CmdName != "mod tidy" {
 		// The go.mod file has the same semantic content that it had before
@@ -848,4 +843,60 @@ func WriteGoMod() {
 	if err != nil && err != errNoChange {
 		base.Fatalf("go: updating go.mod: %v", err)
 	}
+}
+
+// keepSums returns a set of module sums to preserve in go.sum. The set
+// includes entries for all modules used to load packages (according to
+// the last load function like ImportPaths, LoadALL, etc.). It also contains
+// entries for go.mod files needed for MVS (the version of these entries
+// ends with "/go.mod").
+func keepSums() map[module.Version]bool {
+	// Walk the module graph and keep sums needed by MVS.
+	modkey := func(m module.Version) module.Version {
+		return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+	}
+	keep := make(map[module.Version]bool)
+	replaced := make(map[module.Version]bool)
+	reqs := Reqs()
+	var walk func(module.Version)
+	walk = func(m module.Version) {
+		// If we build using a replacement module, keep the sum for the replacement,
+		// since that's the code we'll actually use during a build.
+		//
+		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
+		// sums for both sets of transitive requirements.
+		r := Replacement(m)
+		if r.Path == "" {
+			keep[modkey(m)] = true
+		} else {
+			replaced[m] = true
+			keep[modkey(r)] = true
+		}
+		list, _ := reqs.Required(m)
+		for _, r := range list {
+			if !keep[modkey(r)] && !replaced[r] {
+				walk(r)
+			}
+		}
+	}
+	walk(Target)
+
+	// Add entries for modules that provided packages loaded with ImportPaths,
+	// LoadALL, or similar functions.
+	if loaded != nil {
+		for _, pkg := range loaded.pkgs {
+			m := pkg.mod
+			if r := Replacement(m); r.Path != "" {
+				keep[r] = true
+			} else {
+				keep[m] = true
+			}
+		}
+	}
+
+	return keep
+}
+
+func TrimGoSum() {
+	modfetch.TrimGoSum(keepSums())
 }

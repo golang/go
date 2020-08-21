@@ -74,6 +74,10 @@ var typeTests = []pair{
 	{struct{ x ([]int8) }{}, "[]int8"},
 	{struct{ x (map[string]int32) }{}, "map[string]int32"},
 	{struct{ x (chan<- string) }{}, "chan<- string"},
+	{struct{ x (chan<- chan string) }{}, "chan<- chan string"},
+	{struct{ x (chan<- <-chan string) }{}, "chan<- <-chan string"},
+	{struct{ x (<-chan <-chan string) }{}, "<-chan <-chan string"},
+	{struct{ x (chan (<-chan string)) }{}, "chan (<-chan string)"},
 	{struct {
 		x struct {
 			c chan *int32
@@ -1719,6 +1723,14 @@ func TestSelectMaxCases(t *testing.T) {
 	}()
 	// Should panic
 	_, _, _ = Select(sCases)
+}
+
+func TestSelectNop(t *testing.T) {
+	// "select { default: }" should always return the default case.
+	chosen, _, _ := Select([]SelectCase{{Dir: SelectDefault}})
+	if chosen != 0 {
+		t.Fatalf("expected Select to return 0, but got %#v", chosen)
+	}
 }
 
 func BenchmarkSelect(b *testing.B) {
@@ -5491,6 +5503,18 @@ func TestChanOf(t *testing.T) {
 	// check that type already in binary is found
 	type T1 int
 	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
+
+	// Check arrow token association in undefined chan types.
+	var left chan<- chan T
+	var right chan (<-chan T)
+	tLeft := ChanOf(SendDir, ChanOf(BothDir, TypeOf(T(""))))
+	tRight := ChanOf(BothDir, ChanOf(RecvDir, TypeOf(T(""))))
+	if tLeft != TypeOf(left) {
+		t.Errorf("chan<-chan: have %s, want %T", tLeft, left)
+	}
+	if tRight != TypeOf(right) {
+		t.Errorf("chan<-chan: have %s, want %T", tRight, right)
+	}
 }
 
 func TestChanOfDir(t *testing.T) {
@@ -6451,11 +6475,8 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
 	bits = rep(cap, bits)
-	for len(bits) > 2 && bits[len(bits)-1] == 0 {
+	for len(bits) > 0 && bits[len(bits)-1] == 0 {
 		bits = bits[:len(bits)-1]
-	}
-	if len(bits) == 2 && bits[0] == 0 && bits[1] == 0 {
-		bits = bits[:0]
 	}
 	if !bytes.Equal(heapBits, bits) {
 		t.Errorf("heapBits incorrect for make(%v, 0, %v)\nhave %v\nwant %v", typ, cap, heapBits, bits)

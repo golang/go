@@ -8,6 +8,7 @@ package list
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
@@ -309,7 +311,7 @@ var (
 
 var nl = []byte{'\n'}
 
-func runList(cmd *base.Command, args []string) {
+func runList(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = *listTest
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
@@ -348,7 +350,7 @@ func runList(cmd *base.Command, args []string) {
 		fm := template.FuncMap{
 			"join":    strings.Join,
 			"context": context,
-			"module":  modload.ModuleInfo,
+			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(ctx, path) },
 		}
 		tmpl, err := template.New("main").Funcs(fm).Parse(*listFmt)
 		if err != nil {
@@ -388,7 +390,7 @@ func runList(cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
+		modload.InitMod(ctx) // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -412,9 +414,9 @@ func runList(cmd *base.Command, args []string) {
 			}
 		}
 
-		modload.LoadBuildList()
+		modload.LoadBuildList(ctx)
 
-		mods := modload.ListModules(args, *listU, *listVersions)
+		mods := modload.ListModules(ctx, args, *listU, *listVersions)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -448,9 +450,9 @@ func runList(cmd *base.Command, args []string) {
 	load.IgnoreImports = *listFind
 	var pkgs []*load.Package
 	if *listE {
-		pkgs = load.PackagesAndErrors(args)
+		pkgs = load.PackagesAndErrors(ctx, args)
 	} else {
-		pkgs = load.Packages(args)
+		pkgs = load.Packages(ctx, args)
 		base.ExitIfErrors()
 	}
 
@@ -476,9 +478,9 @@ func runList(cmd *base.Command, args []string) {
 				var pmain, ptest, pxtest *load.Package
 				var err error
 				if *listE {
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
+					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, p, nil)
 					if err != nil {
 						base.Errorf("can't load test package: %s", err)
 					}
@@ -538,7 +540,7 @@ func runList(cmd *base.Command, args []string) {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
 		}
-		b.Do(a)
+		b.Do(ctx, a)
 	}
 
 	for _, p := range pkgs {

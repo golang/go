@@ -489,9 +489,3 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
-
-// Magic incantation to get libSystem and friends actually dynamically linked.
-// TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
-//go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"

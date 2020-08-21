@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -34,6 +35,7 @@ import (
 	"cmd/go/internal/run"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/version"
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
@@ -187,7 +189,10 @@ BigCmdLoop:
 				cmd.Flag.Parse(args[1:])
 				args = cmd.Flag.Args()
 			}
-			cmd.Run(cmd, args)
+			ctx := maybeStartTrace(context.Background())
+			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+			cmd.Run(ctx, cmd, args)
+			span.Done()
 			base.Exit()
 			return
 		}
@@ -208,4 +213,22 @@ func init() {
 func mainUsage() {
 	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
+}
+
+func maybeStartTrace(pctx context.Context) context.Context {
+	if cfg.DebugTrace == "" {
+		return pctx
+	}
+
+	ctx, close, err := trace.Start(pctx, cfg.DebugTrace)
+	if err != nil {
+		base.Fatalf("failed to start trace: %v", err)
+	}
+	base.AtExit(func() {
+		if err := close(); err != nil {
+			base.Fatalf("failed to stop trace: %v", err)
+		}
+	})
+
+	return ctx
 }

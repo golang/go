@@ -407,3 +407,52 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 	}
 	return 0
 }
+func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
+	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
+	// arm64: -`(CMPW|CMP|BHS|BLO)`
+	if a < 0 || b < 0 || c < 0 || d < 0 {
+		return 1
+	}
+	return 0
+}
+
+func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
+	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCS|JCC)`
+	// arm64: -`(CMPW|CMP|BLO|BHS)`
+	if a >= 0 || b >= 0 || c >= 0 || d >= 0 {
+		return 1
+	}
+	return 0
+}
+
+func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
+	// arm64: `CBZW`, `CBNZW`, `CBNZ`, -`(CMPW|CMP|BLS|BHI)`
+	if a > 0 || b > 0 || c > 0 || d > 0 {
+		return 1
+	}
+	return 0
+}
+
+func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
+	// arm64: `CBNZW`, `CBZW`, `CBZ`, -`(CMPW|CMP|BHI|BLS)`
+	if a <= 0 || b <= 0 || c <= 0 || d <= 0 {
+		return 1
+	}
+	return 0
+}
+
+func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
+	// arm64: `CBNZW`, `CBZW`, `CBZW`, `CBZ`, -`(CMPW|CMP|BHS|BLO)`
+	if a < 1 || b < 1 || c < 1 || d < 1 {
+		return 1
+	}
+	return 0
+}
+
+func UintGeqOne(a uint8, b uint16, c uint32, d uint64) int {
+	// arm64: `CBZW`, `CBNZW`, `CBNZ`, -`(CMPW|CMP|BLO|BHS)`
+	if a >= 1 || b >= 1 || c >= 1 || d >= 1 {
+		return 1
+	}
+	return 0
+}

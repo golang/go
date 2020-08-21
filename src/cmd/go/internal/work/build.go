@@ -5,6 +5,7 @@
 package work
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/build"
@@ -18,6 +19,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/search"
+	"cmd/go/internal/trace"
 )
 
 var CmdBuild = &base.Command{
@@ -270,6 +272,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 }
 
 // AddModCommonFlags adds the module-related flags common to build commands
@@ -343,12 +346,12 @@ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 var runtimeVersion = runtime.Version()
 
-func runBuild(cmd *base.Command, args []string) {
+func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	BuildInit()
 	var b Builder
 	b.Init()
 
-	pkgs := load.PackagesForBuild(args)
+	pkgs := load.PackagesForBuild(ctx, args)
 
 	explicitO := len(cfg.BuildO) > 0
 
@@ -377,7 +380,7 @@ func runBuild(cmd *base.Command, args []string) {
 		depMode = ModeInstall
 	}
 
-	pkgs = omitTestOnly(pkgsFilter(load.Packages(args)))
+	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
 
 	// Special case -o /dev/null by not writing at all.
 	if cfg.BuildO == os.DevNull {
@@ -407,7 +410,7 @@ func runBuild(cmd *base.Command, args []string) {
 			if len(a.Deps) == 0 {
 				base.Fatalf("go build: no main packages to build")
 			}
-			b.Do(a)
+			b.Do(ctx, a)
 			return
 		}
 		if len(pkgs) > 1 {
@@ -420,7 +423,7 @@ func runBuild(cmd *base.Command, args []string) {
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
 		a := b.AutoAction(ModeInstall, depMode, p)
-		b.Do(a)
+		b.Do(ctx, a)
 		return
 	}
 
@@ -431,7 +434,7 @@ func runBuild(cmd *base.Command, args []string) {
 	if cfg.BuildBuildmode == "shared" {
 		a = b.buildmodeShared(ModeBuild, depMode, args, pkgs, a)
 	}
-	b.Do(a)
+	b.Do(ctx, a)
 }
 
 var CmdInstall = &base.Command{
@@ -514,9 +517,9 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 	return "lib" + libname + ".so", nil
 }
 
-func runInstall(cmd *base.Command, args []string) {
+func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	BuildInit()
-	InstallPackages(args, load.PackagesForBuild(args))
+	InstallPackages(ctx, args, load.PackagesForBuild(ctx, args))
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -536,7 +539,10 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
 	return list
 }
 
-func InstallPackages(patterns []string, pkgs []*load.Package) {
+func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Package) {
+	ctx, span := trace.StartSpan(ctx, "InstallPackages "+strings.Join(patterns, " "))
+	defer span.Done()
+
 	if cfg.GOBIN != "" && !filepath.IsAbs(cfg.GOBIN) {
 		base.Fatalf("cannot install, GOBIN must be an absolute path")
 	}
@@ -605,7 +611,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
 	}
 
-	b.Do(a)
+	b.Do(ctx, a)
 	base.ExitIfErrors()
 
 	// Success. If this command is 'go install' with no arguments

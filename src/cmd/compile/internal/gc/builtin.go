@@ -126,74 +126,74 @@ var runtimeDecls = [...]struct {
 	{"selectnbsend", funcTag, 94},
 	{"selectnbrecv", funcTag, 95},
 	{"selectnbrecv2", funcTag, 97},
-	{"selectsetpc", funcTag, 62},
-	{"selectgo", funcTag, 98},
+	{"selectsetpc", funcTag, 98},
+	{"selectgo", funcTag, 99},
 	{"block", funcTag, 9},
-	{"makeslice", funcTag, 99},
-	{"makeslice64", funcTag, 100},
-	{"makeslicecopy", funcTag, 101},
-	{"growslice", funcTag, 103},
-	{"memmove", funcTag, 104},
-	{"memclrNoHeapPointers", funcTag, 105},
-	{"memclrHasPointers", funcTag, 105},
-	{"memequal", funcTag, 106},
-	{"memequal0", funcTag, 107},
-	{"memequal8", funcTag, 107},
-	{"memequal16", funcTag, 107},
-	{"memequal32", funcTag, 107},
-	{"memequal64", funcTag, 107},
-	{"memequal128", funcTag, 107},
-	{"f32equal", funcTag, 108},
-	{"f64equal", funcTag, 108},
-	{"c64equal", funcTag, 108},
-	{"c128equal", funcTag, 108},
-	{"strequal", funcTag, 108},
-	{"interequal", funcTag, 108},
-	{"nilinterequal", funcTag, 108},
-	{"memhash", funcTag, 109},
-	{"memhash0", funcTag, 110},
-	{"memhash8", funcTag, 110},
-	{"memhash16", funcTag, 110},
-	{"memhash32", funcTag, 110},
-	{"memhash64", funcTag, 110},
-	{"memhash128", funcTag, 110},
-	{"f32hash", funcTag, 110},
-	{"f64hash", funcTag, 110},
-	{"c64hash", funcTag, 110},
-	{"c128hash", funcTag, 110},
-	{"strhash", funcTag, 110},
-	{"interhash", funcTag, 110},
-	{"nilinterhash", funcTag, 110},
-	{"int64div", funcTag, 111},
-	{"uint64div", funcTag, 112},
-	{"int64mod", funcTag, 111},
-	{"uint64mod", funcTag, 112},
-	{"float64toint64", funcTag, 113},
-	{"float64touint64", funcTag, 114},
-	{"float64touint32", funcTag, 115},
-	{"int64tofloat64", funcTag, 116},
-	{"uint64tofloat64", funcTag, 117},
-	{"uint32tofloat64", funcTag, 118},
-	{"complex128div", funcTag, 119},
-	{"racefuncenter", funcTag, 120},
+	{"makeslice", funcTag, 100},
+	{"makeslice64", funcTag, 101},
+	{"makeslicecopy", funcTag, 102},
+	{"growslice", funcTag, 104},
+	{"memmove", funcTag, 105},
+	{"memclrNoHeapPointers", funcTag, 106},
+	{"memclrHasPointers", funcTag, 106},
+	{"memequal", funcTag, 107},
+	{"memequal0", funcTag, 108},
+	{"memequal8", funcTag, 108},
+	{"memequal16", funcTag, 108},
+	{"memequal32", funcTag, 108},
+	{"memequal64", funcTag, 108},
+	{"memequal128", funcTag, 108},
+	{"f32equal", funcTag, 109},
+	{"f64equal", funcTag, 109},
+	{"c64equal", funcTag, 109},
+	{"c128equal", funcTag, 109},
+	{"strequal", funcTag, 109},
+	{"interequal", funcTag, 109},
+	{"nilinterequal", funcTag, 109},
+	{"memhash", funcTag, 110},
+	{"memhash0", funcTag, 111},
+	{"memhash8", funcTag, 111},
+	{"memhash16", funcTag, 111},
+	{"memhash32", funcTag, 111},
+	{"memhash64", funcTag, 111},
+	{"memhash128", funcTag, 111},
+	{"f32hash", funcTag, 111},
+	{"f64hash", funcTag, 111},
+	{"c64hash", funcTag, 111},
+	{"c128hash", funcTag, 111},
+	{"strhash", funcTag, 111},
+	{"interhash", funcTag, 111},
+	{"nilinterhash", funcTag, 111},
+	{"int64div", funcTag, 112},
+	{"uint64div", funcTag, 113},
+	{"int64mod", funcTag, 112},
+	{"uint64mod", funcTag, 113},
+	{"float64toint64", funcTag, 114},
+	{"float64touint64", funcTag, 115},
+	{"float64touint32", funcTag, 116},
+	{"int64tofloat64", funcTag, 117},
+	{"uint64tofloat64", funcTag, 118},
+	{"uint32tofloat64", funcTag, 119},
+	{"complex128div", funcTag, 120},
+	{"racefuncenter", funcTag, 121},
 	{"racefuncenterfp", funcTag, 9},
 	{"racefuncexit", funcTag, 9},
-	{"raceread", funcTag, 120},
-	{"racewrite", funcTag, 120},
-	{"racereadrange", funcTag, 121},
-	{"racewriterange", funcTag, 121},
-	{"msanread", funcTag, 121},
-	{"msanwrite", funcTag, 121},
-	{"checkptrAlignment", funcTag, 122},
-	{"checkptrArithmetic", funcTag, 124},
-	{"libfuzzerTraceCmp1", funcTag, 126},
-	{"libfuzzerTraceCmp2", funcTag, 128},
-	{"libfuzzerTraceCmp4", funcTag, 129},
-	{"libfuzzerTraceCmp8", funcTag, 130},
-	{"libfuzzerTraceConstCmp1", funcTag, 126},
-	{"libfuzzerTraceConstCmp2", funcTag, 128},
-	{"libfuzzerTraceConstCmp4", funcTag, 129},
-	{"libfuzzerTraceConstCmp8", funcTag, 130},
+	{"raceread", funcTag, 121},
+	{"racewrite", funcTag, 121},
+	{"racereadrange", funcTag, 122},
+	{"racewriterange", funcTag, 122},
+	{"msanread", funcTag, 122},
+	{"msanwrite", funcTag, 122},
+	{"checkptrAlignment", funcTag, 123},
+	{"checkptrArithmetic", funcTag, 125},
+	{"libfuzzerTraceCmp1", funcTag, 127},
+	{"libfuzzerTraceCmp2", funcTag, 129},
+	{"libfuzzerTraceCmp4", funcTag, 130},
+	{"libfuzzerTraceCmp8", funcTag, 131},
+	{"libfuzzerTraceConstCmp1", funcTag, 127},
+	{"libfuzzerTraceConstCmp2", funcTag, 129},
+	{"libfuzzerTraceConstCmp4", funcTag, 130},
+	{"libfuzzerTraceConstCmp8", funcTag, 131},
 	{"x86HasPOPCNT", varTag, 6},
 	{"x86HasSSE41", varTag, 6},
 	{"x86HasFMA", varTag, 6},
@@ -202,7 +202,7 @@ var runtimeDecls = [...]struct {
 }
 
 func runtimeTypes() []*types.Type {
-	var typs [131]*types.Type
+	var typs [132]*types.Type
 	typs[0] = types.Bytetype
 	typs[1] = types.NewPtr(typs[0])
 	typs[2] = types.Types[TANY]
@@ -301,38 +301,39 @@ func runtimeTypes() []*types.Type {
 	typs[95] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[84])}, []*Node{anonfield(typs[6])})
 	typs[96] = types.NewPtr(typs[6])
 	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[96]), anonfield(typs[84])}, []*Node{anonfield(typs[6])})
-	typs[98] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[15]), anonfield(typs[6])})
-	typs[99] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[7])})
-	typs[100] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[22]), anonfield(typs[22])}, []*Node{anonfield(typs[7])})
-	typs[101] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15]), anonfield(typs[7])}, []*Node{anonfield(typs[7])})
-	typs[102] = types.NewSlice(typs[2])
-	typs[103] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[102]), anonfield(typs[15])}, []*Node{anonfield(typs[102])})
-	typs[104] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[5])}, nil)
-	typs[105] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5])}, nil)
-	typs[106] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[5])}, []*Node{anonfield(typs[6])})
-	typs[107] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[6])})
-	typs[108] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[7])}, []*Node{anonfield(typs[6])})
-	typs[109] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5]), anonfield(typs[5])}, []*Node{anonfield(typs[5])})
-	typs[110] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5])}, []*Node{anonfield(typs[5])})
-	typs[111] = functype(nil, []*Node{anonfield(typs[22]), anonfield(typs[22])}, []*Node{anonfield(typs[22])})
-	typs[112] = functype(nil, []*Node{anonfield(typs[24]), anonfield(typs[24])}, []*Node{anonfield(typs[24])})
-	typs[113] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[22])})
-	typs[114] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[24])})
-	typs[115] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[65])})
-	typs[116] = functype(nil, []*Node{anonfield(typs[22])}, []*Node{anonfield(typs[20])})
-	typs[117] = functype(nil, []*Node{anonfield(typs[24])}, []*Node{anonfield(typs[20])})
-	typs[118] = functype(nil, []*Node{anonfield(typs[65])}, []*Node{anonfield(typs[20])})
-	typs[119] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[26])}, []*Node{anonfield(typs[26])})
-	typs[120] = functype(nil, []*Node{anonfield(typs[5])}, nil)
-	typs[121] = functype(nil, []*Node{anonfield(typs[5]), anonfield(typs[5])}, nil)
-	typs[122] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[1]), anonfield(typs[5])}, nil)
-	typs[123] = types.NewSlice(typs[7])
-	typs[124] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[123])}, nil)
-	typs[125] = types.Types[TUINT8]
-	typs[126] = functype(nil, []*Node{anonfield(typs[125]), anonfield(typs[125])}, nil)
-	typs[127] = types.Types[TUINT16]
-	typs[128] = functype(nil, []*Node{anonfield(typs[127]), anonfield(typs[127])}, nil)
-	typs[129] = functype(nil, []*Node{anonfield(typs[65]), anonfield(typs[65])}, nil)
-	typs[130] = functype(nil, []*Node{anonfield(typs[24]), anonfield(typs[24])}, nil)
+	typs[98] = functype(nil, []*Node{anonfield(typs[63])}, nil)
+	typs[99] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[63]), anonfield(typs[15]), anonfield(typs[15]), anonfield(typs[6])}, []*Node{anonfield(typs[15]), anonfield(typs[6])})
+	typs[100] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[7])})
+	typs[101] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[22]), anonfield(typs[22])}, []*Node{anonfield(typs[7])})
+	typs[102] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15]), anonfield(typs[7])}, []*Node{anonfield(typs[7])})
+	typs[103] = types.NewSlice(typs[2])
+	typs[104] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[103]), anonfield(typs[15])}, []*Node{anonfield(typs[103])})
+	typs[105] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[5])}, nil)
+	typs[106] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5])}, nil)
+	typs[107] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[5])}, []*Node{anonfield(typs[6])})
+	typs[108] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[6])})
+	typs[109] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[7])}, []*Node{anonfield(typs[6])})
+	typs[110] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5]), anonfield(typs[5])}, []*Node{anonfield(typs[5])})
+	typs[111] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[5])}, []*Node{anonfield(typs[5])})
+	typs[112] = functype(nil, []*Node{anonfield(typs[22]), anonfield(typs[22])}, []*Node{anonfield(typs[22])})
+	typs[113] = functype(nil, []*Node{anonfield(typs[24]), anonfield(typs[24])}, []*Node{anonfield(typs[24])})
+	typs[114] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[22])})
+	typs[115] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[24])})
+	typs[116] = functype(nil, []*Node{anonfield(typs[20])}, []*Node{anonfield(typs[65])})
+	typs[117] = functype(nil, []*Node{anonfield(typs[22])}, []*Node{anonfield(typs[20])})
+	typs[118] = functype(nil, []*Node{anonfield(typs[24])}, []*Node{anonfield(typs[20])})
+	typs[119] = functype(nil, []*Node{anonfield(typs[65])}, []*Node{anonfield(typs[20])})
+	typs[120] = functype(nil, []*Node{anonfield(typs[26]), anonfield(typs[26])}, []*Node{anonfield(typs[26])})
+	typs[121] = functype(nil, []*Node{anonfield(typs[5])}, nil)
+	typs[122] = functype(nil, []*Node{anonfield(typs[5]), anonfield(typs[5])}, nil)
+	typs[123] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[1]), anonfield(typs[5])}, nil)
+	typs[124] = types.NewSlice(typs[7])
+	typs[125] = functype(nil, []*Node{anonfield(typs[7]), anonfield(typs[124])}, nil)
+	typs[126] = types.Types[TUINT8]
+	typs[127] = functype(nil, []*Node{anonfield(typs[126]), anonfield(typs[126])}, nil)
+	typs[128] = types.Types[TUINT16]
+	typs[129] = functype(nil, []*Node{anonfield(typs[128]), anonfield(typs[128])}, nil)
+	typs[130] = functype(nil, []*Node{anonfield(typs[65]), anonfield(typs[65])}, nil)
+	typs[131] = functype(nil, []*Node{anonfield(typs[24]), anonfield(typs[24])}, nil)
 	return typs[:]
 }

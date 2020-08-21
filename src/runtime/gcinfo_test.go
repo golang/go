@@ -77,7 +77,7 @@ func TestGCInfo(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		verifyGCInfo(t, "heap Ptr", escape(new(Ptr)), trimDead(padDead(infoPtr)))
+		verifyGCInfo(t, "heap Ptr", escape(new(Ptr)), trimDead(infoPtr))
 		verifyGCInfo(t, "heap PtrSlice", escape(&make([]*byte, 10)[0]), trimDead(infoPtr10))
 		verifyGCInfo(t, "heap ScalarPtr", escape(new(ScalarPtr)), trimDead(infoScalarPtr))
 		verifyGCInfo(t, "heap ScalarPtrSlice", escape(&make([]ScalarPtr, 4)[0]), trimDead(infoScalarPtr4))
@@ -97,24 +97,9 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	}
 }
 
-func padDead(mask []byte) []byte {
-	// Because the dead bit isn't encoded in the second word,
-	// and because on 32-bit systems a one-word allocation
-	// uses a two-word block, the pointer info for a one-word
-	// object needs to be expanded to include an extra scalar
-	// on 32-bit systems to match the heap bitmap.
-	if runtime.PtrSize == 4 && len(mask) == 1 {
-		return []byte{mask[0], 0}
-	}
-	return mask
-}
-
 func trimDead(mask []byte) []byte {
-	for len(mask) > 2 && mask[len(mask)-1] == typeScalar {
+	for len(mask) > 0 && mask[len(mask)-1] == typeScalar {
 		mask = mask[:len(mask)-1]
-	}
-	if len(mask) == 2 && mask[0] == typeScalar && mask[1] == typeScalar {
-		mask = mask[:0]
 	}
 	return mask
 }

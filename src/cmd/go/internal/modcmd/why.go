@@ -5,6 +5,7 @@
 package modcmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,7 @@ func init() {
 	work.AddModCommonFlags(cmdWhy)
 }
 
-func runWhy(cmd *base.Command, args []string) {
+func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	loadALL := modload.LoadALL
 	if *whyVendor {
 		loadALL = modload.LoadVendor
@@ -73,9 +74,9 @@ func runWhy(cmd *base.Command, args []string) {
 				base.Fatalf("go mod why: module query not allowed")
 			}
 		}
-		mods := modload.ListModules(args, listU, listVersions)
+		mods := modload.ListModules(ctx, args, listU, listVersions)
 		byModule := make(map[module.Version][]string)
-		for _, path := range loadALL() {
+		for _, path := range loadALL(ctx) {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
 				byModule[m] = append(byModule[m], path)
@@ -104,8 +105,8 @@ func runWhy(cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		matches := modload.ImportPaths(args) // resolve to packages
-		loadALL()                            // rebuild graph, from main module (not from named packages)
+		matches := modload.ImportPaths(ctx, args) // resolve to packages
+		loadALL(ctx)                              // rebuild graph, from main module (not from named packages)
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {

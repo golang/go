@@ -220,7 +220,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		addpltsym(target, ldr, syms, targ)
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocSym(rIdx, syms.PLT)
-		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		su.SetRelocAdd(rIdx, int64(braddoff(int32(r.Add()), ldr.SymPlt(targ)/4))) // TODO: don't use r.Add for instruction bytes (issue 19811)
 		return true
 
 	case objabi.R_ADDR:

@@ -263,18 +263,19 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 	gp.waiting = nil
 	gp.activeStackChans = false
-	if gp.param == nil {
-		if c.closed == 0 {
-			throw("chansend: spurious wakeup")
-		}
-		panic(plainError("send on closed channel"))
-	}
+	closed := !mysg.success
 	gp.param = nil
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
 	mysg.c = nil
 	releaseSudog(mysg)
+	if closed {
+		if c.closed == 0 {
+			throw("chansend: spurious wakeup")
+		}
+		panic(plainError("send on closed channel"))
+	}
 	return true
 }
 
@@ -311,6 +312,7 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	gp := sg.g
 	unlockf()
 	gp.param = unsafe.Pointer(sg)
+	sg.success = true
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
@@ -384,7 +386,8 @@ func closechan(c *hchan) {
 			sg.releasetime = cputicks()
 		}
 		gp := sg.g
-		gp.param = nil
+		gp.param = unsafe.Pointer(sg)
+		sg.success = false
 		if raceenabled {
 			raceacquireg(gp, c.raceaddr())
 		}
@@ -402,7 +405,8 @@ func closechan(c *hchan) {
 			sg.releasetime = cputicks()
 		}
 		gp := sg.g
-		gp.param = nil
+		gp.param = unsafe.Pointer(sg)
+		sg.success = false
 		if raceenabled {
 			raceacquireg(gp, c.raceaddr())
 		}
@@ -575,11 +579,11 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
-	closed := gp.param == nil
+	success := mysg.success
 	gp.param = nil
 	mysg.c = nil
 	releaseSudog(mysg)
-	return true, !closed
+	return true, success
 }
 
 // recv processes a receive operation on a full channel c.
@@ -632,6 +636,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	gp := sg.g
 	unlockf()
 	gp.param = unsafe.Pointer(sg)
+	sg.success = true
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}

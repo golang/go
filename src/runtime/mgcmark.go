@@ -47,10 +47,6 @@ const (
 	// Must be a multiple of the pageInUse bitmap element size and
 	// must also evenly divide pagesPerArena.
 	pagesPerSpanRoot = 512
-
-	// go115NewMarkrootSpans is a feature flag that indicates whether
-	// to use the new bitmap-based markrootSpans implementation.
-	go115NewMarkrootSpans = true
 )
 
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
@@ -87,24 +83,16 @@ func gcMarkRootPrepare() {
 	//
 	// We depend on addfinalizer to mark objects that get
 	// finalizers after root marking.
-	if go115NewMarkrootSpans {
-		// We're going to scan the whole heap (that was available at the time the
-		// mark phase started, i.e. markArenas) for in-use spans which have specials.
-		//
-		// Break up the work into arenas, and further into chunks.
-		//
-		// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
-		// is append-only.
-		mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
-		work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
-	} else {
-		// We're only interested in scanning the in-use spans,
-		// which will all be swept at this point. More spans
-		// may be added to this list during concurrent GC, but
-		// we only care about spans that were allocated before
-		// this mark phase.
-		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
-	}
+	//
+	// We're going to scan the whole heap (that was available at the time the
+	// mark phase started, i.e. markArenas) for in-use spans which have specials.
+	//
+	// Break up the work into arenas, and further into chunks.
+	//
+	// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
+	// is append-only.
+	mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
+	work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
 
 	// Scan stacks.
 	//
@@ -316,10 +304,6 @@ func markrootFreeGStacks() {
 //
 //go:nowritebarrier
 func markrootSpans(gcw *gcWork, shard int) {
-	if !go115NewMarkrootSpans {
-		oldMarkrootSpans(gcw, shard)
-		return
-	}
 	// Objects with finalizers have two GC-related invariants:
 	//
 	// 1) Everything reachable from the object must be marked.
@@ -393,90 +377,6 @@ func markrootSpans(gcw *gcWork, shard int) {
 			}
 			unlock(&s.speciallock)
 		}
-	}
-}
-
-// oldMarkrootSpans marks roots for one shard of work.spans.
-//
-// For go115NewMarkrootSpans = false.
-//
-//go:nowritebarrier
-func oldMarkrootSpans(gcw *gcWork, shard int) {
-	// Objects with finalizers have two GC-related invariants:
-	//
-	// 1) Everything reachable from the object must be marked.
-	// This ensures that when we pass the object to its finalizer,
-	// everything the finalizer can reach will be retained.
-	//
-	// 2) Finalizer specials (which are not in the garbage
-	// collected heap) are roots. In practice, this means the fn
-	// field must be scanned.
-	//
-	// TODO(austin): There are several ideas for making this more
-	// efficient in issue #11485.
-
-	sg := mheap_.sweepgen
-	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
-	// Note that work.spans may not include spans that were
-	// allocated between entering the scan phase and now. We may
-	// also race with spans being added into sweepSpans when they're
-	// just created, and as a result we may see nil pointers in the
-	// spans slice. This is okay because any objects with finalizers
-	// in those spans must have been allocated and given finalizers
-	// after we entered the scan phase, so addfinalizer will have
-	// ensured the above invariants for them.
-	for i := 0; i < len(spans); i++ {
-		// sweepBuf.block requires that we read pointers from the block atomically.
-		// It also requires that we ignore nil pointers.
-		s := (*mspan)(atomic.Loadp(unsafe.Pointer(&spans[i])))
-
-		// This is racing with spans being initialized, so
-		// check the state carefully.
-		if s == nil || s.state.get() != mSpanInUse {
-			continue
-		}
-		// Check that this span was swept (it may be cached or uncached).
-		if !useCheckmark && !(s.sweepgen == sg || s.sweepgen == sg+3) {
-			// sweepgen was updated (+2) during non-checkmark GC pass
-			print("sweep ", s.sweepgen, " ", sg, "\n")
-			throw("gc: unswept span")
-		}
-
-		// Speculatively check if there are any specials
-		// without acquiring the span lock. This may race with
-		// adding the first special to a span, but in that
-		// case addfinalizer will observe that the GC is
-		// active (which is globally synchronized) and ensure
-		// the above invariants. We may also ensure the
-		// invariants, but it's okay to scan an object twice.
-		if s.specials == nil {
-			continue
-		}
-
-		// Lock the specials to prevent a special from being
-		// removed from the list while we're traversing it.
-		lock(&s.speciallock)
-
-		for sp := s.specials; sp != nil; sp = sp.next {
-			if sp.kind != _KindSpecialFinalizer {
-				continue
-			}
-			// don't mark finalized object, but scan it so we
-			// retain everything it points to.
-			spf := (*specialfinalizer)(unsafe.Pointer(sp))
-			// A finalizer can be set for an inner byte of an object, find object beginning.
-			p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
-
-			// Mark everything that can be reached from
-			// the object (but *not* the object itself or
-			// we'll never collect it).
-			scanobject(p, gcw)
-
-			// The special itself is a root.
-			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
-		}
-
-		unlock(&s.speciallock)
 	}
 }
 
@@ -1354,11 +1254,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		}
 		// Load bits once. See CL 22712 and issue 16973 for discussion.
 		bits := hbits.bits()
-		// During checkmarking, 1-word objects store the checkmark
-		// in the type bit for the one word. The only one-word objects
-		// are pointers, or else they'd be merged with other non-pointer
-		// data into larger allocations.
-		if i != 1*sys.PtrSize && bits&bitScan == 0 {
+		if bits&bitScan == 0 {
 			break // no more pointers in this object
 		}
 		if bits&bitPointer == 0 {
@@ -1511,27 +1407,9 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 	mbits := span.markBitsForIndex(objIndex)
 
 	if useCheckmark {
-		if !mbits.isMarked() {
-			printlock()
-			print("runtime:greyobject: checkmarks finds unexpected unmarked object obj=", hex(obj), "\n")
-			print("runtime: found obj at *(", hex(base), "+", hex(off), ")\n")
-
-			// Dump the source (base) object
-			gcDumpObject("base", base, off)
-
-			// Dump the object
-			gcDumpObject("obj", obj, ^uintptr(0))
-
-			getg().m.traceback = 2
-			throw("checkmark found unmarked object")
-		}
-		hbits := heapBitsForAddr(obj)
-		if hbits.isCheckmarked(span.elemsize) {
+		if setCheckmark(obj, base, off, mbits) {
+			// Already marked.
 			return
-		}
-		hbits.setCheckmarked(span.elemsize)
-		if !hbits.isCheckmarked(span.elemsize) {
-			throw("setCheckmarked and isCheckmarked disagree")
 		}
 	} else {
 		if debug.gccheckmark > 0 && span.isFree(objIndex) {
@@ -1659,47 +1537,5 @@ func gcMarkTinyAllocs() {
 		_, span, objIndex := findObject(c.tiny, 0, 0)
 		gcw := &p.gcw
 		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
-	}
-}
-
-// Checkmarking
-
-// To help debug the concurrent GC we remark with the world
-// stopped ensuring that any object encountered has their normal
-// mark bit set. To do this we use an orthogonal bit
-// pattern to indicate the object is marked. The following pattern
-// uses the upper two bits in the object's boundary nibble.
-// 01: scalar  not marked
-// 10: pointer not marked
-// 11: pointer     marked
-// 00: scalar      marked
-// Xoring with 01 will flip the pattern from marked to unmarked and vica versa.
-// The higher bit is 1 for pointers and 0 for scalars, whether the object
-// is marked or not.
-// The first nibble no longer holds the typeDead pattern indicating that the
-// there are no more pointers in the object. This information is held
-// in the second nibble.
-
-// If useCheckmark is true, marking of an object uses the
-// checkmark bits (encoding above) instead of the standard
-// mark bits.
-var useCheckmark = false
-
-//go:nowritebarrier
-func initCheckmarks() {
-	useCheckmark = true
-	for _, s := range mheap_.allspans {
-		if s.state.get() == mSpanInUse {
-			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
-		}
-	}
-}
-
-func clearCheckmarks() {
-	useCheckmark = false
-	for _, s := range mheap_.allspans {
-		if s.state.get() == mSpanInUse {
-			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
-		}
 	}
 }

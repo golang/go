@@ -1037,6 +1037,7 @@ label1:
 // VSX load with length X-form (also left-justified)
 	LXVL        R3,R4, VS0
 	LXVLL       R3,R4, VS0
+	LXVX        R3,R4, VS0
 // VSX load, DQ-form
 // <MNEMONIC> DQ(RA), XS produces
 // <mnemonic> XS, DQ(RA)
@@ -1060,6 +1061,7 @@ label1:
 // VSX store with length, X-form (also left-justified)
 	STXVL	    VS0, R3,R4
 	STXVLL      VS0, R3,R4
+	STXVX       VS0, R3,R4
 
 //	VSX move from VSR, XX1-form
 //	<MNEMONIC> XS,RA produces

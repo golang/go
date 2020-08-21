@@ -6,6 +6,7 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -57,7 +58,7 @@ func printStderr(args ...interface{}) (int, error) {
 	return fmt.Fprint(os.Stderr, args...)
 }
 
-func runRun(cmd *base.Command, args []string) {
+func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit()
 	var b work.Builder
 	b.Init()
@@ -76,9 +77,9 @@ func runRun(cmd *base.Command, args []string) {
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(files)
+		p = load.GoFilesPackage(ctx, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		pkgs := load.PackagesAndErrors(args[:1])
+		pkgs := load.PackagesAndErrors(ctx, args[:1])
 		if len(pkgs) == 0 {
 			base.Fatalf("go run: no packages loaded from %s", args[0])
 		}
@@ -140,12 +141,12 @@ func runRun(cmd *base.Command, args []string) {
 	}
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
-	b.Do(a)
+	b.Do(ctx, a)
 }
 
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
-func buildRunProgram(b *work.Builder, a *work.Action) error {
+func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "%s", strings.Join(cmdline, " "))

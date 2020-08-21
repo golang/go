@@ -601,6 +601,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+	case ssa.OpPPC64MADDLD:
+		r := v.Reg()
+		r1 := v.Args[0].Reg()
+		r2 := v.Args[1].Reg()
+		r3 := v.Args[2].Reg()
+		// r = r1*r2 ± r3
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r2
+		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
 	case ssa.OpPPC64FMADD, ssa.OpPPC64FMADDS, ssa.OpPPC64FMSUB, ssa.OpPPC64FMSUBS:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()

@@ -187,6 +187,13 @@ func mustHeapAlloc(n *Node) bool {
 		return true
 	}
 
+	if n.Op == OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
+		return true
+	}
+	if n.Op == OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
+		return true
+	}
+
 	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
 		return true
 	}

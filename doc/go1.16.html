@@ -62,13 +62,43 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="linker">Linker</h2>
 
 <p>
-  TODO
+  This release includes additional improvements to the Go linker,
+  reducing linker resource usage (both time and memory) and improving
+  code robustness/maintainability. These changes form the second half
+  of a two-release project to
+  <a href="https://golang.org/s/better-linker">modernize the Go
+  linker</a>.
+</p>
+
+<p>
+  The linker changes in 1.16 extend the 1.15 improvements to all
+  supported architecture/OS combinations (the 1.15 performance improvements
+  were primarily focused on <code>ELF</code>-based OSes and
+  <code>amd64</code> architectures).  For a representative set of
+  large Go programs, linking is 20-35% faster than 1.15 and requires
+  5-15% less memory on average for <code>linux/amd64</code>, with larger
+  improvements for other architectures and OSes.
+</p>
+
+<p>
+  TODO: update with final numbers later in the release.
 </p>
 
 <h2 id="library">Core library</h2>
 
 <p>
   TODO
+</p>
+
+<h3 id="unicode"><a href="/pkg/unicode/">unicode</a></h3>
+
+<p><!-- CL 248765 -->
+  The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+  support throughout the system has been upgraded from Unicode 12.0.0 to
+  <a href="https://www.unicode.org/versions/Unicode13.0.0/">Unicode 13.0.0</a>,
+  which adds 5,930 new characters, including four new scripts, and 55 new emoji.
+  Unicode 13.0.0 also designates plane 3 (U+30000-U+3FFFF) as the tertiary
+  ideographic plane.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>

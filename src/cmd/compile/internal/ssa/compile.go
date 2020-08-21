@@ -160,15 +160,12 @@ func Compile(f *Func) {
 	phaseName = ""
 }
 
-// TODO: should be a config field
-var dumpFileSeq int
-
 // dumpFile creates a file from the phase name and function name
 // Dumping is done to files to avoid buffering huge strings before
 // output.
 func (f *Func) dumpFile(phaseName string) {
-	dumpFileSeq++
-	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, dumpFileSeq, phaseName)
+	f.dumpFileSeq++
+	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
 	fname = strings.Replace(fname, " ", "_", -1)
 	fname = strings.Replace(fname, "/", "_", -1)
 	fname = strings.Replace(fname, ":", "_", -1)

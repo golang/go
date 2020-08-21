@@ -394,17 +394,16 @@ loop:
 	ADDZE   R21
 	MULLD   R9, R22, R26
 	MULHDU  R9, R22, R22
-	ADDC    R21, R26
-	ADDZE   R22
 	MULLD   R9, R23, R27
 	MULHDU  R9, R23, R23
-	ADDC    R22, R27
-	ADDZE   R23
+	ADDC    R21, R26
+	ADDZE   R22
 	MOVD    R24, 8(R10)       // z[i]
 	MOVD    R25, 16(R10)      // z[i+1]
+	ADDC    R22, R27
+	ADDZE   R23,R4		  // update carry
 	MOVD    R26, 24(R10)      // z[i+2]
 	MOVDU   R27, 32(R10)      // z[i+3]
-	MOVD    R23, R4           // R4 = c
 	ADD     $-4, R11          // R11 = z_len - 4
 	BC      16, 0, loop       // bdnz
 

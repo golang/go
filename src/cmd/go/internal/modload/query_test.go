@@ -5,6 +5,7 @@
 package modload
 
 import (
+	"context"
 	"internal/testenv"
 	"io/ioutil"
 	"log"
@@ -179,6 +180,8 @@ func TestQuery(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
+	ctx := context.Background()
+
 	for _, tt := range queryTests {
 		allow := tt.allow
 		if allow == "" {
@@ -192,7 +195,7 @@ func TestQuery(t *testing.T) {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
 			t.Parallel()
 
-			info, err := Query(tt.path, tt.query, tt.current, allowed)
+			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
 			if tt.err != "" {
 				if err == nil {
 					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)

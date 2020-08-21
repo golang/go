@@ -7,6 +7,7 @@ package version
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -51,7 +52,7 @@ var (
 	versionV = CmdVersion.Flag.Bool("v", false, "")
 )
 
-func runVersion(cmd *base.Command, args []string) {
+func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		if *versionM || *versionV {
 			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
@@ -137,7 +138,7 @@ func scanFile(file string, info os.FileInfo, mustPrint bool) {
 
 	fmt.Printf("%s: %s\n", file, vers)
 	if *versionM && mod != "" {
-		fmt.Printf("\t%s\n", strings.Replace(mod[:len(mod)-1], "\n", "\n\t", -1))
+		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
 }
 

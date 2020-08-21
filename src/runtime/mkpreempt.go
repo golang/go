@@ -131,7 +131,7 @@ func header(arch string) {
 
 func p(f string, args ...interface{}) {
 	fmted := fmt.Sprintf(f, args...)
-	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
+	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
 }
 
 func label(l string) {
