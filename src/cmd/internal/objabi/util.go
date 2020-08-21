@@ -133,9 +133,8 @@ func init() {
 	}
 }
 
-func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && (goos == "linux" || goos == "darwin"))
-}
+// Note: must agree with runtime.framepointer_enabled.
+var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
 
 func addexp(s string) {
 	// Could do general integer parsing here, but the runtime copy doesn't yet.
@@ -159,7 +158,6 @@ func addexp(s string) {
 }
 
 var (
-	framepointer_enabled      int = 1
 	Fieldtrack_enabled        int
 	Preemptibleloops_enabled  int
 	Staticlockranking_enabled int
@@ -174,7 +172,6 @@ var exper = []struct {
 	val  *int
 }{
 	{"fieldtrack", &Fieldtrack_enabled},
-	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"staticlockranking", &Staticlockranking_enabled},
 }

@@ -4833,12 +4833,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
 					// Maintain BP around call, since duffcopy/duffzero can't do it
 					// (the call jumps into the middle of the function).
 					// This makes it possible to see call sites for duffcopy/duffzero in
 					// BP-based profiling tools like Linux perf (which is the
-					// whole point of obj.Framepointer_enabled).
+					// whole point of maintaining frame pointers in Go).
 					// MOVQ BP, -16(SP)
 					// LEAQ -16(SP), BP
 					ab.Put(bpduff1)
@@ -4852,7 +4852,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				r.Siz = 4
 				ab.PutInt32(0)
 
-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
 					// Pop BP pushed above.
 					// MOVQ 0(BP), BP
 					ab.Put(bpduff2)

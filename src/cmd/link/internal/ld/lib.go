@@ -775,14 +775,6 @@ func (ctxt *Link) linksetup() {
 			sb.SetSize(0)
 			sb.AddUint8(uint8(objabi.GOARM))
 		}
-
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
-			fpe := ctxt.loader.LookupOrCreateSym("runtime.framepointer_enabled", 0)
-			sb := ctxt.loader.MakeSymbolUpdater(fpe)
-			sb.SetType(sym.SNOPTRDATA)
-			sb.SetSize(0)
-			sb.AddUint8(1)
-		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
