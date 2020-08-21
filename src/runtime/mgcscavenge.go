@@ -397,6 +397,8 @@ func bgscavenge(c chan int) {
 //
 //go:systemstack
 func (p *pageAlloc) scavenge(nbytes uintptr, mayUnlock bool) uintptr {
+	assertLockHeld(p.mheapLock)
+
 	var (
 		addrs addrRange
 		gen   uint32
@@ -446,6 +448,8 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
 //
 //go:systemstack
 func (p *pageAlloc) scavengeStartGen() {
+	assertLockHeld(p.mheapLock)
+
 	if debug.scavtrace > 0 {
 		printScavTrace(p.scav.gen, p.scav.released, false)
 	}
@@ -495,6 +499,8 @@ func (p *pageAlloc) scavengeStartGen() {
 //
 //go:systemstack
 func (p *pageAlloc) scavengeReserve() (addrRange, uint32) {
+	assertLockHeld(p.mheapLock)
+
 	// Start by reserving the minimum.
 	r := p.scav.inUse.removeLast(p.scav.reservationBytes)
 
@@ -525,6 +531,8 @@ func (p *pageAlloc) scavengeReserve() (addrRange, uint32) {
 //
 //go:systemstack
 func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
+	assertLockHeld(p.mheapLock)
+
 	if r.size() == 0 || gen != p.scav.gen {
 		return
 	}
@@ -552,6 +560,8 @@ func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
 //
 //go:systemstack
 func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (uintptr, addrRange) {
+	assertLockHeld(p.mheapLock)
+
 	// Defensively check if we've recieved an empty address range.
 	// If so, just return.
 	if work.size() == 0 {
@@ -610,6 +620,8 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
 		// If we found something, scavenge it and return!
 		if npages != 0 {
 			work.limit = offAddr{p.scavengeRangeLocked(maxChunk, base, npages)}
+
+			assertLockHeld(p.mheapLock) // Must be locked on return.
 			return uintptr(npages) * pageSize, work
 		}
 	}
@@ -674,12 +686,16 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
 		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
 		if npages > 0 {
 			work.limit = offAddr{p.scavengeRangeLocked(candidateChunkIdx, base, npages)}
+
+			assertLockHeld(p.mheapLock) // Must be locked on return.
 			return uintptr(npages) * pageSize, work
 		}
 
 		// We were fooled, so let's continue from where we left off.
 		work.limit = offAddr{chunkBase(candidateChunkIdx)}
 	}
+
+	assertLockHeld(p.mheapLock) // Must be locked on return.
 	return 0, work
 }
 
@@ -692,6 +708,8 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr {
+	assertLockHeld(p.mheapLock)
+
 	p.chunkOf(ci).scavenged.setRange(base, npages)
 
 	// Compute the full address for the start of the range.

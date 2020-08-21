@@ -627,6 +627,8 @@ func mallocinit() {
 //
 // h must be locked.
 func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+	assertLockHeld(&h.lock)
+
 	n = alignUp(n, heapArenaBytes)
 
 	// First, try the arena pre-reservation.

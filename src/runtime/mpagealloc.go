@@ -349,6 +349,8 @@ func (p *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) grow(base, size uintptr) {
+	assertLockHeld(p.mheapLock)
+
 	// Round up to chunks, since we can't deal with increments smaller
 	// than chunks. Also, sysGrow expects aligned values.
 	limit := alignUp(base+size, pallocChunkBytes)
@@ -413,6 +415,8 @@ func (p *pageAlloc) grow(base, size uintptr) {
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
+	assertLockHeld(p.mheapLock)
+
 	// base, limit, start, and end are inclusive.
 	limit := base + npages*pageSize - 1
 	sc, ec := chunkIndex(base), chunkIndex(limit)
@@ -499,6 +503,8 @@ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
+	assertLockHeld(p.mheapLock)
+
 	limit := base + npages*pageSize - 1
 	sc, ec := chunkIndex(base), chunkIndex(limit)
 	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
@@ -534,6 +540,8 @@ func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) findMappedAddr(addr offAddr) offAddr {
+	assertLockHeld(p.mheapLock)
+
 	// If we're not in a test, validate first by checking mheap_.arenas.
 	// This is a fast path which is only safe to use outside of testing.
 	ai := arenaIndex(addr.addr())
@@ -568,6 +576,8 @@ func (p *pageAlloc) findMappedAddr(addr offAddr) offAddr {
 //
 // p.mheapLock must be held.
 func (p *pageAlloc) find(npages uintptr) (uintptr, offAddr) {
+	assertLockHeld(p.mheapLock)
+
 	// Search algorithm.
 	//
 	// This algorithm walks each level l of the radix tree from the root level
@@ -786,7 +796,13 @@ nextLevel:
 // should be ignored.
 //
 // p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
 func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
+	assertLockHeld(p.mheapLock)
+
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
 	if chunkIndex(p.searchAddr.addr()) >= p.end {
@@ -841,7 +857,13 @@ Found:
 // free returns npages worth of memory starting at base back to the page heap.
 //
 // p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
 func (p *pageAlloc) free(base, npages uintptr) {
+	assertLockHeld(p.mheapLock)
+
 	// If we're freeing pages below the p.searchAddr, update searchAddr.
 	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
 		p.searchAddr = b
