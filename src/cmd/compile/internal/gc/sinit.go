@@ -506,6 +506,7 @@ const (
 // fixedlit handles struct, array, and slice literals.
 // TODO: expand documentation.
 func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes) {
+	isBlank := var_ == nblank
 	var splitnode func(*Node) (a *Node, value *Node)
 	switch n.Op {
 	case OARRAYLIT, OSLICELIT:
@@ -520,6 +521,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			}
 			a := nod(OINDEX, var_, nodintconst(k))
 			k++
+			if isBlank {
+				a = nblank
+			}
 			return a, r
 		}
 	case OSTRUCTLIT:
@@ -527,7 +531,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 			if r.Op != OSTRUCTKEY {
 				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
 			}
-			if r.Sym.IsBlank() {
+			if r.Sym.IsBlank() || isBlank {
 				return nblank, r.Left
 			}
 			setlineno(r)

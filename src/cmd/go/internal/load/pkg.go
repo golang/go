@@ -7,6 +7,7 @@ package load
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 var (
@@ -40,10 +42,10 @@ var (
 	ModBinDir            func() string                                                                            // return effective bin directory
 	ModLookup            func(parentPath string, parentIsStd bool, path string) (dir, realPath string, err error) // lookup effective meaning of import
 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
-	ModImportPaths       func(args []string) []*search.Match                                                      // expand import paths
+	ModImportPaths       func(ctx context.Context, args []string) []*search.Match                                 // expand import paths
 	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
 	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
-	ModImportFromFiles   func([]string)                                                                           // update go.mod to add modules for imports in these files
+	ModImportFromFiles   func(context.Context, []string)                                                          // update go.mod to add modules for imports in these files
 	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
 )
 
@@ -551,7 +553,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 		})
 		packageDataCache.Delete(p.ImportPath)
 	}
-	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
+	return LoadImport(context.TODO(), arg, base.Cwd, nil, stk, nil, 0)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -603,11 +605,11 @@ const (
 // LoadImport does not set tool flags and should only be used by
 // this package, as part of a bigger load operation, and by GOPATH-based "go get".
 // TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
-func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
-	return loadImport(nil, path, srcDir, parent, stk, importPos, mode)
+func LoadImport(ctx context.Context, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	return loadImport(ctx, nil, path, srcDir, parent, stk, importPos, mode)
 }
 
-func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+func loadImport(ctx context.Context, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	if path == "" {
 		panic("LoadImport called with empty package path")
 	}
@@ -655,7 +657,7 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
 		// in order to return partial information.
-		p.load(path, stk, importPos, bp, err)
+		p.load(ctx, path, stk, importPos, bp, err)
 
 		if !cfg.ModulesEnabled && path != cleanImport(path) {
 			p.Error = &PackageError{
@@ -1589,7 +1591,7 @@ func (p *Package) DefaultExecName() string {
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 // stk contains the import stack, not including path itself.
-func (p *Package) load(path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
+func (p *Package) load(ctx context.Context, path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
 	p.copyBuild(bp)
 
 	// The localPrefix is the path we interpret ./ imports relative to.
@@ -1798,7 +1800,7 @@ func (p *Package) load(path string, stk *ImportStack, importPos []token.Position
 		if path == "C" {
 			continue
 		}
-		p1 := LoadImport(path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		p1 := LoadImport(ctx, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
 
 		path = p1.ImportPath
 		importPaths[i] = path
@@ -2071,7 +2073,7 @@ func PackageList(roots []*Package) []*Package {
 // TestPackageList returns the list of packages in the dag rooted at roots
 // as visited in a depth-first post-order traversal, including the test
 // imports of the roots. This ignores errors in test packages.
-func TestPackageList(roots []*Package) []*Package {
+func TestPackageList(ctx context.Context, roots []*Package) []*Package {
 	seen := map[*Package]bool{}
 	all := []*Package{}
 	var walk func(*Package)
@@ -2087,7 +2089,7 @@ func TestPackageList(roots []*Package) []*Package {
 	}
 	walkTest := func(root *Package, path string) {
 		var stk ImportStack
-		p1 := LoadImport(path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		p1 := LoadImport(ctx, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
 		if p1.Error == nil {
 			walk(p1)
 		}
@@ -2110,7 +2112,7 @@ func TestPackageList(roots []*Package) []*Package {
 // TODO(jayconrod): delete this function and set flags automatically
 // in LoadImport instead.
 func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
-	p := LoadImport(path, srcDir, parent, stk, importPos, mode)
+	p := LoadImport(context.TODO(), path, srcDir, parent, stk, importPos, mode)
 	setToolFlags(p)
 	return p
 }
@@ -2123,9 +2125,9 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // to load dependencies of a named package, the named
 // package is still returned, with p.Incomplete = true
 // and details in p.DepsErrors.
-func Packages(args []string) []*Package {
+func Packages(ctx context.Context, args []string) []*Package {
 	var pkgs []*Package
-	for _, pkg := range PackagesAndErrors(args) {
+	for _, pkg := range PackagesAndErrors(ctx, args) {
 		if pkg.Error != nil {
 			base.Errorf("%v", pkg.Error)
 			continue
@@ -2139,7 +2141,10 @@ func Packages(args []string) []*Package {
 // *Package for every argument, even the ones that
 // cannot be loaded at all.
 // The packages that fail to load will have p.Error != nil.
-func PackagesAndErrors(patterns []string) []*Package {
+func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+	ctx, span := trace.StartSpan(ctx, "load.PackagesAndErrors")
+	defer span.Done()
+
 	for _, p := range patterns {
 		// Listing is only supported with all patterns referring to either:
 		// - Files that are part of the same directory.
@@ -2148,12 +2153,12 @@ func PackagesAndErrors(patterns []string) []*Package {
 			// We need to test whether the path is an actual Go file and not a
 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
 			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-				return []*Package{GoFilesPackage(patterns)}
+				return []*Package{GoFilesPackage(ctx, patterns)}
 			}
 		}
 	}
 
-	matches := ImportPaths(patterns)
+	matches := ImportPaths(ctx, patterns)
 	var (
 		pkgs    []*Package
 		stk     ImportStack
@@ -2169,7 +2174,7 @@ func PackagesAndErrors(patterns []string) []*Package {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
 			}
-			p := loadImport(pre, pkg, base.Cwd, nil, &stk, nil, 0)
+			p := loadImport(ctx, pre, pkg, base.Cwd, nil, &stk, nil, 0)
 			p.Match = append(p.Match, m.Pattern())
 			p.Internal.CmdlinePkg = true
 			if m.IsLiteral() {
@@ -2223,9 +2228,9 @@ func setToolFlags(pkgs ...*Package) {
 	}
 }
 
-func ImportPaths(args []string) []*search.Match {
+func ImportPaths(ctx context.Context, args []string) []*search.Match {
 	if ModInit(); cfg.ModulesEnabled {
-		return ModImportPaths(args)
+		return ModImportPaths(ctx, args)
 	}
 	return search.ImportPaths(args)
 }
@@ -2233,8 +2238,8 @@ func ImportPaths(args []string) []*search.Match {
 // PackagesForBuild is like Packages but exits
 // if any of the packages or their dependencies have errors
 // (cannot be built).
-func PackagesForBuild(args []string) []*Package {
-	pkgs := PackagesAndErrors(args)
+func PackagesForBuild(ctx context.Context, args []string) []*Package {
+	pkgs := PackagesAndErrors(ctx, args)
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
@@ -2276,7 +2281,7 @@ func PackagesForBuild(args []string) []*Package {
 // GoFilesPackage creates a package for building a collection of Go files
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
-func GoFilesPackage(gofiles []string) *Package {
+func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	ModInit()
 
 	for _, f := range gofiles {
@@ -2324,7 +2329,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
-		ModImportFromFiles(gofiles)
+		ModImportFromFiles(ctx, gofiles)
 	}
 
 	var err error
@@ -2340,7 +2345,7 @@ func GoFilesPackage(gofiles []string) *Package {
 	pkg := new(Package)
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true
-	pkg.load("command-line-arguments", &stk, nil, bp, err)
+	pkg.load(ctx, "command-line-arguments", &stk, nil, bp, err)
 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.Target = ""

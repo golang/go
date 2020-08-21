@@ -79,13 +79,18 @@ func ExampleJoin() {
 	fmt.Println(path.Join("a", "b", "c"))
 	fmt.Println(path.Join("a", "b/c"))
 	fmt.Println(path.Join("a/b", "c"))
+
+	fmt.Println(path.Join("a/b", "../../../xyz"))
+
 	fmt.Println(path.Join("", ""))
 	fmt.Println(path.Join("a", ""))
 	fmt.Println(path.Join("", "a"))
+
 	// Output:
 	// a/b/c
 	// a/b/c
 	// a/b/c
+	// ../xyz
 	//
 	// a
 	// a

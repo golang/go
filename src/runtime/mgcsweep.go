@@ -132,17 +132,15 @@ func finishsweep_m() {
 		sweep.npausesweep++
 	}
 
-	if go115NewMCentralImpl {
-		// Reset all the unswept buffers, which should be empty.
-		// Do this in sweep termination as opposed to mark termination
-		// so that we can catch unswept spans and reclaim blocks as
-		// soon as possible.
-		sg := mheap_.sweepgen
-		for i := range mheap_.central {
-			c := &mheap_.central[i].mcentral
-			c.partialUnswept(sg).reset()
-			c.fullUnswept(sg).reset()
-		}
+	// Reset all the unswept buffers, which should be empty.
+	// Do this in sweep termination as opposed to mark termination
+	// so that we can catch unswept spans and reclaim blocks as
+	// soon as possible.
+	sg := mheap_.sweepgen
+	for i := range mheap_.central {
+		c := &mheap_.central[i].mcentral
+		c.partialUnswept(sg).reset()
+		c.fullUnswept(sg).reset()
 	}
 
 	// Sweeping is done, so if the scavenger isn't already awake,
@@ -202,11 +200,7 @@ func sweepone() uintptr {
 	var s *mspan
 	sg := mheap_.sweepgen
 	for {
-		if go115NewMCentralImpl {
-			s = mheap_.nextSpanForSweep()
-		} else {
-			s = mheap_.sweepSpans[1-sg/2%2].pop()
-		}
+		s = mheap_.nextSpanForSweep()
 		if s == nil {
 			atomic.Store(&mheap_.sweepdone, 1)
 			break
@@ -322,9 +316,6 @@ func (s *mspan) ensureSwept() {
 // If preserve=true, don't return it to heap nor relink in mcentral lists;
 // caller takes care of it.
 func (s *mspan) sweep(preserve bool) bool {
-	if !go115NewMCentralImpl {
-		return s.oldSweep(preserve)
-	}
 	// It's critical that we enter this function with preemption disabled,
 	// GC must not start while we are in the middle of this function.
 	_g_ := getg()
@@ -566,214 +557,6 @@ func (s *mspan) sweep(preserve bool) bool {
 		mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
 	}
 	return false
-}
-
-// Sweep frees or collects finalizers for blocks not marked in the mark phase.
-// It clears the mark bits in preparation for the next GC round.
-// Returns true if the span was returned to heap.
-// If preserve=true, don't return it to heap nor relink in mcentral lists;
-// caller takes care of it.
-//
-// For !go115NewMCentralImpl.
-func (s *mspan) oldSweep(preserve bool) bool {
-	// It's critical that we enter this function with preemption disabled,
-	// GC must not start while we are in the middle of this function.
-	_g_ := getg()
-	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
-		throw("mspan.sweep: m is not locked")
-	}
-	sweepgen := mheap_.sweepgen
-	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
-		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
-		throw("mspan.sweep: bad span state")
-	}
-
-	if trace.enabled {
-		traceGCSweepSpan(s.npages * _PageSize)
-	}
-
-	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
-
-	spc := s.spanclass
-	size := s.elemsize
-	res := false
-
-	c := _g_.m.p.ptr().mcache
-	freeToHeap := false
-
-	// The allocBits indicate which unmarked objects don't need to be
-	// processed since they were free at the end of the last GC cycle
-	// and were not allocated since then.
-	// If the allocBits index is >= s.freeindex and the bit
-	// is not marked then the object remains unallocated
-	// since the last GC.
-	// This situation is analogous to being on a freelist.
-
-	// Unlink & free special records for any objects we're about to free.
-	// Two complications here:
-	// 1. An object can have both finalizer and profile special records.
-	//    In such case we need to queue finalizer for execution,
-	//    mark the object as live and preserve the profile special.
-	// 2. A tiny object can have several finalizers setup for different offsets.
-	//    If such object is not marked, we need to queue all finalizers at once.
-	// Both 1 and 2 are possible at the same time.
-	hadSpecials := s.specials != nil
-	specialp := &s.specials
-	special := *specialp
-	for special != nil {
-		// A finalizer can be set for an inner byte of an object, find object beginning.
-		objIndex := uintptr(special.offset) / size
-		p := s.base() + objIndex*size
-		mbits := s.markBitsForIndex(objIndex)
-		if !mbits.isMarked() {
-			// This object is not marked and has at least one special record.
-			// Pass 1: see if it has at least one finalizer.
-			hasFin := false
-			endOffset := p - s.base() + size
-			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
-				if tmp.kind == _KindSpecialFinalizer {
-					// Stop freeing of object if it has a finalizer.
-					mbits.setMarkedNonAtomic()
-					hasFin = true
-					break
-				}
-			}
-			// Pass 2: queue all finalizers _or_ handle profile record.
-			for special != nil && uintptr(special.offset) < endOffset {
-				// Find the exact byte for which the special was setup
-				// (as opposed to object beginning).
-				p := s.base() + uintptr(special.offset)
-				if special.kind == _KindSpecialFinalizer || !hasFin {
-					// Splice out special record.
-					y := special
-					special = special.next
-					*specialp = special
-					freespecial(y, unsafe.Pointer(p), size)
-				} else {
-					// This is profile record, but the object has finalizers (so kept alive).
-					// Keep special record.
-					specialp = &special.next
-					special = *specialp
-				}
-			}
-		} else {
-			// object is still live: keep special record
-			specialp = &special.next
-			special = *specialp
-		}
-	}
-	if go115NewMarkrootSpans && hadSpecials && s.specials == nil {
-		spanHasNoSpecials(s)
-	}
-
-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled {
-		// Find all newly freed objects. This doesn't have to
-		// efficient; allocfreetrace has massive overhead.
-		mbits := s.markBitsForBase()
-		abits := s.allocBitsForIndex(0)
-		for i := uintptr(0); i < s.nelems; i++ {
-			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
-				x := s.base() + i*s.elemsize
-				if debug.allocfreetrace != 0 {
-					tracefree(unsafe.Pointer(x), size)
-				}
-				if debug.clobberfree != 0 {
-					clobberfree(unsafe.Pointer(x), size)
-				}
-				if raceenabled {
-					racefree(unsafe.Pointer(x), size)
-				}
-				if msanenabled {
-					msanfree(unsafe.Pointer(x), size)
-				}
-			}
-			mbits.advance()
-			abits.advance()
-		}
-	}
-
-	// Count the number of free objects in this span.
-	nalloc := uint16(s.countAlloc())
-	if spc.sizeclass() == 0 && nalloc == 0 {
-		s.needzero = 1
-		freeToHeap = true
-	}
-	nfreed := s.allocCount - nalloc
-	if nalloc > s.allocCount {
-		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
-		throw("sweep increased allocation count")
-	}
-
-	s.allocCount = nalloc
-	wasempty := s.nextFreeIndex() == s.nelems
-	s.freeindex = 0 // reset allocation index to start of span.
-	if trace.enabled {
-		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
-	}
-
-	// gcmarkBits becomes the allocBits.
-	// get a fresh cleared gcmarkBits in preparation for next GC
-	s.allocBits = s.gcmarkBits
-	s.gcmarkBits = newMarkBits(s.nelems)
-
-	// Initialize alloc bits cache.
-	s.refillAllocCache(0)
-
-	// We need to set s.sweepgen = h.sweepgen only when all blocks are swept,
-	// because of the potential for a concurrent free/SetFinalizer.
-	// But we need to set it before we make the span available for allocation
-	// (return it to heap or mcentral), because allocation code assumes that a
-	// span is already swept if available for allocation.
-	if freeToHeap || nfreed == 0 {
-		// The span must be in our exclusive ownership until we update sweepgen,
-		// check for potential races.
-		if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
-			print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
-			throw("mspan.sweep: bad span state after sweep")
-		}
-		// Serialization point.
-		// At this point the mark bits are cleared and allocation ready
-		// to go so release the span.
-		atomic.Store(&s.sweepgen, sweepgen)
-	}
-
-	if nfreed > 0 && spc.sizeclass() != 0 {
-		c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
-		res = mheap_.central[spc].mcentral.freeSpan(s, preserve, wasempty)
-		// mcentral.freeSpan updates sweepgen
-	} else if freeToHeap {
-		// Free large span to heap
-
-		// NOTE(rsc,dvyukov): The original implementation of efence
-		// in CL 22060046 used sysFree instead of sysFault, so that
-		// the operating system would eventually give the memory
-		// back to us again, so that an efence program could run
-		// longer without running out of memory. Unfortunately,
-		// calling sysFree here without any kind of adjustment of the
-		// heap data structures means that when the memory does
-		// come back to us, we have the wrong metadata for it, either in
-		// the mspan structures or in the garbage collection bitmap.
-		// Using sysFault here means that the program will run out of
-		// memory fairly quickly in efence mode, but at least it won't
-		// have mysterious crashes due to confused memory reuse.
-		// It should be possible to switch back to sysFree if we also
-		// implement and then call some kind of mheap.deleteSpan.
-		if debug.efence > 0 {
-			s.limit = 0 // prevent mlookup from finding this span
-			sysFault(unsafe.Pointer(s.base()), size)
-		} else {
-			mheap_.freeSpan(s)
-		}
-		c.local_nlargefree++
-		c.local_largefree += size
-		res = true
-	}
-	if !res {
-		// The span has been swept and is still in-use, so put
-		// it on the swept in-use list.
-		mheap_.sweepSpans[sweepgen/2%2].push(s)
-	}
-	return res
 }
 
 // reportZombies reports any marked but free objects in s and throws.

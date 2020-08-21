@@ -36,8 +36,7 @@ TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R0, R1
 	CSEL	LT, R1, R0, R6    // R6 is min(R0, R1)
 
-	CMP	$0, R6
-	BEQ	samebytes
+	CBZ	R6, samebytes
 	BIC	$0xf, R6, R10
 	CBZ	R10, small        // length < 16
 	ADD	R2, R10           // end of chunk16

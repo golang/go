@@ -6924,26 +6924,42 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
-	// match: (CMPBconst (ANDL x y) [0])
+	// match: (CMPBconst a:(ANDL x y) [0])
+	// cond: a.Uses == 1
 	// result: (TESTB x y)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDL {
+		if v.AuxInt != 0 {
 			break
 		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDL {
+			break
+		}
+		y := a.Args[1]
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTB)
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (CMPBconst (ANDLconst [c] x) [0])
+	// match: (CMPBconst a:(ANDLconst [c] x) [0])
+	// cond: a.Uses == 1
 	// result: (TESTBconst [int64(int8(c))] x)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDLconst {
+		if v.AuxInt != 0 {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := a.AuxInt
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTBconst)
 		v.AuxInt = int64(int8(c))
 		v.AddArg(x)
@@ -7309,26 +7325,42 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
-	// match: (CMPLconst (ANDL x y) [0])
+	// match: (CMPLconst a:(ANDL x y) [0])
+	// cond: a.Uses == 1
 	// result: (TESTL x y)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDL {
+		if v.AuxInt != 0 {
 			break
 		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDL {
+			break
+		}
+		y := a.Args[1]
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTL)
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (CMPLconst (ANDLconst [c] x) [0])
+	// match: (CMPLconst a:(ANDLconst [c] x) [0])
+	// cond: a.Uses == 1
 	// result: (TESTLconst [c] x)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDLconst {
+		if v.AuxInt != 0 {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := a.AuxInt
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTLconst)
 		v.AuxInt = c
 		v.AddArg(x)
@@ -7874,26 +7906,42 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
-	// match: (CMPQconst (ANDQ x y) [0])
+	// match: (CMPQconst a:(ANDQ x y) [0])
+	// cond: a.Uses == 1
 	// result: (TESTQ x y)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDQ {
+		if v.AuxInt != 0 {
 			break
 		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDQ {
+			break
+		}
+		y := a.Args[1]
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTQ)
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (CMPQconst (ANDQconst [c] x) [0])
+	// match: (CMPQconst a:(ANDQconst [c] x) [0])
+	// cond: a.Uses == 1
 	// result: (TESTQconst [c] x)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDQconst {
+		if v.AuxInt != 0 {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDQconst {
+			break
+		}
+		c := a.AuxInt
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTQconst)
 		v.AuxInt = c
 		v.AddArg(x)
@@ -8244,26 +8292,42 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 		v.reset(OpAMD64FlagLT_ULT)
 		return true
 	}
-	// match: (CMPWconst (ANDL x y) [0])
+	// match: (CMPWconst a:(ANDL x y) [0])
+	// cond: a.Uses == 1
 	// result: (TESTW x y)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDL {
+		if v.AuxInt != 0 {
 			break
 		}
-		y := v_0.Args[1]
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDL {
+			break
+		}
+		y := a.Args[1]
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTW)
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (CMPWconst (ANDLconst [c] x) [0])
+	// match: (CMPWconst a:(ANDLconst [c] x) [0])
+	// cond: a.Uses == 1
 	// result: (TESTWconst [int64(int16(c))] x)
 	for {
-		if v.AuxInt != 0 || v_0.Op != OpAMD64ANDLconst {
+		if v.AuxInt != 0 {
 			break
 		}
-		c := v_0.AuxInt
-		x := v_0.Args[0]
+		a := v_0
+		if a.Op != OpAMD64ANDLconst {
+			break
+		}
+		c := a.AuxInt
+		x := a.Args[0]
+		if !(a.Uses == 1) {
+			break
+		}
 		v.reset(OpAMD64TESTWconst)
 		v.AuxInt = int64(int16(c))
 		v.AddArg(x)

@@ -141,8 +141,8 @@ const (
 	nodeInitorder, _                   // tracks state during init1; two bits
 	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
-	_, nodeNoInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeImplicit
+	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
 	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=

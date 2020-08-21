@@ -16,9 +16,9 @@ import (
 	"cmd/go/internal/get"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
-	"cmd/go/internal/str"
 	web "cmd/go/internal/web"
 
+	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
 
@@ -217,7 +217,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 		return nil, errLookupDisabled
 	}
 
-	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
+	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
 		switch proxy {
 		case "noproxy", "direct":
 			return lookupDirect(path)

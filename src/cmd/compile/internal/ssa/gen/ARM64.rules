@@ -279,6 +279,16 @@
 (Less32F x y) => (LessThanF (FCMPS x y))
 (Less64F x y) => (LessThanF (FCMPD x y))
 
+// For an unsigned integer x, the following rules are useful when combining branch
+// 0 <  x  =>  x != 0
+// x <= 0  =>  x == 0
+// x <  1  =>  x == 0
+// 1 <= x  =>  x != 0
+(Less(8U|16U|32U|64U) zero:(MOVDconst [0]) x) => (Neq(8|16|32|64) zero x)
+(Leq(8U|16U|32U|64U) x zero:(MOVDconst [0]))  => (Eq(8|16|32|64) x zero)
+(Less(8U|16U|32U|64U) x (MOVDconst [1])) => (Eq(8|16|32|64) x (MOVDconst [0]))
+(Leq(8U|16U|32U|64U) (MOVDconst [1]) x)  => (Neq(8|16|32|64) (MOVDconst [0]) x)
+
 (Less8U x y)  => (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) => (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Less32U x y) => (LessThanU (CMPW x y))
@@ -1313,6 +1323,7 @@
 (AND x (MVN y)) -> (BIC x y)
 (XOR x (MVN y)) -> (EON x y)
 (OR  x (MVN y)) -> (ORN x y)
+(MVN (XOR x y)) -> (EON x y)
 (CSEL {cc} x (MOVDconst [0]) flag) -> (CSEL0 {cc} x flag)
 (CSEL {cc} (MOVDconst [0]) y flag) -> (CSEL0 {arm64Negate(cc.(Op))} y flag)
 (SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)

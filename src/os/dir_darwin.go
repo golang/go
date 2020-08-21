@@ -47,6 +47,9 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 	var entptr *syscall.Dirent
 	for len(names) < size || n == -1 {
 		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
+			if syscall.Errno(res) == syscall.EINTR {
+				continue
+			}
 			return names, wrapSyscallError("readdir", syscall.Errno(res))
 		}
 		if entptr == nil { // EOF

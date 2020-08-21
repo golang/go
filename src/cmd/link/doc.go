@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Link, typically invoked as ``go tool link,'' reads the Go archive or object
+Link, typically invoked as ``go tool link'', reads the Go archive or object
 for a package main, along with its dependencies, and combines them
 into an executable binary.
 

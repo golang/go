@@ -131,6 +131,7 @@ type Type struct {
 	// TPTR: Ptr
 	// TARRAY: *Array
 	// TSLICE: Slice
+	// TSSA: string
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
@@ -1026,7 +1027,7 @@ func (t *Type) cmp(x *Type) Cmp {
 
 	case TSSA:
 		tname := t.Extra.(string)
-		xname := t.Extra.(string)
+		xname := x.Extra.(string)
 		// desire fast sorting, not pretty sorting.
 		if len(tname) == len(xname) {
 			if tname == xname {

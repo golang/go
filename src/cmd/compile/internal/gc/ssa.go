@@ -338,15 +338,16 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.panics = map[funcLine]*ssa.Block{}
 	s.softFloat = s.config.SoftFloat
 
+	// Allocate starting block
+	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+	s.f.Entry.Pos = fn.Pos
+
 	if printssa {
 		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f, ssaDumpCFG)
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(s.f.HTMLWriter, fn)
 		s.f.HTMLWriter.WriteAST("AST", astBuf)
 	}
-
-	// Allocate starting block
-	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
 
 	// Allocate starting values
 	s.labels = map[string]*ssaLabel{}
@@ -4318,12 +4319,6 @@ func (s *state) openDeferExit() {
 			}
 		}
 
-		if i == len(s.openDefers)-1 {
-			// Record the call of the first defer. This will be used
-			// to set liveness info for the deferreturn (which is also
-			// used for any location that causes a runtime panic)
-			s.f.LastDeferExit = call
-		}
 		s.endBlock()
 		s.startBlock(bEnd)
 	}
@@ -5807,11 +5802,6 @@ type SSAGenState struct {
 
 	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
 	OnWasmStackSkipped int
-
-	// Liveness index for the first function call in the final defer exit code
-	// path that we generated. All defer functions and args should be live at
-	// this point. This will be used to set the liveness for the deferreturn.
-	lastDeferLiveness LivenessIndex
 }
 
 // Prog appends a new Prog.
@@ -6056,12 +6046,6 @@ func genssa(f *ssa.Func, pp *Progs) {
 				// instruction.
 				s.pp.nextLive = s.livenessMap.Get(v)
 
-				// Remember the liveness index of the first defer call of
-				// the last defer exit
-				if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
-					s.lastDeferLiveness = s.pp.nextLive
-				}
-
 				// Special case for first line in function; move it to the start.
 				if firstPos != src.NoXPos {
 					s.SetPos(firstPos)
@@ -6122,7 +6106,7 @@ func genssa(f *ssa.Func, pp *Progs) {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
-		s.pp.nextLive = s.lastDeferLiveness
+		s.pp.nextLive = s.livenessMap.deferreturn
 		gencallret(pp, Deferreturn)
 	}
 

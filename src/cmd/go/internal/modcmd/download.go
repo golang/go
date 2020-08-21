@@ -5,14 +5,15 @@
 package modcmd
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"runtime"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/par"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
@@ -78,7 +79,7 @@ type moduleJSON struct {
 	GoModSum string `json:",omitempty"`
 }
 
-func runDownload(cmd *base.Command, args []string) {
+func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Check whether modules are enabled and whether we're in a module.
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
@@ -89,7 +90,7 @@ func runDownload(cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		args = []string{"all"}
 	} else if modload.HasModRoot() {
-		modload.InitMod() // to fill Target
+		modload.InitMod(ctx) // to fill Target
 		targetAtLatest := modload.Target.Path + "@latest"
 		targetAtUpgrade := modload.Target.Path + "@upgrade"
 		targetAtPatch := modload.Target.Path + "@patch"
@@ -101,33 +102,7 @@ func runDownload(cmd *base.Command, args []string) {
 		}
 	}
 
-	var mods []*moduleJSON
-	var work par.Work
-	listU := false
-	listVersions := false
-	for _, info := range modload.ListModules(args, listU, listVersions) {
-		if info.Replace != nil {
-			info = info.Replace
-		}
-		if info.Version == "" && info.Error == nil {
-			// main module or module replaced with file path.
-			// Nothing to download.
-			continue
-		}
-		m := &moduleJSON{
-			Path:    info.Path,
-			Version: info.Version,
-		}
-		mods = append(mods, m)
-		if info.Error != nil {
-			m.Error = info.Error.Err
-			continue
-		}
-		work.Add(m)
-	}
-
-	work.Do(10, func(item interface{}) {
-		m := item.(*moduleJSON)
+	downloadModule := func(m *moduleJSON) {
 		var err error
 		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
 		if err != nil {
@@ -145,18 +120,53 @@ func runDownload(cmd *base.Command, args []string) {
 			return
 		}
 		mod := module.Version{Path: m.Path, Version: m.Version}
-		m.Zip, err = modfetch.DownloadZip(mod)
+		m.Zip, err = modfetch.DownloadZip(ctx, mod)
 		if err != nil {
 			m.Error = err.Error()
 			return
 		}
 		m.Sum = modfetch.Sum(mod)
-		m.Dir, err = modfetch.Download(mod)
+		m.Dir, err = modfetch.Download(ctx, mod)
 		if err != nil {
 			m.Error = err.Error()
 			return
 		}
-	})
+	}
+
+	var mods []*moduleJSON
+	listU := false
+	listVersions := false
+	type token struct{}
+	sem := make(chan token, runtime.GOMAXPROCS(0))
+	for _, info := range modload.ListModules(ctx, args, listU, listVersions) {
+		if info.Replace != nil {
+			info = info.Replace
+		}
+		if info.Version == "" && info.Error == nil {
+			// main module or module replaced with file path.
+			// Nothing to download.
+			continue
+		}
+		m := &moduleJSON{
+			Path:    info.Path,
+			Version: info.Version,
+		}
+		mods = append(mods, m)
+		if info.Error != nil {
+			m.Error = info.Error.Err
+			continue
+		}
+		sem <- token{}
+		go func() {
+			downloadModule(m)
+			<-sem
+		}()
+	}
+
+	// Fill semaphore channel to wait for goroutines to finish.
+	for n := cap(sem); n > 0; n-- {
+		sem <- token{}
+	}
 
 	if *downloadJSON {
 		for _, m := range mods {

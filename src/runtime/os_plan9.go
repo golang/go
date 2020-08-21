@@ -82,10 +82,10 @@ func sigpanic() {
 	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
 	switch g.sig {
 	case _SIGRFAULT, _SIGWFAULT:
-		i := index(note, "addr=")
+		i := indexNoFloat(note, "addr=")
 		if i >= 0 {
 			i += 5
-		} else if i = index(note, "va="); i >= 0 {
+		} else if i = indexNoFloat(note, "va="); i >= 0 {
 			i += 3
 		} else {
 			panicmem()
@@ -109,6 +109,20 @@ func sigpanic() {
 	default:
 		panic(errorString(note))
 	}
+}
+
+// indexNoFloat is bytealg.IndexString but safe to use in a note
+// handler.
+func indexNoFloat(s, t string) int {
+	if len(t) == 0 {
+		return 0
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[0] && hasPrefix(s[i:], t) {
+			return i
+		}
+	}
+	return -1
 }
 
 func atolwhex(p string) int64 {

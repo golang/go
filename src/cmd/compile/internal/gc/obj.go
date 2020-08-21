@@ -352,7 +352,7 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 
 	symdata := Ctxt.Lookup(symdataname)
 
-	if !symdata.SeenGlobl() {
+	if !symdata.OnList() {
 		// string data
 		off := dsname(symdata, 0, s, pos, "string")
 		ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)

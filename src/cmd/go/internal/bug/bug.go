@@ -7,6 +7,7 @@ package bug
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,7 +38,7 @@ func init() {
 	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 }
 
-func runBug(cmd *base.Command, args []string) {
+func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go bug: bug takes no arguments")
 	}

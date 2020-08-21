@@ -8,6 +8,7 @@ package modcmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -141,7 +142,7 @@ func init() {
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 
-func runEdit(cmd *base.Command, args []string) {
+func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	anyFlags :=
 		*editModule != "" ||
 			*editGo != "" ||

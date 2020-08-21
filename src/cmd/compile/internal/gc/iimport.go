@@ -191,9 +191,9 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
 		}
 	}
 
-	// Fingerprint
-	n, err := io.ReadFull(in, fingerprint[:])
-	if err != nil || n != len(fingerprint) {
+	// Fingerprint.
+	_, err = io.ReadFull(in, fingerprint[:])
+	if err != nil {
 		yyerror("import %s: error reading fingerprint", pkg.Path)
 		errorexit()
 	}

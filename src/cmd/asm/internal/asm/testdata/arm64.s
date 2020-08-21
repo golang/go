@@ -77,6 +77,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	SHA1H	V5, V4                          // a408285e
 	SHA1M	V8.S4, V7, V6                   // e620085e
 	SHA1P	V11.S4, V10, V9                 // 49110b5e
+	SHA512H	V2.D2, V1, V0                   // 208062ce
+	SHA512H2	V4.D2, V3, V2           // 628464ce
+	SHA512SU0	V9.D2, V8.D2            // 2881c0ce
+	SHA512SU1	V7.D2, V6.D2, V5.D2     // c58867ce
 	VADDV	V0.S4, V0                       // 00b8b14e
 	VMOVI	$82, V0.B16                     // 40e6024f
 	VUADDLV	V6.B16, V6                      // c638306e

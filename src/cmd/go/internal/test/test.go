@@ -6,6 +6,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
 	"cmd/internal/test2json"
 )
@@ -565,10 +567,27 @@ var defaultVetFlags = []string{
 	// "-unusedresult",
 }
 
-func runTest(cmd *base.Command, args []string) {
+func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
 	pkgArgs, testArgs = testFlags(args)
+
+	if cfg.DebugTrace != "" {
+		var close func() error
+		var err error
+		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
+		if err != nil {
+			base.Fatalf("failed to start trace: %v", err)
+		}
+		defer func() {
+			if err := close(); err != nil {
+				base.Fatalf("failed to stop trace: %v", err)
+			}
+		}()
+	}
+
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	defer span.Done()
 
 	work.FindExecCmd() // initialize cached result
 
@@ -576,7 +595,7 @@ func runTest(cmd *base.Command, args []string) {
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
 
-	pkgs = load.PackagesForBuild(pkgArgs)
+	pkgs = load.PackagesForBuild(ctx, pkgArgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to test")
 	}
@@ -658,7 +677,7 @@ func runTest(cmd *base.Command, args []string) {
 		sort.Strings(all)
 
 		a := &work.Action{Mode: "go test -i"}
-		for _, p := range load.PackagesForBuild(all) {
+		for _, p := range load.PackagesForBuild(ctx, all) {
 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
 				// gccgo's standard library packages
 				// can not be reinstalled.
@@ -666,7 +685,7 @@ func runTest(cmd *base.Command, args []string) {
 			}
 			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
 		}
-		b.Do(a)
+		b.Do(ctx, a)
 		if !testC || a.Failed {
 			return
 		}
@@ -683,7 +702,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 
 		// Select for coverage all dependencies matching the testCoverPaths patterns.
-		for _, p := range load.TestPackageList(pkgs) {
+		for _, p := range load.TestPackageList(ctx, pkgs) {
 			haveMatch := false
 			for i := range testCoverPaths {
 				if match[i](p) {
@@ -745,7 +764,7 @@ func runTest(cmd *base.Command, args []string) {
 			ensureImport(p, "sync/atomic")
 		}
 
-		buildTest, runTest, printTest, err := builderTest(&b, p)
+		buildTest, runTest, printTest, err := builderTest(&b, ctx, p)
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -786,7 +805,7 @@ func runTest(cmd *base.Command, args []string) {
 		}
 	}
 
-	b.Do(root)
+	b.Do(ctx, root)
 }
 
 // ensures that package p imports the named package
@@ -812,7 +831,7 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
@@ -835,7 +854,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			DeclVars: declareCoverVars,
 		}
 	}
-	pmain, ptest, pxtest, err := load.TestPackagesFor(p, cover)
+	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, p, cover)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1068,7 +1087,7 @@ func (lockedStdout) Write(b []byte) (int, error) {
 }
 
 // builderRunTest is the action for running a test binary.
-func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	if a.Failed {
 		// We were unable to build the binary.
 		a.Failed = false
@@ -1079,9 +1098,13 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	var stdout io.Writer = os.Stdout
+	var err error
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
-		defer json.Close()
+		defer func() {
+			json.Exited(err)
+			json.Close()
+		}()
 		stdout = json
 	}
 
@@ -1185,7 +1208,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	t0 := time.Now()
-	err := cmd.Start()
+	err = cmd.Start()
 
 	// This is a last-ditch deadline to detect and
 	// stop wedged test binaries, to keep the builders
@@ -1641,7 +1664,7 @@ func coveragePercentage(out []byte) string {
 }
 
 // builderCleanTest is the action for cleaning up after a test.
-func builderCleanTest(b *work.Builder, a *work.Action) error {
+func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	if cfg.BuildWork {
 		return nil
 	}
@@ -1653,7 +1676,7 @@ func builderCleanTest(b *work.Builder, a *work.Action) error {
 }
 
 // builderPrintTest is the action for printing a test result.
-func builderPrintTest(b *work.Builder, a *work.Action) error {
+func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	clean := a.Deps[0]
 	run := clean.Deps[0]
 	if run.TestOutput != nil {
@@ -1664,7 +1687,7 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
 }
 
 // builderNoTest is the action for testing a package with no test files.
-func builderNoTest(b *work.Builder, a *work.Action) error {
+func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	var stdout io.Writer = os.Stdout
 	if testJSON {
 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
@@ -1676,7 +1699,7 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
 }
 
 // printExitStatus is the action for printing the exit status
-func printExitStatus(b *work.Builder, a *work.Action) error {
+func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
 	if !testJSON && len(pkgArgs) != 0 {
 		if base.GetExitStatus() != 0 {
 			fmt.Println("FAIL")

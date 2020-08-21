@@ -6,7 +6,7 @@ package load
 
 import (
 	"bytes"
-	"cmd/go/internal/str"
+	"context"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -20,6 +20,9 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/go/internal/str"
+	"cmd/go/internal/trace"
 )
 
 var TestMainDeps = []string{
@@ -42,8 +45,8 @@ type TestCover struct {
 // TestPackagesFor is like TestPackagesAndErrors but it returns
 // an error if the test packages or their dependencies have errors.
 // Only test packages without errors are returned.
-func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
-	pmain, ptest, pxtest = TestPackagesAndErrors(p, cover)
+func TestPackagesFor(ctx context.Context, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
+	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, p, cover)
 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
 		if p1 == nil {
 			// pxtest may be nil
@@ -89,7 +92,10 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 //
 // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
 // or else there's no point in any of this.
-func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+	ctx, span := trace.StartSpan(ctx, "load.TestPackagesAndErrors")
+	defer span.Done()
+
 	pre := newPreload()
 	defer pre.flush()
 	allImports := append([]string{}, p.TestImports...)
@@ -102,7 +108,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		p1 := loadImport(ctx, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
@@ -121,7 +127,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+		p1 := loadImport(ctx, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if p1.ImportPath == p.ImportPath {
 			pxtestNeedsPtest = true
 		} else {
@@ -238,7 +244,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1 := loadImport(pre, dep, "", nil, &stk, nil, 0)
+			p1 := loadImport(ctx, pre, dep, "", nil, &stk, nil, 0)
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}

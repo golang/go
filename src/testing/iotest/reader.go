@@ -68,6 +68,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err error) {
 	return
 }
 
+// ErrTimeout is a fake timeout error.
 var ErrTimeout = errors.New("timeout")
 
 // TimeoutReader returns ErrTimeout on the second read
@@ -85,4 +86,17 @@ func (r *timeoutReader) Read(p []byte) (int, error) {
 		return 0, ErrTimeout
 	}
 	return r.r.Read(p)
+}
+
+// ErrReader returns an io.Reader that returns 0, err from all Read calls.
+func ErrReader(err error) io.Reader {
+	return &alwaysErrReader{err: err}
+}
+
+type alwaysErrReader struct {
+	err error
+}
+
+func (aer *alwaysErrReader) Read(p []byte) (int, error) {
+	return 0, aer.err
 }

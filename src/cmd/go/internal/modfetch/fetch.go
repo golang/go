@@ -7,6 +7,7 @@ package modfetch
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -34,7 +36,7 @@ var downloadCache par.Cache
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
-func Download(mod module.Version) (dir string, err error) {
+func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	if cfg.GOMODCACHE == "" {
 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
@@ -47,7 +49,7 @@ func Download(mod module.Version) (dir string, err error) {
 		err error
 	}
 	c := downloadCache.Do(mod, func() interface{} {
-		dir, err := download(mod)
+		dir, err := download(ctx, mod)
 		if err != nil {
 			return cached{"", err}
 		}
@@ -57,7 +59,10 @@ func Download(mod module.Version) (dir string, err error) {
 	return c.dir, c.err
 }
 
-func download(mod module.Version) (dir string, err error) {
+func download(ctx context.Context, mod module.Version) (dir string, err error) {
+	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
+	defer span.Done()
+
 	// If the directory exists, and no .partial file exists, the module has
 	// already been completely extracted. .partial files may be created when a
 	// module zip directory is extracted in place instead of being extracted to a
@@ -72,7 +77,7 @@ func download(mod module.Version) (dir string, err error) {
 	// To avoid cluttering the cache with extraneous files,
 	// DownloadZip uses the same lockfile as Download.
 	// Invoke DownloadZip before locking the file.
-	zipfile, err := DownloadZip(mod)
+	zipfile, err := DownloadZip(ctx, mod)
 	if err != nil {
 		return "", err
 	}
@@ -142,6 +147,7 @@ func download(mod module.Version) (dir string, err error) {
 		return "", err
 	}
 
+	ctx, span = trace.StartSpan(ctx, "unzip "+zipfile)
 	if unzipInPlace {
 		if err := ioutil.WriteFile(partialPath, nil, 0666); err != nil {
 			return "", err
@@ -171,6 +177,7 @@ func download(mod module.Version) (dir string, err error) {
 			return "", err
 		}
 	}
+	defer span.Done()
 
 	if !cfg.ModCacheRW {
 		// Make dir read-only only *after* renaming it.
@@ -195,7 +202,7 @@ var downloadZipCache par.Cache
 
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
-func DownloadZip(mod module.Version) (zipfile string, err error) {
+func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
 	type cached struct {
 		zipfile string
@@ -230,7 +237,7 @@ func DownloadZip(mod module.Version) (zipfile string, err error) {
 		if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
 			return cached{"", err}
 		}
-		if err := downloadZip(mod, zipfile); err != nil {
+		if err := downloadZip(ctx, mod, zipfile); err != nil {
 			return cached{"", err}
 		}
 		return cached{zipfile, nil}
@@ -238,7 +245,10 @@ func DownloadZip(mod module.Version) (zipfile string, err error) {
 	return c.zipfile, c.err
 }
 
-func downloadZip(mod module.Version, zipfile string) (err error) {
+func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
+	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
+	defer span.Done()
+
 	// Clean up any remaining tempfiles from previous runs.
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.
@@ -374,12 +384,14 @@ type modSum struct {
 
 var goSum struct {
 	mu        sync.Mutex
-	m         map[module.Version][]string // content of go.sum file (+ go.modverify if present)
-	checked   map[modSum]bool             // sums actually checked during execution
-	dirty     bool                        // whether we added any new sums to m
+	m         map[module.Version][]string // content of go.sum file
+	status    map[modSum]modSumStatus     // state of sums in m
 	overwrite bool                        // if true, overwrite go.sum without incorporating its contents
 	enabled   bool                        // whether to use go.sum at all
-	modverify string                      // path to go.modverify, to be deleted
+}
+
+type modSumStatus struct {
+	used, dirty bool
 }
 
 // initGoSum initializes the go.sum data.
@@ -395,7 +407,7 @@ func initGoSum() (bool, error) {
 	}
 
 	goSum.m = make(map[module.Version][]string)
-	goSum.checked = make(map[modSum]bool)
+	goSum.status = make(map[modSum]modSumStatus)
 	data, err := lockedfile.Read(GoSumFile)
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
@@ -403,19 +415,6 @@ func initGoSum() (bool, error) {
 	goSum.enabled = true
 	readGoSum(goSum.m, GoSumFile, data)
 
-	// Add old go.modverify file.
-	// We'll delete go.modverify in WriteGoSum.
-	alt := strings.TrimSuffix(GoSumFile, ".sum") + ".modverify"
-	if data, err := renameio.ReadFile(alt); err == nil {
-		migrate := make(map[module.Version][]string)
-		readGoSum(migrate, alt, data)
-		for mod, sums := range migrate {
-			for _, sum := range sums {
-				addModSumLocked(mod, sum)
-			}
-		}
-		goSum.modverify = alt
-	}
 	return true, nil
 }
 
@@ -518,6 +517,11 @@ func checkModSum(mod module.Version, h string) error {
 		return err
 	}
 	done := inited && haveModSumLocked(mod, h)
+	if inited {
+		st := goSum.status[modSum{mod, h}]
+		st.used = true
+		goSum.status[modSum{mod, h}] = st
+	}
 	goSum.mu.Unlock()
 
 	if done {
@@ -537,6 +541,9 @@ func checkModSum(mod module.Version, h string) error {
 	if inited {
 		goSum.mu.Lock()
 		addModSumLocked(mod, h)
+		st := goSum.status[modSum{mod, h}]
+		st.dirty = true
+		goSum.status[modSum{mod, h}] = st
 		goSum.mu.Unlock()
 	}
 	return nil
@@ -546,7 +553,6 @@ func checkModSum(mod module.Version, h string) error {
 // If it finds a conflicting pair instead, it calls base.Fatalf.
 // goSum.mu must be locked.
 func haveModSumLocked(mod module.Version, h string) bool {
-	goSum.checked[modSum{mod, h}] = true
 	for _, vh := range goSum.m[mod] {
 		if h == vh {
 			return true
@@ -568,7 +574,6 @@ func addModSumLocked(mod module.Version, h string) {
 		fmt.Fprintf(os.Stderr, "warning: verifying %s@%s: unknown hashes in go.sum: %v; adding %v"+hashVersionMismatch, mod.Path, mod.Version, strings.Join(goSum.m[mod], ", "), h)
 	}
 	goSum.m[mod] = append(goSum.m[mod], h)
-	goSum.dirty = true
 }
 
 // checkSumDB checks the mod, h pair against the Go checksum database.
@@ -612,18 +617,35 @@ func Sum(mod module.Version) string {
 }
 
 // WriteGoSum writes the go.sum file if it needs to be updated.
-func WriteGoSum() {
+//
+// keep is used to check whether a newly added sum should be saved in go.sum.
+// It should have entries for both module content sums and go.mod sums
+// (version ends with "/go.mod"). Existing sums will be preserved unless they
+// have been marked for deletion with TrimGoSum.
+func WriteGoSum(keep map[module.Version]bool) {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
+	// If we haven't read the go.sum file yet, don't bother writing it.
 	if !goSum.enabled {
-		// If we haven't read the go.sum file yet, don't bother writing it: at best,
-		// we could rename the go.modverify file if it isn't empty, but we haven't
-		// needed to touch it so far — how important could it be?
 		return
 	}
-	if !goSum.dirty {
-		// Don't bother opening the go.sum file if we don't have anything to add.
+
+	// Check whether we need to add sums for which keep[m] is true or remove
+	// unused sums marked with TrimGoSum. If there are no changes to make,
+	// just return without opening go.sum.
+	dirty := false
+Outer:
+	for m, hs := range goSum.m {
+		for _, h := range hs {
+			st := goSum.status[modSum{m, h}]
+			if st.dirty && (!st.used || keep[m]) {
+				dirty = true
+				break Outer
+			}
+		}
+	}
+	if !dirty {
 		return
 	}
 	if cfg.BuildMod == "readonly" {
@@ -644,9 +666,10 @@ func WriteGoSum() {
 			// them without good reason.
 			goSum.m = make(map[module.Version][]string, len(goSum.m))
 			readGoSum(goSum.m, GoSumFile, data)
-			for ms := range goSum.checked {
-				addModSumLocked(ms.mod, ms.sum)
-				goSum.dirty = true
+			for ms, st := range goSum.status {
+				if st.used {
+					addModSumLocked(ms.mod, ms.sum)
+				}
 			}
 		}
 
@@ -661,7 +684,10 @@ func WriteGoSum() {
 			list := goSum.m[m]
 			sort.Strings(list)
 			for _, h := range list {
-				fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+				st := goSum.status[modSum{m, h}]
+				if !st.dirty || (st.used && keep[m]) {
+					fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+				}
 			}
 		}
 		return buf.Bytes(), nil
@@ -671,16 +697,16 @@ func WriteGoSum() {
 		base.Fatalf("go: updating go.sum: %v", err)
 	}
 
-	goSum.checked = make(map[modSum]bool)
-	goSum.dirty = false
+	goSum.status = make(map[modSum]modSumStatus)
 	goSum.overwrite = false
-
-	if goSum.modverify != "" {
-		os.Remove(goSum.modverify) // best effort
-	}
 }
 
-// TrimGoSum trims go.sum to contain only the modules for which keep[m] is true.
+// TrimGoSum trims go.sum to contain only the modules needed for reproducible
+// builds.
+//
+// keep is used to check whether a sum should be retained in go.mod. It should
+// have entries for both module content sums and go.mod sums (version ends
+// with "/go.mod").
 func TrimGoSum(keep map[module.Version]bool) {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
@@ -692,13 +718,11 @@ func TrimGoSum(keep map[module.Version]bool) {
 		return
 	}
 
-	for m := range goSum.m {
-		// If we're keeping x@v we also keep x@v/go.mod.
-		// Map x@v/go.mod back to x@v for the keep lookup.
-		noGoMod := module.Version{Path: m.Path, Version: strings.TrimSuffix(m.Version, "/go.mod")}
-		if !keep[m] && !keep[noGoMod] {
-			delete(goSum.m, m)
-			goSum.dirty = true
+	for m, hs := range goSum.m {
+		if !keep[m] {
+			for _, h := range hs {
+				goSum.status[modSum{m, h}] = modSumStatus{used: false, dirty: true}
+			}
 			goSum.overwrite = true
 		}
 	}

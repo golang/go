@@ -18,7 +18,6 @@ import "runtime/internal/atomic"
 //
 //go:notinheap
 type mcentral struct {
-	lock      mutex
 	spanclass spanClass
 
 	// For !go115NewMCentralImpl.
@@ -55,16 +54,10 @@ type mcentral struct {
 // Initialize a single central free list.
 func (c *mcentral) init(spc spanClass) {
 	c.spanclass = spc
-	if go115NewMCentralImpl {
-		lockInit(&c.partial[0].spineLock, lockRankSpanSetSpine)
-		lockInit(&c.partial[1].spineLock, lockRankSpanSetSpine)
-		lockInit(&c.full[0].spineLock, lockRankSpanSetSpine)
-		lockInit(&c.full[1].spineLock, lockRankSpanSetSpine)
-	} else {
-		c.nonempty.init()
-		c.empty.init()
-		lockInit(&c.lock, lockRankMcentral)
-	}
+	lockInit(&c.partial[0].spineLock, lockRankSpanSetSpine)
+	lockInit(&c.partial[1].spineLock, lockRankSpanSetSpine)
+	lockInit(&c.full[0].spineLock, lockRankSpanSetSpine)
+	lockInit(&c.full[1].spineLock, lockRankSpanSetSpine)
 }
 
 // partialUnswept returns the spanSet which holds partially-filled
@@ -93,9 +86,6 @@ func (c *mcentral) fullSwept(sweepgen uint32) *spanSet {
 
 // Allocate a span to use in an mcache.
 func (c *mcentral) cacheSpan() *mspan {
-	if !go115NewMCentralImpl {
-		return c.oldCacheSpan()
-	}
 	// Deduct credit for this span allocation and sweep if necessary.
 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
 	deductSweepCredit(spanBytes, 0)
@@ -213,127 +203,11 @@ havespan:
 	return s
 }
 
-// Allocate a span to use in an mcache.
-//
-// For !go115NewMCentralImpl.
-func (c *mcentral) oldCacheSpan() *mspan {
-	// Deduct credit for this span allocation and sweep if necessary.
-	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
-	deductSweepCredit(spanBytes, 0)
-
-	lock(&c.lock)
-	traceDone := false
-	if trace.enabled {
-		traceGCSweepStart()
-	}
-	sg := mheap_.sweepgen
-retry:
-	var s *mspan
-	for s = c.nonempty.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			c.nonempty.remove(s)
-			c.empty.insertBack(s)
-			unlock(&c.lock)
-			s.sweep(true)
-			goto havespan
-		}
-		if s.sweepgen == sg-1 {
-			// the span is being swept by background sweeper, skip
-			continue
-		}
-		// we have a nonempty span that does not require sweeping, allocate from it
-		c.nonempty.remove(s)
-		c.empty.insertBack(s)
-		unlock(&c.lock)
-		goto havespan
-	}
-
-	for s = c.empty.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			// we have an empty span that requires sweeping,
-			// sweep it and see if we can free some space in it
-			c.empty.remove(s)
-			// swept spans are at the end of the list
-			c.empty.insertBack(s)
-			unlock(&c.lock)
-			s.sweep(true)
-			freeIndex := s.nextFreeIndex()
-			if freeIndex != s.nelems {
-				s.freeindex = freeIndex
-				goto havespan
-			}
-			lock(&c.lock)
-			// the span is still empty after sweep
-			// it is already in the empty list, so just retry
-			goto retry
-		}
-		if s.sweepgen == sg-1 {
-			// the span is being swept by background sweeper, skip
-			continue
-		}
-		// already swept empty span,
-		// all subsequent ones must also be either swept or in process of sweeping
-		break
-	}
-	if trace.enabled {
-		traceGCSweepDone()
-		traceDone = true
-	}
-	unlock(&c.lock)
-
-	// Replenish central list if empty.
-	s = c.grow()
-	if s == nil {
-		return nil
-	}
-	lock(&c.lock)
-	c.empty.insertBack(s)
-	unlock(&c.lock)
-
-	// At this point s is a non-empty span, queued at the end of the empty list,
-	// c is unlocked.
-havespan:
-	if trace.enabled && !traceDone {
-		traceGCSweepDone()
-	}
-	n := int(s.nelems) - int(s.allocCount)
-	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
-		throw("span has no free objects")
-	}
-	// Assume all objects from this span will be allocated in the
-	// mcache. If it gets uncached, we'll adjust this.
-	atomic.Xadd64(&c.nmalloc, int64(n))
-	usedBytes := uintptr(s.allocCount) * s.elemsize
-	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
-	if trace.enabled {
-		// heap_live changed.
-		traceHeapAlloc()
-	}
-	if gcBlackenEnabled != 0 {
-		// heap_live changed.
-		gcController.revise()
-	}
-	freeByteBase := s.freeindex &^ (64 - 1)
-	whichByte := freeByteBase / 8
-	// Init alloc bits cache.
-	s.refillAllocCache(whichByte)
-
-	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
-	// s.allocCache.
-	s.allocCache >>= s.freeindex % 64
-
-	return s
-}
-
 // Return span from an mcache.
 //
 // s must have a span class corresponding to this
 // mcentral and it must not be empty.
 func (c *mcentral) uncacheSpan(s *mspan) {
-	if !go115NewMCentralImpl {
-		c.oldUncacheSpan(s)
-		return
-	}
 	if s.allocCount == 0 {
 		throw("uncaching span but s.allocCount == 0")
 	}
@@ -391,111 +265,6 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 			c.fullSwept(sg).push(s)
 		}
 	}
-}
-
-// Return span from an mcache.
-//
-// For !go115NewMCentralImpl.
-func (c *mcentral) oldUncacheSpan(s *mspan) {
-	if s.allocCount == 0 {
-		throw("uncaching span but s.allocCount == 0")
-	}
-
-	sg := mheap_.sweepgen
-	stale := s.sweepgen == sg+1
-	if stale {
-		// Span was cached before sweep began. It's our
-		// responsibility to sweep it.
-		//
-		// Set sweepgen to indicate it's not cached but needs
-		// sweeping and can't be allocated from. sweep will
-		// set s.sweepgen to indicate s is swept.
-		atomic.Store(&s.sweepgen, sg-1)
-	} else {
-		// Indicate that s is no longer cached.
-		atomic.Store(&s.sweepgen, sg)
-	}
-
-	n := int(s.nelems) - int(s.allocCount)
-	if n > 0 {
-		// cacheSpan updated alloc assuming all objects on s
-		// were going to be allocated. Adjust for any that
-		// weren't. We must do this before potentially
-		// sweeping the span.
-		atomic.Xadd64(&c.nmalloc, -int64(n))
-
-		lock(&c.lock)
-		c.empty.remove(s)
-		c.nonempty.insert(s)
-		if !stale {
-			// mCentral_CacheSpan conservatively counted
-			// unallocated slots in heap_live. Undo this.
-			//
-			// If this span was cached before sweep, then
-			// heap_live was totally recomputed since
-			// caching this span, so we don't do this for
-			// stale spans.
-			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
-		}
-		unlock(&c.lock)
-	}
-
-	if stale {
-		// Now that s is in the right mcentral list, we can
-		// sweep it.
-		s.sweep(false)
-	}
-}
-
-// freeSpan updates c and s after sweeping s.
-// It sets s's sweepgen to the latest generation,
-// and, based on the number of free objects in s,
-// moves s to the appropriate list of c or returns it
-// to the heap.
-// freeSpan reports whether s was returned to the heap.
-// If preserve=true, it does not move s (the caller
-// must take care of it).
-//
-// For !go115NewMCentralImpl.
-func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
-	if sg := mheap_.sweepgen; s.sweepgen == sg+1 || s.sweepgen == sg+3 {
-		throw("freeSpan given cached span")
-	}
-	s.needzero = 1
-
-	if preserve {
-		// preserve is set only when called from (un)cacheSpan above,
-		// the span must be in the empty list.
-		if !s.inList() {
-			throw("can't preserve unlinked span")
-		}
-		atomic.Store(&s.sweepgen, mheap_.sweepgen)
-		return false
-	}
-
-	lock(&c.lock)
-
-	// Move to nonempty if necessary.
-	if wasempty {
-		c.empty.remove(s)
-		c.nonempty.insert(s)
-	}
-
-	// delay updating sweepgen until here. This is the signal that
-	// the span may be used in an mcache, so it must come after the
-	// linked list operations above (actually, just after the
-	// lock of c above.)
-	atomic.Store(&s.sweepgen, mheap_.sweepgen)
-
-	if s.allocCount != 0 {
-		unlock(&c.lock)
-		return false
-	}
-
-	c.nonempty.remove(s)
-	unlock(&c.lock)
-	mheap_.freeSpan(s)
-	return true
 }
 
 // grow allocates a new empty span from the heap and initializes it for c's size class.

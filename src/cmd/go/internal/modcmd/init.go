@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"context"
 	"os"
 	"strings"
 )
@@ -32,7 +33,7 @@ func init() {
 	work.AddModCommonFlags(cmdInit)
 }
 
-func runInit(cmd *base.Command, args []string) {
+func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	modload.CmdModInit = true
 	if len(args) > 1 {
 		base.Fatalf("go mod init: too many arguments")
@@ -50,5 +51,6 @@ func runInit(cmd *base.Command, args []string) {
 	if strings.Contains(modload.CmdModModule, "@") {
 		base.Fatalf("go mod init: module path must not contain '@'")
 	}
-	modload.InitMod() // does all the hard work
+	modload.InitMod(ctx) // does all the hard work
+	modload.WriteGoMod()
 }

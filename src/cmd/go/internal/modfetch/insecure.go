@@ -7,10 +7,11 @@ package modfetch
 import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/get"
-	"cmd/go/internal/str"
+
+	"golang.org/x/mod/module"
 )
 
 // allowInsecure reports whether we are allowed to fetch this path in an insecure manner.
 func allowInsecure(path string) bool {
-	return get.Insecure || str.GlobsMatchPath(cfg.GOINSECURE, path)
+	return get.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, path)
 }

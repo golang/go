@@ -243,6 +243,7 @@ func (p *Package) writeDefs() {
 		if err != nil {
 			fatalf("%s", err)
 		}
+		defer fgcch.Close()
 		_, err = io.Copy(fexp, fgcch)
 		if err != nil {
 			fatalf("%s", err)

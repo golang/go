@@ -545,6 +545,10 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
+// Unsigned comparisons to zero.
+(Less(64U|32U|16U|8U) _ (Const(64|32|16|8) [0])) => (ConstBool [false])
+(Leq(64U|32U|16U|8U) (Const(64|32|16|8) [0]) _)  => (ConstBool [true])
+
 // Ands clear bits. Ors set bits.
 // If a subsequent Or will set all the bits
 // that an And cleared, we can skip the And.

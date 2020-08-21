@@ -7,6 +7,7 @@
 package base
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -24,7 +25,7 @@ import (
 type Command struct {
 	// Run runs the command.
 	// The args are the arguments after the command name.
-	Run func(cmd *Command, args []string)
+	Run func(ctx context.Context, cmd *Command, args []string)
 
 	// UsageLine is the one-line usage message.
 	// The words between "go" and the first flag or argument in the line are taken to be the command name.
