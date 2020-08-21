@@ -591,6 +591,7 @@ func schedinit() {
 	parsedebugvars()
 	gcinit()
 
+	lock(&sched.lock)
 	sched.lastpoll = uint64(nanotime())
 	procs := ncpu
 	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
@@ -599,6 +600,7 @@ func schedinit() {
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
 	}
+	unlock(&sched.lock)
 
 	// For cgocheck > 1, we turn on the write barrier at all times
 	// and check all pointer writes. We can't do this until after
@@ -629,8 +631,10 @@ func dumpgstatus(gp *g) {
 	print("runtime:  g:  g=", _g_, ", goid=", _g_.goid, ",  g->atomicstatus=", readgstatus(_g_), "\n")
 }
 
+// sched.lock must be held.
 func checkmcount() {
-	// sched lock is held
+	assertLockHeld(&sched.lock)
+
 	if mcount() > sched.maxmcount {
 		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
 		throw("thread exhaustion")
@@ -642,6 +646,8 @@ func checkmcount() {
 //
 // sched.lock must be held.
 func mReserveID() int64 {
+	assertLockHeld(&sched.lock)
+
 	if sched.mnext+1 < sched.mnext {
 		throw("runtime: thread ID overflow")
 	}
@@ -2545,7 +2551,7 @@ func resetspinning() {
 // Otherwise, for each idle P, this adds a G to the global queue
 // and starts an M. Any remaining G's are added to the current P's
 // local run queue.
-// This may temporarily acquire the scheduler lock.
+// This may temporarily acquire sched.lock.
 // Can run concurrently with GC.
 func injectglist(glist *gList) {
 	if glist.empty() {
@@ -4242,6 +4248,8 @@ func (pp *p) init(id int32) {
 //
 // sched.lock must be held and the world must be stopped.
 func (pp *p) destroy() {
+	assertLockHeld(&sched.lock)
+
 	// Move all runnable goroutines to the global queue
 	for pp.runqhead != pp.runqtail {
 		// Pop from tail of local queue
@@ -4333,11 +4341,17 @@ func (pp *p) destroy() {
 	pp.status = _Pdead
 }
 
-// Change number of processors. The world is stopped, sched is locked.
-// gcworkbufs are not being modified by either the GC or
-// the write barrier code.
+// Change number of processors.
+//
+// sched.lock must be held, and the world must be stopped.
+//
+// gcworkbufs must not be being modified by either the GC or the write barrier
+// code, so the GC must not be running if the number of Ps actually changes.
+//
 // Returns list of Ps with local work, they need to be scheduled by the caller.
 func procresize(nprocs int32) *p {
+	assertLockHeld(&sched.lock)
+
 	old := gomaxprocs
 	if old < 0 || nprocs <= 0 {
 		throw("procresize: invalid arg")
@@ -4529,6 +4543,8 @@ func incidlelocked(v int32) {
 // The check is based on number of running M's, if 0 -> deadlock.
 // sched.lock must be held.
 func checkdead() {
+	assertLockHeld(&sched.lock)
+
 	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
 	// there are no running goroutines. The calling program is
 	// assumed to be running.
@@ -5003,7 +5019,11 @@ func schedEnableUser(enable bool) {
 
 // schedEnabled reports whether gp should be scheduled. It returns
 // false is scheduling of gp is disabled.
+//
+// sched.lock must be held.
 func schedEnabled(gp *g) bool {
+	assertLockHeld(&sched.lock)
+
 	if sched.disable.user {
 		return isSystemGoroutine(gp, true)
 	}
@@ -5011,10 +5031,12 @@ func schedEnabled(gp *g) bool {
 }
 
 // Put mp on midle list.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func mput(mp *m) {
+	assertLockHeld(&sched.lock)
+
 	mp.schedlink = sched.midle
 	sched.midle.set(mp)
 	sched.nmidle++
@@ -5022,10 +5044,12 @@ func mput(mp *m) {
 }
 
 // Try to get an m from midle list.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func mget() *m {
+	assertLockHeld(&sched.lock)
+
 	mp := sched.midle.ptr()
 	if mp != nil {
 		sched.midle = mp.schedlink
@@ -5035,35 +5059,43 @@ func mget() *m {
 }
 
 // Put gp on the global runnable queue.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func globrunqput(gp *g) {
+	assertLockHeld(&sched.lock)
+
 	sched.runq.pushBack(gp)
 	sched.runqsize++
 }
 
 // Put gp at the head of the global runnable queue.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func globrunqputhead(gp *g) {
+	assertLockHeld(&sched.lock)
+
 	sched.runq.push(gp)
 	sched.runqsize++
 }
 
 // Put a batch of runnable goroutines on the global runnable queue.
 // This clears *batch.
-// Sched must be locked.
+// sched.lock must be held.
 func globrunqputbatch(batch *gQueue, n int32) {
+	assertLockHeld(&sched.lock)
+
 	sched.runq.pushBackAll(*batch)
 	sched.runqsize += n
 	*batch = gQueue{}
 }
 
 // Try get a batch of G's from the global runnable queue.
-// Sched must be locked.
+// sched.lock must be held.
 func globrunqget(_p_ *p, max int32) *g {
+	assertLockHeld(&sched.lock)
+
 	if sched.runqsize == 0 {
 		return nil
 	}
@@ -5091,10 +5123,12 @@ func globrunqget(_p_ *p, max int32) *g {
 }
 
 // Put p to on _Pidle list.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleput(_p_ *p) {
+	assertLockHeld(&sched.lock)
+
 	if !runqempty(_p_) {
 		throw("pidleput: P has non-empty run queue")
 	}
@@ -5104,10 +5138,12 @@ func pidleput(_p_ *p) {
 }
 
 // Try get a p from _Pidle list.
-// Sched must be locked.
+// sched.lock must be held.
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrierrec
 func pidleget() *p {
+	assertLockHeld(&sched.lock)
+
 	_p_ := sched.pidle.ptr()
 	if _p_ != nil {
 		sched.pidle = _p_.link
