@@ -648,12 +648,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	}
 
 	// Adjust saved base pointer if there is one.
+	// TODO what about arm64 frame pointer adjustment?
 	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
-		if !framepointer_enabled {
-			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
-			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
-			throw("bad frame layout")
-		}
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}

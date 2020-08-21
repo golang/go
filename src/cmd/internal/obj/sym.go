@@ -53,7 +53,6 @@ func Linknew(arch *LinkArch) *Link {
 	}
 
 	ctxt.Flag_optimize = true
-	ctxt.Framepointer_enabled = objabi.Framepointer_enabled(objabi.GOOS, arch.Name)
 	return ctxt
 }
 

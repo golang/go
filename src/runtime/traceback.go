@@ -269,9 +269,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.varp -= sys.RegSize
 		}
 
-		// If framepointer_enabled and there's a frame, then
-		// there's a saved bp here.
-		if frame.varp > frame.sp && (framepointer_enabled && GOARCH == "amd64" || GOARCH == "arm64") {
+		// For architectures with frame pointers, if there's
+		// a frame, then there's a saved frame pointer here.
+		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
 			frame.varp -= sys.RegSize
 		}
 

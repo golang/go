@@ -582,7 +582,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	var bpsize int
-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
+	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
 		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below

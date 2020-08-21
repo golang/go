@@ -621,7 +621,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				q1 = obj.Appendp(q1, c.newprog)
 				q1.Pos = p.Pos
 				q1.As = AMOVD
@@ -764,7 +764,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Reg = REGSP
 					p.Spadj = -c.autosize
 
-					if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+					if objabi.Framepointer_enabled {
 						p = obj.Appendp(p, c.newprog)
 						p.As = ASUB
 						p.From.Type = obj.TYPE_CONST
@@ -777,7 +777,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
 
-				if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+				if objabi.Framepointer_enabled {
 					p.As = AMOVD
 					p.From.Type = obj.TYPE_MEM
 					p.From.Reg = REGSP
@@ -865,7 +865,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case obj.ADUFFCOPY:
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				//  ADR	ret_addr, R27
 				//  STP	(FP, R27), -24(SP)
 				//  SUB	24, SP, FP
@@ -918,7 +918,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case obj.ADUFFZERO:
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				//  ADR	ret_addr, R27
 				//  STP	(FP, R27), -24(SP)
 				//  SUB	24, SP, FP
