@@ -780,6 +780,9 @@ type schedt struct {
 	// Acquire and hold this mutex to block sysmon from interacting
 	// with the rest of the runtime.
 	sysmonlock mutex
+
+	// global work stealing lease deadline
+	workStealLeaseDeadline int64
 }
 
 // Values for the flags field of a sigTabT.

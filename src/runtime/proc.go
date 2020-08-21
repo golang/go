@@ -2173,6 +2173,8 @@ func execute(gp *g, inheritTime bool) {
 // Finds a runnable goroutine to execute.
 // Tries to steal from other P's, get g from local or global queue, poll network.
 func findrunnable() (gp *g, inheritTime bool) {
+	// 3 ms
+	const workStealLeaseDuration = 3000000
 	_g_ := getg()
 
 	// The conditions here and in handoffp must agree: if
@@ -2189,7 +2191,8 @@ top:
 		runSafePointFn()
 	}
 
-	now, pollUntil, _ := checkTimers(_p_, 0)
+	ntime := nanotime()
+	now, pollUntil, _ := checkTimers(_p_, ntime)
 
 	if fingwait && fingwake {
 		if gp := wakefing(); gp != nil {
@@ -2237,6 +2240,7 @@ top:
 	// Steal work from other P's.
 	procs := uint32(gomaxprocs)
 	ranTimer := false
+	stealLeaseDeadline := atomic.Loadint64(&sched.workStealLeaseDeadline)
 	// If number of spinning M's >= number of busy P's, block.
 	// This is necessary to prevent excessive CPU consumption
 	// when GOMAXPROCS>>1 but the program parallelism is low.
@@ -2246,6 +2250,10 @@ top:
 	if !_g_.m.spinning {
 		_g_.m.spinning = true
 		atomic.Xadd(&sched.nmspinning, 1)
+	}
+	// don't steal in steal lease time
+	if ntime < stealLeaseDeadline {
+		goto stop
 	}
 	for i := 0; i < 4; i++ {
 		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
@@ -2298,6 +2306,8 @@ top:
 		// Running a timer may have made some goroutine ready.
 		goto top
 	}
+	// haven't stolen anything, set work steal lease deadline
+	atomic.Store64((*uint64)(unsafe.Pointer(&sched.workStealLeaseDeadline)), uint64(ntime+workStealLeaseDuration))
 
 stop:
 
