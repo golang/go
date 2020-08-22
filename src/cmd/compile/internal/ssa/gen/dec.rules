@@ -66,14 +66,14 @@
     (Load <typ.Int>
       (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
       mem))
-(Store dst (SliceMake ptr len cap) mem) =>
+(Store {t} dst (SliceMake ptr len cap) mem) =>
   (Store {typ.Int}
     (OffPtr <typ.IntPtr> [2*config.PtrSize] dst)
     cap
     (Store {typ.Int}
       (OffPtr <typ.IntPtr> [config.PtrSize] dst)
       len
-      (Store {typ.BytePtr} dst ptr mem)))
+      (Store {t.Elem().PtrTo()} dst ptr mem)))
 
 // interface ops
 (ITab (IMake itab _)) => itab

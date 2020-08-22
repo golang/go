@@ -909,15 +909,12 @@ type _defer struct {
 
 // A _panic holds information about an active panic.
 //
-// This is marked go:notinheap because _panic values must only ever
-// live on the stack.
+// A _panic value must only ever live on the stack.
 //
 // The argp and link fields are stack pointers, but don't need special
 // handling during stack growth: because they are pointer-typed and
 // _panic values only live on the stack, regular stack pointer
 // adjustment takes care of them.
-//
-//go:notinheap
 type _panic struct {
 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
 	arg       interface{}    // argument to panic

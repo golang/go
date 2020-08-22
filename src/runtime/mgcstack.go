@@ -167,8 +167,6 @@ func (obj *stackObject) setType(typ *_type) {
 
 // A stackScanState keeps track of the state used during the GC walk
 // of a goroutine.
-//
-//go:notinheap
 type stackScanState struct {
 	cache pcvalueCache
 
