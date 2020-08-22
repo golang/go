@@ -220,3 +220,13 @@ func TestBitwiseContended(t *testing.T) {
 		}
 	}
 }
+
+func TestStorepNoWB(t *testing.T) {
+	var p [2]*int
+	for i := range p {
+		atomic.StorepNoWB(unsafe.Pointer(&p[i]), unsafe.Pointer(new(int)))
+	}
+	if p[0] == p[1] {
+		t.Error("Bad escape analysis of StorepNoWB")
+	}
+}
