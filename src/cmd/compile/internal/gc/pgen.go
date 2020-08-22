@@ -80,8 +80,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return a.Name.Used()
 	}
 
-	ap := types.Haspointers(a.Type)
-	bp := types.Haspointers(b.Type)
+	ap := a.Type.HasPointers()
+	bp := b.Type.HasPointers()
 	if ap != bp {
 		return ap
 	}
@@ -176,7 +176,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 		s.stksize += w
 		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
-		if types.Haspointers(n.Type) {
+		if n.Type.HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
 		} else {

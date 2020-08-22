@@ -326,7 +326,7 @@ func (e *Escape) stmt(n *Node) {
 			if typesw && n.Left.Left != nil {
 				cv := cas.Rlist.First()
 				k := e.dcl(cv) // type switch variables have no ODCL.
-				if types.Haspointers(cv.Type) {
+				if cv.Type.HasPointers() {
 					ks = append(ks, k.dotType(cv.Type, cas, "switch case"))
 				}
 			}
@@ -433,7 +433,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 
 	if uintptrEscapesHack && n.Op == OCONVNOP && n.Left.Type.IsUnsafePtr() {
 		// nop
-	} else if k.derefs >= 0 && !types.Haspointers(n.Type) {
+	} else if k.derefs >= 0 && !n.Type.HasPointers() {
 		k = e.discardHole()
 	}
 
@@ -698,7 +698,7 @@ func (e *Escape) addr(n *Node) EscHole {
 		e.assignHeap(n.Right, "key of map put", n)
 	}
 
-	if !types.Haspointers(n.Type) {
+	if !n.Type.HasPointers() {
 		k = e.discardHole()
 	}
 
@@ -811,14 +811,14 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		// slice might be allocated, and all slice elements
 		// might flow to heap.
 		appendeeK := ks[0]
-		if types.Haspointers(args[0].Type.Elem()) {
+		if args[0].Type.Elem().HasPointers() {
 			appendeeK = e.teeHole(appendeeK, e.heapHole().deref(call, "appendee slice"))
 		}
 		argument(appendeeK, args[0])
 
 		if call.IsDDD() {
 			appendedK := e.discardHole()
-			if args[1].Type.IsSlice() && types.Haspointers(args[1].Type.Elem()) {
+			if args[1].Type.IsSlice() && args[1].Type.Elem().HasPointers() {
 				appendedK = e.heapHole().deref(call, "appended slice...")
 			}
 			argument(appendedK, args[1])
@@ -832,7 +832,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		argument(e.discardHole(), call.Left)
 
 		copiedK := e.discardHole()
-		if call.Right.Type.IsSlice() && types.Haspointers(call.Right.Type.Elem()) {
+		if call.Right.Type.IsSlice() && call.Right.Type.Elem().HasPointers() {
 			copiedK = e.heapHole().deref(call, "copied slice")
 		}
 		argument(copiedK, call.Right)
