@@ -226,6 +226,9 @@ func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
 	t.Parallel()
 	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
 	if build.Default.CgoEnabled {
+		if runtime.GOOS == "aix" {
+			t.Skipf("skipping on %s, issue 40972", runtime.GOOS)
+		}
 		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
 	}
 }
