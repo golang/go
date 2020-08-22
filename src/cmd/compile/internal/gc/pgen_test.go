@@ -185,8 +185,8 @@ func TestStackvarSort(t *testing.T) {
 	// exercise this function on all inputs so that reflect.DeepEqual
 	// doesn't produce false positives.
 	for i := range want {
-		types.Haspointers(want[i].Type)
-		types.Haspointers(inp[i].Type)
+		want[i].Type.HasPointers()
+		inp[i].Type.HasPointers()
 	}
 
 	sort.Sort(byStackVar(inp))

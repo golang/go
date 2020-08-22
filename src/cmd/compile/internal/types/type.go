@@ -1400,11 +1400,11 @@ func (t *Type) IsUntyped() bool {
 // TODO(austin): We probably only need HasHeapPointer. See
 // golang.org/cl/73412 for discussion.
 
-func Haspointers(t *Type) bool {
-	return Haspointers1(t, false)
+func (t *Type) HasPointers() bool {
+	return t.hasPointers1(false)
 }
 
-func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
@@ -1414,11 +1414,11 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 		if t.NumElem() == 0 { // empty array has no pointers
 			return false
 		}
-		return Haspointers1(t.Elem(), ignoreNotInHeap)
+		return t.Elem().hasPointers1(ignoreNotInHeap)
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			if Haspointers1(t1.Type, ignoreNotInHeap) {
+			if t1.Type.hasPointers1(ignoreNotInHeap) {
 				return true
 			}
 		}
@@ -1429,7 +1429,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 
 	case TTUPLE:
 		ttup := t.Extra.(*Tuple)
-		return Haspointers1(ttup.first, ignoreNotInHeap) || Haspointers1(ttup.second, ignoreNotInHeap)
+		return ttup.first.hasPointers1(ignoreNotInHeap) || ttup.second.hasPointers1(ignoreNotInHeap)
 	}
 
 	return true
@@ -1439,7 +1439,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
 // This is used for write barrier insertion, so it ignores
 // pointers to go:notinheap types.
 func (t *Type) HasHeapPointer() bool {
-	return Haspointers1(t, true)
+	return t.hasPointers1(true)
 }
 
 func (t *Type) Symbol() *obj.LSym {
@@ -1470,7 +1470,7 @@ func FakeRecvType() *Type {
 }
 
 var (
-	// TSSA types. Haspointers assumes these are pointer-free.
+	// TSSA types. HasPointers assumes these are pointer-free.
 	TypeInvalid = newSSA("invalid")
 	TypeMem     = newSSA("mem")
 	TypeFlags   = newSSA("flags")

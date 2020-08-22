@@ -119,7 +119,7 @@ func bmap(t *types.Type) *types.Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in runtime/map.go.
 	otyp := types.NewPtr(bucket)
-	if !types.Haspointers(elemtype) && !types.Haspointers(keytype) {
+	if !elemtype.HasPointers() && !keytype.HasPointers() {
 		otyp = types.Types[TUINTPTR]
 	}
 	overflow := makefield("overflow", otyp)
@@ -754,7 +754,7 @@ var kinds = []int{
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
 func typeptrdata(t *types.Type) int64 {
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return 0
 	}
 
@@ -788,7 +788,7 @@ func typeptrdata(t *types.Type) int64 {
 		// Find the last field that has pointers.
 		var lastPtrField *types.Field
 		for _, t1 := range t.Fields().Slice() {
-			if types.Haspointers(t1.Type) {
+			if t1.Type.HasPointers() {
 				lastPtrField = t1
 			}
 		}
@@ -1726,7 +1726,7 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	for i := range ptrmask {
 		ptrmask[i] = 0
 	}
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 
@@ -1795,7 +1795,7 @@ func (p *GCProg) end() {
 
 func (p *GCProg) emit(t *types.Type, offset int64) {
 	dowidth(t)
-	if !types.Haspointers(t) {
+	if !t.HasPointers() {
 		return
 	}
 	if t.Width == int64(Widthptr) {
