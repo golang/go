@@ -171,6 +171,10 @@ func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh Versio
 	if err != nil {
 		return nil, err
 	}
+	if fix == nil {
+		return nil, nil
+	}
+
 	var edits []protocol.TextDocumentEdit
 	for _, edit := range fix.TextEdits {
 		rng := span.NewRange(fset, edit.Pos, edit.End)
