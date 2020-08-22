@@ -927,7 +927,7 @@ func (o *Order) stmt(n *Node) {
 						n2.Ninit.Append(tmp2)
 					}
 
-					r.Left = o.newTemp(r.Right.Left.Type.Elem(), types.Haspointers(r.Right.Left.Type.Elem()))
+					r.Left = o.newTemp(r.Right.Left.Type.Elem(), r.Right.Left.Type.Elem().HasPointers())
 					tmp2 := nod(OAS, tmp1, r.Left)
 					tmp2 = typecheck(tmp2, ctxStmt)
 					n2.Ninit.Append(tmp2)
@@ -1406,7 +1406,7 @@ func (o *Order) as2(n *Node) {
 	left := []*Node{}
 	for ni, l := range n.List.Slice() {
 		if !l.isBlank() {
-			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+			tmp := o.newTemp(l.Type, l.Type.HasPointers())
 			n.List.SetIndex(ni, tmp)
 			tmplist = append(tmplist, tmp)
 			left = append(left, l)
@@ -1428,7 +1428,7 @@ func (o *Order) okAs2(n *Node) {
 	var tmp1, tmp2 *Node
 	if !n.List.First().isBlank() {
 		typ := n.Right.Type
-		tmp1 = o.newTemp(typ, types.Haspointers(typ))
+		tmp1 = o.newTemp(typ, typ.HasPointers())
 	}
 
 	if !n.List.Second().isBlank() {

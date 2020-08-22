@@ -334,7 +334,7 @@ func walkrange(n *Node) *Node {
 
 		hv1 := temp(t.Elem())
 		hv1.SetTypecheck(1)
-		if types.Haspointers(t.Elem()) {
+		if t.Elem().HasPointers() {
 			init = append(init, nod(OAS, hv1, nil))
 		}
 		hb := temp(types.Types[TBOOL])
