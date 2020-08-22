@@ -36,7 +36,7 @@ var tests = []struct {
 }
 
 func main() {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+	if runtime.GOOS == "js" {
 		return // can not exec go tool
 	}
 
