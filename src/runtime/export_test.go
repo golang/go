@@ -986,9 +986,8 @@ func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
 }
 
 func MSpanCountAlloc(bits []byte) int {
-	s := mspan{
-		nelems:     uintptr(len(bits) * 8),
-		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
-	}
+	s := (*mspan)(mheap_.spanalloc.alloc())
+	s.nelems = uintptr(len(bits) * 8)
+	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
 	return s.countAlloc()
 }

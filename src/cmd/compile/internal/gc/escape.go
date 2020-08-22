@@ -1029,6 +1029,9 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 	if e.curfn == nil {
 		Fatalf("e.curfn isn't set")
 	}
+	if n != nil && n.Type != nil && n.Type.NotInHeap() {
+		yyerrorl(n.Pos, "%v is go:notinheap; stack allocation disallowed", n.Type)
+	}
 
 	n = canonicalNode(n)
 	loc := &EscLocation{
