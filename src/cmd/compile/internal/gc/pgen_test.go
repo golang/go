@@ -20,7 +20,7 @@ func typeWithoutPointers() *types.Type {
 
 func typeWithPointers() *types.Type {
 	t := types.New(TSTRUCT)
-	f := &types.Field{Type: types.New(TPTR)}
+	f := &types.Field{Type: types.NewPtr(types.New(TINT))}
 	t.SetFields([]*types.Field{f})
 	return t
 }
@@ -181,14 +181,6 @@ func TestStackvarSort(t *testing.T) {
 		nodeWithClass(Node{Type: &types.Type{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
 		nodeWithClass(Node{Type: typeWithoutPointers(), Sym: &types.Sym{}}, PAUTO),
 	}
-	// haspointers updates Type.Haspointers as a side effect, so
-	// exercise this function on all inputs so that reflect.DeepEqual
-	// doesn't produce false positives.
-	for i := range want {
-		want[i].Type.HasPointers()
-		inp[i].Type.HasPointers()
-	}
-
 	sort.Sort(byStackVar(inp))
 	if !reflect.DeepEqual(want, inp) {
 		t.Error("sort failed")
