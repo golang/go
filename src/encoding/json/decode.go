@@ -136,6 +136,16 @@ func (e *UnmarshalTypeError) Error() string {
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
+// An UnknownFieldError describes an unknown JSON
+// key if they are disallowed.
+type UnknownFieldError struct {
+	Key string
+}
+
+func (e *UnknownFieldError) Error() string {
+	return "json: unknown field " + strconv.Quote(e.Key)
+}
+
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
 //
@@ -735,7 +745,7 @@ func (d *decodeState) object(v reflect.Value) error {
 				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
 				d.errorContext.Struct = t
 			} else if d.disallowUnknownFields {
-				d.saveError(fmt.Errorf("json: unknown field %q", key))
+				d.saveError(&UnknownFieldError{Key: string(key)})
 			}
 		}
 

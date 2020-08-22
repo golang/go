@@ -424,7 +424,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
 	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
-	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
+	{in: `{"x": 1}`, ptr: new(tx), err: &UnknownFieldError{Key: "x"}, disallowUnknownFields: true},
 	{in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(SS("")), 0, "W", "S"}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
@@ -440,13 +440,13 @@ var unmarshalTests = []unmarshalTest{
 
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
-	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: fmt.Errorf("json: unknown field \"Z\""), disallowUnknownFields: true},
+	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), err: &UnknownFieldError{Key: "Z"}, disallowUnknownFields: true},
 
 	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), out: U{Alphabet: "abc"}},
-	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
+	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), err: &UnknownFieldError{Key: "alphabet"}, disallowUnknownFields: true},
 	{in: `{"alpha": "abc"}`, ptr: new(U), out: U{Alphabet: "abc"}},
 	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
-	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
+	{in: `{"alphabet": "xyz"}`, ptr: new(U), err: &UnknownFieldError{Key: "alphabet"}, disallowUnknownFields: true},
 
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
@@ -647,7 +647,7 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:                    `{"X": 1,"Y":2}`,
 		ptr:                   new(S5),
-		err:                   fmt.Errorf("json: unknown field \"X\""),
+		err:                   &UnknownFieldError{Key: "X"},
 		disallowUnknownFields: true,
 	},
 	{
@@ -658,7 +658,7 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:                    `{"X": 1,"Y":2}`,
 		ptr:                   new(S10),
-		err:                   fmt.Errorf("json: unknown field \"X\""),
+		err:                   &UnknownFieldError{Key: "X"},
 		disallowUnknownFields: true,
 	},
 	{
@@ -872,7 +872,7 @@ var unmarshalTests = []unmarshalTest{
 			"extra": true
 		}`,
 		ptr:                   new(Top),
-		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		err:                   &UnknownFieldError{Key: "extra"},
 		disallowUnknownFields: true,
 	},
 	{
@@ -899,7 +899,7 @@ var unmarshalTests = []unmarshalTest{
 			"Q": 18
 		}`,
 		ptr:                   new(Top),
-		err:                   fmt.Errorf("json: unknown field \"extra\""),
+		err:                   &UnknownFieldError{Key: "extra"},
 		disallowUnknownFields: true,
 	},
 	// issue 26444
