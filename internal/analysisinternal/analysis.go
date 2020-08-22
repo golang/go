@@ -198,8 +198,12 @@ func TypeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Ty
 			X:   ast.NewIdent(pkgName),
 			Sel: ast.NewIdent(t.Obj().Name()),
 		}
+	case *types.Struct:
+		return ast.NewIdent(t.String())
+	case *types.Interface:
+		return ast.NewIdent(t.String())
 	default:
-		return nil // TODO: anonymous structs, but who does that
+		return nil
 	}
 }
 

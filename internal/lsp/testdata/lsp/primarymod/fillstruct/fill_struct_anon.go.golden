@@ -1,0 +1,20 @@
+-- suggestedfix_fill_struct_anon_13_18 --
+package fillstruct
+
+type StructAnon struct {
+	a struct{}
+	b map[string]interface{}
+	c map[string]struct {
+		d int
+		e bool
+	}
+}
+
+func fill() {
+	_ := StructAnon{
+		a: struct{}{},
+		b: map[string]interface{}{},
+		c: map[string]struct{d int; e bool}{},
+	} //@suggestedfix("}", "refactor.rewrite")
+}
+
