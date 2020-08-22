@@ -13,7 +13,6 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
-	"log"
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
@@ -254,8 +253,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 
 	var newExpr bytes.Buffer
 	if err := format.Node(&newExpr, fakeFset, cl); err != nil {
-		log.Printf("failed to format %s: %v", cl.Type, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to format %s: %v", cl.Type, err)
 	}
 	split = bytes.Split(newExpr.Bytes(), []byte("\n"))
 	newText := bytes.NewBuffer(nil)
