@@ -851,11 +851,15 @@ func (c *common) Cleanup(f func()) {
 	c.cleanup = func() {
 		if oldCleanup != nil {
 			defer func() {
+				c.mu.Lock()
 				c.cleanupPc = oldCleanupPc
+				c.mu.Unlock()
 				oldCleanup()
 			}()
 		}
+		c.mu.Lock()
 		c.cleanupName = callerName(0)
+		c.mu.Unlock()
 		f()
 	}
 	var pc [maxStackLen]uintptr
