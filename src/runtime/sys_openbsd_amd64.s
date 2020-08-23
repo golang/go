@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 //
-// System calls and other sys.stuff for AMD64, OpenBSD
-// /usr/src/sys/kern/syscalls.master for syscall numbers.
+// System calls and other sys.stuff for AMD64, OpenBSD.
+// System calls are implemented in libc/libpthread, this file
+// contains trampolines that convert from Go to C calling convention.
+// Some direct system call implementations currently remain.
 //
 
 #include "go_asm.h"
@@ -12,49 +14,159 @@
 
 #define CLOCK_MONOTONIC	$3
 
-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),NOSPLIT,$32
-
-	// Copy mp, gp and fn off parent stack for use by child.
-	MOVQ	mm+16(FP), R8
-	MOVQ	gg+24(FP), R9
-	MOVQ	fn+32(FP), R12
-
-	MOVQ	param+0(FP), DI
-	MOVQ	psize+8(FP), SI
-	MOVL	$8, AX			// sys___tfork
-	SYSCALL
-
-	// Return if tfork syscall failed.
-	JCC	4(PC)
-	NEGQ	AX
-	MOVL	AX, ret+40(FP)
+TEXT runtime·settls(SB),NOSPLIT,$0
+	// Nothing to do, pthread already set thread-local storage up.
 	RET
 
-	// In parent, return.
-	CMPL	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, ret+40(FP)
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// DI points to the m.
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	SUBQ	$48, SP
+	MOVQ	BX, 0(SP)
+	MOVQ	BP, 8(SP)
+	MOVQ	R12, 16(SP)
+	MOVQ	R13, 24(SP)
+	MOVQ	R14, 32(SP)
+	MOVQ	R15, 40(SP)
+
+	// Load g and save to TLS entry.
+	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+	MOVQ	m_g0(DI), DX // g
+	MOVQ	DX, -8(FS)
+
+	// Someday the convention will be D is always cleared.
+	CLD
+
+	CALL	runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVQ	0(SP), BX
+	MOVQ	8(SP), BP
+	MOVQ	16(SP), R12
+	MOVQ	24(SP), R13
+	MOVQ	32(SP), R14
+	MOVQ	40(SP), R15
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	XORL	AX, AX
+
+	ADDQ	$48, SP
 	RET
 
-	// Set FS to point at m->tls.
-	LEAQ	m_tls(R8), DI
-	CALL	runtime·settls(SB)
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVQ	fn+0(FP),    AX
+	MOVL	sig+8(FP),   DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP),  DX
+	PUSHQ	BP
+	MOVQ	SP, BP
+	ANDQ	$~15, SP     // alignment for x86_64 ABI
+	CALL	AX
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
 
-	// In child, set up new stack.
-	get_tls(CX)
-	MOVQ	R8, g_m(R9)
-	MOVQ	R9, g(CX)
-	CALL	runtime·stackcheck(SB)
+TEXT runtime·sigtramp(SB),NOSPLIT,$72
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVQ	BX,  bx-8(SP)
+	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+	MOVQ	R12, r12-24(SP)
+	MOVQ	R13, r13-32(SP)
+	MOVQ	R14, r14-40(SP)
+	MOVQ	R15, r15-48(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
 
-	// Call fn
-	CALL	R12
+	MOVQ	DX, ctx-56(SP)
+	MOVQ	SI, info-64(SP)
+	MOVQ	DI, signum-72(SP)
+	CALL	runtime·sigtrampgo(SB)
 
-	// It shouldn't return. If it does, exit
-	MOVQ	$0, DI			// arg 1 - notdead
-	MOVL	$302, AX		// sys___threxit
-	SYSCALL
-	JMP	-3(PC)			// keep exiting
+	MOVQ	r15-48(SP), R15
+	MOVQ	r14-40(SP), R14
+	MOVQ	r13-32(SP), R13
+	MOVQ	r12-24(SP), R12
+	MOVQ	bp-16(SP),  BP
+	MOVQ	bx-8(SP),   BX
+	RET
+
+//
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall.
+// A pointer to the arguments is passed in DI.
+// A single int32 result is returned in AX.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI		// arg 1 - attr
+	CALL	libc_pthread_attr_init(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	0(DI), DI		// arg 1 - attr
+	CALL	libc_pthread_attr_destroy(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 - stacksize
+	MOVQ	0(DI), DI		// arg 1 - attr
+	CALL	libc_pthread_attr_getstacksize(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 - detachstate
+	MOVQ	0(DI), DI		// arg 1 - attr
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+	MOVQ	0(DI), SI		// arg 2 - attr
+	MOVQ	8(DI), DX		// arg 3 - start
+	MOVQ	16(DI), CX		// arg 4 - arg
+	MOVQ	SP, DI			// arg 1 - &thread (discarded)
+	CALL	libc_pthread_create(SB)
+	MOVQ	BP, SP
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	DI, BX			// BX is caller-save
+	CALL	libc_pthread_self(SB)
+	MOVQ	AX, 0(BX)		// return value
+	POPQ	BP
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	MOVQ	8(DI), SI		// arg 2 - sig
+	MOVQ	0(DI), DI		// arg 1 - thread
+	CALL	libc_pthread_kill(SB)
+	POPQ	BP
+	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$298, AX		// sys_sched_yield
@@ -251,43 +363,6 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVQ	fn+0(FP),    AX
-	MOVL	sig+8(FP),   DI
-	MOVQ	info+16(FP), SI
-	MOVQ	ctx+24(FP),  DX
-	PUSHQ	BP
-	MOVQ	SP, BP
-	ANDQ	$~15, SP     // alignment for x86_64 ABI
-	CALL	AX
-	MOVQ	BP, SP
-	POPQ	BP
-	RET
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX,  bx-8(SP)
-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
-
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
-
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
-	RET
-
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 - addr
 	MOVQ	n+8(FP), SI		// arg 2 - len
@@ -335,16 +410,6 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI		// arg 1 - nss
 	MOVQ	old+8(FP), SI		// arg 2 - oss
 	MOVQ	$288, AX		// sys_sigaltstack
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
-	RET
-
-// set tls base to DI
-TEXT runtime·settls(SB),NOSPLIT,$0
-	// adjust for ELF: wants to use -8(FS) for g
-	ADDQ	$8, DI
-	MOVQ	$329, AX		// sys___settcb
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash

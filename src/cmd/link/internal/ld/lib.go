@@ -1273,6 +1273,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
+		argv = append(argv, "-pthread")
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")

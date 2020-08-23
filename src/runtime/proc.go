@@ -1222,6 +1222,11 @@ func mStackIsSystemAllocated() bool {
 	switch GOOS {
 	case "aix", "darwin", "plan9", "illumos", "ios", "solaris", "windows":
 		return true
+	case "openbsd":
+		switch GOARCH {
+		case "amd64":
+			return true
+		}
 	}
 	return false
 }
