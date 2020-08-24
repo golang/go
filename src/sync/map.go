@@ -24,6 +24,7 @@ import (
 // contention compared to a Go map paired with a separate Mutex or RWMutex.
 //
 // The zero Map is empty and ready for use. A Map must not be copied after first use.
+// Keys in the Map will never be deleted, thus they will never be garbage collected.
 type Map struct {
 	mu Mutex
 
