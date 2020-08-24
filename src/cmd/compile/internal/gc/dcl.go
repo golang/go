@@ -297,6 +297,16 @@ func oldname(s *types.Sym) *Node {
 	return n
 }
 
+// importName is like oldname, but it reports an error if sym is from another package and not exported.
+func importName(sym *types.Sym) *Node {
+	n := oldname(sym)
+	if !types.IsExported(sym.Name) && sym.Pkg != localpkg {
+		n.SetDiag(true)
+		yyerror("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+	}
+	return n
+}
+
 // := declarations
 func colasname(n *Node) bool {
 	switch n.Op {

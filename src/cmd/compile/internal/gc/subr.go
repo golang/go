@@ -271,13 +271,6 @@ func autolabel(prefix string) *types.Sym {
 	return lookupN(prefix, int(n))
 }
 
-func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
-	if !types.IsExported(name) && pkg != localpkg {
-		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
-	}
-	return pkg.Lookup(name)
-}
-
 // find all the exported symbols in package opkg
 // and make them available in the current package
 func importdot(opkg *types.Pkg, pack *Node) {
