@@ -1243,6 +1243,11 @@ func TestConvertibleTo(t *testing.T) {
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
 		{Typ[UntypedInt], Typ[Int], true},
+		// TODO (rFindley): the below behavior is undefined as non-constant untyped
+		// string values are not permitted by the spec. But we should consider
+		// changing this case to return 'true', to have more reasonable behavior in
+		// cases where the API is used for constant expressions.
+		{Typ[UntypedString], Typ[String], false},
 	} {
 		if got := ConvertibleTo(test.v, test.t); got != test.want {
 			t.Errorf("ConvertibleTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
@@ -1260,6 +1265,14 @@ func TestAssignableTo(t *testing.T) {
 		{newDefined(Typ[Int]), Typ[Int], false},
 		{newDefined(new(Struct)), new(Struct), true},
 		{Typ[UntypedBool], Typ[Bool], true},
+		{Typ[UntypedString], Typ[Bool], false},
+		// TODO (rFindley): the below behavior is undefined as AssignableTo is
+		// intended for non-constant values (and neither UntypedString or
+		// UntypedInt assignments arise during normal type checking).  But as
+		// described in TestConvertibleTo above, we should consider changing this
+		// behavior.
+		{Typ[UntypedString], Typ[String], false},
+		{Typ[UntypedInt], Typ[Int], false},
 	} {
 		if got := AssignableTo(test.v, test.t); got != test.want {
 			t.Errorf("AssignableTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
