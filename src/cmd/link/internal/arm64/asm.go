@@ -219,15 +219,16 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// External linker will do this relocation.
 			return true
 		}
-		if target.IsDarwin() { // XXX why we don't need this for ELF?
-			// Internal linking.
-			// Build a PLT entry and change the relocation target to that entry.
-			addpltsym(target, ldr, syms, targ)
-			su := ldr.MakeSymbolUpdater(s)
-			su.SetRelocSym(rIdx, syms.PLT)
-			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
-			return true
+		// Internal linking.
+		if r.Add() != 0 {
+			ldr.Errorf(s, "PLT call with non-zero addend (%v)", r.Add())
 		}
+		// Build a PLT entry and change the relocation target to that entry.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		return true
 
 	case objabi.R_ADDR:
 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
