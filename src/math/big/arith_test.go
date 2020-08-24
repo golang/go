@@ -241,20 +241,20 @@ var argshrVU = []argVU{
 }
 
 func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
-	// save a.d for error message, or it will be overwritten.
+	// work on copy of a.d to preserve the original data.
 	b := make([]Word, len(a.d))
 	copy(b, a.d)
-	z := a.d[a.zp : a.zp+a.l]
-	x := a.d[a.xp : a.xp+a.l]
+	z := b[a.zp : a.zp+a.l]
+	x := b[a.xp : a.xp+a.l]
 	c := f(z, x, a.s)
 	for i, zi := range z {
 		if zi != a.r[i] {
-			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
 			break
 		}
 	}
 	if c != a.c {
-		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", b, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
 	}
 }
 
