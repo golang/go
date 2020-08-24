@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build openbsd,!amd64
+// +build openbsd,!arm64
 
 package runtime
 

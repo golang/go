@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 //
 // System calls and other sys.stuff for arm64, OpenBSD
-// /usr/src/sys/kern/syscalls.master for syscall numbers.
+// System calls are implemented in libc/libpthread, this file
+// contains trampolines that convert from Go to C calling convention.
+// Some direct system call implementations currently remain.
 //
 
 #include "go_asm.h"
@@ -23,6 +25,180 @@
 	SVC;		\
 	NOOP;		\
 	NOOP
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$160
+	// R0 points to the m.
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	MOVD	R19, 8(RSP)
+	MOVD	R20, 16(RSP)
+	MOVD	R21, 24(RSP)
+	MOVD	R22, 32(RSP)
+	MOVD	R23, 40(RSP)
+	MOVD	R24, 48(RSP)
+	MOVD	R25, 56(RSP)
+	MOVD	R26, 64(RSP)
+	MOVD	R27, 72(RSP)
+	MOVD	g, 80(RSP)
+	MOVD	R29, 88(RSP)
+	FMOVD	F8, 96(RSP)
+	FMOVD	F9, 104(RSP)
+	FMOVD	F10, 112(RSP)
+	FMOVD	F11, 120(RSP)
+	FMOVD	F12, 128(RSP)
+	FMOVD	F13, 136(RSP)
+	FMOVD	F14, 144(RSP)
+	FMOVD	F15, 152(RSP)
+
+	MOVD    m_g0(R0), g
+	BL	runtime·save_g(SB)
+
+	BL	runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVD	8(RSP), R19
+	MOVD	16(RSP), R20
+	MOVD	24(RSP), R21
+	MOVD	32(RSP), R22
+	MOVD	40(RSP), R23
+	MOVD	48(RSP), R24
+	MOVD	56(RSP), R25
+	MOVD	64(RSP), R26
+	MOVD	72(RSP), R27
+	MOVD	80(RSP), g
+	MOVD	88(RSP), R29
+	FMOVD	96(RSP), F8
+	FMOVD	104(RSP), F9
+	FMOVD	112(RSP), F10
+	FMOVD	120(RSP), F11
+	FMOVD	128(RSP), F12
+	FMOVD	136(RSP), F13
+	FMOVD	144(RSP), F14
+	FMOVD	152(RSP), F15
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	MOVD	$0, R0
+
+	RET
+
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVW	sig+8(FP), R0
+	MOVD	info+16(FP), R1
+	MOVD	ctx+24(FP), R2
+	MOVD	fn+0(FP), R11
+	BL	(R11)			// Alignment for ELF ABI?
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$192
+	// Save callee-save registers in the case of signal forwarding.
+	// Please refer to https://golang.org/issue/31827 .
+	MOVD	R19, 8*4(RSP)
+	MOVD	R20, 8*5(RSP)
+	MOVD	R21, 8*6(RSP)
+	MOVD	R22, 8*7(RSP)
+	MOVD	R23, 8*8(RSP)
+	MOVD	R24, 8*9(RSP)
+	MOVD	R25, 8*10(RSP)
+	MOVD	R26, 8*11(RSP)
+	MOVD	R27, 8*12(RSP)
+	MOVD	g, 8*13(RSP)
+	MOVD	R29, 8*14(RSP)
+	FMOVD	F8, 8*15(RSP)
+	FMOVD	F9, 8*16(RSP)
+	FMOVD	F10, 8*17(RSP)
+	FMOVD	F11, 8*18(RSP)
+	FMOVD	F12, 8*19(RSP)
+	FMOVD	F13, 8*20(RSP)
+	FMOVD	F14, 8*21(RSP)
+	FMOVD	F15, 8*22(RSP)
+
+	// If called from an external code context, g will not be set.
+	// Save R0, since runtime·load_g will clobber it.
+	MOVW	R0, 8(RSP)		// signum
+	BL	runtime·load_g(SB)
+
+	MOVD	R1, 16(RSP)
+	MOVD	R2, 24(RSP)
+	BL	runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	MOVD	8*4(RSP), R19
+	MOVD	8*5(RSP), R20
+	MOVD	8*6(RSP), R21
+	MOVD	8*7(RSP), R22
+	MOVD	8*8(RSP), R23
+	MOVD	8*9(RSP), R24
+	MOVD	8*10(RSP), R25
+	MOVD	8*11(RSP), R26
+	MOVD	8*12(RSP), R27
+	MOVD	8*13(RSP), g
+	MOVD	8*14(RSP), R29
+	FMOVD	8*15(RSP), F8
+	FMOVD	8*16(RSP), F9
+	FMOVD	8*17(RSP), F10
+	FMOVD	8*18(RSP), F11
+	FMOVD	8*19(RSP), F12
+	FMOVD	8*20(RSP), F13
+	FMOVD	8*21(RSP), F14
+	FMOVD	8*22(RSP), F15
+
+	RET
+
+//
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall.
+// A pointer to the arguments is passed in R0.
+// A single int32 result is returned in R0.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R0		// arg 1 - attr
+	CALL	libc_pthread_attr_init(SB)
+	RET
+
+TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R0		// arg 1 - attr
+	CALL	libc_pthread_attr_destroy(SB)
+	RET
+
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1		// arg 2 - size
+	MOVD	0(R0), R0		// arg 1 - attr
+	CALL	libc_pthread_attr_getstacksize(SB)
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1		// arg 2 - state
+	MOVD	0(R0), R0		// arg 1 - attr
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	MOVD	0(R0), R1		// arg 2 - attr
+	MOVD	8(R0), R2		// arg 3 - start
+	MOVD	16(R0), R3		// arg 4 - arg
+	SUB	$16, RSP
+	MOVD	RSP, R0			// arg 1 - &threadid (discard)
+	CALL	libc_pthread_create(SB)
+	ADD	$16, RSP
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19			// pointer to args
+	CALL	libc_pthread_self(SB)
+	MOVD	R0, 0(R19)		// return value
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	MOVW	8(R0), R1		// arg 2 - sig
+	MOVD	0(R0), R0		// arg 1 - thread
+	CALL	libc_pthread_kill(SB)
+	RET
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
@@ -246,109 +422,6 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
 	MOVD	$3, R8			// crash on syscall failure
 	MOVD	R8, (R8)
 	MOVW	R0, ret+8(FP)
-	RET
-
-TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
-	MOVW	sig+8(FP), R0
-	MOVD	info+16(FP), R1
-	MOVD	ctx+24(FP), R2
-	MOVD	fn+0(FP), R11
-	BL	(R11)			// Alignment for ELF ABI?
-	RET
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
-	// Save callee-save registers in the case of signal forwarding.
-	// Please refer to https://golang.org/issue/31827 .
-	MOVD	R19, 8*4(RSP)
-	MOVD	R20, 8*5(RSP)
-	MOVD	R21, 8*6(RSP)
-	MOVD	R22, 8*7(RSP)
-	MOVD	R23, 8*8(RSP)
-	MOVD	R24, 8*9(RSP)
-	MOVD	R25, 8*10(RSP)
-	MOVD	R26, 8*11(RSP)
-	MOVD	R27, 8*12(RSP)
-	MOVD	g, 8*13(RSP)
-	MOVD	R29, 8*14(RSP)
-	FMOVD	F8, 8*15(RSP)
-	FMOVD	F9, 8*16(RSP)
-	FMOVD	F10, 8*17(RSP)
-	FMOVD	F11, 8*18(RSP)
-	FMOVD	F12, 8*19(RSP)
-	FMOVD	F13, 8*20(RSP)
-	FMOVD	F14, 8*21(RSP)
-	FMOVD	F15, 8*22(RSP)
-
-	// If called from an external code context, g will not be set.
-	// Save R0, since runtime·load_g will clobber it.
-	MOVW	R0, 8(RSP)		// signum
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BEQ	2(PC)
-	BL	runtime·load_g(SB)
-
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-	BL	runtime·sigtrampgo(SB)
-
-	// Restore callee-save registers.
-	MOVD	8*4(RSP), R19
-	MOVD	8*5(RSP), R20
-	MOVD	8*6(RSP), R21
-	MOVD	8*7(RSP), R22
-	MOVD	8*8(RSP), R23
-	MOVD	8*9(RSP), R24
-	MOVD	8*10(RSP), R25
-	MOVD	8*11(RSP), R26
-	MOVD	8*12(RSP), R27
-	MOVD	8*13(RSP), g
-	MOVD	8*14(RSP), R29
-	FMOVD	8*15(RSP), F8
-	FMOVD	8*16(RSP), F9
-	FMOVD	8*17(RSP), F10
-	FMOVD	8*18(RSP), F11
-	FMOVD	8*19(RSP), F12
-	FMOVD	8*20(RSP), F13
-	FMOVD	8*21(RSP), F14
-	FMOVD	8*22(RSP), F15
-
-	RET
-
-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),NOSPLIT,$0
-
-	// Copy mp, gp and fn off parent stack for use by child.
-	MOVD	mm+16(FP), R4
-	MOVD	gg+24(FP), R5
-	MOVD	fn+32(FP), R6
-
-	MOVD	param+0(FP), R0		// arg 1 - param
-	MOVD	psize+8(FP), R1		// arg 2 - psize
-	MOVD	$8, R8			// sys___tfork
-	INVOKE_SYSCALL
-
-	// Return if syscall failed.
-	BCC	4(PC)
-	NEG	R0,  R0
-	MOVW	R0, ret+40(FP)
-	RET
-
-	// In parent, return.
-	CMP	$0, R0
-	BEQ	3(PC)
-	MOVW	R0, ret+40(FP)
-	RET
-
-	// Initialise m, g.
-	MOVD	R5, g
-	MOVD	R4, g_m(g)
-
-	// Call fn.
-	BL	(R6)
-
-	// fn should never return.
-	MOVD	$2, R8			// crash if reached
-	MOVD	R8, (R8)
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0

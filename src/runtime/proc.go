@@ -1224,7 +1224,7 @@ func mStackIsSystemAllocated() bool {
 		return true
 	case "openbsd":
 		switch GOARCH {
-		case "amd64":
+		case "amd64", "arm64":
 			return true
 		}
 	}
