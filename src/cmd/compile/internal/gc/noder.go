@@ -653,7 +653,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		obj := p.expr(expr.X)
 		if obj.Op == OPACK {
 			obj.Name.SetUsed(true)
-			return oldname(restrictlookup(expr.Sel.Value, obj.Name.Pkg))
+			return importName(obj.Name.Pkg.Lookup(expr.Sel.Value))
 		}
 		n := nodSym(OXDOT, obj, p.name(expr.Sel))
 		n.Pos = p.pos(expr) // lineno may have been changed by p.expr(expr.X)
@@ -857,7 +857,7 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) *Node {
 		p.setlineno(method)
 		var n *Node
 		if method.Name == nil {
-			n = p.nodSym(method, ODCLFIELD, oldname(p.packname(method.Type)), nil)
+			n = p.nodSym(method, ODCLFIELD, importName(p.packname(method.Type)), nil)
 		} else {
 			mname := p.name(method.Name)
 			sig := p.typeExpr(method.Type)
@@ -896,7 +896,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 			def.Name.SetUsed(true)
 			pkg = def.Name.Pkg
 		}
-		return restrictlookup(expr.Sel.Value, pkg)
+		return pkg.Lookup(expr.Sel.Value)
 	}
 	panic(fmt.Sprintf("unexpected packname: %#v", expr))
 }
@@ -911,7 +911,7 @@ func (p *noder) embedded(typ syntax.Expr) *Node {
 	}
 
 	sym := p.packname(typ)
-	n := p.nodSym(typ, ODCLFIELD, oldname(sym), lookup(sym.Name))
+	n := p.nodSym(typ, ODCLFIELD, importName(sym), lookup(sym.Name))
 	n.SetEmbedded(true)
 
 	if isStar {
