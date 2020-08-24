@@ -588,6 +588,26 @@ var reqWriteTests = []reqWriteTest{
 		},
 		WantError: errors.New("net/http: can't write control character in Request.URL"),
 	},
+
+	26: { // Request with nil body and PATCH method. Issue #40978
+		Req: Request{
+			Method:        "PATCH",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+		Body: nil,
+		WantWrite: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+		WantProxy: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
