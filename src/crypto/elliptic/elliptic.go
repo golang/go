@@ -311,7 +311,7 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 }
 
 // Marshal converts a point on the curve into the uncompressed form specified in
-// section 4.3.6 of ANSI X9.62.
+// section A3.1.1 of ANSI X9.62-2005.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 
@@ -325,7 +325,7 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 }
 
 // MarshalCompressed converts a point on the curve into the compressed form
-// specified in section 4.3.6 of ANSI X9.62.
+// specified in section A3.1.3 of ANSI X9.62-2005.
 func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
