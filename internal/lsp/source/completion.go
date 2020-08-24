@@ -141,6 +141,9 @@ type completer struct {
 	qf       types.Qualifier
 	opts     *completionOptions
 
+	// triggerCharacter is the character that triggered this request, if any.
+	triggerCharacter string
+
 	// filename is the name of the file associated with this completion request.
 	filename string
 
@@ -460,7 +463,7 @@ func (e ErrIsDefinition) Error() string {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos protocol.Position) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos protocol.Position, triggerCharacter string) ([]CompletionItem, *Selection, error) {
 	ctx, done := event.Start(ctx, "source.Completion")
 	defer done()
 
@@ -519,6 +522,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		pkg:                       pkg,
 		snapshot:                  snapshot,
 		qf:                        qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo()),
+		triggerCharacter:          triggerCharacter,
 		filename:                  fh.URI().Filename(),
 		file:                      pgf.File,
 		path:                      path,
@@ -732,8 +736,14 @@ func (c *completer) emptySwitchStmt() bool {
 	}
 }
 
-// populateCommentCompletions yields completions for comments preceding or in declarationss
+// populateCommentCompletions yields completions for comments preceding or in declarations
 func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
+	// If the completion was triggered by a period, ignore it. These types of
+	// completions will not be useful in comments.
+	if c.triggerCharacter == "." {
+		return
+	}
+
 	// Using the comment position find the line after
 	file := c.snapshot.FileSet().File(comment.End())
 	if file == nil {

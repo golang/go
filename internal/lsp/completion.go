@@ -25,7 +25,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	var surrounding *source.Selection
 	switch fh.Kind() {
 	case source.Go:
-		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position)
+		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position, params.Context.TriggerCharacter)
 	case source.Mod:
 		candidates, surrounding = nil, nil
 	}
