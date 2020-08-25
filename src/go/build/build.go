@@ -1697,6 +1697,7 @@ func splitQuoted(s string) (r []string, err error) {
 //	$GOARCH
 //	cgo (if cgo is enabled)
 //	!cgo (if cgo is disabled)
+//	boringcrypto
 //	ctxt.Compiler
 //	!ctxt.Compiler
 //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
@@ -1746,6 +1747,10 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 		return true
 	}
 	if ctxt.GOOS == "illumos" && name == "solaris" {
+		return true
+	}
+	// Let applications know that the Go+BoringCrypto toolchain is in use.
+	if name == "boringcrypto" {
 		return true
 	}
 
