@@ -393,6 +393,9 @@ var depsRules = `
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls
 	< crypto/tls/fipsonly;
 
+	crypto/internal/boring
+	< crypto/boring;
+
 	# crypto-aware packages
 
 	NET, crypto/rand, mime/quotedprintable
