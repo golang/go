@@ -345,7 +345,7 @@ type retraction struct {
 
 // goModSummary returns a summary of the go.mod file for module m,
 // taking into account any replacements for m, exclusions of its dependencies,
-// and or vendoring.
+// and/or vendoring.
 //
 // goModSummary cannot be used on the Target module, as its requirements
 // may change.
@@ -405,7 +405,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 				return cached{nil, module.VersionError(actual, errors.New("parsing go.mod: missing module line"))}
 			}
 
-			// In theory we should only allow mpath to be unequal to mod.Path here if the
+			// In theory we should only allow mpath to be unequal to m.Path here if the
 			// version that we fetched lacks an explicit go.mod file: if the go.mod file
 			// is explicit, then it should match exactly (to ensure that imports of other
 			// packages within the module are interpreted correctly). Unfortunately, we

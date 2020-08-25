@@ -14,7 +14,6 @@ import (
 
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -24,7 +23,6 @@ import (
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-	cache     par.Cache // module.Version → Required method results
 }
 
 // Reqs returns the current module requirement graph.
