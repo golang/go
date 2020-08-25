@@ -687,6 +687,13 @@ MOVQ	g(CX), AX     // Move g into AX.
 MOVQ	g_m(AX), BX   // Move g.m into BX.
 </pre>
 
+<p>
+Register <code>BP</code> is callee-save.
+The assembler automatically inserts <code>BP</code> save/restore when frame size is larger than zero.
+Using <code>BP</code> as a general purpose register is allowed,
+however it can interfere with sampling-based profiling.
+</p>
+
 <h3 id="arm">ARM</h3>
 
 <p>
