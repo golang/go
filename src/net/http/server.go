@@ -584,20 +584,19 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	// little anyway. This small read also satisfies sniffing the
 	// body in case Content-Type is missing.
 	ns, err := src.Read(buf[:sniffLen])
+	n += int64(ns)
 
-	isEOF := (err == io.EOF)
-	if isEOF {
-		err = nil
-	} else if err != nil {
+	isEOF := errors.Is(err, io.EOF)
+	if !isEOF && err != nil {
 		return n, err
 	}
+	err = nil
 
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
 	}
 
 	_, err = w.Write(buf[:ns]) // write the small amount we read normally
-	n += int64(ns)
 	if err != nil || isEOF {
 		return n, err
 	}
