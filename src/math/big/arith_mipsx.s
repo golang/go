@@ -12,9 +12,6 @@
 TEXT ·mulWW(SB),NOSPLIT,$0
 	JMP	·mulWW_g(SB)
 
-TEXT ·divWW(SB),NOSPLIT,$0
-	JMP	·divWW_g(SB)
-
 TEXT ·addVV(SB),NOSPLIT,$0
 	JMP	·addVV_g(SB)
 
@@ -39,5 +36,3 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 TEXT ·addMulVVW(SB),NOSPLIT,$0
 	JMP	·addMulVVW_g(SB)
 
-TEXT ·divWVW(SB),NOSPLIT,$0
-	JMP	·divWVW_g(SB)

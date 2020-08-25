@@ -7,6 +7,7 @@ package big
 import (
 	"fmt"
 	"internal/testenv"
+	"math/bits"
 	"math/rand"
 	"strings"
 	"testing"
@@ -493,7 +494,6 @@ func TestFunVWW(t *testing.T) {
 
 		if a.y != 0 && a.r < a.y {
 			arg := argWVW{a.x, a.c, a.z, a.y, a.r}
-			testFunWVW(t, "divWVW_g", divWVW_g, arg)
 			testFunWVW(t, "divWVW", divWVW, arg)
 		}
 	}
@@ -536,6 +536,42 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
+var divWWTests = []struct {
+	x1, x0, y Word
+	q, r      Word
+}{
+	{_M >> 1, 0, _M, _M >> 1, _M >> 1},
+	{_M - (1 << (_W - 2)), _M, 3 << (_W - 2), _M, _M - (1 << (_W - 2))},
+}
+
+const testsNumber = 1 << 16
+
+func TestDivWW(t *testing.T) {
+	i := 0
+	for i, test := range divWWTests {
+		rec := reciprocalWord(test.y)
+		q, r := divWW(test.x1, test.x0, test.y, rec)
+		if q != test.q || r != test.r {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
+		}
+	}
+	//random tests
+	for ; i < testsNumber; i++ {
+		x1 := rndW()
+		x0 := rndW()
+		y := rndW()
+		if x1 >= y {
+			continue
+		}
+		rec := reciprocalWord(y)
+		qGot, rGot := divWW(x1, x0, y, rec)
+		qWant, rWant := bits.Div(uint(x1), uint(x0), uint(y))
+		if uint(qGot) != qWant || uint(rGot) != rWant {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, qGot, rGot, qWant, rWant)
+		}
+	}
+}
+
 func BenchmarkMulAddVWW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
@@ -566,6 +602,22 @@ func BenchmarkAddMulVVW(b *testing.B) {
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addMulVVW(z, x, y)
+			}
+		})
+	}
+}
+func BenchmarkDivWVW(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			for i := 0; i < b.N; i++ {
+				divWVW(z, 0, x, y)
 			}
 		})
 	}
