@@ -871,9 +871,11 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// We're a large number of nested ptrEncoder.encode calls deep;
 		// start checking if we've run into a pointer cycle.
-		p := reflect.New(reflect.TypeOf(v))
-		p.Elem().Set(reflect.ValueOf(v))
-		ptr := p.Pointer()
+		// Here we use a struct to record the pointer of the first element and the length.
+		ptr := struct {
+			ptr uintptr
+			len int
+		}{v.Pointer(), v.Len()}
 		if _, ok := e.ptrSeen[ptr]; ok {
 			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
 		}
