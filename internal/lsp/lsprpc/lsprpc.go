@@ -251,10 +251,13 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 		serverConn.Close()
 	}
 
-	err = serverConn.Err()
-	if err == nil {
-		err = clientConn.Err()
+	err = nil
+	if serverConn.Err() != nil {
+		err = errors.Errorf("remote disconnected: %v", err)
+	} else if clientConn.Err() != nil {
+		err = errors.Errorf("client disconnected: %v", err)
 	}
+	event.Log(ctx, fmt.Sprintf("forwarder: exited with error: %v", err))
 	return err
 }
 
