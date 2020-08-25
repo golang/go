@@ -455,9 +455,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		if err != nil {
-			t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
-		}
+		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
 	}
 
 	// Run objdump on the resulting object.
