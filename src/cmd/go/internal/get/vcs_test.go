@@ -178,6 +178,46 @@ func TestRepoRootForImportPath(t *testing.T) {
 			"chiselapp.com/user/kyle/fossilgg",
 			nil,
 		},
+		{
+			// Azure DevOps standard SSH path
+			path: "dev.azure.com/org/project/repo",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/org/project/repo",
+			},
+		},
+		{
+			// Azure DevOps standard HTTPS path
+			path: "dev.azure.com/org/project/_git/repo",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/org/project/_git/repo",
+			},
+		},
+		{
+			// Azure DevOps standard SSH path with subpackage
+			path: "dev.azure.com/org/project/repo/package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/org/project/repo/package",
+			},
+		},
+		{
+			// Azure DevOps with optional .git extension
+			path: "dev.azure.com/org/project/repo.git",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/org/project/repo",
+			},
+		},
+		{
+			// Azure DevOps with optional .git extension and subpackage
+			path: "dev.azure.com/org/project/repo.git/package",
+			want: &RepoRoot{
+				vcs:  vcsGit,
+				Repo: "https://dev.azure.com/org/project/repo/package",
+			},
+		},
 	}
 
 	for _, test := range tests {

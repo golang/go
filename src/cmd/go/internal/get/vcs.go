@@ -1050,6 +1050,15 @@ var vcsPaths = []*vcsPath{
 		check:  noVCSSuffix,
 	},
 
+	// Azure Devops
+	{
+		prefix: "dev.azure.com/",
+		regexp: lazyregexp.New(`^(?P<root>dev\.azure\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+((/_git)?)/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  azureVCS,
+	},
+
 	// Git at Apache
 	{
 		prefix: "git.apache.org/",
@@ -1107,6 +1116,13 @@ func noVCSSuffix(match map[string]string) error {
 			return fmt.Errorf("invalid version control suffix in %s path", match["prefix"])
 		}
 	}
+	return nil
+}
+
+// azureVCS handles legacy azure devops import paths
+// ending in .git
+func azureVCS(match map[string]string) error {
+	match["repo"] = strings.TrimSuffix(match["repo"], ".git")
 	return nil
 }
 
