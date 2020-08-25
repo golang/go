@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 //
 // System calls and other sys.stuff for 386, OpenBSD
-// /usr/src/sys/kern/syscalls.master for syscall numbers.
+// System calls are implemented in libc/libpthread, this file
+// contains trampolines that convert from Go to C calling convention.
+// Some direct system call implementations currently remain.
 //
 
 #include "go_asm.h"
@@ -11,6 +13,159 @@
 #include "textflag.h"
 
 #define	CLOCK_MONOTONIC	$3
+
+TEXT runtime·setldt(SB),NOSPLIT,$0
+	// Nothing to do, pthread already set thread-local storage up.
+	RET
+
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$28
+	// We are already on m's g0 stack.
+
+	// Save callee-save registers.
+	MOVL	BX, bx-4(SP)
+	MOVL	BP, bp-8(SP)
+	MOVL	SI, si-12(SP)
+	MOVL	DI, di-16(SP)
+
+	MOVL	32(SP), AX	// m
+	MOVL	m_g0(AX), DX
+	get_tls(CX)
+	MOVL	DX, g(CX)
+
+	CALL	runtime·mstart(SB)
+
+	// Restore callee-save registers.
+	MOVL	di-16(SP), DI
+	MOVL	si-12(SP), SI
+	MOVL	bp-8(SP),  BP
+	MOVL	bx-4(SP),  BX
+
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
+	MOVL	$0, AX
+	RET
+
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVL	fn+0(FP), AX
+	MOVL	sig+4(FP), BX
+	MOVL	info+8(FP), CX
+	MOVL	ctx+12(FP), DX
+	MOVL	SP, SI
+	SUBL	$32, SP
+	ANDL	$~15, SP	// align stack: handler might be a C function
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
+	CALL	AX
+	MOVL	12(SP), AX
+	MOVL	AX, SP
+	RET
+
+// Called by OS using C ABI.
+TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	// Save callee-saved C registers, since the caller may be a C signal handler.
+	MOVL	BX, bx-4(SP)
+	MOVL	BP, bp-8(SP)
+	MOVL	SI, si-12(SP)
+	MOVL	DI, di-16(SP)
+	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+	// modify them.
+
+	MOVL	32(SP), BX // signo
+	MOVL	BX, 0(SP)
+	MOVL	36(SP), BX // info
+	MOVL	BX, 4(SP)
+	MOVL	40(SP), BX // context
+	MOVL	BX, 8(SP)
+	CALL	runtime·sigtrampgo(SB)
+
+	MOVL	di-16(SP), DI
+	MOVL	si-12(SP), SI
+	MOVL	bp-8(SP),  BP
+	MOVL	bx-4(SP),  BX
+	RET
+
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall - note that while asmcgocall does
+// stack alignment, creation of a frame undoes it again.
+// A pointer to the arguments is passed on the stack.
+// A single int32 result is returned in AX.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	MOVL	12(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	AX, 0(SP)		// arg 1 - attr
+	CALL	libc_pthread_attr_init(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$4, SP
+	MOVL	12(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	AX, 0(SP)		// arg 1 - attr
+	CALL	libc_pthread_attr_destroy(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - attr
+	MOVL	BX, 4(SP)		// arg 2 - size
+	CALL	libc_pthread_attr_getstacksize(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), DX		// pointer to args
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	AX, 0(SP)		// arg 1 - attr
+	MOVL	BX, 4(SP)		// arg 2 - state
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$20, SP
+	MOVL	28(SP), DX		// pointer to args
+	LEAL	16(SP), AX
+	MOVL	AX, 0(SP)		// arg 1 - &threadid (discarded)
+	MOVL	0(DX), AX
+	MOVL	4(DX), BX
+	MOVL	8(DX), CX
+	MOVL	AX, 4(SP)		// arg 2 - attr
+	MOVL	BX, 8(SP)		// arg 3 - start
+	MOVL	CX, 12(SP)		// arg 4 - arg
+	CALL	libc_pthread_create(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4
@@ -226,124 +381,6 @@ TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$-4
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
-	MOVL	fn+0(FP), AX
-	MOVL	sig+4(FP), BX
-	MOVL	info+8(FP), CX
-	MOVL	ctx+12(FP), DX
-	MOVL	SP, SI
-	SUBL	$32, SP
-	ANDL	$~15, SP	// align stack: handler might be a C function
-	MOVL	BX, 0(SP)
-	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	MOVL	SI, 12(SP)	// save SI: handler might be a Go function
-	CALL	AX
-	MOVL	12(SP), AX
-	MOVL	AX, SP
-	RET
-
-// Called by OS using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$28
-	NOP	SP	// tell vet SP changed - stop checking offsets
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVL	BX, bx-4(SP)
-	MOVL	BP, bp-8(SP)
-	MOVL	SI, si-12(SP)
-	MOVL	DI, di-16(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
-
-	MOVL	32(SP), BX // signo
-	MOVL	BX, 0(SP)
-	MOVL	36(SP), BX // info
-	MOVL	BX, 4(SP)
-	MOVL	40(SP), BX // context
-	MOVL	BX, 8(SP)
-	CALL	runtime·sigtrampgo(SB)
-
-	MOVL	di-16(SP), DI
-	MOVL	si-12(SP), SI
-	MOVL	bp-8(SP),  BP
-	MOVL	bx-4(SP),  BX
-	RET
-
-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),NOSPLIT,$12
-
-	// Copy mp, gp and fn from the parent stack onto the child stack.
-	MOVL	param+0(FP), AX
-	MOVL	8(AX), CX		// tf_stack
-	SUBL	$16, CX
-	MOVL	CX, 8(AX)
-	MOVL	mm+8(FP), SI
-	MOVL	SI, 0(CX)
-	MOVL	gg+12(FP), SI
-	MOVL	SI, 4(CX)
-	MOVL	fn+16(FP), SI
-	MOVL	SI, 8(CX)
-	MOVL	$1234, 12(CX)
-
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	param+0(FP), AX
-	MOVL	AX, 4(SP)		// arg 1 - param
-	MOVL	psize+4(FP), AX
-	MOVL	AX, 8(SP)		// arg 2 - psize
-	MOVL	$8, AX			// sys___tfork
-	INT	$0x80
-
-	// Return if tfork syscall failed.
-	JCC	4(PC)
-	NEGL	AX
-	MOVL	AX, ret+20(FP)
-	RET
-
-	// In parent, return.
-	CMPL	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, ret+20(FP)
-	RET
-
-	// Paranoia: check that SP is as we expect.
-	MOVL	12(SP), BP
-	CMPL	BP, $1234
-	JEQ	2(PC)
-	INT	$3
-
-	// Reload registers.
-	MOVL	0(SP), BX		// m
-	MOVL	4(SP), DX		// g
-	MOVL	8(SP), SI		// fn
-
-	// Set FS to point at m->tls.
-	LEAL	m_tls(BX), BP
-	PUSHAL				// save registers
-	PUSHL	BP
-	CALL	set_tcb<>(SB)
-	POPL	AX
-	POPAL
-
-	// Now segment is established. Initialize m, g.
-	get_tls(AX)
-	MOVL	DX, g(AX)
-	MOVL	BX, g_m(DX)
-
-	CALL	runtime·stackcheck(SB)	// smashes AX, CX
-	MOVL	0(DX), DX		// paranoia; check they are not nil
-	MOVL	0(BX), BX
-
-	// More paranoia; check that stack splitting code works.
-	PUSHAL
-	CALL	runtime·emptyfunc(SB)
-	POPAL
-
-	// Call fn.
-	CALL	SI
-
-	// fn should never return.
-	MOVL	$0x1234, 0x1005
-	RET
-
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$288, AX		// sys_sigaltstack
 	MOVL	new+0(FP), BX
@@ -352,13 +389,6 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT	$3
-	RET
-
-TEXT runtime·setldt(SB),NOSPLIT,$4
-	// Under OpenBSD we set the GS base instead of messing with the LDT.
-	MOVL	base+4(FP), AX
-	MOVL	AX, 0(SP)
-	CALL	set_tcb<>(SB)
 	RET
 
 TEXT set_tcb<>(SB),NOSPLIT,$8

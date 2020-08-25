@@ -195,6 +195,10 @@ nocpuinfo:
 	JMP ok
 #endif
 needtls:
+#ifdef GOOS_openbsd
+	// skip runtime·ldt0setup(SB) and tls test on OpenBSD in all cases
+	JMP	ok
+#endif
 #ifdef GOOS_plan9
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
 	JMP	ok
