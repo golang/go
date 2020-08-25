@@ -1146,7 +1146,7 @@ func TestLinuxSendfile(t *testing.T) {
 		t.Skipf("skipping; failed to start straced child: %v", err)
 	}
 
-	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
+	res, err := Get(fmt.Sprintf("http://%s/bigfile", ln.Addr()))
 	if err != nil {
 		t.Fatalf("http client error: %v", err)
 	}
