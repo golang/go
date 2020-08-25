@@ -1963,15 +1963,6 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 		return nil
 	}
 
-	// Wait for the writeLoop goroutine to terminate to avoid data
-	// races on callers who mutate the request on failure.
-	//
-	// When resc in pc.roundTrip and hence rc.ch receives a responseAndError
-	// with a non-nil error it implies that the persistConn is either closed
-	// or closing. Waiting on pc.writeLoopDone is hence safe as all callers
-	// close closech which in turn ensures writeLoop returns.
-	<-pc.writeLoopDone
-
 	// If the request was canceled, that's better than network
 	// failures that were likely the result of tearing down the
 	// connection.
@@ -1997,6 +1988,7 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 		return err
 	}
 	if pc.isBroken() {
+		<-pc.writeLoopDone
 		if pc.nwrite == startBytesWritten {
 			return nothingWrittenError{err}
 		}
