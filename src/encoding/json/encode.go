@@ -871,7 +871,8 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
 		// We're a large number of nested ptrEncoder.encode calls deep;
 		// start checking if we've run into a pointer cycle.
-		// Here we use a struct to record the pointer of the first element and the length.
+		// Here we use a struct to memorize the pointer to the first element of the slice
+		// and its length.
 		ptr := struct {
 			ptr uintptr
 			len int
