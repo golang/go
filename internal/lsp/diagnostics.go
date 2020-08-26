@@ -101,14 +101,17 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
 			return nil, nil
 		}
-		msg := `The code in the workspace failed to compile (see the error message below).
-If you believe this is a mistake, please file an issue: https://github.com/golang/go/issues/new.`
-		event.Error(ctx, msg, err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
-		if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-			Type:    protocol.Error,
-			Message: fmt.Sprintf("%s\n%v", msg, err),
-		}); err != nil {
-			event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
+		event.Error(ctx, "errors diagnosing workspace", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
+		// Present any `go list` errors directly to the user.
+		if errors.Is(err, source.PackagesLoadError) {
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type: protocol.Error,
+				Message: fmt.Sprintf(`The code in the workspace failed to compile (see the error message below).
+If you believe this is a mistake, please file an issue: https://github.com/golang/go/issues/new.
+%v`, err),
+			}); err != nil {
+				event.Error(ctx, "ShowMessage failed", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
+			}
 		}
 		return nil, nil
 	}

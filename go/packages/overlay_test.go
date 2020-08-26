@@ -831,3 +831,35 @@ func testInvalidFilesBeforeOverlayContains(t *testing.T, exporter packagestest.E
 		})
 	}
 }
+
+func TestInvalidXTestInGOPATH(t *testing.T) {
+	packagestest.TestAll(t, testInvalidXTestInGOPATH)
+}
+func testInvalidXTestInGOPATH(t *testing.T, exporter packagestest.Exporter) {
+	t.Skip("Not fixed yet. See golang.org/issue/40825.")
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"x/x.go":      `package x`,
+				"x/x_test.go": ``,
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	dir := filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "x/x.go")))
+
+	exported.Config.Mode = everythingMode
+	exported.Config.Tests = true
+
+	initial, err := packages.Load(exported.Config, fmt.Sprintf("%s/...", dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := initial[0]
+	if len(pkg.CompiledGoFiles) != 2 {
+		t.Fatalf("expected at least 2 CompiledGoFiles for %s, got %v", pkg.PkgPath, len(pkg.CompiledGoFiles))
+	}
+}

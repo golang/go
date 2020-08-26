@@ -121,6 +121,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 		event.Error(ctx, "go/packages.Load", err, tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	} else {
+		err = fmt.Errorf("no packages returned")
 		event.Log(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	}
 	if len(pkgs) == 0 {

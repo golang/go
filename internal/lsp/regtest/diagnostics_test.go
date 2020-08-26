@@ -837,7 +837,6 @@ func TestHello(t *testing.T) {
 
 // Reproduces golang/go#40825.
 func TestEmptyGOPATHXTest_40825(t *testing.T) {
-	t.Skip("bug isn't fixed yet")
 	const files = `
 -- x.go --
 package x
