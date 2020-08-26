@@ -52,6 +52,14 @@ type t3 byte
 //go:notinheap
 type t4 rune
 
+// Type aliases inherit the go:notinheap-ness of the type they alias.
+type nihAlias = nih
+
+type embedAlias1 struct { // ERROR "must be go:notinheap"
+	x nihAlias
+}
+type embedAlias2 [1]nihAlias // ERROR "must be go:notinheap"
+
 var sink interface{}
 
 func i() {
