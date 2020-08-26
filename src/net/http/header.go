@@ -7,6 +7,7 @@ package http
 import (
 	"io"
 	"net/http/httptrace"
+	"net/http/sfv"
 	"net/textproto"
 	"sort"
 	"strings"
@@ -37,6 +38,24 @@ func (h Header) Set(key, value string) {
 	textproto.MIMEHeader(h).Set(key, value)
 }
 
+// SetStructured sets the header entries associated with key to the
+// given structured value.
+// It encodes the structured value as text before setting it.
+// It replaces any existing values associated with key.
+// The key is case insensitive; it is canonicalized by
+// textproto.CanonicalMIMEHeaderKey.
+// To use non-canonical keys, assign to the map directly.
+func (h Header) SetStructured(key string, value sfv.StructuredFieldValue) error {
+	v, err := sfv.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	h.Set(key, v)
+
+	return nil
+}
+
 // Get gets the first value associated with the given key. If
 // there are no values associated with the key, Get returns "".
 // It is case insensitive; textproto.CanonicalMIMEHeaderKey is
@@ -44,6 +63,42 @@ func (h Header) Set(key, value string) {
 // access the map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
+}
+
+// GetItem returns the item
+// (according to the Structured Field Values specification)
+// associated with the headers having the given key.
+// If the key doesn't exist or if the value format
+// is not a valid item, an error is returned.
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To use non-canonical keys,
+// access the map directly.
+func (h Header) GetItem(key string) (sfv.Item, error) {
+	return sfv.UnmarshalItem(h.Values(key))
+}
+
+// GetList returns the list
+// (according to the Structured Field Values specification)
+// associated with the headers having the given key.
+// If the key doesn't exist or if the value format
+// is not a valid list, an error is returned.
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To use non-canonical keys,
+// access the map directly.
+func (h Header) GetList(key string) (sfv.List, error) {
+	return sfv.UnmarshalList(h.Values(key))
+}
+
+// GetDictionary returns the dictionary
+// (according to the Structured Field Values specification)
+// associated with the given key.
+// If the key doesn't exist or if the value format
+// is not a valid dictionary, an error is returned.
+// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
+// used to canonicalize the provided key. To use non-canonical keys,
+// access the map directly.
+func (h Header) GetDictionary(key string) (*sfv.Dictionary, error) {
+	return sfv.UnmarshalDictionary(h.Values(key))
 }
 
 // Values returns all values associated with the given key.

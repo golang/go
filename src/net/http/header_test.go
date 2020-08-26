@@ -7,6 +7,7 @@ package http
 import (
 	"bytes"
 	"internal/race"
+	"net/http/sfv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -249,5 +250,65 @@ func TestCloneOrMakeHeader(t *testing.T) {
 			got.Add("A", "B")
 			got.Get("A")
 		})
+	}
+}
+
+func TestSetStructured(t *testing.T) {
+	bar := sfv.NewItem(sfv.Token("bar"))
+	bar.Params.Add("baz", 42)
+
+	l := sfv.List{
+		bar,
+		sfv.NewItem(false),
+	}
+
+	d := sfv.NewDictionary()
+	d.Add("a", bar)
+	d.Add("b", sfv.NewItem(false))
+
+	tests := []struct {
+		key        string
+		value      sfv.StructuredFieldValue
+		err        bool
+		serialized string
+	}{
+		{"Item", sfv.NewItem("bar"), false, `"bar"`},
+		{"List", l, false, `bar;baz=42, ?0`},
+		{"Dict", d, false, `a=bar;baz=42, b=?0`},
+		{"Dict", sfv.NewItem(999999999999999999), true, ""},
+	}
+
+	h := Header{}
+	for _, tt := range tests {
+		err := h.SetStructured(tt.key, tt.value) != nil
+		if err != tt.err {
+			t.Errorf("Got:  %#v\nWant: %#v", err, tt.err)
+		}
+
+		if err {
+			continue
+		}
+
+		s := h.Get(tt.key)
+		if s != tt.serialized {
+			t.Errorf("Got:  %#v\nWant: %#v", s, tt.serialized)
+		}
+
+		var r sfv.StructuredFieldValue
+		switch tt.value.(type) {
+		case sfv.Item:
+			r, _ = h.GetItem(tt.key)
+		case sfv.List:
+			r, _ = h.GetList(tt.key)
+		case *sfv.Dictionary:
+			r, _ = h.GetDictionary(tt.key)
+		default:
+			panic("type not found")
+		}
+
+		s, _ = sfv.Marshal(r)
+		if s != tt.serialized {
+			t.Errorf("Got:  %#v\nWant: %#v", s, tt.serialized)
+		}
 	}
 }
