@@ -31,7 +31,7 @@ func CommentToMarkdown(text string) string {
 var (
 	mdNewline   = []byte("\n")
 	mdHeader    = []byte("### ")
-	mdIndent    = []byte("&nbsp;&nbsp;&nbsp;&nbsp;")
+	mdIndent    = []byte("    ")
 	mdLinkStart = []byte("[")
 	mdLinkDiv   = []byte("](")
 	mdLinkEnd   = []byte(")")
