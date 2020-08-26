@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Examples adjusted to match new [T any] syntax for type parameters.
+// Also, previously permitted empty type parameter lists and instantiations
+// are now syntax errors.
 
 package p
 
@@ -12,8 +14,9 @@ type ph1[e nt1,g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
 func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undeclared name */ )
 
 // crash 2
-type Numeric2 interface{t2 /* ERROR not a type */ }
-func t2[T Numeric2](s[]T){0 /* ERROR not a type */ []{s /* ERROR cannot index */ [0][0]}}
+// Disabled: empty []'s are now syntax errors. This example leads to too many follow-on errors.
+// type Numeric2 interface{t2 /* ERROR not a type */ }
+// func t2[T Numeric2](s[]T){0 /* ERROR not a type */ []{s /* ERROR cannot index */ [0][0]}}
 
 // crash 3
 type t3 *interface{ t3.p /* ERROR no field or method p */ }
@@ -81,7 +84,7 @@ var x T25 /* ERROR without instantiation */ .m1
 
 // crash 26
 type T26 = interface{ F26[Z any]() }
-func F26[Z any]() T26 { return F26[] /* ERROR cannot infer Z */ }
+func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ /* ERROR missing method */ [] /* ERROR operand */ }
 
 // crash 27
 func e27[T any]() interface{ x27 /* ERROR not a type */ }

@@ -88,7 +88,6 @@ var valids = []string{
 	`package p; func _[type](); func _(x p.T[Q])`,
 	`package p; func _[type](); func _(p.T[Q])`,
 
-	`package p; type _[type] int; var _ = T[]{}`, // TODO(gri) should this (empty type list) be permitted?
 	`package p; type _[type] int; var _ T[chan int]`,
 	`package p; func f[A, B](); func _() { _ = f[int, int] }`,
 
@@ -267,6 +266,7 @@ var invalids = []string{
 	`package p; func _() (type /* ERROR "found 'type'" */ T)(T)`,
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
 	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
+	`package p; type _[type _] int; var _ = T[] /* ERROR "expected operand" */ {}`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,

@@ -1110,6 +1110,11 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 				lparen = p.expect(token.LPAREN)
 			}
 		}
+		// type parameter lists must not be empty when we have unified parameter lists
+		if p.mode&UnifiedParamLists != 0 && tparams != nil && tparams.NumFields() == 0 {
+			p.error(tparams.Closing, "empty type parameter list")
+			tparams = nil // avoid follow-on errors
+		}
 	} else {
 		if opening.tok != token.LPAREN {
 			p.errorExpected(lparen, "'('")
@@ -1598,11 +1603,11 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 
 	lbrack := p.expect(token.LBRACK)
 	if p.brack && p.tok == token.RBRACK {
-		// empty type instantiation
-		// TODO(gri) should this be permitted?
-		rbrack := p.pos
+		// empty index, slice or index expressions are not permitted;
+		// accept them for parsing tolerance, but complain
+		p.errorExpected(p.pos, "operand")
 		p.next()
-		return &ast.CallExpr{Fun: x, Lparen: lbrack, Rparen: rbrack, Brackets: true}
+		return x
 	}
 	p.exprLev++
 

@@ -603,10 +603,15 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 }
 
 func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
+	// Type parameter lists should not be empty. The parser will
+	// complain but we still may get an incorrect AST: ignore it.
+	if list.NumFields() == 0 {
+		return
+	}
+
 	// Declare type parameters up-front, with empty interface as type bound.
-	// If we use interfaces as type bounds, the scope of type parameters starts at
-	// the beginning of the type parameter list (so we can have mutually recursive
-	// parameterized interfaces).
+	// The scope of type parameters starts at the beginning of the type parameter
+	// list (so we can have mutually recursive parameterized interfaces).
 	for _, f := range list.List {
 		tparams = check.declareTypeParams(tparams, f.Names)
 	}
