@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
+	errors "golang.org/x/xerrors"
 )
 
 // Sandbox holds a collection of temporary resources to use for working with Go
@@ -203,7 +204,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 	// check if we need to send any any "watched" file events.
 	if sb.Workdir != nil {
 		if err := sb.Workdir.CheckForFileChanges(ctx); err != nil {
-			return fmt.Errorf("checking for file changes: %w", err)
+			return errors.Errorf("checking for file changes: %w", err)
 		}
 	}
 	return nil
@@ -213,9 +214,7 @@ func (sb *Sandbox) RunGoCommand(ctx context.Context, verb string, args ...string
 func (sb *Sandbox) Close() error {
 	var goCleanErr error
 	if sb.gopath != "" {
-		if err := sb.RunGoCommand(context.Background(), "clean", "-modcache"); err != nil {
-			goCleanErr = fmt.Errorf("cleaning modcache: %v", err)
-		}
+		goCleanErr = sb.RunGoCommand(context.Background(), "clean", "-modcache")
 	}
 	err := os.RemoveAll(sb.basedir)
 	if err != nil || goCleanErr != nil {

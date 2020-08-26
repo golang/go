@@ -24,7 +24,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackage)
 	if err != nil {
-		return nil, fmt.Errorf("getting file for Highlight: %w", err)
+		return nil, errors.Errorf("getting file for Highlight: %w", err)
 	}
 	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {

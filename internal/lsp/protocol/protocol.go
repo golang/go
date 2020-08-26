@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/xcontext"
+	errors "golang.org/x/xerrors"
 )
 
 var (
@@ -133,5 +134,5 @@ func cancelCall(ctx context.Context, conn jsonrpc2.Conn, id jsonrpc2.ID) {
 }
 
 func sendParseError(ctx context.Context, reply jsonrpc2.Replier, err error) error {
-	return reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
+	return reply(ctx, nil, errors.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 }

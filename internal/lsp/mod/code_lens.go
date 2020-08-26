@@ -95,7 +95,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if err != nil && err != source.ErrTmpModfileUnsupported {
 		return nil, err
 	}
-	if len(tidied.Errors) > 0 {
+	if tidied != nil && len(tidied.Errors) > 0 {
 		codelens = append(codelens, protocol.CodeLens{
 			Range: rng,
 			Command: protocol.Command{

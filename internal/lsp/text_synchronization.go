@@ -320,7 +320,7 @@ func (s *Server) wasFirstChange(uri span.URI) bool {
 
 func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) ([]byte, error) {
 	if len(changes) == 0 {
-		return nil, fmt.Errorf("%w: no content changes provided", jsonrpc2.ErrInternal)
+		return nil, errors.Errorf("%w: no content changes provided", jsonrpc2.ErrInternal)
 	}
 
 	// Check if the client sent the full content of the file.
@@ -338,7 +338,7 @@ func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, chan
 	}
 	content, err := fh.Read()
 	if err != nil {
-		return nil, fmt.Errorf("%w: file not found (%v)", jsonrpc2.ErrInternal, err)
+		return nil, errors.Errorf("%w: file not found (%v)", jsonrpc2.ErrInternal, err)
 	}
 	for _, change := range changes {
 		// Make sure to update column mapper along with the content.
@@ -349,18 +349,18 @@ func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, chan
 			Content:   content,
 		}
 		if change.Range == nil {
-			return nil, fmt.Errorf("%w: unexpected nil range for change", jsonrpc2.ErrInternal)
+			return nil, errors.Errorf("%w: unexpected nil range for change", jsonrpc2.ErrInternal)
 		}
 		spn, err := m.RangeSpan(*change.Range)
 		if err != nil {
 			return nil, err
 		}
 		if !spn.HasOffset() {
-			return nil, fmt.Errorf("%w: invalid range for content change", jsonrpc2.ErrInternal)
+			return nil, errors.Errorf("%w: invalid range for content change", jsonrpc2.ErrInternal)
 		}
 		start, end := spn.Start().Offset(), spn.End().Offset()
 		if end < start {
-			return nil, fmt.Errorf("%w: invalid range for content change", jsonrpc2.ErrInternal)
+			return nil, errors.Errorf("%w: invalid range for content change", jsonrpc2.ErrInternal)
 		}
 		var buf bytes.Buffer
 		buf.Write(content[:start])

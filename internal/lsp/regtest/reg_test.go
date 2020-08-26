@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -77,7 +78,13 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	if err := runner.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "closing test runner: %v\n", err)
-		os.Exit(1)
+		// Regtest cleanup is broken in go1.12 and earlier, but this is OK
+		// for our CI.
+		//
+		// But fail on go1.13+.
+		if testenv.Go1Point() >= 13 {
+			os.Exit(1)
+		}
 	}
 	os.Exit(code)
 }

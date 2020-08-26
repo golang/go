@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/xerrors"
 )
 
 func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
@@ -239,7 +240,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			} else {
 				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)
 				if obj == nil {
-					return nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
+					return nil, xerrors.Errorf("%w for %q", errNoObjectFound, leaf.Name)
 				}
 				objs = append(objs, obj)
 			}
@@ -247,7 +248,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			// Look up the implicit *types.PkgName.
 			obj := searchpkg.GetTypesInfo().Implicits[leaf]
 			if obj == nil {
-				return nil, fmt.Errorf("%w for import %q", errNoObjectFound, importPath(leaf))
+				return nil, xerrors.Errorf("%w for import %q", errNoObjectFound, importPath(leaf))
 			}
 			objs = append(objs, obj)
 		}
@@ -265,7 +266,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 		addPkg(searchpkg)
 		for _, obj := range objs {
 			if obj.Parent() == types.Universe {
-				return nil, fmt.Errorf("%w %q", errBuiltin, obj.Name())
+				return nil, xerrors.Errorf("%q: %w", obj.Name(), errBuiltin)
 			}
 			pkg, ok := pkgs[obj.Pkg()]
 			if !ok {

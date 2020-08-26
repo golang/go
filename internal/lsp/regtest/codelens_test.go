@@ -134,6 +134,7 @@ require golang.org/x/hello v1.3.3
 }
 
 func TestUnusedDependenciesCodelens(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
 -- golang.org/x/hello@v1.0.0/go.mod --
 module golang.org/x/hello

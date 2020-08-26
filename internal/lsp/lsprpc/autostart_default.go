@@ -5,8 +5,9 @@
 package lsprpc
 
 import (
-	"fmt"
 	"os/exec"
+
+	errors "golang.org/x/xerrors"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 func startRemoteDefault(goplsPath string, args ...string) error {
 	cmd := exec.Command(goplsPath, args...)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting remote gopls: %w", err)
+		return errors.Errorf("starting remote gopls: %w", err)
 	}
 	return nil
 }

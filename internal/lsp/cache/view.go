@@ -717,7 +717,7 @@ func (v *View) maybeReinitialize() {
 
 func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options source.Options) error {
 	if err := checkPathCase(folder.Filename()); err != nil {
-		return fmt.Errorf("invalid workspace configuration: %w", err)
+		return errors.Errorf("invalid workspace configuration: %w", err)
 	}
 	// Make sure to get the `go env` before continuing with initialization.
 	modFile, err := v.setGoEnv(ctx, options.Env)

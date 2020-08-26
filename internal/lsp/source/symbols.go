@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	errors "golang.org/x/xerrors"
 )
 
 func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.DocumentSymbol, error) {
@@ -20,7 +21,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, fmt.Errorf("getting file for DocumentSymbols: %w", err)
+		return nil, errors.Errorf("getting file for DocumentSymbols: %w", err)
 	}
 
 	info := pkg.GetTypesInfo()

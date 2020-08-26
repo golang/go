@@ -3,16 +3,16 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 399de64448129835b53c7efe8962de91681d6cde
-// last fetched Tue Jul 28 2020 09:32:20 GMT-0400 (Eastern Daylight Time)
+// last fetched Wed Aug 26 2020 20:34:24 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	errors "golang.org/x/xerrors"
 )
 
 type Server interface {
@@ -236,7 +236,7 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 		return true, reply(ctx, resp, err)
 	case "shutdown": // req
 		if len(r.Params()) > 0 {
-			return true, reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
+			return true, reply(ctx, nil, errors.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 		}
 		err := server.Shutdown(ctx)
 		return true, reply(ctx, nil, err)

@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/doc"
 	"go/token"
@@ -24,7 +23,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
+		return nil, 0, errors.Errorf("getting file for SignatureHelp: %w", err)
 	}
 	spn, err := pgf.Mapper.PointSpan(pos)
 	if err != nil {

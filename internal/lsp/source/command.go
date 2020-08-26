@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 type Command struct {
@@ -209,7 +210,7 @@ func (c *Command) SuggestedFix(ctx context.Context, snapshot Snapshot, fh Versio
 func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, span.Range, []byte, *ast.File, *protocol.ColumnMapper, *types.Package, *types.Info, error) {
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
+		return nil, span.Range{}, nil, nil, nil, nil, nil, errors.Errorf("getting file for Identifier: %w", err)
 	}
 	spn, err := pgf.Mapper.RangeSpan(pRng)
 	if err != nil {

@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
+	errors "golang.org/x/xerrors"
 )
 
 // AutoNetwork is the pseudo network type used to signal that gopls should use
@@ -173,19 +174,19 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 	if network == AutoNetwork {
 		gp, err := os.Executable()
 		if err != nil {
-			return nil, fmt.Errorf("getting gopls path: %w", err)
+			return nil, errors.Errorf("getting gopls path: %w", err)
 		}
 		network, address = autoNetworkAddress(gp, address)
 	}
 	netConn, err := net.DialTimeout(network, address, 5*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("dialing remote: %w", err)
+		return nil, errors.Errorf("dialing remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	serverConn.Go(ctx, jsonrpc2.MethodNotFound)
 	var state ServerState
 	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
-		return nil, fmt.Errorf("querying server state: %w", err)
+		return nil, errors.Errorf("querying server state: %w", err)
 	}
 	return &state, nil
 }
@@ -197,7 +198,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 
 	netConn, err := f.connectToRemote(ctx)
 	if err != nil {
-		return fmt.Errorf("forwarder: connecting to remote: %w", err)
+		return errors.Errorf("forwarder: connecting to remote: %w", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn))
 	server := protocol.ServerDispatcher(serverConn)
@@ -320,7 +321,7 @@ func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, r
 			// instances are simultaneously starting up.
 			if _, err := os.Stat(address); err == nil {
 				if err := os.Remove(address); err != nil {
-					return nil, fmt.Errorf("removing remote socket file: %w", err)
+					return nil, errors.Errorf("removing remote socket file: %w", err)
 				}
 			}
 		}
@@ -335,7 +336,7 @@ func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, r
 			args = append(args, "-debug", rcfg.debug)
 		}
 		if err := startRemote(goplsPath, args...); err != nil {
-			return nil, fmt.Errorf("startRemote(%q, %v): %w", goplsPath, args, err)
+			return nil, errors.Errorf("startRemote(%q, %v): %w", goplsPath, args, err)
 		}
 	}
 
@@ -355,7 +356,7 @@ func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, r
 			time.Sleep(dialTimeout - time.Since(startDial))
 		}
 	}
-	return nil, fmt.Errorf("dialing remote: %w", err)
+	return nil, errors.Errorf("dialing remote: %w", err)
 }
 
 // forwarderHandler intercepts 'exit' messages to prevent the shared gopls
@@ -555,7 +556,7 @@ func handshaker(session *cache.Session, goplsPath string, logHandshakes bool, ha
 }
 
 func sendError(ctx context.Context, reply jsonrpc2.Replier, err error) {
-	err = fmt.Errorf("%w: %v", jsonrpc2.ErrParse, err)
+	err = errors.Errorf("%v: %w", err, jsonrpc2.ErrParse)
 	if err := reply(ctx, nil, err); err != nil {
 		event.Error(ctx, "", err)
 	}

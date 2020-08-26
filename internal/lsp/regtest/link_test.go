@@ -7,9 +7,12 @@ package regtest
 import (
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestHoverAndDocumentLink(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
 	const program = `
 -- go.mod --
 module mod.test

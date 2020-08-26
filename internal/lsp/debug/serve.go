@@ -37,7 +37,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/xerrors"
+	errors "golang.org/x/xerrors"
 )
 
 type instanceKeyType int
@@ -151,7 +151,7 @@ func (st *State) Clients() []*Client {
 	return clients
 }
 
-// View returns the View that matches the supplied id.
+// Client returns the Client matching the supplied id.
 func (st *State) Client(id string) *Client {
 	for _, c := range st.Clients() {
 		if c.Session.ID() == id {
@@ -338,7 +338,7 @@ func (i *Instance) SetLogFile(logfile string, isDaemon bool) (func(), error) {
 		}
 		f, err := os.Create(logfile)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create log file: %w", err)
+			return nil, errors.Errorf("unable to create log file: %w", err)
 		}
 		closeLog = func() {
 			defer f.Close()
@@ -480,7 +480,7 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 
 		if event.IsLog(ev) {
 			// Don't log context cancellation errors.
-			if err := keys.Err.Get(ev); xerrors.Is(err, context.Canceled) {
+			if err := keys.Err.Get(ev); errors.Is(err, context.Canceled) {
 				return ctx
 			}
 			// Make sure any log messages without an instance go to stderr.

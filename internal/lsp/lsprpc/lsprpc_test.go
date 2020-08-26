@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 type fakeClient struct {
@@ -288,6 +289,7 @@ func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamIniti
 }
 
 func TestEnvForwarding(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
 	server := &initServer{}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

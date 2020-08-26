@@ -6,7 +6,6 @@ package fake
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // FileEvent wraps the protocol.FileEvent so that it can be associated with a
@@ -48,12 +48,12 @@ func (w *Workdir) WriteInitialFiles(txt string) error {
 	files := unpackTxt(txt)
 	for name, data := range files {
 		if err := w.writeFileData(name, string(data)); err != nil {
-			return fmt.Errorf("writing to workdir: %w", err)
+			return errors.Errorf("writing to workdir: %w", err)
 		}
 	}
 	// Poll to capture the current file state.
 	if _, err := w.pollFiles(); err != nil {
-		return fmt.Errorf("polling files: %w", err)
+		return errors.Errorf("polling files: %w", err)
 	}
 	return nil
 }
@@ -134,7 +134,7 @@ func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) err
 		case protocol.Deleted:
 			fp := w.filePath(e.Path)
 			if err := os.Remove(fp); err != nil {
-				return fmt.Errorf("removing %q: %w", e.Path, err)
+				return errors.Errorf("removing %q: %w", e.Path, err)
 			}
 		case protocol.Changed, protocol.Created:
 			if _, err := w.writeFile(ctx, e.Path, e.Content); err != nil {
@@ -150,7 +150,7 @@ func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) err
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.filePath(path)
 	if err := os.Remove(fp); err != nil {
-		return fmt.Errorf("removing %q: %w", path, err)
+		return errors.Errorf("removing %q: %w", path, err)
 	}
 	evts := []FileEvent{{
 		Path: path,
@@ -205,7 +205,7 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 	fp := w.filePath(path)
 	_, err := os.Stat(fp)
 	if err != nil && !os.IsNotExist(err) {
-		return FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
+		return FileEvent{}, errors.Errorf("checking if %q exists: %w", path, err)
 	}
 	var changeType protocol.FileChangeType
 	if os.IsNotExist(err) {
@@ -228,10 +228,10 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 func (w *Workdir) writeFileData(path string, content string) error {
 	fp := w.filePath(path)
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
-		return fmt.Errorf("creating nested directory: %w", err)
+		return errors.Errorf("creating nested directory: %w", err)
 	}
 	if err := ioutil.WriteFile(fp, []byte(content), 0644); err != nil {
-		return fmt.Errorf("writing %q: %w", path, err)
+		return errors.Errorf("writing %q: %w", path, err)
 	}
 	return nil
 }

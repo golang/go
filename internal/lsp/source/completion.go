@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/scanner"
@@ -471,7 +470,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting file for Completion: %w", err)
+		return nil, nil, errors.Errorf("getting file for Completion: %w", err)
 	}
 	spn, err := pgf.Mapper.PointSpan(protoPos)
 	if err != nil {
