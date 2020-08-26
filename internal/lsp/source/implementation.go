@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -42,6 +43,13 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 			Range: pr,
 		})
 	}
+	sort.Slice(locations, func(i, j int) bool {
+		li, lj := locations[i], locations[j]
+		if li.URI == lj.URI {
+			return protocol.CompareRange(li.Range, lj.Range) < 0
+		}
+		return li.URI < lj.URI
+	})
 	return locations, nil
 }
 
@@ -195,8 +203,10 @@ type qualifiedObject struct {
 	sourcePkg Package
 }
 
-var errBuiltin = errors.New("builtin object")
-var errNoObjectFound = errors.New("no object found")
+var (
+	errBuiltin       = errors.New("builtin object")
+	errNoObjectFound = errors.New("no object found")
+)
 
 // qualifiedObjsAtProtocolPos returns info for all the type.Objects
 // referenced at the given position. An object will be returned for
