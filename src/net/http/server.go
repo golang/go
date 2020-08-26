@@ -583,21 +583,29 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	// If body length is <= sniffLen, sendfile/splice path will do
 	// little anyway. This small read also satisfies sniffing the
 	// body in case Content-Type is missing.
-	ns, err := src.Read(buf[:sniffLen])
-	n += int64(ns)
+	nr, er := src.Read(buf[:sniffLen])
+	atEOF := errors.Is(er, io.EOF)
+	n += int64(nr)
 
-	isEOF := errors.Is(err, io.EOF)
-	if !isEOF && err != nil {
-		return n, err
+	if nr > 0 {
+		// Write the small amount read normally.
+		nw, ew := w.Write(buf[:nr])
+		if ew != nil {
+			err = ew
+		} else if nr != nw {
+			err = io.ErrShortWrite
+		}
 	}
-	err = nil
-
-	if !w.wroteHeader {
-		w.WriteHeader(StatusOK)
+	if err == nil && er != nil && !atEOF {
+		err = er
 	}
 
-	_, err = w.Write(buf[:ns]) // write the small amount we read normally
-	if err != nil || isEOF {
+	// Do not send StatusOK in the error case where nothing has been written.
+	if err == nil && !w.wroteHeader {
+		w.WriteHeader(StatusOK) // nr == 0, no error (or EOF)
+	}
+
+	if err != nil || atEOF {
 		return n, err
 	}
 
