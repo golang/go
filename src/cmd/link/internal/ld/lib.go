@@ -1238,6 +1238,10 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
+	// On darwin, whether to combine DWARF into executable.
+	// Only macOS supports unmapped segments such as our __DWARF segment.
+	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64()
+
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
 		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
@@ -1247,6 +1251,9 @@ func (ctxt *Link) hostlink() {
 		}
 		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			argv = append(argv, "-Wl,-flat_namespace")
+		}
+		if !combineDwarf {
+			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
@@ -1587,10 +1594,15 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("%s", out)
 	}
 
-	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
+	if combineDwarf {
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
 		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
+		// They contain temporary file paths and make the build not reproducible.
+		if out, err := exec.Command("strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {
@@ -1607,15 +1619,12 @@ func (ctxt *Link) hostlink() {
 		if err != nil {
 			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
 		}
-		// Only macOS supports unmapped segments such as our __DWARF segment.
-		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
-			if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
-				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
-			}
-			os.Remove(*flagOutfile)
-			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-				Exitf("%s: %v", os.Args[0], err)
-			}
+		if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
+			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+		}
+		os.Remove(*flagOutfile)
+		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+			Exitf("%s: %v", os.Args[0], err)
 		}
 	}
 }
