@@ -126,7 +126,7 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 // for error messages.
 func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, error) {
 	fset := token.NewFileSet()
-	pf, err := parser.ParseFile(fset, filename, file, 0)
+	pf, err := parser.ParseFile(fset, filename, file, parser.UnifiedParamLists)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func checkGoFile(dir, f string) error {
 func parseFiles(importer *Importer, dir string, go2files []string, fset *token.FileSet) ([]*ast.Package, error) {
 	pkgs := make(map[string]*ast.Package)
 	for _, go2f := range go2files {
-		var mode parser.Mode
+		mode := parser.UnifiedParamLists // overrides UseBrackets
 		if importer.UseBrackets {
 			mode = parser.UseBrackets
 		}

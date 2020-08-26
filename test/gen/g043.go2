@@ -17,11 +17,11 @@ type Number interface {
 
 type MySlice []int
 
-type SC[type E] interface {
+type SC[E any] interface {
 	type []E
 }
 
-func DoubleDefined[type S SC[E], E Number](s S) S {
+func DoubleDefined[S SC[E], E Number](s S) S {
 	r := make(S, len(s))
 	for i, v := range s {
 		r[i] = v + v

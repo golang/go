@@ -11,16 +11,19 @@ import (
 	"strconv"
 )
 
-type Setter interface {
+type Setter[B any] interface {
 	Set(string)
+	type *B
 }
 
-func FromStrings[*T Setter](s []string) []T {
+func FromStrings[T any, PT Setter[T]](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
-		// result[i] is an addressable value of type T,
-		// so it's OK to call Set.
-		result[i].Set(v)
+		// The type of &result[i] is *T which is in the type list
+		// of Setter, so we can convert it to PT.
+		p := PT(&result[i])
+		// PT has a Set method.
+		p.Set(v)
 	}
 	return result
 }
@@ -36,7 +39,7 @@ func (p *Settable) Set(s string) {
 }
 
 func main() {
-	s := FromStrings[Settable]([]string{"1"})
+	s := FromStrings[Settable, *Settable]([]string{"1"})
 	if len(s) != 1 || s[0] != 1 {
 		log.Fatalf("got %v, want %v", s, []int{1})
 	}

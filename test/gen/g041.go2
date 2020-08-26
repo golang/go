@@ -7,6 +7,6 @@
 // Issue 40015.
 package p
 
-func F1[type](s []int) {}
+func F1[](s []int) {}
 
 func F2() { F1([]int{1, 2}) }

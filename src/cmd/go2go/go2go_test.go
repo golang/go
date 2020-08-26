@@ -198,7 +198,7 @@ package main
 
 import "fmt"
 
-func PrintSlice(type Elem)(s []Elem) {
+func PrintSlice[Elem any](s []Elem) {
 	for _, v := range s {
 		fmt.Println(v)
 	}
@@ -295,7 +295,7 @@ func TestTransitiveGo1(t *testing.T) {
 	testFiles{
 		{
 			"a/a.go2",
-			`package a; func ident(type T)(v T) T { return v }; func F1(v int) int { return ident(v) }`,
+			`package a; func ident[T any](v T) T { return v }; func F1(v int) int { return ident(v) }`,
 		},
 		{
 			"b/b.go",
