@@ -27,14 +27,18 @@ func f() {
 // Heap allocation is not okay.
 
 var y *nih
+var y2 *struct{ x nih }
+var y3 *[1]nih
 var z []nih
 var w []nih
 var n int
 
 func g() {
-	y = new(nih)       // ERROR "heap allocation disallowed"
-	z = make([]nih, 1) // ERROR "heap allocation disallowed"
-	z = append(z, x)   // ERROR "heap allocation disallowed"
+	y = new(nih)              // ERROR "heap allocation disallowed"
+	y2 = new(struct{ x nih }) // ERROR "heap allocation disallowed"
+	y3 = new([1]nih)          // ERROR "heap allocation disallowed"
+	z = make([]nih, 1)        // ERROR "heap allocation disallowed"
+	z = append(z, x)          // ERROR "heap allocation disallowed"
 	// Test for special case of OMAKESLICECOPY
 	x := make([]nih, n) // ERROR "heap allocation disallowed"
 	copy(x, z)

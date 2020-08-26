@@ -2068,7 +2068,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		ok |= ctxStmt
 		n.Left = typecheck(n.Left, ctxType)
 		checkwidth(n.Left.Type)
-		if n.Left.Type != nil && n.Left.Type.NotInHeap() && n.Left.Name.Param.Pragma&NotInHeap == 0 {
+		if n.Left.Type != nil && n.Left.Type.NotInHeap() && !n.Left.Name.Param.Alias && n.Left.Name.Param.Pragma&NotInHeap == 0 {
 			// The type contains go:notinheap types, so it
 			// must be marked as such (alternatively, we
 			// could silently propagate go:notinheap).
