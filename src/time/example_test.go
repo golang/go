@@ -195,10 +195,17 @@ func ExampleNewTicker() {
 		done <- true
 	}()
 	for {
+		// b/c there is no priority selection in golang.
+		// It is possible to race when both channel are
+		// non-empty, and trigger ticker.C after 10 seconds.
+		// In order to mitigate we should check done seperatly.
 		select {
 		case <-done:
 			fmt.Println("Done!")
 			return
+		default:
+		}
+		select {
 		case t := <-ticker.C:
 			fmt.Println("Current time: ", t)
 		}
