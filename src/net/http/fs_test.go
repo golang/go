@@ -1136,6 +1136,20 @@ func TestLinuxSendfile(t *testing.T) {
 		t.Skipf("skipping; failed to run strace: %v", err)
 	}
 
+	filename := fmt.Sprintf("1kb-%d", os.Getpid())
+	filepath := path.Join(os.TempDir(), filename)
+	f, err := os.Create(filepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = f.Truncate(1024 * 3)
+	f.Sync()
+	f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath)
+
 	var buf bytes.Buffer
 	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
@@ -1146,7 +1160,7 @@ func TestLinuxSendfile(t *testing.T) {
 		t.Skipf("skipping; failed to start straced child: %v", err)
 	}
 
-	res, err := Get(fmt.Sprintf("http://%s/bigfile", ln.Addr()))
+	res, err := Get(fmt.Sprintf("http://%s/%s", ln.Addr(), filename))
 	if err != nil {
 		t.Fatalf("http client error: %v", err)
 	}
@@ -1192,7 +1206,7 @@ func TestLinuxSendfileChild(*testing.T) {
 		panic(err)
 	}
 	mux := NewServeMux()
-	mux.Handle("/", FileServer(Dir("testdata")))
+	mux.Handle("/", FileServer(Dir(os.TempDir())))
 	mux.HandleFunc("/quit", func(ResponseWriter, *Request) {
 		os.Exit(0)
 	})
