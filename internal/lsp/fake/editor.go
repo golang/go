@@ -67,7 +67,7 @@ type EditorConfig struct {
 
 	// SymbolMatcher is the config associated with the "symbolMatcher" gopls
 	// config option.
-	SymbolMatcher *string
+	SymbolMatcher, SymbolStyle *string
 
 	// LimitWorkspaceScope is true if the user does not want to expand their
 	// workspace scope to the entire module.
@@ -183,6 +183,10 @@ func (e *Editor) configuration() map[string]interface{} {
 
 	if e.Config.SymbolMatcher != nil {
 		config["symbolMatcher"] = *e.Config.SymbolMatcher
+	}
+
+	if e.Config.SymbolStyle != nil {
+		config["symbolStyle"] = *e.Config.SymbolStyle
 	}
 
 	return config
