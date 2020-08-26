@@ -2434,6 +2434,18 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			tt := *t
 			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
 			tt.Go = c.Ident("struct{}")
+			if dt.Kind == "struct" {
+				// We don't know what the representation of this struct is, so don't let
+				// anyone allocate one on the Go side. As a side effect of this annotation,
+				// pointers to this type will not be considered pointers in Go. They won't
+				// get writebarrier-ed or adjusted during a stack copy. This should handle
+				// all the cases badPointerTypedef used to handle, but hopefully will
+				// continue to work going forward without any more need for cgo changes.
+				tt.NotInHeap = true
+				// TODO: we should probably do the same for unions. Unions can't live
+				// on the Go heap, right? It currently doesn't work for unions because
+				// they are defined as a type alias for struct{}, not a defined type.
+			}
 			typedef[name.Name] = &tt
 			break
 		}
@@ -2504,6 +2516,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		}
 		t.Go = name
 		t.BadPointer = sub.BadPointer
+		t.NotInHeap = sub.NotInHeap
 		if unionWithPointer[sub.Go] {
 			unionWithPointer[t.Go] = true
 		}
@@ -2514,6 +2527,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			tt := *t
 			tt.Go = sub.Go
 			tt.BadPointer = sub.BadPointer
+			tt.NotInHeap = sub.NotInHeap
 			typedef[name.Name] = &tt
 		}
 
@@ -3022,6 +3036,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
 // non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
+// Note: DEPRECATED. There is now a better solution. Search for NotInHeap in this file.
 func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 	if c.badCFType(dt) {
 		return true
