@@ -788,6 +788,30 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 	return lens, nil
 }
 
+// Completion executes a completion request on the server.
+func (e *Editor) Completion(ctx context.Context, path string, pos Pos) (*protocol.CompletionList, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: e.textDocumentIdentifier(path),
+			Position:     pos.ToProtocolPosition(),
+		},
+	}
+	completions, err := e.Server.Completion(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return completions, nil
+}
+
 // References executes a reference request on the server.
 func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
 	if e.Server == nil {

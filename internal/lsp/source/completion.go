@@ -469,8 +469,19 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	startTime := time.Now()
 
 	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
-	if err != nil {
-		return nil, nil, errors.Errorf("getting file for Completion: %w", err)
+	if err != nil || pgf.File.Package == token.NoPos {
+		// If we can't parse this file or find position for the package
+		// keyword, it may be missing a package declaration. Try offering
+		// suggestions for the package declaration.
+		// Note that this would be the case even if the keyword 'package' is
+		// present but no package name exists.
+		items, surrounding, innerErr := packageClauseCompletions(ctx, snapshot, fh, protoPos)
+		if innerErr != nil {
+			// return the error for getParsedFile since it's more relevant in this situation.
+			return nil, nil, errors.Errorf("getting file for Completion: %w", err)
+
+		}
+		return items, surrounding, nil
 	}
 	spn, err := pgf.Mapper.PointSpan(protoPos)
 	if err != nil {
@@ -510,6 +521,9 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
 			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
 				// An anonymous field is also a reference to a type.
+			} else if pgf.File.Name == n {
+				// Don't skip completions if Ident is for package name.
+				break
 			} else {
 				objStr := ""
 				if obj != nil {
@@ -615,8 +629,13 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		// Is this the Sel part of a selector?
-		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
+		if pgf.File.Name == n {
+			if err := c.packageNameCompletions(ctx, fh.URI(), n); err != nil {
+				return nil, nil, err
+			}
+			return c.items, c.getSurrounding(), nil
+		} else if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
+			// Is this the Sel part of a selector?
 			if err := c.selector(ctx, sel); err != nil {
 				return nil, nil, err
 			}
