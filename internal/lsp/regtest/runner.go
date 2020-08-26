@@ -176,12 +176,12 @@ func InExistingDir(dir string) RunOption {
 	})
 }
 
-// NoHooks disables the test runner's client hooks that are used for
-// instrumenting expectations (tracking diagnostics, logs, work done, etc.). It
-// is intended for performance-sensitive stress tests.
-func NoHooks() RunOption {
+// SkipHooks allows for disabling the test runner's client hooks that are used
+// for instrumenting expectations (tracking diagnostics, logs, work done,
+// etc.). It is intended for performance-sensitive stress tests or benchmarks.
+func SkipHooks(skip bool) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.skipHooks = true
+		opts.skipHooks = skip
 	})
 }
 

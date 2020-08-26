@@ -579,7 +579,7 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	}
 	params := &protocol.DefinitionParams{}
 	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos.toProtocolPosition()
+	params.Position = pos.ToProtocolPosition()
 
 	resp, err := e.Server.Definition(ctx, params)
 	if err != nil {
@@ -802,7 +802,7 @@ func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protoc
 	params := &protocol.ReferenceParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: e.textDocumentIdentifier(path),
-			Position:     pos.toProtocolPosition(),
+			Position:     pos.ToProtocolPosition(),
 		},
 		Context: protocol.ReferenceContext{
 			IncludeDeclaration: true,
@@ -846,7 +846,7 @@ func (e *Editor) Hover(ctx context.Context, path string, pos Pos) (*protocol.Mar
 	}
 	params := &protocol.HoverParams{}
 	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos.toProtocolPosition()
+	params.Position = pos.ToProtocolPosition()
 
 	resp, err := e.Server.Hover(ctx, params)
 	if err != nil {

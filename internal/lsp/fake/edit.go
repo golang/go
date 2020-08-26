@@ -25,7 +25,7 @@ type Range struct {
 	End   Pos
 }
 
-func (p Pos) toProtocolPosition() protocol.Position {
+func (p Pos) ToProtocolPosition() protocol.Position {
 	return protocol.Position{
 		Line:      float64(p.Line),
 		Character: float64(p.Column),
@@ -73,8 +73,8 @@ func NewEdit(startLine, startColumn, endLine, endColumn int, text string) Edit {
 func (e Edit) toProtocolChangeEvent() protocol.TextDocumentContentChangeEvent {
 	return protocol.TextDocumentContentChangeEvent{
 		Range: &protocol.Range{
-			Start: e.Start.toProtocolPosition(),
-			End:   e.End.toProtocolPosition(),
+			Start: e.Start.ToProtocolPosition(),
+			End:   e.End.ToProtocolPosition(),
 		},
 		Text: e.Text,
 	}

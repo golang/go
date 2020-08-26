@@ -29,9 +29,10 @@ func stressTestOptions(dir string) []RunOption {
 		// Enable live debugging.
 		WithDebugAddress(":8087"),
 
-		// Skip logs and hooks, as they buffer up memory unnaturally.
+		// Skip logs as they buffer up memory unnaturally.
 		SkipLogs(),
-		NoHooks(),
+		// Similarly to logs: disable hooks so that they don't affect performance.
+		SkipHooks(true),
 		// The Debug server only makes sense if running in singleton mode.
 		WithModes(Singleton),
 		// Set a generous timeout. Individual tests should control their own
