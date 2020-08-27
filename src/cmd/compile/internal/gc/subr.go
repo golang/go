@@ -689,14 +689,14 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		}
 		return OXXX
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
 		if why != nil {
-			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
+			*why = fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		}
 		return OXXX
 	}
