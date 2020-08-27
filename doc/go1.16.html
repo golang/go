@@ -52,6 +52,16 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: write and link to tutorial or blog post
 </p>
 
+<p><!-= golang.org/issue/29062 -->
+  When using <code>go test</code>, a test that
+  calls <code>os.Exit(0)</code> during execution of a test function
+  will now be considered to fail.
+  This will help catch cases in which a test calls code that calls
+  os.Exit(0) and thereby stops running all future tests.
+  If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
+  that is still considered to be a passing test.
+</p>
+
 <p>
   TODO
 </p>
@@ -101,7 +111,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="net"><a href="/pkg/net/">net</a></h3>
 
-<p><!-- CL -->
+<p><!-- CL 250357 -->
   The case of I/O on a closed network connection, or I/O on a network
   connection that is closed before any of the I/O completes, can now
   be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.

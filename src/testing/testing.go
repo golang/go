@@ -294,6 +294,7 @@ func Init() {
 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
 	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
+	panicOnExit0 = flag.Bool("test.paniconexit0", false, "panic on call to os.Exit(0)")
 	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
 	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
 	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
@@ -320,6 +321,7 @@ var (
 	blockProfileRate     *int
 	mutexProfile         *string
 	mutexProfileFraction *int
+	panicOnExit0         *bool
 	traceFile            *string
 	timeout              *time.Duration
 	cpuListStr           *string
@@ -1261,6 +1263,7 @@ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return e
 func (f matchStringOnly) ImportPath() string                          { return "" }
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
+func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1296,6 +1299,7 @@ type M struct {
 type testDeps interface {
 	ImportPath() string
 	MatchString(pat, str string) (bool, error)
+	SetPanicOnExit0(bool)
 	StartCPUProfile(io.Writer) error
 	StopCPUProfile()
 	StartTestLog(io.Writer)
@@ -1521,11 +1525,17 @@ func (m *M) before() {
 		m.deps.StartTestLog(f)
 		testlogFile = f
 	}
+	if *panicOnExit0 {
+		m.deps.SetPanicOnExit0(true)
+	}
 }
 
 // after runs after all testing.
 func (m *M) after() {
 	m.afterOnce.Do(func() {
+		if *panicOnExit0 {
+			m.deps.SetPanicOnExit0(false)
+		}
 		m.writeProfiles()
 	})
 }
