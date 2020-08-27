@@ -651,6 +651,10 @@ func auxIntToFlagConstant(x int64) flagConstant {
 	return flagConstant(x)
 }
 
+func auxIntToOp(cc int64) Op {
+	return Op(cc)
+}
+
 func boolToAuxInt(b bool) int64 {
 	if b {
 		return 1
@@ -694,6 +698,10 @@ func flagConstantToAuxInt(x flagConstant) int64 {
 	return int64(x)
 }
 
+func opToAuxInt(o Op) int64 {
+	return int64(o)
+}
+
 func auxToString(i interface{}) string {
 	return i.(string)
 }
@@ -726,13 +734,6 @@ func s390xCCMaskToAux(c s390x.CCMask) interface{} {
 }
 func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
 	return r
-}
-func cCopToAux(o Op) interface{} {
-	return o
-}
-
-func auxToCCop(cc interface{}) Op {
-	return cc.(Op)
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.
