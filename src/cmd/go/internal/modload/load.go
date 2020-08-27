@@ -709,8 +709,6 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
 type loader struct {
 	loaderParams
 
-	forceStdVendor bool // if true, load standard-library dependencies from the vendor subtree
-
 	work *par.Queue
 
 	// reset on each iteration
@@ -848,13 +846,6 @@ func loadFromRoots(params loaderParams) *loader {
 	ld := &loader{
 		loaderParams: params,
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
-	}
-
-	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
-	// unless the command explicitly changes the module graph.
-	// TODO(bcmills): Is this still needed now that we have automatic vendoring?
-	if !targetInGorootSrc || (cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ")) {
-		ld.forceStdVendor = true
 	}
 
 	var err error
@@ -1120,8 +1111,8 @@ func (ld *loader) load(pkg *loadPkg) {
 	}
 	for _, path := range imports {
 		if pkg.inStd {
-			// Imports from packages in "std" should resolve using GOROOT/src/vendor
-			// even when "std" is not the main module.
+			// Imports from packages in "std" and "cmd" should resolve using
+			// GOROOT/src/vendor even when "std" is not the main module.
 			path = ld.stdVendor(pkg.path, path)
 		}
 		pkg.imports = append(pkg.imports, ld.pkg(path, importFlags))
@@ -1185,13 +1176,21 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 	}
 
 	if str.HasPathPrefix(parentPath, "cmd") {
-		if ld.forceStdVendor || Target.Path != "cmd" {
+		if Target.Path != "cmd" {
 			vendorPath := pathpkg.Join("cmd", "vendor", path)
 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 				return vendorPath
 			}
 		}
-	} else if ld.forceStdVendor || Target.Path != "std" {
+	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
+		// If we are outside of the 'std' module, resolve imports from within 'std'
+		// to the vendor directory.
+		//
+		// Do the same for importers beginning with the prefix 'vendor/' even if we
+		// are *inside* of the 'std' module: the 'vendor/' packages that resolve
+		// globally from GOROOT/src/vendor (and are listed as part of 'go list std')
+		// are distinct from the real module dependencies, and cannot import internal
+		// packages from the real module.
 		vendorPath := pathpkg.Join("vendor", path)
 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 			return vendorPath
