@@ -7,7 +7,9 @@ package godoc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log"
+	"os"
 	pathpkg "path"
 	"strings"
 	"time"
@@ -64,7 +66,11 @@ func (c *Corpus) updateMetadata() {
 	scan = func(dir string) {
 		fis, err := c.fs.ReadDir(dir)
 		if err != nil {
-			log.Println("updateMetadata:", err)
+			if dir == "/doc" && errors.Is(err, os.ErrNotExist) {
+				// Be quiet during tests that don't have a /doc tree.
+				return
+			}
+			log.Printf("updateMetadata %s: %v", dir, err)
 			return
 		}
 		for _, fi := range fis {

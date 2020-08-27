@@ -5,7 +5,12 @@
 package godoc
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
+	"text/template"
 
 	"golang.org/x/tools/godoc/vfs/mapfs"
 )
@@ -65,5 +70,43 @@ func F()
 	pInfo := srv.GetPageInfo("/src/"+packagePath, packagePath, 0, "linux", "amd64")
 	if got, want := pInfo.PDoc.Funcs[0].Doc, "F doc //line 1 should appear\nline 2 should appear\n"; got != want {
 		t.Errorf("pInfo.PDoc.Funcs[0].Doc = %q; want %q", got, want)
+	}
+}
+
+func TestRedirectAndMetadata(t *testing.T) {
+	c := NewCorpus(mapfs.New(map[string]string{
+		"doc/y/index.html": "Hello, y.",
+		"doc/x/index.html": `<!--{
+		"Path": "/doc/x/"
+}-->
+
+Hello, x.
+`}))
+	c.updateMetadata()
+	p := &Presentation{
+		Corpus:    c,
+		GodocHTML: template.Must(template.New("").Parse(`{{printf "%s" .Body}}`)),
+	}
+	r := &http.Request{URL: &url.URL{}}
+
+	// Test that redirect is sent back correctly.
+	// Used to panic. See golang.org/issue/40665.
+	for _, elem := range []string{"x", "y"} {
+		dir := "/doc/" + elem + "/"
+		r.URL.Path = dir + "index.html"
+		rw := httptest.NewRecorder()
+		p.ServeFile(rw, r)
+		loc := rw.Result().Header.Get("Location")
+		if rw.Code != 301 || loc != dir {
+			t.Errorf("GET %s: expected 301 -> %q, got %d -> %q", r.URL.Path, dir, rw.Code, loc)
+		}
+
+		r.URL.Path = dir
+		rw = httptest.NewRecorder()
+		p.ServeFile(rw, r)
+		if rw.Code != 200 || !strings.Contains(rw.Body.String(), "Hello, "+elem) {
+			t.Fatalf("GET %s: expected 200 w/ Hello, %s: got %d w/ body:\n%s",
+				r.URL.Path, elem, rw.Code, rw.Body)
+		}
 	}
 }

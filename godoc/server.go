@@ -754,9 +754,15 @@ func (p *Presentation) ServeFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
-	relpath := r.URL.Path
+	if strings.HasSuffix(r.URL.Path, "/index.html") {
+		// We'll show index.html for the directory.
+		// Use the dir/ version as canonical instead of dir/index.html.
+		http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
+		return
+	}
 
 	// Check to see if we need to redirect or serve another file.
+	relpath := r.URL.Path
 	if m := p.Corpus.MetadataFor(relpath); m != nil {
 		if m.Path != relpath {
 			// Redirect to canonical path.
@@ -772,12 +778,6 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 
 	switch pathpkg.Ext(relpath) {
 	case ".html":
-		if strings.HasSuffix(relpath, "/index.html") {
-			// We'll show index.html for the directory.
-			// Use the dir/ version as canonical instead of dir/index.html.
-			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
-			return
-		}
 		p.ServeHTMLDoc(w, r, abspath, relpath)
 		return
 
