@@ -31,10 +31,9 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	var lhsNames []string
 	switch expr := expr.(type) {
 	// TODO: stricter rules for selectorExpr.
-	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.SliceExpr, *ast.UnaryExpr,
-		*ast.BinaryExpr, *ast.SelectorExpr:
-		lhsNames = append(lhsNames,
-			generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
+	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.SliceExpr,
+		*ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr:
+		lhsNames = append(lhsNames, generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
 	case *ast.CallExpr:
 		tup, ok := info.TypeOf(expr).(*types.Tuple)
 		if !ok {
@@ -100,6 +99,11 @@ func canExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
 		return nil, nil, false, fmt.Errorf("no path enclosing interval")
+	}
+	for _, n := range path {
+		if _, ok := n.(*ast.ImportSpec); ok {
+			return nil, nil, false, fmt.Errorf("cannot extract variable in an import block")
+		}
 	}
 	node := path[0]
 	if rng.Start != node.Pos() || rng.End != node.End() {
