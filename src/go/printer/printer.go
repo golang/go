@@ -1277,7 +1277,7 @@ const (
 	UseSpaces                    // use spaces instead of tabs for alignment
 	SourcePos                    // emit //line directives to preserve original source positions
 	StdFormat                    // apply standard formatting changes (exact byte output may change between versions of Go)
-	UseBrackets                  // use square brackets instead of parentheses for type parameters
+	UseBrackets                  // use square brackets instead of parentheses for type parameters (implies unified parameter syntax)
 )
 
 // A Config node controls the output of Fprint.

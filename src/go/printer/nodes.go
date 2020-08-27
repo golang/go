@@ -325,7 +325,7 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 		openTok, closeTok = token.LBRACK, token.RBRACK
 	}
 	p.print(fields.Opening, openTok)
-	if isTypeParam {
+	if isTypeParam && p.Mode&UseBrackets == 0 {
 		p.print(token.TYPE)
 	}
 	if len(fields.List) > 0 {
@@ -352,7 +352,7 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 			if needsLinebreak && p.linebreak(parLineBeg, 0, ws, true) > 0 {
 				// break line if the opening "(" or previous parameter ended on a different line
 				ws = ignore
-			} else if isTypeParam && len(par.Names) > 0 || i > 0 {
+			} else if isTypeParam && len(par.Names) > 0 && p.Mode&UseBrackets == 0 || i > 0 {
 				p.print(blank)
 			}
 			// parameter names
