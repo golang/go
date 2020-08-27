@@ -307,6 +307,9 @@ func (X) TestBlah() {
 func (X) BenchmarkFoo() {
 }
 
+func (X) FuzzFoo() {
+}
+
 func Example() {
 	fmt.Println("Hello, world!")
 	// Output: Hello, world!
@@ -324,6 +327,9 @@ func (X) TestBlah() {
 }
 
 func (X) BenchmarkFoo() {
+}
+
+func (X) FuzzFoo() {
 }
 
 func main() {
