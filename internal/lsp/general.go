@@ -418,14 +418,14 @@ func (s *Server) handleOptionResults(ctx context.Context, results source.OptionR
 		case source.OptionUnexpected:
 			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
-				Message: fmt.Sprintf("unexpected config %s", result.Name),
+				Message: fmt.Sprintf("unexpected gopls setting %q", result.Name),
 			}); err != nil {
 				return err
 			}
 		case source.OptionDeprecated:
-			msg := fmt.Sprintf("config %s is deprecated", result.Name)
+			msg := fmt.Sprintf("gopls setting %q is deprecated", result.Name)
 			if result.Replacement != "" {
-				msg = fmt.Sprintf("%s, use %s instead", msg, result.Replacement)
+				msg = fmt.Sprintf("%s, use %q instead", msg, result.Replacement)
 			}
 			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Warning,
