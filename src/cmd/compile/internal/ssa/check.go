@@ -171,10 +171,10 @@ func checkFunc(f *Func) {
 				canHaveAuxInt = true
 				canHaveAux = true
 			case auxCCop:
-				if _, ok := v.Aux.(Op); !ok {
-					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+				if opcodeTable[Op(v.AuxInt)].name == "OpInvalid" {
+					f.Fatalf("value %v has an AuxInt value that is a valid opcode", v)
 				}
-				canHaveAux = true
+				canHaveAuxInt = true
 			case auxS390XCCMask:
 				if _, ok := v.Aux.(s390x.CCMask); !ok {
 					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
