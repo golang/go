@@ -836,20 +836,16 @@ func Duration(name string, value time.Duration, usage string) *time.Duration {
 	return CommandLine.Duration(name, value, usage)
 }
 
-// Func defines a flag with the specified name and usage string. The last argument, fn, is called
-// once, in command line order, for each flag present, like the Set method of the Value interface.
-// This allows arbitary code to be executed for flags passed. For instance, the
-// caller could create a flag that turns a comma-separated string into a slice
-// of strings by passing a function that decomposes the comma-separated string into a slice.
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
 func (f *FlagSet) Func(name, usage string, fn func(string) error) {
 	f.Var(funcValue(fn), name, usage)
 }
 
-// Func defines a flag with the specified name and usage string. The last argument, fn, is called
-// once, in command line order, for each flag present, like the Set method of the Value interface.
-// This allows arbitary code to be executed for flags passed. For instance, the
-// caller could create a flag that turns a comma-separated string into a slice
-// of strings by passing a function that decomposes the comma-separated string into a slice.
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
 func Func(name, usage string, fn func(string) error) {
 	CommandLine.Func(name, usage, fn)
 }
