@@ -6,6 +6,13 @@ package p
 
 // import "io" // for type assertion tests
 
+// The predeclared identifier "any" is only visible as a constraint
+// in a type parameter list.
+var _ any // ERROR undeclared
+func _[any /* ok here */ , interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
+        var _ any /* ERROR undeclared */
+}
+
 func identity[T any](x T) T { return x }
 
 func _[any](x int) int

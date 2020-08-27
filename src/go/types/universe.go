@@ -24,6 +24,7 @@ var (
 	universeIota  *Const
 	universeByte  *Basic // uint8 alias, but has name "byte"
 	universeRune  *Basic // int32 alias, but has name "rune"
+	universeAny   *Named
 	universeError *Named
 )
 
@@ -78,6 +79,9 @@ func defPredeclaredTypes() {
 	}
 
 	// any
+	// (Predeclared and entered into universe scope so we do all the
+	// usual checks; but removed again from scope later since it's
+	// only visible as constraint in a type parameter list.)
 	{
 		typ := &Named{underlying: &emptyInterface}
 		def(NewTypeName(token.NoPos, nil, "any", typ))
@@ -237,7 +241,11 @@ func init() {
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
 	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Named)
 	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
+
+	// "any" is only visible as constraint in a type parameter list
+	delete(Universe.elems, "any")
 }
 
 // Objects with names containing blanks are internal and not entered into

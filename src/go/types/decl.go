@@ -631,22 +631,30 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 			goto next
 		}
 
+		// If the type bound expects exactly one type argument, permit leaving
+		// it away and use the corresponding type parameter as implicit argument.
+		// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
+		// Enabled if enableImplicitTParam is set.
+		const enableImplicitTParam = false
+
+		// The predeclared identifier "any" is visible only as a constraint
+		// in a type parameter list. Look for it before general constraint
+		// resolution.
+		if tident, _ := f.Type.(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
+			bound = universeAny
+		} else if enableImplicitTParam {
+			bound = check.anyType(f.Type)
+		} else {
+			bound = check.typ(f.Type)
+		}
+
 		// type bound must be an interface
 		// TODO(gri) We should delay the interface check because
 		//           we may not have a complete interface yet:
 		//           type C(type T C) interface {}
 		//           (issue #39724).
-		const enableTParamOmission = false
-		if enableTParamOmission {
-			bound = check.anyType(f.Type)
-		} else {
-			bound = check.typ(f.Type)
-		}
 		if _, ok := bound.Under().(*Interface); ok {
-			// If the type bound expects exactly one type argument, permit leaving
-			// it away and use the corresponding type parameter as implicit argument.
-			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
-			if enableTParamOmission && isGeneric(bound) {
+			if enableImplicitTParam && isGeneric(bound) {
 				base := bound.(*Named) // only a *Named type can be generic
 				if len(base.tparams) != 1 {
 					check.errorf(f.Type.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)
