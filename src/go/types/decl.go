@@ -555,13 +555,16 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		check.validType(obj.typ, nil)
 	})
 
-	if tdecl.Assign.IsValid() {
-		// type alias declaration
+	alias := tdecl.Assign.IsValid()
+	if alias && tdecl.TParams != nil {
+		// The parser will ensure this but we may still get an invalid AST.
+		// Complain and continue as regular type definition.
+		check.errorf(tdecl.Assign, "generic type cannot be alias")
+		alias = false
+	}
 
-		if tdecl.TParams != nil {
-			check.errorf(tdecl.TParams.Pos(), "type alias cannot be parameterized")
-			// continue but ignore type parameters
-		}
+	if alias {
+		// type alias declaration
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.anyType(tdecl.Type)

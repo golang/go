@@ -2856,11 +2856,9 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 	}
 	closePos := p.expect(closeTok)
 	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
-	// Type aliases must not be parameterized but accept aliases
-	// anyway and complain in type checker for more robust parsing.
+	// Type alias cannot have type parameters. Accept them for robustness but complain.
 	if p.tok == token.ASSIGN {
-		// type alias
-		spec.Assign = p.pos
+		p.error(p.pos, "generic type cannot be alias")
 		p.next()
 	}
 	spec.Type = p.parseType(true)

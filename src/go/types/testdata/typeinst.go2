@@ -17,8 +17,16 @@ type T2[P any] struct {
 
 type List[P any] []P
 
-// Alias type declarations cannot have type parameters.
-type A1[ /* ERROR cannot be parameterized */ P any] = P /* ERROR undeclared */
+// Alias type declarations cannot have type parameters. Syntax error.
+type A1[P any] = /* ERROR cannot be alias */ P
+
+// But an alias may refer to a generic, uninstantiated type.
+type A2 = List
+var _ A2[int]
+var _ A2 /* ERROR without instantiation */
+
+type A3 = List[int]
+var _ A3
 
 // Parameterized type instantiations
 

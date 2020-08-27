@@ -267,6 +267,7 @@ var invalids = []string{
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
 	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
 	`package p; type _[type _] int; var _ = T[] /* ERROR "expected operand" */ {}`,
+	`package p; type T[P any] = /* ERROR "cannot be alias" */ T0`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
