@@ -467,6 +467,7 @@ See the documentation of the testing package for more information.
 `,
 }
 
+// TODO(katiehockman): complete the testing here
 var (
 	testBench        string                            // -bench flag
 	testC            bool                              // -c flag
@@ -475,6 +476,7 @@ var (
 	testCoverPaths   []string                          // -coverpkg flag
 	testCoverPkgs    []*load.Package                   // -coverpkg flag
 	testCoverProfile string                            // -coverprofile flag
+	testFuzz         string                            // -fuzz flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag

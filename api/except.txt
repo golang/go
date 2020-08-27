@@ -350,6 +350,7 @@ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
 pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
 pkg testing, func RegisterCover(Cover)
 pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalExample) *M
 pkg text/template/parse, type DotNode bool
 pkg text/template/parse, type Node interface { Copy, String, Type }
 pkg unicode, const Version = "6.2.0"
