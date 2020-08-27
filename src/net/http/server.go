@@ -890,12 +890,12 @@ func (srv *Server) initialReadLimitSize() int64 {
 type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
-	closed     bool
+	closed     atomicBool
 	sawEOF     atomicBool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
-	if ecr.closed {
+	if ecr.closed.isSet() {
 		return 0, ErrBodyReadAfterClose
 	}
 	w := ecr.resp
@@ -917,7 +917,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 }
 
 func (ecr *expectContinueReader) Close() error {
-	ecr.closed = true
+	ecr.closed.setTrue()
 	return ecr.readCloser.Close()
 }
 

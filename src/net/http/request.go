@@ -175,6 +175,10 @@ type Request struct {
 	// but will return EOF immediately when no body is present.
 	// The Server will close the request body. The ServeHTTP
 	// Handler does not need to.
+	//
+	// Body must allow Read to be called concurrently with Close.
+	// In particular, calling Close should unblock a Read waiting
+	// for input.
 	Body io.ReadCloser
 
 	// GetBody defines an optional func to return a new copy of
