@@ -121,3 +121,8 @@ func (TestDeps) StopTestLog() error {
 	log.w = nil
 	return err
 }
+
+// SetPanicOnExit0 tells the os package whether to panic on os.Exit(0).
+func (TestDeps) SetPanicOnExit0(v bool) {
+	testlog.SetPanicOnExit0(v)
+}

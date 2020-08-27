@@ -16,9 +16,14 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
 			return
 		}
 		name := strings.TrimPrefix(f.Name, "test.")
-		if name != "testlogfile" && !passFlagToTest[name] {
-			t.Errorf("passFlagToTest missing entry for %q (flag test.%s)", name, name)
-			t.Logf("(Run 'go generate cmd/go/internal/test' if it should be added.)")
+		switch name {
+		case "testlogfile", "paniconexit0":
+			// These are internal flags.
+		default:
+			if !passFlagToTest[name] {
+				t.Errorf("passFlagToTest missing entry for %q (flag test.%s)", name, name)
+				t.Logf("(Run 'go generate cmd/go/internal/test' if it should be added.)")
+			}
 		}
 	})
 

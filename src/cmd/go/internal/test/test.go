@@ -1164,7 +1164,8 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 	if !c.disableCache && len(execCmd) == 0 {
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, testArgs)
+	panicArg := "-test.paniconexit0"
+	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
