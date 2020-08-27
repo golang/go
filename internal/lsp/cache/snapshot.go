@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -1120,19 +1121,29 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 	if original.Name.Name != current.Name.Name {
 		return true
 	}
-	// If the package's imports have increased, definitely re-run `go list`.
-	if len(original.Imports) < len(current.Imports) {
-		return true
-	}
 	importSet := make(map[string]struct{})
 	for _, importSpec := range original.Imports {
 		importSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
 	for _, importSpec := range current.Imports {
-		if _, ok := importSet[importSpec.Path.Value]; !ok {
-			return true
+		if _, ok := importSet[importSpec.Path.Value]; ok {
+			continue
 		}
+		// If the import path is obviously not valid, we can skip reloading
+		// metadata. For now, valid means properly quoted and without a
+		// terminal slash.
+		path, err := strconv.Unquote(importSpec.Path.Value)
+		if err != nil {
+			continue
+		}
+		if path == "" {
+			continue
+		}
+		if path[len(path)-1] == '/' {
+			continue
+		}
+		return true
 	}
 	return false
 }
