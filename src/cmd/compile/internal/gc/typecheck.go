@@ -471,10 +471,10 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("go:notinheap map key not allowed")
+			yyerror("incomplete (or unallocatable) map key not allowed")
 		}
 		if r.Type.NotInHeap() {
-			yyerror("go:notinheap map value not allowed")
+			yyerror("incomplete (or unallocatable) map value not allowed")
 		}
 
 		setTypeNode(n, types.NewMap(l.Type, r.Type))
@@ -491,7 +491,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		if l.Type.NotInHeap() {
-			yyerror("chan of go:notinheap type not allowed")
+			yyerror("chan of incomplete (or unallocatable) type not allowed")
 		}
 
 		setTypeNode(n, types.NewChan(l.Type, n.TChanDir()))

@@ -20,7 +20,7 @@ var x nih
 // Stack variables are not okay.
 
 func f() {
-	var y nih // ERROR "nih is go:notinheap; stack allocation disallowed"
+	var y nih // ERROR "nih is incomplete \(or unallocatable\); stack allocation disallowed"
 	x = y
 }
 
@@ -34,13 +34,13 @@ var w []nih
 var n int
 
 func g() {
-	y = new(nih)              // ERROR "heap allocation disallowed"
-	y2 = new(struct{ x nih }) // ERROR "heap allocation disallowed"
-	y3 = new([1]nih)          // ERROR "heap allocation disallowed"
-	z = make([]nih, 1)        // ERROR "heap allocation disallowed"
-	z = append(z, x)          // ERROR "heap allocation disallowed"
+	y = new(nih)              // ERROR "can't be allocated in Go"
+	y2 = new(struct{ x nih }) // ERROR "can't be allocated in Go"
+	y3 = new([1]nih)          // ERROR "can't be allocated in Go"
+	z = make([]nih, 1)        // ERROR "can't be allocated in Go"
+	z = append(z, x)          // ERROR "can't be allocated in Go"
 	// Test for special case of OMAKESLICECOPY
-	x := make([]nih, n) // ERROR "heap allocation disallowed"
+	x := make([]nih, n) // ERROR "can't be allocated in Go"
 	copy(x, z)
 	z = x
 }

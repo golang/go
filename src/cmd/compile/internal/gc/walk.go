@@ -640,7 +640,7 @@ opswitch:
 			// x = append(...)
 			r := n.Right
 			if r.Type.Elem().NotInHeap() {
-				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
+				yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", r.Type.Elem())
 			}
 			switch {
 			case isAppendOfMake(r):
@@ -1152,7 +1152,7 @@ opswitch:
 
 	case ONEW:
 		if n.Type.Elem().NotInHeap() {
-			yyerror("%v is go:notinheap; heap allocation disallowed", n.Type.Elem())
+			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type.Elem())
 		}
 		if n.Esc == EscNone {
 			if n.Type.Elem().Width >= maxImplicitStackVarSize {
@@ -1323,7 +1323,7 @@ opswitch:
 		}
 		t := n.Type
 		if t.Elem().NotInHeap() {
-			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
+			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 		}
 		if n.Esc == EscNone {
 			if !isSmallMakeSlice(n) {
@@ -1400,7 +1400,7 @@ opswitch:
 
 		t := n.Type
 		if t.Elem().NotInHeap() {
-			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
+			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 		}
 
 		length := conv(n.Left, types.Types[TINT])
