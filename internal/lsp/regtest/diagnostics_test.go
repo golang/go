@@ -835,6 +835,64 @@ func TestHello(t *testing.T) {
 	})
 }
 
+// Reproduce golang/go#40690.
+func TestCreateOnlyXTest(t *testing.T) {
+	t.Skip("golang/go#40690 is not resolved yet.")
+
+	const mod = `
+	-- go.mod --
+	module mod.com
+	-- foo/foo.go --
+	package foo
+	-- foo/bar_test.go --
+	`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
+		env.OpenFile("foo/bar_test.go")
+		env.EditBuffer("foo/bar_test.go", fake.NewEdit(0, 0, 0, 0, `package foo
+	`))
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 1),
+		)
+		env.RegexpReplace("foo/bar_test.go", "package foo", "package foo_test")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChange), 2),
+				NoErrorLogs(),
+			),
+		)
+	})
+}
+
+func TestChangePackageName(t *testing.T) {
+	t.Skip("This issue hasn't been fixed yet. See golang.org/issue/41061.")
+
+	const mod = `
+-- go.mod --
+module mod.com
+-- foo/foo.go --
+package foo
+-- foo/bar_test.go --
+package foo_
+`
+	run(t, mod, func(t *testing.T, env *Env) {
+		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
+		env.OpenFile("foo/bar_test.go")
+		env.RegexpReplace("foo/bar_test.go", "package foo_", "package foo_test")
+		env.SaveBuffer("foo/bar_test.go")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+				NoDiagnostics("foo/bar_test.go"),
+			),
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+				NoDiagnostics("foo/foo.go"),
+			),
+		)
+	})
+}
+
 // Reproduces golang/go#40825.
 func TestEmptyGOPATHXTest_40825(t *testing.T) {
 	const files = `
