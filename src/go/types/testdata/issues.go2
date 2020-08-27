@@ -33,7 +33,7 @@ type C[T any] interface {
 }
 
 // using type bound C
-func _[T C](x *T) {
+func _[T C[T]](x *T) {
 	x.m()
 }
 

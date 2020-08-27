@@ -636,12 +636,17 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		//           we may not have a complete interface yet:
 		//           type C(type T C) interface {}
 		//           (issue #39724).
-		bound = check.anyType(f.Type)
+		const enableTParamOmission = false
+		if enableTParamOmission {
+			bound = check.anyType(f.Type)
+		} else {
+			bound = check.typ(f.Type)
+		}
 		if _, ok := bound.Under().(*Interface); ok {
 			// If the type bound expects exactly one type argument, permit leaving
 			// it away and use the corresponding type parameter as implicit argument.
 			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
-			if isGeneric(bound) {
+			if enableTParamOmission && isGeneric(bound) {
 				base := bound.(*Named) // only a *Named type can be generic
 				if len(base.tparams) != 1 {
 					check.errorf(f.Type.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)

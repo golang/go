@@ -35,7 +35,7 @@ type NumericAbs[T any] interface {
 
 // AbsDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
-func AbsDifference[T NumericAbs](a, b T) T {
+func AbsDifference[T NumericAbs[T]](a, b T) T {
 	d := a - b
 	return d.Abs()
 }

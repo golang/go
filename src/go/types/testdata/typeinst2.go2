@@ -85,7 +85,7 @@ type NumericAbs[T any] interface {
 	Abs() T
 }
 
-func AbsDifference[T NumericAbs](x T)
+func AbsDifference[T NumericAbs[T]](x T)
 
 type OrderedAbs[T any] T
 

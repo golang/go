@@ -10,7 +10,7 @@ package p
 
 // crash 1
 type nt1[_ any]interface{g /* ERROR undeclared name */ }
-type ph1[e nt1,g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
+type ph1[e nt1[e],g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
 func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undeclared name */ )
 
 // crash 2

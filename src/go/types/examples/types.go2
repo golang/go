@@ -201,13 +201,14 @@ func _[T interface{ m(); type int }]() {
 // one type argument. In that case, the type argument is the
 // respective type parameter to which the type bound applies.
 // Note: We may not permit this syntactic sugar at first.
+// Note: This is now disabled. All examples below are adjusted.
 type Adder[T any] interface {
 	Add(T) T
 }
 
 // We don't need to explicitly instantiate the Adder bound
 // if we have exactly one type parameter.
-func Sum[T Adder](list []T) T {
+func Sum[T Adder[T]](list []T) T {
 	var sum T
 	for _, x := range list {
 		sum = sum.Add(x)
@@ -221,20 +222,20 @@ type B1[_ any] interface{}
 type B2[_, _ any] interface{}
 
 func _[T1 B0]()
-func _[T1 B1]()
+func _[T1 B1[T1]]()
 func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
 
 func _[T1, T2 B0]()
-func _[T1, T2 B1]()
+func _[T1 B1[T1], T2 B1[T2]]()
 func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
 
-func _[T1 B0, T2 B1]() // here B1 applies to T2
+func _[T1 B0, T2 B1[T2]]() // here B1 applies to T2
 
 // When the type argument is left away, the type bound is
 // instantiated for each type parameter with that type
 // parameter.
 // Note: We may not permit this syntactic sugar at first.
-func _[A, B Adder, C Adder[A]]() {
+func _[A Adder[A], B Adder[B], C Adder[A]]() {
 	var a A // A's type bound is Adder[A]
 	a = a.Add(a)
 	var b B // B's type bound is Adder[B]
