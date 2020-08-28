@@ -413,10 +413,10 @@ type common struct {
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
 
-	tempDirOnce sync.Once
-	tempDir     string
-	tempDirErr  error
-	tempDirSeq  int32
+	tempDirMu  sync.Mutex
+	tempDir    string
+	tempDirErr error
+	tempDirSeq int32
 }
 
 // Short reports whether the -test.short flag is set.
@@ -903,7 +903,19 @@ var tempDirReplacer struct {
 func (c *common) TempDir() string {
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.
-	c.tempDirOnce.Do(func() {
+	c.tempDirMu.Lock()
+	var nonExistent bool
+	if c.tempDir == "" { // Usually the case with js/wasm
+		nonExistent = true
+	} else {
+		_, err := os.Stat(c.tempDir)
+		nonExistent = os.IsNotExist(err)
+		if err != nil && !nonExistent {
+			c.Fatalf("TempDir: %v", err)
+		}
+	}
+
+	if nonExistent {
 		c.Helper()
 
 		// ioutil.TempDir doesn't like path separators in its pattern,
@@ -921,7 +933,9 @@ func (c *common) TempDir() string {
 				}
 			})
 		}
-	})
+	}
+	c.tempDirMu.Unlock()
+
 	if c.tempDirErr != nil {
 		c.Fatalf("TempDir: %v", c.tempDirErr)
 	}
