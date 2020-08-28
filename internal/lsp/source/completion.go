@@ -620,19 +620,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			if err := c.selector(ctx, sel); err != nil {
 				return nil, nil, err
 			}
-		} else if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
-			// reject defining identifiers
-
-			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
-				// An anonymous field is also a reference to a type.
-			} else {
-				objStr := ""
-				if obj != nil {
-					qual := types.RelativeTo(pkg.GetTypes())
-					objStr = types.ObjectString(obj, qual)
-				}
-				return nil, nil, ErrIsDefinition{objStr: objStr}
-			}
 		} else if err := c.lexical(ctx); err != nil {
 			return nil, nil, err
 		}
