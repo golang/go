@@ -1533,11 +1533,15 @@ func (m *M) before() {
 // after runs after all testing.
 func (m *M) after() {
 	m.afterOnce.Do(func() {
-		if *panicOnExit0 {
-			m.deps.SetPanicOnExit0(false)
-		}
 		m.writeProfiles()
 	})
+
+	// Restore PanicOnExit0 after every run, because we set it to true before
+	// every run. Otherwise, if m.Run is called multiple times the behavior of
+	// os.Exit(0) will not be restored after the second run.
+	if *panicOnExit0 {
+		m.deps.SetPanicOnExit0(false)
+	}
 }
 
 func (m *M) writeProfiles() {
