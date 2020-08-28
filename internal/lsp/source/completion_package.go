@@ -8,6 +8,9 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
 	"go/types"
 	"path/filepath"
 	"strings"
@@ -23,16 +26,9 @@ import (
 func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
 	// We know that the AST for this file will be empty due to the missing
 	// package declaration, but parse it anyway to get a mapper.
-	pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	// Check that the file is completely empty, to avoid offering incorrect package
-	// clause completions.
-	// TODO: Support package clause completions in all files.
-	if pgf.Tok.Size() != 0 {
-		return nil, nil, errors.New("package clause completion is only offered for empty file")
 	}
 
 	cursorSpan, err := pgf.Mapper.PointSpan(pos)
@@ -44,10 +40,9 @@ func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHan
 		return nil, nil, err
 	}
 
-	surrounding := &Selection{
-		content:     "",
-		cursor:      rng.Start,
-		mappedRange: newMappedRange(snapshot.FileSet(), pgf.Mapper, rng.Start, rng.Start),
+	surrounding, err := packageCompletionSurrounding(ctx, snapshot.FileSet(), fh, pgf, rng.Start)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid position for package completion: %w", err)
 	}
 
 	packageSuggestions, err := packageSuggestions(ctx, snapshot, fh.URI(), "")
@@ -67,6 +62,123 @@ func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHan
 	}
 
 	return items, surrounding, nil
+}
+
+// packageCompletionSurrounding returns surrounding for package completion if a
+// package completions can be suggested at a given position. A valid location
+// for package completion is above any declarations or import statements.
+func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh FileHandle, pgf *ParsedGoFile, pos token.Pos) (*Selection, error) {
+	src, err := fh.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	// If the file lacks a package declaration, the parser will return an empty
+	// AST. As a work-around, try to parse an expression from the file contents.
+	expr, _ := parser.ParseExprFrom(fset, fh.URI().Filename(), src, parser.Mode(0))
+	if expr == nil {
+		return nil, fmt.Errorf("unparseable file (%s)", fh.URI())
+	}
+	tok := fset.File(expr.Pos())
+	cursor := tok.Pos(pgf.Tok.Offset(pos))
+	m := &protocol.ColumnMapper{
+		URI:       pgf.URI,
+		Content:   src,
+		Converter: span.NewContentConverter(fh.URI().Filename(), src),
+	}
+
+	// If we were able to parse out an identifier as the first expression from
+	// the file, it may be the beginning of a package declaration ("pack ").
+	// We can offer package completions if the cursor is in the identifier.
+	if name, ok := expr.(*ast.Ident); ok {
+		if cursor >= name.Pos() && cursor <= name.End() {
+			if !strings.HasPrefix(PACKAGE, name.Name) {
+				return nil, fmt.Errorf("cursor in non-matching ident")
+			}
+			return &Selection{
+				content:     name.Name,
+				cursor:      cursor,
+				mappedRange: newMappedRange(fset, m, name.Pos(), name.End()),
+			}, nil
+		}
+	}
+
+	// The file is invalid, but it contains an expression that we were able to
+	// parse. We will use this expression to construct the cursor's
+	// "surrounding".
+
+	// First, consider the possibility that we have a valid "package" keyword
+	// with an empty package name ("package "). "package" is parsed as an
+	// *ast.BadDecl since it is a keyword. This logic would allow "package" to
+	// appear on any line of the file as long as it's the first code expression
+	// in the file.
+	lines := strings.Split(string(src), "\n")
+	cursorLine := tok.Line(cursor)
+	if cursorLine <= 0 || cursorLine > len(lines) {
+		return nil, fmt.Errorf("invalid line number")
+	}
+	if fset.Position(expr.Pos()).Line == cursorLine {
+		words := strings.Fields(lines[cursorLine-1])
+		if len(words) > 0 && words[0] == PACKAGE {
+			content := PACKAGE
+			// Account for spaces if there are any.
+			if len(words) > 1 {
+				content += " "
+			}
+
+			start := expr.Pos()
+			end := token.Pos(int(expr.Pos()) + len(content) + 1)
+			// We have verified that we have a valid 'package' keyword as our
+			// first expression. Ensure that cursor is in this keyword or
+			// otherwise fallback to the general case.
+			if cursor >= start && cursor <= end {
+				return &Selection{
+					content:     content,
+					cursor:      cursor,
+					mappedRange: newMappedRange(fset, m, start, end),
+				}, nil
+			}
+		}
+	}
+
+	// If the cursor is after the start of the expression, no package
+	// declaration will be valid.
+	if cursor > expr.Pos() {
+		return nil, fmt.Errorf("cursor after expression")
+	}
+
+	// If the cursor is in a comment, don't offer any completions.
+	if cursorInComment(fset, cursor, src) {
+		return nil, fmt.Errorf("cursor in comment")
+	}
+
+	// The surrounding range in this case is the cursor except for empty file,
+	// in which case it's end of file - 1
+	start, end := cursor, cursor
+	if tok.Size() == 0 {
+		start, end = tok.Pos(0)-1, tok.Pos(0)-1
+	}
+
+	return &Selection{
+		content:     "",
+		cursor:      cursor,
+		mappedRange: newMappedRange(fset, m, start, end),
+	}, nil
+}
+
+func cursorInComment(fset *token.FileSet, cursor token.Pos, src []byte) bool {
+	var s scanner.Scanner
+	s.Init(fset.File(cursor), src, func(_ token.Position, _ string) {}, scanner.ScanComments)
+	for {
+		pos, tok, lit := s.Scan()
+		if pos <= cursor && cursor <= token.Pos(int(pos)+len(lit)) {
+			return tok == token.COMMENT
+		}
+		if tok == token.EOF {
+			break
+		}
+	}
+	return false
 }
 
 // packageNameCompletions returns name completions for a package clause using

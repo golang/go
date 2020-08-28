@@ -24,29 +24,74 @@ fun apple() int {
 	return 0
 }
 
--- fruits/testfile.go --`
+-- fruits/testfile.go --
+// this is a comment
 
-	want := []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"}
-	run(t, files, func(t *testing.T, env *Env) {
-		env.OpenFile("fruits/testfile.go")
-		content := env.ReadWorkspaceFile("fruits/testfile.go")
-		if content != "" {
-			t.Fatal("testfile.go should be empty to test completion on end of file without newline")
-		}
+import "fmt"
 
-		completions, err := env.Editor.Completion(env.Ctx, "fruits/testfile.go", fake.Pos{
-			Line:   0,
-			Column: 0,
+func test() {}
+
+-- fruits/testfile2.go --
+package
+
+-- fruits/testfile3.go --
+pac
+
+-- fruits/testfile4.go --`
+	for _, testcase := range []struct {
+		name      string
+		filename  string
+		line, col int
+		want      []string
+	}{
+		{
+			"package completion at valid position",
+			"fruits/testfile.go", 1, 0,
+			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+		},
+		{
+			"package completion in a comment",
+			"fruits/testfile.go", 0, 5,
+			nil,
+		},
+		{
+			"package completion at invalid position",
+			"fruits/testfile.go", 4, 0,
+			nil,
+		},
+		{
+			"package completion works after keyword 'package'",
+			"fruits/testfile2.go", 0, 7,
+			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+		},
+		{
+			"package completion works with a prefix for keyword 'package'",
+			"fruits/testfile3.go", 0, 3,
+			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+		},
+		{
+			"package completion at end of file",
+			"fruits/testfile4.go", 0, 0,
+			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			run(t, files, func(t *testing.T, env *Env) {
+				env.OpenFile(testcase.filename)
+				completions, err := env.Editor.Completion(env.Ctx, testcase.filename, fake.Pos{
+					Line:   testcase.line,
+					Column: testcase.col,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				diff := compareCompletionResults(testcase.want, completions.Items)
+				if diff != "" {
+					t.Error(diff)
+				}
+			})
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		diff := compareCompletionResults(want, completions.Items)
-		if diff != "" {
-			t.Fatal(diff)
-		}
-	})
+	}
 }
 
 func TestPackageNameCompletion(t *testing.T) {
