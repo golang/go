@@ -204,6 +204,8 @@ func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok boo
 			break
 		}
 
+		check.instantiatedOperand(&x)
+
 		// exactly one (possibly invalid or comma-ok) value or type
 		xlist = []*operand{&x}
 
@@ -220,6 +222,7 @@ func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok boo
 				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
 			case typexpr:
 				ntypes++
+				check.instantiatedOperand(&x)
 			}
 		}
 		if 0 < ntypes && ntypes < len(xlist) {
@@ -521,10 +524,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	if x.mode == typexpr && isGeneric(x.typ) {
-		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
-		goto Error
-	}
+	check.instantiatedOperand(x)
 
 	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
@@ -772,5 +772,13 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 		if v != nil {
 			v.used = v_used // restore v.used
 		}
+	}
+}
+
+// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
+func (check *Checker) instantiatedOperand(x *operand) {
+	if x.mode == typexpr && isGeneric(x.typ) {
+		check.errorf(x.pos(), "cannot use generic type %s without instantiation", x.typ)
+		x.typ = Typ[Invalid]
 	}
 }

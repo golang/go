@@ -582,10 +582,7 @@ func (check *Checker) typeOrNil(e ast.Expr) Type {
 	case novalue:
 		check.errorf(x.pos(), "%s used as type", &x)
 	case typexpr:
-		if isGeneric(x.typ) {
-			check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
-			return Typ[Invalid]
-		}
+		check.instantiatedOperand(&x)
 		return x.typ
 	case value:
 		if x.isNil() {

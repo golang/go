@@ -1340,10 +1340,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						x.mode = typexpr
 					}
 					return expression
-				} else {
-					check.errorf(x.pos(), "%s is not a generic type", x.typ)
-					goto Error
 				}
+				check.errorf(x.pos(), "%s is not a generic type", x.typ)
+				goto Error
 			}
 
 			if sig := x.typ.Signature(); sig != nil {
