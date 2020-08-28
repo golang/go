@@ -928,3 +928,30 @@ func TestCleanupParallelSubtests(t *T) {
 		t.Errorf("unexpected cleanup count; got %d want 1", ranCleanup)
 	}
 }
+
+func TestNestedCleanup(t *T) {
+	ranCleanup := 0
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() {
+			if ranCleanup != 2 {
+				t.Errorf("unexpected cleanup count in first cleanup: got %d want 2", ranCleanup)
+			}
+			ranCleanup++
+		})
+		t.Cleanup(func() {
+			if ranCleanup != 0 {
+				t.Errorf("unexpected cleanup count in second cleanup: got %d want 0", ranCleanup)
+			}
+			ranCleanup++
+			t.Cleanup(func() {
+				if ranCleanup != 1 {
+					t.Errorf("unexpected cleanup count in nested cleanup: got %d want 1", ranCleanup)
+				}
+				ranCleanup++
+			})
+		})
+	})
+	if ranCleanup != 3 {
+		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
+	}
+}
