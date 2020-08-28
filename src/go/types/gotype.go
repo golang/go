@@ -118,6 +118,7 @@ var (
 )
 
 func initParserMode() {
+	parserMode = parser.UnifiedParamLists
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
