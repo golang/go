@@ -695,7 +695,15 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 
 func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
+	isMarkdown := false
 	src, err := vfs.ReadFile(p.Corpus.fs, abspath)
+	if err != nil && strings.HasSuffix(abspath, ".html") {
+		if md, errMD := vfs.ReadFile(p.Corpus.fs, strings.TrimSuffix(abspath, ".html")+".md"); errMD == nil {
+			src = md
+			isMarkdown = true
+			err = nil
+		}
+	}
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
 		p.ServeError(w, r, relpath, err)
@@ -736,6 +744,18 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 			return
 		}
 		src = buf.Bytes()
+	}
+
+	// Apply markdown as indicated.
+	// (Note template applies before Markdown.)
+	if isMarkdown {
+		html, err := renderMarkdown(src)
+		if err != nil {
+			log.Printf("executing markdown %s: %v", relpath, err)
+			p.ServeError(w, r, relpath, err)
+			return
+		}
+		src = html
 	}
 
 	// if it's the language spec, add tags to EBNF productions
@@ -797,7 +817,8 @@ func (p *Presentation) serveFile(w http.ResponseWriter, r *http.Request) {
 		if redirect(w, r) {
 			return
 		}
-		if index := pathpkg.Join(abspath, "index.html"); util.IsTextFile(p.Corpus.fs, index) {
+		index := pathpkg.Join(abspath, "index.html")
+		if util.IsTextFile(p.Corpus.fs, index) || util.IsTextFile(p.Corpus.fs, pathpkg.Join(abspath, "index.md")) {
 			p.ServeHTMLDoc(w, r, index, index)
 			return
 		}

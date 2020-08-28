@@ -73,6 +73,17 @@ func F()
 	}
 }
 
+func testServeBody(t *testing.T, p *Presentation, path, body string) {
+	t.Helper()
+	r := &http.Request{URL: &url.URL{Path: path}}
+	rw := httptest.NewRecorder()
+	p.ServeFile(rw, r)
+	if rw.Code != 200 || !strings.Contains(rw.Body.String(), body) {
+		t.Fatalf("GET %s: expected 200 w/ %q: got %d w/ body:\n%s",
+			path, body, rw.Code, rw.Body)
+	}
+}
+
 func TestRedirectAndMetadata(t *testing.T) {
 	c := NewCorpus(mapfs.New(map[string]string{
 		"doc/y/index.html": "Hello, y.",
@@ -87,13 +98,13 @@ Hello, x.
 		Corpus:    c,
 		GodocHTML: template.Must(template.New("").Parse(`{{printf "%s" .Body}}`)),
 	}
-	r := &http.Request{URL: &url.URL{}}
 
 	// Test that redirect is sent back correctly.
 	// Used to panic. See golang.org/issue/40665.
 	for _, elem := range []string{"x", "y"} {
 		dir := "/doc/" + elem + "/"
-		r.URL.Path = dir + "index.html"
+
+		r := &http.Request{URL: &url.URL{Path: dir + "index.html"}}
 		rw := httptest.NewRecorder()
 		p.ServeFile(rw, r)
 		loc := rw.Result().Header.Get("Location")
@@ -101,12 +112,19 @@ Hello, x.
 			t.Errorf("GET %s: expected 301 -> %q, got %d -> %q", r.URL.Path, dir, rw.Code, loc)
 		}
 
-		r.URL.Path = dir
-		rw = httptest.NewRecorder()
-		p.ServeFile(rw, r)
-		if rw.Code != 200 || !strings.Contains(rw.Body.String(), "Hello, "+elem) {
-			t.Fatalf("GET %s: expected 200 w/ Hello, %s: got %d w/ body:\n%s",
-				r.URL.Path, elem, rw.Code, rw.Body)
-		}
+		testServeBody(t, p, dir, "Hello, "+elem)
 	}
+}
+
+func TestMarkdown(t *testing.T) {
+	p := &Presentation{
+		Corpus: NewCorpus(mapfs.New(map[string]string{
+			"doc/test.md":  "**bold**",
+			"doc/test2.md": `{{"*template*"}}`,
+		})),
+		GodocHTML: template.Must(template.New("").Parse(`{{printf "%s" .Body}}`)),
+	}
+
+	testServeBody(t, p, "/doc/test.html", "<strong>bold</strong>")
+	testServeBody(t, p, "/doc/test2.html", "<em>template</em>")
 }
