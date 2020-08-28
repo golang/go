@@ -545,7 +545,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Note that -deps is applied after -test,
 		// so that you only get descriptions of tests for the things named
 		// explicitly on the command line, not for all dependencies.
-		pkgs = load.PackageList(pkgs)
+		pkgs = loadPackageList(pkgs)
 	}
 
 	// Do we need to run a build to gather information?
@@ -580,7 +580,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listTest {
 		all := pkgs
 		if !*listDeps {
-			all = load.PackageList(pkgs)
+			all = loadPackageList(pkgs)
 		}
 		// Update import paths to distinguish the real package p
 		// from p recompiled for q.test.
@@ -695,6 +695,23 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	for _, p := range pkgs {
 		do(&p.PackagePublic)
 	}
+}
+
+// loadPackageList is like load.PackageList, but prints error messages and exits
+// with nonzero status if listE is not set and any package in the expanded list
+// has errors.
+func loadPackageList(roots []*load.Package) []*load.Package {
+	pkgs := load.PackageList(roots)
+
+	if !*listE {
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+			}
+		}
+	}
+
+	return pkgs
 }
 
 // TrackingWriter tracks the last byte written on every write so

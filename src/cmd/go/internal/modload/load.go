@@ -881,7 +881,7 @@ func loadFromRoots(params loaderParams) *loader {
 
 		ld.buildStacks()
 
-		modAddedBy := resolveMissingImports(addedModuleFor, ld.pkgs)
+		modAddedBy := ld.resolveMissingImports(addedModuleFor)
 		if len(modAddedBy) == 0 {
 			break
 		}
@@ -937,38 +937,45 @@ func loadFromRoots(params loaderParams) *loader {
 // The newly-resolved packages are added to the addedModuleFor map, and
 // resolveMissingImports returns a map from each newly-added module version to
 // the first package for which that module was added.
-func resolveMissingImports(addedModuleFor map[string]bool, pkgs []*loadPkg) (modAddedBy map[module.Version]*loadPkg) {
-	haveMod := make(map[module.Version]bool)
-	for _, m := range buildList {
-		haveMod[m] = true
-	}
-
-	modAddedBy = make(map[module.Version]*loadPkg)
-	for _, pkg := range pkgs {
+func (ld *loader) resolveMissingImports(addedModuleFor map[string]bool) (modAddedBy map[module.Version]*loadPkg) {
+	var needPkgs []*loadPkg
+	for _, pkg := range ld.pkgs {
 		if pkg.isTest() {
 			// If we are missing a test, we are also missing its non-test version, and
 			// we should only add the missing import once.
 			continue
 		}
-		if err, ok := pkg.err.(*ImportMissingError); ok && err.Module.Path != "" {
-			if err.newMissingVersion != "" {
-				base.Fatalf("go: %s: package provided by %s at latest version %s but not at required version %s", pkg.stackText(), err.Module.Path, err.Module.Version, err.newMissingVersion)
-			}
-			fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
-			if addedModuleFor[pkg.path] {
-				base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
-			}
-			addedModuleFor[pkg.path] = true
-			if !haveMod[err.Module] {
-				haveMod[err.Module] = true
-				modAddedBy[err.Module] = pkg
-				buildList = append(buildList, err.Module)
-			}
+		if pkg.err != errImportMissing {
+			// Leave other errors for Import or load.Packages to report.
 			continue
 		}
-		// Leave other errors for Import or load.Packages to report.
+
+		needPkgs = append(needPkgs, pkg)
+
+		pkg := pkg
+		ld.work.Add(func() {
+			pkg.mod, pkg.err = queryImport(context.TODO(), pkg.path)
+		})
 	}
-	base.ExitIfErrors()
+	<-ld.work.Idle()
+
+	modAddedBy = map[module.Version]*loadPkg{}
+	for _, pkg := range needPkgs {
+		if pkg.err != nil {
+			continue
+		}
+
+		fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, pkg.mod.Path, pkg.mod.Version)
+		if addedModuleFor[pkg.path] {
+			// TODO(bcmills): This should only be an error if pkg.mod is the same
+			// version we already tried to add previously.
+			base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
+		}
+		if modAddedBy[pkg.mod] == nil {
+			modAddedBy[pkg.mod] = pkg
+			buildList = append(buildList, pkg.mod)
+		}
+	}
 
 	return modAddedBy
 }
@@ -1079,7 +1086,7 @@ func (ld *loader) load(pkg *loadPkg) {
 		return
 	}
 
-	pkg.mod, pkg.dir, pkg.err = Import(context.TODO(), pkg.path)
+	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path)
 	if pkg.dir == "" {
 		return
 	}
