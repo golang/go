@@ -403,7 +403,7 @@ type common struct {
 	skipped     bool                // Test of benchmark has been skipped.
 	done        bool                // Test is finished and all subtests have completed.
 	helpers     map[string]struct{} // functions to be skipped when writing file/line info
-	cleanup     func()              // optional function to be called at the end of the test
+	cleanups    []func()            // optional functions to be called at the end of the test
 	cleanupName string              // Name of the cleanup function.
 	cleanupPc   []uintptr           // The stack trace at the point where Cleanup was called.
 
@@ -855,28 +855,31 @@ func (c *common) Helper() {
 // subtests complete. Cleanup functions will be called in last added,
 // first called order.
 func (c *common) Cleanup(f func()) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	oldCleanup := c.cleanup
-	oldCleanupPc := c.cleanupPc
-	c.cleanup = func() {
-		if oldCleanup != nil {
-			defer func() {
-				c.mu.Lock()
-				c.cleanupPc = oldCleanupPc
-				c.mu.Unlock()
-				oldCleanup()
-			}()
-		}
-		c.mu.Lock()
-		c.cleanupName = callerName(0)
-		c.mu.Unlock()
-		f()
-	}
 	var pc [maxStackLen]uintptr
 	// Skip two extra frames to account for this function and runtime.Callers itself.
 	n := runtime.Callers(2, pc[:])
-	c.cleanupPc = pc[:n]
+	cleanupPc := pc[:n]
+
+	fn := func() {
+		defer func() {
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			c.cleanupName = ""
+			c.cleanupPc = nil
+		}()
+
+		name := callerName(0)
+		c.mu.Lock()
+		c.cleanupName = name
+		c.cleanupPc = cleanupPc
+		c.mu.Unlock()
+
+		f()
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cleanups = append(c.cleanups, fn)
 }
 
 var tempDirReplacer struct {
@@ -934,22 +937,37 @@ const (
 // If catchPanic is true, this will catch panics, and return the recovered
 // value if any.
 func (c *common) runCleanup(ph panicHandling) (panicVal interface{}) {
-	c.mu.Lock()
-	cleanup := c.cleanup
-	c.cleanup = nil
-	c.mu.Unlock()
-	if cleanup == nil {
-		return nil
-	}
-
 	if ph == recoverAndReturnPanic {
 		defer func() {
 			panicVal = recover()
 		}()
 	}
 
-	cleanup()
-	return nil
+	// Make sure that if a cleanup function panics,
+	// we still run the remaining cleanup functions.
+	defer func() {
+		c.mu.Lock()
+		recur := len(c.cleanups) > 0
+		c.mu.Unlock()
+		if recur {
+			c.runCleanup(normalPanic)
+		}
+	}()
+
+	for {
+		var cleanup func()
+		c.mu.Lock()
+		if len(c.cleanups) > 0 {
+			last := len(c.cleanups) - 1
+			cleanup = c.cleanups[last]
+			c.cleanups = c.cleanups[:last]
+		}
+		c.mu.Unlock()
+		if cleanup == nil {
+			return nil
+		}
+		cleanup()
+	}
 }
 
 // callerName gives the function name (qualified with a package path)
