@@ -1012,7 +1012,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 			}
 		}
 		if !ok {
-			p.error(pos, "mixed named and unnamed function parameters")
+			p.error(pos, "mixed named and unnamed parameters")
 		}
 	}
 
