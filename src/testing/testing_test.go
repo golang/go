@@ -19,6 +19,38 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestTempDirInCleanup(t *testing.T) {
+	var dir string
+
+	t.Run("test", func(t *testing.T) {
+		t.Cleanup(func() {
+			dir = t.TempDir()
+		})
+		_ = t.TempDir()
+	})
+
+	fi, err := os.Stat(dir)
+	if fi != nil {
+		t.Fatalf("Directory %q from user Cleanup still exists", dir)
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestTempDirInBenchmark(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		if !b.Run("test", func(b *testing.B) {
+			// Add a loop so that the test won't fail. See issue 38677.
+			for i := 0; i < b.N; i++ {
+				_ = b.TempDir()
+			}
+		}) {
+			t.Fatal("Sub test failure in a benchmark")
+		}
+	})
+}
+
 func TestTempDir(t *testing.T) {
 	testTempDir(t)
 	t.Run("InSubtest", testTempDir)
