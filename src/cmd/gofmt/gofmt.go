@@ -61,7 +61,7 @@ func usage() {
 }
 
 func initParserMode() {
-	parserMode = parser.ParseComments
+	parserMode = parser.ParseComments | parser.UnifiedParamLists
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}
