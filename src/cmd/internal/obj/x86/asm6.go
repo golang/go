@@ -1855,7 +1855,7 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 // no standalone or macro-fused jump will straddle or end on a 32 byte boundary
 // by inserting NOPs before the jumps
 func isJump(p *obj.Prog) bool {
-	return p.Pcond != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
+	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
 		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
 }
 
@@ -1867,7 +1867,7 @@ func lookForJCC(p *obj.Prog) *obj.Prog {
 	for q = p.Link; q != nil && (q.As == obj.APCDATA || q.As == obj.AFUNCDATA || q.As == obj.ANOP); q = q.Link {
 	}
 
-	if q == nil || q.Pcond == nil || p.As == obj.AJMP || p.As == obj.ACALL {
+	if q == nil || q.To.Target() == nil || p.As == obj.AJMP || p.As == obj.ACALL {
 		return nil
 	}
 
@@ -2051,8 +2051,8 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	for p := s.Func.Text; p != nil; p = p.Link {
-		if p.To.Type == obj.TYPE_BRANCH && p.Pcond == nil {
-			p.Pcond = p
+		if p.To.Type == obj.TYPE_BRANCH && p.To.Target() == nil {
+			p.To.SetTarget(p)
 		}
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
@@ -2088,7 +2088,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	for p := s.Func.Text; p != nil; p = p.Link {
 		count++
 		p.Back = branchShort // use short branches first time through
-		if q := p.Pcond; q != nil && (q.Back&branchShort != 0) {
+		if q := p.To.Target(); q != nil && (q.Back&branchShort != 0) {
 			p.Back |= branchBackwards
 			q.Back |= branchLoopHead
 		}
@@ -4886,7 +4886,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				// TODO: Check in input, preserve in brchain.
 
 				// Fill in backward jump now.
-				q = p.Pcond
+				q = p.To.Target()
 
 				if q == nil {
 					ctxt.Diag("jmp/branch/loop without target")

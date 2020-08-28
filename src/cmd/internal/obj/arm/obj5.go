@@ -406,7 +406,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				mov.To.Reg = REG_R2
 
 				// B.NE branch target is MOVW above
-				bne.Pcond = mov
+				bne.To.SetTarget(mov)
 
 				// ADD $(autosize+4), R13, R3
 				p = obj.Appendp(mov, newprog)
@@ -428,7 +428,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = obj.Appendp(p, newprog)
 				p.As = ABNE
 				p.To.Type = obj.TYPE_BRANCH
-				p.Pcond = end
+				p.To.SetTarget(end)
 
 				// ADD $4, R13, R4
 				p = obj.Appendp(p, newprog)
@@ -452,7 +452,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = obj.Appendp(p, newprog)
 				p.As = AB
 				p.To.Type = obj.TYPE_BRANCH
-				p.Pcond = end
+				p.To.SetTarget(end)
 
 				// reset for subsequent passes
 				p = end
@@ -741,7 +741,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	movw.To.Type = obj.TYPE_REG
 	movw.To.Reg = REG_R3
 
-	bls.Pcond = movw
+	bls.To.SetTarget(movw)
 
 	// BL runtime.morestack
 	call := obj.Appendp(movw, c.newprog)
@@ -762,7 +762,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	b := obj.Appendp(pcdata, c.newprog)
 	b.As = obj.AJMP
 	b.To.Type = obj.TYPE_BRANCH
-	b.Pcond = c.cursym.Func.Text.Link
+	b.To.SetTarget(c.cursym.Func.Text.Link)
 	b.Spadj = +framesize
 
 	return end
