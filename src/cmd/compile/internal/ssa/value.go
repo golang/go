@@ -54,6 +54,9 @@ type Value struct {
 	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
 	OnWasmStack bool
 
+	// Is this value in the per-function constant cache? If so, remove from cache before changing it or recycling it.
+	InCache bool
+
 	// Storage for the first three args
 	argstorage [3]*Value
 }
@@ -332,6 +335,9 @@ func (v *Value) resetArgs() {
 // of cmd/compile by almost 10%, and slows it down.
 //go:noinline
 func (v *Value) reset(op Op) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
 	v.Op = op
 	v.resetArgs()
 	v.AuxInt = 0
@@ -342,6 +348,9 @@ func (v *Value) reset(op Op) {
 // It modifies v to be (Copy a).
 //go:noinline
 func (v *Value) copyOf(a *Value) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
 	v.Op = OpCopy
 	v.resetArgs()
 	v.AddArg(a)

@@ -257,6 +257,49 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
+// unCacheLine removes v from f's constant cache "line" for aux,
+// resets v.InCache when it is found (and removed),
+// and returns whether v was found in that line.
+func (f *Func) unCacheLine(v *Value, aux int64) bool {
+	vv := f.constants[aux]
+	for i, cv := range vv {
+		if v == cv {
+			vv[i] = vv[len(vv)-1]
+			vv[len(vv)-1] = nil
+			f.constants[aux] = vv[0 : len(vv)-1]
+			v.InCache = false
+			return true
+		}
+	}
+	return false
+}
+
+// unCache removes v from f's constant cache.
+func (f *Func) unCache(v *Value) {
+	if v.InCache {
+		aux := v.AuxInt
+		if f.unCacheLine(v, aux) {
+			return
+		}
+		if aux == 0 {
+			switch v.Op {
+			case OpConstNil:
+				aux = constNilMagic
+			case OpConstSlice:
+				aux = constSliceMagic
+			case OpConstString:
+				aux = constEmptyStringMagic
+			case OpConstInterface:
+				aux = constInterfaceMagic
+			}
+			if aux != 0 && f.unCacheLine(v, aux) {
+				return
+			}
+		}
+		f.Fatalf("unCached value %s not found in cache, auxInt=0x%x, adjusted aux=0x%x", v.LongString(), v.AuxInt, aux)
+	}
+}
+
 // freeValue frees a value. It must no longer be referenced or have any args.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
@@ -270,19 +313,8 @@ func (f *Func) freeValue(v *Value) {
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
-
-	// Values with zero arguments and OpOffPtr values might be cached, so remove them there.
-	nArgs := opcodeTable[v.Op].argLen
-	if nArgs == 0 || v.Op == OpOffPtr {
-		vv := f.constants[v.AuxInt]
-		for i, cv := range vv {
-			if v == cv {
-				vv[i] = vv[len(vv)-1]
-				vv[len(vv)-1] = nil
-				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
-				break
-			}
-		}
+	if v.InCache {
+		f.unCache(v)
 	}
 	*v = Value{}
 	v.ID = id
@@ -548,6 +580,7 @@ func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
 		v = f.Entry.NewValue0(src.NoXPos, op, t)
 	}
 	f.constants[c] = append(vv, v)
+	v.InCache = true
 	return v
 }
 
