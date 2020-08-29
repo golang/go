@@ -2087,11 +2087,11 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
 	// cond: objabi.GOARM>=6
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || v_0.AuxInt != 24 {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
 			break
 		}
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpARMSLLconst || v_0_0.AuxInt != 16 {
+		if v_0_0.Op != OpARMSLLconst || auxIntToInt32(v_0_0.AuxInt) != 16 {
 			break
 		}
 		x := v_0_0.Args[0]
@@ -8555,11 +8555,11 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
 	// cond: objabi.GOARM>=6
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || v_0.AuxInt != 24 {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
 			break
 		}
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpARMSLLconst || v_0_0.AuxInt != 16 {
+		if v_0_0.Op != OpARMSLLconst || auxIntToInt32(v_0_0.AuxInt) != 16 {
 			break
 		}
 		x := v_0_0.Args[0]
@@ -10466,17 +10466,17 @@ func rewriteValueARM_OpARMSRAconst(v *Value) bool {
 	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
 	// result: (BFX [(d-c)|(32-d)<<8] x)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpARMSLLconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
 			break
 		}
 		v.reset(OpARMBFX)
-		v.AuxInt = (d - c) | (32-d)<<8
+		v.AuxInt = int32ToAuxInt((d - c) | (32-d)<<8)
 		v.AddArg(x)
 		return true
 	}
@@ -10518,17 +10518,17 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
 	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
 	// result: (BFXU [(d-c)|(32-d)<<8] x)
 	for {
-		d := v.AuxInt
+		d := auxIntToInt32(v.AuxInt)
 		if v_0.Op != OpARMSLLconst {
 			break
 		}
-		c := v_0.AuxInt
+		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
 			break
 		}
 		v.reset(OpARMBFXU)
-		v.AuxInt = (d - c) | (32-d)<<8
+		v.AuxInt = int32ToAuxInt((d - c) | (32-d)<<8)
 		v.AddArg(x)
 		return true
 	}
@@ -12594,11 +12594,11 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
 	// cond: objabi.GOARM>=6
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || v_0.AuxInt != 24 {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
 			break
 		}
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpARMSLLconst || v_0_0.AuxInt != 16 {
+		if v_0_0.Op != OpARMSLLconst || auxIntToInt32(v_0_0.AuxInt) != 16 {
 			break
 		}
 		x := v_0_0.Args[0]
@@ -12951,18 +12951,18 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
 		v.reset(OpARMXOR)
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpARMSRLconst, t)
-		v0.AuxInt = 8
+		v0.AuxInt = int32ToAuxInt(8)
 		v1 := b.NewValue0(v.Pos, OpARMBICconst, t)
-		v1.AuxInt = 0xff0000
+		v1.AuxInt = int32ToAuxInt(0xff0000)
 		v2 := b.NewValue0(v.Pos, OpARMXOR, t)
 		v3 := b.NewValue0(v.Pos, OpARMSRRconst, t)
-		v3.AuxInt = 16
+		v3.AuxInt = int32ToAuxInt(16)
 		v3.AddArg(x)
 		v2.AddArg2(x, v3)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v4 := b.NewValue0(v.Pos, OpARMSRRconst, t)
-		v4.AuxInt = 8
+		v4.AuxInt = int32ToAuxInt(8)
 		v4.AddArg(x)
 		v.AddArg2(v0, v4)
 		return true
@@ -13004,16 +13004,16 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
 			break
 		}
 		v.reset(OpARMRSBconst)
-		v.AuxInt = 32
+		v.AuxInt = int32ToAuxInt(32)
 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
 		v1 := b.NewValue0(v.Pos, OpARMSUBconst, typ.UInt32)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, OpARMAND, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v3.AuxInt = 0x10000
+		v3.AuxInt = int32ToAuxInt(0x10000)
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
-		v4.AuxInt = 0
+		v4.AuxInt = int32ToAuxInt(0)
 		v4.AddArg(v3)
 		v2.AddArg2(v3, v4)
 		v1.AddArg(v2)
@@ -13034,7 +13034,7 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpARMRBIT, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v1.AuxInt = 0x10000
+		v1.AuxInt = int32ToAuxInt(0x10000)
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -13055,13 +13055,13 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
 			break
 		}
 		v.reset(OpARMRSBconst)
-		v.AuxInt = 32
+		v.AuxInt = int32ToAuxInt(32)
 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
 		v1 := b.NewValue0(v.Pos, OpARMSUBconst, t)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, OpARMAND, t)
 		v3 := b.NewValue0(v.Pos, OpARMRSBconst, t)
-		v3.AuxInt = 0
+		v3.AuxInt = int32ToAuxInt(0)
 		v3.AddArg(x)
 		v2.AddArg2(x, v3)
 		v1.AddArg(v2)
@@ -13101,16 +13101,16 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
 			break
 		}
 		v.reset(OpARMRSBconst)
-		v.AuxInt = 32
+		v.AuxInt = int32ToAuxInt(32)
 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
 		v1 := b.NewValue0(v.Pos, OpARMSUBconst, typ.UInt32)
-		v1.AuxInt = 1
+		v1.AuxInt = int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, OpARMAND, typ.UInt32)
 		v3 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v3.AuxInt = 0x100
+		v3.AuxInt = int32ToAuxInt(0x100)
 		v3.AddArg(x)
 		v4 := b.NewValue0(v.Pos, OpARMRSBconst, typ.UInt32)
-		v4.AuxInt = 0
+		v4.AuxInt = int32ToAuxInt(0)
 		v4.AddArg(v3)
 		v2.AddArg2(v3, v4)
 		v1.AddArg(v2)
@@ -13131,7 +13131,7 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
 		v.Type = t
 		v0 := b.NewValue0(v.Pos, OpARMRBIT, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, OpARMORconst, typ.UInt32)
-		v1.AuxInt = 0x100
+		v1.AuxInt = int32ToAuxInt(0x100)
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
