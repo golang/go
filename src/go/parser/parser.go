@@ -943,7 +943,7 @@ func (p *parser) parseTParamDecl(name *ast.Ident) (f field) {
 	return
 }
 
-func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing token.Token, tparams bool) (params []*ast.Field) {
+func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing token.Token, parseParamDecl func(*ast.Ident) field, tparams bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -957,12 +957,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 	var named int // number of parameters that have an explicit name and type
 
 	for name0 != nil || p.tok != closing && p.tok != token.EOF {
-		var par field
-		if tparams {
-			par = p.parseTParamDecl(name0)
-		} else {
-			par = p.parseParamDecl(name0)
-		}
+		par := parseParamDecl(name0)
 		name0 = nil // 1st name was consumed if present
 		if par.name != nil || par.typ != nil {
 			list = append(list, par)
@@ -974,6 +969,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 			break
 		}
 		p.next()
+	}
+
+	if len(list) == 0 {
+		return // not uncommon
 	}
 
 	// TODO(gri) parameter distribution and conversion to []*ast.Field
@@ -989,6 +988,9 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 				par.typ = typ
 				par.name = nil
 			}
+		}
+		if tparams {
+			p.error(pos, "all type parameters must be named")
 		}
 	} else if named != len(list) {
 		// some named => all must be named
@@ -1012,7 +1014,11 @@ func (p *parser) parseParameterList(scope *ast.Scope, name0 *ast.Ident, closing 
 			}
 		}
 		if !ok {
-			p.error(pos, "mixed named and unnamed parameters")
+			if tparams {
+				p.error(pos, "all type parameters must be named")
+			} else {
+				p.error(pos, "mixed named and unnamed parameters")
+			}
 		}
 	}
 
@@ -1058,7 +1064,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope, name0 *ast.Ident, closing tok
 		defer un(trace(p, "TypeParams"))
 	}
 
-	params := p.parseParameterList(scope, name0, closing, true)
+	params := p.parseParameterList(scope, name0, closing, p.parseTParamDecl, false)
 
 	// determine which form we have (list of type parameters with optional
 	// type bound, or type parameters, all with interfaces as type bounds)
@@ -1085,7 +1091,7 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 			var list []*ast.Field
 			if p.mode&UnifiedParamLists != 0 {
 				// assume [T any](params) syntax
-				list = p.parseParameterList(scope, nil, token.RBRACK, false)
+				list = p.parseParameterList(scope, nil, token.RBRACK, p.parseParamDecl, true)
 			} else {
 				// assume [type T](params) syntax
 				p.brack = true
@@ -1123,7 +1129,7 @@ func (p *parser) parseParameters(scope *ast.Scope, opening lookAhead, acceptTPar
 
 	var fields []*ast.Field
 	if p.tok != token.RPAREN {
-		fields = p.parseParameterList(scope, nil, token.RPAREN, false)
+		fields = p.parseParameterList(scope, nil, token.RPAREN, p.parseParamDecl, false)
 	}
 
 	rparen := p.expect(token.RPAREN)
@@ -1190,7 +1196,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 				if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.COMMA && p.tok != token.RBRACK {
 					// generic method m[T any]
 					scope := ast.NewScope(nil) // method scope
-					list := p.parseParameterList(scope, name0, token.RBRACK, false)
+					list := p.parseParameterList(scope, name0, token.RBRACK, p.parseParamDecl, true)
 					rbrack := p.expect(token.RBRACK)
 					tparams := &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
 					_, params := p.parseParameters(scope, lookAhead{}, false)
@@ -2850,7 +2856,7 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 	p.openScope()
 	var list []*ast.Field
 	if p.mode&UnifiedParamLists != 0 {
-		list = p.parseParameterList(p.topScope, name0, closeTok, false)
+		list = p.parseParameterList(p.topScope, name0, closeTok, p.parseParamDecl, true)
 	} else {
 		list = p.parseTypeParams(p.topScope, name0, closeTok)
 	}
