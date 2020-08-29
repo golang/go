@@ -312,10 +312,10 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 	}
 
-	m := candidates[0].Mod
-	newMissingVersion := ""
-	for _, c := range candidates {
+	candidate0MissingVersion := ""
+	for i, c := range candidates {
 		cm := c.Mod
+		canAdd := true
 		for _, bm := range buildList {
 			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
 				// QueryPackage proposed that we add module cm to provide the package,
@@ -326,20 +326,22 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 				// version (e.g., v1.0.0) of a module, but we have a newer version
 				// of the same module in the build list (e.g., v1.0.1-beta), and
 				// the package is not present there.
-				//
-				// TODO(#41113): This is probably incorrect when there are multiple
-				// candidates, such as when a nested module is split out but only one
-				// half of the split is tagged.
-				m = cm
-				newMissingVersion = bm.Version
+				canAdd = false
+				if i == 0 {
+					candidate0MissingVersion = bm.Version
+				}
 				break
 			}
 		}
+		if canAdd {
+			return cm, nil
+		}
 	}
-	if newMissingVersion != "" {
-		return m, &ImportMissingError{Path: path, Module: m, newMissingVersion: newMissingVersion}
+	return module.Version{}, &ImportMissingError{
+		Path:              path,
+		Module:            candidates[0].Mod,
+		newMissingVersion: candidate0MissingVersion,
 	}
-	return m, nil
 }
 
 // maybeInModule reports whether, syntactically,
