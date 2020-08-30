@@ -25,5 +25,5 @@ func (p *Settable) Set(s string) {
 }
 
 func F() {
-	FromStrings[Settable]([]string{"1"}) // ERROR "Settable does not satisfy Setter.*method Set"
+	FromStrings[Settable]([]string{"1"}) // ERROR "Settable does not satisfy Setter"
 }

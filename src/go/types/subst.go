@@ -162,13 +162,20 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			if tpar.ptr {
 				actual = NewPointer(targ)
 			}
-			if m, _ := check.missingMethod(actual, iface, true); m != nil {
+			if m, wrong := check.missingMethod(actual, iface, true); m != nil {
 				// TODO(gri) needs to print updated name to avoid major confusion in error message!
 				//           (print warning for now)
 				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
 				if m.name == "==" {
 					// We don't want to report "missing method ==".
 					check.softErrorf(pos, "%s does not satisfy comparable", targ)
+				} else if wrong != nil {
+					// TODO(gri) This can still report uninstantiated types which makes the error message
+					//           more difficult to read then necessary.
+					check.softErrorf(pos,
+						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
+						targ, tpar.bound, wrong, m,
+					)
 				} else {
 					check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 				}

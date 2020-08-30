@@ -55,7 +55,7 @@ func (T) m1()
 func (*T) m2()
 
 func _() {
-	f2(T /* ERROR missing method m2 */ )()
+	f2(T /* ERROR wrong method signature */ )()
 	f2(*T)()
 }
 
