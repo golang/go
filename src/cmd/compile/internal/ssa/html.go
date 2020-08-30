@@ -119,7 +119,8 @@ td.collapsed {
 }
 
 td.collapsed div {
-    /* TODO: Flip the direction of the phase's title 90 degrees on a collapsed column. */
+    text-align: right;
+    transform: rotate(180deg);
     writing-mode: vertical-lr;
     white-space: pre;
 }
