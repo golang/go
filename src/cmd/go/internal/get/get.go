@@ -20,6 +20,8 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var CmdGet = &base.Command{
@@ -429,7 +431,7 @@ func downloadPackage(p *load.Package) error {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 	security := web.SecureOnly
-	if Insecure || str.GlobsMatchPath(cfg.GOINSECURE, importPrefix) {
+	if Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
 		security = web.Insecure
 	}
 
