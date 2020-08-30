@@ -293,6 +293,7 @@ func decompress(gz string) (io.ReaderAt, error) {
 type relocationTestEntry struct {
 	entryNumber int
 	entry       *dwarf.Entry
+	pcRanges    [][2]uint64
 }
 
 type relocationTest struct {
@@ -319,6 +320,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x6}},
 			},
 		},
 	},
@@ -340,6 +342,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x5}},
 			},
 		},
 	},
@@ -361,6 +364,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x6}},
 			},
 		},
 	},
@@ -382,6 +386,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x24}},
 			},
 		},
 	},
@@ -403,6 +408,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x28}},
 			},
 		},
 	},
@@ -421,9 +427,10 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0x0), Class: dwarf.ClassLinePtr},
 						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-						{Attr: dwarf.AttrHighpc, Val: int64(48), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x30), Class: dwarf.ClassConstant},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x30}},
 			},
 		},
 	},
@@ -445,6 +452,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x44}},
 			},
 		},
 	},
@@ -466,6 +474,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x24}},
 			},
 		},
 	},
@@ -483,10 +492,11 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-						{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x64), Class: dwarf.ClassConstant},
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x64}},
 			},
 		},
 	},
@@ -504,10 +514,11 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-						{Attr: dwarf.AttrHighpc, Val: int64(58), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x3a), Class: dwarf.ClassConstant},
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x3a}},
 			},
 		},
 	},
@@ -529,6 +540,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x2c}},
 			},
 		},
 	},
@@ -550,6 +562,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x58}},
 			},
 		},
 	},
@@ -571,6 +584,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x5c}},
 			},
 		},
 	},
@@ -588,10 +602,11 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
 						{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
-						{Attr: dwarf.AttrHighpc, Val: int64(100), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrHighpc, Val: int64(0x64), Class: dwarf.ClassConstant},
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x64}},
 			},
 		},
 	},
@@ -613,6 +628,7 @@ var relocationTests = []relocationTest{
 						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
 					},
 				},
+				pcRanges: [][2]uint64{{0x0, 0x2c}},
 			},
 		},
 	},
@@ -670,6 +686,56 @@ var relocationTests = []relocationTest{
 			},
 		},
 	},
+	{
+		"testdata/go-relocation-test-gcc930-ranges-no-rela-x86-64",
+		[]relocationTestEntry{
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C17 9.3.0 -mtune=generic -march=x86-64 -g -fno-asynchronous-unwind-tables", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "multiple-code-sections.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrRanges, Val: int64(0), Class: dwarf.ClassRangeListPtr},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
+				},
+				pcRanges: [][2]uint64{
+					{0x765, 0x777},
+					{0x7e1, 0x7ec},
+				},
+			},
+		},
+	},
+	{
+		"testdata/go-relocation-test-gcc930-ranges-with-rela-x86-64",
+		[]relocationTestEntry{
+			{
+				entry: &dwarf.Entry{
+					Offset:   0xb,
+					Tag:      dwarf.TagCompileUnit,
+					Children: true,
+					Field: []dwarf.Field{
+						{Attr: dwarf.AttrProducer, Val: "GNU C17 9.3.0 -mtune=generic -march=x86-64 -g -fno-asynchronous-unwind-tables", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+						{Attr: dwarf.AttrName, Val: "multiple-code-sections.c", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+						{Attr: dwarf.AttrRanges, Val: int64(0), Class: dwarf.ClassRangeListPtr},
+						{Attr: dwarf.AttrLowpc, Val: uint64(0), Class: dwarf.ClassAddress},
+						{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+					},
+				},
+				pcRanges: [][2]uint64{
+					{0x765, 0x777},
+					{0x7e1, 0x7ec},
+				},
+			},
+		},
+	},
 }
 
 func TestDWARFRelocations(t *testing.T) {
@@ -704,6 +770,13 @@ func TestDWARFRelocations(t *testing.T) {
 				}
 				if !reflect.DeepEqual(testEntry.entry, entry) {
 					t.Errorf("entry %d mismatch: got:%#v want:%#v", testEntry.entryNumber, entry, testEntry.entry)
+				}
+				pcRanges, err := dwarf.Ranges(entry)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(testEntry.pcRanges, pcRanges) {
+					t.Errorf("entry %d: PC range mismatch: got:%#v want:%#v", testEntry.entryNumber, pcRanges, testEntry.pcRanges)
 				}
 			}
 		})
