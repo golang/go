@@ -12,7 +12,7 @@ function initPlayground(transport) {
       if (n.nodeType === 1) {
         if (n.tagName === 'BUTTON') continue;
         if (n.tagName === 'SPAN' && n.className === 'number') continue;
-        if (n.tagName === 'DIV' || n.tagName == 'BR') {
+        if (n.tagName === 'DIV' || n.tagName === 'BR' || n.tagName === 'PRE') {
           s += '\n';
         }
         s += text(n);
