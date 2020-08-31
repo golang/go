@@ -160,7 +160,7 @@ type cipherSuite struct {
 	// flags is a bitmask of the suite* values, above.
 	flags  int
 	cipher func(key, iv []byte, isRead bool) interface{}
-	mac    func(version uint16, macKey []byte) macFunction
+	mac    func(key []byte) hash.Hash
 	aead   func(key, fixedNonce []byte) aead
 }
 
@@ -247,24 +247,15 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 	return cipher.NewCBCEncrypter(block, iv)
 }
 
-// macSHA1 returns a macFunction for the given protocol version.
-func macSHA1(version uint16, key []byte) macFunction {
-	return tls10MAC{h: hmac.New(newConstantTimeHash(sha1.New), key)}
+// macSHA1 returns a SHA-1 based constant time MAC.
+func macSHA1(key []byte) hash.Hash {
+	return hmac.New(newConstantTimeHash(sha1.New), key)
 }
 
-// macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
-// so the given version is ignored.
-func macSHA256(version uint16, key []byte) macFunction {
-	return tls10MAC{h: hmac.New(sha256.New, key)}
-}
-
-type macFunction interface {
-	// Size returns the length of the MAC.
-	Size() int
-	// MAC appends the MAC of (seq, header, data) to out. The extra data is fed
-	// into the MAC after obtaining the result to normalize timing. The result
-	// is only valid until the next invocation of MAC as the buffer is reused.
-	MAC(seq, header, data, extra []byte) []byte
+// macSHA256 returns a SHA-256 based MAC. This is only supported in TLS 1.2 and
+// is currently only used in disabled-by-default cipher suites.
+func macSHA256(key []byte) hash.Hash {
+	return hmac.New(sha256.New, key)
 }
 
 type aead interface {
@@ -412,26 +403,14 @@ func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
 }
 
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, Section 6.2.3.
-type tls10MAC struct {
-	h   hash.Hash
-	buf []byte
-}
-
-func (s tls10MAC) Size() int {
-	return s.h.Size()
-}
-
-// MAC is guaranteed to take constant time, as long as
-// len(seq)+len(header)+len(data)+len(extra) is constant. extra is not fed into
-// the MAC, but is only provided to make the timing profile constant.
-func (s tls10MAC) MAC(seq, header, data, extra []byte) []byte {
-	s.h.Reset()
-	s.h.Write(seq)
-	s.h.Write(header)
-	s.h.Write(data)
-	res := s.h.Sum(s.buf[:0])
+func tls10MAC(h hash.Hash, out, seq, header, data, extra []byte) []byte {
+	h.Reset()
+	h.Write(seq)
+	h.Write(header)
+	h.Write(data)
+	res := h.Sum(out)
 	if extra != nil {
-		s.h.Write(extra)
+		h.Write(extra)
 	}
 	return res
 }

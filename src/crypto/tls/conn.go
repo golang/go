@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"sync"
@@ -155,15 +156,16 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 type halfConn struct {
 	sync.Mutex
 
-	err            error       // first permanent error
-	version        uint16      // protocol version
-	cipher         interface{} // cipher algorithm
-	mac            macFunction
-	seq            [8]byte  // 64-bit sequence number
-	additionalData [13]byte // to avoid allocs; interface method args escape
+	err     error       // first permanent error
+	version uint16      // protocol version
+	cipher  interface{} // cipher algorithm
+	mac     hash.Hash
+	seq     [8]byte // 64-bit sequence number
+
+	scratchBuf [13]byte // to avoid allocs; interface method args escape
 
 	nextCipher interface{} // next encryption state
-	nextMac    macFunction // next MAC algorithm
+	nextMac    hash.Hash   // next MAC algorithm
 
 	trafficSecret []byte // current TLS 1.3 traffic secret
 }
@@ -188,7 +190,7 @@ func (hc *halfConn) setErrorLocked(err error) error {
 
 // prepareCipherSpec sets the encryption and MAC states
 // that a subsequent changeCipherSpec will use.
-func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac macFunction) {
+func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac hash.Hash) {
 	hc.version = version
 	hc.nextCipher = cipher
 	hc.nextMac = mac
@@ -350,15 +352,14 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 			}
 			payload = payload[explicitNonceLen:]
 
-			additionalData := hc.additionalData[:]
+			var additionalData []byte
 			if hc.version == VersionTLS13 {
 				additionalData = record[:recordHeaderLen]
 			} else {
-				copy(additionalData, hc.seq[:])
-				copy(additionalData[8:], record[:3])
+				additionalData = append(hc.scratchBuf[:0], hc.seq[:]...)
+				additionalData = append(additionalData, record[:3]...)
 				n := len(payload) - c.Overhead()
-				additionalData[11] = byte(n >> 8)
-				additionalData[12] = byte(n)
+				additionalData = append(additionalData, byte(n>>8), byte(n))
 			}
 
 			var err error
@@ -424,7 +425,7 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 		record[3] = byte(n >> 8)
 		record[4] = byte(n)
 		remoteMAC := payload[n : n+macSize]
-		localMAC := hc.mac.MAC(hc.seq[0:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
+		localMAC := tls10MAC(hc.mac, hc.scratchBuf[:0], hc.seq[:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
 
 		// This is equivalent to checking the MACs and paddingGood
 		// separately, but in constant-time to prevent distinguishing
@@ -460,7 +461,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 }
 
 // encrypt encrypts payload, adding the appropriate nonce and/or MAC, and
-// appends it to record, which contains the record header.
+// appends it to record, which must already contain the record header.
 func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, error) {
 	if hc.cipher == nil {
 		return append(record, payload...), nil
@@ -477,7 +478,7 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 			// an 8 bytes nonce but its nonces must be unpredictable (see RFC
 			// 5246, Appendix F.3), forcing us to use randomness. That's not
 			// 3DES' biggest problem anyway because the birthday bound on block
-			// collision is reached first due to its simlarly small block size
+			// collision is reached first due to its similarly small block size
 			// (see the Sweet32 attack).
 			copy(explicitNonce, hc.seq[:])
 		} else {
@@ -487,14 +488,10 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 		}
 	}
 
-	var mac []byte
-	if hc.mac != nil {
-		mac = hc.mac.MAC(hc.seq[:], record[:recordHeaderLen], payload, nil)
-	}
-
 	var dst []byte
 	switch c := hc.cipher.(type) {
 	case cipher.Stream:
+		mac := tls10MAC(hc.mac, hc.scratchBuf[:0], hc.seq[:], record[:recordHeaderLen], payload, nil)
 		record, dst = sliceForAppend(record, len(payload)+len(mac))
 		c.XORKeyStream(dst[:len(payload)], payload)
 		c.XORKeyStream(dst[len(payload):], mac)
@@ -518,11 +515,12 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 			record = c.Seal(record[:recordHeaderLen],
 				nonce, record[recordHeaderLen:], record[:recordHeaderLen])
 		} else {
-			copy(hc.additionalData[:], hc.seq[:])
-			copy(hc.additionalData[8:], record)
-			record = c.Seal(record, nonce, payload, hc.additionalData[:])
+			additionalData := append(hc.scratchBuf[:0], hc.seq[:]...)
+			additionalData = append(additionalData, record[:recordHeaderLen]...)
+			record = c.Seal(record, nonce, payload, additionalData)
 		}
 	case cbcMode:
+		mac := tls10MAC(hc.mac, hc.scratchBuf[:0], hc.seq[:], record[:recordHeaderLen], payload, nil)
 		blockSize := c.BlockSize()
 		plaintextLen := len(payload) + len(mac)
 		paddingLen := blockSize - plaintextLen%blockSize
