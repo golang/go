@@ -1123,7 +1123,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elem: check.typ(atyp.Elt)}
+					typ = &Array{len: -1, elem: check.varType(atyp.Elt)}
 					base = typ
 					break
 				}
@@ -1335,7 +1335,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				if isGeneric(x.typ) {
 					// type instantiation
 					x.mode = invalid
-					x.typ = check.typ(e)
+					x.typ = check.varType(e)
 					if x.typ != Typ[Invalid] {
 						x.mode = typexpr
 					}
@@ -1590,7 +1590,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.typ(e.Type)
+		T := check.varType(e.Type)
 		if T == Typ[Invalid] {
 			goto Error
 		}

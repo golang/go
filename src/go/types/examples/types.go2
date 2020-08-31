@@ -251,16 +251,16 @@ type I interface {
 }
 
 var (
-	_ interface /* ERROR cannot contain type constraints */ {type int}
-	_ I /* ERROR cannot contain type constraints */
+	_ interface /* ERROR contains type constraints */ {type int}
+	_ I /* ERROR contains type constraints */
 )
 
-func _(I /* ERROR cannot contain type constraints */ )
-func _(x, y, z I /* ERROR cannot contain type constraints */ )
-func _() I /* ERROR cannot contain type constraints */
+func _(I /* ERROR contains type constraints */ )
+func _(x, y, z I /* ERROR contains type constraints */ )
+func _() I /* ERROR contains type constraints */
 
 func _() {
-	var _ I /* ERROR cannot contain type constraints */
+	var _ I /* ERROR contains type constraints */
 }
 
 type C interface {

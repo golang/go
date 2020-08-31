@@ -272,6 +272,9 @@ L:
 		if T == Typ[Invalid] {
 			continue L
 		}
+		if T != nil {
+			check.ordinaryType(e.Pos(), T)
+		}
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, pos := range seen {

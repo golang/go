@@ -506,7 +506,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _New:
 		// new(T)
 		// (no argument evaluated yet)
-		T := check.typ(call.Args[0])
+		T := check.varType(call.Args[0])
 		if T == Typ[Invalid] {
 			return
 		}

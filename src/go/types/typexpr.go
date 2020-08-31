@@ -124,26 +124,32 @@ func (check *Checker) typ(e ast.Expr) Type {
 }
 
 // varType type-checks the type expression e and returns its type, or Typ[Invalid].
-// The type must not be an (uninstantiated) generic type and it must not be an
-// interface type containing type lists.
+// The type must not be an (uninstantiated) generic type and it must be ordinary
+// (see ordinaryType).
 func (check *Checker) varType(e ast.Expr) Type {
 	typ := check.definedType(e, nil)
-	if t := typ.Interface(); t != nil {
-		// We don't want to complete interfaces while we are in the middle
-		// of type-checking parameter declarations that might belong to
-		// interface methods. Delay this check to the end of type-checking.
-		check.atEnd(func() {
-			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
+	check.ordinaryType(e.Pos(), typ)
+	return typ
+}
+
+// ordinaryType reports an error if typ is an interface type containing
+// type lists or is (or embeds) the predeclared type comparable.
+func (check *Checker) ordinaryType(pos token.Pos, typ Type) {
+	// We don't want to call Under() (via Interface) or complete interfaces while we
+	// are in the middle of type-checking parameter declarations that might belong to
+	// interface methods. Delay this check to the end of type-checking.
+	check.atEnd(func() {
+		if t := typ.Interface(); t != nil {
+			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
-				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints (%s)", t.allTypes)
+				check.softErrorf(pos, "interface contains type constraints (%s)", t.allTypes)
 				return
 			}
 			if t.IsComparable() {
-				check.softErrorf(e.Pos(), "interface type for variable cannot be (or embed) comparable")
+				check.softErrorf(pos, "interface is (or embeds) comparable")
 			}
-		})
-	}
-	return typ
+		}
+	})
 }
 
 // anyType type-checks the type expression e and returns its type, or Typ[Invalid].
@@ -477,13 +483,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			typ := new(Array)
 			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typ(e.Elt)
+			typ.elem = check.varType(e.Elt)
 			return typ
 		}
 
 		typ := new(Slice)
 		def.setUnderlying(typ)
-		typ.elem = check.typ(e.Elt)
+		typ.elem = check.varType(e.Elt)
 		return typ
 
 	case *ast.StructType:
@@ -495,7 +501,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	case *ast.StarExpr:
 		typ := new(Pointer)
 		def.setUnderlying(typ)
-		typ.base = check.typ(e.X)
+		typ.base = check.varType(e.X)
 		return typ
 
 	case *ast.FuncType:
@@ -517,8 +523,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.typ(e.Key)
-		typ.elem = check.typ(e.Value)
+		typ.key = check.varType(e.Key)
+		typ.elem = check.varType(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -556,7 +562,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Value)
+		typ.elem = check.varType(e.Value)
 		return typ
 
 	default:
@@ -670,7 +676,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 func (check *Checker) typeList(list []ast.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
-		t := check.typ(x)
+		t := check.varType(x)
 		if t == Typ[Invalid] {
 			res = nil
 		}
@@ -1054,7 +1060,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	}
 
 	for _, f := range list.List {
-		typ = check.typ(f.Type)
+		typ = check.varType(f.Type)
 		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields
@@ -1134,7 +1140,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
 			check.invalidAST(pos, "missing type constraint")
 			continue
 		}
-		typ := check.typ(texpr)
+		typ := check.varType(texpr)
 		// A type constraint may be a predeclared type or a
 		// composite type composed of only predeclared types.
 		// TODO(gri) If we enable this again it also must run

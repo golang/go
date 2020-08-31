@@ -143,6 +143,14 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			assert(n == len(sig.tparams))
 
 			// instantiate function signature
+			for i, typ := range targs {
+				// some positions may be missing if types are inferred
+				var pos token.Pos
+				if i < len(poslist) {
+					pos = poslist[i]
+				}
+				check.ordinaryType(pos, typ)
+			}
 			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
 			assert(res.tparams == nil) // signature is not generic anymore
 			x.typ = res

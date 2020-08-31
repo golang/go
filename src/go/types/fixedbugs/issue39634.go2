@@ -36,8 +36,8 @@ func bar8[A foo8[A]](a A) {}
 func main8() {}
 
 // crash 9
-type foo9[A any] interface { type foo9[A] }
-func _() { var _ = new(foo9[int]) }
+type foo9[A any] interface { type foo9 /* ERROR interface contains type constraints */ [A] }
+func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
 
 // crash 12
 var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len)]c /* ERROR undeclared */ /* ERROR undeclared */
