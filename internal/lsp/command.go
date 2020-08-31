@@ -105,7 +105,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	// clients are aware of the work item before the command completes. This
 	// matters for regtests, where having a continuous thread of work is
 	// convenient for assertions.
-	work := s.progress.start(ctx, title, title+": running...", params.WorkDoneToken, cancel)
+	work := s.progress.start(ctx, title, "Running...", params.WorkDoneToken, cancel)
 	go func() {
 		defer cancel()
 		err := s.runCommand(ctx, work, command, params.Arguments)
@@ -117,10 +117,12 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			work.end(title + ": failed")
 			// Show a message when work completes with error, because the progress end
 			// message is typically dismissed immediately by LSP clients.
-			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf("%s: An error occurred: %v", title, err),
-			})
+			}); err != nil {
+				event.Error(ctx, title+": failed to show message", err)
+			}
 		default:
 			work.end(command.Name + ": completed")
 		}

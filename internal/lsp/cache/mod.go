@@ -6,7 +6,9 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -273,6 +275,15 @@ func (muh *modUpgradeHandle) upgrades(ctx context.Context, snapshot *snapshot) (
 	return data.upgrades, data.err
 }
 
+// moduleUpgrade describes a module that can be upgraded to a particular
+// version.
+type moduleUpgrade struct {
+	Path   string
+	Update struct {
+		Version string
+	}
+}
+
 func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[string]string, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
@@ -306,7 +317,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		}
 		// Run "go list -mod readonly -u -m all" to be able to see which deps can be
 		// upgraded without modifying mod file.
-		args := []string{"-u", "-m", "all"}
+		args := []string{"-u", "-m", "-json", "all"}
 		if !snapshot.view.tmpMod || containsVendor(fh.URI()) {
 			// Use -mod=readonly if the module contains a vendor directory
 			// (see golang/go#38711).
@@ -316,28 +327,26 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}
-		upgradesList := strings.Split(stdout.String(), "\n")
-		if len(upgradesList) <= 1 {
-			return nil
+		var upgradeList []moduleUpgrade
+		dec := json.NewDecoder(stdout)
+		for {
+			var m moduleUpgrade
+			if err := dec.Decode(&m); err == io.EOF {
+				break
+			} else if err != nil {
+				return &modUpgradeData{err: err}
+			}
+			upgradeList = append(upgradeList, m)
+		}
+		if len(upgradeList) <= 1 {
+			return &modUpgradeData{}
 		}
 		upgrades := make(map[string]string)
-		for _, upgrade := range upgradesList[1:] {
-			// Example: "github.com/x/tools v1.1.0 [v1.2.0]"
-			info := strings.Split(upgrade, " ")
-			if len(info) != 3 {
+		for _, upgrade := range upgradeList[1:] {
+			if upgrade.Update.Version == "" {
 				continue
 			}
-			dep, version := info[0], info[2]
-
-			// Make sure that the format matches our expectation.
-			if len(version) < 2 {
-				continue
-			}
-			if version[0] != '[' || version[len(version)-1] != ']' {
-				continue
-			}
-			latest := version[1 : len(version)-1] // remove the "[" and "]"
-			upgrades[dep] = latest
+			upgrades[upgrade.Path] = upgrade.Update.Version
 		}
 		return &modUpgradeData{
 			upgrades: upgrades,
