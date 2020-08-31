@@ -156,6 +156,26 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VCMTST	V2.B8, V29.B8, V2.B8            // a28f220e
 	VCMTST	V2.D2, V23.D2, V3.D2            // e38ee24e
 	VSUB	V2.B8, V30.B8, V30.B8           // de87222e
+	VUZP1	V0.B8, V30.B8, V1.B8            // c11b000e
+	VUZP1	V1.B16, V29.B16, V2.B16         // a21b014e
+	VUZP1	V2.H4, V28.H4, V3.H4            // 831b420e
+	VUZP1	V3.H8, V27.H8, V4.H8            // 641b434e
+	VUZP1	V28.S2, V2.S2, V5.S2            // 45189c0e
+	VUZP1	V29.S4, V1.S4, V6.S4            // 26189d4e
+	VUZP1	V30.D2, V0.D2, V7.D2            // 0718de4e
+	VUZP2	V0.D2, V30.D2, V1.D2            // c15bc04e
+	VUZP2	V30.D2, V0.D2, V29.D2           // 1d58de4e
+	VUSHLL	$0, V30.B8, V30.H8              // dea7082f
+	VUSHLL	$0, V30.H4, V29.S4              // dda7102f
+	VUSHLL	$0, V29.S2, V2.D2               // a2a7202f
+	VUSHLL2	$0, V30.B16, V2.H8              // c2a7086f
+	VUSHLL2	$0, V30.H8, V30.S4              // dea7106f
+	VUSHLL2	$0, V29.S4, V2.D2               // a2a7206f
+	VUSHLL	$7, V30.B8, V30.H8              // dea70f2f
+	VUSHLL	$15, V30.H4, V29.S4             // dda71f2f
+	VUSHLL2	$31, V30.S4, V2.D2              // c2a73f6f
+	VBIF	V0.B8, V30.B8, V1.B8            // c11fe02e
+	VBIF	V30.B16, V0.B16, V2.B16         // 021cfe6e
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4                  // 446866f8
