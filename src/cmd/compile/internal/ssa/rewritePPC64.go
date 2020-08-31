@@ -586,8 +586,12 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64ROTLW(v)
 	case OpPPC64SLD:
 		return rewriteValuePPC64_OpPPC64SLD(v)
+	case OpPPC64SLDconst:
+		return rewriteValuePPC64_OpPPC64SLDconst(v)
 	case OpPPC64SLW:
 		return rewriteValuePPC64_OpPPC64SLW(v)
+	case OpPPC64SLWconst:
+		return rewriteValuePPC64_OpPPC64SLWconst(v)
 	case OpPPC64SRAD:
 		return rewriteValuePPC64_OpPPC64SRAD(v)
 	case OpPPC64SRAW:
@@ -6565,6 +6569,255 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBZreg (OR <t> x (MOVWZreg y)))
+	// result: (MOVBZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (XOR <t> x (MOVWZreg y)))
+	// result: (MOVBZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (AND <t> x (MOVWZreg y)))
+	// result: (MOVBZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (OR <t> x (MOVHZreg y)))
+	// result: (MOVBZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (XOR <t> x (MOVHZreg y)))
+	// result: (MOVBZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (AND <t> x (MOVHZreg y)))
+	// result: (MOVBZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (OR <t> x (MOVBZreg y)))
+	// result: (MOVBZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVBZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (XOR <t> x (MOVBZreg y)))
+	// result: (MOVBZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVBZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg (AND <t> x (MOVBZreg y)))
+	// result: (MOVBZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVBZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVBZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVBZreg z:(ANDconst [c] (MOVBZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVBZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVBZreg z:(AND y (MOVBZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64AND {
+			break
+		}
+		_ = z.Args[1]
+		z_0 := z.Args[0]
+		z_1 := z.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
+			if z_1.Op != OpPPC64MOVBZload {
+				continue
+			}
+			v.copyOf(z)
+			return true
+		}
+		break
+	}
 	// match: (MOVBZreg x:(MOVBZload _ _))
 	// result: x
 	for {
@@ -8507,6 +8760,197 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVHZreg (OR <t> x (MOVWZreg y)))
+	// result: (MOVHZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg (XOR <t> x (MOVWZreg y)))
+	// result: (MOVHZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg (AND <t> x (MOVWZreg y)))
+	// result: (MOVHZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg (OR <t> x (MOVHZreg y)))
+	// result: (MOVHZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg (XOR <t> x (MOVHZreg y)))
+	// result: (MOVHZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg (AND <t> x (MOVHZreg y)))
+	// result: (MOVHZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVHZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVHZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVHZreg z:(ANDconst [c] (MOVBZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVBZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVHZreg z:(ANDconst [c] (MOVHZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVHZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVHZreg z:(AND y (MOVHZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64AND {
+			break
+		}
+		_ = z.Args[1]
+		z_0 := z.Args[0]
+		z_1 := z.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
+			if z_1.Op != OpPPC64MOVHZload {
+				continue
+			}
+			v.copyOf(z)
+			return true
+		}
+		break
+	}
 	// match: (MOVHZreg x:(MOVBZload _ _))
 	// result: x
 	for {
@@ -9656,6 +10100,139 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		v.reset(OpPPC64MOVWZreg)
 		v.AddArg(x)
 		return true
+	}
+	// match: (MOVWZreg (OR <t> x (MOVWZreg y)))
+	// result: (MOVWZreg (OR <t> x y))
+	for {
+		if v_0.Op != OpPPC64OR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVWZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVWZreg (XOR <t> x (MOVWZreg y)))
+	// result: (MOVWZreg (XOR <t> x y))
+	for {
+		if v_0.Op != OpPPC64XOR {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVWZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVWZreg (AND <t> x (MOVWZreg y)))
+	// result: (MOVWZreg (AND <t> x y))
+	for {
+		if v_0.Op != OpPPC64AND {
+			break
+		}
+		t := v_0.Type
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpPPC64MOVWZreg {
+				continue
+			}
+			y := v_0_1.Args[0]
+			v.reset(OpPPC64MOVWZreg)
+			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
+			v0.AddArg2(x, y)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MOVWZreg z:(ANDconst [c] (MOVBZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVBZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVWZreg z:(ANDconst [c] (MOVHZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVHZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVWZreg z:(ANDconst [c] (MOVWZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		z_0 := z.Args[0]
+		if z_0.Op != OpPPC64MOVWZload {
+			break
+		}
+		v.copyOf(z)
+		return true
+	}
+	// match: (MOVWZreg z:(AND y (MOVWZload ptr x)))
+	// result: z
+	for {
+		z := v_0
+		if z.Op != OpPPC64AND {
+			break
+		}
+		_ = z.Args[1]
+		z_0 := z.Args[0]
+		z_1 := z.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
+			if z_1.Op != OpPPC64MOVWZload {
+				continue
+			}
+			v.copyOf(z)
+			return true
+		}
+		break
 	}
 	// match: (MOVWZreg x:(MOVBZload _ _))
 	// result: x
@@ -12197,6 +12774,111 @@ func rewriteValuePPC64_OpPPC64SLD(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (SLDconst [c] z:(MOVBZreg x))
+	// cond: c < 8 && z.Uses == 1
+	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVBZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(c < 8 && z.Uses == 1) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLDI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 56, 63, 64))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLDconst [c] z:(MOVHZreg x))
+	// cond: c < 16 && z.Uses == 1
+	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVHZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(c < 16 && z.Uses == 1) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLDI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 48, 63, 64))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLDconst [c] z:(MOVWZreg x))
+	// cond: c < 32 && z.Uses == 1
+	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVWZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(c < 32 && z.Uses == 1) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLDI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32, 63, 64))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLDconst [c] z:(ANDconst [d] x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
+	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		d := auxIntToInt64(z.AuxInt)
+		x := z.Args[0]
+		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLDI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 64-getPPC64ShiftMaskLength(d), 63, 64))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLDconst [c] z:(AND (MOVDconst [d]) x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
+	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64AND {
+			break
+		}
+		_ = z.Args[1]
+		z_0 := z.Args[0]
+		z_1 := z.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
+			if z_0.Op != OpPPC64MOVDconst {
+				continue
+			}
+			d := auxIntToInt64(z_0.AuxInt)
+			x := z_1
+			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
+				continue
+			}
+			v.reset(OpPPC64CLRLSLDI)
+			v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 64-getPPC64ShiftMaskLength(d), 63, 64))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -12212,6 +12894,111 @@ func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(c&31 | (c >> 5 & 1 * 31))
 		v.AddArg(x)
 		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (SLWconst [c] z:(MOVBZreg x))
+	// cond: z.Uses == 1 && c < 8
+	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVBZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(z.Uses == 1 && c < 8) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLWI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 24, 31, 32))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLWconst [c] z:(MOVHZreg x))
+	// cond: z.Uses == 1 && c < 16
+	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVHZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(z.Uses == 1 && c < 16) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLWI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 16, 31, 32))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLWconst [c] z:(MOVWZreg x))
+	// cond: z.Uses == 1 && c < 24
+	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64MOVWZreg {
+			break
+		}
+		x := z.Args[0]
+		if !(z.Uses == 1 && c < 24) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLWI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 8, 31, 32))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLWconst [c] z:(ANDconst [d] x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
+	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64ANDconst {
+			break
+		}
+		d := auxIntToInt64(z.AuxInt)
+		x := z.Args[0]
+		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
+			break
+		}
+		v.reset(OpPPC64CLRLSLWI)
+		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32-getPPC64ShiftMaskLength(d), 31, 32))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SLWconst [c] z:(AND (MOVDconst [d]) x))
+	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
+	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+	for {
+		c := auxIntToInt64(v.AuxInt)
+		z := v_0
+		if z.Op != OpPPC64AND {
+			break
+		}
+		_ = z.Args[1]
+		z_0 := z.Args[0]
+		z_1 := z.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
+			if z_0.Op != OpPPC64MOVDconst {
+				continue
+			}
+			d := auxIntToInt64(z_0.AuxInt)
+			x := z_1
+			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
+				continue
+			}
+			v.reset(OpPPC64CLRLSLWI)
+			v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32-getPPC64ShiftMaskLength(d), 31, 32))
+			v.AddArg(x)
+			return true
+		}
+		break
 	}
 	return false
 }

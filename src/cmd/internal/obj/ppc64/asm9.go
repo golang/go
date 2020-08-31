@@ -1904,6 +1904,7 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLWMICC, r0)
 			opset(ARLWNM, r0)
 			opset(ARLWNMCC, r0)
+			opset(ACLRLSLWI, r0)
 
 		case ARLDMI:
 			opset(ARLDMICC, r0)
@@ -1922,6 +1923,9 @@ func buildop(ctxt *obj.Link) {
 			opset(ARLDICLCC, r0)
 			opset(ARLDICR, r0)
 			opset(ARLDICRCC, r0)
+			opset(ARLDIC, r0)
+			opset(ARLDICCC, r0)
+			opset(ACLRLSLDI, r0)
 
 		case AFMOVD:
 			opset(AFMOVDCC, r0)
@@ -2734,12 +2738,30 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		case ARLDICR, ARLDICRCC:
 			me := int(d)
 			sh := c.regoff(&p.From)
+			if me < 0 || me > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
 
-		case ARLDICL, ARLDICLCC:
+		case ARLDICL, ARLDICLCC, ARLDIC, ARLDICCC:
 			mb := int(d)
 			sh := c.regoff(&p.From)
+			if mb < 0 || mb > 63 || sh > 63 {
+				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
+			}
 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+
+		case ACLRLSLDI:
+			// This is an extended mnemonic defined in the ISA section C.8.1
+			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
+			// It maps onto RLDIC so is directly generated here based on the operands from
+			// the clrlsldi.
+			b := int(d)
+			n := c.regoff(&p.From)
+			if n > int32(b) || b > 63 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
+			}
+			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
 
 		default:
 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
@@ -3354,18 +3376,43 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: /* rlwmi $sh,s,$mask,a */
 		v := c.regoff(&p.From)
-
-		var mask [2]uint8
-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		switch p.As {
+		case ACLRLSLWI:
+			b := c.regoff(p.GetFrom3())
+			// This is an extended mnemonic described in the ISA C.8.2
+			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// It maps onto rlwinm which is directly generated here.
+			if v < 0 || v > 32 || b > 32 {
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			}
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+		default:
+			var mask [2]uint8
+			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		}
 
 	case 63: /* rlwmi b,s,$mask,a */
-		var mask [2]uint8
-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
-
-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		v := c.regoff(&p.From)
+		switch p.As {
+		case ACLRLSLWI:
+			b := c.regoff(p.GetFrom3())
+			if v > b || b > 32 {
+				// Message will match operands from the ISA even though in the
+				// code it uses 'v'
+				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
+			}
+			// This is an extended mnemonic described in the ISA C.8.2
+			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
+			// It generates the rlwinm directly here.
+			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
+		default:
+			var mask [2]uint8
+			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+		}
 
 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
 		var v int32
@@ -4276,6 +4323,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(30, 0, 0, 0) | 2<<1 // rldicr
 	case ARLDICRCC:
 		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
+
+	case ARLDIC:
+		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
+	case ARLDICCC:
+		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
 
 	case ASYSCALL:
 		return OPVCC(17, 1, 0, 0)
