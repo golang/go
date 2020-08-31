@@ -28,18 +28,23 @@ type HTMLWriter struct {
 }
 
 func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
+	path = strings.Replace(path, "/", string(filepath.Separator), -1)
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		f.Fatalf("%v", err)
 	}
-	pwd, err := os.Getwd()
-	if err != nil {
-		f.Fatalf("%v", err)
+	reportPath := path
+	if !filepath.IsAbs(reportPath) {
+		pwd, err := os.Getwd()
+		if err != nil {
+			f.Fatalf("%v", err)
+		}
+		reportPath = filepath.Join(pwd, path)
 	}
 	html := HTMLWriter{
 		w:    out,
 		Func: f,
-		path: filepath.Join(pwd, path),
+		path: reportPath,
 		dot:  newDotWriter(cfgMask),
 	}
 	html.start()
