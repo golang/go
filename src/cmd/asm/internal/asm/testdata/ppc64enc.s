@@ -284,6 +284,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLDICLCC $0, R4, $15, R6        // 788603c1
 	RLDICR $0, R4, $15, R6          // 788603c4
 	RLDICRCC $0, R4, $15, R6        // 788603c5
+	RLDIC $0, R4, $15, R6           // 788603c8
+	RLDICCC $0, R4, $15, R6         // 788603c9
+	CLRLSLWI $16, R5, $8, R4        // 54a4861e
+	CLRLSLDI $2, R4, $24, R3        // 78831588
 
 	BEQ 0(PC)                       // 41820000
 	BGE 0(PC)                       // 40800000

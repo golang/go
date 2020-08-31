@@ -79,6 +79,23 @@
 (Abs ...) => (FABS ...)
 (FMA ...) => (FMADD ...)
 
+// Lowering extension
+// Note: we always extend to 64 bits even though some ops don't need that many result bits.
+(SignExt8to(16|32|64) ...) => (MOVBreg ...)
+(SignExt16to(32|64) ...) => (MOVHreg ...)
+(SignExt32to64 ...) => (MOVWreg ...)
+
+(ZeroExt8to(16|32|64) ...) => (MOVBZreg ...)
+(ZeroExt16to(32|64) ...) => (MOVHZreg ...)
+(ZeroExt32to64 ...) => (MOVWZreg ...)
+
+(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
+(Trunc(16|32|64)to8  x) => (MOVBZreg x)
+(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
+(Trunc(32|64)to16 x) => (MOVHZreg x)
+(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
+(Trunc64to32 x) => (MOVWZreg x)
+
 // Lowering constants
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
@@ -780,6 +797,21 @@
 (MOVWreg y:(MOVWZreg x)) => (MOVWreg x)
 (MOVWZreg y:(MOVWreg x)) => (MOVWZreg x)
 
+// Truncate then logical then truncate: omit first, lesser or equal truncate
+(MOVWZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVWZreg ((OR|XOR|AND) <t> x y))
+(MOVHZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
+(MOVHZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
+(MOVBZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
+(MOVBZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
+(MOVBZreg ((OR|XOR|AND) <t> x (MOVBZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
+
+(MOV(B|H|W)Zreg z:(ANDconst [c] (MOVBZload ptr x))) => z
+(MOVBZreg z:(AND y (MOVBZload ptr x))) => z
+(MOV(H|W)Zreg z:(ANDconst [c] (MOVHZload ptr x))) => z
+(MOVHZreg z:(AND y (MOVHZload ptr x))) => z
+(MOVWZreg z:(ANDconst [c] (MOVWZload ptr x))) => z
+(MOVWZreg z:(AND y (MOVWZload ptr x))) => z
+
 // Arithmetic constant ops
 
 (ADD x (MOVDconst [c])) && is32Bit(c) => (ADDconst [c] x)
@@ -949,23 +981,6 @@
 (AtomicAnd8 ...) => (LoweredAtomicAnd8 ...)
 (AtomicOr8  ...) => (LoweredAtomicOr8  ...)
 
-// Lowering extension
-// Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to(16|32|64) ...) => (MOVBreg ...)
-(SignExt16to(32|64) ...) => (MOVHreg ...)
-(SignExt32to64 ...) => (MOVWreg ...)
-
-(ZeroExt8to(16|32|64) ...) => (MOVBZreg ...)
-(ZeroExt16to(32|64) ...) => (MOVHZreg ...)
-(ZeroExt32to64 ...) => (MOVWZreg ...)
-
-(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
-(Trunc(16|32|64)to8  x) => (MOVBZreg x)
-(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
-(Trunc(32|64)to16 x) => (MOVHZreg x)
-(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
-(Trunc64to32 x) => (MOVWZreg x)
-
 (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
 
 // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
@@ -996,6 +1011,20 @@
 (MOVWreg (MOVDconst [c])) => (MOVDconst [int64(int32(c))])
 (MOVWZreg (MOVDconst [c])) => (MOVDconst [int64(uint32(c))])
 
+// Implement clrsldi and clrslwi extended mnemonics as described in
+// ISA 3.0 section C.8. AuxInt field contains values needed for
+// the instructions, packed together since there is only one available.
+(SLDconst [c] z:(MOVBZreg x)) && c < 8 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
+(SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
+(SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
+
+(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
+(SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
+(SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
+(SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
+(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 
 // Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)

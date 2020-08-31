@@ -1325,6 +1325,44 @@ func hasSmallRotate(c *Config) bool {
 	}
 }
 
+func newPPC64ShiftAuxInt(sh, mb, me, sz int64) int32 {
+	if sh < 0 || sh >= sz {
+		panic("PPC64 shift arg sh out of range")
+	}
+	if mb < 0 || mb >= sz {
+		panic("PPC64 shift arg mb out of range")
+	}
+	if me < 0 || me >= sz {
+		panic("PPC64 shift arg me out of range")
+	}
+	return int32(sh<<16 | mb<<8 | me)
+}
+
+func GetPPC64Shiftsh(auxint int64) int64 {
+	return int64(int8(auxint >> 16))
+}
+
+func GetPPC64Shiftmb(auxint int64) int64 {
+	return int64(int8(auxint >> 8))
+}
+
+func GetPPC64Shiftme(auxint int64) int64 {
+	return int64(int8(auxint))
+}
+
+// Catch the simple ones first
+// TODO: Later catch more cases
+func isPPC64ValidShiftMask(v int64) bool {
+	if ((v + 1) & v) == 0 {
+		return true
+	}
+	return false
+}
+
+func getPPC64ShiftMaskLength(v int64) int64 {
+	return int64(bits.Len64(uint64(v)))
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
 func armBFAuxInt(lsb, width int64) arm64BitField {
 	if lsb < 0 || lsb > 63 {

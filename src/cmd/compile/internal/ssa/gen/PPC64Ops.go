@@ -206,6 +206,11 @@ func init() {
 
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
+		// The following are ops to implement the extended mnemonics for shifts as described in section C.8 of the ISA.
+		// The constant shift values are packed into the aux int32.
+		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int32"},     // arg0 extract bits identified by shift params"
+		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
+		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
 
 		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
 
