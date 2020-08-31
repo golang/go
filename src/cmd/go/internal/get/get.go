@@ -20,6 +20,8 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var CmdGet = &base.Command{
@@ -427,7 +429,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		importPrefix = importPrefix[:slash]
 	}
-	if err := CheckImportPath(importPrefix); err != nil {
+	if err := module.CheckImportPath(importPrefix); err != nil {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 
