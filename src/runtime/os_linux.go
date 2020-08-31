@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -476,21 +475,7 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
 func getpid() int
 func tgkill(tgid, tid, sig int)
 
-// touchStackBeforeSignal stores an errno value. If non-zero, it means
-// that we should touch the signal stack before sending a signal.
-// This is used on systems that have a bug when the signal stack must
-// be faulted in.  See #35777 and #37436.
-//
-// This is accessed atomically as it is set and read in different threads.
-//
-// TODO(austin): Remove this after Go 1.15 when we remove the
-// mlockGsignal workaround.
-var touchStackBeforeSignal uint32
-
 // signalM sends a signal to mp.
 func signalM(mp *m, sig int) {
-	if atomic.Load(&touchStackBeforeSignal) != 0 {
-		atomic.Cas((*uint32)(unsafe.Pointer(mp.gsignal.stack.hi-4)), 0, 0)
-	}
 	tgkill(getpid(), int(mp.procid), sig)
 }
