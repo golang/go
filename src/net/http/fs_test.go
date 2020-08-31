@@ -1138,14 +1138,8 @@ func TestLinuxSendfile(t *testing.T) {
 
 	filename := fmt.Sprintf("1kb-%d", os.Getpid())
 	filepath := path.Join(os.TempDir(), filename)
-	f, err := os.Create(filepath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = f.Truncate(1024 * 3)
-	f.Sync()
-	f.Close()
-	if err != nil {
+
+	if err := ioutil.WriteFile(filepath, bytes.Repeat([]byte{'a'}, 1<<10), 0755); err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(filepath)
