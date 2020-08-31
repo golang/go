@@ -47,6 +47,9 @@ func Compile(f *Func) {
 			stack := make([]byte, 16384)
 			n := runtime.Stack(stack, false)
 			stack = stack[:n]
+			if f.HTMLWriter != nil {
+				f.HTMLWriter.flushPhases()
+			}
 			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
 	}()
@@ -199,6 +202,13 @@ func (p *pass) addDump(s string) {
 		p.dump = make(map[string]bool)
 	}
 	p.dump[s] = true
+}
+
+func (p *pass) String() string {
+	if p == nil {
+		return "nil pass"
+	}
+	return p.name
 }
 
 // Run consistency checker between each phase

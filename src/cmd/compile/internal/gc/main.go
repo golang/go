@@ -516,6 +516,7 @@ func Main(archInit func(*Arch)) {
 	}
 
 	ssaDump = os.Getenv("GOSSAFUNC")
+	ssaDir = os.Getenv("GOSSADIR")
 	if ssaDump != "" {
 		if strings.HasSuffix(ssaDump, "+") {
 			ssaDump = ssaDump[:len(ssaDump)-1]
