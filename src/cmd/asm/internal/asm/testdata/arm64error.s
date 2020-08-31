@@ -345,4 +345,12 @@ TEXT errors(SB),$0
 	VUXTL	V30.D2, V30.H8                                   // ERROR "operand mismatch"
 	VUXTL2	V20.B8, V21.H8                                   // ERROR "operand mismatch"
 	VUXTL	V3.D2, V4.B8                                     // ERROR "operand mismatch"
+	VUZP1	V0.B8, V30.B8, V1.B16                            // ERROR "operand mismatch"
+	VUZP2	V0.Q1, V30.Q1, V1.Q1                             // ERROR "invalid arrangement"
+	VUSHLL	$0, V30.D2, V30.H8                               // ERROR "operand mismatch"
+	VUSHLL2	$0, V20.B8, V21.H8                               // ERROR "operand mismatch"
+	VUSHLL	$8, V30.B8, V30.H8                               // ERROR "shift amount out of range"
+	VUSHLL2	$32, V30.S4, V2.D2                               // ERROR "shift amount out of range"
+	VBIF	V0.B8, V1.B8, V2.B16                             // ERROR "operand mismatch"
+	VBIF	V0.D2, V1.D2, V2.D2                              // ERROR "invalid arrangement"
 	RET
