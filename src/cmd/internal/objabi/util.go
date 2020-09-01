@@ -131,6 +131,11 @@ func init() {
 			addexp(f)
 		}
 	}
+
+	// regabi is only supported on amd64.
+	if GOARCH != "amd64" {
+		Regabi_enabled = 0
+	}
 }
 
 // Note: must agree with runtime.framepointer_enabled.
@@ -161,6 +166,7 @@ var (
 	Fieldtrack_enabled        int
 	Preemptibleloops_enabled  int
 	Staticlockranking_enabled int
+	Regabi_enabled            int
 )
 
 // Toolchain experiments.
@@ -174,6 +180,7 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
 	{"staticlockranking", &Staticlockranking_enabled},
+	{"regabi", &Regabi_enabled},
 }
 
 var defaultExpstring = Expstring()
