@@ -15,9 +15,6 @@ import (
 // This is used to convert from the native (always in bytes) column
 // representation and the utf16 counts used by some editors.
 func ToUTF16Column(p Point, content []byte) (int, error) {
-	if content == nil {
-		return -1, fmt.Errorf("ToUTF16Column: missing content")
-	}
 	if !p.HasPosition() {
 		return -1, fmt.Errorf("ToUTF16Column: point is missing position")
 	}

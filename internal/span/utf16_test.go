@@ -29,7 +29,7 @@ var toUTF16Tests = []struct {
 	{
 		scenario: "cursor missing content",
 		input:    nil,
-		err:      "ToUTF16Column: missing content",
+		err:      "ToUTF16Column: point is missing position",
 	},
 	{
 		scenario: "cursor missing position",
