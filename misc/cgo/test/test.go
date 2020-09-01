@@ -319,6 +319,7 @@ typedef enum {
 
 // issue 4339
 // We've historically permitted #include <>, so test it here.  Issue 29333.
+// Also see issue 41059.
 #include <issue4339.h>
 
 // issue 4417
