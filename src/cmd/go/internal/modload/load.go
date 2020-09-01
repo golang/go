@@ -374,7 +374,7 @@ var (
 // pathInModuleCache returns the import path of the directory dir,
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(dir string) string {
-	for _, m := range buildList[1:] {
+	tryMod := func(m module.Version) (string, bool) {
 		var root string
 		var err error
 		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
@@ -388,13 +388,26 @@ func pathInModuleCache(dir string) string {
 			root, err = modfetch.DownloadDir(m)
 		}
 		if err != nil {
-			continue
+			return "", false
 		}
-		if sub := search.InDir(dir, root); sub != "" {
-			sub = filepath.ToSlash(sub)
-			if !strings.Contains(sub, "/vendor/") && !strings.HasPrefix(sub, "vendor/") && !strings.Contains(sub, "@") {
-				return path.Join(m.Path, filepath.ToSlash(sub))
-			}
+
+		sub := search.InDir(dir, root)
+		if sub == "" {
+			return "", false
+		}
+		sub = filepath.ToSlash(sub)
+		if strings.Contains(sub, "/vendor/") || strings.HasPrefix(sub, "vendor/") || strings.Contains(sub, "@") {
+			return "", false
+		}
+
+		return path.Join(m.Path, filepath.ToSlash(sub)), true
+	}
+
+	for _, m := range buildList[1:] {
+		if importPath, ok := tryMod(m); ok {
+			// checkMultiplePaths ensures that a module can be used for at most one
+			// requirement, so this must be it.
+			return importPath
 		}
 	}
 	return ""
@@ -566,12 +579,6 @@ func PackageImports(path string) (imports, testImports []string) {
 		}
 	}
 	return imports, testImports
-}
-
-// ModuleUsedDirectly reports whether the main module directly imports
-// some package in the module with the given path.
-func ModuleUsedDirectly(path string) bool {
-	return loaded.direct[path]
 }
 
 // Lookup returns the source directory, import path, and any loading error for
