@@ -1,7 +1,23 @@
 # This file demonstrates the effect of lazy loading on the selected
 # versions of test dependencies.
 
-# Control case: in Go 1.14, the version of c imported by 'go test x' is the
+# The package import graph used in this test looks like:
+#
+# m ---- a
+#  \     |
+#   \    a_test ---- b
+#    \               |
+#     x              b_test
+#     |                    \
+#     x_test -------------- c
+#
+# And the module dependency graph looks like:
+#
+# m -- a.1 -- b.1 -- c.2
+#  \
+#   x.1 ------------ c.1
+
+# Control case: in Go 1.15, the version of c imported by 'go test x' is the
 # version required by module b, even though b_test is not relevant to the main
 # module. (The main module imports a, and a_test imports b, but all of the
 # packages and tests in the main module can be built without b.)
@@ -33,7 +49,7 @@ import (
 -- go.mod --
 module m
 
-go 1.14
+go 1.15
 
 require (
 	a v0.1.0

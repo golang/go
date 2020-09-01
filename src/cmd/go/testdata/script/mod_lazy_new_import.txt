@@ -1,3 +1,21 @@
+# This test illustrates the use of a deepening scan to resolve transitive
+# imports of imports of new packages from within existing dependencies.
+
+# The package import graph used in this test looks like:
+#
+# lazy ---- a/x ---- b
+#     \
+#      ---- a/y ---- c
+#
+# Where a/x and x/y are disjoint packages, but both contained in module a.
+#
+# The module dependency graph initially looks like:
+#
+# lazy ---- a.1 ---- b.1
+#              \
+#               c.1
+
+
 cp go.mod go.mod.old
 cp lazy.go lazy.go.old
 go mod tidy
@@ -30,7 +48,7 @@ go mod edit -go=1.16
 -- go.mod --
 module example.com/lazy
 
-go 1.14
+go 1.15
 
 require example.com/a v0.1.0
 
@@ -56,7 +74,7 @@ import (
 -- a/go.mod --
 module example.com/a
 
-go 1.14
+go 1.15
 
 require (
 	example.com/b v0.1.0
@@ -71,19 +89,19 @@ import _ "example.com/c"
 -- b/go.mod --
 module example.com/b
 
-go 1.14
+go 1.15
 -- b/b.go --
 package b
 -- c1/go.mod --
 module example.com/c
 
-go 1.14
+go 1.15
 -- c1/c.go --
 package c
 -- c2/go.mod --
 module example.com/c
 
-go 1.14
+go 1.15
 -- c2/c.go --
 package c
 This file should not be used, so this syntax error should be ignored.
