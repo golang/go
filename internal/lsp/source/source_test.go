@@ -179,7 +179,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	_, got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.Matcher = source.CaseInsensitive
 		opts.DeepCompletion = false
-		opts.UnimportedCompletion = false
+		opts.CompleteUnimported = false
 		opts.InsertTextFormat = protocol.SnippetTextFormat
 		if !strings.Contains(string(src.URI()), "literal") {
 			opts.LiteralCompletions = false
@@ -193,9 +193,9 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 
 func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
 	_, list := r.callCompletion(t, src, func(opts *source.Options) {
-		opts.Placeholders = placeholders
+		opts.UsePlaceholders = placeholders
 		opts.DeepCompletion = true
-		opts.UnimportedCompletion = false
+		opts.CompleteUnimported = false
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
 	want := expected.PlainSnippet
@@ -227,7 +227,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	prefix, list := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.CaseInsensitive
-		opts.UnimportedCompletion = false
+		opts.CompleteUnimported = false
 	})
 	list = tests.FilterBuiltins(src, list)
 	fuzzyMatcher := fuzzy.NewMatcher(prefix)
@@ -251,7 +251,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	_, got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
-		opts.UnimportedCompletion = false
+		opts.CompleteUnimported = false
 	})
 	got = tests.FilterBuiltins(src, got)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
@@ -266,7 +266,7 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 	}
 	_, list := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.Matcher = source.CaseSensitive
-		opts.UnimportedCompletion = false
+		opts.CompleteUnimported = false
 	})
 	list = tests.FilterBuiltins(src, list)
 	if diff := tests.DiffCompletionItems(want, list); diff != "" {

@@ -439,7 +439,7 @@ type Analyzer struct {
 }
 
 func (a Analyzer) Enabled(view View) bool {
-	if enabled, ok := view.Options().UserEnabledAnalyses[a.Analyzer.Name]; ok {
+	if enabled, ok := view.Options().Analyses[a.Analyzer.Name]; ok {
 		return enabled
 	}
 	return a.enabled

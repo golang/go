@@ -12,7 +12,7 @@ import (
 )
 
 func updateAnalyzers(options *source.Options) {
-	if options.StaticCheck {
+	if options.Staticcheck {
 		for _, a := range simple.Analyzers {
 			options.AddDefaultAnalyzer(a)
 		}

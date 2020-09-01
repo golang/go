@@ -337,7 +337,7 @@ func (v *View) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	// v.goEnv is immutable -- changes make a new view. Options can change.
 	// We can't compare build flags directly because we may add -modfile.
 	v.optionsMu.Lock()
-	localPrefix := v.options.LocalPrefix
+	localPrefix := v.options.Local
 	currentBuildFlags := v.options.BuildFlags
 	changed := !reflect.DeepEqual(currentBuildFlags, v.cachedBuildFlags) ||
 		v.options.VerboseOutput != (v.processEnv.Logf != nil) ||
@@ -451,7 +451,7 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 // envLocked returns the environment and build flags for the current view.
 // It assumes that the caller is holding the view's optionsMu.
 func (v *View) envLocked() ([]string, []string) {
-	env := append([]string{}, v.options.Env...)
+	env := append(os.Environ(), v.options.Env...)
 	buildFlags := append([]string{}, v.options.BuildFlags...)
 	return env, buildFlags
 }

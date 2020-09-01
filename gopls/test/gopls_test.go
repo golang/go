@@ -30,7 +30,7 @@ func TestCommandLine(t *testing.T) {
 }
 
 func commandLineOptions(options *source.Options) {
-	options.StaticCheck = true
+	options.Staticcheck = true
 	options.GoDiff = false
 	hooks.Options(options)
 }
