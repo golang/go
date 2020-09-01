@@ -32,13 +32,10 @@ func TestRepoRootForImportPath(t *testing.T) {
 				Repo: "https://github.com/golang/groupcache",
 			},
 		},
-		// Unicode letters in directories (issue 18660).
+		// Unicode letters in directories are not valid.
 		{
 			"github.com/user/unicode/испытание",
-			&RepoRoot{
-				vcs:  vcsGit,
-				Repo: "https://github.com/user/unicode",
-			},
+			nil,
 		},
 		// IBM DevOps Services tests
 		{
