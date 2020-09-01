@@ -561,50 +561,52 @@ type writerOnly struct {
 	io.Writer
 }
 
-func srcIsRegularFile(src io.Reader) (isRegular bool, err error) {
-	switch v := src.(type) {
-	case *os.File:
-		fi, err := v.Stat()
-		if err != nil {
-			return false, err
-		}
-		return fi.Mode().IsRegular(), nil
-	case *io.LimitedReader:
-		return srcIsRegularFile(v.R)
-	default:
-		return
-	}
-}
-
 // ReadFrom is here to optimize copying from an *os.File regular file
-// to a *net.TCPConn with sendfile.
+// to a *net.TCPConn with sendfile, or from a supported src type such
+// as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+	bufp := copyBufPool.Get().(*[]byte)
+	buf := *bufp
+	defer copyBufPool.Put(bufp)
+
 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
-	// own ReadFrom method). If not, or if our src isn't a regular
-	// file, just fall back to the normal copy method.
+	// own ReadFrom method). If not, just fall back to the normal
+	// copy method.
 	rf, ok := w.conn.rwc.(io.ReaderFrom)
-	regFile, err := srcIsRegularFile(src)
-	if err != nil {
-		return 0, err
-	}
-	if !ok || !regFile {
-		bufp := copyBufPool.Get().(*[]byte)
-		defer copyBufPool.Put(bufp)
-		return io.CopyBuffer(writerOnly{w}, src, *bufp)
+	if !ok {
+		return io.CopyBuffer(writerOnly{w}, src, buf)
 	}
 
 	// sendfile path:
 
-	if !w.wroteHeader {
-		w.WriteHeader(StatusOK)
+	// Do not start actually writing response until src is readable.
+	// If body length is <= sniffLen, sendfile/splice path will do
+	// little anyway. This small read also satisfies sniffing the
+	// body in case Content-Type is missing.
+	nr, er := src.Read(buf[:sniffLen])
+	atEOF := errors.Is(er, io.EOF)
+	n += int64(nr)
+
+	if nr > 0 {
+		// Write the small amount read normally.
+		nw, ew := w.Write(buf[:nr])
+		if ew != nil {
+			err = ew
+		} else if nr != nw {
+			err = io.ErrShortWrite
+		}
+	}
+	if err == nil && er != nil && !atEOF {
+		err = er
 	}
 
-	if w.needsSniff() {
-		n0, err := io.Copy(writerOnly{w}, io.LimitReader(src, sniffLen))
-		n += n0
-		if err != nil {
-			return n, err
-		}
+	// Do not send StatusOK in the error case where nothing has been written.
+	if err == nil && !w.wroteHeader {
+		w.WriteHeader(StatusOK) // nr == 0, no error (or EOF)
+	}
+
+	if err != nil || atEOF {
+		return n, err
 	}
 
 	w.w.Flush()  // get rid of any previous writes
