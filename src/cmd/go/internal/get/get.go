@@ -108,14 +108,12 @@ var (
 	getT   = CmdGet.Flag.Bool("t", false, "")
 	getU   = CmdGet.Flag.Bool("u", false, "")
 	getFix = CmdGet.Flag.Bool("fix", false, "")
-
-	Insecure bool
 )
 
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
+	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
@@ -431,7 +429,7 @@ func downloadPackage(p *load.Package) error {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 	security := web.SecureOnly
-	if Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
 		security = web.Insecure
 	}
 
