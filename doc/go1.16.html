@@ -167,3 +167,9 @@ Do not send CLs removing the interior tags from such phrases.
   handler serves a 404 instead of its previous behavior of invoking the
   underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
 </p>
+
+<p>
+ The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
+ of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
+ example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
+</p>

@@ -1316,3 +1316,61 @@ func Test_scanETag(t *testing.T) {
 		}
 	}
 }
+
+// Issue 40940: Ensure that we only accept non-negative suffix-lengths
+// in "Range": "bytes=-N", and should reject "bytes=--2".
+func TestServeFileRejectsInvalidSuffixLengths_h1(t *testing.T) {
+	testServeFileRejectsInvalidSuffixLengths(t, h1Mode)
+}
+func TestServeFileRejectsInvalidSuffixLengths_h2(t *testing.T) {
+	testServeFileRejectsInvalidSuffixLengths(t, h2Mode)
+}
+
+func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := httptest.NewUnstartedServer(FileServer(Dir("testdata")))
+	cst.EnableHTTP2 = h2
+	cst.StartTLS()
+	defer cst.Close()
+
+	tests := []struct {
+		r        string
+		wantCode int
+		wantBody string
+	}{
+		{"bytes=--6", 416, "invalid range\n"},
+		{"bytes=--0", 416, "invalid range\n"},
+		{"bytes=---0", 416, "invalid range\n"},
+		{"bytes=-6", 206, "hello\n"},
+		{"bytes=6-", 206, "html says hello\n"},
+		{"bytes=-6-", 416, "invalid range\n"},
+		{"bytes=-0", 206, ""},
+		{"bytes=", 200, "index.html says hello\n"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.r, func(t *testing.T) {
+			req, err := NewRequest("GET", cst.URL+"/index.html", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Range", tt.r)
+			res, err := cst.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if g, w := res.StatusCode, tt.wantCode; g != w {
+				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
+			}
+			slurp, err := ioutil.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if g, w := string(slurp), tt.wantBody; g != w {
+				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
+			}
+		})
+	}
+}
