@@ -81,6 +81,9 @@ type EditorConfig struct {
 	// EditorRootPath specifies the root path of the workspace folder used when
 	// initializing gopls in the sandbox. If empty, the Workdir is used.
 	EditorRootPath string
+
+	// EnableStaticcheck enables staticcheck analyzers.
+	EnableStaticcheck bool
 }
 
 // NewEditor Creates a new Editor.
@@ -180,13 +183,14 @@ func (e *Editor) configuration() map[string]interface{} {
 	if e.Config.CodeLens != nil {
 		config["codelens"] = e.Config.CodeLens
 	}
-
 	if e.Config.SymbolMatcher != nil {
 		config["symbolMatcher"] = *e.Config.SymbolMatcher
 	}
-
 	if e.Config.SymbolStyle != nil {
 		config["symbolStyle"] = *e.Config.SymbolStyle
+	}
+	if e.Config.EnableStaticcheck {
+		config["staticcheck"] = true
 	}
 
 	return config

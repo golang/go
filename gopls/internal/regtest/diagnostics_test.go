@@ -1246,3 +1246,31 @@ func main() {
 		)
 	})
 }
+
+func TestStaticcheckDiagnostic(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+-- main.go --
+package main
+
+import "fmt"
+
+type t struct {
+	msg string
+}
+
+func main() {
+	x := []t{t{"msg"}}
+	fmt.Println(x)
+}
+`
+
+	withOptions(
+		WithEditorConfig(fake.EditorConfig{EnableStaticcheck: true}),
+	).run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		// Staticcheck should generate a diagnostic to simplify this literal.
+		env.Await(env.DiagnosticAtRegexp("main.go", `t{"msg"}`))
+	})
+}
