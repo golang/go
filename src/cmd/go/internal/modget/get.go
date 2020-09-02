@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/get"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
@@ -181,7 +181,7 @@ var (
 	getM   = CmdGet.Flag.Bool("m", false, "")
 	getT   = CmdGet.Flag.Bool("t", false, "")
 	getU   upgradeFlag
-	// -insecure is get.Insecure
+	// -insecure is cfg.Insecure
 	// -v is cfg.BuildV
 )
 
@@ -206,7 +206,7 @@ func (v *upgradeFlag) String() string { return "" }
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&get.Insecure, "insecure", get.Insecure, "")
+	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 	CmdGet.Flag.Var(&getU, "u", "")
 }
 
