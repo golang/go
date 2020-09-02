@@ -306,7 +306,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 
 		snapshot := arg.(*snapshot)
 
-		pm, err := s.ParseMod(ctx, fh)
+		pm, err := snapshot.ParseMod(ctx, fh)
 		if err != nil {
 			return &modUpgradeData{err: err}
 		}
