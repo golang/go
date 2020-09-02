@@ -27,7 +27,7 @@ import (
 // Keep these in sync with cmd/gofmt/gofmt.go.
 const (
 	tabWidth    = 8
-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat | printer.UseBrackets
 )
 
 var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}

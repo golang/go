@@ -40,7 +40,7 @@ var (
 // Keep these in sync with go/format/format.go.
 const (
 	tabWidth    = 8
-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat | printer.UseBrackets
 )
 
 var (
