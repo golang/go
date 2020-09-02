@@ -2831,21 +2831,11 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		tgo := t.Go
 		size := t.Size
 		talign := t.Align
-		if f.BitSize > 0 {
-			switch f.BitSize {
-			case 8, 16, 32, 64:
-			default:
-				continue
-			}
-			size = f.BitSize / 8
-			name := tgo.(*ast.Ident).String()
-			if strings.HasPrefix(name, "int") {
-				name = "int"
-			} else {
-				name = "uint"
-			}
-			tgo = ast.NewIdent(name + fmt.Sprint(f.BitSize))
-			talign = size
+		if f.BitOffset > 0 || f.BitSize > 0 {
+			// The layout of bitfields is implementation defined,
+			// so we don't know how they correspond to Go fields
+			// even if they are aligned at byte boundaries.
+			continue
 		}
 
 		if talign > 0 && f.ByteOffset%talign != 0 {

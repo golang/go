@@ -4,6 +4,12 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+	"reflect"
+)
+
 // Test that the struct field in anonunion.go was promoted.
 var v1 T
 var v2 = v1.L
@@ -23,4 +29,26 @@ var v7 = S{}
 var _ = issue38649{X: 0}
 
 func main() {
+	pass := true
+
+	// The Go translation of bitfields should not have any of the
+	// bitfield types. The order in which bitfields are laid out
+	// in memory is implementation defined, so we can't easily
+	// know how a bitfield should correspond to a Go type, even if
+	// it appears to be aligned correctly.
+	bitfieldType := reflect.TypeOf(bitfields{})
+	check := func(name string) {
+		_, ok := bitfieldType.FieldByName(name)
+		if ok {
+			fmt.Fprintf(os.Stderr, "found unexpected bitfields field %s\n", name)
+			pass = false
+		}
+	}
+	check("Short1")
+	check("Short2")
+	check("Short3")
+
+	if !pass {
+		os.Exit(1)
+	}
 }
