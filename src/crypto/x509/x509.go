@@ -1689,7 +1689,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId 
 			if oid, ok := oidFromExtKeyUsage(u); ok {
 				oids = append(oids, oid)
 			} else {
-				panic("internal error")
+				err = errors.New("x509: unknown extended key usage")
+				return
 			}
 		}
 
