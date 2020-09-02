@@ -227,7 +227,14 @@ func importPrefix(src []byte) string {
 	}
 	for _, c := range f.Comments {
 		if end := tok.Offset(c.End()); end > importEnd {
-			importEnd = maybeAdjustToLineEnd(c.End(), true)
+			// Work-around golang/go#41197: For multi-line comments add +2 to
+			// the offset. The end position does not account for the */ at the
+			// end.
+			endLine := tok.Position(c.End()).Line
+			if end+2 <= tok.Size() && tok.Position(tok.Pos(end+2)).Line == endLine {
+				end += 2
+			}
+			importEnd = maybeAdjustToLineEnd(tok.Pos(end), true)
 		}
 	}
 	if importEnd > len(src) {

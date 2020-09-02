@@ -1,6 +1,7 @@
 package regtest
 
 import (
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/tests"
@@ -156,6 +157,27 @@ func TestFormattingOnSave(t *testing.T) {
 		want := env.ReadWorkspaceFile("main.go.formatted")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", tests.Diff(want, got))
+		}
+	})
+}
+
+// Reproduce golang/go#41057.
+func TestCRLF(t *testing.T) {
+	runner.Run(t, "-- main.go --", func(t *testing.T, env *Env) {
+		want := `package main
+
+/*
+Hi description
+*/
+func Hi() {
+}
+`
+		crlf := strings.ReplaceAll(want, "\n", "\r\n")
+		env.OpenFileWithContent("main.go", crlf)
+		env.SaveBuffer("main.go")
+		got := env.Editor.BufferText("main.go")
+		if want != got {
+			t.Errorf("unexpected content after save:\n%s", tests.Diff(want, got))
 		}
 	})
 }

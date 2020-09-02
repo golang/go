@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/diff"
@@ -33,6 +34,34 @@ func TestImportPrefix(t *testing.T) {
 		got := importPrefix([]byte(tt.input))
 		if got != tt.want {
 			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(tt.want, got))
+		}
+	}
+}
+
+func TestCRLFFile(t *testing.T) {
+	for i, tt := range []struct {
+		input, want string
+	}{
+		{
+			input: `package main
+
+/*
+Hi description
+*/
+func Hi() {
+}
+`,
+			want: `package main
+
+/*
+Hi description
+*/`,
+		},
+	} {
+		got := importPrefix([]byte(strings.ReplaceAll(tt.input, "\n", "\r\n")))
+		want := strings.ReplaceAll(tt.want, "\n", "\r\n")
+		if got != want {
+			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(want, got))
 		}
 	}
 }
