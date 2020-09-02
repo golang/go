@@ -222,6 +222,7 @@ type deps struct{}
 
 func (deps) ImportPath() string { return "" }
 func (deps) MatchString(pat, str string) (bool, error) { return true, nil }
+func (deps) SetPanicOnExit0(bool) {}
 func (deps) StartCPUProfile(io.Writer) error { return nil }
 func (deps) StartTestLog(io.Writer) {}
 func (deps) StopCPUProfile() {}
