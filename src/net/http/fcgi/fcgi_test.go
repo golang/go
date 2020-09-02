@@ -347,6 +347,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
 }
 
 func TestResponseWriterSniffsContentType(t *testing.T) {
+	t.Skip("this test is flaky, see Issue 41167")
 	var tests = []struct {
 		name   string
 		body   string
