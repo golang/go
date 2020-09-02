@@ -863,3 +863,72 @@ func testInvalidXTestInGOPATH(t *testing.T, exporter packagestest.Exporter) {
 		t.Fatalf("expected at least 2 CompiledGoFiles for %s, got %v", pkg.PkgPath, len(pkg.CompiledGoFiles))
 	}
 }
+
+// Reproduces golang/go#40685.
+func TestAddImportInOverlay(t *testing.T) {
+	packagestest.TestAll(t, testAddImportInOverlay)
+}
+func testAddImportInOverlay(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"a/a.go": `package a
+
+import (
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+	os.Stat("")
+}`,
+				"a/a_test.go": `package a
+
+import (
+	"os"
+	"testing"
+)
+
+func TestA(t *testing.T) {
+	os.Stat("")
+}`,
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = everythingMode
+	exported.Config.Tests = true
+
+	dir := filepath.Dir(exported.File("golang.org/fake", "a/a.go"))
+	exported.Config.Overlay = map[string][]byte{
+		filepath.Join(dir, "a.go"): []byte(`package a
+
+import (
+	"fmt"
+	"os"
+)
+
+func _() {
+	fmt.Println("")
+	os.Stat("")
+}
+`),
+	}
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := initial[0]
+	var foundOs bool
+	for _, imp := range pkg.Imports {
+		if imp.PkgPath == "os" {
+			foundOs = true
+			break
+		}
+	}
+	if !foundOs {
+		t.Fatalf(`expected import "os", found none: %v`, pkg.Imports)
+	}
+}

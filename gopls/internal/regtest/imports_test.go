@@ -7,10 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
 )
 
+// Tests golang/go#38815.
 func TestIssue38815(t *testing.T) {
 	const needs = `
 -- go.mod --
@@ -154,5 +157,54 @@ var _, _ = x.X, y.Y
 		if !strings.HasPrefix(path, filepath.ToSlash(modcache)) {
 			t.Errorf("found module dependency outside of GOMODCACHE: got %v, wanted subdir of %v", path, filepath.ToSlash(modcache))
 		}
+	})
+}
+
+// Tests golang/go#40685.
+func TestAcceptImportsQuickFixTestVariant(t *testing.T) {
+	const pkg = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- a/a.go --
+package a
+
+import (
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+	os.Stat("")
+}
+-- a/a_test.go --
+package a
+
+import (
+	"os"
+	"testing"
+)
+
+func TestA(t *testing.T) {
+	os.Stat("")
+}
+`
+	run(t, pkg, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.OpenFile("a/a.go")
+		metBy := env.Await(
+			env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
+		)
+		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("expected *protocol.PublishDiagnosticsParams, got %v (%T)", d, d)
+		}
+		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
+		env.Await(
+			EmptyDiagnostics("a/a.go"),
+		)
 	})
 }

@@ -89,9 +89,19 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 					// because the file is generated in another directory.
 					testVariantOf = p
 					continue nextPackage
+				} else if !isTestFile && hasTestFiles(p) {
+					// We're examining a test variant, but the overlaid file is
+					// a non-test file. Because the overlay implementation
+					// (currently) only adds a file to one package, skip this
+					// package, so that we can add the file to the production
+					// variant of the package. (https://golang.org/issue/36857
+					// tracks handling overlays on both the production and test
+					// variant of a package).
+					continue nextPackage
 				}
-				// We must have already seen the package of which this is a test variant.
 				if pkg != nil && p != pkg && pkg.PkgPath == p.PkgPath {
+					// We have already seen the production version of the
+					// for which p is a test variant.
 					if hasTestFiles(p) {
 						testVariantOf = pkg
 					}
