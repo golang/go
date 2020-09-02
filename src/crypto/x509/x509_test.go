@@ -2754,3 +2754,22 @@ func TestRSAPSAParameters(t *testing.T) {
 		}
 	}
 }
+
+func TestUnknownExtKey(t *testing.T) {
+	const errorContains = "unknown extended key usage"
+
+	template := &Certificate{
+		SerialNumber: big.NewInt(10),
+		DNSNames:     []string{"foo"},
+		ExtKeyUsage:  []ExtKeyUsage{ExtKeyUsage(-1)},
+	}
+	signer, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Errorf("failed to generate key for TestUnknownExtKey")
+	}
+
+	_, err = CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
+	if !strings.Contains(err.Error(), errorContains) {
+		t.Errorf("expected error containing %q, got %s", errorContains, err)
+	}
+}
