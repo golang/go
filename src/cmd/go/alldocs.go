@@ -715,6 +715,33 @@
 // environment variable is not set. Executables in $GOROOT
 // are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
 //
+// If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
+// builds packages in module-aware mode, ignoring the go.mod file in the current
+// directory or any parent directory, if there is one. This is useful for
+// installing executables without affecting the dependencies of the main module.
+// To eliminate ambiguity about which module versions are used in the build, the
+// arguments must satisfy the following constraints:
+//
+// - Arguments must be package paths or package patterns (with "..." wildcards).
+//   They must not be standard packages (like fmt), meta-patterns (std, cmd,
+//   all), or relative or absolute file paths.
+// - All arguments must have the same version suffix. Different queries are not
+//   allowed, even if they refer to the same version.
+// - All arguments must refer to packages in the same module at the same version.
+// - No module is considered the "main" module. If the module containing
+//   packages named on the command line has a go.mod file, it must not contain
+//   directives (replace and exclude) that would cause it to be interpreted
+//   differently than if it were the main module. The module must not require
+//   a higher version of itself.
+// - Package path arguments must refer to main packages. Pattern arguments
+//   will only match main packages.
+//
+// If the arguments don't have version suffixes, "go install" may run in
+// module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+// variable and the presence of a go.mod file. See 'go help modules' for details.
+// If module-aware mode is enabled, "go install" runs in the context of the main
+// module.
+//
 // When module-aware mode is disabled, other packages are installed in the
 // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 // other packages are built and cached but not installed.

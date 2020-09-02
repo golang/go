@@ -43,6 +43,18 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<p><!-- golang.org/issue/40276 -->
+  <code>go</code> <code>install</code> now accepts arguments with
+  version suffixes (for example, <code>go</code> <code>install</code>
+  <code>example.com/cmd@v1.0.0</code>). This causes <code>go</code>
+  <code>install</code> to build and install packages in module-aware mode,
+  ignoring the <code>go.mod</code> file in the current directory or any parent
+  directory, if there is one. This is useful for installing executables without
+  affecting the dependencies of the main module.<br>
+  TODO: write and link to section in golang.org/ref/mod<br>
+  TODO: write and link to blog post
+</p>
+
 <p><!-- golang.org/issue/24031 -->
   <code>retract</code> directives may now be used in a <code>go.mod</code> file
   to indicate that certain published versions of the module should not be used

@@ -177,9 +177,11 @@ go doc fmt
 ! go doc example.com/version
 stderr 'doc: cannot find module providing package example.com/version: working directory is not part of a module'
 
-# 'go install' with a version should fail due to syntax.
-! go install example.com/printversion@v1.0.0
-stderr 'can only use path@version syntax with'
+# 'go install' with a version should succeed if all constraints are met.
+# See mod_install_pkg_version.
+rm $GOPATH/bin
+go install example.com/printversion@v0.1.0
+exists $GOPATH/bin/printversion$GOEXE
 
 # 'go install' should fail if a package argument must be resolved to a module.
 ! go install example.com/printversion
