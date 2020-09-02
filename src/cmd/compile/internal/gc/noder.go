@@ -1641,10 +1641,3 @@ func mkname(sym *types.Sym) *Node {
 	}
 	return n
 }
-
-func unparen(x *Node) *Node {
-	for x.Op == OPAREN {
-		x = x.Left
-	}
-	return x
-}
