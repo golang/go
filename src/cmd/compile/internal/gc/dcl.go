@@ -90,7 +90,7 @@ func declare(n *Node, ctxt Class) {
 			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
-		if Curfn != nil {
+		if Curfn != nil && ctxt != PFUNC {
 			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
