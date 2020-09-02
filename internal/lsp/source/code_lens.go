@@ -17,29 +17,16 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-type lensFunc func(context.Context, Snapshot, FileHandle) ([]protocol.CodeLens, error)
+type LensFunc func(context.Context, Snapshot, FileHandle) ([]protocol.CodeLens, error)
 
-var lensFuncs = map[string]lensFunc{
-	CommandGenerate.Name:      goGenerateCodeLens,
-	CommandTest.Name:          runTestCodeLens,
-	CommandRegenerateCgo.Name: regenerateCgoLens,
-	CommandToggleDetails.Name: toggleDetailsCodeLens,
-}
-
-// CodeLens computes code lens for Go source code.
-func CodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
-	var result []protocol.CodeLens
-	for lens, lf := range lensFuncs {
-		if !snapshot.View().Options().EnabledCodeLens[lens] {
-			continue
-		}
-		added, err := lf(ctx, snapshot, fh)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, added...)
+// LensFuncs returns the supported lensFuncs for Go files.
+func LensFuncs() map[string]LensFunc {
+	return map[string]LensFunc{
+		CommandGenerate.Name:      goGenerateCodeLens,
+		CommandTest.Name:          runTestCodeLens,
+		CommandRegenerateCgo.Name: regenerateCgoLens,
+		CommandToggleDetails.Name: toggleDetailsCodeLens,
 	}
-	return result, nil
 }
 
 var (

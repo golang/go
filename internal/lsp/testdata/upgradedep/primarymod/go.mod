@@ -1,4 +1,4 @@
-module upgradedep //@codelens("module upgradedep", "Sync vendor directory", "vendor"),codelens("module upgradedep", "Upgrade all dependencies", "upgrade_dependency")
+module upgradedep //@codelens("module upgradedep", "Create vendor directory", "vendor"),codelens("module upgradedep", "Upgrade all dependencies", "upgrade_dependency")
 
 // TODO(microsoft/vscode-go#12): Another issue. //@link(`microsoft/vscode-go#12`, `https://github.com/microsoft/vscode-go/issues/12`)
 

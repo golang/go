@@ -227,11 +227,11 @@ func DiffCodeLens(uri span.URI, want, got []protocol.CodeLens) string {
 	}
 	for i, w := range want {
 		g := got[i]
+		if w.Command.Command != g.Command.Command {
+			return summarizeCodeLens(i, uri, want, got, "incorrect Command Name got %v want %v", g.Command.Command, w.Command.Command)
+		}
 		if w.Command.Title != g.Command.Title {
 			return summarizeCodeLens(i, uri, want, got, "incorrect Command Title got %v want %v", g.Command.Title, w.Command.Title)
-		}
-		if w.Command.Command != g.Command.Command {
-			return summarizeCodeLens(i, uri, want, got, "incorrect Command Title got %v want %v", g.Command.Command, w.Command.Command)
 		}
 		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
 			return summarizeCodeLens(i, uri, want, got, "incorrect Start got %v want %v", g.Range.Start, w.Range.Start)
@@ -252,11 +252,11 @@ func sortCodeLens(c []protocol.CodeLens) {
 		}
 		if c[i].Command.Command < c[j].Command.Command {
 			return true
+		} else if c[i].Command.Command == c[j].Command.Command {
+			return c[i].Command.Title < c[j].Command.Title
+		} else {
+			return false
 		}
-		if c[i].Command.Command == c[j].Command.Command {
-			return true
-		}
-		return c[i].Command.Title <= c[j].Command.Title
 	})
 }
 

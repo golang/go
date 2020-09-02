@@ -6,7 +6,9 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -18,12 +20,29 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	if !ok {
 		return nil, err
 	}
+	var lensFuncs map[string]source.LensFunc
 	switch fh.Kind() {
 	case source.Mod:
-		return mod.CodeLens(ctx, snapshot, fh.URI())
+		lensFuncs = mod.LensFuncs()
 	case source.Go:
-		return source.CodeLens(ctx, snapshot, fh)
+		lensFuncs = source.LensFuncs()
+	default:
+		// Unsupported file kind for a code lens.
+		return nil, nil
 	}
-	// Unsupported file kind for a code action.
-	return nil, nil
+	var result []protocol.CodeLens
+	for lens, lf := range lensFuncs {
+		if !snapshot.View().Options().EnabledCodeLens[lens] {
+			continue
+		}
+		added, err := lf(ctx, snapshot, fh)
+		// Code lens is called on every keystroke, so we should just operate in
+		// a best-effort mode, ignoring errors.
+		if err != nil {
+			event.Error(ctx, fmt.Sprintf("code lens %s failed", lens), err)
+			continue
+		}
+		result = append(result, added...)
+	}
+	return result, nil
 }

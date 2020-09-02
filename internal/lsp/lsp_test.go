@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
-	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -163,18 +162,16 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 	if source.DetectLanguage("", uri.Filename()) != source.Mod {
 		return
 	}
-	v, err := r.server.session.ViewOf(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshot, release := v.Snapshot(r.ctx)
-	defer release()
-	got, err := mod.CodeLens(r.ctx, snapshot, uri)
+	got, err := r.server.codeLens(r.ctx, &protocol.CodeLensParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: protocol.DocumentURI(uri),
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := tests.DiffCodeLens(uri, want, got); diff != "" {
-		t.Error(diff)
+		t.Errorf("%s: %s", uri, diff)
 	}
 }
 

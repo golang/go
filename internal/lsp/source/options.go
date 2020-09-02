@@ -99,9 +99,11 @@ func DefaultOptions() Options {
 			CompletionDocumentation: true,
 			EnabledCodeLens: map[string]bool{
 				CommandGenerate.Name:          true,
-				CommandUpgradeDependency.Name: true,
 				CommandRegenerateCgo.Name:     true,
+				CommandTidy.Name:              true,
 				CommandToggleDetails.Name:     false,
+				CommandUpgradeDependency.Name: true,
+				CommandVendor.Name:            true,
 			},
 			ExpandWorkspaceToModule: true,
 		},

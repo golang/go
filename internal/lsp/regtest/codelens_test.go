@@ -174,7 +174,7 @@ func main() {
 	runner.Run(t, shouldRemoveDep, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		lenses := env.CodeLens("go.mod")
-		want := "Remove unused dependencies"
+		want := "Tidy module"
 		var found protocol.CodeLens
 		for _, lens := range lenses {
 			if lens.Command.Title == want {
@@ -183,7 +183,7 @@ func main() {
 			}
 		}
 		if found.Command.Command == "" {
-			t.Fatalf("did not find lens %q, got %v", want, lenses)
+			t.Fatalf("did not find lens %q, got %v", want, found.Command)
 		}
 		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
 			Command:   found.Command.Command,
