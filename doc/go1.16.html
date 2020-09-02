@@ -86,6 +86,16 @@ Do not send CLs removing the interior tags from such phrases.
   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
 </p>
 
+<h3 id="cgo">Cgo</h3>
+
+<p> <!-- CL 252378 -->
+  The <a href="/cmd/cgo">cgo</a> tool will no longer try to translate
+  C struct bitfields into Go struct fields, even if their size can be
+  represented in Go. The order in which C bitfields appear in memory
+  is implementation dependent, so in some cases the cgo tool produced
+  results that were silently incorrect.
+</p>
+
 <p>
   TODO
 </p>
