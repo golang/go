@@ -1786,7 +1786,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		culprit := ldr.SymName(state.data[sym.STEXT][0])
 		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
 	}
-	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 05)
 	state.allocateSingleSymSections(&Segtext, sym.SMACHOPLT, sym.SRODATA, 05)
 
 	/* read-only data */
