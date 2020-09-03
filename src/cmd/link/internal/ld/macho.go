@@ -499,16 +499,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
 func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
 
-	var msect *MachoSect
-	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe)) {
-		// Darwin external linker on arm64, and on amd64 in c-shared/c-archive buildmode
-		// complains about absolute relocs in __TEXT, so if the section is not
-		// executable, put it in __DATA segment.
-		msect = newMachoSect(mseg, buf, "__DATA")
-	} else {
-		msect = newMachoSect(mseg, buf, segname)
-	}
+	msect := newMachoSect(mseg, buf, segname)
 
 	if sect.Rellen > 0 {
 		msect.reloc = uint32(sect.Reloff)
@@ -633,13 +624,28 @@ func asmbMacho(ctxt *Link) {
 		machoshbits(ctxt, ms, sect, "__TEXT")
 	}
 
+	/* rodata */
+	if ctxt.LinkMode != LinkExternal && Segrelrodata.Length > 0 {
+		ms = newMachoSeg("__DATA_CONST", 20)
+		ms.vaddr = Segrelrodata.Vaddr
+		ms.vsize = Segrelrodata.Length
+		ms.fileoffset = Segrelrodata.Fileoff
+		ms.filesize = Segrelrodata.Filelen
+		ms.prot1 = 3
+		ms.prot2 = 3
+		ms.flag = 0x10 // SG_READ_ONLY
+	}
+
+	for _, sect := range Segrelrodata.Sections {
+		machoshbits(ctxt, ms, sect, "__DATA_CONST")
+	}
+
 	/* data */
 	if ctxt.LinkMode != LinkExternal {
-		w := int64(Segdata.Length)
 		ms = newMachoSeg("__DATA", 20)
-		ms.vaddr = uint64(va) + uint64(v)
-		ms.vsize = uint64(w)
-		ms.fileoffset = uint64(v)
+		ms.vaddr = Segdata.Vaddr
+		ms.vsize = Segdata.Length
+		ms.fileoffset = Segdata.Fileoff
 		ms.filesize = Segdata.Filelen
 		ms.prot1 = 3
 		ms.prot2 = 3
@@ -695,7 +701,7 @@ func asmbMacho(ctxt *Link) {
 
 		if ctxt.LinkMode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
+			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
 			ms.vsize = uint64(s1) + uint64(s2) + uint64(s3) + uint64(s4)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
@@ -1008,7 +1014,7 @@ func doMachoLink(ctxt *Link) int64 {
 	size := int(ldr.SymSize(s1) + ldr.SymSize(s2) + ldr.SymSize(s3) + ldr.SymSize(s4))
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
 		ctxt.Out.SeekSet(linkoff)
 
 		ctxt.Out.Write(ldr.Data(s1))
@@ -1084,6 +1090,9 @@ func machoEmitReloc(ctxt *Link) {
 
 	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
+		relocSect(ctxt, sect, ctxt.datap)
+	}
+	for _, sect := range Segrelrodata.Sections {
 		relocSect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
