@@ -1240,7 +1240,8 @@ func (ctxt *Link) hostlink() {
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
-		if machoPlatform == PLATFORM_MACOS {
+		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
+			// Leave room for DWARF combining.
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
@@ -1280,7 +1281,7 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			if machoPlatform == PLATFORM_MACOS {
+			if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
 				argv = append(argv, "-Wl,-no_pie")
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
@@ -1517,7 +1518,7 @@ func (ctxt *Link) hostlink() {
 	// does not work, the resulting programs will not run. See
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
-	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
+	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared && !(ctxt.IsDarwin() && ctxt.IsARM64()) {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
 			if linkerFlagSupported(argv[0], altLinker, nopie) {
@@ -1607,7 +1608,7 @@ func (ctxt *Link) hostlink() {
 			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
 		}
 		// Only macOS supports unmapped segments such as our __DWARF segment.
-		if machoPlatform == PLATFORM_MACOS {
+		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
 			if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
 				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
 			}
