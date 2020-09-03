@@ -993,6 +993,10 @@ func mapclear(t *maptype, h *hmap) {
 	h.noverflow = 0
 	h.count = 0
 
+	// Reset the hash seed to make it more difficult for attackers to
+	// repeatedly trigger hash collisions. See issue 25237.
+	h.hash0 = fastrand()
+
 	// Keep the mapextra allocation but clear any extra information.
 	if h.extra != nil {
 		*h.extra = mapextra{}
