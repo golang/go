@@ -1787,6 +1787,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
 	}
 	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(&Segtext, sym.SMACHOPLT, sym.SRODATA, 05)
 
 	/* read-only data */
 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
@@ -1810,7 +1811,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 
 	/* read-only ELF, Mach-O sections */
 	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
-	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
 
 	// There is some data that are conceptually read-only but are written to by
 	// relocations. On GNU systems, we can arrange for the dynamic linker to
