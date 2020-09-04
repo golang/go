@@ -1240,11 +1240,11 @@ func (ctxt *Link) hostlink() {
 
 	// On darwin, whether to combine DWARF into executable.
 	// Only macOS supports unmapped segments such as our __DWARF segment.
-	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64()
+	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
-		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
+		if combineDwarf {
 			// Leave room for DWARF combining.
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
