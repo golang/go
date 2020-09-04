@@ -2,56 +2,46 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains basic generic code snippets,
-// using ()'s for type parameters.
+// This file contains basic generic code snippets.
 
 package p
 
 // type parameter lists
-type _(type) struct{}
-type B(type P) struct{}
-type _(type P interface{}) struct{}
-type _(type P B) struct{}
-type _(type P B(P)) struct{}
+type B[P any] struct{}
+type _[P interface{}] struct{}
+type _[P B] struct{}
+type _[P B[P]] struct{}
 
-type _(type A, B, C) struct{}
-type _(type A, B, C B) struct{}
-type _(type A, B, C B(A, B, C)) struct{}
-type _(type A1, A2 B1, A3 B2, A4, A5, A6 B3) struct{}
+type _[A, B, C any] struct{}
+type _[A, B, C B] struct{}
+type _[A, B, C B[A, B, C]] struct{}
+type _[A1, A2 B1, A3 B2, A4, A5, A6 B3] struct{}
 
-type _(type A interface{}) struct{}
-type _(type A, B interface{ m() }) struct{}
+type _[A interface{}] struct{}
+type _[A, B interface{ m() }] struct{}
 
-type _(type A, B, C) struct{}
+type _[A, B, C any] struct{}
 
 // in functions
-func _(type)()
-func _(type P)()
-func _(type P interface{})()
-func _(type P B)()
-func _(type P B(P))()
+func _[P any]()
+func _[P interface{}]()
+func _[P B]()
+func _[P B[P]]()
 
 // in methods
-func (T) _(type)()
-func (T) _(type P)()
-func (T) _(type P interface{})()
-func (T) _(type P B)()
-func (T) _(type P B(P))()
-
-// pointer designations
-func _(type *P)()
-func _(type *P, Q)()
-func _(type P, *Q interface{})()
-func _(type *P, *Q interface{})()
+func (T) _[P any]()
+func (T) _[P interface{}]()
+func (T) _[P B]()
+func (T) _[P B[P]]()
 
 // type instantiations
-type _ T(int)
+type _ T[int]
 
 // in expressions
-var _ = T(int){}
+var _ = T[int]{}
 
 // in embedded types
-type _ struct{ (T(int)) }
+type _ struct{ T[int] }
 
 // interfaces
 type _ interface{
@@ -66,6 +56,28 @@ type _ interface{
 }
 
 type _ interface{
-	(T)
-	(T(int))
+	T
+	T[int]
+}
+
+// tricky cases
+func _(T[P], T[P1, P2])
+func _(a [N]T)
+
+type _ struct{
+	T[P]
+	T[P1, P2]
+	f [N]
+}
+type _ interface{
+	m()
+
+	// generic methods
+	// m[] /* ERROR empty type parameter list */ ()
+	m[P any](P)
+
+	// instantiated types
+	// T[] /* ERROR empty type argument list */ 
+	T[P]
+	T[P1, P2]
 }

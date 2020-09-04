@@ -76,13 +76,24 @@ func defPredeclaredTypes() {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
+	// any
+	// (Predeclared and entered into universe scope so we do all the
+	// usual checks; but removed again from scope later since it's
+	// only visible as constraint in a type parameter list.)
+	{
+		typ := &Named{underlying: &emptyInterface}
+		def(NewTypeName(nopos, nil, "any", typ))
+	}
+
 	// Error has a nil package in its qualified name since it is in no package
-	res := NewVar(nopos, nil, "", Typ[String])
-	sig := &Signature{results: NewTuple(res)}
-	err := NewFunc(nopos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
-	sig.recv = NewVar(nopos, nil, "", typ)
-	def(NewTypeName(nopos, nil, "error", typ))
+	{
+		res := NewVar(nopos, nil, "", Typ[String])
+		sig := &Signature{results: NewTuple(res)}
+		err := NewFunc(nopos, nil, "Error", sig)
+		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
+		sig.recv = NewVar(nopos, nil, "", typ)
+		def(NewTypeName(nopos, nil, "error", typ))
+	}
 }
 
 var predeclaredConsts = [...]struct {

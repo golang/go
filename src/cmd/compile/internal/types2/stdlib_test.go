@@ -179,6 +179,7 @@ func TestStdFixed(t *testing.T) {
 		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
 		"bug299.go",      // go/types permits parenthesized embedded fields
+		"issue14652.go",  // any is currently permitted // TODO(gri) fix this
 	)
 }
 
