@@ -16,10 +16,6 @@ import (
 	"unsafe"
 )
 
-const (
-	pageAlign = 12 // 4096 = 1 << 12
-)
-
 type loadCmd struct {
 	Cmd macho.LoadCmd
 	Len uint32
@@ -138,7 +134,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	// Now copy the dwarf data into the output.
 	// Kernel requires all loaded segments to be page-aligned in the file,
 	// even though we mark this one as being 0 bytes of virtual address space.
-	dwarfstart := machoCalcStart(realdwarf.Offset, linkseg.Offset, pageAlign)
+	dwarfstart := Rnd(int64(linkseg.Offset), int64(*FlagRound))
 	if _, err := outf.Seek(dwarfstart, 0); err != nil {
 		return err
 	}
@@ -166,7 +162,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	if _, err := exef.Seek(int64(linkseg.Offset), 0); err != nil {
 		return err
 	}
-	linkstart := machoCalcStart(linkseg.Offset, uint64(dwarfstart)+dwarfsize, pageAlign)
+	linkstart := Rnd(dwarfstart+int64(dwarfsize), int64(*FlagRound))
 	if _, err := outf.Seek(linkstart, 0); err != nil {
 		return err
 	}
@@ -431,13 +427,4 @@ func machoUpdateLoadCommand(r loadCmdReader, linkseg *macho.Segment, linkoffset 
 		return err
 	}
 	return nil
-}
-
-func machoCalcStart(origAddr, newAddr uint64, alignExp uint32) int64 {
-	align := uint64(1 << alignExp)
-	origMod, newMod := origAddr%align, newAddr%align
-	if origMod == newMod {
-		return int64(newAddr)
-	}
-	return int64(newAddr + align + origMod - newMod)
 }
