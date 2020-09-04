@@ -1227,6 +1227,7 @@ var winreltests = []RelTests{
 	{`C:\Projects`, `c:\projects\src`, `src`},
 	{`C:\Projects`, `c:\projects`, `.`},
 	{`C:\Projects\a\..`, `c:\projects`, `.`},
+	{`\\host\share`, `\\host\share\file.txt`, `file.txt`},
 }
 
 func TestRel(t *testing.T) {
