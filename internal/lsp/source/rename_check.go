@@ -321,7 +321,7 @@ func forEachLexicalRef(pkg Package, obj types.Object, fn func(id *ast.Ident, blo
 			if !ok {
 				return visit(nil) // pop stack, don't descend
 			}
-			if _, ok := deref(tv.Type).Underlying().(*types.Struct); ok {
+			if _, ok := Deref(tv.Type).Underlying().(*types.Struct); ok {
 				if n.Type != nil {
 					ast.Inspect(n.Type, visit)
 				}
@@ -450,7 +450,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	if from.Anonymous() {
 		if named, ok := from.Type().(*types.Named); ok {
 			r.check(named.Obj())
-		} else if named, ok := deref(from.Type()).(*types.Named); ok {
+		} else if named, ok := Deref(from.Type()).(*types.Named); ok {
 			r.check(named.Obj())
 		}
 	}
@@ -570,7 +570,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 	// Check for conflict at point of declaration.
 	// Check to ensure preservation of assignability requirements.
 	R := recv(from).Type()
-	if isInterface(R) {
+	if IsInterface(R) {
 		// Abstract method
 
 		// declaration
@@ -587,7 +587,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 		for _, pkg := range r.packages {
 			// Start with named interface types (better errors)
 			for _, obj := range pkg.GetTypesInfo().Defs {
-				if obj, ok := obj.(*types.TypeName); ok && isInterface(obj.Type()) {
+				if obj, ok := obj.(*types.TypeName); ok && IsInterface(obj.Type()) {
 					f, _, _ := types.LookupFieldOrMethod(
 						obj.Type(), false, from.Pkg(), from.Name())
 					if f == nil {
@@ -659,7 +659,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 			// yields abstract method I.f.  This can make error
 			// messages less than obvious.
 			//
-			if !isInterface(key.RHS) {
+			if !IsInterface(key.RHS) {
 				// The logic below was derived from checkSelections.
 
 				rtosel := rmethods.Lookup(from.Pkg(), r.to)
@@ -734,7 +734,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 		//
 		for key := range r.satisfy() {
 			// key = (lhs, rhs) where lhs is always an interface.
-			if isInterface(key.RHS) {
+			if IsInterface(key.RHS) {
 				continue
 			}
 			rsel := r.msets.MethodSet(key.RHS).Lookup(from.Pkg(), from.Name())
@@ -934,10 +934,6 @@ func isLocal(obj types.Object) bool {
 
 func isPackageLevel(obj types.Object) bool {
 	return obj.Pkg().Scope().Lookup(obj.Name()) == obj
-}
-
-func isInterface(T types.Type) bool {
-	return T != nil && types.IsInterface(T)
 }
 
 // -- Plundered from go/scanner: ---------------------------------------

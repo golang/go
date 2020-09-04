@@ -111,7 +111,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	for _, ref := range refs {
 		if obj, ok := ref.obj.(*types.Func); ok {
 			recv := obj.Type().(*types.Signature).Recv()
-			if recv != nil && isInterface(recv.Type().Underlying()) {
+			if recv != nil && IsInterface(recv.Type().Underlying()) {
 				r.changeMethods = true
 				break
 			}

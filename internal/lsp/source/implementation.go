@@ -165,7 +165,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 // concreteImplementsIntf returns true if a is an interface type implemented by
 // concrete type b, or vice versa.
 func concreteImplementsIntf(a, b types.Type) bool {
-	aIsIntf, bIsIntf := isInterface(a), isInterface(b)
+	aIsIntf, bIsIntf := IsInterface(a), IsInterface(b)
 
 	// Make sure exactly one is an interface type.
 	if aIsIntf == bIsIntf {
@@ -184,7 +184,7 @@ func concreteImplementsIntf(a, b types.Type) bool {
 // type. This is useful to make sure you consider a named type's full method
 // set.
 func ensurePointer(T types.Type) types.Type {
-	if _, ok := T.(*types.Named); ok && !isInterface(T) {
+	if _, ok := T.(*types.Named); ok && !IsInterface(T) {
 		return types.NewPointer(T)
 	}
 
@@ -248,7 +248,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			// Look up the implicit *types.PkgName.
 			obj := searchpkg.GetTypesInfo().Implicits[leaf]
 			if obj == nil {
-				return nil, xerrors.Errorf("%w for import %q", errNoObjectFound, importPath(leaf))
+				return nil, xerrors.Errorf("%w for import %q", errNoObjectFound, ImportPath(leaf))
 			}
 			objs = append(objs, obj)
 		}

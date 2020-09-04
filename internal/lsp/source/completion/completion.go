@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+// Package completion provides core functionality for code completion in Go
+// editors and tools.
+package completion
 
 import (
 	"context"
@@ -25,6 +27,7 @@ import (
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
 )
 
@@ -84,6 +87,18 @@ type CompletionItem struct {
 	obj types.Object
 }
 
+// completionOptions holds completion specific configuration.
+type completionOptions struct {
+	deepCompletion    bool
+	unimported        bool
+	documentation     bool
+	fullDocumentation bool
+	placeholders      bool
+	literal           bool
+	matcher           source.Matcher
+	budget            time.Duration
+}
+
 // Snippet is a convenience returns the snippet if available, otherwise
 // the InsertText.
 // used for an item, depending on if the callee wants placeholders or not.
@@ -135,8 +150,8 @@ func (ipm insensitivePrefixMatcher) Score(candidateLabel string) float32 {
 
 // completer contains the necessary information for a single completion request.
 type completer struct {
-	snapshot Snapshot
-	pkg      Package
+	snapshot source.Snapshot
+	pkg      source.Package
 	qf       types.Qualifier
 	opts     *completionOptions
 
@@ -228,7 +243,7 @@ type compLitInfo struct {
 type importInfo struct {
 	importPath string
 	name       string
-	pkg        Package
+	pkg        source.Package
 }
 
 type methodSetKey struct {
@@ -240,7 +255,7 @@ type methodSetKey struct {
 type Selection struct {
 	content string
 	cursor  token.Pos
-	mappedRange
+	source.MappedRange
 }
 
 func (p Selection) Content() string {
@@ -248,19 +263,19 @@ func (p Selection) Content() string {
 }
 
 func (p Selection) Start() token.Pos {
-	return p.mappedRange.spanRange.Start
+	return p.MappedRange.SpanRange().Start
 }
 
 func (p Selection) End() token.Pos {
-	return p.mappedRange.spanRange.End
+	return p.MappedRange.SpanRange().End
 }
 
 func (p Selection) Prefix() string {
-	return p.content[:p.cursor-p.spanRange.Start]
+	return p.content[:p.cursor-p.SpanRange().Start]
 }
 
 func (p Selection) Suffix() string {
-	return p.content[p.cursor-p.spanRange.Start:]
+	return p.content[p.cursor-p.SpanRange().Start:]
 }
 
 func (c *completer) setSurrounding(ident *ast.Ident) {
@@ -275,7 +290,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		content: ident.Name,
 		cursor:  c.pos,
 		// Overwrite the prefix only.
-		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, ident.Pos(), ident.End()),
+		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, ident.Pos(), ident.End()),
 	}
 
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
@@ -283,9 +298,9 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 
 func (c *completer) setMatcherFromPrefix(prefix string) {
 	switch c.opts.matcher {
-	case Fuzzy:
+	case source.Fuzzy:
 		c.matcher = fuzzy.NewMatcher(prefix)
-	case CaseSensitive:
+	case source.CaseSensitive:
 		c.matcher = prefixMatcher(prefix)
 	default:
 		c.matcher = insensitivePrefixMatcher(strings.ToLower(prefix))
@@ -297,7 +312,7 @@ func (c *completer) getSurrounding() *Selection {
 		c.surrounding = &Selection{
 			content:     "",
 			cursor:      c.pos,
-			mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, c.pos, c.pos),
+			MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, c.pos, c.pos),
 		}
 	}
 	return c.surrounding
@@ -470,13 +485,13 @@ func (e ErrIsDefinition) Error() string {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos protocol.Position, triggerCharacter string) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, protoPos protocol.Position, triggerCharacter string) ([]CompletionItem, *Selection, error) {
 	ctx, done := event.Start(ctx, "source.Completion")
 	defer done()
 
 	startTime := time.Now()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
 	if err != nil || pgf.File.Package == token.NoPos {
 		// If we can't parse this file or find position for the package
 		// keyword, it may be missing a package declaration. Try offering
@@ -485,7 +500,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		// present but no package name exists.
 		items, surrounding, innerErr := packageClauseCompletions(ctx, snapshot, fh, protoPos)
 		if innerErr != nil {
-			// return the error for getParsedFile since it's more relevant in this situation.
+			// return the error for GetParsedFile since it's more relevant in this situation.
 			return nil, nil, errors.Errorf("getting file for Completion: %w", err)
 
 		}
@@ -547,7 +562,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	c := &completer{
 		pkg:                       pkg,
 		snapshot:                  snapshot,
-		qf:                        qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo()),
+		qf:                        source.Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo()),
 		triggerCharacter:          triggerCharacter,
 		filename:                  fh.URI().Filename(),
 		file:                      pgf.File,
@@ -561,7 +576,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			deepCompletion:    opts.DeepCompletion,
 			unimported:        opts.UnimportedCompletion,
 			documentation:     opts.CompletionDocumentation,
-			fullDocumentation: opts.HoverKind == FullDocumentation,
+			fullDocumentation: opts.HoverKind == source.FullDocumentation,
 			placeholders:      opts.Placeholders,
 			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
@@ -777,7 +792,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 	c.surrounding = &Selection{
 		content:     searchImport.Path.Value,
 		cursor:      c.pos,
-		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper, searchImport.Path.Pos(), searchImport.Path.End()),
+		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, searchImport.Path.Pos(), searchImport.Path.End()),
 	}
 
 	seenImports := make(map[string]struct{})
@@ -1010,7 +1025,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 	c.surrounding = &Selection{
 		content: cursorComment.Text[start:end],
 		cursor:  c.pos,
-		mappedRange: newMappedRange(c.snapshot.FileSet(), c.mapper,
+		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper,
 			token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
 	}
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
@@ -1242,7 +1257,7 @@ func (c *completer) methodsAndFields(ctx context.Context, typ types.Type, addres
 
 // lexical finds completions in the lexical environment.
 func (c *completer) lexical(ctx context.Context) error {
-	scopes := collectScopes(c.pkg.GetTypesInfo(), c.path, c.pos)
+	scopes := source.CollectScopes(c.pkg.GetTypesInfo(), c.path, c.pos)
 	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
 	var (
@@ -1320,7 +1335,7 @@ func (c *completer) lexical(ctx context.Context) error {
 	}
 
 	if c.inference.objType != nil {
-		if named, _ := deref(c.inference.objType).(*types.Named); named != nil {
+		if named, _ := source.Deref(c.inference.objType).(*types.Named); named != nil {
 			// If we expected a named type, check the type's package for
 			// completion items. This is useful when the current file hasn't
 			// imported the type's package yet.
@@ -1356,7 +1371,7 @@ func (c *completer) lexical(ctx context.Context) error {
 	}
 
 	if t := c.inference.objType; t != nil {
-		t = deref(t)
+		t = source.Deref(t)
 
 		// If we have an expected type and it is _not_ a named type,
 		// handle it specially. Non-named types like "[]int" will never be
@@ -1388,26 +1403,6 @@ func (c *completer) lexical(ctx context.Context) error {
 	c.addKeywordCompletions()
 
 	return nil
-}
-
-func collectScopes(info *types.Info, path []ast.Node, pos token.Pos) []*types.Scope {
-	// scopes[i], where i<len(path), is the possibly nil Scope of path[i].
-	var scopes []*types.Scope
-	for _, n := range path {
-		// Include *FuncType scope if pos is inside the function body.
-		switch node := n.(type) {
-		case *ast.FuncDecl:
-			if node.Body != nil && nodeContains(node.Body, pos) {
-				n = node.Type
-			}
-		case *ast.FuncLit:
-			if node.Body != nil && nodeContains(node.Body, pos) {
-				n = node.Type
-			}
-		}
-		scopes = append(scopes, info.Scopes[n])
-	}
-	return scopes
 }
 
 func (c *completer) unimportedPackages(ctx context.Context, seen map[string]struct{}) error {
@@ -1507,25 +1502,11 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 // alreadyImports reports whether f has an import with the specified path.
 func alreadyImports(f *ast.File, path string) bool {
 	for _, s := range f.Imports {
-		if importPath(s) == path {
+		if source.ImportPath(s) == path {
 			return true
 		}
 	}
 	return false
-}
-
-// importPath returns the unquoted import path of s,
-// or "" if the path is not properly quoted.
-func importPath(s *ast.ImportSpec) string {
-	t, err := strconv.Unquote(s.Path.Value)
-	if err != nil {
-		return ""
-	}
-	return t
-}
-
-func nodeContains(n ast.Node, pos token.Pos) bool {
-	return n != nil && n.Pos() <= pos && pos <= n.End()
 }
 
 func (c *completer) inConstDecl() bool {
@@ -1614,7 +1595,7 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos, info *types.Info)
 
 			clInfo := compLitInfo{
 				cl:     n,
-				clType: deref(tv.Type).Underlying(),
+				clType: source.Deref(tv.Type).Underlying(),
 			}
 
 			var (
@@ -2083,7 +2064,7 @@ Nodes:
 			}
 			return inf
 		case *ast.RangeStmt:
-			if nodeContains(node.X, c.pos) {
+			if source.NodeContains(node.X, c.pos) {
 				inf.objKind |= kindSlice | kindArray | kindMap | kindString
 				if node.Value == nil {
 					inf.objKind |= kindChan
@@ -2239,11 +2220,11 @@ func breaksExpectedTypeInference(n ast.Node, pos token.Pos) bool {
 	case *ast.CompositeLit:
 		// Doesn't break inference if pos is in type name.
 		// For example: "Foo<>{Bar: 123}"
-		return !nodeContains(n.Type, pos)
+		return !source.NodeContains(n.Type, pos)
 	case *ast.CallExpr:
 		// Doesn't break inference if pos is in func name.
 		// For example: "Foo<>(123)"
-		return !nodeContains(n.Fun, pos)
+		return !source.NodeContains(n.Fun, pos)
 	case *ast.FuncLit, *ast.IndexExpr, *ast.SliceExpr:
 		return true
 	default:
@@ -2356,7 +2337,7 @@ Nodes:
 		case *ast.MapType:
 			inf.wantTypeName = true
 			if n.Key != nil {
-				inf.wantComparable = nodeContains(n.Key, c.pos)
+				inf.wantComparable = source.NodeContains(n.Key, c.pos)
 			} else {
 				// If the key is empty, assume we are completing the key if
 				// pos is directly after the "map[".
@@ -2364,10 +2345,10 @@ Nodes:
 			}
 			break Nodes
 		case *ast.ValueSpec:
-			inf.wantTypeName = nodeContains(n.Type, c.pos)
+			inf.wantTypeName = source.NodeContains(n.Type, c.pos)
 			break Nodes
 		case *ast.TypeSpec:
-			inf.wantTypeName = nodeContains(n.Type, c.pos)
+			inf.wantTypeName = source.NodeContains(n.Type, c.pos)
 		default:
 			if breaksExpectedTypeInference(p, c.pos) {
 				return typeNameInference{}
@@ -2752,7 +2733,7 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		return true
 	}
 
-	if !isInterface(t) && typeMatches(types.NewPointer(t)) {
+	if !source.IsInterface(t) && typeMatches(types.NewPointer(t)) {
 		if c.inference.typeName.compLitType {
 			// If we are completing a composite literal type as in
 			// "foo<>{}", to make a pointer we must prepend "&".

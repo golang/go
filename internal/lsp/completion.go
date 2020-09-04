@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -22,11 +23,11 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if !ok {
 		return nil, err
 	}
-	var candidates []source.CompletionItem
-	var surrounding *source.Selection
+	var candidates []completion.CompletionItem
+	var surrounding *completion.Selection
 	switch fh.Kind() {
 	case source.Go:
-		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position, params.Context.TriggerCharacter)
+		candidates, surrounding, err = completion.Completion(ctx, snapshot, fh, params.Position, params.Context.TriggerCharacter)
 	case source.Mod:
 		candidates, surrounding = nil, nil
 	}
@@ -103,7 +104,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}, nil
 }
 
-func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.Range, options source.Options) []protocol.CompletionItem {
+func toProtocolCompletionItems(candidates []completion.CompletionItem, rng protocol.Range, options source.Options) []protocol.CompletionItem {
 	var (
 		items                  = make([]protocol.CompletionItem, 0, len(candidates))
 		numDeepCompletionsSeen int
@@ -115,7 +116,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 			if !options.DeepCompletion {
 				continue
 			}
-			if numDeepCompletionsSeen >= source.MaxDeepCompletions {
+			if numDeepCompletionsSeen >= completion.MaxDeepCompletions {
 				continue
 			}
 			numDeepCompletionsSeen++

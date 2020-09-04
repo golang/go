@@ -250,17 +250,6 @@ func (s ImportShortcut) ShowDefinition() bool {
 	return s == Both || s == Definition
 }
 
-type completionOptions struct {
-	deepCompletion    bool
-	unimported        bool
-	documentation     bool
-	fullDocumentation bool
-	placeholders      bool
-	literal           bool
-	matcher           Matcher
-	budget            time.Duration
-}
-
 // Hooks contains configuration that is provided to the Gopls command by the
 // main package.
 type Hooks struct {

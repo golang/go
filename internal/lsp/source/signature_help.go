@@ -21,7 +21,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, 0, errors.Errorf("getting file for SignatureHelp: %w", err)
 	}
@@ -58,7 +58,7 @@ FindCall:
 		return nil, 0, errors.Errorf("cannot find an enclosing function")
 	}
 
-	qf := qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
+	qf := Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
 
 	// Get the object representing the function, if available.
 	// There is no object in certain cases such as calling a function returned by
@@ -116,7 +116,7 @@ FindCall:
 	} else {
 		name = "func"
 	}
-	s, err := newSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
+	s, err := NewSignature(ctx, snapshot, pkg, pgf.File, name, sig, comment, qf)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -125,14 +125,14 @@ FindCall:
 		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})
 	}
 	return &protocol.SignatureInformation{
-		Label:         name + s.format(),
+		Label:         name + s.Format(),
 		Documentation: doc.Synopsis(s.doc),
 		Parameters:    paramInfo,
 	}, activeParam, nil
 }
 
 func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
-	sig, err := newBuiltinSignature(ctx, snapshot, name)
+	sig, err := NewBuiltinSignature(ctx, snapshot, name)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -142,7 +142,7 @@ func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.Call
 	}
 	activeParam := activeParameter(callExpr, len(sig.params), sig.variadic, pos)
 	return &protocol.SignatureInformation{
-		Label:         sig.name + sig.format(),
+		Label:         sig.name + sig.Format(),
 		Documentation: doc.Synopsis(sig.doc),
 		Parameters:    paramInfo,
 	}, activeParam, nil

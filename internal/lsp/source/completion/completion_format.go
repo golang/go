@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+package completion
 
 import (
 	"context"
 	"fmt"
-	"go/ast"
 	"go/types"
 	"strings"
 
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -43,25 +43,25 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) error {
-		s, err := newSignature(ctx, c.snapshot, c.pkg, c.file, "", sig, nil, c.qf)
+		s, err := source.NewSignature(ctx, c.snapshot, c.pkg, c.file, "", sig, nil, c.qf)
 		if err != nil {
 			return err
 		}
-		snip = c.functionCallSnippet(label, s.params)
-		detail = "func" + s.format()
+		snip = c.functionCallSnippet(label, s.Params())
+		detail = "func" + s.Format()
 		return nil
 	}
 
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		detail, kind = formatType(obj.Type(), c.qf)
+		detail, kind = source.FormatType(obj.Type(), c.qf)
 	case *types.Const:
 		kind = protocol.ConstantCompletion
 	case *types.Var:
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = formatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf)
+			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -184,7 +184,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		searchPkg = cand.imp.pkg
 	}
 
-	pgf, pkg, err := findPosInPackage(c.snapshot, searchPkg, obj.Pos())
+	pgf, pkg, err := source.FindPosInPackage(c.snapshot, searchPkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
@@ -198,7 +198,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		return item, nil
 	}
 
-	hover, err := hoverInfo(pkg, obj, decl)
+	hover, err := source.HoverInfo(pkg, obj, decl)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil
@@ -221,7 +221,7 @@ func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protoco
 		return nil, err
 	}
 
-	return computeOneImportFixEdits(ctx, c.snapshot, pgf, &imports.ImportFix{
+	return source.ComputeOneImportFixEdits(ctx, c.snapshot, pgf, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,
@@ -243,12 +243,12 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (Completi
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		sig, err := newBuiltinSignature(ctx, c.snapshot, obj.Name())
+		sig, err := source.NewBuiltinSignature(ctx, c.snapshot, obj.Name())
 		if err != nil {
 			return CompletionItem{}, err
 		}
-		item.Detail = "func" + sig.format()
-		item.snippet = c.functionCallSnippet(obj.Name(), sig.params)
+		item.Detail = "func" + sig.Format()
+		item.snippet = c.functionCallSnippet(obj.Name(), sig.Params())
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = protocol.InterfaceCompletion
@@ -259,32 +259,4 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (Completi
 		item.Kind = protocol.VariableCompletion
 	}
 	return item, nil
-}
-
-// qualifier returns a function that appropriately formats a types.PkgName
-// appearing in a *ast.File.
-func qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifier {
-	// Construct mapping of import paths to their defined or implicit names.
-	imports := make(map[*types.Package]string)
-	for _, imp := range f.Imports {
-		var obj types.Object
-		if imp.Name != nil {
-			obj = info.Defs[imp.Name]
-		} else {
-			obj = info.Implicits[imp]
-		}
-		if pkgname, ok := obj.(*types.PkgName); ok {
-			imports[pkgname.Imported()] = pkgname.Name()
-		}
-	}
-	// Define qualifier to replace full package paths with names of the imports.
-	return func(p *types.Package) string {
-		if p == pkg {
-			return ""
-		}
-		if name, ok := imports[p]; ok {
-			return name
-		}
-		return p.Name()
-	}
 }

@@ -512,7 +512,7 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		return
 	}
 
-	mrng := newMappedRange(sc.current.snapshot.FileSet(), sc.curFile.Mapper, node.Pos(), node.End())
+	mrng := NewMappedRange(sc.current.snapshot.FileSet(), sc.curFile.Mapper, node.Pos(), node.End())
 	rng, err := mrng.Range()
 	if err != nil {
 		return

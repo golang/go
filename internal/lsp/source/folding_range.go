@@ -11,7 +11,7 @@ import (
 
 // FoldingRangeInfo holds range and kind info of folding for an ast.Node
 type FoldingRangeInfo struct {
-	mappedRange
+	MappedRange
 	Kind protocol.FoldingRangeKind
 }
 
@@ -106,7 +106,7 @@ func foldingRangeFunc(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node,
 		return nil
 	}
 	return &FoldingRangeInfo{
-		mappedRange: newMappedRange(fset, m, start, end),
+		MappedRange: NewMappedRange(fset, m, start, end),
 		Kind:        kind,
 	}
 }
@@ -144,7 +144,7 @@ func commentsFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, file *a
 		}
 		comments = append(comments, &FoldingRangeInfo{
 			// Fold from the end of the first line comment to the end of the comment block.
-			mappedRange: newMappedRange(fset, m, commentGrp.List[0].End(), commentGrp.End()),
+			MappedRange: NewMappedRange(fset, m, commentGrp.List[0].End(), commentGrp.End()),
 			Kind:        protocol.Comment,
 		})
 	}

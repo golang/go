@@ -158,7 +158,7 @@ func pathLinkAndSymbolName(i *IdentifierInfo) (string, string, string) {
 			return "", "", ""
 		}
 		if r := typ.Recv(); r != nil {
-			switch rtyp := deref(r.Type()).(type) {
+			switch rtyp := Deref(r.Type()).(type) {
 			case *types.Struct:
 				rTypeName = r.Name()
 			case *types.Named:
@@ -226,10 +226,12 @@ func hover(ctx context.Context, fset *token.FileSet, pkg Package, d Declaration)
 	_, done := event.Start(ctx, "source.hover")
 	defer done()
 
-	return hoverInfo(pkg, d.obj, d.node)
+	return HoverInfo(pkg, d.obj, d.node)
 }
 
-func hoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
+// HoverInfo returns a HoverInformation struct for an ast node and its type
+// object.
+func HoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
 	var info *HoverInformation
 
 	switch node := node.(type) {

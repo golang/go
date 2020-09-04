@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+package completion
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 // literal generates composite literal, function literal, and make()
@@ -52,7 +53,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	// don't offer "mySlice{}" since we have already added a candidate
 	// of "[]int{}".
 	if _, named := literalType.(*types.Named); named && expType != nil {
-		if _, named := deref(expType).(*types.Named); !named {
+		if _, named := source.Deref(expType).(*types.Named); !named {
 			return
 		}
 	}
@@ -129,7 +130,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 			// Add a literal completion for a signature type that implements
 			// an interface. For example, offer "http.HandlerFunc()" when
 			// expected type is "http.Handler".
-			if isInterface(expType) {
+			if source.IsInterface(expType) {
 				c.basicLiteral(t, typeName, float64(score), addlEdits)
 			}
 		case *types.Basic:
@@ -137,7 +138,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem), or are identical to our expected
 			// type (i.e. yielding a type conversion such as "float64()").
-			if isInterface(expType) || types.Identical(expType, literalType) {
+			if source.IsInterface(expType) || types.Identical(expType, literalType) {
 				c.basicLiteral(t, typeName, float64(score), addlEdits)
 			}
 		}
@@ -159,7 +160,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	}
 
 	// If prefix matches "func", client may want a function literal.
-	if score := c.matcher.Score("func"); !cand.takeAddress && score > 0 && !isInterface(expType) {
+	if score := c.matcher.Score("func"); !cand.takeAddress && score > 0 && !source.IsInterface(expType) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
 			c.functionLiteral(ctx, t, float64(score))
@@ -170,12 +171,12 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 // prependEdit produces text edits that preprend the specified prefix
 // to the specified node.
 func prependEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node, prefix string) ([]protocol.TextEdit, error) {
-	rng := newMappedRange(fset, m, node.Pos(), node.Pos())
+	rng := source.NewMappedRange(fset, m, node.Pos(), node.Pos())
 	spn, err := rng.Span()
 	if err != nil {
 		return nil, err
 	}
-	return ToProtocolEdits(m, []diff.TextEdit{{
+	return source.ToProtocolEdits(m, []diff.TextEdit{{
 		Span:    spn,
 		NewText: prefix,
 	}})
@@ -210,7 +211,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
 			// For example, we want to name "http.Request" "r", not "hr".
-			name = formatVarType(ctx, c.snapshot, c.pkg, c.file, p, func(p *types.Package) string {
+			name = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, func(p *types.Package) string {
 				return ""
 			})
 			name = abbreviateTypeName(name)
@@ -264,7 +265,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr := formatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf)
+			typeStr := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf)
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
@@ -292,7 +293,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		if name := r.Name(); name != "" {
 			snip.WriteText(name + " ")
 		}
-		snip.WriteText(formatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf))
+		snip.WriteText(source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf))
 	}
 	if resultsNeedParens {
 		snip.WriteText(")")

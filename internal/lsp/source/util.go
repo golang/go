@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -22,7 +23,9 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type mappedRange struct {
+// MappedRange provides mapped protocol.Range for a span.Range, accounting for
+// UTF-16 code points.
+type MappedRange struct {
 	spanRange span.Range
 	m         *protocol.ColumnMapper
 
@@ -31,8 +34,9 @@ type mappedRange struct {
 	protocolRange *protocol.Range
 }
 
-func newMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) mappedRange {
-	return mappedRange{
+// NewMappedRange returns a MappedRange for the given start and end token.Pos.
+func NewMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
+	return MappedRange{
 		spanRange: span.Range{
 			FileSet:   fset,
 			Start:     start,
@@ -43,7 +47,7 @@ func newMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end to
 	}
 }
 
-func (s mappedRange) Range() (protocol.Range, error) {
+func (s MappedRange) Range() (protocol.Range, error) {
 	if s.protocolRange == nil {
 		spn, err := s.spanRange.Span()
 		if err != nil {
@@ -58,17 +62,22 @@ func (s mappedRange) Range() (protocol.Range, error) {
 	return *s.protocolRange, nil
 }
 
-func (s mappedRange) Span() (span.Span, error) {
+func (s MappedRange) Span() (span.Span, error) {
 	return s.spanRange.Span()
 }
 
-func (s mappedRange) URI() span.URI {
+func (s MappedRange) SpanRange() span.Range {
+	return s.spanRange
+}
+
+func (s MappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// getParsedFile is a convenience function that extracts the Package and ParsedGoFile for a File in a Snapshot.
-// selectPackage is typically Narrowest/WidestPackageHandle below.
-func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, *ParsedGoFile, error) {
+// GetParsedFile is a convenience function that extracts the Package and
+// ParsedGoFile for a File in a Snapshot. selectPackage is typically
+// Narrowest/WidestPackageHandle below.
+func GetParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, *ParsedGoFile, error) {
 	phs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckWorkspace)
 	if err != nil {
 		return nil, nil, err
@@ -158,7 +167,7 @@ func nodeToProtocolRange(snapshot Snapshot, pkg Package, n ast.Node) (protocol.R
 	return mrng.Range()
 }
 
-func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (mappedRange, error) {
+func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (MappedRange, error) {
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
 		// When the name matches the imported package name, there is no
@@ -177,23 +186,23 @@ func objToMappedRange(snapshot Snapshot, pkg Package, obj types.Object) (mappedR
 	return nameToMappedRange(snapshot, pkg, obj.Pos(), obj.Name())
 }
 
-func nameToMappedRange(snapshot Snapshot, pkg Package, pos token.Pos, name string) (mappedRange, error) {
+func nameToMappedRange(snapshot Snapshot, pkg Package, pos token.Pos, name string) (MappedRange, error) {
 	return posToMappedRange(snapshot, pkg, pos, pos+token.Pos(len(name)))
 }
 
-func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (mappedRange, error) {
+func posToMappedRange(snapshot Snapshot, pkg Package, pos, end token.Pos) (MappedRange, error) {
 	logicalFilename := snapshot.FileSet().File(pos).Position(pos).Filename
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
-		return mappedRange{}, err
+		return MappedRange{}, err
 	}
 	if !pos.IsValid() {
-		return mappedRange{}, errors.Errorf("invalid position for %v", pos)
+		return MappedRange{}, errors.Errorf("invalid position for %v", pos)
 	}
 	if !end.IsValid() {
-		return mappedRange{}, errors.Errorf("invalid position for %v", end)
+		return MappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	return newMappedRange(snapshot.FileSet(), pgf.Mapper, pos, end), nil
+	return NewMappedRange(snapshot.FileSet(), pgf.Mapper, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
@@ -231,7 +240,8 @@ func (k FileKind) String() string {
 	}
 }
 
-// Returns the index and the node whose position is contained inside the node list.
+// nodeAtPos returns the index and the node whose position is contained inside
+// the node list.
 func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
 	if nodes == nil {
 		return nil, -1
@@ -244,121 +254,13 @@ func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
 	return nil, -1
 }
 
-// indexExprAtPos returns the index of the expression containing pos.
-func exprAtPos(pos token.Pos, args []ast.Expr) int {
-	for i, expr := range args {
-		if expr.Pos() <= pos && pos <= expr.End() {
-			return i
-		}
-	}
-	return len(args)
+// IsInterface returns if a types.Type is an interface
+func IsInterface(T types.Type) bool {
+	return T != nil && types.IsInterface(T)
 }
 
-// eachField invokes fn for each field that can be selected from a
-// value of type T.
-func eachField(T types.Type, fn func(*types.Var)) {
-	// TODO(adonovan): this algorithm doesn't exclude ambiguous
-	// selections that match more than one field/method.
-	// types.NewSelectionSet should do that for us.
-
-	// for termination on recursive types
-	var seen map[*types.Struct]bool
-
-	var visit func(T types.Type)
-	visit = func(T types.Type) {
-		if T, ok := deref(T).Underlying().(*types.Struct); ok {
-			if seen[T] {
-				return
-			}
-
-			for i := 0; i < T.NumFields(); i++ {
-				f := T.Field(i)
-				fn(f)
-				if f.Anonymous() {
-					if seen == nil {
-						// Lazily create "seen" since it is only needed for
-						// embedded structs.
-						seen = make(map[*types.Struct]bool)
-					}
-					seen[T] = true
-					visit(f.Type())
-				}
-			}
-		}
-	}
-	visit(T)
-}
-
-// typeIsValid reports whether typ doesn't contain any Invalid types.
-func typeIsValid(typ types.Type) bool {
-	// Check named types separately, because we don't want
-	// to call Underlying() on them to avoid problems with recursive types.
-	if _, ok := typ.(*types.Named); ok {
-		return true
-	}
-
-	switch typ := typ.Underlying().(type) {
-	case *types.Basic:
-		return typ.Kind() != types.Invalid
-	case *types.Array:
-		return typeIsValid(typ.Elem())
-	case *types.Slice:
-		return typeIsValid(typ.Elem())
-	case *types.Pointer:
-		return typeIsValid(typ.Elem())
-	case *types.Map:
-		return typeIsValid(typ.Key()) && typeIsValid(typ.Elem())
-	case *types.Chan:
-		return typeIsValid(typ.Elem())
-	case *types.Signature:
-		return typeIsValid(typ.Params()) && typeIsValid(typ.Results())
-	case *types.Tuple:
-		for i := 0; i < typ.Len(); i++ {
-			if !typeIsValid(typ.At(i).Type()) {
-				return false
-			}
-		}
-		return true
-	case *types.Struct, *types.Interface:
-		// Don't bother checking structs, interfaces for validity.
-		return true
-	default:
-		return false
-	}
-}
-
-// resolveInvalid traverses the node of the AST that defines the scope
-// containing the declaration of obj, and attempts to find a user-friendly
-// name for its invalid type. The resulting Object and its Type are fake.
-func resolveInvalid(fset *token.FileSet, obj types.Object, node ast.Node, info *types.Info) types.Object {
-	var resultExpr ast.Expr
-	ast.Inspect(node, func(node ast.Node) bool {
-		switch n := node.(type) {
-		case *ast.ValueSpec:
-			for _, name := range n.Names {
-				if info.Defs[name] == obj {
-					resultExpr = n.Type
-				}
-			}
-			return false
-		case *ast.Field: // This case handles parameters and results of a FuncDecl or FuncLit.
-			for _, name := range n.Names {
-				if info.Defs[name] == obj {
-					resultExpr = n.Type
-				}
-			}
-			return false
-		default:
-			return true
-		}
-	})
-	// Construct a fake type for the object and return a fake object with this type.
-	typename := formatNode(fset, resultExpr)
-	typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), types.Typ[types.Invalid], nil)
-	return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
-}
-
-func formatNode(fset *token.FileSet, n ast.Node) string {
+// FormatNode returns the "pretty-print" output for an ast node.
+func FormatNode(fset *token.FileSet, n ast.Node) string {
 	var buf strings.Builder
 	if err := printer.Fprint(&buf, fset, n); err != nil {
 		return ""
@@ -366,19 +268,9 @@ func formatNode(fset *token.FileSet, n ast.Node) string {
 	return buf.String()
 }
 
-func isPointer(T types.Type) bool {
-	_, ok := T.(*types.Pointer)
-	return ok
-}
-
-func isVar(obj types.Object) bool {
-	_, ok := obj.(*types.Var)
-	return ok
-}
-
-// deref returns a pointer's element type, traversing as many levels as needed.
+// Deref returns a pointer's element type, traversing as many levels as needed.
 // Otherwise it returns typ.
-func deref(typ types.Type) types.Type {
+func Deref(typ types.Type) types.Type {
 	for {
 		p, ok := typ.Underlying().(*types.Pointer)
 		if !ok {
@@ -386,113 +278,6 @@ func deref(typ types.Type) types.Type {
 		}
 		typ = p.Elem()
 	}
-}
-
-func isTypeName(obj types.Object) bool {
-	_, ok := obj.(*types.TypeName)
-	return ok
-}
-
-func isFunc(obj types.Object) bool {
-	_, ok := obj.(*types.Func)
-	return ok
-}
-
-func isEmptyInterface(T types.Type) bool {
-	intf, _ := T.(*types.Interface)
-	return intf != nil && intf.NumMethods() == 0
-}
-
-func isUntyped(T types.Type) bool {
-	if basic, ok := T.(*types.Basic); ok {
-		return basic.Info()&types.IsUntyped > 0
-	}
-	return false
-}
-
-func isPkgName(obj types.Object) bool {
-	_, ok := obj.(*types.PkgName)
-	return ok
-}
-
-func isASTFile(n ast.Node) bool {
-	_, ok := n.(*ast.File)
-	return ok
-}
-
-func deslice(T types.Type) types.Type {
-	if slice, ok := T.Underlying().(*types.Slice); ok {
-		return slice.Elem()
-	}
-	return nil
-}
-
-// isSelector returns the enclosing *ast.SelectorExpr when pos is in the
-// selector.
-func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {
-	if len(path) == 0 {
-		return nil
-	}
-
-	if sel, ok := path[0].(*ast.SelectorExpr); ok {
-		return sel
-	}
-
-	if _, ok := path[0].(*ast.Ident); ok && len(path) > 1 {
-		if sel, ok := path[1].(*ast.SelectorExpr); ok && pos >= sel.Sel.Pos() {
-			return sel
-		}
-	}
-
-	return nil
-}
-
-func enclosingValueSpec(path []ast.Node) *ast.ValueSpec {
-	for _, n := range path {
-		if vs, ok := n.(*ast.ValueSpec); ok {
-			return vs
-		}
-	}
-
-	return nil
-}
-
-// exprObj returns the types.Object associated with the *ast.Ident or
-// *ast.SelectorExpr e.
-func exprObj(info *types.Info, e ast.Expr) types.Object {
-	var ident *ast.Ident
-	switch expr := e.(type) {
-	case *ast.Ident:
-		ident = expr
-	case *ast.SelectorExpr:
-		ident = expr.Sel
-	default:
-		return nil
-	}
-
-	return info.ObjectOf(ident)
-}
-
-// typeConversion returns the type being converted to if call is a type
-// conversion expression.
-func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
-	// Type conversion (e.g. "float64(foo)").
-	if fun, _ := exprObj(info, call.Fun).(*types.TypeName); fun != nil {
-		return fun.Type()
-	}
-
-	return nil
-}
-
-// fieldsAccessible returns whether s has at least one field accessible by p.
-func fieldsAccessible(s *types.Struct, p *types.Package) bool {
-	for i := 0; i < s.NumFields(); i++ {
-		f := s.Field(i)
-		if f.Exported() || f.Pkg() == p {
-			return true
-		}
-	}
-	return false
 }
 
 func SortDiagnostics(d []*Diagnostic) {
@@ -517,7 +302,9 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-func findPosInPackage(snapshot Snapshot, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
+// FindPosInPackage finds the parsed file for a position in a given search
+// package.
+func FindPosInPackage(snapshot Snapshot, searchpkg Package, pos token.Pos) (*ParsedGoFile, Package, error) {
 	tok := snapshot.FileSet().File(pos)
 	if tok == nil {
 		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
@@ -551,57 +338,6 @@ func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 		}
 	}
 	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
-}
-
-// prevStmt returns the statement that precedes the statement containing pos.
-// For example:
-//
-//     foo := 1
-//     bar(1 + 2<>)
-//
-// If "<>" is pos, prevStmt returns "foo := 1"
-func prevStmt(pos token.Pos, path []ast.Node) ast.Stmt {
-	var blockLines []ast.Stmt
-	for i := 0; i < len(path) && blockLines == nil; i++ {
-		switch n := path[i].(type) {
-		case *ast.BlockStmt:
-			blockLines = n.List
-		case *ast.CommClause:
-			blockLines = n.Body
-		case *ast.CaseClause:
-			blockLines = n.Body
-		}
-	}
-
-	for i := len(blockLines) - 1; i >= 0; i-- {
-		if blockLines[i].End() < pos {
-			return blockLines[i]
-		}
-	}
-
-	return nil
-}
-
-// formatZeroValue produces Go code representing the zero value of T. It
-// returns the empty string if T is invalid.
-func formatZeroValue(T types.Type, qf types.Qualifier) string {
-	switch u := T.Underlying().(type) {
-	case *types.Basic:
-		switch {
-		case u.Info()&types.IsNumeric > 0:
-			return "0"
-		case u.Info()&types.IsString > 0:
-			return `""`
-		case u.Info()&types.IsBoolean > 0:
-			return "false"
-		default:
-			return ""
-		}
-	case *types.Pointer, *types.Interface, *types.Chan, *types.Map, *types.Slice, *types.Signature:
-		return "nil"
-	default:
-		return types.TypeString(T, qf) + "{}"
-	}
 }
 
 // MarshalArgs encodes the given arguments to json.RawMessages. This function
@@ -646,4 +382,69 @@ func UnmarshalArgs(jsonArgs []json.RawMessage, args ...interface{}) error {
 		}
 	}
 	return nil
+}
+
+// ImportPath returns the unquoted import path of s,
+// or "" if the path is not properly quoted.
+func ImportPath(s *ast.ImportSpec) string {
+	t, err := strconv.Unquote(s.Path.Value)
+	if err != nil {
+		return ""
+	}
+	return t
+}
+
+// NodeContains returns true if a node encloses a given position pos.
+func NodeContains(n ast.Node, pos token.Pos) bool {
+	return n != nil && n.Pos() <= pos && pos <= n.End()
+}
+
+// CollectScopes returns all scopes in an ast path, ordered as innermost scope
+// first.
+func CollectScopes(info *types.Info, path []ast.Node, pos token.Pos) []*types.Scope {
+	// scopes[i], where i<len(path), is the possibly nil Scope of path[i].
+	var scopes []*types.Scope
+	for _, n := range path {
+		// Include *FuncType scope if pos is inside the function body.
+		switch node := n.(type) {
+		case *ast.FuncDecl:
+			if node.Body != nil && NodeContains(node.Body, pos) {
+				n = node.Type
+			}
+		case *ast.FuncLit:
+			if node.Body != nil && NodeContains(node.Body, pos) {
+				n = node.Type
+			}
+		}
+		scopes = append(scopes, info.Scopes[n])
+	}
+	return scopes
+}
+
+// Qualifier returns a function that appropriately formats a types.PkgName
+// appearing in a *ast.File.
+func Qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifier {
+	// Construct mapping of import paths to their defined or implicit names.
+	imports := make(map[*types.Package]string)
+	for _, imp := range f.Imports {
+		var obj types.Object
+		if imp.Name != nil {
+			obj = info.Defs[imp.Name]
+		} else {
+			obj = info.Implicits[imp]
+		}
+		if pkgname, ok := obj.(*types.PkgName); ok {
+			imports[pkgname.Imported()] = pkgname.Name()
+		}
+	}
+	// Define qualifier to replace full package paths with names of the imports.
+	return func(p *types.Package) string {
+		if p == pkg {
+			return ""
+		}
+		if name, ok := imports[p]; ok {
+			return name
+		}
+		return p.Name()
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -332,7 +333,7 @@ func DiffCallHierarchyItems(gotCalls []protocol.CallHierarchyItem, expectedCalls
 	return ""
 }
 
-func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.CompletionItem {
+func ToProtocolCompletionItems(items []completion.CompletionItem) []protocol.CompletionItem {
 	var result []protocol.CompletionItem
 	for _, item := range items {
 		result = append(result, ToProtocolCompletionItem(item))
@@ -340,7 +341,7 @@ func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.Complet
 	return result
 }
 
-func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionItem {
+func ToProtocolCompletionItem(item completion.CompletionItem) protocol.CompletionItem {
 	pItem := protocol.CompletionItem{
 		Label:         item.Label,
 		Kind:          item.Kind,
@@ -463,7 +464,7 @@ func DiffSnippets(want string, got *protocol.CompletionItem) string {
 	return ""
 }
 
-func FindItem(list []protocol.CompletionItem, want source.CompletionItem) *protocol.CompletionItem {
+func FindItem(list []protocol.CompletionItem, want completion.CompletionItem) *protocol.CompletionItem {
 	for _, item := range list {
 		if item.Label == want.Label {
 			return &item

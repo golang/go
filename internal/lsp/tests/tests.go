@@ -28,6 +28,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
@@ -46,7 +47,7 @@ var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 type CallHierarchy map[span.Span]*CallHierarchyResult
 type CodeLens map[span.URI][]protocol.CodeLens
 type Diagnostics map[span.URI][]*source.Diagnostic
-type CompletionItems map[token.Pos]*source.CompletionItem
+type CompletionItems map[token.Pos]*completion.CompletionItem
 type Completions map[span.Span][]Completion
 type CompletionSnippets map[span.Span][]CompletionSnippet
 type UnimportedCompletions map[span.Span][]Completion
@@ -1037,7 +1038,7 @@ func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
 	if len(args) == 4 {
 		documentation = args[3]
 	}
-	data.CompletionItems[pos] = &source.CompletionItem{
+	data.CompletionItems[pos] = &completion.CompletionItem{
 		Label:         label,
 		Detail:        detail,
 		Kind:          protocol.ParseCompletionItemKind(kind),

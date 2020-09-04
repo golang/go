@@ -22,10 +22,10 @@ import (
 type IdentifierInfo struct {
 	Name     string
 	Snapshot Snapshot
-	mappedRange
+	MappedRange
 
 	Type struct {
-		mappedRange
+		MappedRange
 		Object types.Object
 	}
 
@@ -42,7 +42,7 @@ type IdentifierInfo struct {
 }
 
 type Declaration struct {
-	MappedRange []mappedRange
+	MappedRange []MappedRange
 	node        ast.Node
 	obj         types.Object
 
@@ -108,7 +108,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		return nil, ErrNoIdentFound
 	}
 
-	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
+	qf := Qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 
 	ident, _ := path[0].(*ast.Ident)
 	if ident == nil {
@@ -138,13 +138,13 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		return &IdentifierInfo{
 			Name:        file.Name.Name,
 			ident:       file.Name,
-			mappedRange: rng,
+			MappedRange: rng,
 			pkg:         pkg,
 			qf:          qf,
 			Snapshot:    snapshot,
 			Declaration: Declaration{
 				node:        declAST.Name,
-				MappedRange: []mappedRange{declRng},
+				MappedRange: []MappedRange{declRng},
 			},
 		}, nil
 	}
@@ -167,7 +167,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 
 	result.Name = result.ident.Name
 	var err error
-	if result.mappedRange, err = posToMappedRange(snapshot, pkg, result.ident.Pos(), result.ident.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(snapshot, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
 
@@ -206,7 +206,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 
 		// The builtin package isn't in the dependency graph, so the usual utilities
 		// won't work here.
-		rng := newMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := NewMappedRange(snapshot.FileSet(), builtin.ParsedFile.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
 		return result, nil
@@ -242,7 +242,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.mappedRange, err = objToMappedRange(snapshot, pkg, result.Type.Object); err != nil {
+		if result.Type.MappedRange, err = objToMappedRange(snapshot, pkg, result.Type.Object); err != nil {
 			return nil, err
 		}
 	}
@@ -254,7 +254,7 @@ func searchForEnclosing(info *types.Info, path []ast.Node) types.Type {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			if sel, ok := info.Selections[n]; ok {
-				recv := deref(sel.Recv())
+				recv := Deref(sel.Recv())
 
 				// Keep track of the last exported type seen.
 				var exported types.Type
@@ -265,7 +265,7 @@ func searchForEnclosing(info *types.Info, path []ast.Node) types.Type {
 				// method itself.
 				for _, index := range sel.Index()[:len(sel.Index())-1] {
 					if r, ok := recv.Underlying().(*types.Struct); ok {
-						recv = deref(r.Field(index).Type())
+						recv = Deref(r.Field(index).Type())
 						if named, ok := recv.(*types.Named); ok && named.Obj().Exported() {
 							exported = named
 						}
@@ -304,7 +304,7 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToDecl(ctx context.Context, snapshot Snapshot, srcPkg Package, obj types.Object) (ast.Decl, error) {
-	pgf, _, err := findPosInPackage(snapshot, srcPkg, obj.Pos())
+	pgf, _, err := FindPosInPackage(snapshot, srcPkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 		Name:     importPath,
 		pkg:      pkg,
 	}
-	if result.mappedRange, err = posToMappedRange(snapshot, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(snapshot, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.

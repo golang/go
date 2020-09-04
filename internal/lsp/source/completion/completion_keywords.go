@@ -1,9 +1,14 @@
-package source
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package completion
 
 import (
 	"go/ast"
 
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 const (
@@ -69,7 +74,7 @@ func (c *completer) addKeywordCompletions() {
 	if len(c.path) > 2 {
 		// Offer "range" if we are in ast.ForStmt.Init. This is what the
 		// AST looks like before "range" is typed, e.g. "for i := r<>".
-		if loop, ok := c.path[2].(*ast.ForStmt); ok && nodeContains(loop.Init, c.pos) {
+		if loop, ok := c.path[2].(*ast.ForStmt); ok && source.NodeContains(loop.Init, c.pos) {
 			c.addKeywordItems(seen, stdScore, RANGE)
 		}
 	}

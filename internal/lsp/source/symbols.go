@@ -19,13 +19,13 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	ctx, done := event.Start(ctx, "source.DocumentSymbols")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, errors.Errorf("getting file for DocumentSymbols: %w", err)
 	}
 
 	info := pkg.GetTypesInfo()
-	q := qualifier(pgf.File, pkg.GetTypes(), info)
+	q := Qualifier(pgf.File, pkg.GetTypes(), info)
 
 	symbolsToReceiver := make(map[types.Type]int)
 	var symbols []protocol.DocumentSymbol
@@ -113,7 +113,7 @@ func typeSymbol(snapshot Snapshot, pkg Package, info *types.Info, spec *ast.Type
 	s := protocol.DocumentSymbol{
 		Name: obj.Name(),
 	}
-	s.Detail, _ = formatType(obj.Type(), qf)
+	s.Detail, _ = FormatType(obj.Type(), qf)
 	s.Kind = typeToKind(obj.Type())
 
 	var err error
@@ -134,7 +134,7 @@ func typeSymbol(snapshot Snapshot, pkg Package, info *types.Info, spec *ast.Type
 				Name: f.Name(),
 				Kind: protocol.Field,
 			}
-			child.Detail, _ = formatType(f.Type(), qf)
+			child.Detail, _ = FormatType(f.Type(), qf)
 
 			spanNode, selectionNode := nodesForStructField(i, st)
 			if span, err := nodeToProtocolRange(snapshot, pkg, spanNode); err == nil {

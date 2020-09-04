@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+package completion
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
+	"golang.org/x/tools/internal/lsp/source"
 )
 
 // addStatementCandidates adds full statement completion candidates
@@ -79,7 +80,7 @@ func (c *completer) addAssignAppend() {
 		}
 
 		// The name or our slice is whatever's in the LHS expression.
-		sliceText = formatNode(fset, n.Lhs[exprIdx])
+		sliceText = source.FormatNode(fset, n.Lhs[exprIdx])
 	case *ast.SelectorExpr:
 		// Make sure we are a selector at the beginning of a statement.
 		if _, parentIsExprtStmt := c.path[2].(*ast.ExprStmt); !parentIsExprtStmt {
@@ -89,7 +90,7 @@ func (c *completer) addAssignAppend() {
 		// So far we only know the first part of our slice name. For
 		// example in "s.a<>" we only know our slice begins with "s."
 		// since the user could still be typing.
-		sliceText = formatNode(fset, n.X) + "."
+		sliceText = source.FormatNode(fset, n.X) + "."
 		needsLHS = true
 	case *ast.ExprStmt:
 		needsLHS = true
@@ -205,7 +206,7 @@ func (c *completer) addErrCheckAndReturn() {
 
 	var (
 		// errText is e.g. "err" in "foo, err := bar()".
-		errText = formatNode(c.snapshot.FileSet(), lastAssignee)
+		errText = source.FormatNode(c.snapshot.FileSet(), lastAssignee)
 
 		// Whether we need to include the "if" keyword in our candidate.
 		needsIf = true

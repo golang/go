@@ -152,7 +152,7 @@ outer:
 		nameStart, nameEnd = funcLit.Type.Func, funcLit.Type.Params.Pos()
 		kind = protocol.Function
 	}
-	rng, err := newMappedRange(snapshot.FileSet(), pgf.Mapper, nameStart, nameEnd).Range()
+	rng, err := NewMappedRange(snapshot.FileSet(), pgf.Mapper, nameStart, nameEnd).Range()
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
@@ -229,7 +229,7 @@ func collectCallExpressions(fset *token.FileSet, mapper *protocol.ColumnMapper, 
 
 	callRanges := []protocol.Range{}
 	for _, call := range callPositions {
-		callRange, err := newMappedRange(fset, mapper, call.start, call.end).Range()
+		callRange, err := NewMappedRange(fset, mapper, call.start, call.end).Range()
 		if err != nil {
 			return nil, err
 		}

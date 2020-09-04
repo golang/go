@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
@@ -304,11 +305,11 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	}
 	defer r.view.SetOptions(r.ctx, original)
 
-	list, surrounding, err := source.Completion(r.ctx, r.snapshot, fh, protocol.Position{
+	list, surrounding, err := completion.Completion(r.ctx, r.snapshot, fh, protocol.Position{
 		Line:      float64(src.Start().Line() - 1),
 		Character: float64(src.Start().Column() - 1),
 	}, "")
-	if err != nil && !errors.As(err, &source.ErrIsDefinition{}) {
+	if err != nil && !errors.As(err, &completion.ErrIsDefinition{}) {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
 	var prefix string
@@ -317,14 +318,14 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	}
 
 	var numDeepCompletionsSeen int
-	var items []source.CompletionItem
+	var items []completion.CompletionItem
 	// Apply deep completion filtering.
 	for _, item := range list {
 		if item.Depth > 0 {
 			if !modified.DeepCompletion {
 				continue
 			}
-			if numDeepCompletionsSeen >= source.MaxDeepCompletions {
+			if numDeepCompletionsSeen >= completion.MaxDeepCompletions {
 				continue
 			}
 			numDeepCompletionsSeen++

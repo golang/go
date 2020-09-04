@@ -20,7 +20,7 @@ import (
 // ReferenceInfo holds information about reference to an identifier in Go source.
 type ReferenceInfo struct {
 	Name string
-	mappedRange
+	MappedRange
 	ident         *ast.Ident
 	obj           types.Object
 	pkg           Package
@@ -78,7 +78,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 			return nil, err
 		}
 		references = append(references, &ReferenceInfo{
-			mappedRange:   ident.mappedRange,
+			MappedRange:   ident.MappedRange,
 			Name:          qos[0].obj.Name(),
 			ident:         ident.ident,
 			obj:           qos[0].obj,
@@ -118,7 +118,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					ident:       ident,
 					pkg:         pkg,
 					obj:         obj,
-					mappedRange: rng,
+					MappedRange: rng,
 				})
 			}
 		}

@@ -22,7 +22,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	ctx, done := event.Start(ctx, "source.Highlight")
 	defer done()
 
-	pkg, pgf, err := getParsedFile(ctx, snapshot, fh, WidestPackage)
+	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, WidestPackage)
 	if err != nil {
 		return nil, errors.Errorf("getting file for Highlight: %w", err)
 	}

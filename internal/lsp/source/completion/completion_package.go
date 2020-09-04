@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package source
+package completion
 
 import (
 	"context"
@@ -17,16 +17,17 @@ import (
 
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
 
 // packageClauseCompletions offers completions for a package declaration when
 // one is not present in the given file.
-func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
+func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
 	// We know that the AST for this file will be empty due to the missing
 	// package declaration, but parse it anyway to get a mapper.
-	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
+	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,7 +68,7 @@ func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHan
 // packageCompletionSurrounding returns surrounding for package completion if a
 // package completions can be suggested at a given position. A valid location
 // for package completion is above any declarations or import statements.
-func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh FileHandle, pgf *ParsedGoFile, pos token.Pos) (*Selection, error) {
+func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh source.FileHandle, pgf *source.ParsedGoFile, pos token.Pos) (*Selection, error) {
 	src, err := fh.Read()
 	if err != nil {
 		return nil, err
@@ -98,7 +99,7 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh F
 			return &Selection{
 				content:     name.Name,
 				cursor:      cursor,
-				mappedRange: newMappedRange(fset, m, name.Pos(), name.End()),
+				MappedRange: source.NewMappedRange(fset, m, name.Pos(), name.End()),
 			}, nil
 		}
 	}
@@ -135,7 +136,7 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh F
 				return &Selection{
 					content:     content,
 					cursor:      cursor,
-					mappedRange: newMappedRange(fset, m, start, end),
+					MappedRange: source.NewMappedRange(fset, m, start, end),
 				}, nil
 			}
 		}
@@ -162,7 +163,7 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh F
 	return &Selection{
 		content:     "",
 		cursor:      cursor,
-		mappedRange: newMappedRange(fset, m, start, end),
+		MappedRange: source.NewMappedRange(fset, m, start, end),
 	}, nil
 }
 
@@ -207,7 +208,7 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 // have the given prefix and are used in the the same directory as the given
 // file. This also includes test packages for these packages (<pkg>_test) and
 // the directory name itself.
-func packageSuggestions(ctx context.Context, snapshot Snapshot, fileURI span.URI, prefix string) ([]candidate, error) {
+func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) ([]candidate, error) {
 	workspacePackages, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
 		return nil, err

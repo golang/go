@@ -133,7 +133,8 @@ func computeImportEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFil
 	return allFixEdits, editsPerFix, nil
 }
 
-func computeOneImportFixEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
+// ComputeOneImportFixEdits returns text edits for a single import fix.
+func ComputeOneImportFixEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile, fix *imports.ImportFix) ([]protocol.TextEdit, error) {
 	options := &imports.Options{
 		LocalPrefix: snapshot.View().Options().LocalPrefix,
 		// Defaults.

@@ -135,7 +135,7 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 // generateAvailableIdentifier adjusts the new function name until there are no collisons in scope.
 // Possible collisions include other function and variable names.
 func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) string {
-	scopes := collectScopes(info, path, pos)
+	scopes := CollectScopes(info, path, pos)
 	name := prefix + fmt.Sprintf("%d", idx)
 	for file.Scope.Lookup(name) != nil || !isValidName(name, scopes) {
 		idx++
