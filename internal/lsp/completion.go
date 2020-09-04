@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -52,42 +53,41 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-
-	// Get the actual number of lines in source.
-	numLines := len(strings.Split(string(src), "\n"))
-
+	numLines := len(bytes.Split(src, []byte("\n")))
 	tok := snapshot.FileSet().File(surrounding.Start())
-	endOfFile := tok.Pos(tok.Size())
+	eof := tok.Pos(tok.Size())
 
 	// For newline-terminated files, the line count reported by go/token should
 	// be lower than the actual number of lines we see when splitting by \n. If
 	// they're the same, the file isn't newline-terminated.
-	if numLines == tok.LineCount() && tok.Size() != 0 {
-		// Get span for character before end of file to bypass span's treatment of end
-		// of file. We correct for this later.
-		spn, err := span.NewRange(snapshot.FileSet(), endOfFile-1, endOfFile-1).Span()
+	if tok.Size() > 0 && tok.LineCount() == numLines {
+		// Get the span for the last character in the file-1. This is
+		// technically incorrect, but will get span to point to the previous
+		// line.
+		spn, err := span.NewRange(snapshot.FileSet(), eof-1, eof-1).Span()
 		if err != nil {
 			return nil, err
 		}
 		m := &protocol.ColumnMapper{
 			URI:       fh.URI(),
-			Converter: span.NewContentConverter(fh.URI().Filename(), []byte(src)),
-			Content:   []byte(src),
+			Converter: span.NewContentConverter(fh.URI().Filename(), src),
+			Content:   src,
 		}
 		eofRng, err := m.Range(spn)
 		if err != nil {
 			return nil, err
 		}
-		eofPosition := protocol.Position{
-			Line: eofRng.Start.Line,
-			// Correct for using endOfFile - 1 earlier.
+		// Instead of using the computed range, correct for our earlier
+		// position adjustment by adding 1 to the column, not the line number.
+		pos := protocol.Position{
+			Line:      eofRng.Start.Line,
 			Character: eofRng.Start.Character + 1,
 		}
-		if surrounding.Start() == endOfFile {
-			rng.Start = eofPosition
+		if surrounding.Start() >= eof {
+			rng.Start = pos
 		}
-		if surrounding.End() == endOfFile {
-			rng.End = eofPosition
+		if surrounding.End() >= eof {
+			rng.End = pos
 		}
 	}
 

@@ -73,7 +73,6 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, fh s
 	if err != nil {
 		return nil, err
 	}
-
 	// If the file lacks a package declaration, the parser will return an empty
 	// AST. As a work-around, try to parse an expression from the file contents.
 	expr, _ := parser.ParseExprFrom(fset, fh.URI().Filename(), src, parser.Mode(0))

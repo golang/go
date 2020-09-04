@@ -6,8 +6,10 @@ package regtest
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -36,56 +38,91 @@ package
 
 -- fruits/testfile3.go --
 pac
-
--- fruits/testfile4.go --`
-	for _, testcase := range []struct {
+`
+	var (
+		testfile4 = ""
+		testfile5 = "/*a comment*/ "
+	)
+	for _, tc := range []struct {
 		name      string
 		filename  string
+		content   *string
 		line, col int
 		want      []string
 	}{
 		{
-			"package completion at valid position",
-			"fruits/testfile.go", 1, 0,
-			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:     "package completion at valid position",
+			filename: "fruits/testfile.go",
+			line:     1, col: 0,
+			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 		},
 		{
-			"package completion in a comment",
-			"fruits/testfile.go", 0, 5,
-			nil,
+			name:     "package completion in a comment",
+			filename: "fruits/testfile.go",
+			line:     0, col: 5,
+			want: nil,
 		},
 		{
-			"package completion at invalid position",
-			"fruits/testfile.go", 4, 0,
-			nil,
+			name:     "package completion at invalid position",
+			filename: "fruits/testfile.go",
+			line:     4, col: 0,
+			want: nil,
 		},
 		{
-			"package completion works after keyword 'package'",
-			"fruits/testfile2.go", 0, 7,
-			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:     "package completion after keyword 'package'",
+			filename: "fruits/testfile2.go",
+			line:     0, col: 7,
+			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 		},
 		{
-			"package completion works with a prefix for keyword 'package'",
-			"fruits/testfile3.go", 0, 3,
-			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:     "package completion with 'pac' prefix",
+			filename: "fruits/testfile3.go",
+			line:     0, col: 3,
+			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 		},
 		{
-			"package completion at end of file",
-			"fruits/testfile4.go", 0, 0,
-			[]string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:     "package completion at end of file",
+			filename: "fruits/testfile4.go",
+			line:     0, col: 0,
+			content: &testfile4,
+			want:    []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+		},
+		{
+			name:     "package completion without terminal newline",
+			filename: "fruits/testfile5.go",
+			line:     0, col: 14,
+			content: &testfile5,
+			want:    []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 		},
 	} {
-		t.Run(testcase.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			run(t, files, func(t *testing.T, env *Env) {
-				env.OpenFile(testcase.filename)
-				completions, err := env.Editor.Completion(env.Ctx, testcase.filename, fake.Pos{
-					Line:   testcase.line,
-					Column: testcase.col,
+				if tc.content != nil {
+					env.WriteWorkspaceFile(tc.filename, *tc.content)
+					env.Await(
+						CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+					)
+				}
+				env.OpenFile(tc.filename)
+				completions, err := env.Editor.Completion(env.Ctx, tc.filename, fake.Pos{
+					Line:   tc.line,
+					Column: tc.col,
 				})
 				if err != nil {
 					t.Fatal(err)
 				}
-				diff := compareCompletionResults(testcase.want, completions.Items)
+				// Check that the completion item suggestions are in the range
+				// of the file.
+				lineCount := len(strings.Split(env.Editor.BufferText(tc.filename), "\n"))
+				for _, item := range completions.Items {
+					if start := int(item.TextEdit.Range.Start.Line); start >= lineCount {
+						t.Fatalf("unexpected text edit range start line number: got %d, want less than %d", start, lineCount)
+					}
+					if end := int(item.TextEdit.Range.End.Line); end >= lineCount {
+						t.Fatalf("unexpected text edit range end line number: got %d, want less than %d", end, lineCount)
+					}
+				}
+				diff := compareCompletionResults(tc.want, completions.Items)
 				if diff != "" {
 					t.Error(diff)
 				}
