@@ -96,3 +96,29 @@ func ExampleWordDecoder_DecodeHeader() {
 	// ¡Hola, señor!
 	// HELLO WORLD!
 }
+
+func ExampleFormatMediaType() {
+	mediatype := "text/html"
+	params := map[string]string{
+		"charset": "utf-8",
+	}
+
+	result := mime.FormatMediaType(mediatype, params)
+
+	fmt.Println("result:", result)
+	// Output:
+	// result: text/html; charset=utf-8
+}
+
+func ExampleParseMediaType() {
+	mediatype, params, err := mime.ParseMediaType("text/html; charset=utf-8")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("type:", mediatype)
+	fmt.Println("charset:", params["charset"])
+	// Output:
+	// type: text/html
+	// charset: utf-8
+}
