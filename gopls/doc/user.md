@@ -130,6 +130,20 @@ supported within symbol queries:
 | `^`       | `^printf` | exact prefix |
 | `$`       | `printf$` | exact suffix |
 
+### Working on the Go source distribution
+
+If you are working on the [Go project](https://go.googlesource.com/go) itself, your `go` command will have to correspond to the version of the source you are working on. That is, if you have downloaded the code to `$HOME/go`, your `go` command should be the `$HOME/go/bin/go` executable that you built with `make.bash` or equivalent.
+
+You can achieve this by adding the right version of `go` to your `PATH` (`export PATH=$HOME/go/bin:$PATH` on Unix systems) or by configuring your editor. In VS Code, you can use the `go.alternateTools` setting to point to the correct version of `go`:
+
+```json5
+{
+
+    "go.alternateTools": {
+        "go": "$HOME/bin/go"
+    }
+}
+```
 
 ## Command line support
 
