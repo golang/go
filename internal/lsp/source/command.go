@@ -131,7 +131,7 @@ var (
 		Title:          "Extract to function",
 		suggestedFixFn: extractFunction,
 		appliesFn: func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) bool {
-			_, _, _, _, _, ok, _ := canExtractFunction(fset, rng, src, file, info)
+			_, ok, _ := canExtractFunction(fset, rng, src, file, info)
 			return ok
 		},
 	}

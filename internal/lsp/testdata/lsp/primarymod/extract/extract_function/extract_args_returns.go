@@ -5,6 +5,7 @@ func _() {
 	a = 5     //@mark(exSt0, "a")
 	a = a + 2 //@mark(exEn0, "2")
 	//@extractfunc(exSt0, exEn0)
-	b := a * 2
-	_ = 3 + 4
+	b := a * 2 //@mark(exB, "	b")
+	_ = 3 + 4  //@mark(exEnd, "4")
+	//@extractfunc(exB, exEnd)
 }
