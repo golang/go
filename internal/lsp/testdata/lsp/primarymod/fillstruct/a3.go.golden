@@ -1,0 +1,243 @@
+-- suggestedfix_a3_17_13 --
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{
+	X: &Foo{},
+	Y: &Foo{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a3_28_24 --
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{
+	m: map[*ast.CompositeLit]ast.Field{},
+	s: []ast.BadExpr{},
+	a: [3]token.Token{},
+	c: make(chan ast.EmptyStmt),
+	fn: func(ast_decl ast.DeclStmt) ast.Ellipsis {
+	},
+	st: ast.CompositeLit{},
+} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a3_36_30 --
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{
+	b: new(bool),
+	s: new(string),
+	i: new(int),
+} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a3_39_3 --
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{
+		ValuePos: 0,
+		Kind:     0,
+		Value:    "",
+	}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{}} //@suggestedfix("}", "refactor.rewrite")
+
+-- suggestedfix_a3_42_25 --
+package fillstruct
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+type Foo struct {
+	A int
+}
+
+type Bar struct {
+	X *Foo
+	Y *Foo
+}
+
+var _ = Bar{} //@suggestedfix("}", "refactor.rewrite")
+
+type importedStruct struct {
+	m  map[*ast.CompositeLit]ast.Field
+	s  []ast.BadExpr
+	a  [3]token.Token
+	c  chan ast.EmptyStmt
+	fn func(ast_decl ast.DeclStmt) ast.Ellipsis
+	st ast.CompositeLit
+}
+
+var _ = importedStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+type pointerBuiltinStruct struct {
+	b *bool
+	s *string
+	i *int
+}
+
+var _ = pointerBuiltinStruct{} //@suggestedfix("}", "refactor.rewrite")
+
+var _ = []ast.BasicLit{
+	{}, //@suggestedfix("}", "refactor.rewrite")
+}
+
+var _ = []ast.BasicLit{{
+	ValuePos: 0,
+	Kind:     0,
+	Value:    "",
+}} //@suggestedfix("}", "refactor.rewrite")
+
