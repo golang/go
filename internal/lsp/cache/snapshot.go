@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"io"
@@ -908,7 +907,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Ve
 
 		// Check if the file's package name or imports have changed,
 		// and if so, invalidate this file's packages' metadata.
-		invalidateMetadata := forceReloadMetadata || s.shouldInvalidateMetadata(ctx, originalFH, currentFH)
+		invalidateMetadata := forceReloadMetadata || s.shouldInvalidateMetadata(ctx, result, originalFH, currentFH)
 
 		// Invalidate the previous modTidyHandle if any of the files have been
 		// saved or if any of the metadata has been invalidated.
@@ -1088,7 +1087,7 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 
 // shouldInvalidateMetadata reparses a file's package and import declarations to
 // determine if the file requires a metadata reload.
-func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, currentFH source.FileHandle) bool {
+func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *snapshot, originalFH, currentFH source.FileHandle) bool {
 	if originalFH == nil {
 		return currentFH.Kind() == source.Go
 	}
@@ -1100,33 +1099,26 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 	if kind := originalFH.Kind(); kind == source.Mod {
 		return originalFH.URI() == s.view.modURI
 	}
-	// Get the original and current parsed files in order to check package name and imports.
-	// Use the direct parsing API to avoid modifying the snapshot we're cloning.
-	parse := func(fh source.FileHandle) (*ast.File, error) {
-		data, err := fh.Read()
-		if err != nil {
-			return nil, err
-		}
-		fset := token.NewFileSet()
-		return parser.ParseFile(fset, fh.URI().Filename(), data, parser.ImportsOnly)
-	}
-	original, originalErr := parse(originalFH)
-	current, currentErr := parse(currentFH)
+	// Get the original and current parsed files in order to check package name
+	// and imports. Use the new snapshot to parse to avoid modifying the
+	// current snapshot.
+	original, originalErr := newSnapshot.ParseGo(ctx, originalFH, source.ParseHeader)
+	current, currentErr := newSnapshot.ParseGo(ctx, currentFH, source.ParseHeader)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}
 	// Check if the package's metadata has changed. The cases handled are:
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
-	if original.Name.Name != current.Name.Name {
+	if original.File.Name.Name != current.File.Name.Name {
 		return true
 	}
 	importSet := make(map[string]struct{})
-	for _, importSpec := range original.Imports {
+	for _, importSpec := range original.File.Imports {
 		importSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
-	for _, importSpec := range current.Imports {
+	for _, importSpec := range current.File.Imports {
 		if _, ok := importSet[importSpec.Path.Value]; ok {
 			continue
 		}
