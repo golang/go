@@ -210,7 +210,7 @@ outer:
 			End:     typeErrEndPos,
 			Message: typeErr.Msg,
 			SuggestedFixes: []analysis.SuggestedFix{{
-				Message: "Fill with empty values",
+				Message: "Fill in return values",
 				TextEdits: []analysis.TextEdit{{
 					Pos:     ret.Pos(),
 					End:     ret.End(),
