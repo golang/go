@@ -82,7 +82,7 @@ func (c *copyChecker) check() {
 	// fail fast before doing atomic operation
 	if uintptr(*c) != uintptr(unsafe.Pointer(c)) &&
 		!atomic.CompareAndSwapUintptr((*uintptr)(c), 0, uintptr(unsafe.Pointer(c))) &&
-		// intentionally comparing agai, since *c may has changed after atomic operation
+		// intentionally comparing again, since *c may has changed after atomic operation
 		uintptr(*c) != uintptr(unsafe.Pointer(c)) {
 		panic("sync.Cond is copied")
 	}
