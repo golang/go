@@ -413,7 +413,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
 	}
 }
 
-func (check *Checker) recordInferred(call *ast.CallExpr, targs []Type, sig *Signature) {
+func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
 	assert(call != nil)
 	assert(sig != nil)
 	if m := check.Inferred; m != nil {

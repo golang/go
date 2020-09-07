@@ -188,8 +188,9 @@ type Info struct {
 
 	// Inferred maps calls of parameterized functions that use
 	// type inference to the inferred type arguments and signature
-	// of the function called.
-	Inferred map[*ast.CallExpr]Inferred
+	// of the function called. The recorded "call" expression may be
+	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
+	Inferred map[ast.Expr]Inferred
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).

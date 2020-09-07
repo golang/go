@@ -34,7 +34,7 @@ func _() {
 	// Reverse(nil) // this won't type-check
 
 	// A typed nil will work, though.
-	Reverse[[]int(nil)]
+	Reverse([]int(nil))
 }
 
 // Certain functions, such as the built-in `new` could be written using

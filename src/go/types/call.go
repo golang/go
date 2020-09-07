@@ -13,13 +13,24 @@ import (
 	"unicode"
 )
 
-func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
-	check.exprOrType(x, call.Fun)
+// If call == nil, the "call" was an index expression, and orig is of type *ast.IndexExpr.
+func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKind {
+	assert(orig != nil)
+	if call != nil {
+		assert(call == orig)
+		check.exprOrType(x, call.Fun)
+	} else {
+		// We must have an index expression.
+		// x has already been set up (evaluation of orig.X).
+		// Set up fake call so we can use its fields below.
+		expr := orig.(*ast.IndexExpr)
+		call = &ast.CallExpr{Fun: expr.X, Lparen: expr.Lbrack, Args: []ast.Expr{expr.Index}, Rparen: expr.Rbrack}
+	}
 
 	switch x.mode {
 	case invalid:
 		check.use(call.Args...)
-		x.expr = call
+		x.expr = orig
 		return statement
 
 	case typexpr:
@@ -55,7 +66,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			check.use(call.Args...)
 			check.errorf(call.Args[n-1].Pos(), "too many arguments in conversion to %s", T)
 		}
-		x.expr = call
+		x.expr = orig
 		return conversion
 
 	case builtin:
@@ -63,7 +74,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 		if !check.builtin(x, call, id) {
 			x.mode = invalid
 		}
-		x.expr = call
+		x.expr = orig
 		// a non-constant result implies a function call
 		if x.mode != invalid && x.mode != constant_ {
 			check.hasCallOrRecv = true
@@ -78,7 +89,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
 			x.mode = invalid
-			x.expr = call
+			x.expr = orig
 			return statement
 		}
 
@@ -93,7 +104,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
 				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
-				x.expr = call
+				x.expr = orig
 				return expression
 			}
 
@@ -104,7 +115,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 				if a.mode != typexpr {
 					// error was reported earlier
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				targs[i] = a.typ
@@ -112,13 +123,14 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			}
 
 			// if we don't have enough type arguments, use constraint type inference
+			var inferred bool
 			if n < len(sig.tparams) {
 				var failed int
 				targs, failed = check.inferB(sig.tparams, targs)
 				if targs == nil {
 					// error was already reported
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				if failed >= 0 {
@@ -128,7 +140,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 					ppos := check.fset.Position(tpar.pos).String()
 					check.errorf(call.Rparen, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				// all type arguments were inferred sucessfully
@@ -139,6 +151,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 				}
 				//check.dump("### inferred targs = %s", targs)
 				n = len(targs)
+				inferred = true
 			}
 			assert(n == len(sig.tparams))
 
@@ -153,11 +166,17 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
 			}
 			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
 			assert(res.tparams == nil) // signature is not generic anymore
+			if inferred {
+				check.recordInferred(orig, targs, res)
+			}
 			x.typ = res
 			x.mode = value
-			x.expr = call
+			x.expr = orig
 			return expression
 		}
+
+		// If we reach here, orig must have been a regular call, not an index expression.
+		assert(call == orig)
 
 		sig = check.arguments(call, sig, args)
 

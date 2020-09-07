@@ -50,6 +50,7 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 	}
 	conf := Config{
 		AcceptMethodTypeParams: true,
+		InferFromConstraints:   true,
 		Error:                  func(err error) {},
 		Importer:               importer.Default(),
 	}
@@ -382,15 +383,53 @@ func TestInferredInfo(t *testing.T) {
 			[]string{`int`},
 			`func(int)`,
 		},
+		// TODO(gri) fix method type parameter syntax below
 		{`package r1; type T interface{ m(type P any)(P) }; func _(x T) { x.m(4.2) }`,
 			`x.m`,
 			[]string{`float64`},
 			`func(float64)`,
 		},
+
+		{`package s1; func f[T any, P interface{type *T}](x T); func _(x string) { f(x) }`,
+			`f`,
+			[]string{`string`, `*string`},
+			`func(x string)`,
+		},
+		{`package s2; func f[T any, P interface{type *T}](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `*int`},
+			`func(x []int)`,
+		},
+		{`package s3; type C[T any] interface{type chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `chan<- int`},
+			`func(x []int)`,
+		},
+		{`package s4; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func(x []int)`,
+		},
+
+		{`package t1; func f[T any, P interface{type *T}]() T; func _() { _ = f[string] }`,
+			`f`,
+			[]string{`string`, `*string`},
+			`func() string`,
+		},
+		{`package t2; type C[T any] interface{type chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
+			`f`,
+			[]string{`int`, `chan<- int`},
+			`func() []int`,
+		},
+		{`package t3; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func() []int`,
+		},
 	}
 
 	for _, test := range tests {
-		info := Info{Inferred: make(map[*ast.CallExpr]Inferred)}
+		info := Info{Inferred: make(map[ast.Expr]Inferred)}
 		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
 		if err != nil {
 			t.Errorf("package %s: %v", name, err)
@@ -401,7 +440,16 @@ func TestInferredInfo(t *testing.T) {
 		var targs []Type
 		var sig *Signature
 		for call, inf := range info.Inferred {
-			if ExprString(call.Fun) == test.fun {
+			var fun ast.Expr
+			switch x := call.(type) {
+			case *ast.CallExpr:
+				fun = x.Fun
+			case *ast.IndexExpr:
+				fun = x.X
+			default:
+				panic(fmt.Sprintf("unexpected call expression type %T", call))
+			}
+			if ExprString(fun) == test.fun {
 				targs = inf.Targs
 				sig = inf.Sig
 				break

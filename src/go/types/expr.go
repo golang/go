@@ -1346,9 +1346,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			}
 
 			if sig := x.typ.Signature(); sig != nil {
-				// TODO(gri) should not evaluate e.X twice
-				call := &ast.CallExpr{Fun: e.X, Lparen: e.Lbrack, Args: []ast.Expr{e.Index}, Rparen: e.Rbrack}
-				return check.call(x, call)
+				return check.call(x, nil, e)
 			}
 		}
 
@@ -1599,7 +1597,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		x.typ = T
 
 	case *ast.CallExpr:
-		return check.call(x, e)
+		return check.call(x, e, e)
 
 	case *ast.StarExpr:
 		check.exprOrType(x, e.X)

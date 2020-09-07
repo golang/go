@@ -71,7 +71,7 @@ var _ types.ImporterFrom = &Importer{}
 func NewImporter(tmpdir string) *Importer {
 	info := &types.Info{
 		Types:    make(map[ast.Expr]types.TypeAndValue),
-		Inferred: make(map[*ast.CallExpr]types.Inferred),
+		Inferred: make(map[ast.Expr]types.Inferred),
 		Defs:     make(map[*ast.Ident]types.Object),
 		Uses:     make(map[*ast.Ident]types.Object),
 	}
