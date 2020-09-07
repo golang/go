@@ -24,7 +24,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		// x has already been set up (evaluation of orig.X).
 		// Set up fake call so we can use its fields below.
 		expr := orig.(*ast.IndexExpr)
-		call = &ast.CallExpr{Fun: expr.X, Lparen: expr.Lbrack, Args: []ast.Expr{expr.Index}, Rparen: expr.Rbrack}
+		call = &ast.CallExpr{Fun: expr.X, Lparen: expr.Lbrack, Args: []ast.Expr{expr.Index}, Rparen: expr.Rbrack, Brackets: true}
 	}
 
 	switch x.mode {
@@ -94,7 +94,16 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		}
 
 		// evaluate arguments
-		args, _ := check.exprOrTypeList(call.Args)
+		args, ok := check.exprOrTypeList(call.Args)
+		if ok && call.Brackets && len(args) > 0 && args[0].mode != typexpr {
+			check.errorf(args[0].pos(), "%s is not a type", args[0])
+			ok = false
+		}
+		if !ok {
+			x.mode = invalid
+			x.expr = orig
+			return expression
+		}
 
 		// instantiate function if needed
 		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
@@ -176,7 +185,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
 		}
 
 		// If we reach here, orig must have been a regular call, not an index expression.
-		assert(call == orig)
+		assert(!call.Brackets)
 
 		sig = check.arguments(call, sig, args)
 

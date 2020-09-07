@@ -245,3 +245,11 @@ func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
 var f           func()
 var cancelSlice []context.CancelFunc
 var _ = append(context.CancelFunc, []context.CancelFunc, context.CancelFunc)(cancelSlice, f)
+
+// A generic function must be instantiated with a type, not a value.
+
+func g[T any](T) T
+
+var _ = g[int]
+var _ = g[nil /* ERROR is not a type */ ]
+var _ = g(0)
