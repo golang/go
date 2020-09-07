@@ -1616,7 +1616,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 			}
 			n1.exprfmt(s, nprec, mode)
 		}
-
+	case ODDD:
+		mode.Fprintf(s, "...")
 	default:
 		mode.Fprintf(s, "<node %v>", n.Op)
 	}
