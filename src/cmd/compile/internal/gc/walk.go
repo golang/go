@@ -232,7 +232,11 @@ func walkstmt(n *Node) *Node {
 			n.Left = copyany(n.Left, &n.Ninit, true)
 
 		default:
-			n.Left = walkexpr(n.Left, &n.Ninit)
+			if n.Left.NeedsWrapper() {
+				n.Left = wrapCall(n.Left, &n.Ninit)
+			} else {
+				n.Left = walkexpr(n.Left, &n.Ninit)
+			}
 		}
 
 	case OFOR, OFORUNTIL:
@@ -3857,6 +3861,14 @@ func candiscard(n *Node) bool {
 //		builtin(a1, a2, a3)
 //	}(x, y, z)
 // for print, println, and delete.
+//
+// Rewrite
+//	go f(x, y, uintptr(unsafe.Pointer(z)))
+// into
+//	go func(a1, a2, a3) {
+//		builtin(a1, a2, uintptr(a3))
+//	}(x, y, unsafe.Pointer(z))
+// for function contains unsafe-uintptr arguments.
 
 var wrapCall_prgen int
 
@@ -3868,9 +3880,17 @@ func wrapCall(n *Node, init *Nodes) *Node {
 		init.AppendNodes(&n.Ninit)
 	}
 
+	isBuiltinCall := n.Op != OCALLFUNC && n.Op != OCALLMETH && n.Op != OCALLINTER
+	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
+	origArgs := make([]*Node, n.List.Len())
 	t := nod(OTFUNC, nil, nil)
 	for i, arg := range n.List.Slice() {
 		s := lookupN("a", i)
+		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.Etype == TUNSAFEPTR {
+			origArgs[i] = arg
+			arg = arg.Left
+			n.List.SetIndex(i, arg)
+		}
 		t.List.Append(symfield(s, arg.Type))
 	}
 
@@ -3878,10 +3898,22 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	sym := lookupN("wrap·", wrapCall_prgen)
 	fn := dclfunc(sym, t)
 
-	a := nod(n.Op, nil, nil)
-	a.List.Set(paramNnames(t.Type))
-	a = typecheck(a, ctxStmt)
-	fn.Nbody.Set1(a)
+	args := paramNnames(t.Type)
+	for i, origArg := range origArgs {
+		if origArg == nil {
+			continue
+		}
+		arg := nod(origArg.Op, args[i], nil)
+		arg.Type = origArg.Type
+		args[i] = arg
+	}
+	call := nod(n.Op, nil, nil)
+	if !isBuiltinCall {
+		call.Op = OCALL
+		call.Left = n.Left
+	}
+	call.List.Set(args)
+	fn.Nbody.Set1(call)
 
 	funcbody()
 
@@ -3889,12 +3921,12 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	typecheckslice(fn.Nbody.Slice(), ctxStmt)
 	xtop = append(xtop, fn)
 
-	a = nod(OCALL, nil, nil)
-	a.Left = fn.Func.Nname
-	a.List.Set(n.List.Slice())
-	a = typecheck(a, ctxStmt)
-	a = walkexpr(a, init)
-	return a
+	call = nod(OCALL, nil, nil)
+	call.Left = fn.Func.Nname
+	call.List.Set(n.List.Slice())
+	call = typecheck(call, ctxStmt)
+	call = walkexpr(call, init)
+	return call
 }
 
 // substArgTypes substitutes the given list of types for

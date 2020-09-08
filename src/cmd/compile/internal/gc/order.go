@@ -502,6 +502,7 @@ func (o *Order) call(n *Node) {
 			x := o.copyExpr(arg.Left, arg.Left.Type, false)
 			x.Name.SetKeepalive(true)
 			arg.Left = x
+			n.SetNeedsWrapper(true)
 		}
 	}
 
