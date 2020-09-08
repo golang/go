@@ -42,7 +42,7 @@ func packageClauseCompletions(ctx context.Context, snapshot Snapshot, fh FileHan
 
 	surrounding, err := packageCompletionSurrounding(ctx, snapshot.FileSet(), fh, pgf, rng.Start)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid position for package completion: %w", err)
+		return nil, nil, errors.Errorf("invalid position for package completion: %w", err)
 	}
 
 	packageSuggestions, err := packageSuggestions(ctx, snapshot, fh.URI(), "")
