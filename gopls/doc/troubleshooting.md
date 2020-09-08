@@ -1,6 +1,8 @@
 # Troubleshooting
 
-If you see a gopls error or crash, or gopls just stops working, please follow the troubleshooting steps below.
+If you suspect that `gopls` is crashing or not working correctly, please follow the [troubleshooting steps](#steps) below.
+
+If `gopls` is using too much memory, please follow the steps under [Memory usage](#memory-usage).
 
 ## Steps
 
@@ -17,6 +19,7 @@ describe more basic and optional trouble shooting steps
 ## File an issue
 
 You can use:
+
 * Your editor's bug submission integration (if available). For instance, `:GoReportGitHubIssue` in [`vim-go`](vim.md#vim-go).
 * `gopls bug` on the command line.
 * The [Go issue tracker](https://github.com/golang/go/issues/new?title=x%2Ftools%2Fgopls%3A%20%3Cfill%20this%20in%3E).
@@ -68,3 +71,15 @@ If you are unsure of how to pass a flag to `gopls` through your editor, please s
 ### Restart your editor
 
 Once you have filed an issue, you can then try to restart your `gopls` instance by restarting your editor. In many cases, this will correct the problem. In VSCode, the easiest way to restart the language server is by opening the command palette (Ctrl + Shift + P) and selecting `"Go: Restart Language Server"`. You can also reload the VSCode instance by selecting `"Developer: Reload Window"`.
+
+## Memory usage
+
+`gopls` automatically writes out memory debug information when your usage
+exceeds 1GB. This information can be found in your temporary directory with
+names like `gopls.1234-5GiB-withnames.zip`. On Windows, your temporary
+directory will be located at `%TMP%`, and on Unixes, it will be `$TMPDIR`,
+which is usually `/tmp`. Please create a
+[new issue](https://github.com/golang/go/issues/new?title=x%2Ftools%2Fgopls%3A%20%3Cfill%20this%20in%3E)
+with your editor settings and memory debug information attached. If you are
+uncomfortable sharing the package names of your code, you can share the
+`-nonames` zip instead.
