@@ -164,7 +164,6 @@ func (s *snapshot) configWithDir(ctx context.Context, dir string) *packages.Conf
 		cfg.Mode |= packages.LoadMode(packagesinternal.TypecheckCgo)
 	}
 	packagesinternal.SetGoCmdRunner(cfg, s.view.session.gocmdRunner)
-
 	return cfg
 }
 
@@ -217,6 +216,19 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config
 			return "", nil, nil, cleanup, err
 		}
 		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
+	}
+	if s.view.modURI != "" && verb != "mod" && verb != "get" {
+		modFH, err := s.GetFile(ctx, s.view.modURI)
+		if err != nil {
+			return "", nil, nil, cleanup, err
+		}
+		modMod, err := s.view.needsModEqualsMod(ctx, modFH)
+		if err != nil {
+			return "", nil, nil, cleanup, err
+		}
+		if modMod {
+			cfg.BuildFlags = append([]string{"-mod=mod"}, cfg.BuildFlags...)
+		}
 	}
 	runner = packagesinternal.GetGoCmdRunner(cfg)
 	return tmpURI, runner, &gocommand.Invocation{

@@ -91,6 +91,22 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	cfg := s.config(ctx)
 
 	cleanup := func() {}
+	
+	var modFH, sumFH source.FileHandle
+	var err error
+	if s.view.modURI != "" {
+		modFH, err = s.GetFile(ctx, s.view.modURI)
+		if err != nil {
+			return err
+		}
+	}
+	if s.view.sumURI != "" {
+		sumFH, err = s.GetFile(ctx, s.view.sumURI)
+		if err != nil {
+			return err
+		}
+	}
+
 	switch {
 	case s.view.workspaceMode&workspaceModule != 0:
 		var (
@@ -103,17 +119,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 		cfg.Dir = tmpDir.Filename()
 	case s.view.workspaceMode&tempModfile != 0:
-		modFH, err := s.GetFile(ctx, s.view.modURI)
-		if err != nil {
-			return err
-		}
-		var sumFH source.FileHandle
-		if s.view.sumURI != "" {
-			sumFH, err = s.GetFile(ctx, s.view.sumURI)
-			if err != nil {
-				return err
-			}
-		}
 		var tmpURI span.URI
 		tmpURI, cleanup, err = tempModFile(modFH, sumFH)
 		if err != nil {
@@ -121,6 +126,15 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		}
 		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
+
+	modMod, err := s.view.needsModEqualsMod(ctx, modFH)
+	if err != nil {
+		return err
+	}
+	if modMod {
+		cfg.BuildFlags = append([]string{"-mod=mod"}, cfg.BuildFlags...)
+	}
+
 	pkgs, err := packages.Load(cfg, query...)
 	cleanup()
 

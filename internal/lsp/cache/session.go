@@ -201,7 +201,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// Set the module-specific information.
-	if err := v.setBuildInformation(ctx, folder, options); err != nil {
+	if err := v.setBuildInformation(ctx, options); err != nil {
 		return nil, nil, func() {}, err
 	}
 

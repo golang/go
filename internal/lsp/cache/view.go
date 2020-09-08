@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,16 +17,17 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/keys"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
@@ -132,6 +134,9 @@ type View struct {
 
 	// The real go.mod and go.sum files that are attributed to a view.
 	modURI, sumURI span.URI
+
+	// The Go version in use: X in Go 1.X.
+	goversion int
 
 	// workspaceMode describes the way in which the view's workspace should be
 	// loaded.
@@ -463,6 +468,20 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 	}
 	v.optionsMu.Unlock()
 
+	pe.Env = map[string]string{}
+	for k, v := range v.goEnv {
+		pe.Env[k] = v
+	}
+	modmod, err := v.needsModEqualsMod(ctx, modFH)
+	if err != nil {
+		return cleanup, err
+	}
+	if modmod {
+		// -mod isn't really a build flag, but we can get away with it given
+		// the set of commands that goimports wants to run.
+		pe.BuildFlags = append([]string{"-mod=mod"}, pe.BuildFlags...)
+	}
+
 	// Add -modfile to the build flags, if we are using it.
 	if v.workspaceMode&tempModfile != 0 && modFH != nil {
 		var tmpURI span.URI
@@ -765,9 +784,14 @@ func (v *View) maybeReinitialize() {
 	v.initializeOnce = &once
 }
 
-func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options source.Options) error {
-	if err := checkPathCase(folder.Filename()); err != nil {
+func (v *View) setBuildInformation(ctx context.Context, options source.Options) error {
+	if err := checkPathCase(v.Folder().Filename()); err != nil {
 		return errors.Errorf("invalid workspace configuration: %w", err)
+	}
+	var err error
+	v.goversion, err = v.goVersion(ctx, v.Options().Env)
+	if err != nil {
+		return err
 	}
 	// Make sure to get the `go env` before continuing with initialization.
 	modFile, err := v.setGoEnv(ctx, options.Env)
@@ -793,9 +817,7 @@ func (v *View) setBuildInformation(ctx context.Context, folder span.URI, options
 		return nil
 	}
 	v.workspaceMode = standard
-	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {
-		return err
-	} else if modfileFlag {
+	if v.goversion >= 14 {
 		v.workspaceMode |= tempModfile
 	}
 	return nil
@@ -945,26 +967,66 @@ func globsMatchPath(globs, target string) bool {
 
 // This function will return the main go.mod file for this folder if it exists
 // and whether the -modfile flag exists for this version of go.
-func (v *View) modfileFlagExists(ctx context.Context, env []string) (bool, error) {
+func (v *View) goVersion(ctx context.Context, env []string) (int, error) {
 	// Check the go version by running "go list" with modules off.
 	// Borrowed from internal/imports/mod.go:620.
-	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
-	folder := v.folder.Filename()
+	const format = `{{context.ReleaseTags}}`
 	inv := gocommand.Invocation{
 		Verb:       "list",
 		Args:       []string{"-e", "-f", format},
 		Env:        append(env, "GO111MODULE=off"),
 		WorkingDir: v.root.Filename(),
 	}
-	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
+	stdoutBytes, err := v.session.gocmdRunner.Run(ctx, inv)
+	if err != nil {
+		return 0, err
+	}
+	stdout := stdoutBytes.String()
+	if len(stdout) < 3 {
+		return 0, fmt.Errorf("bad ReleaseTags output: %q", stdout)
+	}
+	// Split up "[go1.1 go1.15]"
+	tags := strings.Fields(stdout[1 : len(stdout)-2])
+	for i := len(tags) - 1; i >= 0; i-- {
+		var version int
+		if _, err := fmt.Sscanf(build.Default.ReleaseTags[i], "go1.%d", &version); err != nil {
+			continue
+		}
+		return version, nil
+	}
+	return 0, fmt.Errorf("no parseable ReleaseTags in %v", tags)
+}
+
+var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
+
+func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (bool, error) {
+	if v.goversion < 16 || modFH == nil {
+		return false, nil
+	}
+
+	matches := modFlagRegexp.FindStringSubmatch(v.goEnv["GOFLAGS"])
+	var modFlag string
+	if len(matches) != 0 {
+		modFlag = matches[1]
+	}
+	if modFlag != "" {
+		// Don't override an explicit '-mod=vendor' argument.
+		// We do want to override '-mod=readonly': it would break various module code lenses,
+		// and on 1.16 we know -modfile is available, so we won't mess with go.mod anyway.
+		return modFlag == "vendor", nil
+	}
+
+	modBytes, err := modFH.Read()
 	if err != nil {
 		return false, err
 	}
-	// If the output is not go1.14 or an empty string, then it could be an error.
-	lines := strings.Split(stdout.String(), "\n")
-	if len(lines) < 2 && stdout.String() != "" {
-		event.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), tag.Directory.Of(folder))
-		return false, nil
+	modFile, err := modfile.Parse(modFH.URI().Filename(), modBytes, nil)
+	if err != nil {
+		return false, err
 	}
-	return lines[0] == "go1.14", nil
+	if fi, err := os.Stat(filepath.Join(filepath.Dir(v.modURI.Filename()), "vendor")); err != nil || !fi.IsDir() {
+		return true, nil
+	}
+	vendorEnabled := modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
+	return !vendorEnabled, nil
 }
