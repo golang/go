@@ -571,7 +571,7 @@ func setDefaultBuildMod() {
 		return
 	}
 	if modRoot == "" {
-		cfg.BuildMod = "mod"
+		cfg.BuildMod = "readonly"
 		return
 	}
 
@@ -594,13 +594,7 @@ func setDefaultBuildMod() {
 		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s, so vendor directory was not used.", modGo)
 	}
 
-	p := ModFilePath()
-	if fi, err := os.Stat(p); err == nil && !hasWritePerm(p, fi) {
-		cfg.BuildMod = "readonly"
-		cfg.BuildModReason = "go.mod file is read-only."
-		return
-	}
-	cfg.BuildMod = "mod"
+	cfg.BuildMod = "readonly"
 }
 
 func legacyModInit() {
@@ -898,10 +892,12 @@ func WriteGoMod() {
 	if dirty && cfg.BuildMod == "readonly" {
 		// If we're about to fail due to -mod=readonly,
 		// prefer to report a dirty go.mod over a dirty go.sum
-		if cfg.BuildModReason != "" {
-			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
-		} else if cfg.BuildModExplicit {
+		if cfg.BuildModExplicit {
 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+		} else if cfg.BuildModReason != "" {
+			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
+		} else {
+			base.Fatalf("go: updates to go.mod needed; try 'go mod tidy' first")
 		}
 	}
 

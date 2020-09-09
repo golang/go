@@ -2613,72 +2613,63 @@
 //
 // Maintaining module requirements
 //
-// The go.mod file is meant to be readable and editable by both
-// programmers and tools. The go command itself automatically updates the go.mod file
-// to maintain a standard formatting and the accuracy of require statements.
+// The go.mod file is meant to be readable and editable by both programmers and
+// tools. Most updates to dependencies can be performed using "go get" and
+// "go mod tidy". Other module-aware build commands may be invoked using the
+// -mod=mod flag to automatically add missing requirements and fix inconsistencies.
 //
-// Any go command that finds an unfamiliar import will look up the module
-// containing that import and add the latest version of that module
-// to go.mod automatically. In most cases, therefore, it suffices to
-// add an import to source code and run 'go build', 'go test', or even 'go list':
-// as part of analyzing the package, the go command will discover
-// and resolve the import and update the go.mod file.
+// The "go get" command updates go.mod to change the module versions used in a
+// build. An upgrade of one module may imply upgrading others, and similarly a
+// downgrade of one module may imply downgrading others. The "go get" command
+// makes these implied changes as well. See "go help module-get".
 //
-// Any go command can determine that a module requirement is
-// missing and must be added, even when considering only a single
-// package from the module. On the other hand, determining that a module requirement
-// is no longer necessary and can be deleted requires a full view of
-// all packages in the module, across all possible build configurations
-// (architectures, operating systems, build tags, and so on).
-// The 'go mod tidy' command builds that view and then
-// adds any missing module requirements and removes unnecessary ones.
+// The "go mod" command provides other functionality for use in maintaining
+// and understanding modules and go.mod files. See "go help mod", particularly
+// "go help mod tidy" and "go help mod edit".
 //
 // As part of maintaining the require statements in go.mod, the go command
 // tracks which ones provide packages imported directly by the current module
 // and which ones provide packages only used indirectly by other module
 // dependencies. Requirements needed only for indirect uses are marked with a
-// "// indirect" comment in the go.mod file. Indirect requirements are
+// "// indirect" comment in the go.mod file. Indirect requirements may be
 // automatically removed from the go.mod file once they are implied by other
 // direct requirements. Indirect requirements only arise when using modules
 // that fail to state some of their own dependencies or when explicitly
 // upgrading a module's dependencies ahead of its own stated requirements.
 //
-// Because of this automatic maintenance, the information in go.mod is an
-// up-to-date, readable description of the build.
+// The -mod build flag provides additional control over the updating and use of
+// go.mod for commands that build packages like "go build" and "go test".
 //
-// The 'go get' command updates go.mod to change the module versions used in a
-// build. An upgrade of one module may imply upgrading others, and similarly a
-// downgrade of one module may imply downgrading others. The 'go get' command
-// makes these implied changes as well. If go.mod is edited directly, commands
-// like 'go build' or 'go list' will assume that an upgrade is intended and
-// automatically make any implied upgrades and update go.mod to reflect them.
+// If invoked with -mod=readonly (the default in most situations), the go command
+// reports an error if a package named on the command line or an imported package
+// is not provided by any module in the build list computed from the main module's
+// requirements. The go command also reports an error if a module's checksum is
+// missing from go.sum (see Module downloading and verification). Either go.mod or
+// go.sum must be updated in these situations.
 //
-// The 'go mod' command provides other functionality for use in maintaining
-// and understanding modules and go.mod files. See 'go help mod'.
-//
-// The -mod build flag provides additional control over updating and use of go.mod.
-//
-// If invoked with -mod=readonly, the go command is disallowed from the implicit
-// automatic updating of go.mod described above. Instead, it fails when any changes
-// to go.mod are needed. This setting is most useful to check that go.mod does
-// not need updates, such as in a continuous integration and testing system.
-// The "go get" command remains permitted to update go.mod even with -mod=readonly,
-// and the "go mod" commands do not take the -mod flag (or any other build flags).
+// If invoked with -mod=mod, the go command automatically updates go.mod and
+// go.sum, fixing inconsistencies and adding missing requirements and checksums
+// as needed. If the go command finds an unfamiliar import, it looks up the
+// module containing that import and adds a requirement for the latest version
+// of that module to go.mod. In most cases, therefore, one may add an import to
+// source code and run "go build", "go test", or even "go list" with -mod=mod:
+// as part of analyzing the package, the go command will resolve the import and
+// update the go.mod file.
 //
 // If invoked with -mod=vendor, the go command loads packages from the main
 // module's vendor directory instead of downloading modules to and loading packages
 // from the module cache. The go command assumes the vendor directory holds
 // correct copies of dependencies, and it does not compute the set of required
 // module versions from go.mod files. However, the go command does check that
-// vendor/modules.txt (generated by 'go mod vendor') contains metadata consistent
+// vendor/modules.txt (generated by "go mod vendor") contains metadata consistent
 // with go.mod.
 //
-// If invoked with -mod=mod, the go command loads modules from the module cache
-// even if there is a vendor directory present.
+// If the go command is not invoked with a -mod flag, and the vendor directory
+// is present, and the "go" version in go.mod is 1.14 or higher, the go command
+// will act as if it were invoked with -mod=vendor. Otherwise, the -mod flag
+// defaults to -mod=readonly.
 //
-// If the go command is not invoked with a -mod flag and the vendor directory
-// is present and the "go" version in go.mod is 1.14 or higher, the go command
-// will act as if it were invoked with -mod=vendor.
+// Note that neither "go get" nor the "go mod" subcommands accept the -mod flag.
 //
 // Pseudo-versions
 //
