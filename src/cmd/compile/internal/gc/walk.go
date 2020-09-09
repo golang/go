@@ -958,11 +958,11 @@ opswitch:
 	case OCONV, OCONVNOP:
 		n.Left = walkexpr(n.Left, init)
 		if n.Op == OCONVNOP && checkPtr(Curfn, 1) {
-			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
+			if n.Type.IsPtr() && n.Left.Type.IsUnsafePtr() { // unsafe.Pointer to *T
 				n = walkCheckPtrAlignment(n, init, nil)
 				break
 			}
-			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
+			if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
 				n = walkCheckPtrArithmetic(n, init)
 				break
 			}
@@ -1127,7 +1127,7 @@ opswitch:
 		n.List.SetSecond(walkexpr(n.List.Second(), init))
 
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
-		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.Etype == TUNSAFEPTR
+		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.IsUnsafePtr()
 		if checkSlice {
 			n.Left.Left = walkexpr(n.Left.Left, init)
 		} else {
@@ -3886,7 +3886,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	t := nod(OTFUNC, nil, nil)
 	for i, arg := range n.List.Slice() {
 		s := lookupN("a", i)
-		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.Etype == TUNSAFEPTR {
+		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.IsUnsafePtr() {
 			origArgs[i] = arg
 			arg = arg.Left
 			n.List.SetIndex(i, arg)
@@ -4041,7 +4041,7 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 				walk(n.Left)
 			}
 		case OCONVNOP:
-			if n.Left.Type.Etype == TUNSAFEPTR {
+			if n.Left.Type.IsUnsafePtr() {
 				n.Left = cheapexpr(n.Left, init)
 				originals = append(originals, convnop(n.Left, types.Types[TUNSAFEPTR]))
 			}

@@ -781,12 +781,12 @@ func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	}
 
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
-	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
+	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.IsUnsafePtr() {
 		return OCONVNOP
 	}
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
-	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
+	if src.IsUnsafePtr() && (dst.IsPtr() || dst.Etype == TUINTPTR) {
 		return OCONVNOP
 	}
 
