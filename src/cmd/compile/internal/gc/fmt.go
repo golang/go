@@ -1407,7 +1407,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 				return
 			}
 			if n.Right != nil {
-				mode.Fprintf(s, "%v literal", n.Right)
+				mode.Fprintf(s, "%v{%s}", n.Right, ellipsisIf(n.List.Len() != 0))
 				return
 			}
 
@@ -1421,7 +1421,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		if mode == FErr {
-			mode.Fprintf(s, "%v literal", n.Type)
+			mode.Fprintf(s, "%v{%s}", n.Type, ellipsisIf(n.List.Len() != 0))
 			return
 		}
 		mode.Fprintf(s, "(%v{ %.v })", n.Type, n.List)
@@ -1933,4 +1933,11 @@ func indent(s fmt.State) {
 	for i := 0; i < dumpdepth; i++ {
 		fmt.Fprint(s, ".   ")
 	}
+}
+
+func ellipsisIf(b bool) string {
+	if b {
+		return "..."
+	}
+	return ""
 }

@@ -12,5 +12,5 @@ type Foo struct {
 
 func main() {
 	var s []int
-	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(type untyped string\) as type int in field value" "cannot use Foo literal \(type Foo\) as type int in append" "cannot use append\(s\, Foo literal\) \(type \[\]int\) as type string in assignment"
+	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(type untyped string\) as type int in field value" "cannot use Foo{...} \(type Foo\) as type int in append" "cannot use append\(s\, Foo{...}\) \(type \[\]int\) as type string in assignment"
 }

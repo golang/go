@@ -127,20 +127,20 @@ func field12() {
 
 func field13() {
 	i := 0          // ERROR "moved to heap: i$"
-	x := &X{p1: &i} // ERROR "&X literal does not escape$"
+	x := &X{p1: &i} // ERROR "&X{...} does not escape$"
 	sink = x.p1
 }
 
 func field14() {
 	i := 0 // ERROR "moved to heap: i$"
 	// BAD: &i should not escape
-	x := &X{p1: &i} // ERROR "&X literal does not escape$"
+	x := &X{p1: &i} // ERROR "&X{...} does not escape$"
 	sink = x.p2
 }
 
 func field15() {
 	i := 0          // ERROR "moved to heap: i$"
-	x := &X{p1: &i} // ERROR "&X literal escapes to heap$"
+	x := &X{p1: &i} // ERROR "&X{...} escapes to heap$"
 	sink = x
 }
 

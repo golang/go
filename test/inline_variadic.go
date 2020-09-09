@@ -14,6 +14,6 @@ func head(xs ...string) string { // ERROR "can inline head" "leaking param: xs t
 }
 
 func f() string { // ERROR "can inline f"
-	x := head("hello", "world") // ERROR "inlining call to head" "\[\]string literal does not escape"
+	x := head("hello", "world") // ERROR "inlining call to head" "\[\]string{...} does not escape"
 	return x
 }
