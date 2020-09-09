@@ -360,7 +360,11 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		}
 
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			pg := mheap_.pages.chunkOf(i).scavenged.popcntRange(0, pallocChunkPages)
+			chunk := mheap_.pages.tryChunkOf(i)
+			if chunk == nil {
+				continue
+			}
+			pg := chunk.scavenged.popcntRange(0, pallocChunkPages)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 		for _, p := range allp {
@@ -758,11 +762,7 @@ func (p *PageAlloc) InUse() []AddrRange {
 // Returns nil if the PallocData's L2 is missing.
 func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
 	ci := chunkIdx(i)
-	l2 := (*pageAlloc)(p).chunks[ci.l1()]
-	if l2 == nil {
-		return nil
-	}
-	return (*PallocData)(&l2[ci.l2()])
+	return (*PallocData)((*pageAlloc)(p).tryChunkOf(ci))
 }
 
 // AddrRange represents a range over addresses.
@@ -902,7 +902,10 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 		lock(&mheap_.lock)
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			chunk := mheap_.pages.chunkOf(i)
+			chunk := mheap_.pages.tryChunkOf(i)
+			if chunk == nil {
+				continue
+			}
 			for j := 0; j < pallocChunkPages/64; j++ {
 				// Run over each 64-bit bitmap section and ensure
 				// scavenged is being cleared properly on allocation.
