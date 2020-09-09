@@ -1,3 +1,6 @@
+# Populate go.sum
+go mod download
+
 # go list should succeed to load a package ending with ".go" if the path does
 # not correspond to an existing local file. Listing a pattern ending with
 # ".go/" should try to list a package regardless of whether a file exists at the

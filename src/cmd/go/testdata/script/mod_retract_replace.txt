@@ -1,6 +1,9 @@
 # If the latest unretracted version of a module is replaced, 'go list' should
 # obtain retractions from the replacement.
 
+# Populate go.sum.
+go get -d
+
 # The latest version, v1.9.0, is not available on the proxy.
 ! go list -m -retracted example.com/retract/missingmod
 stderr '^go list -m: loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
@@ -24,9 +27,9 @@ go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
 go list -m -retracted -f '{{if .Replace}}replaced{{end}}' example.com/retract
 ! stdout .
 go mod edit -replace example.com/retract@v1.0.0-good=example.com/retract@v1.0.0-bad
-go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
+go list -m -mod=mod -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
 stdout '^bad$'
-go list -m -retracted -f '{{with .Replace}}{{range .Retracted}}{{.}}{{end}}{{end}}' example.com/retract
+go list -m -mod=mod -retracted -f '{{with .Replace}}{{range .Retracted}}{{.}}{{end}}{{end}}' example.com/retract
 stdout '^bad$'
 
 -- go.mod --
@@ -37,6 +40,13 @@ go 1.14
 require (
 	example.com/retract v1.0.0-good
 	example.com/retract/missingmod v1.0.0
+)
+-- use.go --
+package use
+
+import (
+	_ "example.com/retract"
+	_ "example.com/retract/missingmod"
 )
 -- missingmod-v1.0.0/go.mod --
 module example.com/retract/missingmod

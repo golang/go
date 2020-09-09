@@ -6,6 +6,7 @@ env GO111MODULE=on
 cd x
 go mod edit -require=rsc.io/quote@v1.5.2
 go mod edit -replace=rsc.io/quote@v1.5.2=rsc.io/quote@v1.0.0
+go mod tidy # populate go.sum
 
 # Build a binary and ensure that it can output its own debug info.
 # The debug info should be accessible before main starts (golang.org/issue/29628).

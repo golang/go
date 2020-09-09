@@ -1,6 +1,7 @@
 # go doc should find module documentation
 
 env GO111MODULE=on
+env GOFLAGS=-mod=mod
 [short] skip
 
 # Check when module x is inside GOPATH/src.
@@ -48,6 +49,7 @@ stderr '^doc: cannot find module providing package example.com/hello: module loo
 # path used in source code, not to the absolute path relative to GOROOT.
 
 cd $GOROOT/src
+env GOFLAGS=
 go doc cryptobyte
 stdout '// import "golang.org/x/crypto/cryptobyte"'
 

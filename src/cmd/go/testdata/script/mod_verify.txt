@@ -56,7 +56,7 @@ go mod tidy
 # Packages below module root should not be mentioned in go.sum.
 rm go.sum
 go mod edit -droprequire rsc.io/quote
-go list rsc.io/quote/buggy # re-resolves import path and updates go.mod
+go get -d rsc.io/quote/buggy
 grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
 ! grep buggy go.sum
 

@@ -5,14 +5,14 @@ env GO111MODULE=on
 env GOPROXY=direct
 
 cd empty
-! go list launchpad.net/gocheck
+! go get -d launchpad.net/gocheck
 stderr '"bzr": executable file not found'
 cd ..
 
 # 1.11 used to give the cryptic error "cannot find module for path" here, but
 # only for a main package.
 cd main
-! go build
+! go build -mod=mod
 stderr '"bzr": executable file not found'
 cd ..
 
