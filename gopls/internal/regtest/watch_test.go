@@ -618,3 +618,89 @@ func main() {
 		)
 	})
 }
+
+func TestNewSymbolInTestVariant(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- a/a.go --
+package a
+
+func bob() {}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestBob(t *testing.T) {
+	bob()
+}
+`
+	run(t, files, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		// Add a new symbol to the package under test and use it in the test
+		// variant. Expect no diagnostics.
+		env.WriteWorkspaceFiles(map[string]string{
+			"a/a.go": `package a
+
+func bob() {}
+func george() {}
+`,
+			"a/a_test.go": `package a
+
+import "testing"
+
+func TestAll(t *testing.T) {
+	bob()
+	george()
+}
+`,
+		})
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				NoDiagnostics("a/a.go"),
+			),
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				NoDiagnostics("a/a_test.go"),
+			),
+		)
+		// Now, add a new file to the test variant and use its symbol in the
+		// original test file. Expect no diagnostics.
+		env.WriteWorkspaceFiles(map[string]string{
+			"a/a_test.go": `package a
+
+import "testing"
+
+func TestAll(t *testing.T) {
+	bob()
+	george()
+	hi()
+}
+`,
+			"a/a2_test.go": `package a
+
+import "testing"
+
+func hi() {}
+
+func TestSomething(t *testing.T) {}
+`,
+		})
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+				NoDiagnostics("a/a_test.go"),
+			),
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+				NoDiagnostics("a/a2_test.go"),
+			),
+		)
+	})
+}
