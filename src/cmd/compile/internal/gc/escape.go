@@ -493,7 +493,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 			// easily detect object boundaries on the heap
 			// than the stack.
 			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
-		} else if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR {
+		} else if n.Type.IsUnsafePtr() && n.Left.Type.IsUintptr() {
 			e.unsafeValue(k, n.Left)
 		} else {
 			e.expr(k, n.Left)
