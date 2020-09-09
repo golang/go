@@ -709,7 +709,19 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	case *ast.IndexExpr:
 		x := t.instantiateExpr(ta, e.X)
 		index := t.instantiateExpr(ta, e.Index)
-		if x == e.X && index == e.Index {
+		origInferred, haveInferred := t.importer.info.Inferred[e]
+		var newInferred types.Inferred
+		inferredChanged := false
+		if haveInferred {
+			for _, typ := range origInferred.Targs {
+				nt := t.instantiateType(ta, typ)
+				newInferred.Targs = append(newInferred.Targs, nt)
+				if nt != typ {
+					inferredChanged = true
+				}
+			}
+		}
+		if x == e.X && index == e.Index && !inferredChanged {
 			return e
 		}
 		r = &ast.IndexExpr{
@@ -717,6 +729,9 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Lbrack: e.Lbrack,
 			Index:  index,
 			Rbrack: e.Rbrack,
+		}
+		if haveInferred {
+			t.importer.info.Inferred[r] = newInferred
 		}
 	case *ast.SliceExpr:
 		x := t.instantiateExpr(ta, e.X)
@@ -769,7 +784,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if fun == e.Fun && !argsChanged && !inferredChanged {
 			return e
 		}
-		newCall := &ast.CallExpr{
+		r = &ast.CallExpr{
 			Fun:      fun,
 			Lparen:   e.Lparen,
 			Args:     args,
@@ -777,9 +792,8 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Rparen:   e.Rparen,
 		}
 		if haveInferred {
-			t.importer.info.Inferred[newCall] = newInferred
+			t.importer.info.Inferred[r] = newInferred
 		}
-		r = newCall
 	case *ast.StarExpr:
 		x := t.instantiateExpr(ta, e.X)
 		if x == e.X {

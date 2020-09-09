@@ -919,10 +919,16 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	if typeArgs {
 		*pe = instIdent
 	} else {
-		call := expr.(*ast.CallExpr)
-		newCall := *call
-		newCall.Fun = instIdent
-		*pe = &newCall
+		switch e := expr.(type) {
+		case *ast.CallExpr:
+			newCall := *e
+			newCall.Fun = instIdent
+			*pe = &newCall
+		case *ast.IndexExpr:
+			*pe = instIdent
+		default:
+			panic("unexpected AST type")
+		}
 	}
 }
 
@@ -1035,18 +1041,16 @@ func (t *translator) instantiatedIdent(x ast.Expr) qualifiedIdent {
 // It also returns the AST arguments if they are present.
 // The typeArgs result reports whether the AST arguments are types.
 func (t *translator) instantiationTypes(x ast.Expr) (argList []ast.Expr, typeList []types.Type, typeArgs bool) {
-	var inferred types.Inferred
-	haveInferred := false
 	var args []ast.Expr
 	switch x := x.(type) {
 	case *ast.CallExpr:
-		inferred, haveInferred = t.importer.info.Inferred[x]
 		args = x.Args
 	case *ast.IndexExpr:
 		args = []ast.Expr{x.Index}
 	default:
 		panic("unexpected AST type")
 	}
+	inferred, haveInferred := t.importer.info.Inferred[x]
 
 	if !haveInferred {
 		argList = args

@@ -1,0 +1,50 @@
+// run
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 41216.
+
+package main
+
+func main() {
+	ps := FromStrings2[X]([]string{"x", "y"})
+	if len(ps) != 2 || ps[0] != (X{"x"}) || ps[1] != (X{"y"}) {
+		panic(ps)
+	}
+}
+
+type X struct {
+	s string
+}
+
+func (x *X) Set(s string) {
+	x.s = s
+}
+
+// Setter2 is a type constraint that requires that the type
+// implement a Set method that sets the value from a string,
+// and also requires that the type be a pointer to its type parameter.
+type Setter2[B any] interface {
+	Set(string)
+	type *B
+}
+
+// FromStrings2 takes a slice of strings and returns a slice of T,
+// calling the Set method to set each returned value.
+//
+// We use two different type parameters so that we can return
+// a slice of type T but call methods on *T aka PT.
+// The Setter2 constraint ensures that PT is a pointer to T.
+func FromStrings2[T any, PT Setter2[T]](s []string) []T {
+	result := make([]T, len(s))
+	for i, v := range s {
+		// The type of &result[i] is *T which is in the type list
+		// of Setter2, so we can convert it to PT.
+		p := PT(&result[i])
+		// PT has a Set method.
+		p.Set(v)
+	}
+	return result
+}
