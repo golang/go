@@ -107,6 +107,25 @@ func (e *AmbiguousImportError) Error() string {
 
 var _ load.ImportPathError = &AmbiguousImportError{}
 
+type invalidImportError struct {
+	importPath string
+	err        error
+}
+
+func (e *invalidImportError) ImportPath() string {
+	return e.importPath
+}
+
+func (e *invalidImportError) Error() string {
+	return e.err.Error()
+}
+
+func (e *invalidImportError) Unwrap() error {
+	return e.err
+}
+
+var _ load.ImportPathError = &invalidImportError{}
+
 // importFromBuildList finds the module and directory in the build list
 // containing the package with the given import path. The answer must be unique:
 // importFromBuildList returns an error if multiple modules attempt to provide
@@ -207,17 +226,6 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
 func queryImport(ctx context.Context, path string) (module.Version, error) {
 	pathIsStd := search.IsStandardImportPath(path)
 
-	if cfg.BuildMod == "readonly" {
-		var queryErr error
-		if !pathIsStd {
-			if cfg.BuildModReason == "" {
-				queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
-			} else {
-				queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
-			}
-		}
-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
-	}
 	if modRoot == "" && !allowMissingModuleImports {
 		return module.Version{}, &ImportMissingError{
 			Path:     path,
@@ -226,8 +234,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 	}
 
 	// Not on build list.
-	// To avoid spurious remote fetches, next try the latest replacement for each module.
-	// (golang.org/issue/26241)
+	// To avoid spurious remote fetches, next try the latest replacement for each
+	// module (golang.org/issue/26241). This should give a useful message
+	// in -mod=readonly, and it will allow us to add a requirement with -mod=mod.
 	if modFile != nil {
 		latest := map[string]string{} // path -> version
 		for _, r := range modFile.Replace {
@@ -288,6 +297,11 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 	}
 
+	// Before any further lookup, check that the path is valid.
+	if err := module.CheckImportPath(path); err != nil {
+		return module.Version{}, &invalidImportError{importPath: path, err: err}
+	}
+
 	if pathIsStd {
 		// This package isn't in the standard library, isn't in any module already
 		// in the build list, and isn't in any other module that the user has
@@ -299,6 +313,19 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		return module.Version{}, &ImportMissingError{Path: path}
 	}
 
+	if cfg.BuildMod == "readonly" {
+		var queryErr error
+		if cfg.BuildModExplicit {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		} else if cfg.BuildModReason != "" {
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		}
+		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
+	}
+
+	// Look up module containing the package, for addition to the build list.
+	// Goal is to determine the module, download it to dir,
+	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
 	candidates, err := QueryPackage(ctx, path, "latest", CheckAllowed)
