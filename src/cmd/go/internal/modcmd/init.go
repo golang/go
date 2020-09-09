@@ -9,7 +9,6 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"context"
 	"os"
 	"strings"
@@ -30,7 +29,7 @@ To override this guess, supply the module path as an argument.
 }
 
 func init() {
-	work.AddModCommonFlags(cmdInit)
+	base.AddModCommonFlags(&cmdInit.Flag)
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {

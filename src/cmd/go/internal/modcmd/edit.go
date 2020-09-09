@@ -19,7 +19,6 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -154,7 +153,7 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 
-	work.AddModCommonFlags(cmdEdit)
+	base.AddModCommonFlags(&cmdEdit.Flag)
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 }
 

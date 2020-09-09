@@ -240,13 +240,12 @@ const (
 // AddBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
 func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+	base.AddBuildFlagsNX(&cmd.Flag)
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
 	if mask&OmitVFlag == 0 {
 		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	}
-	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 
 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
@@ -254,10 +253,10 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	if mask&OmitModFlag == 0 {
-		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+		base.AddModFlag(&cmd.Flag)
 	}
 	if mask&OmitModCommonFlags == 0 {
-		AddModCommonFlags(cmd)
+		base.AddModCommonFlags(&cmd.Flag)
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
@@ -273,13 +272,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
 	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
-}
-
-// AddModCommonFlags adds the module-related flags common to build commands
-// and 'go mod' subcommands.
-func AddModCommonFlags(cmd *base.Command) {
-	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
-	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
 }
 
 // tagsFlag is the implementation of the -tags flag.

@@ -10,7 +10,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"context"
 )
 
@@ -32,7 +31,7 @@ to standard error.
 func init() {
 	cmdTidy.Run = runTidy // break init cycle
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	work.AddModCommonFlags(cmdTidy)
+	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
