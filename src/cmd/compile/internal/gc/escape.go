@@ -485,7 +485,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		e.discard(max)
 
 	case OCONV, OCONVNOP:
-		if checkPtr(e.curfn, 2) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
+		if checkPtr(e.curfn, 2) && n.Type.IsUnsafePtr() && n.Left.Type.IsPtr() {
 			// When -d=checkptr=2 is enabled, treat
 			// conversions to unsafe.Pointer as an
 			// escaping operation. This allows better
@@ -493,7 +493,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 			// easily detect object boundaries on the heap
 			// than the stack.
 			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
-		} else if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR {
+		} else if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR {
 			e.unsafeValue(k, n.Left)
 		} else {
 			e.expr(k, n.Left)
@@ -625,7 +625,7 @@ func (e *Escape) unsafeValue(k EscHole, n *Node) {
 
 	switch n.Op {
 	case OCONV, OCONVNOP:
-		if n.Left.Type.Etype == TUNSAFEPTR {
+		if n.Left.Type.IsUnsafePtr() {
 			e.expr(k, n.Left)
 		} else {
 			e.discard(n.Left)
