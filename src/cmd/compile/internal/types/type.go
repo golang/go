@@ -1230,6 +1230,11 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.Etype == TUNSAFEPTR
 }
 
+// IsUintptr reports whether t is an uintptr.
+func (t *Type) IsUintptr() bool {
+	return t.Etype == TUINTPTR
+}
+
 // IsPtrShaped reports whether t is represented by a single machine pointer.
 // In addition to regular Go pointer types, this includes map, channel, and
 // function types and unsafe.Pointer. It does not include array or struct types

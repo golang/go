@@ -962,7 +962,7 @@ opswitch:
 				n = walkCheckPtrAlignment(n, init, nil)
 				break
 			}
-			if n.Type.IsUnsafePtr() && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
+			if n.Type.IsUnsafePtr() && n.Left.Type.IsUintptr() { // uintptr to unsafe.Pointer
 				n = walkCheckPtrArithmetic(n, init)
 				break
 			}
@@ -3886,7 +3886,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	t := nod(OTFUNC, nil, nil)
 	for i, arg := range n.List.Slice() {
 		s := lookupN("a", i)
-		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.Etype == TUINTPTR && arg.Left.Type.IsUnsafePtr() {
+		if !isBuiltinCall && arg.Op == OCONVNOP && arg.Type.IsUintptr() && arg.Left.Type.IsUnsafePtr() {
 			origArgs[i] = arg
 			arg = arg.Left
 			n.List.SetIndex(i, arg)
