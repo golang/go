@@ -2,6 +2,7 @@ env GO111MODULE=on
 [short] skip
 
 # Initially, we are at v1.0.0 for all dependencies.
+go get -d
 cp go.mod go.mod.orig
 go list -m all
 stdout '^patch.example.com/direct v1.0.0'

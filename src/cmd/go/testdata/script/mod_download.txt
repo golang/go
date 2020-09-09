@@ -46,7 +46,7 @@ go mod edit -require rsc.io/quote@v1.5.3-pre1
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 
 # module loading will page in the info and mod files
-go list -m all
+go list -m -mod=mod all
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip

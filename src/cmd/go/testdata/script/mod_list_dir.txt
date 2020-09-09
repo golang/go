@@ -2,6 +2,9 @@
 
 # go list with path to directory should work
 
+# populate go.sum
+go get -d
+
 env GO111MODULE=off
 go list -f '{{.ImportPath}}' $GOROOT/src/math
 stdout ^math$
@@ -29,3 +32,5 @@ require rsc.io/quote v1.5.2
 
 -- x.go --
 package x
+
+import _ "rsc.io/quote"

@@ -7,6 +7,7 @@ cp go.mod go.mod.orig
 cmp go.mod go.mod.orig
 
 # 'go list' should resolve imports using replacements.
+go get -d
 go list all
 stdout 'example.com/a/b$'
 stdout 'example.com/x/v3$'

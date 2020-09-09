@@ -5,6 +5,7 @@
 # module, but not should not include test dependencies of packages imported only
 # by other root patterns.
 
+env GOFLAGS=-mod=mod
 cp go.mod go.mod.orig
 
 go list -deps all x/otherroot

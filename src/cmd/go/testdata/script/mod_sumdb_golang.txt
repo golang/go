@@ -34,7 +34,7 @@ cmp go.sum saved.sum
 # Should use the checksum database to validate new go.sum lines,
 # but not need to fetch any new data from the proxy.
 rm go.sum
-go list -x rsc.io/quote
+go list -mod=mod -x rsc.io/quote
 ! stderr github
 ! stderr proxy.golang.org/rsc.io/quote
 stderr sum.golang.org/tile
@@ -45,7 +45,7 @@ cmp go.sum saved.sum
 env TESTGOPROXY404=1
 go clean -modcache
 rm go.sum
-go list -x rsc.io/quote
+go list -mod=mod -x rsc.io/quote
 stderr 'proxy.golang.org.*404 testing'
 stderr github.com/rsc
 cmp go.sum saved.sum
