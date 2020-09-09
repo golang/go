@@ -29,7 +29,7 @@ var (
 	_ = sum(tuple())
 	_ = sum(tuple()...) // ERROR "multiple-value"
 	_ = sum3(tuple())
-	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
+	_ = sum3(tuple()...) // ERROR "multiple-value"
 )
 
 type T []T

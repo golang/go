@@ -2667,7 +2667,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
 	return
 
 notenough:
-	if n == nil || !n.Diag() {
+	if n == nil || (!n.Diag() && n.Type != nil) {
 		details := errorDetails(nl, tstruct, isddd)
 		if call != nil {
 			// call is the expression being called, not the overall call.
