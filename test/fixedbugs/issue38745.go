@@ -14,6 +14,5 @@ func f1() {
 }
 
 func f2() (*t, error) {
-	// BAD: should report undefined error only.
-	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)" "not enough arguments to return"
+	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)"
 }
