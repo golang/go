@@ -16,7 +16,7 @@ var N int
 func F1() {
 	var s S
 	for i := 0; i < N; i++ {
-		fs := []func(){ // ERROR "\[\]func\(\) literal does not escape"
+		fs := []func(){ // ERROR "\[\]func\(\){...} does not escape"
 			s.Inc, // ERROR "s.Inc does not escape"
 		}
 		for _, f := range fs {
@@ -28,7 +28,7 @@ func F1() {
 func F2() {
 	var s S
 	for i := 0; i < N; i++ {
-		for _, f := range []func(){ // ERROR "\[\]func\(\) literal does not escape"
+		for _, f := range []func(){ // ERROR "\[\]func\(\){...} does not escape"
 			s.Inc, // ERROR "s.Inc does not escape"
 		} {
 			f()

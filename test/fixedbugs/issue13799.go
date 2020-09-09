@@ -162,7 +162,7 @@ func test5(iter int) {
 	var fn *str
 	for i := 0; i < maxI; i++ {
 		// var fn *str // this makes it work, because fn stays off heap
-		fn = &str{m} // ERROR "&str literal escapes to heap"
+		fn = &str{m} // ERROR "&str{...} escapes to heap"
 		recur1(0, fn)
 	}
 
@@ -180,7 +180,7 @@ func test6(iter int) {
 	// var fn *str
 	for i := 0; i < maxI; i++ {
 		var fn *str  // this makes it work, because fn stays off heap
-		fn = &str{m} // ERROR "&str literal does not escape"
+		fn = &str{m} // ERROR "&str{...} does not escape"
 		recur1(0, fn)
 	}
 

@@ -144,7 +144,7 @@ func TFooK2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "&\[4\]interface {} literal does not escape"
+	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "&\[4\]interface {}{...} does not escape"
 	isink = FooK(fs)
 }
 
@@ -169,6 +169,6 @@ func TFooL2() {
 	a := int32(1) // ERROR "moved to heap: a"
 	b := "cat"
 	c := &a
-	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "\[\]interface {} literal does not escape"
+	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "\[\]interface {}{...} does not escape"
 	isink = FooL(s)
 }
