@@ -520,7 +520,7 @@ func f() {
 `
 	runner.Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(env.DiagnosticAtRegexp("a.go", "fmt.Printl"), SomeShowMessage(""))
+		env.Await(env.DiagnosticAtRegexp("a.go", "fmt.Printl"), ShownMessage(""))
 	})
 }
 
@@ -1311,5 +1311,41 @@ func main() {}
 		if c.Location.Range != keep.Range {
 			t.Errorf("locations don't match. Got %v expected %v", c.Location.Range, keep.Range)
 		}
+	})
+}
+
+func TestNotifyOrphanedFiles(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- a/a.go --
+package a
+
+func main() {
+	var x int
+}
+-- a/a_ignore.go --
+// +build ignore
+
+package a
+
+func _() {
+	var x int
+}
+`
+	run(t, files, func(t *testing.T, env *Env) {
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+		)
+		env.OpenFile("a/a.go")
+		env.Await(
+			env.DiagnosticAtRegexp("a/a.go", "x"),
+		)
+		env.OpenFile("a/a_ignore.go")
+		env.Await(
+			ShownMessage("No packages found for open file"),
+		)
 	})
 }
