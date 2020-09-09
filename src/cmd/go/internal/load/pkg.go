@@ -1337,6 +1337,11 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 		return p
 	}
 
+	// Allow sync package to access lightweight atomic functions limited to the runtime.
+	if p.Standard && strings.HasPrefix(importerPath, "sync") && p.ImportPath == "runtime/internal/atomic" {
+		return p
+	}
+
 	// Internal is present.
 	// Map import path back to directory corresponding to parent of internal.
 	if i > 0 {

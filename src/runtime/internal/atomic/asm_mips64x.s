@@ -158,6 +158,12 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 TEXT ·StoreRel(SB), NOSPLIT, $0-12
 	JMP	·Store(SB)
 
+TEXT ·StoreRel64(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
+TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
+	JMP	·Store64(SB)
+
 TEXT ·Store(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R1
 	MOVW	val+8(FP), R2

@@ -2839,11 +2839,13 @@ const (
 	OpAtomicLoad64
 	OpAtomicLoadPtr
 	OpAtomicLoadAcq32
+	OpAtomicLoadAcq64
 	OpAtomicStore8
 	OpAtomicStore32
 	OpAtomicStore64
 	OpAtomicStorePtrNoWB
 	OpAtomicStoreRel32
+	OpAtomicStoreRel64
 	OpAtomicExchange32
 	OpAtomicExchange64
 	OpAtomicAdd32
@@ -35430,6 +35432,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "AtomicLoadAcq64",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:           "AtomicStore8",
 		argLen:         3,
 		hasSideEffects: true,
@@ -35455,6 +35462,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicStoreRel32",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicStoreRel64",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,

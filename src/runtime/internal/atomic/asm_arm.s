@@ -57,6 +57,9 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-8
 TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
 	B	·Load(SB)
 
+TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-8
+	B 	·Load(SB)
+
 TEXT ·Casuintptr(SB),NOSPLIT,$0-13
 	B	·Cas(SB)
 
@@ -79,6 +82,9 @@ TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
 	B	·Store(SB)
 
 TEXT ·StoreRel(SB),NOSPLIT,$0-8
+	B	·Store(SB)
+
+TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
 	B	·Store(SB)
 
 TEXT ·Xadduintptr(SB),NOSPLIT,$0-12

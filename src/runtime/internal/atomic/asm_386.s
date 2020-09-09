@@ -189,6 +189,9 @@ TEXT ·Store(SB), NOSPLIT, $0-8
 TEXT ·StoreRel(SB), NOSPLIT, $0-8
 	JMP	·Store(SB)
 
+TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-8
+	JMP	runtime∕internal∕atomic·Store(SB)
+
 // uint64 atomicload64(uint64 volatile* addr);
 TEXT ·Load64(SB), NOSPLIT, $0-12
 	NO_LOCAL_POINTERS
