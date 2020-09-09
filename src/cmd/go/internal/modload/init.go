@@ -518,17 +518,20 @@ func modFileToBuildList() {
 // setDefaultBuildMod sets a default value for cfg.BuildMod
 // if it is currently empty.
 func setDefaultBuildMod() {
-	if cfg.BuildMod != "" {
+	if cfg.BuildModExplicit {
 		// Don't override an explicit '-mod=' argument.
 		return
 	}
-	cfg.BuildMod = "mod"
+
 	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
-		// Don't set -mod implicitly for commands whose purpose is to
-		// manipulate the build list.
+		// 'get' and 'go mod' commands may update go.mod automatically.
+		// TODO(jayconrod): should this narrower? Should 'go mod download' or
+		// 'go mod graph' update go.mod by default?
+		cfg.BuildMod = "mod"
 		return
 	}
 	if modRoot == "" {
+		cfg.BuildMod = "mod"
 		return
 	}
 
@@ -546,18 +549,18 @@ func setDefaultBuildMod() {
 			}
 		}
 
-		// Since a vendor directory exists, we have a non-trivial reason for
-		// choosing -mod=mod, although it probably won't be used for anything.
-		// Record the reason anyway for consistency.
-		// It may be overridden if we switch to mod=readonly below.
-		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s.", modGo)
+		// Since a vendor directory exists, we should record why we didn't use it.
+		// This message won't normally be shown, but it may appear with import errors.
+		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s, so vendor directory was not used.", modGo)
 	}
 
 	p := ModFilePath()
 	if fi, err := os.Stat(p); err == nil && !hasWritePerm(p, fi) {
 		cfg.BuildMod = "readonly"
 		cfg.BuildModReason = "go.mod file is read-only."
+		return
 	}
+	cfg.BuildMod = "mod"
 }
 
 func legacyModInit() {
@@ -857,7 +860,7 @@ func WriteGoMod() {
 		// prefer to report a dirty go.mod over a dirty go.sum
 		if cfg.BuildModReason != "" {
 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
-		} else {
+		} else if cfg.BuildModExplicit {
 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
 		}
 	}

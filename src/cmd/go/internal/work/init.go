@@ -252,7 +252,7 @@ func buildModeInit() {
 
 	switch cfg.BuildMod {
 	case "":
-		// ok
+		// Behavior will be determined automatically, as if no flag were passed.
 	case "readonly", "vendor", "mod":
 		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)

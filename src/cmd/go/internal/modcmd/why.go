@@ -11,7 +11,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 )
@@ -58,7 +57,7 @@ var (
 
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
-	work.AddModCommonFlags(cmdWhy)
+	base.AddModCommonFlags(&cmdWhy.Flag)
 }
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {

@@ -17,7 +17,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -38,7 +37,7 @@ non-zero status.
 }
 
 func init() {
-	work.AddModCommonFlags(cmdVerify)
+	base.AddModCommonFlags(&cmdVerify.Flag)
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
