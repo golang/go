@@ -269,9 +269,7 @@ func TestDisasmExtld(t *testing.T) {
 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
 }
 
-func TestDisasmGoobj(t *testing.T) {
-	mustHaveDisasm(t)
-
+func buildTestData(t *testing.T) string {
 	hello := filepath.Join(tmp, "hello.o")
 	args := []string{"tool", "compile", "-o", hello}
 	args = append(args, "testdata/fmthello.go")
@@ -279,22 +277,10 @@ func TestDisasmGoobj(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
 	}
-	need := []string{
-		"main(SB)",
-		"fmthello.go:6",
-	}
+	return hello
+}
 
-	args = []string{
-		"-s", "main",
-		hello,
-	}
-
-	out, err = exec.Command(exe, args...).CombinedOutput()
-	if err != nil {
-		t.Fatalf("objdump fmthello.o: %v\n%s", err, out)
-	}
-
-	text := string(out)
+func validateOutput(t *testing.T, text string, need []string) {
 	ok := true
 	for _, s := range need {
 		if !strings.Contains(text, s) {
@@ -311,6 +297,77 @@ func TestDisasmGoobj(t *testing.T) {
 	if !ok {
 		t.Logf("full disassembly:\n%s", text)
 	}
+}
+
+func TestDisasmGoobj(t *testing.T) {
+	mustHaveDisasm(t)
+
+	hello := buildTestData(t)
+	need := []string{
+		"main(SB)",
+		"fmthello.go:6",
+	}
+
+	args := []string{
+		"-s", "main",
+		hello,
+	}
+
+	out, err := exec.Command(exe, args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("objdump fmthello.o: %v\n%s", err, out)
+	}
+
+	validateOutput(t, string(out), need)
+}
+
+func TestDisasmGoobjFromStdin(t *testing.T) {
+	switch runtime.GOARCH {
+	case "mips", "mipsle", "mips64", "mips64le":
+		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+	case "riscv64":
+		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
+	case "s390x":
+		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+	}
+
+	hello := buildTestData(t)
+	need := []string{
+		"main(SB)",
+		"fmthello.go:6",
+	}
+
+	args := []string{
+		"-s", "main", "/dev/stdin",
+	}
+
+	cmd := exec.Command(exe, args...)
+	input, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("get stdin pipe error: %v\n", err)
+	}
+	go func () {
+		defer input.Close()
+		f, err := os.Open(hello)
+		if err != nil {
+			t.Fatalf("open output file error: %v\n", err)
+		}
+		bytes, err := ioutil.ReadAll(f)
+		if err != nil {
+			t.Fatalf("read output file error: %v\n", err)
+		}
+		_, err = input.Write(bytes)
+		if err != nil {
+			t.Fatalf("write stdin pipe error: %v\n", err)
+		}
+	}()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("objdump /dev/stdin: %v\n%s", err, out)
+	}
+
+	validateOutput(t, string(out), need)
 }
 
 func TestGoobjFileNumber(t *testing.T) {

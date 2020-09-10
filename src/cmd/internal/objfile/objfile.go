@@ -10,8 +10,10 @@ import (
 	"debug/gosym"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 )
 
 type rawFile interface {
@@ -64,11 +66,38 @@ var openers = []func(io.ReaderAt) (rawFile, error){
 	openXcoff,
 }
 
+func trySeekOrDump(f *os.File) (*os.File, error) {
+	_, err := f.Seek(0, io.SeekCurrent)
+	if err == nil {
+		return f, nil
+	}
+	if !strings.Contains(err.Error(), "illegal seek") {
+		return nil, err
+	}
+	defer f.Close()
+
+	tempFile, err := ioutil.TempFile("", "go-objfile-*")
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := io.Copy(tempFile, f); err != nil {
+		return nil, err
+	}
+	if _, err := tempFile.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	return tempFile, nil
+}
+
 // Open opens the named file.
 // The caller must call f.Close when the file is no longer needed.
 func Open(name string) (*File, error) {
 	r, err := os.Open(name)
 	if err != nil {
+		return nil, err
+	}
+	if r, err = trySeekOrDump(r); err != nil {
 		return nil, err
 	}
 	if f, err := openGoFile(r); err == nil {
