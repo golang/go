@@ -1119,9 +1119,7 @@ loop:
 				p.syntaxError("cannot parenthesize type in composite literal")
 				// already progressed, no need to advance
 			}
-			pos := p.pos()
-			p.next() // consume _Lbrace
-			n := p.complitexpr(pos)
+			n := p.complitexpr()
 			n.Type = x
 			x = n
 
@@ -1139,26 +1137,25 @@ func (p *parser) bare_complitexpr() Expr {
 		defer p.trace("bare_complitexpr")()
 	}
 
-	pos := p.pos()
-	if p.got(_Lbrace) {
+	if p.tok == _Lbrace {
 		// '{' start_complit braced_keyval_list '}'
-		return p.complitexpr(pos)
+		return p.complitexpr()
 	}
 
 	return p.expr()
 }
 
 // LiteralValue = "{" [ ElementList [ "," ] ] "}" .
-// "{" has already been consumed, and pos is its position.
-func (p *parser) complitexpr(pos Pos) *CompositeLit {
+func (p *parser) complitexpr() *CompositeLit {
 	if trace {
 		defer p.trace("complitexpr")()
 	}
 
 	x := new(CompositeLit)
-	x.pos = pos
+	x.pos = p.pos()
 
 	p.xnest++
+	p.want(_Lbrace)
 	x.Rbrace = p.list(_Comma, _Rbrace, func() bool {
 		// value
 		e := p.bare_complitexpr()
@@ -1403,6 +1400,7 @@ func (p *parser) interfaceType() *InterfaceType {
 		switch p.tok {
 		case _Name:
 			typ.MethodList = append(typ.MethodList, p.methodDecl())
+
 		case _Type:
 			// TODO(gri) factor this better
 			type_ := new(Name)
@@ -1423,6 +1421,15 @@ func (p *parser) interfaceType() *InterfaceType {
 					typ.MethodList = append(typ.MethodList, f)
 				}
 			}
+
+		case _Lparen:
+			p.syntaxError("cannot parenthesize embedded type")
+			f := new(Field)
+			f.pos = p.pos()
+			p.next()
+			f.Type = p.qualifiedName(nil)
+			p.want(_Rparen)
+			typ.MethodList = append(typ.MethodList, f)
 
 		default:
 			p.syntaxError("expecting method, interface name, or type list")
@@ -1520,12 +1527,36 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.addField(styp, name.Pos(), name, typ, tag)
 		}
 
-	case _Lparen, _Star:
-		// embedded, possibly generic type
-		// (using the enclosing parentheses to distinguish it from a named field declaration)
-		// TODO(gri) This may be too liberal. Maybe only permit ()'s if necessary.
-		//           See also fixedbugs/bug299.go.
-		typ := p.type_()
+	case _Star:
+		p.next()
+		var typ Expr
+		if p.tok == _Lparen {
+			// *(T)
+			p.syntaxError("cannot parenthesize embedded type")
+			p.next()
+			typ = p.qualifiedName(nil)
+			p.want(_Rparen)
+		} else {
+			// *T
+			typ = p.qualifiedName(nil)
+		}
+		tag := p.oliteral()
+		p.addField(styp, pos, nil, newIndirect(pos, typ), tag)
+
+	case _Lparen:
+		p.syntaxError("cannot parenthesize embedded type")
+		p.next()
+		var typ Expr
+		if p.tok == _Star {
+			// (*T)
+			pos := p.pos()
+			p.next()
+			typ = newIndirect(pos, p.qualifiedName(nil))
+		} else {
+			// (T)
+			typ = p.qualifiedName(nil)
+		}
+		p.want(_Rparen)
 		tag := p.oliteral()
 		p.addField(styp, pos, nil, typ, tag)
 
@@ -1737,7 +1768,7 @@ func (p *parser) paramList(name *Name, close token) (list []*Field) {
 		name = nil // 1st name was consumed if present
 		if par != nil {
 			if debug && par.Name == nil && par.Type == nil {
-				panic("(type) parameter without name or type")
+				panic("parameter without name or type")
 			}
 			if par.Name != nil && par.Type != nil {
 				named++

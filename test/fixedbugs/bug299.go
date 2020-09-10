@@ -1,4 +1,4 @@
-// compile
+// errorcheck
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -12,16 +12,10 @@ type T struct {
 	y (int)
 	int
 	*float64
-	/*
 	// not legal according to spec
 	(complex128)  // ERROR "non-declaration|expected|parenthesize"
 	(*string)  // ERROR "non-declaration|expected|parenthesize"
 	*(bool)    // ERROR "non-declaration|expected|parenthesize"
-	*/
-	// generic Go permits (and in some cases requires) parentheses for embedded types
-	(complex128)
-	(*string)
-	*(bool)
 }
 
 // legal according to spec
