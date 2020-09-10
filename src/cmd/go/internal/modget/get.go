@@ -609,9 +609,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		prevBuildList = buildList
 	}
-	if !*getD {
-		// Only print warnings after the last iteration,
-		// and only if we aren't going to build.
+	if *getD {
+		// Only print warnings after the last iteration, and only if we aren't going
+		// to build (to avoid doubled warnings).
+		//
+		// Only local patterns in the main module, such as './...', can be unmatched.
+		// (See the mod_get_nopkgs test for more detail.)
 		search.WarnUnmatched(matches)
 	}
 

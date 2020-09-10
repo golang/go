@@ -1,0 +1,40 @@
+cd subdir
+
+# 'go get' on empty patterns that are necessarily local to the module
+# should warn that the patterns are empty, exactly once.
+
+go get ./...
+stderr -count=1 'matched no packages'
+
+go get -d ./...
+stderr -count=1 'matched no packages'
+
+# 'go get' on patterns that could conceivably match nested modules
+# should report a module resolution error.
+
+go get -d example.net/emptysubdir/... # control case
+
+! go get -d example.net/emptysubdir/subdir/...
+! stderr 'matched no packages'
+stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
+
+# It doesn't make sense to 'go get' a path in the standard library,
+# since the standard library necessarily can't have unresolved imports.
+#
+# TODO(#30241): Maybe that won't always be the case?
+#
+# For that case, we emit a "malformed module path" error message,
+# which isn't ideal either.
+
+! go get -d builtin/...  # in GOROOT/src, but contains no packages
+stderr '^go get builtin/...: malformed module path "builtin": missing dot in first path element$'
+
+-- go.mod --
+module example.net/emptysubdir
+
+go 1.16
+-- emptysubdir.go --
+// Package emptysubdir has a subdirectory containing no packages.
+package emptysubdir
+-- subdir/README.txt --
+This module intentionally does not contain any p
