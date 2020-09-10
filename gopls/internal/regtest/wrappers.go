@@ -266,6 +266,15 @@ func (e *Env) CodeAction(path string) []protocol.CodeAction {
 	return actions
 }
 
+func (e *Env) changeConfiguration(t *testing.T, config *fake.EditorConfig) {
+	e.Editor.Config = *config
+	if err := e.Editor.Server.DidChangeConfiguration(e.Ctx, &protocol.DidChangeConfigurationParams{
+		// gopls currently ignores the Settings field
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // ChangeEnv modifies the editor environment and reconfigures the LSP client.
 // TODO: extend this to "ChangeConfiguration", once we refactor the way editor
 // configuration is defined.

@@ -420,7 +420,11 @@ const (
 // that let the user know how to use the analyzer.
 type Analyzer struct {
 	Analyzer *analysis.Analyzer
-	enabled  bool
+
+	// Enabled reports whether the analyzer is enabled. This value can be
+	// configured per-analysis in user settings. For staticcheck analyzers,
+	// the value of the Staticcheck setting overrides this field.
+	Enabled bool
 
 	// Command is the name of the command used to invoke the suggested fixes
 	// for the analyzer. It is non-nil if we expect this analyzer to provide
@@ -438,11 +442,17 @@ type Analyzer struct {
 	FixesError func(msg string) bool
 }
 
-func (a Analyzer) Enabled(view View) bool {
+func (a Analyzer) IsEnabled(view View) bool {
+	// Staticcheck analyzers can only be enabled when staticcheck is on.
+	if _, ok := view.Options().StaticcheckAnalyzers[a.Analyzer.Name]; ok {
+		if !view.Options().Staticcheck {
+			return false
+		}
+	}
 	if enabled, ok := view.Options().Analyses[a.Analyzer.Name]; ok {
 		return enabled
 	}
-	return a.enabled
+	return a.Enabled
 }
 
 // Package represents a Go package that has been type-checked. It maintains

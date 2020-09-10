@@ -121,6 +121,9 @@ func pickAnalyzers(snapshot Snapshot, hadTypeErrors bool) map[string]Analyzer {
 	for k, v := range snapshot.View().Options().DefaultAnalyzers {
 		analyzers[k] = v
 	}
+	for k, v := range snapshot.View().Options().StaticcheckAnalyzers {
+		analyzers[k] = v
+	}
 	return analyzers
 }
 
@@ -202,7 +205,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[VersionedFi
 func analyses(ctx context.Context, snapshot Snapshot, reports map[VersionedFileIdentity][]*Diagnostic, pkg Package, analyses map[string]Analyzer) error {
 	var analyzers []*analysis.Analyzer
 	for _, a := range analyses {
-		if !a.Enabled(snapshot.View()) {
+		if !a.IsEnabled(snapshot.View()) {
 			continue
 		}
 		analyzers = append(analyzers, a.Analyzer)
