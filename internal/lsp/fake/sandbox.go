@@ -35,6 +35,9 @@ type SandboxConfig struct {
 	RootDir string
 	// Files holds a txtar-encoded archive of files to populate the initial state
 	// of the working directory.
+	//
+	// For convenience, the special substring "$SANDBOX_WORKDIR" is replaced with
+	// the sandbox's resolved working directory before writing files.
 	Files string
 	// InGoPath specifies that the working directory should be within the
 	// temporary GOPATH.
@@ -121,7 +124,7 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 			return nil, err
 		}
 		sb.Workdir = NewWorkdir(workdir)
-		if err := sb.Workdir.WriteInitialFiles(config.Files); err != nil {
+		if err := sb.Workdir.writeInitialFiles(config.Files); err != nil {
 			return nil, err
 		}
 	}
