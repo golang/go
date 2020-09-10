@@ -54,7 +54,14 @@ var (
 
 func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
-		if *versionM || *versionV {
+		// If any of this command's flags were passed explicitly, error
+		// out, because they only make sense with arguments.
+		//
+		// Don't error if the flags came from GOFLAGS, since that can be
+		// a reasonable use case. For example, imagine GOFLAGS=-v to
+		// turn "verbose mode" on for all Go commands, which should not
+		// break "go version".
+		if (!base.InGOFLAGS("-m") && *versionM) || (!base.InGOFLAGS("-v") && *versionV) {
 			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
 			base.SetExitStatus(2)
 			return
