@@ -42,6 +42,23 @@ type myStruct struct { // struct type
 type myInterface interface { // interface
 	DoSomeCoolStuff() string // interface method
 }
+
+type embed struct {
+	myStruct
+
+	nestedStruct struct {
+		nestedField int
+
+		nestedStruct2 struct {
+			int
+		}
+	}
+
+	nestedInterface interface {
+		myInterface
+		nestedMethod()
+	}
+}
 -- p/p.go --
 package p
 
@@ -168,6 +185,62 @@ var caseSensitiveSymbolChecks = map[string]*expSymbolInformation{
 				Start: &expPos{
 					Line:   pInt(24),
 					Column: pInt(1),
+				},
+			},
+		},
+	},
+
+	"embed.myStruct": {
+		Name: pString("main.embed.myStruct"),
+		Kind: pKind(protocol.Field),
+		Location: &expLocation{
+			Path: pString("main.go"),
+			Range: &expRange{
+				Start: &expPos{
+					Line:   pInt(28),
+					Column: pInt(1),
+				},
+			},
+		},
+	},
+
+	"nestedStruct2.int": {
+		Name: pString("main.embed.nestedStruct.nestedStruct2.int"),
+		Kind: pKind(protocol.Field),
+		Location: &expLocation{
+			Path: pString("main.go"),
+			Range: &expRange{
+				Start: &expPos{
+					Line:   pInt(34),
+					Column: pInt(3),
+				},
+			},
+		},
+	},
+
+	"nestedInterface.myInterface": {
+		Name: pString("main.embed.nestedInterface.myInterface"),
+		Kind: pKind(protocol.Interface),
+		Location: &expLocation{
+			Path: pString("main.go"),
+			Range: &expRange{
+				Start: &expPos{
+					Line:   pInt(39),
+					Column: pInt(2),
+				},
+			},
+		},
+	},
+
+	"nestedInterface.nestedMethod": {
+		Name: pString("main.embed.nestedInterface.nestedMethod"),
+		Kind: pKind(protocol.Method),
+		Location: &expLocation{
+			Path: pString("main.go"),
+			Range: &expRange{
+				Start: &expPos{
+					Line:   pInt(40),
+					Column: pInt(2),
 				},
 			},
 		},

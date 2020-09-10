@@ -12,6 +12,8 @@ import (
 	"go/types"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/fuzzy"
@@ -401,46 +403,35 @@ func (sc *symbolCollector) walkFilesDecls(decls []ast.Decl) {
 	for _, decl := range decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			fn := decl.Name.Name
 			kind := protocol.Function
+			var recv *ast.Ident
 			if decl.Recv != nil {
 				kind = protocol.Method
 				switch typ := decl.Recv.List[0].Type.(type) {
 				case *ast.StarExpr:
-					fn = typ.X.(*ast.Ident).Name + "." + fn
+					recv = typ.X.(*ast.Ident)
 				case *ast.Ident:
-					fn = typ.Name + "." + fn
+					recv = typ
 				}
 			}
-			sc.match(fn, kind, decl.Name)
+			if recv != nil {
+				sc.match(decl.Name.Name, kind, decl.Name, recv)
+			} else {
+				sc.match(decl.Name.Name, kind, decl.Name)
+			}
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
-					target := spec.Name.Name
-					sc.match(target, typeToKind(sc.current.pkg.GetTypesInfo().TypeOf(spec.Type)), spec.Name)
-					switch st := spec.Type.(type) {
-					case *ast.StructType:
-						for _, field := range st.Fields.List {
-							sc.walkField(field, protocol.Field, target)
-						}
-					case *ast.InterfaceType:
-						for _, field := range st.Methods.List {
-							kind := protocol.Method
-							if len(field.Names) == 0 {
-								kind = protocol.Interface
-							}
-							sc.walkField(field, kind, target)
-						}
-					}
+					sc.match(spec.Name.Name, typeToKind(sc.current.pkg.GetTypesInfo().TypeOf(spec.Type)), spec.Name)
+					sc.walkType(spec.Type, spec.Name)
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						target := name.Name
 						kind := protocol.Variable
 						if decl.Tok == token.CONST {
 							kind = protocol.Constant
 						}
-						sc.match(target, kind, name)
+						sc.match(name.Name, kind, name)
 					}
 				}
 			}
@@ -448,16 +439,32 @@ func (sc *symbolCollector) walkFilesDecls(decls []ast.Decl) {
 	}
 }
 
-func (sc *symbolCollector) walkField(field *ast.Field, kind protocol.SymbolKind, prefix string) {
+// walkType processes symbols related to a type expression. path is path of
+// nested type identifiers to the type expression.
+func (sc *symbolCollector) walkType(typ ast.Expr, path ...*ast.Ident) {
+	switch st := typ.(type) {
+	case *ast.StructType:
+		for _, field := range st.Fields.List {
+			sc.walkField(field, protocol.Field, protocol.Field, path...)
+		}
+	case *ast.InterfaceType:
+		for _, field := range st.Methods.List {
+			sc.walkField(field, protocol.Interface, protocol.Method, path...)
+		}
+	}
+}
+
+// walkField processes symbols related to the struct field or interface method.
+//
+// unnamedKind and namedKind are the symbol kinds if the field is resp. unnamed
+// or named. path is the path of nested identifiers containing the field.
+func (sc *symbolCollector) walkField(field *ast.Field, unnamedKind, namedKind protocol.SymbolKind, path ...*ast.Ident) {
 	if len(field.Names) == 0 {
-		name := types.ExprString(field.Type)
-		target := prefix + "." + name
-		sc.match(target, kind, field)
-		return
+		sc.match(types.ExprString(field.Type), unnamedKind, field, path...)
 	}
 	for _, name := range field.Names {
-		target := prefix + "." + name.Name
-		sc.match(target, kind, name)
+		sc.match(name.Name, namedKind, name, path...)
+		sc.walkType(field.Type, append(path, name)...)
 	}
 }
 
@@ -491,25 +498,66 @@ func typeToKind(typ types.Type) protocol.SymbolKind {
 // match finds matches and gathers the symbol identified by name, kind and node
 // via the symbolCollector's matcher after first de-duping against previously
 // seen symbols.
-func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast.Node) {
+//
+// path specifies the identifier path to a nested field or interface method.
+func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast.Node, path ...*ast.Ident) {
 	if !node.Pos().IsValid() || !node.End().IsValid() {
 		return
 	}
 
-	// Arbitrary factors to apply to the match score for the purpose of
-	// downranking results.
-	//
-	// There is no science behind this, other than the principle that symbols
-	// outside of a workspace should be downranked. Adjust as necessary.
-	const (
-		nonWorkspaceFactor = 0.5
-	)
-	factor := 1.0
-	if !sc.current.isWorkspace {
-		factor *= nonWorkspaceFactor
+	isExported := isExported(name)
+	if len(path) > 0 {
+		var nameBuilder strings.Builder
+		for _, ident := range path {
+			nameBuilder.WriteString(ident.Name)
+			nameBuilder.WriteString(".")
+			if !ident.IsExported() {
+				isExported = false
+			}
+		}
+		nameBuilder.WriteString(name)
+		name = nameBuilder.String()
 	}
+
+	// Factors to apply to the match score for the purpose of downranking
+	// results.
+	//
+	// These numbers were crudely calibrated based on trial-and-error using a
+	// small number of sample queries. Adjust as necessary.
+	//
+	// All factors are multiplicative, meaning if more than one applies they are
+	// multiplied together.
+	const (
+		// nonWorkspaceFactor is applied to symbols outside of any active
+		// workspace. Developers are less likely to want to jump to code that they
+		// are not actively working on.
+		nonWorkspaceFactor = 0.5
+		// nonWorkspaceUnexportedFactor is applied to unexported symbols outside of
+		// any active workspace. Since one wouldn't usually jump to unexported
+		// symbols to understand a package API, they are particularly irrelevant.
+		nonWorkspaceUnexportedFactor = 0.5
+		// fieldFactor is applied to fields and interface methods. One would
+		// typically jump to the type definition first, so ranking fields highly
+		// can be noisy.
+		fieldFactor = 0.5
+	)
 	symbol, score := sc.symbolizer(name, sc.current.pkg, sc.matcher)
-	score *= factor
+
+	// Downrank symbols outside of the workspace.
+	if !sc.current.isWorkspace {
+		score *= nonWorkspaceFactor
+		if !isExported {
+			score *= nonWorkspaceUnexportedFactor
+		}
+	}
+
+	// Downrank fields.
+	if len(path) > 0 {
+		score *= fieldFactor
+	}
+
+	// Avoid the work below if we know this score will not be sorted into the
+	// results.
 	if score <= sc.res[len(sc.res)-1].score {
 		return
 	}
@@ -537,6 +585,16 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		copy(sc.res[insertAt+1:], sc.res[insertAt:len(sc.res)-1])
 	}
 	sc.res[insertAt] = si
+}
+
+// isExported reports if a token is exported. Copied from
+// token.IsExported (go1.13+).
+//
+// TODO: replace usage with token.IsExported once go1.12 is no longer
+// supported.
+func isExported(name string) bool {
+	ch, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(ch)
 }
 
 // pkgView holds information related to a package that we are going to walk.

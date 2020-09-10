@@ -76,7 +76,7 @@ func TestBenchmarkSymbols(t *testing.T) {
 		if symbolBench.printResults {
 			fmt.Println("Results:")
 			for i := 0; i < len(results); i++ {
-				fmt.Printf("\t%d. %s\n", i, results[i].Name)
+				fmt.Printf("\t%d. %s (%s)\n", i, results[i].Name, results[i].ContainerName)
 			}
 		}
 		b := testing.Benchmark(func(b *testing.B) {
