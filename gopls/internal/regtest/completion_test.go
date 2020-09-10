@@ -12,9 +12,11 @@ import (
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestPackageCompletion(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const files = `
 -- go.mod --
 module mod.com
