@@ -391,18 +391,20 @@ func init() {
 
 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
-		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"},     // move int64 to float64 (no conversion)
-		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"},     // move float64 to int64 (no conversion)
-		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA"}, // convert float64 to int32
-		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA"}, // convert float64 to int64
-		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA"}, // convert float32 to int32
-		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA"}, // convert float32 to int64
-		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA"}, // convert int32 to float32
-		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
-		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
-		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
-		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
-		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
+		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"}, // move int64 to float64 (no conversion)
+		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"}, // move float64 to int64 (no conversion)
+
+		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA", clobberFlags: true}, // convert float64 to int32
+		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA", clobberFlags: true}, // convert float64 to int64
+		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA", clobberFlags: true}, // convert float32 to int32
+		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA", clobberFlags: true}, // convert float32 to int64
+		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA", clobberFlags: true}, // convert int32 to float32
+		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA", clobberFlags: true}, // convert int32 to float64
+		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA", clobberFlags: true}, // convert int64 to float32
+		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA", clobberFlags: true}, // convert int64 to float64
+
+		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
+		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
 
 		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux

@@ -27,6 +27,7 @@ func TestCheckPtr(t *testing.T) {
 		{"CheckPtrAlignmentPtr", "fatal error: checkptr: unsafe pointer conversion\n"},
 		{"CheckPtrAlignmentNoPtr", ""},
 		{"CheckPtrArithmetic", "fatal error: checkptr: unsafe pointer arithmetic\n"},
+		{"CheckPtrArithmetic2", "fatal error: checkptr: unsafe pointer arithmetic\n"},
 		{"CheckPtrSize", "fatal error: checkptr: unsafe pointer conversion\n"},
 		{"CheckPtrSmall", "fatal error: checkptr: unsafe pointer arithmetic\n"},
 	}

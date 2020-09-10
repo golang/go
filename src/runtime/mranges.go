@@ -92,6 +92,25 @@ func (a *addrRanges) findSucc(base uintptr) int {
 	return len(a.ranges)
 }
 
+// findAddrGreaterEqual returns the smallest address represented by a
+// that is >= addr. Thus, if the address is represented by a,
+// then it returns addr. The second return value indicates whether
+// such an address exists for addr in a. That is, if addr is larger than
+// any address known to a, the second return value will be false.
+func (a *addrRanges) findAddrGreaterEqual(addr uintptr) (uintptr, bool) {
+	i := a.findSucc(addr)
+	if i == 0 {
+		return a.ranges[0].base, true
+	}
+	if a.ranges[i-1].contains(addr) {
+		return addr, true
+	}
+	if i < len(a.ranges) {
+		return a.ranges[i].base, true
+	}
+	return 0, false
+}
+
 // contains returns true if a covers the address addr.
 func (a *addrRanges) contains(addr uintptr) bool {
 	i := a.findSucc(addr)

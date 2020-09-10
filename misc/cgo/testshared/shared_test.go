@@ -38,7 +38,15 @@ var testWork = flag.Bool("testwork", false, "if true, log and do not delete the 
 
 // run runs a command and calls t.Errorf if it fails.
 func run(t *testing.T, msg string, args ...string) {
+	runWithEnv(t, msg, nil, args...)
+}
+
+// runWithEnv runs a command under the given environment and calls t.Errorf if it fails.
+func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 	c := exec.Command(args[0], args[1:]...)
+	if len(env) != 0 {
+		c.Env = append(os.Environ(), env...)
+	}
 	if output, err := c.CombinedOutput(); err != nil {
 		t.Errorf("executing %s (%s) failed %s:\n%s", strings.Join(args, " "), msg, err, output)
 	}
@@ -1029,4 +1037,12 @@ func TestGeneratedMethod(t *testing.T) {
 func TestGeneratedHash(t *testing.T) {
 	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
 	goCmd(nil, "test", "-linkshared", "./issue30768")
+}
+
+// Test that GC data are generated correctly by the linker when it needs a type defined in
+// a shared library. See issue 39927.
+func TestGCData(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
+	goCmd(t, "build", "-linkshared", "./gcdata/main")
+	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
 }

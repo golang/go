@@ -352,10 +352,19 @@ func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
 	defer p.lastNameMu.Unlock()
 
 	if !p.chatty ||
-		strings.HasPrefix(out, "--- PASS") ||
-		strings.HasPrefix(out, "--- FAIL") ||
-		strings.HasPrefix(out, "=== CONT") ||
-		strings.HasPrefix(out, "=== RUN") {
+		strings.HasPrefix(out, "--- PASS: ") ||
+		strings.HasPrefix(out, "--- FAIL: ") ||
+		strings.HasPrefix(out, "--- SKIP: ") ||
+		strings.HasPrefix(out, "=== RUN   ") ||
+		strings.HasPrefix(out, "=== CONT  ") ||
+		strings.HasPrefix(out, "=== PAUSE ") {
+		// If we're buffering test output (!p.chatty), we don't really care which
+		// test is emitting which line so long as they are serialized.
+		//
+		// If the message already implies an association with a specific new test,
+		// we don't need to check what the old test name was or log an extra CONT
+		// line for it. (We're updating it anyway, and the current message already
+		// includes the test name.)
 		p.lastName = testName
 		fmt.Fprint(w, out)
 		return
@@ -907,7 +916,13 @@ func (t *T) Parallel() {
 		for ; root.parent != nil; root = root.parent {
 		}
 		root.mu.Lock()
-		fmt.Fprintf(root.w, "=== PAUSE %s\n", t.name)
+		// Unfortunately, even though PAUSE indicates that the named test is *no
+		// longer* running, cmd/test2json interprets it as changing the active test
+		// for the purpose of log parsing. We could fix cmd/test2json, but that
+		// won't fix existing deployments of third-party tools that already shell
+		// out to older builds of cmd/test2json — so merely fixing cmd/test2json
+		// isn't enough for now.
+		printer.Fprint(root.w, t.name, fmt.Sprintf("=== PAUSE %s\n", t.name))
 		root.mu.Unlock()
 	}
 
