@@ -1016,6 +1016,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			// Align tiny pointer for required (conservative) alignment.
 			if size&7 == 0 {
 				off = alignUp(off, 8)
+			} else if sys.PtrSize == 4 && size == 12 {
+				// Conservatively align 12-byte objects to 8 bytes on 32-bit
+				// systems so that objects whose first field is a 64-bit
+				// value is aligned to 8 bytes and does not cause a fault on
+				// atomic access. See issue 37262.
+				// TODO(mknyszek): Remove this workaround if/when issue 36606
+				// is resolved.
+				off = alignUp(off, 8)
 			} else if size&3 == 0 {
 				off = alignUp(off, 4)
 			} else if size&1 == 0 {
