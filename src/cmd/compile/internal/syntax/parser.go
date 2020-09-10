@@ -687,7 +687,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.Name = p.name()
 	if p.got(_Lbrack) {
 		if p.tok == _Rbrack {
-			p.error("empty type parameter list")
+			p.syntaxError("empty type parameter list")
 			p.next()
 		} else {
 			f.TParamList = p.paramList(nil, _Rbrack)
@@ -1012,10 +1012,11 @@ loop:
 		case _Lbrack:
 			p.next()
 
-			if p.got(_Rbrack) {
+			if p.tok == _Rbrack {
 				// invalid empty index, slice or index expression; accept but complain
 				p.syntaxError("expecting operand")
-				return x
+				p.next()
+				break
 			}
 
 			p.xnest++

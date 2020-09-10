@@ -68,21 +68,13 @@ func splitError(err error) (pos, msg string) {
 func parseFiles(t *testing.T, filenames []string) ([]*syntax.File, []error) {
 	var files []*syntax.File
 	var errlist []error
+	errh := func(err error) { errlist = append(errlist, err) }
 	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, nil, nil, 0)
+		file, err := syntax.ParseFile(filename, errh, nil, 0)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
 		files = append(files, file)
-		if err != nil {
-			if list, _ := err.(scanner.ErrorList); len(list) > 0 {
-				for _, err := range list {
-					errlist = append(errlist, err)
-				}
-			} else {
-				errlist = append(errlist, err)
-			}
-		}
 	}
 	return files, errlist
 }
@@ -236,6 +228,17 @@ func checkFiles(t *testing.T, sources []string, trace bool) {
 	// match and eliminate errors;
 	// we are expecting the following errors
 	errmap := errMap(t, pkgName, files)
+
+	// print map entries (keep for debugging)
+	if false {
+		for key, entries := range errmap {
+			fmt.Printf("%s:\n", key)
+			for _, e := range entries {
+				fmt.Printf("\t%s\n", e)
+			}
+		}
+	}
+
 	eliminate(t, errmap, errlist)
 
 	// there should be no expected errors left
@@ -264,10 +267,7 @@ func TestTestdata(t *testing.T) {
 	DefPredeclaredTestFuncs()
 	testDir(t, "testdata")
 }
-func TestExamples(t *testing.T) {
-	t.Skip("positions need to be fixed first")
-	testDir(t, "examples")
-}
+func TestExamples(t *testing.T) { testDir(t, "examples") }
 func TestFixedbugs(t *testing.T) {
 	t.Skip("positions need to be fixed first")
 	testDir(t, "fixedbugs")

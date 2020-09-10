@@ -714,6 +714,9 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 	}
 
 	var named, anonymous bool
+
+	var typ Type
+	var prev syntax.Expr
 	for i, field := range list {
 		ftype := field.Type
 		if i == 0 && type0 != nil {
@@ -728,7 +731,11 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 				// ignore ... and continue
 			}
 		}
-		typ := check.varType(ftype)
+		// type-check type of grouped fields only once
+		if ftype != prev {
+			typ = check.varType(ftype)
+			prev = ftype
+		}
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
 		if field.Name != nil {

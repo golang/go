@@ -105,7 +105,7 @@ var _ T // ERROR cannot use generic type T
 
 // In type context, generic (parameterized) types cannot be parenthesized before
 // being instantiated. See also NOTES entry from 12/4/2019.
-var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR expected ';' */ int]
+var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[ */ int]
 
 // All types may be parameterized, including interfaces.
 type I1[T any] interface{
@@ -141,33 +141,15 @@ func _() {
 	x.m("foo")
 }
 
-// We accept parenthesized embedded struct fields so we can distinguish between
-// a named field with a parenthesized type foo (T) and an embedded parameterized
-// type (foo(T)), similarly to interace embedding.
-// They still need to be valid embedded types after the parentheses are stripped
-// (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
-// of the embedded field is derived as before, after stripping parentheses.
-// (7/14/2020: See comment above. We probably will revert this generalized ability
-// if we go with [] for type parameters.)
 type _ struct {
-	(int8)
-	(*int16)
-	*(int32)
-	(*(int64))
-	(((*(int))))
-	(*(List[int]))
+	( /* ERROR cannot parenthesize */ int8)
+	( /* ERROR cannot parenthesize */ *int16)
+	*( /* ERROR cannot parenthesize */ int32)
+	List[int]
 
 	int8 /* ERROR int8 redeclared */
-	int /* ERROR int redeclared */
-	* /* ERROR List redeclared */ List[int]
-
-	( /* ERROR invalid embedded field type */ [10]int)
-	( /* ERROR invalid embedded field type */ []int)
-	( /* ERROR invalid embedded field type */ struct{})
-	( /* ERROR invalid embedded field type */ map[int]string)
-	( /* ERROR invalid embedded field type */ chan<- int)
-	( /* ERROR invalid embedded field type */ interface{})
-	( /* ERROR invalid embedded field type */ func())
+	* /* ERROR int16 redeclared */ int16
+	//List /* DISABLED_ERROR List redeclared */ [int] // TODO(gri) fix reported error position
 }
 
 // It's possible to declare local types whose underlying types
