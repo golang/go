@@ -6383,3 +6383,116 @@ func TestErrorWriteLoopRace(t *testing.T) {
 		testTransportRace(req)
 	}
 }
+
+//Tests for issue #40926
+//ResponseHeaderTimeout not honoured - response from server not visible to implementing part
+
+const issue40926Body = "<HTML><HEAD><TITLE>401 Authorization Required</TITLE></HEAD><BODY></BODY></HTML>\r\n"
+const issue40926Resp = "HTTP/1.0 401 Unauthorized\r\n" +
+	"WWW-Authenticate: Basic realm=\"GoTest\"\r\n" +
+	"\r\n" +
+	issue40926Body
+
+var issue40926TestCases = []struct {
+	closeAfterHeaders     bool
+	responseHeaderTimeout time.Duration
+}{
+	{true, time.Second},
+	{false, 0},
+}
+
+func issue40926ContentHandling(t *testing.T, listener net.Listener, listenerDone chan struct{}, closeAfterHeaders bool) {
+	defer close(listenerDone)
+	c, err := listener.Accept()
+	if err != nil {
+		t.Errorf("Accept: %v", err)
+		return
+	}
+	defer c.Close()
+	reqReader := bufio.NewReader(c)
+	//Read data from request
+	req := make([]byte, 1024)
+	var total int64
+	var contentLength int64
+	isHeader := true
+
+	for {
+		var readError error
+		if isHeader {
+			header, err := reqReader.ReadString('\n')
+			if err == nil && (header == "\r" || header == "\r\n" || header == "\n" || header == "") {
+				isHeader = false
+			}
+			if strings.HasPrefix(header, "Content-Length: ") {
+				header = header[16 : len(header)-2]
+				contentLength, _ = strconv.ParseInt(header, 10, 32)
+			}
+			readError = err
+		} else {
+			n, err := reqReader.Read(req)
+			total += int64(n)
+			if err == io.EOF || n == 0 || contentLength == total {
+				break
+			}
+			readError = err
+		}
+
+		if !isHeader && closeAfterHeaders { //After any data is read - close connection
+			break
+		}
+		if readError != nil {
+			t.Errorf("Reading from req failed %s", err.Error())
+			return
+		}
+	}
+	c.Write([]byte(issue40926Resp))
+	c.Close()
+}
+
+func funcIssue40926ResponseHeaderTimeout(t *testing.T, closeAfterHeaders bool, responseHeaderTimeout time.Duration) {
+	listener := newLocalListener(t)
+	defer listener.Close()
+	listenerDone := make(chan struct{})
+	go issue40926ContentHandling(t, listener, listenerDone, closeAfterHeaders)
+
+	//After connection is closed client shall wait for 5 seconds for response
+	c := &Client{
+		Transport: &Transport{
+			ResponseHeaderTimeout: responseHeaderTimeout,
+		},
+	}
+	//Keep the upload size big engought
+	body := make([]byte, 1024*1024*10)
+	rand.Read(body)
+
+	req, err := NewRequest("POST", fmt.Sprintf("http://%s/", listener.Addr().String()), bytes.NewReader(body))
+	req.ContentLength = int64(len(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp == nil {
+		t.Fatal("Response expected")
+	}
+	body, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	bodyText := string(body)
+	if strings.Compare(issue40926Body, bodyText) != 0 {
+		t.Fatal("Response check failed")
+	}
+
+	// Wait unconditionally for the listener goroutine to exit
+	<-listenerDone
+}
+
+func TestIssue40926ResponseHeaderTimeout(t *testing.T) {
+	for _, tc := range issue40926TestCases {
+		t.Run(fmt.Sprintf("Close connection after receiving headers: %t, ResponseHeaderTimeout: %d", tc.closeAfterHeaders, tc.responseHeaderTimeout), func(t *testing.T) {
+			funcIssue40926ResponseHeaderTimeout(t, tc.closeAfterHeaders, tc.responseHeaderTimeout)
+		})
+	}
+}
