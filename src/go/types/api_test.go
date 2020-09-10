@@ -272,7 +272,7 @@ func TestTypesInfo(t *testing.T) {
 		// tests for broken code that doesn't parse or type-check
 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
