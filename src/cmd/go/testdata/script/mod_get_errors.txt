@@ -1,0 +1,28 @@
+cp go.mod go.mod.orig
+
+! go get
+stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
+cmp go.mod.orig go.mod
+
+! go get -d
+stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: import missing$'  # TODO: better error message
+cmp go.mod.orig go.mod
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+replace example.com/badimport v0.1.0 => ./badimport
+-- m.go --
+package m
+
+import _ "example.com/badimport"
+-- badimport/go.mod --
+module example.com/badimport
+
+go 1.16
+-- badimport/badimport.go --
+package badimport
+
+import "example.net/oops"

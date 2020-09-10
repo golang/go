@@ -482,14 +482,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		prevBuildList = buildList
 	}
-	if *getD {
-		// Only print warnings after the last iteration, and only if we aren't going
-		// to build (to avoid doubled warnings).
-		//
-		// Only local patterns in the main module, such as './...', can be unmatched.
-		// (See the mod_get_nopkgs test for more detail.)
-		search.WarnUnmatched(matches)
-	}
 
 	// Handle downgrades.
 	var down []module.Version
@@ -577,6 +569,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 		base.Fatalf("%v", buf.String())
+	}
+
+	if len(pkgPatterns) > 0 || len(args) == 0 {
+		// Before we write the updated go.mod file, reload the requested packages to
+		// check for errors.
+		loadOpts := modload.PackageOpts{
+			Tags:      imports.AnyTags(),
+			LoadTests: *getT,
+
+			// Only print warnings after the last iteration, and only if we aren't going
+			// to build (to avoid doubled warnings).
+			//
+			// Only local patterns in the main module, such as './...', can be unmatched.
+			// (See the mod_get_nopkgs test for more detail.)
+			SilenceUnmatchedWarnings: !*getD,
+		}
+		modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
 	}
 
 	// Everything succeeded. Update go.mod.

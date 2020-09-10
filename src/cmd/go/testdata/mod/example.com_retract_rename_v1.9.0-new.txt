@@ -11,3 +11,12 @@ go 1.16
 
 // bad
 retract v1.0.0-bad
+-- go.mod --
+module example.com/retract/newname
+
+go 1.16
+
+// bad
+retract v1.0.0-bad
+-- newname.go --
+package newname
