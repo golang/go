@@ -12,8 +12,19 @@ import (
 	"unicode"
 )
 
-func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
-	check.exprOrType(x, call.Fun)
+// If call == nil, the "call" was an index expression, and orig is of type *ast.IndexExpr.
+func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) exprKind {
+	assert(orig != nil)
+	if call != nil {
+		assert(call == orig)
+		check.exprOrType(x, call.Fun)
+	} else {
+		// We must have an index expression.
+		// x has already been set up (evaluation of orig.X).
+		// Set up fake call so we can use its fields below.
+		expr := orig.(*syntax.IndexExpr)
+		call = &syntax.CallExpr{Fun: expr.X, ArgList: []syntax.Expr{expr.Index}, Brackets: true}
+	}
 
 	switch x.mode {
 	case invalid:
@@ -82,7 +93,16 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 		}
 
 		// evaluate arguments
-		args, _ := check.exprOrTypeList(call.ArgList)
+		args, ok := check.exprOrTypeList(call.ArgList)
+		if ok && call.Brackets && len(args) > 0 && args[0].mode != typexpr {
+			check.errorf(args[0].pos(), "%s is not a type", args[0])
+			ok = false
+		}
+		if !ok {
+			x.mode = invalid
+			x.expr = orig
+			return expression
+		}
 
 		// instantiate function if needed
 		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
@@ -92,7 +112,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 			if !check.conf.InferFromConstraints && n != len(sig.tparams) || n > len(sig.tparams) {
 				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
-				x.expr = call
+				x.expr = orig
 				return expression
 			}
 
@@ -103,7 +123,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 				if a.mode != typexpr {
 					// error was reported earlier
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				targs[i] = a.typ
@@ -111,13 +131,14 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 			}
 
 			// if we don't have enough type arguments, use constraint type inference
+			var inferred bool
 			if n < len(sig.tparams) {
 				var failed int
 				targs, failed = check.inferB(sig.tparams, targs)
 				if targs == nil {
 					// error was already reported
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				if failed >= 0 {
@@ -126,7 +147,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 					tpar := sig.tparams[failed]
 					check.errorf(call.Pos(), "cannot infer %s (%s) (%s)", tpar.name, tpar.pos, targs)
 					x.mode = invalid
-					x.expr = call
+					x.expr = orig
 					return expression
 				}
 				// all type arguments were inferred sucessfully
@@ -137,17 +158,32 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
 				}
 				//check.dump("### inferred targs = %s", targs)
 				n = len(targs)
+				inferred = true
 			}
 			assert(n == len(sig.tparams))
 
 			// instantiate function signature
+			for i, typ := range targs {
+				// some positions may be missing if types are inferred
+				var pos syntax.Pos
+				if i < len(poslist) {
+					pos = poslist[i]
+				}
+				check.ordinaryType(pos, typ)
+			}
 			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
 			assert(res.tparams == nil) // signature is not generic anymore
+			if inferred {
+				check.recordInferred(orig, targs, res)
+			}
 			x.typ = res
 			x.mode = value
-			x.expr = call
+			x.expr = orig
 			return expression
 		}
+
+		// If we reach here, orig must have been a regular call, not an index expression.
+		assert(!call.Brackets)
 
 		sig = check.arguments(call, sig, args)
 
@@ -202,6 +238,8 @@ func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok 
 			break
 		}
 
+		check.instantiatedOperand(&x)
+
 		// exactly one (possibly invalid or comma-ok) value or type
 		xlist = []*operand{&x}
 
@@ -218,6 +256,7 @@ func (check *Checker) exprOrTypeList(elist []syntax.Expr) (xlist []*operand, ok 
 				ntypes = len(xlist) // make 'if' condition fail below (no additional error in this case)
 			case typexpr:
 				ntypes++
+				check.instantiatedOperand(&x)
 			}
 		}
 		if 0 < ntypes && ntypes < len(xlist) {
@@ -520,10 +559,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 		goto Error
 	}
 
-	if x.mode == typexpr && isGeneric(x.typ) {
-		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
-		goto Error
-	}
+	check.instantiatedOperand(x)
 
 	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
@@ -776,5 +812,13 @@ func (check *Checker) useLHS(arg ...syntax.Expr) {
 		if v != nil {
 			v.used = v_used // restore v.used
 		}
+	}
+}
+
+// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
+func (check *Checker) instantiatedOperand(x *operand) {
+	if x.mode == typexpr && isGeneric(x.typ) {
+		check.errorf(x.pos(), "cannot use generic type %s without instantiation", x.typ)
+		x.typ = Typ[Invalid]
 	}
 }

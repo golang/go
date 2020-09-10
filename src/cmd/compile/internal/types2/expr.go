@@ -1400,33 +1400,28 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		check.selector(x, e)
 
 	case *syntax.IndexExpr:
-		check.expr(x, e.X)
+		check.exprOrType(x, e.X)
 		if x.mode == invalid {
 			check.use(e.Index)
 			goto Error
 		}
 
-		if check.useBrackets {
-			if x.mode == typexpr {
-				if isGeneric(x.typ) {
-					// type instantiation
-					x.mode = invalid
-					x.typ = check.typ(e)
-					if x.typ != Typ[Invalid] {
-						x.mode = typexpr
-					}
-					return expression
-				} else {
-					check.errorf(x.pos(), "%s is not a generic type", x.typ)
-					goto Error
+		if x.mode == typexpr {
+			if isGeneric(x.typ) {
+				// type instantiation
+				x.mode = invalid
+				x.typ = check.varType(e)
+				if x.typ != Typ[Invalid] {
+					x.mode = typexpr
 				}
+				return expression
 			}
+			check.errorf(x.pos(), "%s is not a generic type", x.typ)
+			goto Error
+		}
 
-			if sig := x.typ.Signature(); sig != nil {
-				// TODO(gri) should not evaluate e.X twice
-				call := &syntax.CallExpr{Fun: e.X, ArgList: []syntax.Expr{e.Index}}
-				return check.call(x, call)
-			}
+		if sig := x.typ.Signature(); sig != nil {
+			return check.call(x, nil, e)
 		}
 
 		valid := false
@@ -1681,7 +1676,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		goto Error
 
 	case *syntax.CallExpr:
-		return check.call(x, e)
+		return check.call(x, e, e)
 
 	// case *syntax.UnaryExpr:
 	// 	check.expr(x, e.X)

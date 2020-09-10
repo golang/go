@@ -23,6 +23,7 @@ var (
 	universeIota  *Const
 	universeByte  *Basic // uint8 alias, but has name "byte"
 	universeRune  *Basic // int32 alias, but has name "rune"
+	universeAny   *Named
 	universeError *Named
 )
 
@@ -239,7 +240,11 @@ func init() {
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
 	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Named)
 	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
+
+	// "any" is only visible as constraint in a type parameter list
+	delete(Universe.elems, "any")
 }
 
 // Objects with names containing blanks are internal and not entered into

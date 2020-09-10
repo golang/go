@@ -114,6 +114,8 @@ func Comparable(T Type) bool {
 		return true
 	case *Array:
 		return Comparable(t.elem)
+	case *Sum:
+		return t.is(Comparable)
 	case *TypeParam:
 		return t.Bound().IsComparable()
 	}

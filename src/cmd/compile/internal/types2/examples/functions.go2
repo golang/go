@@ -6,9 +6,9 @@
 
 package p
 
-// Reverse is a function that takes a []T argument and
+// Reverse is a generic function that takes a []T argument and
 // reverses that slice in place.
-func Reverse (type T) (list []T) {
+func Reverse[T any](list []T) {
 	i := 0
 	j := len(list)-1
 	for i < j {
@@ -20,9 +20,9 @@ func Reverse (type T) (list []T) {
 
 func _() {
 	// Reverse can be called with an explicit type argument.
-	Reverse(int)(nil)
-	Reverse(string)([]string{"foo", "bar"})
-	Reverse(struct{x, y int})([]struct{x, y int}{{1, 2}, {2, 3}, {3, 4}})
+	Reverse[int](nil)
+	Reverse[string]([]string{"foo", "bar"})
+	Reverse[struct{x, y int}]([]struct{x, y int}{{1, 2}, {2, 3}, {3, 4}})
 
 	// Since the type parameter is used for an incoming argument,
 	// it can be inferred from the provided argument's type.
@@ -39,66 +39,66 @@ func _() {
 
 // Certain functions, such as the built-in `new` could be written using
 // type parameters.
-func new (type T) () *T {
+func new[T any]() *T {
 	var x T
 	return &x
 }
 
-// When calling our own new, we need to pass the type parameter
+// When calling our own `new`, we need to pass the type parameter
 // explicitly since there is no (value) argument from which the
-// result type could be inferred. We doen't try to infer the
+// result type could be inferred. We don't try to infer the
 // result type from the assignment to keep things simple and
 // easy to understand.
-var _ = new(int)()
+var _ = new[int]()
 var _ *float64 = new(float64)() // the result type is indeed *float64
 
 // A function may have multiple type parameters, of course.
-func foo (type A, B, C) (a A, b []B, c *C) B {
+func foo[A, B, C any](a A, b []B, c *C) B {
 	// do something here
 	return b[0]
 }
 
 // As before, we can pass type parameters explicitly.
-var s = foo(int, string, float64)(1, []string{"first"}, new(float64)())
+var s = foo[int, string, float64](1, []string{"first"}, new(float64)())
 
 // Or we can use type inference.
 var _ float64 = foo(42, []float64{1.0}, &s)
 
 // Type inference works in a straight-forward manner even
 // for variadic functions.
-func variadic(type A, B)(A, B, ...B) int { panic("unimplemented") }
+func variadic[A, B any](A, B, ...B) int
 
 // var _ = variadic(1) // ERROR not enough arguments
 var _ = variadic(1, 2.3)
 var _ = variadic(1, 2.3, 3.4, 4.5)
-var _ = variadic(int, float64)(1, 2.3, 3.4, 4)
+var _ = variadic[int, float64](1, 2.3, 3.4, 4)
 
 // Type inference also works in recursive function calls where
 // the inferred type is the type parameter of the caller.
-func f1(type T)(x T) {
+func f1[T any](x T) {
 	f1(x)
 }
 
-func f2a(type T)(x, y T) {
+func f2a[T any](x, y T) {
 	f2a(x, y)
 }
 
-func f2b(type T)(x, y T) {
+func f2b[T any](x, y T) {
 	f2b(y, x)
 }
 
-func g2a(type P, Q)(x P, y Q) {
+func g2a[P, Q any](x P, y Q) {
 	g2a(x, y)
 }
 
-func g2b(type P, Q)(x P, y Q) {
+func g2b[P, Q any](x P, y Q) {
 	g2b(y, x)
 }
 
 // Here's an example of a recursive function call with variadic
 // arguments and type inference inferring the type parameter of
 // the caller (i.e., itself).
-func max(type T interface{ type int })(x ...T) T {
+func max[T interface{ type int }](x ...T) T {
 	var x0 T
 	if len(x) > 0 {
 		x0 = x[0]
@@ -118,9 +118,9 @@ func max(type T interface{ type int })(x ...T) T {
 // Thus even if a type can be inferred successfully, the function
 // call may not be valid.
 
-func fboth(type T)(chan T)
-func frecv(type T)(<-chan T)
-func fsend(type T)(chan<- T)
+func fboth[T any](chan T)
+func frecv[T any](<-chan T)
+func fsend[T any](chan<- T)
 
 func _() {
 	var both chan int
@@ -140,9 +140,9 @@ func _() {
 	fsend(send)
 }
 
-func ffboth(type T)(func(chan T))
-func ffrecv(type T)(func(<-chan T))
-func ffsend(type T)(func(chan<- T))
+func ffboth[T any](func(chan T))
+func ffrecv[T any](func(<-chan T))
+func ffsend[T any](func(chan<- T))
 
 func _() {
 	var both func(chan int)
@@ -160,4 +160,55 @@ func _() {
 	ffsend(both /* ERROR cannot use */ )
 	ffsend(recv /* ERROR cannot use */ )
 	ffsend(send)
+}
+
+// When inferring elements of unnamed composite parameter types,
+// if the arguments are defined types, use their underlying types.
+// Even though the matching types are not exactly structurally the
+// same (one is a type literal, the other a named type), because
+// assignment is permitted, parameter passing is permitted as well,
+// so type inference should be able to handle these cases well.
+
+func g1[T any]([]T)
+func g2[T any]([]T, T)
+func g3[T any](*T, ...T)
+
+func _() {
+	type intSlize []int
+	g1([]int{})
+	g1(intSlize{})
+	g2(nil, 0)
+
+	type myString string
+	var s1 string
+	g3(nil, "1", myString("2"), "3")
+	g3(&s1, "1", myString /* ERROR does not match */ ("2"), "3")
+
+	type myStruct struct{x int}
+	var s2 myStruct
+	g3(nil, struct{x int}{}, myStruct{})
+	g3(&s2, struct{x int}{}, myStruct{})
+	g3(nil, myStruct{}, struct{x int}{})
+	g3(&s2, myStruct{}, struct{x int}{})
+}
+
+// Here's a realistic example.
+
+func append[T any](s []T, t ...T) []T
+
+func _() {
+	var f func()
+	type Funcs []func()
+	var funcs Funcs
+	_ = append(funcs, f)
+}
+
+// Generic type declarations cannot have empty type parameter lists
+// (that would indicate a slice type). Thus, generic functions cannot
+// have empty type parameter lists, either. This is a syntax error.
+
+func h[] /* ERROR empty type parameter list */ ()
+
+func _() {
+	h[] /* ERROR operand */ ()
 }

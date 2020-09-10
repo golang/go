@@ -92,7 +92,6 @@ type Checker struct {
 	// maps and lists are allocated on demand)
 	files            []*syntax.File                     // package files
 	unusedDotImports map[*Scope]map[*Package]syntax.Pos // positions of unused dot-imported packages for each file scope
-	useBrackets      bool                               // if set, [] are used instead of () for type parameters
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -270,20 +269,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 		}
 	}
 
-	print("=== check consistent use of () or [] for type parameters ===")
-	// TODO(gri) enable once the parser has been adjusted
-	/*
-		if len(files) > 0 {
-			check.useBrackets = files[0].UseBrackets
-			for _, file := range files[1:] {
-				if check.useBrackets != file.UseBrackets {
-					check.errorf(file.Pos(), "inconsistent use of () or [] for type parameters")
-					return // cannot type-check properly
-				}
-			}
-		}
-	*/
-
 	print("== initFiles ==")
 	check.initFiles(files)
 
@@ -415,7 +400,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
 	}
 }
 
-func (check *Checker) recordInferred(call *syntax.CallExpr, targs []Type, sig *Signature) {
+func (check *Checker) recordInferred(call syntax.Expr, targs []Type, sig *Signature) {
 	assert(call != nil)
 	assert(sig != nil)
 	if m := check.Inferred; m != nil {

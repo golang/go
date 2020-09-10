@@ -123,26 +123,32 @@ func (check *Checker) typ(e syntax.Expr) Type {
 }
 
 // varType type-checks the type expression e and returns its type, or Typ[Invalid].
-// The type must not be an (uninstantiated) generic type and it must not be an
-// interface type containing type lists.
+// The type must not be an (uninstantiated) generic type and it must be ordinary
+// (see ordinaryType).
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
-	if t := typ.Interface(); t != nil {
-		// We don't want to complete interfaces while we are in the middle
-		// of type-checking parameter declarations that might belong to
-		// interface methods. Delay this check to the end of type-checking.
-		check.atEnd(func() {
-			check.completeInterface(e.Pos(), t) // TODO(gri) is this the correct position?
+	check.ordinaryType(e.Pos(), typ)
+	return typ
+}
+
+// ordinaryType reports an error if typ is an interface type containing
+// type lists or is (or embeds) the predeclared type comparable.
+func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+	// We don't want to call Under() (via Interface) or complete interfaces while we
+	// are in the middle of type-checking parameter declarations that might belong to
+	// interface methods. Delay this check to the end of type-checking.
+	check.atEnd(func() {
+		if t := typ.Interface(); t != nil {
+			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
-				check.softErrorf(e.Pos(), "interface type for variable cannot contain type constraints (%s)", t.allTypes)
+				check.softErrorf(pos, "interface contains type constraints (%s)", t.allTypes)
 				return
 			}
 			if t.IsComparable() {
-				check.softErrorf(e.Pos(), "interface type for variable cannot be (or embed) comparable")
+				check.softErrorf(pos, "interface is (or embeds) comparable")
 			}
-		})
-	}
-	return typ
+		}
+	})
 }
 
 // anyType type-checks the type expression e and returns its type, or Typ[Invalid].
@@ -422,7 +428,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			var under Type
 			if T != nil {
 				// Calling Under() here may lead to endless instantiations.
-				// Test case: type T(type P) *T(P)
+				// Test case: type T[P any] *T[P]
 				// TODO(gri) investigate if that's a bug or to be expected
 				// (see also analogous comment in Checker.instantiate).
 				under = T.Underlying()
@@ -474,10 +480,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		}
 
 	case *syntax.IndexExpr:
-		if check.useBrackets {
-			return check.instantiatedType(e.X, []syntax.Expr{e.Index}, def)
-		}
-		check.errorf(e0.Pos(), "%s is not a type", e0)
+		return check.instantiatedType(e.X, []syntax.Expr{e.Index}, def)
 
 	case *syntax.CallExpr:
 		return check.instantiatedType(e.Fun, e.ArgList, def)
@@ -497,13 +500,13 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			check.errorf(e.Pos(), "invalid use of [...] array (outside a composite literal)")
 			typ.len = -1
 		}
-		typ.elem = check.typ(e.Elem)
+		typ.elem = check.varType(e.Elem)
 		return typ
 
 	case *syntax.SliceType:
 		typ := new(Slice)
 		def.setUnderlying(typ)
-		typ.elem = check.typ(e.Elem)
+		typ.elem = check.varType(e.Elem)
 		return typ
 
 	case *syntax.StructType:
@@ -516,7 +519,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		if e.Op == syntax.Mul && e.Y == nil {
 			typ := new(Pointer)
 			def.setUnderlying(typ)
-			typ.base = check.typ(e.X)
+			typ.base = check.varType(e.X)
 			return typ
 		}
 
@@ -539,8 +542,8 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.typ(e.Key)
-		typ.elem = check.typ(e.Value)
+		typ.key = check.varType(e.Key)
+		typ.elem = check.varType(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -578,7 +581,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Elem)
+		typ.elem = check.varType(e.Elem)
 		return typ
 
 	default:
@@ -604,10 +607,7 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 	case novalue:
 		check.errorf(x.pos(), "%s used as type", &x)
 	case typexpr:
-		if isGeneric(x.typ) {
-			check.errorf(e.Pos(), "cannot use generic type %s without instantiation", x.typ)
-			return Typ[Invalid]
-		}
+		check.instantiatedOperand(&x)
 		return x.typ
 	case value:
 		if x.isNil() {
@@ -695,7 +695,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 func (check *Checker) typeList(list []syntax.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
-		t := check.typ(x)
+		t := check.varType(x)
 		if t == Typ[Invalid] {
 			res = nil
 		}
@@ -801,6 +801,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
 				}
 				continue // ignore
+			}
+
+			// Always type-check method type parameters but complain if they are not enabled.
+			// (This extra check is needed here because interface method signatures don't have
+			// a receiver specification.)
+			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
+				check.errorf(f.Type.Pos(), "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
@@ -967,13 +974,13 @@ func intersect(x, y Type) (r Type) {
 
 	xtypes := unpack(x)
 	ytypes := unpack(y)
-	// Compute the list rtypes which contains only
+	// Compute the list rtypes which includes only
 	// types that are in both xtypes and ytypes.
 	// Quadratic algorithm, but good enough for now.
 	// TODO(gri) fix this
 	var rtypes []Type
 	for _, x := range xtypes {
-		if contains(ytypes, x) {
+		if includes(ytypes, x) {
 			rtypes = append(rtypes, x)
 		}
 	}
@@ -1141,7 +1148,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 			check.invalidAST(pos, "missing type constraint")
 			continue
 		}
-		typ := check.typ(texpr)
+		typ := check.varType(texpr)
 		// A type constraint may be a predeclared type or a
 		// composite type composed of only predeclared types.
 		// TODO(gri) If we enable this again it also must run
@@ -1165,7 +1172,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 			if t := t.Interface(); t != nil {
 				check.completeInterface(types[i].Pos(), t)
 			}
-			if contains(uniques, t) {
+			if includes(uniques, t) {
 				check.softErrorf(types[i].Pos(), "duplicate type %s in type list", t)
 			}
 			uniques = append(uniques, t)
@@ -1175,8 +1182,8 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 	return list
 }
 
-// contains reports whether typ is in list
-func contains(list []Type, typ Type) bool {
+// includes reports whether typ is in list
+func includes(list []Type, typ Type) bool {
 	for _, e := range list {
 		if Identical(typ, e) {
 			return true

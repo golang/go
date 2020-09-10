@@ -4,17 +4,17 @@
 
 package p
 
-type Optional(type T) struct {}
+type Optional[T any] struct {}
 
-func (_ Optional(T)) Val() (T, bool)
+func (_ Optional[T]) Val() (T, bool)
 
-type Box(type T) interface {
+type Box[T any] interface {
 	Val() (T, bool)
 }
 
-func f(type V interface{}, A, B Box(V))() {}
+func f[V interface{}, A, B Box[V]]() {}
 
 func _() {
-	f(int, Optional(int), Optional(int))()
-	f(int, Optional(int), Optional /* ERROR does not satisfy Box */ (string))()
+	f[int, Optional[int], Optional[int]]()
+	f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]()
 }

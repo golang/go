@@ -587,17 +587,19 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		check.validType(obj.typ, nil)
 	})
 
-	if tdecl.Alias {
+	alias := tdecl.Alias
+	if alias && tdecl.TParamList != nil {
+		// The parser will ensure this but we may still get an invalid AST.
+		// Complain and continue as regular type definition.
+		check.errorf(tdecl.Pos(), "generic type cannot be alias")
+		alias = false
+	}
+
+	if alias {
 		// type alias declaration
 
-		if tdecl.TParamList != nil {
-			// check.errorf(tdecl.TParamList.Pos(), "type alias cannot be parameterized")
-			check.errorf(tdecl.Pos(), "type alias cannot be parameterized")
-			// continue but ignore type parameters
-		}
-
 		obj.typ = Typ[Invalid]
-		obj.typ = check.typ(tdecl.Type)
+		obj.typ = check.anyType(tdecl.Type)
 
 	} else {
 		// defined type declaration
@@ -636,14 +638,20 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 }
 
 func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeName) {
+	// Type parameter lists should not be empty. The parser will
+	// complain but we still may get an incorrect AST: ignore it.
+	if len(list) == 0 {
+		return
+	}
+
 	// Declare type parameters up-front, with empty interface as type bound.
-	// If we use interfaces as type bounds, the scope of type parameters starts at
-	// the beginning of the type parameter list (so we can have mutually recursive
-	// parameterized interfaces).
+	// The scope of type parameters starts at the beginning of the type parameter
+	// list (so we can have mutually recursive parameterized interfaces).
 	for _, f := range list {
 		tparams = check.declareTypeParam(tparams, f.Name)
 	}
 
+	var bound Type
 	for i, j := 0, 0; i < len(list); i = j {
 		f := list[i]
 		ftype := f.Type
@@ -660,17 +668,30 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 			continue
 		}
 
+		// If the type bound expects exactly one type argument, permit leaving
+		// it away and use the corresponding type parameter as implicit argument.
+		// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
+		// Enabled if enableImplicitTParam is set.
+		const enableImplicitTParam = false
+
+		// The predeclared identifier "any" is visible only as a constraint
+		// in a type parameter list. Look for it before general constraint
+		// resolution.
+		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
+			bound = universeAny
+		} else if enableImplicitTParam {
+			bound = check.anyType(f.Type)
+		} else {
+			bound = check.typ(f.Type)
+		}
+
 		// type bound must be an interface
 		// TODO(gri) We should delay the interface check because
 		//           we may not have a complete interface yet:
 		//           type C(type T C) interface {}
 		//           (issue #39724).
-		bound := check.anyType(f.Type)
 		if _, ok := bound.Under().(*Interface); ok {
-			// If the type bound expects exactly one type argument, permit leaving
-			// it away and use the corresponding type parameter as implicit argument.
-			// This allows us to write (type p b(p), q b(q), r b(r)) as (type p, q, r b).
-			if isGeneric(bound) {
+			if enableImplicitTParam && isGeneric(bound) {
 				base := bound.(*Named) // only a *Named type can be generic
 				if j-i != 1 || len(base.tparams) != 1 {
 					// TODO(gri) make this error message better

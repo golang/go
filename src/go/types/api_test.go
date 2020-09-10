@@ -284,7 +284,7 @@ func TestTypesInfo(t *testing.T) {
 		{`package p2; func f[T any](T); var _ = f(42)`, `f(42)`, `()`},
 
 		// type parameters
-		{`package t0; type t[any] int; var _ t`, `t`, `t0.t`},
+		{`package t0; type t[] int; var _ t`, `t`, `t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
 		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P₁ any]`},
 		{`package t2; type t[P interface{}] int; var _ t[int]`, `t`, `t2.t[P₁ interface{}]`},
 		{`package t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `t3.t[P₁, Q₂ interface{}]`},

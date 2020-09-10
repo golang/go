@@ -7,16 +7,16 @@ package p
 import "fmt"
 
 // Minimal test case.
-func _(type T interface{type T})(x T) T{
+func _[T interface{type T}](x T) T{
 	return x
 }
 
 // Test case from issue.
-type constr(type T) interface {
+type constr[T any] interface {
 	type T
 }
 
-func Print(type T constr(T))(s []T) {
+func Print[T constr[T]](s []T) {
 	for _, v := range s {
 		fmt.Print(v)
 	}

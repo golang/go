@@ -22,6 +22,8 @@ type substMap struct {
 	proj  map[*TypeParam]Type
 }
 
+// makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
+// If targs[i] is nil, tpars[i] is not substituted.
 func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(map[*TypeParam]Type, len(tpars))
@@ -60,7 +62,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 			var under Type
 			if res != nil {
 				// Calling Under() here may lead to endless instantiations.
-				// Test case: type T(type P) T(P)
+				// Test case: type T[P any] T[P]
 				// TODO(gri) investigate if that's a bug or to be expected.
 				under = res.Underlying()
 			}
@@ -160,13 +162,20 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 			if tpar.ptr {
 				actual = NewPointer(targ)
 			}
-			if m, _ := check.missingMethod(actual, iface, true); m != nil {
+			if m, wrong := check.missingMethod(actual, iface, true); m != nil {
 				// TODO(gri) needs to print updated name to avoid major confusion in error message!
 				//           (print warning for now)
 				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
 				if m.name == "==" {
 					// We don't want to report "missing method ==".
 					check.softErrorf(pos, "%s does not satisfy comparable", targ)
+				} else if wrong != nil {
+					// TODO(gri) This can still report uninstantiated types which makes the error message
+					//           more difficult to read then necessary.
+					check.softErrorf(pos,
+						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
+						targ, tpar.bound, wrong, m,
+					)
 				} else {
 					check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 				}
@@ -189,7 +198,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 				break
 			}
 			for _, t := range unpack(targBound.allTypes) {
-				if !iface.includes(t.Under()) {
+				if !iface.isSatisfiedBy(t.Under()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
@@ -198,8 +207,8 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
 			break
 		}
 
-		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
-		if !iface.includes(targ.Under()) {
+		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+		if !iface.isSatisfiedBy(targ) {
 			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
 			break
 		}
@@ -449,7 +458,7 @@ func typeListString(list []Type) string {
 }
 
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
-// A nil type may appear in pathological cases such as type T(type P) []func(_ T([]_))
+// A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
 // where an array/slice element is accessed before it is set up.
 func (subst *subster) typOrNil(typ Type) Type {
 	if typ == nil {

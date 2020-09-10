@@ -255,7 +255,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	// For type unification, do not shortcut (x == y) for identical
 	// types. Instead keep comparing them element-wise to unify the
 	// matching (and equal type parameter types). A simple test case
-	// where this matters is: func f[type P](a P) { f(a) } .
+	// where this matters is: func f[P any](a P) { f(a) } .
 
 	switch x := x.(type) {
 	case *Basic:

@@ -53,6 +53,7 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
 	}
 	conf := Config{
 		AcceptMethodTypeParams: true,
+		InferFromConstraints:   true,
 		Error:                  func(err error) {},
 		Importer:               defaultImporter(),
 	}
@@ -274,27 +275,26 @@ func TestTypesInfo(t *testing.T) {
 		// tests for broken code that doesn't parse or type-check
 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		// TODO(gri) fix this
-		//{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 
 		// parameterized functions
-		{`package p0; func f[T any](T); var _ = f(int)`, `f`, `func(type T₁)(T₁)`},
+		{`package p0; func f[T any](T); var _ = f(int)`, `f`, `func[T₁ any](T₁)`},
 		{`package p1; func f[T any](T); var _ = f(int)`, `f(int)`, `func(int)`},
-		{`package p2; func f[T any](T); var _ = f(42)`, `f`, `func(type T₁)(T₁)`},
+		{`package p2; func f[T any](T); var _ = f(42)`, `f`, `func[T₁ any](T₁)`},
 		{`package p2; func f[T any](T); var _ = f(42)`, `f(42)`, `()`},
 
 		// type parameters
 		{`package t0; type t[] int; var _ t`, `t`, `t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
-		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t(type P₁)`},
-		{`package t2; type t[P interface{}] int; var _ t[int]`, `t`, `t2.t(type P₁)`},
-		{`package t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `t3.t(type P₁, Q₂)`},
-		{`package t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `t4.t(type P₁, Q₂ interface{m()})`},
+		{`package t1; type t[P any] int; var _ t[int]`, `t`, `t1.t[P₁ any]`},
+		{`package t2; type t[P interface{}] int; var _ t[int]`, `t`, `t2.t[P₁ interface{}]`},
+		{`package t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `t3.t[P₁, Q₂ interface{}]`},
+		{`package t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `t4.t[P₁, Q₂ interface{m()}]`},
 
 		// instantiated types must be sanitized
-		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t(int)`},
+		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
 	}
 
 	for _, test := range tests {
@@ -386,16 +386,53 @@ func TestInferredInfo(t *testing.T) {
 			[]string{`int`},
 			`func(int)`,
 		},
-		// TODO(gri) fix this
+		// TODO(gri) record method type parameters in syntax.FuncType so we can check this
 		// {`package r1; type T interface{ m[P any](P) }; func _(x T) { x.m(4.2) }`,
 		// 	`x.m`,
 		// 	[]string{`float64`},
 		// 	`func(float64)`,
 		// },
+
+		{`package s1; func f[T any, P interface{type *T}](x T); func _(x string) { f(x) }`,
+			`f`,
+			[]string{`string`, `*string`},
+			`func(x string)`,
+		},
+		{`package s2; func f[T any, P interface{type *T}](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `*int`},
+			`func(x []int)`,
+		},
+		{`package s3; type C[T any] interface{type chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `chan<- int`},
+			`func(x []int)`,
+		},
+		{`package s4; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func(x []int)`,
+		},
+
+		{`package t1; func f[T any, P interface{type *T}]() T; func _() { _ = f[string] }`,
+			`f`,
+			[]string{`string`, `*string`},
+			`func() string`,
+		},
+		{`package t2; type C[T any] interface{type chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
+			`f`,
+			[]string{`int`, `chan<- int`},
+			`func() []int`,
+		},
+		{`package t3; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func() []int`,
+		},
 	}
 
 	for _, test := range tests {
-		info := Info{Inferred: make(map[*syntax.CallExpr]Inferred)}
+		info := Info{Inferred: make(map[syntax.Expr]Inferred)}
 		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
 		if err != nil {
 			t.Errorf("package %s: %v", name, err)
@@ -406,7 +443,16 @@ func TestInferredInfo(t *testing.T) {
 		var targs []Type
 		var sig *Signature
 		for call, inf := range info.Inferred {
-			if ExprString(call.Fun) == test.fun {
+			var fun syntax.Expr
+			switch x := call.(type) {
+			case *syntax.CallExpr:
+				fun = x.Fun
+			case *syntax.IndexExpr:
+				fun = x.X
+			default:
+				panic(fmt.Sprintf("unexpected call expression type %T", call))
+			}
+			if ExprString(fun) == test.fun {
 				targs = inf.Targs
 				sig = inf.Sig
 				break
@@ -450,18 +496,17 @@ func TestDefsInfo(t *testing.T) {
 
 		// generic types must be sanitized
 		// (need to use sufficiently nested types to provoke unexpanded types)
-		// TODO(gri) fix type instance syntax below
-		{`package g0; type t[P any] P; const x = (t(int))(42)`, `x`, `const g0.x g0.t(int)`},
-		{`package g1; type t[P any] P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
-		{`package g2; type t[P any] P; type x struct{ f t[int] }`, `x`, `type g2.x struct{f g2.t(int)}`},
-		{`package g3; type t[P any] P; func f(x struct{ f t[string] }); var g = f`, `g`, `var g3.g func(x struct{f g3.t(string)})`},
+		{`package g0; type t[P any] P; const x = t[int](42)`, `x`, `const g0.x g0.t[int]`},
+		{`package g1; type t[P any] P; var x = t[int](42)`, `x`, `var g1.x g1.t[int]`},
+		{`package g2; type t[P any] P; type x struct{ f t[int] }`, `x`, `type g2.x struct{f g2.t[int]}`},
+		{`package g3; type t[P any] P; func f(x struct{ f t[string] }); var g = f`, `g`, `var g3.g func(x struct{f g3.t[string]})`},
 	}
 
 	for _, test := range tests {
 		info := Info{
 			Defs: make(map[*syntax.Name]Object),
 		}
-		name := mustTypecheck(t, test.src, test.src, &info)
+		name := mustTypecheck(t, "DefsInfo", test.src, &info)
 
 		// find object
 		var def Object
@@ -496,11 +541,10 @@ func TestUsesInfo(t *testing.T) {
 
 		// generic types must be sanitized
 		// (need to use sufficiently nested types to provoke unexpanded types)
-		// TODO(gri) fix type instance syntax below
-		{`package g0; func _() { _ = x }; type t[P any] P; const x = (t(int))(42)`, `x`, `const g0.x g0.t(int)`},
-		{`package g1; func _() { _ = x }; type t[P any] P; var x = (t(int))(42)`, `x`, `var g1.x g1.t(int)`},
-		{`package g2; func _() { type _ x }; type t[P any] P; type x struct{ f t[int] }`, `x`, `type g2.x struct{f g2.t(int)}`},
-		{`package g3; func _() { _ = f }; type t[P any] P; func f(x struct{ f t[string] })`, `f`, `func g3.f(x struct{f g3.t(string)})`},
+		{`package g0; func _() { _ = x }; type t[P any] P; const x = t[int](42)`, `x`, `const g0.x g0.t[int]`},
+		{`package g1; func _() { _ = x }; type t[P any] P; var x = t[int](42)`, `x`, `var g1.x g1.t[int]`},
+		{`package g2; func _() { type _ x }; type t[P any] P; type x struct{ f t[int] }`, `x`, `type g2.x struct{f g2.t[int]}`},
+		{`package g3; func _() { _ = f }; type t[P any] P; func f(x struct{ f t[string] })`, `f`, `func g3.f(x struct{f g3.t[string]})`},
 	}
 
 	for _, test := range tests {

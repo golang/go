@@ -269,9 +269,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		writeTypeName(buf, t.obj, qf)
 		if t.targs != nil {
 			// instantiated type
-			buf.WriteByte('(')
+			buf.WriteByte('[')
 			writeTypeList(buf, t.targs, qf, visited)
-			buf.WriteByte(')')
+			buf.WriteByte(']')
 		} else if t.tparams != nil {
 			// parameterized type
 			writeTParamList(buf, t.tparams, qf, visited)
@@ -287,9 +287,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *instance:
 		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
 		writeTypeName(buf, t.base.obj, qf)
-		buf.WriteByte('(')
+		buf.WriteByte('[')
 		writeTypeList(buf, t.targs, qf, visited)
-		buf.WriteByte(')')
+		buf.WriteByte(']')
 
 	case *bottom:
 		buf.WriteString("⊥")
@@ -332,8 +332,9 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 			break
 		}
 	}
+	writeBounds = true // always write the bounds for new type parameter list syntax
 
-	buf.WriteString("(type ")
+	buf.WriteString("[")
 	var prev Type
 	for i, p := range list {
 		b := bound(p)
@@ -360,7 +361,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		buf.WriteByte(' ')
 		writeType(buf, prev, qf, visited)
 	}
-	buf.WriteByte(')')
+	buf.WriteByte(']')
 }
 
 func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {

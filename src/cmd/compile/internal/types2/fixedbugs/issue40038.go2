@@ -4,12 +4,12 @@
 
 package p
 
-type A[type T] int
+type A[T any] int
 
 func (A[T]) m(A[T])
 
-func f[type P interface{m(P)}]()
+func f[P interface{m(P)}]()
 
 func _() {
-	_ = f[A]
+	_ = f[A[int]]
 }

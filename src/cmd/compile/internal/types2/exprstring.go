@@ -101,12 +101,9 @@ func WriteExpr(buf *bytes.Buffer, x syntax.Expr) {
 	case *syntax.CallExpr:
 		WriteExpr(buf, x.Fun)
 		var l, r byte = '(', ')'
-		// TODO(gri) enable once parser has been adjusted
-		/*
-			if x.Brackets {
-				l, r = '[', ']'
-			}
-		*/
+		if x.Brackets {
+			l, r = '[', ']'
+		}
 		buf.WriteByte(l)
 		writeExprList(buf, x.ArgList)
 		if x.HasDots {
