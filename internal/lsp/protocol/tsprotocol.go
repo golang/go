@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 399de64448129835b53c7efe8962de91681d6cde
-// last fetched Wed Aug 26 2020 20:34:24 GMT-0400 (Eastern Daylight Time)
+// commit: 60a5a7825e6f54f57917091f394fd8db7d1724bc
+// last fetched Thu Sep 10 2020 09:21:57 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -390,7 +390,7 @@ type CodeLens struct {
 	 */
 	Command Command `json:"command,omitempty"`
 	/**
-	 * An data entry field that is preserved on a code lens item between
+	 * A data entry field that is preserved on a code lens item between
 	 * a [CodeLensRequest](#CodeLensRequest) and a [CodeLensResolveRequest]
 	 * (#CodeLensResolveRequest)
 	 */
@@ -748,7 +748,7 @@ type CompletionItem struct {
 	 */
 	Command *Command `json:"command,omitempty"`
 	/**
-	 * An data entry field that is preserved on a completion item between
+	 * A data entry field that is preserved on a completion item between
 	 * a [CompletionRequest](#CompletionRequest) and a [CompletionResolveRequest]
 	 * (#CompletionResolveRequest)
 	 */
@@ -900,7 +900,7 @@ type CreateFileOptions struct {
 type Declaration = []Location /*Location | Location[]*/
 
 /**
- * Since 3.14.0
+ * @since 3.14.0
  */
 type DeclarationClientCapabilities struct {
 	/**
@@ -1862,7 +1862,7 @@ type HoverParams struct {
 }
 
 /**
- * Since 3.6.0
+ * @since 3.6.0
  */
 type ImplementationClientCapabilities struct {
 	/**
@@ -1874,7 +1874,7 @@ type ImplementationClientCapabilities struct {
 	/**
 	 * The client supports additional metadata in the form of definition links.
 	 *
-	 * Since 3.14.0
+	 * @since 3.14.0
 	 */
 	LinkSupport bool `json:"linkSupport,omitempty"`
 }
@@ -2113,8 +2113,16 @@ type InnerServerCapabilities struct {
 	ExecuteCommandProvider ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
 	/**
 	 * The server provides Call Hierarchy support.
+	 *
+	 * @since 3.16.0 - Proposed state
 	 */
 	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
+	/**
+	 * The server provides semantic tokens support.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
 	/**
 	 * Experimental server capabilities.
 	 */
@@ -2506,6 +2514,12 @@ type RenameClientCapabilities struct {
 	 * @since version 3.12.0
 	 */
 	PrepareSupport bool `json:"prepareSupport,omitempty"`
+	/**
+	 * Client supports the default behavior result.
+	 *
+	 * @since version 3.16.0
+	 */
+	PrepareSupportDefaultBehavior bool `json:"prepareSupportDefaultBehavior,omitempty"`
 }
 
 /**
@@ -2682,7 +2696,8 @@ type SemanticTokensDeltaParams struct {
 	 */
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
 	/**
-	 * The previous result id.
+	 * The result id of a previous response. The result Id can either point to a full response
+	 * or a delta response depending on what was recevied last.
 	 */
 	PreviousResultID string `json:"previousResultId"`
 	WorkDoneProgressParams
@@ -2705,6 +2720,40 @@ type SemanticTokensEdit struct {
 	 * The elements to insert.
 	 */
 	Data []float64 `json:"data,omitempty"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensLegend struct {
+	/**
+	 * The token types a server uses.
+	 */
+	TokenTypes []string `json:"tokenTypes"`
+	/**
+	 * The token modifiers a server uses.
+	 */
+	TokenModifiers []string `json:"tokenModifiers"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensOptions struct {
+	/**
+	 * The legend used by the server
+	 */
+	Legend SemanticTokensLegend `json:"legend"`
+	/**
+	 * Server supports providing semantic tokens for a sepcific range
+	 * of a document.
+	 */
+	Range bool/*boolean | {	}*/ `json:"range,omitempty"`
+	/**
+	 * Server supports providing semantic tokens for a full document.
+	 */
+	Full bool/*boolean | <elided struct>*/ `json:"full,omitempty"`
+	WorkDoneProgressOptions
 }
 
 /**
@@ -2733,6 +2782,15 @@ type SemanticTokensRangeParams struct {
 	Range Range `json:"range"`
 	WorkDoneProgressParams
 	PartialResultParams
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensRegistrationOptions struct {
+	TextDocumentRegistrationOptions
+	SemanticTokensOptions
+	StaticRegistrationOptions
 }
 
 type ServerCapabilities = struct {
@@ -2835,8 +2893,16 @@ type ServerCapabilities = struct {
 	ExecuteCommandProvider ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
 	/**
 	 * The server provides Call Hierarchy support.
+	 *
+	 * @since 3.16.0 - Proposed state
 	 */
 	CallHierarchyProvider interface{}/* bool | CallHierarchyOptions | CallHierarchyRegistrationOptions*/ `json:"callHierarchyProvider,omitempty"`
+	/**
+	 * The server provides semantic tokens support.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	SemanticTokensProvider interface{}/*SemanticTokensOptions | SemanticTokensRegistrationOptions*/ `json:"semanticTokensProvider,omitempty"`
 	/**
 	 * Experimental server capabilities.
 	 */

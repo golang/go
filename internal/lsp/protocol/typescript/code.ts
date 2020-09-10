@@ -70,9 +70,13 @@ function findRPCs(node: ts.Node) {
     const decl: ts.VariableDeclaration = dl.declarations[0];
     const name = decl.name.getText()
     // we want the initializers
-    if (name == 'method') {  // StringLiteral
-      if (!ts.isStringLiteral(decl.initializer))
-        throw new Error(`expect StringLiteral at ${loc(decl)}`);
+    if (name == 'method') {  // mostly StringLiteral but NoSubstitutionTemplateLiteral in protocol.semanticTokens.ts
+      if (!ts.isStringLiteral(decl.initializer)) {
+        if (!ts.isNoSubstitutionTemplateLiteral(decl.initializer)) {
+          console.log(`${decl.initializer.getText()}`);
+          throw new Error(`expect StringLiteral at ${loc(decl)} got ${strKind(decl.initializer)}`);
+        }
+      }
       rpc = decl.initializer.getText()
     }
     else if (name == 'type') {  // NewExpression
@@ -520,7 +524,7 @@ function goInterface(d: Data, nm: string) {
     ans = ans.concat(getComments(n));
     const json = u.JSON(n);
     // SelectionRange is a recursive type
-    let gt = goType(n.type, n.name.getText());
+    let gt = goType(n.type, n.name.getText(), nm);
     if (gt == d.name) gt = '*' + gt;  // avoid recursive types
     // there are several cases where a * is needed
     starred.forEach(([a, b]) => {
@@ -613,12 +617,12 @@ function goTypeAlias(d: Data, nm: string) {
 }
 
 // return a go type and maybe an assocated javascript tag
-function goType(n: ts.TypeNode, nm: string): string {
+function goType(n: ts.TypeNode, nm: string, parent?: string): string {
   if (n.getText() == 'T') return 'interface{}';  // should check it's generic
   if (ts.isTypeReferenceNode(n)) {
     return goName(n.typeName.getText());  // avoid <T>
   } else if (ts.isUnionTypeNode(n)) {
-    return goUnionType(n, nm);
+    return goUnionType(n, nm, parent);
   } else if (ts.isIntersectionTypeNode(n)) {
     return goIntersectionType(n, nm);
   } else if (strKind(n) == 'StringKeyword') {
@@ -659,8 +663,16 @@ function goType(n: ts.TypeNode, nm: string): string {
 // The choice is uniform interface{}, or some heuristically assigned choice,
 // or some better sytematic idea I haven't thought of. Using interface{}
 // is, in practice, impossibly complex in the existing code.
-function goUnionType(n: ts.UnionTypeNode, nm: string): string {
-  const help = `/*${n.getText()}*/`  // show the original as a comment
+function goUnionType(n: ts.UnionTypeNode, nm: string, parent?: string): string {
+  let help = `/*${n.getText()}*/`  // show the original as a comment
+  // There are some bad cases with newlines:
+  // range?: boolean | {\n	};
+  // full?: boolean | {\n		/**\n		 * The server supports deltas for full documents.\n		 */\n		delta?: boolean;\n	}
+  // These are handled specially:
+  if (parent == 'SemanticTokensOptions') {
+    if (nm == 'range') help = help.replace(/\n/, '');
+    if (nm == 'full') help = '/*boolean | <elided struct>*/';
+  }
   // handle all the special cases
   switch (n.types.length) {
     case 2:
@@ -725,8 +737,9 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       break;
     case 4:
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
+      if (nm == 'textDocument/prepareRename') return `Range ${help} `;
     default:
-      throw new Error(`goUnionType ${n.types.length} `)
+      throw new Error(`goUnionType len=${n.types.length} nm=${nm}`)
   }
 
   // Result will be interface{} with a comment

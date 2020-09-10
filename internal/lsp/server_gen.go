@@ -176,6 +176,10 @@ func (s *Server) SemanticTokensRange(context.Context, *protocol.SemanticTokensRa
 	return nil, notImplemented("SemanticTokensRange")
 }
 
+func (s *Server) SemanticTokensRefresh(context.Context) error {
+	return notImplemented("SemanticTokensRefresh")
+}
+
 func (s *Server) SetTrace(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTrace")
 }
@@ -205,5 +209,5 @@ func (s *Server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 }
 
 func (s *Server) WorkDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	return s.progress.cancel(ctx, params.Token)
+	return s.workDoneProgressCancel(ctx, params)
 }

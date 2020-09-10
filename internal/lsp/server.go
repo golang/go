@@ -104,6 +104,10 @@ type sentDiagnostics struct {
 	snapshotID   uint64
 }
 
+func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
+	return s.progress.cancel(ctx, params.Token)
+}
+
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
 	paramMap := params.(map[string]interface{})
 	if method == "gopls/diagnoseFiles" {

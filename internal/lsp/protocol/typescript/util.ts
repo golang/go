@@ -14,7 +14,7 @@ export const fnames = [
   `${dir}/${srcDir}/protocol/src/browser/main.ts`, `${dir}${srcDir}/types/src/main.ts`,
   `${dir}${srcDir}/jsonrpc/src/node/main.ts`
 ];
-export const gitHash = '399de64448129835b53c7efe8962de91681d6cde'
+export const gitHash = '60a5a7825e6f54f57917091f394fd8db7d1724bc'
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
