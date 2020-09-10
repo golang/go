@@ -19,7 +19,7 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 	// If we are in a deep completion then we can't be completing a field
 	// name (e.g. "Foo{f<>}" completing to "Foo{f.Bar}" should not generate
 	// a snippet).
-	if c.inDeepCompletion() {
+	if c.deepState.inDeepCompletion() {
 		return nil
 	}
 

@@ -160,7 +160,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		Detail:              detail,
 		Kind:                kind,
 		Score:               cand.score,
-		Depth:               len(c.deepState.chain),
+		Depth:               len(c.deepState.curPath.path),
 		snippet:             snip,
 		obj:                 obj,
 	}
