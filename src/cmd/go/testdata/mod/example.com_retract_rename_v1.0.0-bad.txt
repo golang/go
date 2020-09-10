@@ -8,3 +8,9 @@ is added for the first time with a custom module path.
 module example.com/retract/rename
 
 go 1.16
+-- go.mod --
+module example.com/retract/rename
+
+go 1.16
+-- rename.go --
+package rename
