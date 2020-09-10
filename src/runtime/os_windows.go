@@ -36,7 +36,10 @@ const (
 //go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._OpenProcess OpenProcess%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._ProcessIdToSessionId ProcessIdToSessionId%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._QueryFullProcessImageNameA QueryFullProcessImageNameA%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -84,7 +87,10 @@ var (
 	_SetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
+	_OpenProcess,
 	_PostQueuedCompletionStatus,
+	_ProcessIdToSessionId,
+	_QueryFullProcessImageNameA,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
 	_ResumeThread,
@@ -128,7 +134,8 @@ var (
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
-	_NtWaitForSingleObject stdFunction
+	_NtWaitForSingleObject     stdFunction
+	_NtQueryInformationProcess stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
@@ -255,6 +262,7 @@ func loadOptionalSyscalls() {
 		throw("ntdll.dll not found")
 	}
 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
+	_NtQueryInformationProcess = windowsFindfunc(n32, []byte("NtQueryInformationProcess\000"))
 
 	if GOARCH == "arm" {
 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
@@ -995,6 +1003,63 @@ func usleep(us uint32) {
 	onosstack(usleep2Addr, 10*us)
 }
 
+// isWindowsService returns whether the process is currently executing as a
+// Windows service. The below technique looks a bit hairy, but it's actually
+// exactly what the .NET framework does for the similarly named function:
+// https://github.com/dotnet/extensions/blob/f4066026ca06984b07e90e61a6390ac38152ba93/src/Hosting/WindowsServices/src/WindowsServiceHelpers.cs#L26-L31
+// Specifically, it looks up whether the parent process has session ID zero
+// and is called "services".
+func isWindowsService() bool {
+	const (
+		_CURRENT_PROCESS                   = ^uintptr(0)
+		_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+	)
+	// pbi is a PROCESS_BASIC_INFORMATION struct, where we just care about
+	// the 6th pointer inside of it, which contains the pid of the process
+	// parent:
+	// https://github.com/wine-mirror/wine/blob/42cb7d2ad1caba08de235e6319b9967296b5d554/include/winternl.h#L1294
+	var pbi [6]uintptr
+	var pbiLen uint32
+	err := stdcall5(_NtQueryInformationProcess, _CURRENT_PROCESS, 0, uintptr(unsafe.Pointer(&pbi[0])), uintptr(unsafe.Sizeof(pbi)), uintptr(unsafe.Pointer(&pbiLen)))
+	if err != 0 {
+		return false
+	}
+	var psid uint32
+	err = stdcall2(_ProcessIdToSessionId, pbi[5], uintptr(unsafe.Pointer(&psid)))
+	if err == 0 || psid != 0 {
+		return false
+	}
+	pproc := stdcall3(_OpenProcess, _PROCESS_QUERY_LIMITED_INFORMATION, 0, pbi[5])
+	if pproc == 0 {
+		return false
+	}
+	defer stdcall1(_CloseHandle, pproc)
+	// exeName gets the path to the executable image of the parent process
+	var exeName [261]byte
+	exeNameLen := uint32(len(exeName) - 1)
+	err = stdcall4(_QueryFullProcessImageNameA, pproc, 0, uintptr(unsafe.Pointer(&exeName[0])), uintptr(unsafe.Pointer(&exeNameLen)))
+	if err == 0 || exeNameLen == 0 {
+		return false
+	}
+	servicesLower := "services.exe"
+	servicesUpper := "SERVICES.EXE"
+	i := int(exeNameLen) - 1
+	j := len(servicesLower) - 1
+	if i < j {
+		return false
+	}
+	for {
+		if j == -1 {
+			return i == -1 || exeName[i] == '\\'
+		}
+		if exeName[i] != servicesLower[j] && exeName[i] != servicesUpper[j] {
+			return false
+		}
+		i--
+		j--
+	}
+}
+
 func ctrlhandler1(_type uint32) uint32 {
 	var s uint32
 
@@ -1010,9 +1075,9 @@ func ctrlhandler1(_type uint32) uint32 {
 	if sigsend(s) {
 		return 1
 	}
-	if !islibrary && !isarchive {
-		// Only exit the program if we don't have a DLL.
-		// See https://golang.org/issues/35965.
+	if !islibrary && !isarchive && !isWindowsService() {
+		// Only exit the program if we don't have a DLL or service.
+		// See https://golang.org/issues/35965 and https://golang.org/issues/40167
 		exit(2) // SIGINT, SIGTERM, etc
 	}
 	return 0
