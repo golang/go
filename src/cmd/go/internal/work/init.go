@@ -254,34 +254,18 @@ func buildModeInit() {
 	case "":
 		// Behavior will be determined automatically, as if no flag were passed.
 	case "readonly", "vendor", "mod":
-		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+		if !cfg.ModulesEnabled && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
 	}
 	if !cfg.ModulesEnabled {
-		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+		if cfg.ModCacheRW && !base.InGOFLAGS("-modcacherw") {
 			base.Fatalf("build flag -modcacherw only valid when using modules")
 		}
-		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+		if cfg.ModFile != "" && !base.InGOFLAGS("-mod") {
 			base.Fatalf("build flag -modfile only valid when using modules")
 		}
 	}
-}
-
-func inGOFLAGS(flag string) bool {
-	for _, goflag := range base.GOFLAGS() {
-		name := goflag
-		if strings.HasPrefix(name, "--") {
-			name = name[1:]
-		}
-		if i := strings.Index(name, "="); i >= 0 {
-			name = name[:i]
-		}
-		if name == flag {
-			return true
-		}
-	}
-	return false
 }
