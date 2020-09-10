@@ -800,3 +800,17 @@ func TestContentAddressableSymbols(t *testing.T) {
 		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
 	}
 }
+
+func TestReadOnly(t *testing.T) {
+	// Test that read-only data is indeed read-only.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	src := filepath.Join("testdata", "testRO", "x.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("running test program did not fail. output:\n%s", out)
+	}
+}
