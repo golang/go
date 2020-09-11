@@ -3001,8 +3001,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 	case 11: // br/bl
 		v := int32(0)
 
-		if p.Pcond != nil {
-			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+		if p.To.Target() != nil {
+			v = int32((p.To.Target().Pc - p.Pc) >> 1)
 		}
 
 		if p.As == ABR && p.To.Sym == nil && int32(int16(v)) == v {
@@ -3122,8 +3122,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 16: // conditional branch
 		v := int32(0)
-		if p.Pcond != nil {
-			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+		if p.To.Target() != nil {
+			v = int32((p.To.Target().Pc - p.Pc) >> 1)
 		}
 		mask := uint32(c.branchMask(p))
 		if p.To.Sym == nil && int32(int16(v)) == v {
@@ -3440,7 +3440,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 41: // branch on count
 		r1 := p.From.Reg
-		ri2 := (p.Pcond.Pc - p.Pc) >> 1
+		ri2 := (p.To.Target().Pc - p.Pc) >> 1
 		if int64(int16(ri2)) != ri2 {
 			c.ctxt.Diag("branch target too far away")
 		}
@@ -3885,8 +3885,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 89: // compare and branch reg reg
 		var v int32
-		if p.Pcond != nil {
-			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+		if p.To.Target() != nil {
+			v = int32((p.To.Target().Pc - p.Pc) >> 1)
 		}
 
 		// Some instructions take a mask as the first argument.
@@ -3930,8 +3930,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 90: // compare and branch reg $constant
 		var v int32
-		if p.Pcond != nil {
-			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+		if p.To.Target() != nil {
+			v = int32((p.To.Target().Pc - p.Pc) >> 1)
 		}
 
 		// Some instructions take a mask as the first argument.

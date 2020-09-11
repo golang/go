@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -215,6 +216,7 @@ applied to a Go struct, but now a Module struct:
         Dir       string       // directory holding files for this module, if any
         GoMod     string       // path to go.mod file used when loading this module, if any
         GoVersion string       // go version used in module
+        Retracted string       // retraction information, if any (with -retracted or -u)
         Error     *ModuleError // error loading module
     }
 
@@ -246,14 +248,16 @@ the replaced source code.)
 The -u flag adds information about available upgrades.
 When the latest version of a given module is newer than
 the current one, list -u sets the Module's Update field
-to information about the newer module.
+to information about the newer module. list -u will also set
+the module's Retracted field if the current version is retracted.
 The Module's String method indicates an available upgrade by
 formatting the newer version in brackets after the current version.
+If a version is retracted, the string "(retracted)" will follow it.
 For example, 'go list -m -u all' might print:
 
     my/main/module
     golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
-    rsc.io/pdf v0.1.1 [v0.1.2]
+    rsc.io/pdf v0.1.1 (retracted) [v0.1.2]
 
 (For tools, 'go list -m -u -json all' may be more convenient to parse.)
 
@@ -262,6 +266,14 @@ to a list of all known versions of that module, ordered according
 to semantic versioning, earliest to latest. The flag also changes
 the default output format to display the module path followed by the
 space-separated version list.
+
+The -retracted flag causes list to report information about retracted
+module versions. When -retracted is used with -f or -json, the Retracted
+field will be set to a string explaining why the version was retracted.
+The string is taken from comments on the retract directive in the
+module's go.mod file. When -retracted is used with -versions, retracted
+versions are listed together with unretracted versions. The -retracted
+flag may be used with or without -m.
 
 The arguments to list -m are interpreted as a list of modules, not packages.
 The main module is the module containing the current directory.
@@ -296,17 +308,18 @@ func init() {
 }
 
 var (
-	listCompiled = CmdList.Flag.Bool("compiled", false, "")
-	listDeps     = CmdList.Flag.Bool("deps", false, "")
-	listE        = CmdList.Flag.Bool("e", false, "")
-	listExport   = CmdList.Flag.Bool("export", false, "")
-	listFmt      = CmdList.Flag.String("f", "", "")
-	listFind     = CmdList.Flag.Bool("find", false, "")
-	listJson     = CmdList.Flag.Bool("json", false, "")
-	listM        = CmdList.Flag.Bool("m", false, "")
-	listU        = CmdList.Flag.Bool("u", false, "")
-	listTest     = CmdList.Flag.Bool("test", false, "")
-	listVersions = CmdList.Flag.Bool("versions", false, "")
+	listCompiled  = CmdList.Flag.Bool("compiled", false, "")
+	listDeps      = CmdList.Flag.Bool("deps", false, "")
+	listE         = CmdList.Flag.Bool("e", false, "")
+	listExport    = CmdList.Flag.Bool("export", false, "")
+	listFmt       = CmdList.Flag.String("f", "", "")
+	listFind      = CmdList.Flag.Bool("find", false, "")
+	listJson      = CmdList.Flag.Bool("json", false, "")
+	listM         = CmdList.Flag.Bool("m", false, "")
+	listRetracted = CmdList.Flag.Bool("retracted", false, "")
+	listTest      = CmdList.Flag.Bool("test", false, "")
+	listU         = CmdList.Flag.Bool("u", false, "")
+	listVersions  = CmdList.Flag.Bool("versions", false, "")
 )
 
 var nl = []byte{'\n'}
@@ -367,6 +380,16 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	modload.Init()
+	if *listRetracted {
+		if cfg.BuildMod == "vendor" {
+			base.Fatalf("go list -retracted cannot be used when vendoring is enabled")
+		}
+		if !modload.Enabled() {
+			base.Fatalf("go list -retracted can only be used in module-aware mode")
+		}
+	}
+
 	if *listM {
 		// Module mode.
 		if *listCompiled {
@@ -414,9 +437,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		modload.LoadBuildList(ctx)
-
-		mods := modload.ListModules(ctx, args, *listU, *listVersions)
+		mods := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
@@ -522,7 +543,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Note that -deps is applied after -test,
 		// so that you only get descriptions of tests for the things named
 		// explicitly on the command line, not for all dependencies.
-		pkgs = load.PackageList(pkgs)
+		pkgs = loadPackageList(pkgs)
 	}
 
 	// Do we need to run a build to gather information?
@@ -557,7 +578,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listTest {
 		all := pkgs
 		if !*listDeps {
-			all = load.PackageList(pkgs)
+			all = loadPackageList(pkgs)
 		}
 		// Update import paths to distinguish the real package p
 		// from p recompiled for q.test.
@@ -607,6 +628,55 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	// TODO(golang.org/issue/40676): This mechanism could be extended to support
+	// -u without -m.
+	if *listRetracted {
+		// Load retractions for modules that provide packages that will be printed.
+		// TODO(golang.org/issue/40775): Packages from the same module refer to
+		// distinct ModulePublic instance. It would be nice if they could all point
+		// to the same instance. This would require additional global state in
+		// modload.loaded, so that should be refactored first. For now, we update
+		// all instances.
+		modToArg := make(map[*modinfo.ModulePublic]string)
+		argToMods := make(map[string][]*modinfo.ModulePublic)
+		var args []string
+		addModule := func(mod *modinfo.ModulePublic) {
+			if mod.Version == "" {
+				return
+			}
+			arg := fmt.Sprintf("%s@%s", mod.Path, mod.Version)
+			if argToMods[arg] == nil {
+				args = append(args, arg)
+			}
+			argToMods[arg] = append(argToMods[arg], mod)
+			modToArg[mod] = arg
+		}
+		for _, p := range pkgs {
+			if p.Module == nil {
+				continue
+			}
+			addModule(p.Module)
+			if p.Module.Replace != nil {
+				addModule(p.Module.Replace)
+			}
+		}
+
+		if len(args) > 0 {
+			listU := false
+			listVersions := false
+			rmods := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			for i, arg := range args {
+				rmod := rmods[i]
+				for _, mod := range argToMods[arg] {
+					mod.Retracted = rmod.Retracted
+					if rmod.Error != nil && mod.Error == nil {
+						mod.Error = rmod.Error
+					}
+				}
+			}
+		}
+	}
+
 	// Record non-identity import mappings in p.ImportMap.
 	for _, p := range pkgs {
 		for i, srcPath := range p.Internal.RawImports {
@@ -623,6 +693,23 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	for _, p := range pkgs {
 		do(&p.PackagePublic)
 	}
+}
+
+// loadPackageList is like load.PackageList, but prints error messages and exits
+// with nonzero status if listE is not set and any package in the expanded list
+// has errors.
+func loadPackageList(roots []*load.Package) []*load.Package {
+	pkgs := load.PackageList(roots)
+
+	if !*listE {
+		for _, pkg := range pkgs {
+			if pkg.Error != nil {
+				base.Errorf("%v", pkg.Error)
+			}
+		}
+	}
+
+	return pkgs
 }
 
 // TrackingWriter tracks the last byte written on every write so

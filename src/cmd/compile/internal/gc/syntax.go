@@ -141,19 +141,20 @@ const (
 	nodeInitorder, _                   // tracks state during init1; two bits
 	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
-	_, nodeIsDDD     // is the argument variadic
-	_, nodeDiag      // already printed error about this
-	_, nodeColas     // OAS resulting from :=
-	_, nodeNonNil    // guaranteed to be non-nil
-	_, nodeTransient // storage can be reused immediately after this statement
-	_, nodeBounded   // bounds check unnecessary
-	_, nodeHasCall   // expression contains a function call
-	_, nodeLikely    // if statement condition likely
-	_, nodeHasVal    // node.E contains a Val
-	_, nodeHasOpt    // node.E contains an Opt
-	_, nodeEmbedded  // ODCLFIELD embedded type
+	_, nodeNoInline     // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+	_, nodeImplicit     // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
+	_, nodeIsDDD        // is the argument variadic
+	_, nodeDiag         // already printed error about this
+	_, nodeColas        // OAS resulting from :=
+	_, nodeNonNil       // guaranteed to be non-nil
+	_, nodeTransient    // storage can be reused immediately after this statement
+	_, nodeBounded      // bounds check unnecessary
+	_, nodeHasCall      // expression contains a function call
+	_, nodeLikely       // if statement condition likely
+	_, nodeHasVal       // node.E contains a Val
+	_, nodeHasOpt       // node.E contains an Opt
+	_, nodeEmbedded     // ODCLFIELD embedded type
+	_, nodeNeedsWrapper // OCALLxxx node that needs to be wrapped
 )
 
 func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -284,6 +285,20 @@ func (n *Node) Iota() int64 {
 
 func (n *Node) SetIota(x int64) {
 	n.Xoffset = x
+}
+
+func (n *Node) NeedsWrapper() bool {
+	return n.flags&nodeNeedsWrapper != 0
+}
+
+// SetNeedsWrapper indicates that OCALLxxx node needs to be wrapped by a closure.
+func (n *Node) SetNeedsWrapper(b bool) {
+	switch n.Op {
+	case OCALLFUNC, OCALLMETH, OCALLINTER:
+	default:
+		Fatalf("Node.SetNeedsWrapper %v", n.Op)
+	}
+	n.flags.set(nodeNeedsWrapper, b)
 }
 
 // mayBeShared reports whether n may occur in multiple places in the AST.

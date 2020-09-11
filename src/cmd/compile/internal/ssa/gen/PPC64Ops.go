@@ -175,6 +175,7 @@ func init() {
 		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
+		{name: "SUBFCconst", argLength: 1, reg: gp11, asm: "SUBC", aux: "Int64"},  // auxInt - arg0 (with carry)
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
 
@@ -206,9 +207,7 @@ func init() {
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
 
-		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
-		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + auxint
-		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
+		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
 
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 64, 64 bit width
 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // signed arg0 >> auxInt, 0 <= auxInt < 32, 32 bit width
@@ -674,11 +673,9 @@ func init() {
 
 		// These ops are for temporary use by rewrite rules. They
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"},         // equal
-		{name: "FlagLT"},         // signed < or unsigned <
-		{name: "FlagGT"},         // signed > or unsigned >
-		{name: "FlagCarrySet"},   // carry flag set
-		{name: "FlagCarryClear"}, // carry flag clear
+		{name: "FlagEQ"}, // equal
+		{name: "FlagLT"}, // signed < or unsigned <
+		{name: "FlagGT"}, // signed > or unsigned >
 	}
 
 	blocks := []blockData{

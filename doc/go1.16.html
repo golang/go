@@ -43,6 +43,37 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<p><!-- golang.org/issue/24031 -->
+  <code>retract</code> directives may now be used in a <code>go.mod</code> file
+  to indicate that certain published versions of the module should not be used
+  by other modules. A module author may retract a version after a severe problem
+  is discovered or if the version was published unintentionally.<br>
+  TODO: write and link to section in golang.org/ref/mod<br>
+  TODO: write and link to tutorial or blog post
+</p>
+
+<p><!-- golang.org/issue/29062 -->
+  When using <code>go test</code>, a test that
+  calls <code>os.Exit(0)</code> during execution of a test function
+  will now be considered to fail.
+  This will help catch cases in which a test calls code that calls
+  os.Exit(0) and thereby stops running all future tests.
+  If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
+  that is still considered to be a passing test.
+</p>
+
+<h4 id="all-pattern">The <code>all</code> pattern</h4>
+
+<p><!-- golang.org/cl/240623 -->
+  When the main module's <code>go.mod</code> file
+  declares <code>go</code> <code>1.16</code> or higher, the <code>all</code>
+  package pattern now matches only those packages that are transitively imported
+  by a package or test found in the main module. (Packages imported by <em>tests
+  of</em> packages imported by the main module are no longer included.) This is
+  the same set of packages retained
+  by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
+</p>
+
 <p>
   TODO
 </p>
@@ -90,6 +121,28 @@ Do not send CLs removing the interior tags from such phrases.
   TODO
 </p>
 
+<h3 id="net"><a href="/pkg/net/">net</a></h3>
+
+<p><!-- CL 250357 -->
+  The case of I/O on a closed network connection, or I/O on a network
+  connection that is closed before any of the I/O completes, can now
+  be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
+  A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
+  In earlier releases the only way to reliably detect this case was to
+  match the string returned by the <code>Error</code> method
+  with <code>"use of closed network connection"</code>.
+</p>
+
+
+<h3 id="text/template/parse"><a href="/pkg/text/template/parse/">text/template/parse</a></h3>
+
+<p><!-- CL 229398, golang.org/issue/34652 -->
+  A new <a href="/pkg/text/template/parse/#CommentNode"><code>CommentNode</code></a>
+  was added to the parse tree. The <a href="/pkg/text/template/parse/#Mode"><code>Mode</code></a>
+  field in the <code>parse.Tree</code> enables access to it.
+</p>
+<!-- text/template/parse -->
+
 <h3 id="unicode"><a href="/pkg/unicode/">unicode</a></h3>
 
 <p><!-- CL 248765 -->
@@ -112,3 +165,27 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO
 </p>
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- CL 233637 -->
+      In the <a href="/pkg/net/http/"><code>net/http</code></a> package, the
+      behavior of <a href="/pkg/net/http/#StripPrefix"><code>StripPrefix</code></a>
+      has been changed to strip the prefix from the request URL's
+      <code>RawPath</code> field in addition to its <code>Path</code> field.
+      In past releases, only the <code>Path</code> field was trimmed, and so if the
+      request URL contained any escaped characters the URL would be modified to
+      have mismatched <code>Path</code> and <code>RawPath</code> fields.
+      In Go 1.16, <code>StripPrefix</code> trims both fields.
+      If there are escaped characters in the prefix part of the request URL the
+      handler serves a 404 instead of its previous behavior of invoking the
+      underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
+    </p>
+
+    <p><!-- CL 252497 -->
+     The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
+     of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
+     example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
+    </p>
+  </dd>
+</dl><!-- net/http -->

@@ -54,6 +54,9 @@ type Value struct {
 	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
 	OnWasmStack bool
 
+	// Is this value in the per-function constant cache? If so, remove from cache before changing it or recycling it.
+	InCache bool
+
 	// Storage for the first three args
 	argstorage [3]*Value
 }
@@ -210,7 +213,7 @@ func (v *Value) auxString() string {
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	case auxCCop:
-		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+		return fmt.Sprintf(" {%s}", Op(v.AuxInt))
 	case auxS390XCCMask, auxS390XRotateParams:
 		return fmt.Sprintf(" {%v}", v.Aux)
 	case auxFlagConstant:
@@ -332,6 +335,9 @@ func (v *Value) resetArgs() {
 // of cmd/compile by almost 10%, and slows it down.
 //go:noinline
 func (v *Value) reset(op Op) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
 	v.Op = op
 	v.resetArgs()
 	v.AuxInt = 0
@@ -342,6 +348,9 @@ func (v *Value) reset(op Op) {
 // It modifies v to be (Copy a).
 //go:noinline
 func (v *Value) copyOf(a *Value) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
 	v.Op = OpCopy
 	v.resetArgs()
 	v.AddArg(a)
@@ -459,4 +468,24 @@ func (v *Value) LackingPos() bool {
 	// with respect to their source position.
 	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
+}
+
+// removeable reports whether the value v can be removed from the SSA graph entirely
+// if its use count drops to 0.
+func (v *Value) removeable() bool {
+	if v.Type.IsVoid() {
+		// Void ops, like nil pointer checks, must stay.
+		return false
+	}
+	if v.Type.IsMemory() {
+		// All memory ops aren't needed here, but we do need
+		// to keep calls at least (because they might have
+		// syncronization operations we can't see).
+		return false
+	}
+	if v.Op.HasSideEffects() {
+		// These are mostly synchronization operations.
+		return false
+	}
+	return true
 }

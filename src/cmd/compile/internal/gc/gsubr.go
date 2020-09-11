@@ -342,6 +342,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatalf("patch: not a branch")
 	}
-	p.To.Val = to
+	p.To.SetTarget(to)
 	p.To.Offset = to.Pc
 }

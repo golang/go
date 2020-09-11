@@ -187,9 +187,9 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	movlr.To.Type = obj.TYPE_REG
 	movlr.To.Reg = REG_R3
 	if q != nil {
-		q.Pcond = movlr
+		q.To.SetTarget(movlr)
 	}
-	bls.Pcond = movlr
+	bls.To.SetTarget(movlr)
 
 	debug := movlr
 	if false {
@@ -220,7 +220,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	jmp := obj.Appendp(pcdata, c.newprog)
 	jmp.As = AB
 	jmp.To.Type = obj.TYPE_BRANCH
-	jmp.Pcond = c.cursym.Func.Text.Link
+	jmp.To.SetTarget(c.cursym.Func.Text.Link)
 	jmp.Spadj = +framesize
 
 	return end
@@ -621,7 +621,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				q1 = obj.Appendp(q1, c.newprog)
 				q1.Pos = p.Pos
 				q1.As = AMOVD
@@ -697,7 +697,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				mov.To.Reg = REG_R2
 
 				// CBNZ branches to the MOV above
-				cbnz.Pcond = mov
+				cbnz.To.SetTarget(mov)
 
 				// ADD $(autosize+8), SP, R3
 				q = obj.Appendp(mov, c.newprog)
@@ -719,7 +719,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = ABNE
 				q.To.Type = obj.TYPE_BRANCH
-				q.Pcond = end
+				q.To.SetTarget(end)
 
 				// ADD $8, SP, R4
 				q = obj.Appendp(q, c.newprog)
@@ -743,7 +743,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AB
 				q.To.Type = obj.TYPE_BRANCH
-				q.Pcond = end
+				q.To.SetTarget(end)
 			}
 
 		case obj.ARET:
@@ -764,7 +764,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Reg = REGSP
 					p.Spadj = -c.autosize
 
-					if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+					if objabi.Framepointer_enabled {
 						p = obj.Appendp(p, c.newprog)
 						p.As = ASUB
 						p.From.Type = obj.TYPE_CONST
@@ -777,7 +777,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
 
-				if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+				if objabi.Framepointer_enabled {
 					p.As = AMOVD
 					p.From.Type = obj.TYPE_MEM
 					p.From.Reg = REGSP
@@ -865,7 +865,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case obj.ADUFFCOPY:
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				//  ADR	ret_addr, R27
 				//  STP	(FP, R27), -24(SP)
 				//  SUB	24, SP, FP
@@ -913,12 +913,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q5.Reg = REGSP
 				q5.To.Type = obj.TYPE_REG
 				q5.To.Reg = REGFP
-				q1.Pcond = q5
+				q1.From.SetTarget(q5)
 				p = q5
 			}
 
 		case obj.ADUFFZERO:
-			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			if objabi.Framepointer_enabled {
 				//  ADR	ret_addr, R27
 				//  STP	(FP, R27), -24(SP)
 				//  SUB	24, SP, FP
@@ -966,7 +966,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q5.Reg = REGSP
 				q5.To.Type = obj.TYPE_REG
 				q5.To.Reg = REGFP
-				q1.Pcond = q5
+				q1.From.SetTarget(q5)
 				p = q5
 			}
 		}

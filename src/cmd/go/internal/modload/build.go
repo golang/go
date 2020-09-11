@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"internal/goroot"
 	"os"
@@ -58,7 +59,9 @@ func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
 	if !ok {
 		return nil
 	}
-	return moduleInfo(context.TODO(), m, true)
+	fromBuildList := true
+	listRetracted := false
+	return moduleInfo(context.TODO(), m, fromBuildList, listRetracted)
 }
 
 func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
@@ -66,13 +69,17 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
+	listRetracted := false
 	if i := strings.Index(path, "@"); i >= 0 {
-		return moduleInfo(ctx, module.Version{Path: path[:i], Version: path[i+1:]}, false)
+		m := module.Version{Path: path[:i], Version: path[i+1:]}
+		fromBuildList := false
+		return moduleInfo(ctx, m, fromBuildList, listRetracted)
 	}
 
-	for _, m := range BuildList() {
+	for _, m := range LoadedModules() {
 		if m.Path == path {
-			return moduleInfo(ctx, m, true)
+			fromBuildList := true
+			return moduleInfo(ctx, m, fromBuildList, listRetracted)
 		}
 	}
 
@@ -90,7 +97,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -100,11 +107,37 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 }
 
 // addVersions fills in m.Versions with the list of known versions.
-func addVersions(m *modinfo.ModulePublic) {
-	m.Versions, _ = versions(m.Path)
+// Excluded versions will be omitted. If listRetracted is false, retracted
+// versions will also be omitted.
+func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+	allowed := CheckAllowed
+	if listRetracted {
+		allowed = CheckExclusions
+	}
+	m.Versions, _ = versions(ctx, m.Path, allowed)
 }
 
-func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+// addRetraction fills in m.Retracted if the module was retracted by its author.
+// m.Error is set if there's an error loading retraction information.
+func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+	if m.Version == "" {
+		return
+	}
+
+	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var rerr *retractedError
+	if errors.As(err, &rerr) {
+		if len(rerr.rationale) == 0 {
+			m.Retracted = []string{"retracted by module author"}
+		} else {
+			m.Retracted = rerr.rationale
+		}
+	} else if err != nil && m.Error == nil {
+		m.Error = &modinfo.ModuleError{Err: err.Error()}
+	}
+}
+
+func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetracted bool) *modinfo.ModulePublic {
 	if m == Target {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
@@ -126,12 +159,14 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 		Version:  m.Version,
 		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
 	}
-	if loaded != nil {
-		info.GoVersion = loaded.goVersion[m.Path]
+	if v, ok := rawGoVersion.Load(m); ok {
+		info.GoVersion = v.(string)
 	}
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
+		mod := module.Version{Path: m.Path, Version: m.Version}
+
 		if m.Version != "" {
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
@@ -140,7 +175,6 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 				m.Time = &q.Time
 			}
 
-			mod := module.Version{Path: m.Path, Version: m.Version}
 			gomod, err := modfetch.CachePath(mod, "mod")
 			if err == nil {
 				if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
@@ -151,10 +185,22 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 			if err == nil {
 				m.Dir = dir
 			}
+
+			if listRetracted {
+				addRetraction(ctx, m)
+			}
+		}
+
+		if m.GoVersion == "" {
+			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
+				m.GoVersion = summary.goVersionV[1:]
+			}
 		}
 	}
 
 	if !fromBuildList {
+		// If this was an explicitly-versioned argument to 'go mod download' or
+		// 'go list -m', report the actual requested version, not its replacement.
 		completeFromModCache(info) // Will set m.Error in vendor mode.
 		return info
 	}
@@ -178,9 +224,11 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 	// worth the cost, and we're going to overwrite the GoMod and Dir from the
 	// replacement anyway. See https://golang.org/issue/27859.
 	info.Replace = &modinfo.ModulePublic{
-		Path:      r.Path,
-		Version:   r.Version,
-		GoVersion: info.GoVersion,
+		Path:    r.Path,
+		Version: r.Version,
+	}
+	if v, ok := rawGoVersion.Load(m); ok {
+		info.Replace.GoVersion = v.(string)
 	}
 	if r.Version == "" {
 		if filepath.IsAbs(r.Path) {
@@ -194,7 +242,9 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 		completeFromModCache(info.Replace)
 		info.Dir = info.Replace.Dir
 		info.GoMod = info.Replace.GoMod
+		info.Retracted = info.Replace.Retracted
 	}
+	info.GoVersion = info.Replace.GoVersion
 	return info
 }
 

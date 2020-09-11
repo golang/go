@@ -19,7 +19,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -41,7 +40,7 @@ modules and packages to standard error.
 
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
-	work.AddModCommonFlags(cmdVendor)
+	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
 func runVendor(ctx context.Context, cmd *base.Command, args []string) {
@@ -77,7 +76,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	var buf bytes.Buffer
-	for _, m := range modload.BuildList()[1:] {
+	for _, m := range modload.LoadedModules()[1:] {
 		if pkgs := modpkgs[m]; len(pkgs) > 0 || isExplicit[m] {
 			line := moduleLine(m, modload.Replacement(m))
 			buf.WriteString(line)

@@ -1243,6 +1243,9 @@ func TestConvertibleTo(t *testing.T) {
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
 		{Typ[UntypedInt], Typ[Int], true},
+		// Untyped string values are not permitted by the spec, so the below
+		// behavior is undefined.
+		{Typ[UntypedString], Typ[String], true},
 	} {
 		if got := ConvertibleTo(test.v, test.t); got != test.want {
 			t.Errorf("ConvertibleTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
@@ -1260,6 +1263,12 @@ func TestAssignableTo(t *testing.T) {
 		{newDefined(Typ[Int]), Typ[Int], false},
 		{newDefined(new(Struct)), new(Struct), true},
 		{Typ[UntypedBool], Typ[Bool], true},
+		{Typ[UntypedString], Typ[Bool], false},
+		// Neither untyped string nor untyped numeric assignments arise during
+		// normal type checking, so the below behavior is technically undefined by
+		// the spec.
+		{Typ[UntypedString], Typ[String], true},
+		{Typ[UntypedInt], Typ[Int], true},
 	} {
 		if got := AssignableTo(test.v, test.t); got != test.want {
 			t.Errorf("AssignableTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)

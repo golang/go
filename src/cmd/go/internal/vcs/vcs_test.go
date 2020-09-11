@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package get
+package vcs
 
 import (
 	"errors"
@@ -28,30 +28,27 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"github.com/golang/groupcache",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://github.com/golang/groupcache",
 			},
 		},
-		// Unicode letters in directories (issue 18660).
+		// Unicode letters in directories are not valid.
 		{
 			"github.com/user/unicode/испытание",
-			&RepoRoot{
-				vcs:  vcsGit,
-				Repo: "https://github.com/user/unicode",
-			},
+			nil,
 		},
 		// IBM DevOps Services tests
 		{
 			"hub.jazz.net/git/user1/pkgname",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://hub.jazz.net/git/user1/pkgname",
 			},
 		},
 		{
 			"hub.jazz.net/git/user1/pkgname/submodule/submodule/submodule",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://hub.jazz.net/git/user1/pkgname",
 			},
 		},
@@ -92,7 +89,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"hub.jazz.net/git/user/pkg.name",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://hub.jazz.net/git/user/pkg.name",
 			},
 		},
@@ -105,7 +102,7 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"git.openstack.org/openstack/swift",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://git.openstack.org/openstack/swift",
 			},
 		},
@@ -115,14 +112,14 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"git.openstack.org/openstack/swift.git",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://git.openstack.org/openstack/swift.git",
 			},
 		},
 		{
 			"git.openstack.org/openstack/swift/go/hummingbird",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://git.openstack.org/openstack/swift",
 			},
 		},
@@ -151,21 +148,21 @@ func TestRepoRootForImportPath(t *testing.T) {
 		{
 			"git.apache.org/package-name.git",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://git.apache.org/package-name.git",
 			},
 		},
 		{
 			"git.apache.org/package-name_2.x.git/path/to/lib",
 			&RepoRoot{
-				vcs:  vcsGit,
+				VCS:  vcsGit,
 				Repo: "https://git.apache.org/package-name_2.x.git",
 			},
 		},
 		{
 			"chiselapp.com/user/kyle/repository/fossilgg",
 			&RepoRoot{
-				vcs:  vcsFossil,
+				VCS:  vcsFossil,
 				Repo: "https://chiselapp.com/user/kyle/repository/fossilgg",
 			},
 		},
@@ -194,8 +191,8 @@ func TestRepoRootForImportPath(t *testing.T) {
 			t.Errorf("RepoRootForImportPath(%q): %v", test.path, err)
 			continue
 		}
-		if got.vcs.name != want.vcs.name || got.Repo != want.Repo {
-			t.Errorf("RepoRootForImportPath(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.vcs, got.Repo, want.vcs, want.Repo)
+		if got.VCS.Name != want.VCS.Name || got.Repo != want.Repo {
+			t.Errorf("RepoRootForImportPath(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.VCS, got.Repo, want.VCS, want.Repo)
 		}
 	}
 }
@@ -209,7 +206,7 @@ func TestFromDir(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	for j, vcs := range vcsList {
-		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
+		dir := filepath.Join(tempDir, "example.com", vcs.Name, "."+vcs.Cmd)
 		if j&1 == 0 {
 			err := os.MkdirAll(dir, 0755)
 			if err != nil {
@@ -228,24 +225,24 @@ func TestFromDir(t *testing.T) {
 		}
 
 		want := RepoRoot{
-			vcs:  vcs,
-			Root: path.Join("example.com", vcs.name),
+			VCS:  vcs,
+			Root: path.Join("example.com", vcs.Name),
 		}
 		var got RepoRoot
-		got.vcs, got.Root, err = vcsFromDir(dir, tempDir)
+		got.VCS, got.Root, err = FromDir(dir, tempDir)
 		if err != nil {
 			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
 			continue
 		}
-		if got.vcs.name != want.vcs.name || got.Root != want.Root {
-			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.vcs, got.Root, want.vcs, want.Root)
+		if got.VCS.Name != want.VCS.Name || got.Root != want.Root {
+			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.VCS, got.Root, want.VCS, want.Root)
 		}
 	}
 }
 
 func TestIsSecure(t *testing.T) {
 	tests := []struct {
-		vcs    *vcsCmd
+		vcs    *Cmd
 		url    string
 		secure bool
 	}{
@@ -270,7 +267,7 @@ func TestIsSecure(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		secure := test.vcs.isSecure(test.url)
+		secure := test.vcs.IsSecure(test.url)
 		if secure != test.secure {
 			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
 		}
@@ -279,7 +276,7 @@ func TestIsSecure(t *testing.T) {
 
 func TestIsSecureGitAllowProtocol(t *testing.T) {
 	tests := []struct {
-		vcs    *vcsCmd
+		vcs    *Cmd
 		url    string
 		secure bool
 	}{
@@ -310,7 +307,7 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 	defer os.Unsetenv("GIT_ALLOW_PROTOCOL")
 	os.Setenv("GIT_ALLOW_PROTOCOL", "https:foo")
 	for _, test := range tests {
-		secure := test.vcs.isSecure(test.url)
+		secure := test.vcs.IsSecure(test.url)
 		if secure != test.secure {
 			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
 		}

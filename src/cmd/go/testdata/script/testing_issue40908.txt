@@ -1,0 +1,21 @@
+[short] skip
+[!race] skip
+
+go test -race testrace
+
+-- testrace/race_test.go --
+package testrace
+
+import "testing"
+
+func TestRace(t *testing.T) {
+	helperDone := make(chan struct{})
+	go func() {
+		t.Logf("Something happened before cleanup.")
+		close(helperDone)
+	}()
+
+	t.Cleanup(func() {
+		<-helperDone
+	})
+}

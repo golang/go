@@ -205,15 +205,11 @@ func (x *operand) isNil() bool {
 	return x.mode == value && x.typ == Typ[UntypedNil]
 }
 
-// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
-//           checker.representable, and checker.assignment are
-//           overlapping in functionality. Need to simplify and clean up.
-
-// assignableTo reports whether x is assignable to a variable of type T.
-// If the result is false and a non-nil reason is provided, it may be set
-// to a more detailed explanation of the failure (result != "").
-// The check parameter may be nil if assignableTo is invoked through
-// an exported API call, i.e., when all methods have been type-checked.
+// assignableTo reports whether x is assignable to a variable of type T. If the
+// result is false and a non-nil reason is provided, it may be set to a more
+// detailed explanation of the failure (result != ""). The check parameter may
+// be nil if assignableTo is invoked through an exported API call, i.e., when
+// all methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
@@ -229,34 +225,17 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	Vu := V.Underlying()
 	Tu := T.Underlying()
 
-	// x is an untyped value representable by a value of type T
-	// TODO(gri) This is borrowing from checker.convertUntyped and
-	//           checker.representable. Need to clean up.
+	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		switch t := Tu.(type) {
-		case *Basic:
-			if x.isNil() && t.kind == UnsafePointer {
-				return true
-			}
-			if x.mode == constant_ {
-				return representableConst(x.val, check, t, nil)
-			}
-			// The result of a comparison is an untyped boolean,
-			// but may not be a constant.
-			if Vb, _ := Vu.(*Basic); Vb != nil {
-				return Vb.kind == UntypedBool && isBoolean(Tu)
-			}
-		case *Interface:
-			check.completeInterface(t)
-			return x.isNil() || t.Empty()
-		case *Pointer, *Signature, *Slice, *Map, *Chan:
-			return x.isNil()
+		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
+			return representableConst(x.val, check, t, nil)
 		}
+		return check.implicitType(x, Tu) != nil
 	}
 	// Vu is typed
 
-	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type
+	// x's type V and T have identical underlying types and at least one of V or
+	// T is not a named type.
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true
 	}

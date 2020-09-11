@@ -1230,6 +1230,11 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.Etype == TUNSAFEPTR
 }
 
+// IsUintptr reports whether t is an uintptr.
+func (t *Type) IsUintptr() bool {
+	return t.Etype == TUINTPTR
+}
+
 // IsPtrShaped reports whether t is represented by a single machine pointer.
 // In addition to regular Go pointer types, this includes map, channel, and
 // function types and unsafe.Pointer. It does not include array or struct types
@@ -1398,14 +1403,9 @@ func (t *Type) IsUntyped() bool {
 	return false
 }
 
-// TODO(austin): We probably only need HasHeapPointer. See
-// golang.org/cl/73412 for discussion.
-
+// HasPointers reports whether t contains a heap pointer.
+// Note that this function ignores pointers to go:notinheap types.
 func (t *Type) HasPointers() bool {
-	return t.hasPointers1(false)
-}
-
-func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
 	switch t.Etype {
 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
@@ -1415,32 +1415,25 @@ func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
 		if t.NumElem() == 0 { // empty array has no pointers
 			return false
 		}
-		return t.Elem().hasPointers1(ignoreNotInHeap)
+		return t.Elem().HasPointers()
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			if t1.Type.hasPointers1(ignoreNotInHeap) {
+			if t1.Type.HasPointers() {
 				return true
 			}
 		}
 		return false
 
 	case TPTR, TSLICE:
-		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+		return !t.Elem().NotInHeap()
 
 	case TTUPLE:
 		ttup := t.Extra.(*Tuple)
-		return ttup.first.hasPointers1(ignoreNotInHeap) || ttup.second.hasPointers1(ignoreNotInHeap)
+		return ttup.first.HasPointers() || ttup.second.HasPointers()
 	}
 
 	return true
-}
-
-// HasHeapPointer reports whether t contains a heap pointer.
-// This is used for write barrier insertion, so it ignores
-// pointers to go:notinheap types.
-func (t *Type) HasHeapPointer() bool {
-	return t.hasPointers1(true)
 }
 
 func (t *Type) Symbol() *obj.LSym {

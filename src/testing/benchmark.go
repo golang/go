@@ -242,7 +242,7 @@ func (b *B) run1() bool {
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty && (len(b.output) > 0 || b.finished) {
+		if b.chatty != nil && (len(b.output) > 0 || b.finished) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
 		}
@@ -523,10 +523,9 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 	}
 	main := &B{
 		common: common{
-			name:   "Main",
-			w:      os.Stdout,
-			chatty: *chatty,
-			bench:  true,
+			name:  "Main",
+			w:     os.Stdout,
+			bench: true,
 		},
 		importPath: importPath,
 		benchFunc: func(b *B) {
@@ -536,6 +535,9 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 		},
 		benchTime: benchTime,
 		context:   ctx,
+	}
+	if Verbose() {
+		main.chatty = newChattyPrinter(main.w)
 	}
 	main.runN(1)
 	return !main.failed
@@ -549,7 +551,7 @@ func (ctx *benchContext) processBench(b *B) {
 			benchName := benchmarkName(b.name, procs)
 
 			// If it's chatty, we've already printed this information.
-			if !b.chatty {
+			if b.chatty == nil {
 				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
 			}
 			// Recompute the running time for all but the first iteration.
@@ -576,7 +578,7 @@ func (ctx *benchContext) processBench(b *B) {
 				continue
 			}
 			results := r.String()
-			if b.chatty {
+			if b.chatty != nil {
 				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
 			}
 			if *benchmarkMemory || b.showAllocResult {
@@ -639,7 +641,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		atomic.StoreInt32(&sub.hasSub, 1)
 	}
 
-	if b.chatty {
+	if b.chatty != nil {
 		labelsOnce.Do(func() {
 			fmt.Printf("goos: %s\n", runtime.GOOS)
 			fmt.Printf("goarch: %s\n", runtime.GOARCH)

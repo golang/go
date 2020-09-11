@@ -930,7 +930,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 			break
 		}
 		if val < addr {
-			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, val, ldr.SymType(s))
+			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%v sect=%v", addr, val, ldr.SymType(s), ldr.SymSect(s).Name)
 			errorexit()
 		}
 		if addr < val {
@@ -1308,9 +1308,9 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 				// relro Type before it reaches here.
 				isRelro = true
 			case sym.SFUNCTAB:
-				if target.IsAIX() && ldr.SymName(s) == "runtime.etypes" {
+				if ldr.SymName(s) == "runtime.etypes" {
 					// runtime.etypes must be at the end of
-					// the relro datas.
+					// the relro data.
 					isRelro = true
 				}
 			}
@@ -1706,7 +1706,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ebss", 0), sect)
 	bssGcEnd := state.datsize - int64(sect.Vaddr)
 
-	// Emit gcdata for bcc symbols now that symbol values have been assigned.
+	// Emit gcdata for bss symbols now that symbol values have been assigned.
 	gcsToEmit := []struct {
 		symName string
 		symKind sym.SymKind
@@ -1786,7 +1786,8 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		culprit := ldr.SymName(state.data[sym.STEXT][0])
 		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
 	}
-	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 05)
+	state.allocateSingleSymSections(&Segtext, sym.SMACHOPLT, sym.SRODATA, 05)
 
 	/* read-only data */
 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
@@ -1810,7 +1811,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 
 	/* read-only ELF, Mach-O sections */
 	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
-	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
 
 	// There is some data that are conceptually read-only but are written to by
 	// relocations. On GNU systems, we can arrange for the dynamic linker to
@@ -1826,13 +1826,16 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	const fallbackPerm = 04
 	relroSecPerm := fallbackPerm
 	genrelrosecname := func(suffix string) string {
+		if suffix == "" {
+			return ".rodata"
+		}
 		return suffix
 	}
 	seg := segro
 
 	if ctxt.UseRelro() {
 		segrelro := &Segrelrodata
-		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
+		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
 			// Using a separate segment with an external
 			// linker results in some programs moving
 			// their data sections unexpectedly, which
@@ -1845,9 +1848,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 			state.datsize = 0
 		}
 
-		genrelrosecname = func(suffix string) string {
-			return ".data.rel.ro" + suffix
+		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
+			genrelrosecname = func(suffix string) string {
+				return ".data.rel.ro" + suffix
+			}
 		}
+
 		relroReadOnly := []sym.SymKind{}
 		for _, symnro := range sym.ReadOnly {
 			symn := sym.RelROMap[symnro]

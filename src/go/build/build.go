@@ -793,6 +793,12 @@ Found:
 		if d.IsDir() {
 			continue
 		}
+		if (d.Mode() & os.ModeSymlink) != 0 {
+			if fi, err := os.Stat(filepath.Join(p.Dir, d.Name())); err == nil && fi.IsDir() {
+				// Symlinks to directories are not source files.
+				continue
+			}
+		}
 
 		name := d.Name()
 		ext := nameExt(name)

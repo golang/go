@@ -775,14 +775,6 @@ func (ctxt *Link) linksetup() {
 			sb.SetSize(0)
 			sb.AddUint8(uint8(objabi.GOARM))
 		}
-
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
-			fpe := ctxt.loader.LookupOrCreateSym("runtime.framepointer_enabled", 0)
-			sb := ctxt.loader.MakeSymbolUpdater(fpe)
-			sb.SetType(sym.SNOPTRDATA)
-			sb.SetSize(0)
-			sb.AddUint8(1)
-		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
@@ -1246,14 +1238,22 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
+	// On darwin, whether to combine DWARF into executable.
+	// Only macOS supports unmapped segments such as our __DWARF segment.
+	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS
+
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
-		if machoPlatform == PLATFORM_MACOS {
+		if combineDwarf {
+			// Leave room for DWARF combining.
 			// -headerpad is incompatible with -fembed-bitcode.
 			argv = append(argv, "-Wl,-headerpad,1144")
 		}
 		if ctxt.DynlinkingGo() && !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
 			argv = append(argv, "-Wl,-flat_namespace")
+		}
+		if !combineDwarf {
+			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
@@ -1288,7 +1288,7 @@ func (ctxt *Link) hostlink() {
 	switch ctxt.BuildMode {
 	case BuildModeExe:
 		if ctxt.HeadType == objabi.Hdarwin {
-			if machoPlatform == PLATFORM_MACOS {
+			if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
 				argv = append(argv, "-Wl,-no_pie")
 				argv = append(argv, "-Wl,-pagezero_size,4000000")
 			}
@@ -1525,7 +1525,7 @@ func (ctxt *Link) hostlink() {
 	// does not work, the resulting programs will not run. See
 	// issue #17847. To avoid this problem pass -no-pie to the
 	// toolchain if it is supported.
-	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared {
+	if ctxt.BuildMode == BuildModeExe && !ctxt.linkShared && !(ctxt.IsDarwin() && ctxt.IsARM64()) {
 		// GCC uses -no-pie, clang uses -nopie.
 		for _, nopie := range []string{"-no-pie", "-nopie"} {
 			if linkerFlagSupported(argv[0], altLinker, nopie) {
@@ -1594,10 +1594,15 @@ func (ctxt *Link) hostlink() {
 		ctxt.Logf("%s", out)
 	}
 
-	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
+	if combineDwarf {
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
 		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
+		// They contain temporary file paths and make the build not reproducible.
+		if out, err := exec.Command("strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); os.IsNotExist(err) {
@@ -1614,15 +1619,12 @@ func (ctxt *Link) hostlink() {
 		if err != nil {
 			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
 		}
-		// Only macOS supports unmapped segments such as our __DWARF segment.
-		if machoPlatform == PLATFORM_MACOS {
-			if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
-				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
-			}
-			os.Remove(*flagOutfile)
-			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
-				Exitf("%s: %v", os.Args[0], err)
-			}
+		if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
+			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+		}
+		os.Remove(*flagOutfile)
+		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+			Exitf("%s: %v", os.Args[0], err)
 		}
 	}
 }

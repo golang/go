@@ -1828,6 +1828,7 @@ const (
 	OpPPC64FADD
 	OpPPC64FADDS
 	OpPPC64SUB
+	OpPPC64SUBFCconst
 	OpPPC64FSUB
 	OpPPC64FSUBS
 	OpPPC64MULLD
@@ -1853,8 +1854,6 @@ const (
 	OpPPC64ROTL
 	OpPPC64ROTLW
 	OpPPC64LoweredAdd64Carry
-	OpPPC64ADDconstForCarry
-	OpPPC64MaskIfNotCarry
 	OpPPC64SRADconst
 	OpPPC64SRAWconst
 	OpPPC64SRDconst
@@ -2027,8 +2026,6 @@ const (
 	OpPPC64FlagEQ
 	OpPPC64FlagLT
 	OpPPC64FlagGT
-	OpPPC64FlagCarrySet
-	OpPPC64FlagCarryClear
 
 	OpRISCV64ADD
 	OpRISCV64ADDI
@@ -24318,6 +24315,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "SUBFCconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.ASUBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:   "FSUB",
 		argLen: 2,
 		asm:    ppc64.AFSUB,
@@ -24680,28 +24691,6 @@ var opcodeTable = [...]opInfo{
 			outputs: []outputInfo{
 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-		},
-	},
-	{
-		name:    "ADDconstForCarry",
-		auxType: auxInt16,
-		argLen:  1,
-		asm:     ppc64.AADDC,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			clobbers: 2147483648, // R31
-		},
-	},
-	{
-		name:   "MaskIfNotCarry",
-		argLen: 1,
-		asm:    ppc64.AADDME,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -26961,16 +26950,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "FlagGT",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagCarrySet",
-		argLen: 0,
-		reg:    regInfo{},
-	},
-	{
-		name:   "FlagCarryClear",
 		argLen: 0,
 		reg:    regInfo{},
 	},

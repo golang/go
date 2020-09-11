@@ -20,12 +20,12 @@ import (
 	"golang.org/x/mod/module"
 )
 
-func ListModules(ctx context.Context, args []string, listU, listVersions bool) []*modinfo.ModulePublic {
-	mods := listModules(ctx, args, listVersions)
+func ListModules(ctx context.Context, args []string, listU, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	mods := listModules(ctx, args, listVersions, listRetracted)
 
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	if listU || listVersions {
+	if listU || listVersions || listRetracted {
 		for _, m := range mods {
 			add := func(m *modinfo.ModulePublic) {
 				sem <- token{}
@@ -34,7 +34,10 @@ func ListModules(ctx context.Context, args []string, listU, listVersions bool) [
 						addUpdate(ctx, m)
 					}
 					if listVersions {
-						addVersions(m)
+						addVersions(ctx, m, listRetracted)
+					}
+					if listRetracted || listU {
+						addRetraction(ctx, m)
 					}
 					<-sem
 				}()
@@ -54,10 +57,10 @@ func ListModules(ctx context.Context, args []string, listU, listVersions bool) [
 	return mods
 }
 
-func listModules(ctx context.Context, args []string, listVersions bool) []*modinfo.ModulePublic {
-	LoadBuildList(ctx)
+func listModules(ctx context.Context, args []string, listVersions, listRetracted bool) []*modinfo.ModulePublic {
+	LoadAllModules(ctx)
 	if len(args) == 0 {
-		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true)}
+		return []*modinfo.ModulePublic{moduleInfo(ctx, buildList[0], true, listRetracted)}
 	}
 
 	var mods []*modinfo.ModulePublic
@@ -83,7 +86,13 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				}
 			}
 
-			info, err := Query(ctx, path, vers, current, nil)
+			allowed := CheckAllowed
+			if IsRevisionQuery(vers) || listRetracted {
+				// Allow excluded and retracted versions if the user asked for a
+				// specific revision or used 'go list -retracted'.
+				allowed = nil
+			}
+			info, err := Query(ctx, path, vers, current, allowed)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
@@ -92,7 +101,8 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				})
 				continue
 			}
-			mods = append(mods, moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false))
+			mod := moduleInfo(ctx, module.Version{Path: path, Version: info.Version}, false, listRetracted)
+			mods = append(mods, mod)
 			continue
 		}
 
@@ -117,7 +127,7 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				matched = true
 				if !matchedBuildList[i] {
 					matchedBuildList[i] = true
-					mods = append(mods, moduleInfo(ctx, m, true))
+					mods = append(mods, moduleInfo(ctx, m, true, listRetracted))
 				}
 			}
 		}
@@ -129,7 +139,8 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 					// Instead, resolve the module, even if it isn't an existing dependency.
 					info, err := Query(ctx, arg, "latest", "", nil)
 					if err == nil {
-						mods = append(mods, moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false))
+						mod := moduleInfo(ctx, module.Version{Path: arg, Version: info.Version}, false, listRetracted)
+						mods = append(mods, mod)
 					} else {
 						mods = append(mods, &modinfo.ModulePublic{
 							Path:  arg,

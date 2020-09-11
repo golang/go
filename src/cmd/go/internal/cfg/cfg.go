@@ -27,7 +27,8 @@ var (
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
 	BuildMod               string             // -mod flag
-	BuildModReason         string             // reason -mod flag is set, if set by default
+	BuildModExplicit       bool               // whether -mod was set explicitly
+	BuildModReason         string             // reason -mod was set, if set by default
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
@@ -47,6 +48,8 @@ var (
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
+
+	Insecure bool // -insecure flag
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 

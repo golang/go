@@ -1106,8 +1106,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
 		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
-		// A -g argument in CGO_CFLAGS should not affect how the test runs.
-		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0")
+		// cgo should be able to cope with both -g arguments and colored
+		// diagnostics.
+		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
 
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")

@@ -324,7 +324,7 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 			return nil, nil, fmt.Errorf("unexpected Peek failure reading buffered byte: %v", err)
 		}
 	}
-	c.setState(rwc, StateHijacked)
+	c.setState(rwc, StateHijacked, runHooks)
 	return
 }
 
@@ -561,50 +561,52 @@ type writerOnly struct {
 	io.Writer
 }
 
-func srcIsRegularFile(src io.Reader) (isRegular bool, err error) {
-	switch v := src.(type) {
-	case *os.File:
-		fi, err := v.Stat()
-		if err != nil {
-			return false, err
-		}
-		return fi.Mode().IsRegular(), nil
-	case *io.LimitedReader:
-		return srcIsRegularFile(v.R)
-	default:
-		return
-	}
-}
-
 // ReadFrom is here to optimize copying from an *os.File regular file
-// to a *net.TCPConn with sendfile.
+// to a *net.TCPConn with sendfile, or from a supported src type such
+// as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+	bufp := copyBufPool.Get().(*[]byte)
+	buf := *bufp
+	defer copyBufPool.Put(bufp)
+
 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
-	// own ReadFrom method). If not, or if our src isn't a regular
-	// file, just fall back to the normal copy method.
+	// own ReadFrom method). If not, just fall back to the normal
+	// copy method.
 	rf, ok := w.conn.rwc.(io.ReaderFrom)
-	regFile, err := srcIsRegularFile(src)
-	if err != nil {
-		return 0, err
-	}
-	if !ok || !regFile {
-		bufp := copyBufPool.Get().(*[]byte)
-		defer copyBufPool.Put(bufp)
-		return io.CopyBuffer(writerOnly{w}, src, *bufp)
+	if !ok {
+		return io.CopyBuffer(writerOnly{w}, src, buf)
 	}
 
 	// sendfile path:
 
-	if !w.wroteHeader {
-		w.WriteHeader(StatusOK)
+	// Do not start actually writing response until src is readable.
+	// If body length is <= sniffLen, sendfile/splice path will do
+	// little anyway. This small read also satisfies sniffing the
+	// body in case Content-Type is missing.
+	nr, er := src.Read(buf[:sniffLen])
+	atEOF := errors.Is(er, io.EOF)
+	n += int64(nr)
+
+	if nr > 0 {
+		// Write the small amount read normally.
+		nw, ew := w.Write(buf[:nr])
+		if ew != nil {
+			err = ew
+		} else if nr != nw {
+			err = io.ErrShortWrite
+		}
+	}
+	if err == nil && er != nil && !atEOF {
+		err = er
 	}
 
-	if w.needsSniff() {
-		n0, err := io.Copy(writerOnly{w}, io.LimitReader(src, sniffLen))
-		n += n0
-		if err != nil {
-			return n, err
-		}
+	// Do not send StatusOK in the error case where nothing has been written.
+	if err == nil && !w.wroteHeader {
+		w.WriteHeader(StatusOK) // nr == 0, no error (or EOF)
+	}
+
+	if err != nil || atEOF {
+		return n, err
 	}
 
 	w.w.Flush()  // get rid of any previous writes
@@ -1737,7 +1739,12 @@ func validNextProto(proto string) bool {
 	return true
 }
 
-func (c *conn) setState(nc net.Conn, state ConnState) {
+const (
+	runHooks  = true
+	skipHooks = false
+)
+
+func (c *conn) setState(nc net.Conn, state ConnState, runHook bool) {
 	srv := c.server
 	switch state {
 	case StateNew:
@@ -1750,6 +1757,9 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 	}
 	packedState := uint64(time.Now().Unix()<<8) | uint64(state)
 	atomic.StoreUint64(&c.curState.atomic, packedState)
+	if !runHook {
+		return
+	}
 	if hook := srv.ConnState; hook != nil {
 		hook(nc, state)
 	}
@@ -1803,7 +1813,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		if !c.hijacked() {
 			c.close()
-			c.setState(c.rwc, StateClosed)
+			c.setState(c.rwc, StateClosed, runHooks)
 		}
 	}()
 
@@ -1831,6 +1841,10 @@ func (c *conn) serve(ctx context.Context) {
 		if proto := c.tlsState.NegotiatedProtocol; validNextProto(proto) {
 			if fn := c.server.TLSNextProto[proto]; fn != nil {
 				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
+				// Mark freshly created HTTP/2 as active and prevent any server state hooks
+				// from being run on these connections. This prevents closeIdleConns from
+				// closing such connections. See issue https://golang.org/issue/39776.
+				c.setState(c.rwc, StateActive, skipHooks)
 				fn(c.server, tlsConn, h)
 			}
 			return
@@ -1851,7 +1865,7 @@ func (c *conn) serve(ctx context.Context) {
 		w, err := c.readRequest(ctx)
 		if c.r.remain != c.server.initialReadLimitSize() {
 			// If we read any bytes off the wire, we're active.
-			c.setState(c.rwc, StateActive)
+			c.setState(c.rwc, StateActive, runHooks)
 		}
 		if err != nil {
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
@@ -1934,7 +1948,7 @@ func (c *conn) serve(ctx context.Context) {
 			}
 			return
 		}
-		c.setState(c.rwc, StateIdle)
+		c.setState(c.rwc, StateIdle, runHooks)
 		c.curReq.Store((*response)(nil))
 
 		if !w.conn.server.doKeepAlives() {
@@ -2062,22 +2076,26 @@ func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", Sta
 // that replies to each request with a ``404 page not found'' reply.
 func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
 
-// StripPrefix returns a handler that serves HTTP requests
-// by removing the given prefix from the request URL's Path
-// and invoking the handler h. StripPrefix handles a
-// request for a path that doesn't begin with prefix by
-// replying with an HTTP 404 not found error.
+// StripPrefix returns a handler that serves HTTP requests by removing the
+// given prefix from the request URL's Path (and RawPath if set) and invoking
+// the handler h. StripPrefix handles a request for a path that doesn't begin
+// with prefix by replying with an HTTP 404 not found error. The prefix must
+// match exactly: if the prefix in the request contains escaped characters
+// the reply is also an HTTP 404 not found error.
 func StripPrefix(prefix string, h Handler) Handler {
 	if prefix == "" {
 		return h
 	}
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
-		if p := strings.TrimPrefix(r.URL.Path, prefix); len(p) < len(r.URL.Path) {
+		p := strings.TrimPrefix(r.URL.Path, prefix)
+		rp := strings.TrimPrefix(r.URL.RawPath, prefix)
+		if len(p) < len(r.URL.Path) && (r.URL.RawPath == "" || len(rp) < len(r.URL.RawPath)) {
 			r2 := new(Request)
 			*r2 = *r
 			r2.URL = new(url.URL)
 			*r2.URL = *r.URL
 			r2.URL.Path = p
+			r2.URL.RawPath = rp
 			h.ServeHTTP(w, r2)
 		} else {
 			NotFound(w, r)
@@ -2965,7 +2983,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		}
 		tempDelay = 0
 		c := srv.newConn(rw)
-		c.setState(c.rwc, StateNew) // before Serve can return
+		c.setState(c.rwc, StateNew, runHooks) // before Serve can return
 		go c.serve(connCtx)
 	}
 }

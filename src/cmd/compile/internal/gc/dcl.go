@@ -90,7 +90,7 @@ func declare(n *Node, ctxt Class) {
 			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
-		if Curfn != nil {
+		if Curfn != nil && ctxt != PFUNC {
 			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
@@ -294,6 +294,16 @@ func oldname(s *types.Sym) *Node {
 		return c
 	}
 
+	return n
+}
+
+// importName is like oldname, but it reports an error if sym is from another package and not exported.
+func importName(sym *types.Sym) *Node {
+	n := oldname(sym)
+	if !types.IsExported(sym.Name) && sym.Pkg != localpkg {
+		n.SetDiag(true)
+		yyerror("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+	}
 	return n
 }
 
@@ -975,10 +985,14 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
-// disableExport prevents sym from being included in package export
-// data. To be effectual, it must be called before declare.
-func disableExport(sym *types.Sym) {
-	sym.SetOnExportList(true)
+// setNodeNameFunc marks a node as a function.
+func setNodeNameFunc(n *Node) {
+	if n.Op != ONAME || n.Class() != Pxxx {
+		Fatalf("expected ONAME/Pxxx node, got %v", n)
+	}
+
+	n.SetClass(PFUNC)
+	n.Sym.SetFunc(true)
 }
 
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
@@ -990,7 +1004,7 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
-	declare(fn.Func.Nname, PFUNC)
+	setNodeNameFunc(fn.Func.Nname)
 	funchdr(fn)
 	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
 	return fn
