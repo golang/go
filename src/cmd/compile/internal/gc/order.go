@@ -288,20 +288,13 @@ func (o *Order) popTemp(mark ordermarker) {
 	o.temp = o.temp[:mark]
 }
 
-// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
-// to *out for each temporary above the mark on the temporary stack.
+// cleanTempNoPop emits VARKILL instructions to *out
+// for each temporary above the mark on the temporary stack.
 // It does not pop the temporaries from the stack.
 func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
 	var out []*Node
 	for i := len(o.temp) - 1; i >= int(mark); i-- {
 		n := o.temp[i]
-		if n.Name.Keepalive() {
-			n.Name.SetKeepalive(false)
-			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
-			live := nod(OVARLIVE, n, nil)
-			live = typecheck(live, ctxStmt)
-			out = append(out, live)
-		}
 		kill := nod(OVARKILL, n, nil)
 		kill = typecheck(kill, ctxStmt)
 		out = append(out, kill)
@@ -500,8 +493,9 @@ func (o *Order) call(n *Node) {
 		// still alive when we pop the temp stack.
 		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
 			x := o.copyExpr(arg.Left, arg.Left.Type, false)
-			x.Name.SetKeepalive(true)
 			arg.Left = x
+			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
+			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
 			n.SetNeedsWrapper(true)
 		}
 	}

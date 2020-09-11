@@ -4498,6 +4498,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 	}
 	s.vars[&memVar] = call
+	// Insert OVARLIVE nodes
+	s.stmtList(n.Nbody)
 
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack {
