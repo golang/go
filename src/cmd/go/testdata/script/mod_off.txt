@@ -4,7 +4,7 @@ env GO111MODULE=off
 # GO111MODULE=off when outside of GOPATH will fatal
 # with an error message, even with some source code in the directory and a go.mod.
 ! go mod init
-stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod graph
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod verify
@@ -16,7 +16,7 @@ stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 mkdir z
 cd z
 ! go mod init
-stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
+stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod graph
 stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
 ! go mod verify

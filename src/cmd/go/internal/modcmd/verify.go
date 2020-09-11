@@ -14,7 +14,6 @@ import (
 	"runtime"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 
@@ -45,14 +44,8 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go mod verify: verify takes no arguments")
 	}
-	// Checks go mod expected behavior
-	if !modload.Enabled() || !modload.HasModRoot() {
-		if cfg.Getenv("GO111MODULE") == "off" {
-			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
-		} else {
-			base.Fatalf("go: cannot find main module; see 'go help modules'")
-		}
-	}
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}

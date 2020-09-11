@@ -40,9 +40,7 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		modload.CmdModModule = args[0]
 	}
-	if os.Getenv("GO111MODULE") == "off" {
-		base.Fatalf("go mod init: modules disabled by GO111MODULE=off; see 'go help modules'")
-	}
+	modload.ForceUseModules = true
 	modFilePath := modload.ModFilePath()
 	if _, err := os.Stat(modFilePath); err == nil {
 		base.Fatalf("go mod init: go.mod already exists")

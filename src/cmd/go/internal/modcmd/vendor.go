@@ -47,6 +47,8 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
 		base.Fatalf("go mod vendor: vendor takes no arguments")
 	}
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 	pkgs := modload.LoadVendor(ctx)
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")

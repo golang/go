@@ -50,6 +50,8 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
 	modload.LoadTests = true
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 
 	modload.LoadALL(ctx)
 	modload.TidyBuildList()
