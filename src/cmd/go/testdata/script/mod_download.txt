@@ -107,6 +107,14 @@ stderr '^go mod download: skipping argument m that resolves to the main module\n
 go mod download m@latest
 stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
 
+# download updates go.mod and populates go.sum
+cd update
+! exists go.sum
+go mod download
+grep '^rsc.io/sampler v1.3.0 ' go.sum
+go list -m rsc.io/sampler
+stdout '^rsc.io/sampler v1.3.0$'
+
 # allow go mod download without go.mod
 env GO111MODULE=auto
 rm go.mod
@@ -122,3 +130,13 @@ stderr 'get '$GOPROXY
 
 -- go.mod --
 module m
+
+-- update/go.mod --
+module m
+
+go 1.16
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.2.1 // older version than in build list
+)

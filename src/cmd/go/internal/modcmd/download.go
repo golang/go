@@ -187,4 +187,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		base.ExitIfErrors()
 	}
+
+	// Update go.mod and especially go.sum if needed.
+	modload.WriteGoMod()
 }
