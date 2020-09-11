@@ -209,7 +209,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
 		d.wq.push(symIdx)
 		d.ldr.SetAttrReachable(symIdx, true)
-		if objabi.Fieldtrack_enabled != 0 {
+		if objabi.Fieldtrack_enabled != 0 && d.ldr.Reachparent[symIdx] == 0 {
 			d.ldr.Reachparent[symIdx] = parent
 		}
 		if *flagDumpDep {
