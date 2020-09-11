@@ -1,0 +1,54 @@
+# Matches only fuzz targets to test.
+go test standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches only for fuzzing.
+go test -fuzz Fuzz standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches none for fuzzing but will run the fuzz target as a test.
+go test -fuzz ThisWillNotMatch standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout ok
+stdout '\[no targets to fuzz\]'
+
+[short] stop
+
+# Matches only fuzz targets to test with -run.
+go test -run Fuzz standalone_fuzz_test.go
+! stdout '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+# Matches no fuzz targets.
+go test -run ThisWillNotMatch standalone_fuzz_test.go
+stdout '^ok.*\[no tests to run\]'
+! stdout '\[no targets to fuzz\]'
+
+# Matches more than one fuzz target for fuzzing.
+go test -fuzz Fuzz multiple_fuzz_test.go
+# The tests should run, but not be fuzzed
+! stdout '\[no tests to run\]'
+! stdout '\[no targets to fuzz\]'
+stdout ok
+stdout '\[will not fuzz, -fuzz matches more than one target\]'
+
+-- standalone_fuzz_test.go --
+package standalone_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+}
+
+-- multiple_fuzz_test.go --
+package multiple_fuzz
+
+import "testing"
+
+func FuzzA(f *testing.F) {
+}
+
+func FuzzB(f *testing.F) {
+}

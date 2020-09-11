@@ -595,6 +595,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 				return err
 			}
 			t.FuzzTargets = append(t.FuzzTargets, testFunc{pkg, name, "", false})
+			*doImport, *seen = true, true
 		}
 	}
 	ex := doc.Examples(f)
