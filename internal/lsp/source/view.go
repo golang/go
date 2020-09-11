@@ -14,8 +14,8 @@ import (
 	"io"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -473,7 +473,7 @@ type Package interface {
 	GetImport(pkgPath string) (Package, error)
 	MissingDependencies() []string
 	Imports() []Package
-	Module() *packages.Module
+	Version() *module.Version
 }
 
 type Error struct {
@@ -508,3 +508,9 @@ var (
 	InconsistentVendoring = errors.New("inconsistent vendoring")
 	PackagesLoadError     = errors.New("packages.Load error")
 )
+
+// WorkspaceModuleVersion is the nonexistent pseudoversion used in the
+// construction of the workspace module. It is exported so that we can make
+// sure not to show this version to end users in error messages, to avoid
+// confusion.
+const WorkspaceModuleVersion = "v0.0.0-goplsworkspace"

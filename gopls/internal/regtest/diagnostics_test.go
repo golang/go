@@ -408,7 +408,7 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 func TestMissingDependency(t *testing.T) {
 	runner.Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
 		env.OpenFile("print.go")
-		env.Await(LogMatching(protocol.Error, "initial workspace load failed"))
+		env.Await(LogMatching(protocol.Error, "initial workspace load failed", 1))
 	})
 }
 
@@ -1278,7 +1278,7 @@ func main() {
 // Test some secondary diagnostics
 func TestSecondaryDiagnostics(t *testing.T) {
 	const dir = `
--- mod --
+-- go.mod --
 module mod.com
 -- main.go --
 package main
@@ -1295,16 +1295,19 @@ func main() {}
 		env.OpenFile("other.go")
 		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
 		x := env.DiagnosticsFor("main.go")
+		if x == nil {
+			t.Fatalf("expected 1 diagnostic, got none")
+		}
 		if len(x.Diagnostics) != 1 {
-			t.Errorf("main.go, got %d diagnostics, expected 1", len(x.Diagnostics))
+			t.Fatalf("main.go, got %d diagnostics, expected 1", len(x.Diagnostics))
 		}
 		keep := x.Diagnostics[0]
 		y := env.DiagnosticsFor("other.go")
 		if len(y.Diagnostics) != 1 {
-			t.Errorf("other.go: got %d diagnostics, expected 1", len(y.Diagnostics))
+			t.Fatalf("other.go: got %d diagnostics, expected 1", len(y.Diagnostics))
 		}
 		if len(y.Diagnostics[0].RelatedInformation) != 1 {
-			t.Errorf("got %d RelatedInformations, expected 1", len(y.Diagnostics[0].RelatedInformation))
+			t.Fatalf("got %d RelatedInformations, expected 1", len(y.Diagnostics[0].RelatedInformation))
 		}
 		// check that the RelatedInformation matches the error from main.go
 		c := y.Diagnostics[0].RelatedInformation[0]
@@ -1315,6 +1318,9 @@ func main() {}
 }
 
 func TestNotifyOrphanedFiles(t *testing.T) {
+	// Need GO111MODULE=on for this test to work with Go 1.12.
+	testenv.NeedsGo1Point(t, 13)
+
 	const files = `
 -- go.mod --
 module mod.com

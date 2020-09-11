@@ -50,7 +50,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 		cache := cache.New(ctx, nil)
 		session := cache.NewSession(ctx)
-		options := tests.DefaultOptions()
+		options := source.DefaultOptions()
+		tests.DefaultOptions(&options)
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
 		view, _, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)

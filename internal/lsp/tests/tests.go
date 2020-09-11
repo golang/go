@@ -221,8 +221,7 @@ func Context(t testing.TB) context.Context {
 	return context.Background()
 }
 
-func DefaultOptions() source.Options {
-	o := source.DefaultOptions()
+func DefaultOptions(o *source.Options) {
 	o.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
 		source.Go: {
 			protocol.SourceOrganizeImports: true,
@@ -241,7 +240,7 @@ func DefaultOptions() source.Options {
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute
 	o.HierarchicalDocumentSymbolSupport = true
-	return o
+	o.ExperimentalWorkspaceModule = true
 }
 
 var (

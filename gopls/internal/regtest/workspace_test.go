@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
-	"golang.org/x/tools/internal/lsp/fake"
 )
 
 const workspaceProxy = `
@@ -199,7 +198,6 @@ func Hello() int {
 `
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
-		WithEditorConfig(fake.EditorConfig{ExperimentalWorkspaceModule: true}),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),

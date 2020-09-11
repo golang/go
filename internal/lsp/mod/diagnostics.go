@@ -89,11 +89,17 @@ func ExtractGoCommandError(ctx context.Context, snapshot source.Snapshot, fh sou
 		if match == nil || len(match) < 3 {
 			continue
 		}
-		v.Path = match[1]
-		v.Version = match[2]
-		if err := module.Check(v.Path, v.Version); err == nil {
-			break
+		path, version := match[1], match[2]
+		// Any module versions that come from the workspace module should not
+		// be shown to the user.
+		if version == source.WorkspaceModuleVersion {
+			continue
 		}
+		if err := module.Check(path, version); err != nil {
+			continue
+		}
+		v.Path, v.Version = path, version
+		break
 	}
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {

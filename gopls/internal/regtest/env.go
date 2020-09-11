@@ -471,16 +471,20 @@ func NoErrorLogs() LogExpectation {
 
 // LogMatching asserts that the client has received a log message
 // of type typ matching the regexp re.
-func LogMatching(typ protocol.MessageType, re string) LogExpectation {
+func LogMatching(typ protocol.MessageType, re string, count int) LogExpectation {
 	rec, err := regexp.Compile(re)
 	if err != nil {
 		panic(err)
 	}
 	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
+		var found int
 		for _, msg := range msgs {
 			if msg.Type == typ && rec.Match([]byte(msg.Message)) {
-				return Met, msg
+				found++
 			}
+		}
+		if found == count {
+			return Met, nil
 		}
 		return Unmet, nil
 	}

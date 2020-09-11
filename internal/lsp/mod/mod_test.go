@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
@@ -27,7 +28,8 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(ctx, nil)
 	session := cache.NewSession(ctx)
-	options := tests.DefaultOptions()
+	options := source.DefaultOptions()
+	tests.DefaultOptions(&options)
 	options.TempModfile = true
 	options.Env = []string{"GOPACKAGESDRIVER=off", "GOROOT="}
 

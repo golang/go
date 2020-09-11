@@ -181,6 +181,10 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, verb string, args []s
 
 func (s *snapshot) RunGoCommand(ctx context.Context, verb string, args []string) (*bytes.Buffer, error) {
 	cfg := s.config(ctx)
+	return s.runGoCommandWithConfig(ctx, cfg, verb, args)
+}
+
+func (s *snapshot) runGoCommandWithConfig(ctx context.Context, cfg *packages.Config, verb string, args []string) (*bytes.Buffer, error) {
 	_, runner, inv, cleanup, err := s.goCommandInvocation(ctx, cfg, true, verb, args)
 	if err != nil {
 		return nil, err
@@ -1248,15 +1252,13 @@ func (s *snapshot) buildBuiltinPackage(ctx context.Context, goFiles []string) er
 	return nil
 }
 
-const workspaceModuleVersion = "v0.0.0-00010101000000-000000000000"
-
 // buildWorkspaceModule generates a workspace module given the modules in the
 // the workspace.
 func (s *snapshot) buildWorkspaceModule(ctx context.Context) (*modfile.File, error) {
 	file := &modfile.File{}
 	file.AddModuleStmt("gopls-workspace")
 
-	paths := make(map[string]*module)
+	paths := make(map[string]*moduleRoot)
 	for _, mod := range s.view.modules {
 		fh, err := s.view.snapshot.GetFile(ctx, mod.modURI)
 		if err != nil {
@@ -1266,9 +1268,12 @@ func (s *snapshot) buildWorkspaceModule(ctx context.Context) (*modfile.File, err
 		if err != nil {
 			return nil, err
 		}
+		if parsed.File.Module == nil {
+			return nil, fmt.Errorf("no module declaration for %s", mod.modURI)
+		}
 		path := parsed.File.Module.Mod.Path
 		paths[path] = mod
-		file.AddNewRequire(path, workspaceModuleVersion, false)
+		file.AddNewRequire(path, source.WorkspaceModuleVersion, false)
 		if err := file.AddReplace(path, "", mod.rootURI.Filename(), ""); err != nil {
 			return nil, err
 		}

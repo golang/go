@@ -68,7 +68,7 @@ func TestUpdateCodelens(t *testing.T) {
 -- golang.org/x/hello@v1.3.3/go.mod --
 module golang.org/x/hello
 
-go 1.14
+go 1.12
 -- golang.org/x/hello@v1.3.3/hi/hi.go --
 package hi
 
@@ -76,7 +76,7 @@ var Goodbye error
 	-- golang.org/x/hello@v1.2.3/go.mod --
 module golang.org/x/hello
 
-go 1.14
+go 1.12
 -- golang.org/x/hello@v1.2.3/hi/hi.go --
 package hi
 
@@ -87,9 +87,12 @@ var Goodbye error
 -- go.mod --
 module mod.com
 
-go 1.14
+go 1.12
 
 require golang.org/x/hello v1.2.3
+-- go.sum --
+golang.org/x/hello v1.2.3 h1:jOtNXLsiCuLzU6KM3wRHidpc29IxcKpofHZiOW1hYKA=
+golang.org/x/hello v1.2.3/go.mod h1:X79D30QqR94cGK8aIhQNhCZLq4mIr5Gimj5qekF08rY=
 -- main.go --
 package main
 
@@ -123,7 +126,7 @@ func main() {
 		got := env.ReadWorkspaceFile("go.mod")
 		const wantGoMod = `module mod.com
 
-go 1.14
+go 1.12
 
 require golang.org/x/hello v1.3.3
 `

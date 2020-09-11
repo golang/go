@@ -386,7 +386,12 @@ package a
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
-			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2))
+			env.Await(
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2),
+					LogMatching(protocol.Info, "a_unneeded.go", 1),
+				),
+			)
 
 			// Close and delete the open file, mimicking what an editor would do.
 			env.CloseBuffer("a/a_unneeded.go")
@@ -397,7 +402,13 @@ package a
 			)
 			env.SaveBuffer("a/a.go")
 			env.Await(
-				NoLogMatching(protocol.Info, "a_unneeded.go"),
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+					// There should only be one log message containing
+					// a_unneeded.go, from the initial workspace load, which we
+					// check for earlier. If there are more, there's a bug.
+					LogMatching(protocol.Info, "a_unneeded.go", 1),
+				),
 				EmptyDiagnostics("a/a.go"),
 			)
 		})
@@ -407,18 +418,29 @@ package a
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
-			env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2))
+			env.Await(
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 2),
+					LogMatching(protocol.Info, "a_unneeded.go", 1),
+				),
+			)
 
 			// Delete and then close the file.
-			env.CloseBuffer("a/a_unneeded.go")
 			env.RemoveWorkspaceFile("a/a_unneeded.go")
+			env.CloseBuffer("a/a_unneeded.go")
 			env.RegexpReplace("a/a.go", "var _ int", "fmt.Println(\"\")")
 			env.Await(
 				env.DiagnosticAtRegexp("a/a.go", "fmt"),
 			)
 			env.SaveBuffer("a/a.go")
 			env.Await(
-				NoLogMatching(protocol.Info, "a_unneeded.go"),
+				OnceMet(
+					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), 1),
+					// There should only be one log message containing
+					// a_unneeded.go, from the initial workspace load, which we
+					// check for earlier. If there are more, there's a bug.
+					LogMatching(protocol.Info, "a_unneeded.go", 1),
+				),
 				EmptyDiagnostics("a/a.go"),
 			)
 		})

@@ -173,7 +173,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		name:               name,
 		folder:             folder,
 		root:               folder,
-		modules:            make(map[span.URI]*module),
+		modules:            make(map[span.URI]*moduleRoot),
 		filesByURI:         make(map[span.URI]*fileBase),
 		filesByBase:        make(map[string][]*fileBase),
 	}
@@ -206,13 +206,20 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// Find all of the modules in the workspace.
-	if err := v.findAndBuildWorkspaceModule(ctx, options); err != nil {
+	if err := v.findWorkspaceModules(ctx, options); err != nil {
 		return nil, nil, func() {}, err
 	}
 
 	// Now that we have set all required fields,
 	// check if the view has a valid build configuration.
 	v.setBuildConfiguration()
+
+	// Build the workspace module, if needed.
+	if options.ExperimentalWorkspaceModule {
+		if err := v.buildWorkspaceModule(ctx); err != nil {
+			return nil, nil, func() {}, err
+		}
+	}
 
 	// We have v.goEnv now.
 	v.processEnv = &imports.ProcessEnv{
@@ -240,13 +247,13 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	return v, v.snapshot, v.snapshot.generation.Acquire(ctx), nil
 }
 
-// findAndBuildWorkspaceModule walks the view's root folder, looking for go.mod
-// files. Any that are found are added to the view's set of modules, which are
-// then used to construct the workspace module.
+// findWorkspaceModules walks the view's root folder, looking for go.mod files.
+// Any that are found are added to the view's set of modules, which are then
+// used to construct the workspace module.
 //
 // It assumes that the caller has not yet created the view, and therefore does
 // not lock any of the internal data structures before accessing them.
-func (v *View) findAndBuildWorkspaceModule(ctx context.Context, options source.Options) error {
+func (v *View) findWorkspaceModules(ctx context.Context, options source.Options) error {
 	// If the user is intentionally limiting their workspace scope, add their
 	// folder to the roots and return early.
 	if !options.ExpandWorkspaceToModule {
@@ -257,11 +264,9 @@ func (v *View) findAndBuildWorkspaceModule(ctx context.Context, options source.O
 		return nil
 	}
 
-	v.workspaceMode |= usesWorkspaceModule | moduleMode
-
 	// Walk the view's folder to find all modules in the view.
 	root := v.root.Filename()
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -284,15 +289,39 @@ func (v *View) findAndBuildWorkspaceModule(ctx context.Context, options source.O
 		// so add it to the view.
 		modURI := span.URIFromPath(path)
 		rootURI := span.URIFromPath(filepath.Dir(path))
-		v.modules[rootURI] = &module{
+		v.modules[rootURI] = &moduleRoot{
 			rootURI: rootURI,
 			modURI:  modURI,
 			sumURI:  span.URIFromPath(sumFilename(modURI)),
 		}
 		return nil
-	}); err != nil {
-		return err
+	})
+}
+
+func (v *View) buildWorkspaceModule(ctx context.Context) error {
+	// If the view has an invalid configuration, don't build the workspace
+	// module.
+	if !v.hasValidBuildConfiguration {
+		return nil
 	}
+	// If the view is not in a module and contains no modules, but still has a
+	// valid workspace configuration, do not create the workspace module.
+	// It could be using GOPATH or a different build system entirely.
+	if v.modURI == "" && len(v.modules) == 0 && v.hasValidBuildConfiguration {
+		return nil
+	}
+	v.workspaceMode |= moduleMode
+
+	// Don't default to multi-workspace mode if one of the modules contains a
+	// vendor directory. We still have to decide how to handle vendoring.
+	for _, mod := range v.modules {
+		if info, _ := os.Stat(filepath.Join(mod.rootURI.Filename(), "vendor")); info != nil {
+			return nil
+		}
+	}
+
+	v.workspaceMode |= usesWorkspaceModule
+
 	// If the user does not have a gopls.mod, we need to create one, based on
 	// modules we found in the user's workspace.
 	var err error

@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/gopls/internal/hooks"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -32,5 +33,6 @@ func TestCommandLine(t *testing.T) {
 func commandLineOptions(options *source.Options) {
 	options.Staticcheck = true
 	options.GoDiff = false
+	tests.DefaultOptions(options)
 	hooks.Options(options)
 }

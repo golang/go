@@ -28,7 +28,7 @@ func TestCommandLine(t *testing.T) {
 	packagestest.TestAll(t,
 		cmdtest.TestCommandLine(
 			"../testdata",
-			nil,
+			tests.DefaultOptions,
 		),
 	)
 }

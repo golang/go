@@ -72,7 +72,7 @@ type View struct {
 	// the snapshot and invalidated on file changes.
 
 	// modules is the set of modules currently in this workspace.
-	modules map[span.URI]*module
+	modules map[span.URI]*moduleRoot
 
 	// workspaceModule is an in-memory representation of the go.mod file for
 	// the workspace module.
@@ -177,7 +177,8 @@ type builtinPackageData struct {
 	parsed *source.BuiltinPackage
 	err    error
 }
-type module struct {
+
+type moduleRoot struct {
 	rootURI        span.URI
 	modURI, sumURI span.URI
 }

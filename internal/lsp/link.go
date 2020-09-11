@@ -179,10 +179,10 @@ func moduleAtVersion(ctx context.Context, snapshot source.Snapshot, target strin
 	if err != nil {
 		return "", "", false
 	}
-	if impPkg.Module() == nil {
+	if impPkg.Version() == nil {
 		return "", "", false
 	}
-	version, modpath := impPkg.Module().Version, impPkg.Module().Path
+	version, modpath := impPkg.Version().Version, impPkg.Version().Path
 	if modpath == "" || version == "" {
 		return "", "", false
 	}
