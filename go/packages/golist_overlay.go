@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"golang.org/x/tools/internal/gocommand"
 )
 
 // processGolistOverlay provides rudimentary support for adding
@@ -326,24 +328,25 @@ func (state *golistState) determineRootDirs() (map[string]string, error) {
 }
 
 func (state *golistState) determineRootDirsModules() (map[string]string, error) {
-	// This will only return the root directory for the main module.
-	// For now we only support overlays in main modules.
+	// List all of the modules--the first will be the directory for the main
+	// module. Any replaced modules will also need to be treated as roots.
 	// Editing files in the module cache isn't a great idea, so we don't
-	// plan to ever support that, but editing files in replaced modules
-	// is something we may want to support. To do that, we'll want to
-	// do a go list -m to determine the replaced module's module path and
-	// directory, and then a go list -m {{with .Replace}}{{.Dir}}{{end}} <replaced module's path>
-	// from the main module to determine if that module is actually a replacement.
-	// See bcmills's comment here: https://github.com/golang/go/issues/37629#issuecomment-594179751
-	// for more information.
-	out, err := state.invokeGo("list", "-m", "-json")
+	// plan to ever support that.
+	out, err := state.invokeGo("list", "-m", "-json", "all")
 	if err != nil {
-		return nil, err
+		// 'go list all' will fail if we're outside of a module and
+		// GO111MODULE=on. Try falling back without 'all'.
+		var innerErr error
+		out, innerErr = state.invokeGo("list", "-m", "-json")
+		if innerErr != nil {
+			return nil, err
+		}
 	}
-	m := map[string]string{}
-	type jsonMod struct{ Path, Dir string }
+	roots := map[string]string{}
+	modules := map[string]string{}
+	var i int
 	for dec := json.NewDecoder(out); dec.More(); {
-		mod := new(jsonMod)
+		mod := new(gocommand.ModuleJSON)
 		if err := dec.Decode(mod); err != nil {
 			return nil, err
 		}
@@ -353,10 +356,15 @@ func (state *golistState) determineRootDirsModules() (map[string]string, error) 
 			if err != nil {
 				return nil, err
 			}
-			m[absDir] = mod.Path
+			modules[absDir] = mod.Path
+			// The first result is the main module.
+			if i == 0 || mod.Replace != nil && mod.Replace.Path != "" {
+				roots[absDir] = mod.Path
+			}
 		}
+		i++
 	}
-	return m, nil
+	return roots, nil
 }
 
 func (state *golistState) determineRootDirsGOPATH() (map[string]string, error) {

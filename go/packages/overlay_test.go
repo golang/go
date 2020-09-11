@@ -1014,3 +1014,69 @@ func Hi() {
 		t.Fatalf(`expected import "golang.org/fake/a", got none`)
 	}
 }
+
+// Tests that overlays are applied for a replaced module.
+// This does not use go/packagestest because it needs to write a replace
+// directive with an absolute path in one of the module's go.mod files.
+func TestOverlaysInReplace(t *testing.T) {
+	// Create module b.com in a temporary directory. Do not add any Go files
+	// on disk.
+	tmpPkgs, err := ioutil.TempDir("", "modules")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpPkgs)
+
+	dirB := filepath.Join(tmpPkgs, "b")
+	if err := os.Mkdir(dirB, 0775); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(dirB, "go.mod"), []byte(fmt.Sprintf("module %s.com", dirB)), 0775); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dirB, "inner"), 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a separate module that requires and replaces b.com.
+	tmpWorkspace, err := ioutil.TempDir("", "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpWorkspace)
+	goModContent := fmt.Sprintf(`module workspace.com
+
+require (
+	b.com v0.0.0-00010101000000-000000000000
+)
+
+replace (
+	b.com => %s
+)
+`, dirB)
+	if err := ioutil.WriteFile(filepath.Join(tmpWorkspace, "go.mod"), []byte(goModContent), 0775); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add Go files for b.com/inner in an overlay and try loading it from the
+	// workspace.com module.
+	config := &packages.Config{
+		Dir:  tmpWorkspace,
+		Mode: packages.LoadAllSyntax,
+		Logf: t.Logf,
+		Overlay: map[string][]byte{
+			filepath.Join(dirB, "inner", "b.go"): []byte(`package inner; import "fmt"; func _() { fmt.Println("");`),
+		},
+	}
+	initial, err := packages.Load(config, "b.com/...")
+	if err != nil {
+		t.Error(err)
+	}
+	pkg := initial[0]
+	if pkg.PkgPath != "b.com/inner" {
+		t.Fatalf(`expected package path "b.com/inner", got %q`, pkg.PkgPath)
+	}
+	if _, ok := pkg.Imports["fmt"]; !ok {
+		t.Fatalf(`expected import "fmt", got none`)
+	}
+}
