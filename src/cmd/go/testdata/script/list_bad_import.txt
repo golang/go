@@ -15,10 +15,11 @@ stdout 'incomplete'
 stdout 'bad dep: .*example.com[/\\]notfound'
 
 # Listing with -deps should also fail.
-# BUG: Today, it does not.
-# ! go list -deps example.com/direct
-# stderr example.com[/\\]notfound
-go list -deps example.com/direct
+! go list -deps example.com/direct
+stderr example.com[/\\]notfound
+
+# But -e -deps should succeed.
+go list -e -deps example.com/direct
 stdout example.com/notfound
 
 
@@ -31,10 +32,11 @@ stdout incomplete
 stdout 'bad dep: .*example.com[/\\]notfound'
 
 # Again, -deps should fail.
-# BUG: Again, it does not.
-# ! go list -deps example.com/indirect
-# stderr example.com[/\\]notfound
-go list -deps example.com/indirect
+! go list -deps example.com/indirect
+stderr example.com[/\\]notfound
+
+# But -deps -e should succeed.
+go list -e -deps example.com/indirect
 stdout example.com/notfound
 
 

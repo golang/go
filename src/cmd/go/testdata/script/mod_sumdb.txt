@@ -15,6 +15,12 @@ stderr 'localhost.localdev/sumdb: h1:wrong'
 stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
 ! go get -d rsc.io/sampler
 ! go get -d golang.org/x/text
+
+go mod edit -require rsc.io/quote@v1.5.2
+! go list all
+stderr 'go: rsc.io/quote@v1.5.2: verifying go.mod: checksum mismatch'
+stderr 'SECURITY ERROR\n'
+
 rm go.sum
 
 # switching to truthful sumdb detects timeline inconsistency

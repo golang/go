@@ -348,6 +348,30 @@ func TestParseCopy(t *testing.T) {
 	testParse(true, t)
 }
 
+func TestParseWithComments(t *testing.T) {
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+	tests := [...]parseTest{
+		{"comment", "{{/*\n\n\n*/}}", noError, "{{/*\n\n\n*/}}"},
+		{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"{{/* hi */}}`},
+		{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `{{/* hi */}}"y"`},
+		{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x"{{/* */}}"y"`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tr := New(test.name)
+			tr.Mode = ParseComments
+			tmpl, err := tr.Parse(test.input, "", "", make(map[string]*Tree))
+			if err != nil {
+				t.Errorf("%q: expected error; got none", test.name)
+			}
+			if result := tmpl.Root.String(); result != test.result {
+				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.result)
+			}
+		})
+	}
+}
+
 type isEmptyTest struct {
 	name  string
 	input string
@@ -358,6 +382,7 @@ var isEmptyTests = []isEmptyTest{
 	{"empty", ``, true},
 	{"nonempty", `hello`, false},
 	{"spaces only", " \t\n \t\n", true},
+	{"comment only", "{{/* comment */}}", true},
 	{"definition", `{{define "x"}}something{{end}}`, true},
 	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
 	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n", false},

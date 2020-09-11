@@ -277,3 +277,9 @@ func boundsABI(b int64) int {
 		panic("bad BoundsKind")
 	}
 }
+
+// arm64BitFileld is the GO type of ARM64BitField auxInt.
+// if x is an ARM64BitField, then width=x&0xff, lsb=(x>>8)&0xff, and
+// width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
+// the meaning of width and lsb are instruction-dependent.
+type arm64BitField int16

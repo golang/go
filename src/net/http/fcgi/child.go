@@ -155,9 +155,12 @@ func (c *child) serve() {
 	defer c.cleanUp()
 	var rec record
 	for {
+		c.conn.mutex.Lock()
 		if err := rec.read(c.conn.rwc); err != nil {
+			c.conn.mutex.Unlock()
 			return
 		}
+		c.conn.mutex.Unlock()
 		if err := c.handleRecord(&rec); err != nil {
 			return
 		}

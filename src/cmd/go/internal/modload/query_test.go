@@ -187,9 +187,11 @@ func TestQuery(t *testing.T) {
 		if allow == "" {
 			allow = "*"
 		}
-		allowed := func(m module.Version) bool {
-			ok, _ := path.Match(allow, m.Version)
-			return ok
+		allowed := func(ctx context.Context, m module.Version) error {
+			if ok, _ := path.Match(allow, m.Version); !ok {
+				return ErrDisallowed
+			}
+			return nil
 		}
 		tt := tt
 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {

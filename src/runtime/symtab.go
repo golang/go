@@ -284,6 +284,9 @@ const (
 )
 
 const (
+	// Only if !go115ReduceLiveness.
+	_PCDATA_RegMapUnsafe = _PCDATA_UnsafePointUnsafe // Unsafe for async preemption
+
 	// PCDATA_UnsafePoint values.
 	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
 	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption

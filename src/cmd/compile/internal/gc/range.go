@@ -334,7 +334,7 @@ func walkrange(n *Node) *Node {
 
 		hv1 := temp(t.Elem())
 		hv1.SetTypecheck(1)
-		if types.Haspointers(t.Elem()) {
+		if t.Elem().HasPointers() {
 			init = append(init, nod(OAS, hv1, nil))
 		}
 		hb := temp(types.Types[TBOOL])
@@ -586,7 +586,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(nod(OAS, hn, tmp))
 
 	var fn *Node
-	if a.Type.Elem().HasHeapPointer() {
+	if a.Type.Elem().HasPointers() {
 		// memclrHasPointers(hp, hn)
 		Curfn.Func.setWBPos(stmt.Pos)
 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)

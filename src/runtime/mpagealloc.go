@@ -326,7 +326,20 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 	s.scav.scavLWM = maxSearchAddr
 }
 
+// tryChunkOf returns the bitmap data for the given chunk.
+//
+// Returns nil if the chunk data has not been mapped.
+func (s *pageAlloc) tryChunkOf(ci chunkIdx) *pallocData {
+	l2 := s.chunks[ci.l1()]
+	if l2 == nil {
+		return nil
+	}
+	return &l2[ci.l2()]
+}
+
 // chunkOf returns the chunk at the given chunk index.
+//
+// The chunk index must be valid or this method may throw.
 func (s *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
 	return &s.chunks[ci.l1()][ci.l2()]
 }

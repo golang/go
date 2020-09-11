@@ -15,7 +15,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 )
@@ -33,7 +32,7 @@ path@version, except for the main module, which has no @version suffix.
 }
 
 func init() {
-	work.AddModCommonFlags(cmdGraph)
+	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
@@ -48,7 +47,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: cannot find main module; see 'go help modules'")
 		}
 	}
-	modload.LoadBuildList(ctx)
+	modload.LoadAllModules(ctx)
 
 	reqs := modload.MinReqs()
 	format := func(m module.Version) string {

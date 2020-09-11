@@ -32,7 +32,6 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -316,7 +315,7 @@ func ggloblnod(nam *Node) {
 	if nam.Name.Readonly() {
 		flags = obj.RODATA
 	}
-	if nam.Type != nil && !types.Haspointers(nam.Type) {
+	if nam.Type != nil && !nam.Type.HasPointers() {
 		flags |= obj.NOPTR
 	}
 	Ctxt.Globl(s, nam.Type.Width, flags)
@@ -343,6 +342,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
 		Fatalf("patch: not a branch")
 	}
-	p.To.Val = to
+	p.To.SetTarget(to)
 	p.To.Offset = to.Pc
 }

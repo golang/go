@@ -7,7 +7,7 @@ env GOSUMDB=off
 # Without credentials, downloading a module from a path that requires HTTPS
 # basic auth should fail.
 env NETRC=$WORK/empty
-! go list all
+! go mod tidy
 stderr '^\tserver response: ACCESS DENIED, buddy$'
 stderr '^\tserver response: File\? What file\?$'
 

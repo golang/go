@@ -837,7 +837,8 @@ func scanstack(gp *g, gcw *gcWork) {
 		x := state.head
 		state.head = x.next
 		if stackTraceDebug {
-			for _, obj := range x.obj[:x.nobj] {
+			for i := 0; i < x.nobj; i++ {
+				obj := &x.obj[i]
 				if obj.typ == nil { // reachable
 					continue
 				}

@@ -37,10 +37,10 @@ go mod why rsc.io/quote
 # 'go list' and other commands with build flags should work.
 # They should update the alternate go.mod when a dependency is missing.
 go mod edit -droprequire rsc.io/quote
-go list .
+go list -mod=mod .
 grep rsc.io/quote go.alt.mod
-go build -n .
-go test -n .
+go build -n -mod=mod .
+go test -n -mod=mod .
 go get -d rsc.io/quote
 
 

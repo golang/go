@@ -17,7 +17,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -38,7 +37,7 @@ non-zero status.
 }
 
 func init() {
-	work.AddModCommonFlags(cmdVerify)
+	base.AddModCommonFlags(&cmdVerify.Flag)
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
@@ -60,7 +59,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
 	// Use a slice of result channels, so that the output is deterministic.
-	mods := modload.LoadBuildList(ctx)[1:]
+	mods := modload.LoadAllModules(ctx)[1:]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {

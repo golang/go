@@ -20,6 +20,8 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var CmdGet = &base.Command{
@@ -41,7 +43,10 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
+custom domains using insecure schemes such as HTTP. Use with caution. The
+GOINSECURE environment variable is usually a better alternative, since it
+provides control over which modules may be retrieved using an insecure scheme.
+See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -409,11 +414,6 @@ func downloadPackage(p *load.Package) error {
 		blindRepo      bool // set if the repo has unusual configuration
 	)
 
-	security := web.SecureOnly
-	if Insecure {
-		security = web.Insecure
-	}
-
 	// p can be either a real package, or a pseudo-package whose “import path” is
 	// actually a wildcard pattern.
 	// Trim the path at the element containing the first wildcard,
@@ -427,8 +427,12 @@ func downloadPackage(p *load.Package) error {
 		}
 		importPrefix = importPrefix[:slash]
 	}
-	if err := CheckImportPath(importPrefix); err != nil {
+	if err := module.CheckImportPath(importPrefix); err != nil {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+	}
+	security := web.SecureOnly
+	if Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+		security = web.Insecure
 	}
 
 	if p.Internal.Build.SrcRoot != "" {
@@ -473,7 +477,7 @@ func downloadPackage(p *load.Package) error {
 		}
 		vcs, repo, rootPath = rr.vcs, rr.Repo, rr.Root
 	}
-	if !blindRepo && !vcs.isSecure(repo) && !Insecure {
+	if !blindRepo && !vcs.isSecure(repo) && security != web.Insecure {
 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
 	}
 

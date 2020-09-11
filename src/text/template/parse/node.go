@@ -70,6 +70,7 @@ const (
 	NodeTemplate                   // A template invocation action.
 	NodeVariable                   // A $ variable.
 	NodeWith                       // A with action.
+	NodeComment                    // A comment.
 )
 
 // Nodes.
@@ -147,6 +148,38 @@ func (t *TextNode) tree() *Tree {
 
 func (t *TextNode) Copy() Node {
 	return &TextNode{tr: t.tr, NodeType: NodeText, Pos: t.Pos, Text: append([]byte{}, t.Text...)}
+}
+
+// CommentNode holds a comment.
+type CommentNode struct {
+	NodeType
+	Pos
+	tr   *Tree
+	Text string // Comment text.
+}
+
+func (t *Tree) newComment(pos Pos, text string) *CommentNode {
+	return &CommentNode{tr: t, NodeType: NodeComment, Pos: pos, Text: text}
+}
+
+func (c *CommentNode) String() string {
+	var sb strings.Builder
+	c.writeTo(&sb)
+	return sb.String()
+}
+
+func (c *CommentNode) writeTo(sb *strings.Builder) {
+	sb.WriteString("{{")
+	sb.WriteString(c.Text)
+	sb.WriteString("}}")
+}
+
+func (c *CommentNode) tree() *Tree {
+	return c.tr
+}
+
+func (c *CommentNode) Copy() Node {
+	return &CommentNode{tr: c.tr, NodeType: NodeComment, Pos: c.Pos, Text: c.Text}
 }
 
 // PipeNode holds a pipeline with optional declaration

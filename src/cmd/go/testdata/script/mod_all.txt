@@ -1,0 +1,444 @@
+# This test illustrates the relationship between the 'all' pattern and
+# the dependencies of the main module.
+
+# The package import graph used in this test looks like:
+#
+# main --------- a --------- b
+# |              |
+# |              a_test ---- c
+# |                          |
+# |                          c_test ---- d
+# |
+# main_test ---- t --------- u
+#                |
+#                t_test ---- w
+#                            |
+#                            w_test ---- x
+#
+# main/testonly_test ---- q --------- r
+#                         |
+#                         q_test ---- s
+#
+# And the module dependency graph looks like:
+#
+# main --- a.1 ---- b.1
+#  \   \    \
+#   \   \    c.1 -- d.1
+#    \   \
+#     \    t.1 ---- u.1
+#      \    \
+#       \    w.1 -- x.1
+#        \
+#          q.1 ---- r.1
+#           \
+#            s.1
+
+env PKGFMT='{{if .Module}}{{.ImportPath}}{{end}}'
+env MODFMT='{{.Path}}'
+
+
+# 'go list -deps' lists packages and tests in the main module,
+# along with their transitive dependencies.
+
+go list -f $PKGFMT -deps ./...
+stdout -count=4 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly'
+
+
+# 'go list -deps -test' lists transitive imports of tests and non-tests in the
+# main module.
+
+go list -f $PKGFMT -deps -test ./...
+stdout -count=13 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+
+
+# 'go list all' lists the fixpoint of iterating 'go list -deps -test' starting
+# with the packages in the main module, then reducing to only the non-test
+# variants of those packages.
+
+go list -f $PKGFMT all
+stdout -count=13 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+stdout '^example.com/d$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+stdout '^example.com/x$'
+
+
+# 'go list -test all' is equivalent to 'go list -test $(go list all)'
+# and both should include tests for every package in 'all'.
+
+go list -test -f $PKGFMT example.com/a example.com/b example.com/c example.com/d example.com/main example.com/main/testonly example.com/q example.com/r example.com/s example.com/t example.com/u example.com/w example.com/x
+cp stdout list-test-explicit.txt
+
+go list -test -f $PKGFMT all
+cmp stdout list-test-explicit.txt
+stdout -count=36 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+stdout '^example.com/d$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+stdout '^example.com/x$'
+stdout '^example.com/a.test$'
+stdout '^example.com/a_test \[example.com/a.test\]$'
+stdout '^example.com/b.test$'
+stdout '^example.com/b_test \[example.com/b.test\]$'
+stdout '^example.com/c.test$'
+stdout '^example.com/c_test \[example.com/c.test\]$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q.test$'
+stdout '^example.com/q_test \[example.com/q.test\]$'
+stdout '^example.com/r.test$'
+stdout '^example.com/r_test \[example.com/r.test\]$'
+stdout '^example.com/s.test$'
+stdout '^example.com/s_test \[example.com/s.test\]$'
+stdout '^example.com/t.test$'
+stdout '^example.com/t_test \[example.com/t.test\]$'
+stdout '^example.com/u.test$'
+stdout '^example.com/u_test \[example.com/u.test\]$'
+stdout '^example.com/w.test$'
+stdout '^example.com/w_test \[example.com/w.test\]$'
+
+
+# 'go list -m all' covers the packages in 'go list -test -deps all'.
+
+go list -m -f $MODFMT all
+stdout -count=12 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+stdout '^example.com/d$'
+stdout '^example.com/main$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+stdout '^example.com/x$'
+
+
+# 'go mod vendor' copies in only the packages transitively imported by the main
+# module, and omits their tests. As a result, the 'all' and '...' patterns
+# report fewer packages when using '-mod=vendor'.
+
+go mod vendor
+
+go list -f $PKGFMT -mod=vendor all
+stdout -count=8 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+
+go list -test -f $PKGFMT -mod=vendor all
+stdout -count=13 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+
+rm vendor
+
+# Convert all modules to go 1.16 to enable lazy loading.
+go mod edit -go=1.16 a/go.mod
+go mod edit -go=1.16 b/go.mod
+go mod edit -go=1.16 c/go.mod
+go mod edit -go=1.16 d/go.mod
+go mod edit -go=1.16 q/go.mod
+go mod edit -go=1.16 r/go.mod
+go mod edit -go=1.16 s/go.mod
+go mod edit -go=1.16 t/go.mod
+go mod edit -go=1.16 u/go.mod
+go mod edit -go=1.16 w/go.mod
+go mod edit -go=1.16 x/go.mod
+go mod edit -go=1.16
+
+# With lazy loading, 'go list all' with neither -mod=vendor nor -test should
+# match -mod=vendor without -test in 1.15.
+
+go list -f $PKGFMT all
+stdout -count=8 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+
+# 'go list -test all' should expand that to include the test variants of the
+# packages in 'all', but not the dependencies of outside tests.
+
+go list -test -f $PKGFMT all
+stdout -count=25 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/a.test$'
+stdout '^example.com/a_test \[example.com/a.test\]$'
+stdout '^example.com/b.test$'
+stdout '^example.com/b_test \[example.com/b.test\]$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q.test$'
+stdout '^example.com/q_test \[example.com/q.test\]$'
+stdout '^example.com/r.test$'
+stdout '^example.com/r_test \[example.com/r.test\]$'
+stdout '^example.com/t.test$'
+stdout '^example.com/t_test \[example.com/t.test\]$'
+stdout '^example.com/u.test$'
+stdout '^example.com/u_test \[example.com/u.test\]$'
+
+# 'go list -test -deps all' should include the dependencies of those tests,
+# but not the tests of the dependencies of outside tests.
+
+go list -test -deps -f $PKGFMT all
+stdout -count=28 '^.'
+stdout '^example.com/a$'
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+stdout '^example.com/main$'
+stdout '^example.com/main/testonly$'
+stdout '^example.com/q$'
+stdout '^example.com/r$'
+stdout '^example.com/s$'
+stdout '^example.com/t$'
+stdout '^example.com/u$'
+stdout '^example.com/w$'
+stdout '^example.com/a.test$'
+stdout '^example.com/a_test \[example.com/a.test\]$'
+stdout '^example.com/b.test$'
+stdout '^example.com/b_test \[example.com/b.test\]$'
+stdout '^example.com/main.test$'
+stdout '^example.com/main \[example.com/main.test\]$'
+stdout '^example.com/main_test \[example.com/main.test\]$'
+stdout '^example.com/main/testonly.test$'
+stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+stdout '^example.com/q.test$'
+stdout '^example.com/q_test \[example.com/q.test\]$'
+stdout '^example.com/r.test$'
+stdout '^example.com/r_test \[example.com/r.test\]$'
+stdout '^example.com/t.test$'
+stdout '^example.com/t_test \[example.com/t.test\]$'
+stdout '^example.com/u.test$'
+stdout '^example.com/u_test \[example.com/u.test\]$'
+
+
+# TODO(#36460):
+# 'go list -m all' should exactly cover the packages in 'go list -test all'.
+
+-- go.mod --
+module example.com/main
+
+go 1.15
+
+require (
+	example.com/a v0.1.0
+	example.com/b v0.1.0
+	example.com/q v0.1.0
+	example.com/t v0.1.0
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c
+	example.com/d v0.1.0 => ./d
+	example.com/q v0.1.0 => ./q
+	example.com/r v0.1.0 => ./r
+	example.com/s v0.1.0 => ./s
+	example.com/t v0.1.0 => ./t
+	example.com/u v0.1.0 => ./u
+	example.com/w v0.1.0 => ./w
+	example.com/x v0.1.0 => ./x
+)
+-- main.go --
+package main
+
+import _ "example.com/a"
+
+func main() {}
+-- main_test.go --
+package main_test
+
+import _ "example.com/t"
+-- testonly/testonly_test.go --
+package testonly_test
+
+import _ "example.com/q"
+-- a/go.mod --
+module example.com/a
+
+go 1.15
+
+require (
+	example.com/b v0.1.0
+	example.com/c v0.1.0
+)
+-- a/a.go --
+package a
+
+import _ "example.com/b"
+-- a/a_test.go --
+package a_test
+
+import _ "example.com/c"
+-- b/go.mod --
+module example.com/b
+
+go 1.15
+-- b/b.go --
+package b
+-- b/b_test.go --
+package b_test
+-- c/go.mod --
+module example.com/c
+
+go 1.15
+
+require example.com/d v0.1.0
+-- c/c.go --
+package c
+-- c/c_test.go --
+package c_test
+
+import _ "example.com/d"
+-- d/go.mod --
+module example.com/d
+
+go 1.15
+-- d/d.go --
+package d
+-- q/go.mod --
+module example.com/q
+
+go 1.15
+
+require (
+	example.com/r v0.1.0
+	example.com/s v0.1.0
+)
+-- q/q.go --
+package q
+import _ "example.com/r"
+-- q/q_test.go --
+package q_test
+import _ "example.com/s"
+-- r/go.mod --
+module example.com/r
+
+go 1.15
+-- r/r.go --
+package r
+-- r/r_test.go --
+package r_test
+-- s/go.mod --
+module example.com/s
+
+go 1.15
+-- s/s.go --
+package s
+-- s/s_test.go --
+package s_test
+-- t/go.mod --
+module example.com/t
+
+go 1.15
+
+require (
+	example.com/u v0.1.0
+	example.com/w v0.1.0
+)
+-- t/t.go --
+package t
+
+import _ "example.com/u"
+-- t/t_test.go --
+package t_test
+
+import _ "example.com/w"
+-- u/go.mod --
+module example.com/u
+
+go 1.15
+-- u/u.go --
+package u
+-- u/u_test.go --
+package u_test
+-- w/go.mod --
+module example.com/w
+
+go 1.15
+
+require example.com/x v0.1.0
+-- w/w.go --
+package w
+-- w/w_test.go --
+package w_test
+
+import _ "example.com/x"
+-- x/go.mod --
+module example.com/x
+
+go 1.15
+-- x/x.go --
+package x

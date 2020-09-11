@@ -14,6 +14,7 @@ env GO111MODULE=on
 [short] skip
 
 # Check that 'go version' and 'go version -m' work on a binary built in module mode.
+go get -d rsc.io/fortune
 go build -o fortune.exe rsc.io/fortune
 go version fortune.exe
 stdout '^fortune.exe: .+'

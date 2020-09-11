@@ -1,14 +1,15 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 
-# download with version should print nothing
+# download with version should print nothing.
+# It should not load retractions from the .mod file from the latest version.
 go mod download rsc.io/quote@v1.5.0
 ! stdout .
 ! stderr .
-
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 
 # download of an invalid path should report the error
 [short] skip
@@ -32,53 +33,59 @@ stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
 go list -m all
 ! stdout rsc.io
 
-# add to go.mod so we can test non-query downloads
-go mod edit -require rsc.io/quote@v1.5.2
-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
-
-# module loading will page in the info and mod files
-go list -m all
+# download query should have downloaded go.mod for the highest release version
+# in order to find retractions when resolving the query '@<=v1.5.0'.
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+
+# add to go.mod so we can test non-query downloads
+go mod edit -require rsc.io/quote@v1.5.3-pre1
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+
+# module loading will page in the info and mod files
+go list -m -mod=mod all
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 
 # download will fetch and unpack the zip file
 go mod download
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
-exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
 
 # download repopulates deleted files and directories independently.
-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
 go mod download
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
 go mod download
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 go mod download
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
-rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
 go mod download
-exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
 
 # download reports the locations of downloaded files
 go mod download -json
 stdout '^\t"Path": "rsc.io/quote"'
-stdout '^\t"Version": "v1.5.2"'
-stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.info"'
-stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.mod"'
-stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.zip"'
-stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.2"'
+stdout '^\t"Version": "v1.5.3-pre1"'
+stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.info"'
+stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.mod"'
+stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.zip"'
+stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.3-pre1"'
 
 # download will follow replacements
-go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.3-pre1
+go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.2
 go mod download
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
 # download will not follow replacements for explicit module queries
 go mod download -json rsc.io/quote@v1.5.1
@@ -100,6 +107,14 @@ stderr '^go mod download: skipping argument m that resolves to the main module\n
 go mod download m@latest
 stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
 
+# download updates go.mod and populates go.sum
+cd update
+! exists go.sum
+go mod download
+grep '^rsc.io/sampler v1.3.0 ' go.sum
+go list -m rsc.io/sampler
+stdout '^rsc.io/sampler v1.3.0$'
+
 # allow go mod download without go.mod
 env GO111MODULE=auto
 rm go.mod
@@ -115,3 +130,13 @@ stderr 'get '$GOPROXY
 
 -- go.mod --
 module m
+
+-- update/go.mod --
+module m
+
+go 1.16
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.2.1 // older version than in build list
+)

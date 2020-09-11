@@ -916,6 +916,7 @@
 //         Dir       string       // directory holding files for this module, if any
 //         GoMod     string       // path to go.mod file used when loading this module, if any
 //         GoVersion string       // go version used in module
+//         Retracted string       // retraction information, if any (with -retracted or -u)
 //         Error     *ModuleError // error loading module
 //     }
 //
@@ -947,14 +948,16 @@
 // The -u flag adds information about available upgrades.
 // When the latest version of a given module is newer than
 // the current one, list -u sets the Module's Update field
-// to information about the newer module.
+// to information about the newer module. list -u will also set
+// the module's Retracted field if the current version is retracted.
 // The Module's String method indicates an available upgrade by
 // formatting the newer version in brackets after the current version.
+// If a version is retracted, the string "(retracted)" will follow it.
 // For example, 'go list -m -u all' might print:
 //
 //     my/main/module
 //     golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
-//     rsc.io/pdf v0.1.1 [v0.1.2]
+//     rsc.io/pdf v0.1.1 (retracted) [v0.1.2]
 //
 // (For tools, 'go list -m -u -json all' may be more convenient to parse.)
 //
@@ -963,6 +966,14 @@
 // to semantic versioning, earliest to latest. The flag also changes
 // the default output format to display the module path followed by the
 // space-separated version list.
+//
+// The -retracted flag causes list to report information about retracted
+// module versions. When -retracted is used with -f or -json, the Retracted
+// field will be set to a string explaining why the version was retracted.
+// The string is taken from comments on the retract directive in the
+// module's go.mod file. When -retracted is used with -versions, retracted
+// versions are listed together with unretracted versions. The -retracted
+// flag may be used with or without -m.
 //
 // The arguments to list -m are interpreted as a list of modules, not packages.
 // The main module is the module containing the current directory.
@@ -1100,9 +1111,14 @@
 // module path and version pair. If the @v is omitted, a replacement without
 // a version on the left side is dropped.
 //
+// The -retract=version and -dropretract=version flags add and drop a
+// retraction on the given version. The version may be a single version
+// like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+// -retract=version is a no-op if that retraction already exists.
+//
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
-// and -dropreplace editing flags may be repeated, and the changes
-// are applied in the order given.
+// -dropreplace, -retract, and -dropretract editing flags may be repeated,
+// and the changes are applied in the order given.
 //
 // The -go=version flag sets the expected Go language version.
 //
@@ -1135,6 +1151,15 @@
 // 		Old Module
 // 		New Module
 // 	}
+//
+// 	type Retract struct {
+// 		Low       string
+// 		High      string
+// 		Rationale string
+// 	}
+//
+// Retract entries representing a single version (not an interval) will have
+// the "Low" and "High" fields set to the same value.
 //
 // Note that this only describes the go.mod file itself, not other modules
 // referred to indirectly. For the full set of modules available to a build,
@@ -1894,15 +1919,17 @@
 // 	require new/thing/v2 v2.3.4
 // 	exclude old/thing v1.2.3
 // 	replace bad/thing v1.4.5 => good/thing v1.4.5
+// 	retract v1.5.6
 //
 // The verbs are
 // 	module, to define the module path;
 // 	go, to set the expected language version;
 // 	require, to require a particular module at a given version or later;
-// 	exclude, to exclude a particular module version from use; and
-// 	replace, to replace a module version with a different module version.
+// 	exclude, to exclude a particular module version from use;
+// 	replace, to replace a module version with a different module version; and
+// 	retract, to indicate a previously released version should not be used.
 // Exclude and replace apply only in the main module's go.mod and are ignored
-// in dependencies.  See https://research.swtch.com/vgo-mvs for details.
+// in dependencies.  See https://golang.org/ref/mod for details.
 //
 // The leading verb can be factored out of adjacent lines to create a block,
 // like in Go imports:
@@ -2145,7 +2172,10 @@
 // before resolving dependencies or building the code.
 //
 // The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
+// custom domains using insecure schemes such as HTTP. Use with caution. The
+// GOINSECURE environment variable is usually a better alternative, since it
+// provides control over which modules may be retrieved using an insecure scheme.
+// See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.

@@ -1,3 +1,7 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -455,9 +459,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		if err != nil {
-			t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
-		}
+		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
 	}
 
 	// Run objdump on the resulting object.
@@ -796,5 +798,19 @@ func TestContentAddressableSymbols(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
+	}
+}
+
+func TestReadOnly(t *testing.T) {
+	// Test that read-only data is indeed read-only.
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	src := filepath.Join("testdata", "testRO", "x.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("running test program did not fail. output:\n%s", out)
 	}
 }

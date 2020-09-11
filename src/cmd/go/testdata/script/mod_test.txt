@@ -1,4 +1,5 @@
 env GO111MODULE=on
+env GOFLAGS=-mod=mod
 [short] skip
 
 # TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
