@@ -246,6 +246,21 @@ extractQueries:
 			}
 		}
 	}
+	// Add root for any package that matches a pattern. This applies only to
+	// packages that are modified by overlays, since they are not added as
+	// roots automatically.
+	for _, pattern := range restPatterns {
+		match := matchPattern(pattern)
+		for _, pkgID := range modifiedPkgs {
+			pkg, ok := response.seenPackages[pkgID]
+			if !ok {
+				continue
+			}
+			if match(pkg.PkgPath) {
+				response.addRoot(pkg.ID)
+			}
+		}
+	}
 
 	sizeswg.Wait()
 	if sizeserr != nil {
@@ -753,7 +768,8 @@ func (state *golistState) getGoVersion() (string, error) {
 	return state.goVersion, state.goVersionError
 }
 
-// getPkgPath finds the package path of a directory if it's relative to a root directory.
+// getPkgPath finds the package path of a directory if it's relative to a root
+// directory.
 func (state *golistState) getPkgPath(dir string) (string, bool, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {

@@ -932,3 +932,85 @@ func _() {
 		t.Fatalf(`expected import "os", found none: %v`, pkg.Imports)
 	}
 }
+
+// Tests that overlays are applied for different kinds of load patterns.
+func TestLoadDifferentPatterns(t *testing.T) {
+	packagestest.TestAll(t, testLoadDifferentPatterns)
+}
+func testLoadDifferentPatterns(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"foo.txt": "placeholder",
+				"b/b.go": `package b
+import "golang.org/fake/a"
+func _() {
+	a.Hi()
+}
+`,
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = everythingMode
+	exported.Config.Tests = true
+
+	dir := filepath.Dir(exported.File("golang.org/fake", "foo.txt"))
+	exported.Config.Overlay = map[string][]byte{
+		filepath.Join(dir, "a", "a.go"): []byte(`package a
+import "fmt"
+func Hi() {
+	fmt.Println("")
+}
+`),
+	}
+	for _, tc := range []struct {
+		pattern string
+	}{
+		{"golang.org/fake/a"},
+		{"golang.org/fake/..."},
+		{fmt.Sprintf("file=%s", filepath.Join(dir, "a", "a.go"))},
+	} {
+		t.Run(tc.pattern, func(t *testing.T) {
+			initial, err := packages.Load(exported.Config, tc.pattern)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var match *packages.Package
+			for _, pkg := range initial {
+				if pkg.PkgPath == "golang.org/fake/a" {
+					match = pkg
+					break
+				}
+			}
+			if match == nil {
+				t.Fatalf(`expected package path "golang.org/fake/a", got %q`, match.PkgPath)
+			}
+			if match.PkgPath != "golang.org/fake/a" {
+				t.Fatalf(`expected package path "golang.org/fake/a", got %q`, match.PkgPath)
+			}
+			if _, ok := match.Imports["fmt"]; !ok {
+				t.Fatalf(`expected import "fmt", got none`)
+			}
+		})
+	}
+
+	// Now, load "golang.org/fake/b" and confirm that "golang.org/fake/a" is
+	// not returned as a root.
+	initial, err := packages.Load(exported.Config, "golang.org/fake/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) > 1 {
+		t.Fatalf("expected 1 package, got %v", initial)
+	}
+	pkg := initial[0]
+	if pkg.PkgPath != "golang.org/fake/b" {
+		t.Fatalf(`expected package path "golang.org/fake/b", got %q`, pkg.PkgPath)
+	}
+	if _, ok := pkg.Imports["golang.org/fake/a"]; !ok {
+		t.Fatalf(`expected import "golang.org/fake/a", got none`)
+	}
+}
