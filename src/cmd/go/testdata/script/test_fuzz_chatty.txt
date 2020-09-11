@@ -1,0 +1,64 @@
+[short] skip
+
+# Run chatty fuzz targets with an error and fatal.
+! go test -v chatty_fail_fuzz_test.go
+! stdout '^ok'
+stdout 'FAIL'
+stdout 'error in target'
+stdout 'fatal in target'
+
+# Run chatty fuzz target with a panic
+! go test -v chatty_panic_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'this is bad'
+
+# Run skipped chatty fuzz targets.
+go test -v chatty_skipped_fuzz_test.go
+stdout ok
+stdout SKIP
+! stdout FAIL
+
+# Run successful chatty fuzz targets.
+go test -v chatty_fuzz_test.go
+stdout ok
+stdout PASS
+stdout 'all good here'
+! stdout FAIL
+
+-- chatty_fail_fuzz_test.go --
+package chatty_fail_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Error("error in target")
+    f.Fatal("fatal in target")
+}
+
+-- chatty_panic_fuzz_test.go --
+package chatty_panic_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    panic("this is bad")
+}
+
+-- chatty_skipped_fuzz_test.go --
+package chatty_skipped_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Skip()
+}
+
+-- chatty_fuzz_test.go --
+package chatty_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Log("all good here")
+}

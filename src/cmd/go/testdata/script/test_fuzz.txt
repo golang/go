@@ -1,0 +1,56 @@
+# Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
+! go test fail_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test that successful test exits cleanly.
+go test success_fuzz_test.go
+stdout ok
+! stdout FAIL
+
+[short] stop
+
+# Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
+! go test panic_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test that skipped test exits cleanly.
+go test skipped_fuzz_test.go
+stdout ok
+! stdout FAIL
+
+-- fail_fuzz_test.go --
+package fail_fuzz
+
+import "testing"
+
+func FuzzFail(f *testing.F) {
+    f.Fatal("fatal in target")
+}
+
+-- panic_fuzz_test.go --
+package panic_fuzz
+
+import "testing"
+
+func FuzzPanic(f *testing.F) {
+    panic(nil)
+}
+
+-- success_fuzz_test.go --
+package success_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+}
+
+-- skipped_fuzz_test.go --
+package skipped_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Skip()
+}

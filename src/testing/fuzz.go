@@ -54,18 +54,79 @@ func (f *F) Fuzz(ff interface{}) {
 	return
 }
 
+func (f *F) report(name string) {
+	if f.Failed() {
+		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", name, f.result.String())
+	} else if f.chatty != nil {
+		if f.Skipped() {
+			f.chatty.Updatef(name, "SKIP\n")
+		} else {
+			f.chatty.Updatef(name, "PASS\n")
+		}
+	}
+}
+
+// run runs each fuzz target in its own goroutine with its own *F.
+func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
+	innerF := &F{
+		common: common{
+			signal: make(chan bool),
+			name:   name,
+			chatty: f.chatty,
+			w:      f.w,
+		},
+		context: f.context,
+	}
+	if innerF.chatty != nil {
+		if f.fuzz {
+			innerF.chatty.Updatef(name, "--- FUZZ: %s\n", name)
+		} else {
+			innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
+		}
+	}
+	go runTarget(innerF, fn)
+	<-innerF.signal
+	return innerF.ran, !innerF.failed
+}
+
+// runTarget runs the given target, handling panics and exits
+// within the test, and reporting errors.
+func runTarget(f *F, fn func(f *F)) {
+	defer func() {
+		err := recover()
+		// If the function has recovered but the test hasn't finished,
+		// it is due to a nil panic or runtime.GoExit.
+		if !f.finished && err == nil {
+			err = errNilPanicOrGoexit
+		}
+		if err != nil {
+			f.Fail()
+			f.result = FuzzResult{Error: fmt.Errorf("%s", err)}
+		}
+		f.report(f.name)
+		f.setRan()
+		f.signal <- true // signal that the test has finished
+	}()
+	fn(f)
+	f.finished = true
+}
+
 // FuzzResult contains the results of a fuzz run.
 type FuzzResult struct {
 	N       int           // The number of iterations.
 	T       time.Duration // The total time taken.
-	Crasher corpusEntry   // Crasher is the corpus entry that caused the crash
+	Crasher *corpusEntry  // Crasher is the corpus entry that caused the crash
 	Error   error         // Error is the error from the crash
 }
 
 func (r FuzzResult) String() string {
 	s := ""
-	if len(r.Error.Error()) != 0 {
-		s = fmt.Sprintf("error: %s\ncrasher: %b", r.Error.Error(), r.Crasher)
+	if r.Error == nil {
+		return s
+	}
+	s = fmt.Sprintf("error: %s", r.Error.Error())
+	if r.Crasher != nil {
+		s += fmt.Sprintf("\ncrasher: %b", r.Crasher)
 	}
 	return s
 }
@@ -85,41 +146,37 @@ func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets
 
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
 // only run the f.Fuzz function for each seed corpus without using the fuzzing
-// engine to generate or mutate inputs. If -fuzz matches a given fuzz target,
-// then such test will be skipped and run later during fuzzing.
+// engine to generate or mutate inputs.
 func runFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
-	ran, ok = true, true
+	ok = true
 	if len(fuzzTargets) == 0 {
-		return false, ok
+		return ran, ok
 	}
+	ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
+	var fts []InternalFuzzTarget
 	for _, ft := range fuzzTargets {
-		ctx := &fuzzContext{runMatch: newMatcher(matchString, *match, "-test.run")}
-		f := &F{
-			common: common{
-				signal:  make(chan bool),
-				barrier: make(chan bool),
-				w:       os.Stdout,
-				name:    ft.Name,
-			},
-			context: ctx,
-		}
-		testName, matched, _ := ctx.runMatch.fullName(&f.common, f.name)
-		if !matched {
-			continue
-		}
-		if *matchFuzz != "" {
-			ctx.fuzzMatch = newMatcher(matchString, *matchFuzz, "-test.fuzz")
-			if _, doFuzz, partial := ctx.fuzzMatch.fullName(&f.common, f.name); doFuzz && !partial {
-				continue // this will be run later when fuzzed
-			}
-		}
-		if Verbose() {
-			f.chatty = newChattyPrinter(f.w)
-		}
-		if f.chatty != nil {
-			f.chatty.Updatef(f.name, "=== RUN  %s\n", testName)
+		if _, matched, _ := ctx.runMatch.fullName(nil, ft.Name); matched {
+			fts = append(fts, ft)
 		}
 	}
+	f := &F{
+		common: common{
+			w: os.Stdout,
+		},
+		fuzzFunc: func(f *F) {
+			for _, ft := range fts {
+				// Run each fuzz target in it's own goroutine.
+				ftRan, ftOk := f.run(ft.Name, ft.Fn)
+				ran = ran || ftRan
+				ok = ok && ftOk
+			}
+		},
+		context: ctx,
+	}
+	if Verbose() {
+		f.chatty = newChattyPrinter(f.w)
+	}
+	f.fuzzFunc(f)
 	return ran, ok
 }
 
@@ -131,13 +188,11 @@ func RunFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 }
 
 // runFuzzing runs the fuzz target matching the pattern for -fuzz. Only one such
-// fuzz target must match. This will run the f.Fuzz function for each seed
-// corpus and will run the fuzzing engine to generate and mutate new inputs
-// against f.Fuzz.
+// fuzz target must match. This will run the fuzzing engine to generate and
+// mutate new inputs against the f.Fuzz function.
 func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
-	ran, ok = true, true
 	if len(fuzzTargets) == 0 {
-		return false, ok
+		return false, true
 	}
 	ctx := &fuzzContext{
 		fuzzMatch: newMatcher(matchString, *matchFuzz, "-test.fuzz"),
@@ -147,9 +202,7 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 	}
 	f := &F{
 		common: common{
-			signal:  make(chan bool),
-			barrier: make(chan bool),
-			w:       os.Stdout,
+			w: os.Stdout,
 		},
 		context: ctx,
 		fuzz:    true,
@@ -163,19 +216,19 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 		if matched {
 			found++
 			if found > 1 {
-				fmt.Fprintf(f.w, "testing: warning: -fuzz matched more than one target, won't run\n")
-				return false, ok
+				fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
+				return false, true
 			}
 			f.name = testName
 		}
 	}
+	if found == 0 {
+		return false, true
+	}
 	if Verbose() {
 		f.chatty = newChattyPrinter(f.w)
 	}
-	if f.chatty != nil {
-		f.chatty.Updatef(f.name, "--- FUZZ  %s\n", f.name)
-	}
-	return ran, ok
+	return f.run(ft.Name, ft.Fn)
 }
 
 // Fuzz runs a single fuzz target. It is useful for creating
@@ -186,8 +239,7 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 func Fuzz(fn func(f *F)) FuzzResult {
 	f := &F{
 		common: common{
-			signal: make(chan bool),
-			w:      discard{},
+			w: discard{},
 		},
 		fuzzFunc: fn,
 	}

@@ -1396,7 +1396,7 @@ func (m *M) Run() (code int) {
 
 	fuzzingRan, fuzzingOk := runFuzzing(m.deps.MatchString, m.fuzzTargets)
 	if *matchFuzz != "" && !fuzzingRan {
-		fmt.Fprintln(os.Stderr, "testing: warning: no fuzz targets to run")
+		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
 	}
 	if !fuzzingOk {
 		fmt.Println("FAIL")

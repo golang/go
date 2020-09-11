@@ -1064,6 +1064,8 @@ func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVa
 }
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+var noTargetsToFuzz = []byte("\ntesting: warning: no targets to fuzz\n")
+var tooManyTargetsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one target, won't fuzz\n")
 
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
@@ -1259,6 +1261,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
+		}
+		if bytes.HasPrefix(out, noTargetsToFuzz[1:]) || bytes.Contains(out, noTargetsToFuzz) {
+			norun = " [no targets to fuzz]"
+		}
+		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
+			norun = " [will not fuzz, -fuzz matches more than one target]"
 		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		c.saveOutput(a)
