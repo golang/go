@@ -77,8 +77,9 @@ const (
 	// file the current directory or in parent directories.
 	NoRoot
 
-	// TODO(jayconrod): add NeedRoot for commands like 'go mod vendor' that
-	// don't make sense without a main module.
+	// NeedRoot is used for commands that must run in module mode and don't
+	// make sense without a main module.
+	NeedRoot
 )
 
 // ModFile returns the parsed go.mod file.
@@ -171,6 +172,9 @@ func Init() {
 		if modRoot == "" {
 			if cfg.ModFile != "" {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+			}
+			if RootMode == NeedRoot {
+				base.Fatalf("go: cannot find main module; see 'go help modules'")
 			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.

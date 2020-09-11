@@ -61,6 +61,8 @@ func init() {
 }
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
 	loadALL := modload.LoadALL
 	if *whyVendor {
 		loadALL = modload.LoadVendor
