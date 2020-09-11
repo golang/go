@@ -1,0 +1,29 @@
+[!net] skip
+[!exec:git] skip
+
+# GOPATH: Set up
+env GO111MODULE=off
+
+# GOPATH: Try go get -d of HTTP-only repo (should fail).
+! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+
+# GOPATH: Try again with invalid GOINSECURE (should fail).
+env GOINSECURE=insecure.go-get-issue-15410.appspot.com/pkg/q
+! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+
+# GOPATH: Try with correct GOINSECURE (should succeed).
+env GOINSECURE=insecure.go-get-issue-15410.appspot.com/pkg/p
+go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+
+# GOPATH: Try updating without GOINSECURE (should fail).
+env GOINSECURE=
+! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
+
+# GOPATH: Try updating with GOINSECURE glob (should succeed).
+env GOINSECURE=*.go-get-*.appspot.com
+go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
+
+# GOPATH: Try updating with GOINSECURE base URL (should succeed).
+env GOINSECURE=insecure.go-get-issue-15410.appspot.com
+go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
+

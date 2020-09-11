@@ -7,12 +7,14 @@ package ssa
 // addressingModes combines address calculations into memory operations
 // that can perform complicated addressing modes.
 func addressingModes(f *Func) {
+	isInImmediateRange := is32Bit
 	switch f.Config.arch {
 	default:
 		// Most architectures can't do this.
 		return
 	case "amd64", "386":
-		// TODO: s390x?
+	case "s390x":
+		isInImmediateRange = is20Bit
 	}
 
 	var tmp []*Value
@@ -40,7 +42,7 @@ func addressingModes(f *Func) {
 			switch [2]auxType{opcodeTable[v.Op].auxType, opcodeTable[p.Op].auxType} {
 			case [2]auxType{auxSymOff, auxInt32}:
 				// TODO: introduce auxSymOff32
-				if !is32Bit(v.AuxInt + p.AuxInt) {
+				if !isInImmediateRange(v.AuxInt + p.AuxInt) {
 					continue
 				}
 				v.AuxInt += p.AuxInt
@@ -48,7 +50,7 @@ func addressingModes(f *Func) {
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
-				if !is32Bit(v.AuxInt + p.AuxInt) {
+				if !isInImmediateRange(v.AuxInt + p.AuxInt) {
 					continue
 				}
 				if p.Aux != nil {
@@ -398,4 +400,61 @@ var combine = map[[2]Op]Op{
 	[2]Op{Op386ANDLconstmodify, Op386LEAL4}: Op386ANDLconstmodifyidx4,
 	[2]Op{Op386ORLconstmodify, Op386LEAL4}:  Op386ORLconstmodifyidx4,
 	[2]Op{Op386XORLconstmodify, Op386LEAL4}: Op386XORLconstmodifyidx4,
+
+	// s390x
+	[2]Op{OpS390XMOVDload, OpS390XADD}: OpS390XMOVDloadidx,
+	[2]Op{OpS390XMOVWload, OpS390XADD}: OpS390XMOVWloadidx,
+	[2]Op{OpS390XMOVHload, OpS390XADD}: OpS390XMOVHloadidx,
+	[2]Op{OpS390XMOVBload, OpS390XADD}: OpS390XMOVBloadidx,
+
+	[2]Op{OpS390XMOVWZload, OpS390XADD}: OpS390XMOVWZloadidx,
+	[2]Op{OpS390XMOVHZload, OpS390XADD}: OpS390XMOVHZloadidx,
+	[2]Op{OpS390XMOVBZload, OpS390XADD}: OpS390XMOVBZloadidx,
+
+	[2]Op{OpS390XMOVDBRload, OpS390XADD}: OpS390XMOVDBRloadidx,
+	[2]Op{OpS390XMOVWBRload, OpS390XADD}: OpS390XMOVWBRloadidx,
+	[2]Op{OpS390XMOVHBRload, OpS390XADD}: OpS390XMOVHBRloadidx,
+
+	[2]Op{OpS390XFMOVDload, OpS390XADD}: OpS390XFMOVDloadidx,
+	[2]Op{OpS390XFMOVSload, OpS390XADD}: OpS390XFMOVSloadidx,
+
+	[2]Op{OpS390XMOVDstore, OpS390XADD}: OpS390XMOVDstoreidx,
+	[2]Op{OpS390XMOVWstore, OpS390XADD}: OpS390XMOVWstoreidx,
+	[2]Op{OpS390XMOVHstore, OpS390XADD}: OpS390XMOVHstoreidx,
+	[2]Op{OpS390XMOVBstore, OpS390XADD}: OpS390XMOVBstoreidx,
+
+	[2]Op{OpS390XMOVDBRstore, OpS390XADD}: OpS390XMOVDBRstoreidx,
+	[2]Op{OpS390XMOVWBRstore, OpS390XADD}: OpS390XMOVWBRstoreidx,
+	[2]Op{OpS390XMOVHBRstore, OpS390XADD}: OpS390XMOVHBRstoreidx,
+
+	[2]Op{OpS390XFMOVDstore, OpS390XADD}: OpS390XFMOVDstoreidx,
+	[2]Op{OpS390XFMOVSstore, OpS390XADD}: OpS390XFMOVSstoreidx,
+
+	[2]Op{OpS390XMOVDload, OpS390XMOVDaddridx}: OpS390XMOVDloadidx,
+	[2]Op{OpS390XMOVWload, OpS390XMOVDaddridx}: OpS390XMOVWloadidx,
+	[2]Op{OpS390XMOVHload, OpS390XMOVDaddridx}: OpS390XMOVHloadidx,
+	[2]Op{OpS390XMOVBload, OpS390XMOVDaddridx}: OpS390XMOVBloadidx,
+
+	[2]Op{OpS390XMOVWZload, OpS390XMOVDaddridx}: OpS390XMOVWZloadidx,
+	[2]Op{OpS390XMOVHZload, OpS390XMOVDaddridx}: OpS390XMOVHZloadidx,
+	[2]Op{OpS390XMOVBZload, OpS390XMOVDaddridx}: OpS390XMOVBZloadidx,
+
+	[2]Op{OpS390XMOVDBRload, OpS390XMOVDaddridx}: OpS390XMOVDBRloadidx,
+	[2]Op{OpS390XMOVWBRload, OpS390XMOVDaddridx}: OpS390XMOVWBRloadidx,
+	[2]Op{OpS390XMOVHBRload, OpS390XMOVDaddridx}: OpS390XMOVHBRloadidx,
+
+	[2]Op{OpS390XFMOVDload, OpS390XMOVDaddridx}: OpS390XFMOVDloadidx,
+	[2]Op{OpS390XFMOVSload, OpS390XMOVDaddridx}: OpS390XFMOVSloadidx,
+
+	[2]Op{OpS390XMOVDstore, OpS390XMOVDaddridx}: OpS390XMOVDstoreidx,
+	[2]Op{OpS390XMOVWstore, OpS390XMOVDaddridx}: OpS390XMOVWstoreidx,
+	[2]Op{OpS390XMOVHstore, OpS390XMOVDaddridx}: OpS390XMOVHstoreidx,
+	[2]Op{OpS390XMOVBstore, OpS390XMOVDaddridx}: OpS390XMOVBstoreidx,
+
+	[2]Op{OpS390XMOVDBRstore, OpS390XMOVDaddridx}: OpS390XMOVDBRstoreidx,
+	[2]Op{OpS390XMOVWBRstore, OpS390XMOVDaddridx}: OpS390XMOVWBRstoreidx,
+	[2]Op{OpS390XMOVHBRstore, OpS390XMOVDaddridx}: OpS390XMOVHBRstoreidx,
+
+	[2]Op{OpS390XFMOVDstore, OpS390XMOVDaddridx}: OpS390XFMOVDstoreidx,
+	[2]Op{OpS390XFMOVSstore, OpS390XMOVDaddridx}: OpS390XFMOVSstoreidx,
 }

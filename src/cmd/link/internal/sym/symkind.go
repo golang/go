@@ -41,6 +41,7 @@ const (
 	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
+	SMACHOPLT
 
 	// Read-only sections.
 	STYPE
@@ -52,7 +53,6 @@ const (
 	SFUNCTAB
 
 	SELFROSECT
-	SMACHOPLT
 
 	// Read-only sections with relocations.
 	//

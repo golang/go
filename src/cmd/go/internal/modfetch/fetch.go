@@ -503,6 +503,9 @@ func checkGoMod(path, version string, data []byte) error {
 }
 
 // checkModSum checks that the recorded checksum for mod is h.
+//
+// mod.Version may have the additional suffix "/go.mod" to request the checksum
+// for the module's go.mod file only.
 func checkModSum(mod module.Version, h string) error {
 	// We lock goSum when manipulating it,
 	// but we arrange to release the lock when calling checkSumDB,
@@ -579,9 +582,16 @@ func addModSumLocked(mod module.Version, h string) {
 // checkSumDB checks the mod, h pair against the Go checksum database.
 // It calls base.Fatalf if the hash is to be rejected.
 func checkSumDB(mod module.Version, h string) error {
+	modWithoutSuffix := mod
+	noun := "module"
+	if strings.HasSuffix(mod.Version, "/go.mod") {
+		noun = "go.mod"
+		modWithoutSuffix.Version = strings.TrimSuffix(mod.Version, "/go.mod")
+	}
+
 	db, lines, err := lookupSumDB(mod)
 	if err != nil {
-		return module.VersionError(mod, fmt.Errorf("verifying module: %v", err))
+		return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: %v", noun, err))
 	}
 
 	have := mod.Path + " " + mod.Version + " " + h
@@ -591,7 +601,7 @@ func checkSumDB(mod module.Version, h string) error {
 			return nil
 		}
 		if strings.HasPrefix(line, prefix) {
-			return module.VersionError(mod, fmt.Errorf("verifying module: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, h, db, line[len(prefix)-len("h1:"):]))
+			return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, noun, h, db, line[len(prefix)-len("h1:"):]))
 		}
 	}
 	return nil

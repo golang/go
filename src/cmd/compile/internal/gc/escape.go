@@ -326,7 +326,7 @@ func (e *Escape) stmt(n *Node) {
 			if typesw && n.Left.Left != nil {
 				cv := cas.Rlist.First()
 				k := e.dcl(cv) // type switch variables have no ODCL.
-				if types.Haspointers(cv.Type) {
+				if cv.Type.HasPointers() {
 					ks = append(ks, k.dotType(cv.Type, cas, "switch case"))
 				}
 			}
@@ -433,7 +433,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 
 	if uintptrEscapesHack && n.Op == OCONVNOP && n.Left.Type.IsUnsafePtr() {
 		// nop
-	} else if k.derefs >= 0 && !types.Haspointers(n.Type) {
+	} else if k.derefs >= 0 && !n.Type.HasPointers() {
 		k = e.discardHole()
 	}
 
@@ -485,7 +485,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 		e.discard(max)
 
 	case OCONV, OCONVNOP:
-		if checkPtr(e.curfn, 2) && n.Type.Etype == TUNSAFEPTR && n.Left.Type.IsPtr() {
+		if checkPtr(e.curfn, 2) && n.Type.IsUnsafePtr() && n.Left.Type.IsPtr() {
 			// When -d=checkptr=2 is enabled, treat
 			// conversions to unsafe.Pointer as an
 			// escaping operation. This allows better
@@ -493,7 +493,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
 			// easily detect object boundaries on the heap
 			// than the stack.
 			e.assignHeap(n.Left, "conversion to unsafe.Pointer", n)
-		} else if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR {
+		} else if n.Type.IsUnsafePtr() && n.Left.Type.IsUintptr() {
 			e.unsafeValue(k, n.Left)
 		} else {
 			e.expr(k, n.Left)
@@ -625,7 +625,7 @@ func (e *Escape) unsafeValue(k EscHole, n *Node) {
 
 	switch n.Op {
 	case OCONV, OCONVNOP:
-		if n.Left.Type.Etype == TUNSAFEPTR {
+		if n.Left.Type.IsUnsafePtr() {
 			e.expr(k, n.Left)
 		} else {
 			e.discard(n.Left)
@@ -698,7 +698,7 @@ func (e *Escape) addr(n *Node) EscHole {
 		e.assignHeap(n.Right, "key of map put", n)
 	}
 
-	if !types.Haspointers(n.Type) {
+	if !n.Type.HasPointers() {
 		k = e.discardHole()
 	}
 
@@ -811,14 +811,14 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		// slice might be allocated, and all slice elements
 		// might flow to heap.
 		appendeeK := ks[0]
-		if types.Haspointers(args[0].Type.Elem()) {
+		if args[0].Type.Elem().HasPointers() {
 			appendeeK = e.teeHole(appendeeK, e.heapHole().deref(call, "appendee slice"))
 		}
 		argument(appendeeK, args[0])
 
 		if call.IsDDD() {
 			appendedK := e.discardHole()
-			if args[1].Type.IsSlice() && types.Haspointers(args[1].Type.Elem()) {
+			if args[1].Type.IsSlice() && args[1].Type.Elem().HasPointers() {
 				appendedK = e.heapHole().deref(call, "appended slice...")
 			}
 			argument(appendedK, args[1])
@@ -832,7 +832,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
 		argument(e.discardHole(), call.Left)
 
 		copiedK := e.discardHole()
-		if call.Right.Type.IsSlice() && types.Haspointers(call.Right.Type.Elem()) {
+		if call.Right.Type.IsSlice() && call.Right.Type.Elem().HasPointers() {
 			copiedK = e.heapHole().deref(call, "copied slice")
 		}
 		argument(copiedK, call.Right)
@@ -1028,6 +1028,9 @@ func canonicalNode(n *Node) *Node {
 func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
 	if e.curfn == nil {
 		Fatalf("e.curfn isn't set")
+	}
+	if n != nil && n.Type != nil && n.Type.NotInHeap() {
+		yyerrorl(n.Pos, "%v is go:notinheap; stack allocation disallowed", n.Type)
 	}
 
 	n = canonicalNode(n)

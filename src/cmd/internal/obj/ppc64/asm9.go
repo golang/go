@@ -725,22 +725,22 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			o = c.oplook(p)
 
 			// very large conditional branches
-			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
-				otxt = p.Pcond.Pc - pc
+			if (o.type_ == 16 || o.type_ == 17) && p.To.Target() != nil {
+				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
 					q = c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = p.Pcond
-					p.Pcond = q
+					q.To.SetTarget(p.To.Target())
+					p.To.SetTarget(q)
 					q = c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = ABR
 					q.To.Type = obj.TYPE_BRANCH
-					q.Pcond = q.Link.Link
+					q.To.SetTarget(q.Link.Link)
 
 					//addnop(p->link);
 					//addnop(p);
@@ -2630,8 +2630,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 11: /* br/bl lbra */
 		v := int32(0)
 
-		if p.Pcond != nil {
-			v = int32(p.Pcond.Pc - p.Pc)
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc - p.Pc)
 			if v&03 != 0 {
 				c.ctxt.Diag("odd branch target address\n%v", p)
 				v &^= 03
@@ -2781,8 +2781,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 		v := int32(0)
-		if p.Pcond != nil {
-			v = int32(p.Pcond.Pc - p.Pc)
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc - p.Pc)
 		}
 		if v&03 != 0 {
 			c.ctxt.Diag("odd branch target address\n%v", p)

@@ -173,6 +173,9 @@ type Frontend interface {
 	// SetWBPos indicates that a write barrier has been inserted
 	// in this function at position pos.
 	SetWBPos(pos src.XPos)
+
+	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+	MyImportPath() string
 }
 
 // interface used to hold a *gc.Node (a stack variable).

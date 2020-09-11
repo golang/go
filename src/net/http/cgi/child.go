@@ -146,6 +146,9 @@ func Serve(handler http.Handler) error {
 	if err != nil {
 		return err
 	}
+	if req.Body == nil {
+		req.Body = http.NoBody
+	}
 	if handler == nil {
 		handler = http.DefaultServeMux
 	}

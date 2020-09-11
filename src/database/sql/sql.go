@@ -869,6 +869,13 @@ func (db *DB) maxIdleConnsLocked() int {
 }
 
 func (db *DB) shortestIdleTimeLocked() time.Duration {
+	if db.maxIdleTime <= 0 {
+		return db.maxLifetime
+	}
+	if db.maxLifetime <= 0 {
+		return db.maxIdleTime
+	}
+
 	min := db.maxIdleTime
 	if min > db.maxLifetime {
 		min = db.maxLifetime

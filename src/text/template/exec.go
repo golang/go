@@ -256,6 +256,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
 		}
+	case *parse.CommentNode:
 	case *parse.IfNode:
 		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:

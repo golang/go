@@ -110,12 +110,20 @@
 // Rotate generation with non-const shift
 // these match patterns from math/bits/RotateLeft[32|64], but there could be others
 (ADD (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(ADD (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
 ( OR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+( OR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
 (XOR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
+(XOR (SLD x (ANDconst <typ.Int64> [63] y)) (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))) => (ROTL x y)
 
+
+(ADD (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
 (ADD (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
 ( OR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+(XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
 (XOR (SLW x (ANDconst <typ.Int32> [31] y)) (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))) => (ROTLW x y)
+
 
 // Lowering rotates
 (RotateLeft32 x y) => (ROTLW x y)
@@ -192,11 +200,15 @@
 (Rsh64Ux64 x (AND y (MOVDconst [63]))) => (SRD x (ANDconst <typ.Int64> [63] y))
 (Rsh64Ux64 x (ANDconst <typ.UInt> [63] y)) => (SRD x (ANDconst <typ.UInt> [63] y))
 (Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
+(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y))) => (SRD x (SUBFCconst <typ.UInt> [64]  (ANDconst <typ.UInt> [63] y)))
 (Rsh64Ux64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
+(Rsh64Ux64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))
 (Rsh64x64 x (AND y (MOVDconst [63]))) => (SRAD x (ANDconst <typ.Int64> [63] y))
 (Rsh64x64 x (ANDconst <typ.UInt> [63] y)) => (SRAD x (ANDconst <typ.UInt> [63] y))
 (Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
+(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y))) => (SRAD x (SUBFCconst <typ.UInt> [64]  (ANDconst <typ.UInt> [63] y)))
 (Rsh64x64 x (SUB <typ.UInt> (MOVDconst [64]) (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUB <typ.UInt> (MOVDconst [64]) (ANDconst <typ.UInt> [63] y)))
+(Rsh64x64 x (SUBFCconst <typ.UInt> [64] (AND <typ.UInt> y (MOVDconst [63])))) => (SRAD x (SUBFCconst <typ.UInt> [64] (ANDconst <typ.UInt> [63] y)))
 
 (Lsh64x64 x y)  => (SLD  x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
 (Rsh64x64 x y) => (SRAD x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
@@ -208,12 +220,16 @@
 (Rsh32Ux64 x (AND y (MOVDconst [31]))) => (SRW x (ANDconst <typ.Int32> [31] y))
 (Rsh32Ux64 x (ANDconst <typ.UInt> [31] y)) => (SRW x (ANDconst <typ.UInt> [31] y))
 (Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
+(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y))) => (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
 (Rsh32Ux64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
+(Rsh32Ux64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
 
 (Rsh32x64 x (AND y (MOVDconst [31]))) => (SRAW x (ANDconst <typ.Int32> [31] y))
 (Rsh32x64 x (ANDconst <typ.UInt> [31] y)) => (SRAW x (ANDconst <typ.UInt> [31] y))
 (Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
+(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y))) => (SRAW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
 (Rsh32x64 x (SUB <typ.UInt> (MOVDconst [32]) (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUB <typ.UInt> (MOVDconst [32]) (ANDconst <typ.UInt> [31] y)))
+(Rsh32x64 x (SUBFCconst <typ.UInt> [32] (AND <typ.UInt> y (MOVDconst [31])))) => (SRAW x (SUBFCconst <typ.UInt> [32] (ANDconst <typ.UInt> [31] y)))
 
 (Rsh32x64 x y)  => (SRAW x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
 (Rsh32Ux64 x y) => (SRW  x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
@@ -276,17 +292,10 @@
 (Rsh8Ux8 x y) => (SRW  (ZeroExt8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
 (Lsh8x8 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
 
-// Cleaning up shift ops when input is masked
-(MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _))) && c < 0 && d > 0 && int64(c) + d < 0 => (MOVDconst [-1])
+// Cleaning up shift ops
 (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPU (ANDconst [d] y) (MOVDconst [c]))) && c >= d => (ANDconst [d] y)
 (ISEL [0] (ANDconst [d] y) (MOVDconst [-1]) (CMPUconst [c] (ANDconst [d] y))) && c >= d => (ANDconst [d] y)
 (ORN x (MOVDconst [-1])) => x
-
-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 && (c <  0 || int64(c) + d >= 0) => (FlagCarryClear)
-(ADDconstForCarry [c] (MOVDconst [d])) && c < 0 &&  c >= 0 && int64(c) + d <  0  => (FlagCarrySet)
-
-(MaskIfNotCarry (FlagCarrySet)) => (MOVDconst [0])
-(MaskIfNotCarry (FlagCarryClear)) => (MOVDconst [-1])
 
 (S(RAD|RD|LD) x (MOVDconst [c])) => (S(RAD|RD|LD)const [c&63 | (c>>6&1*63)] x)
 (S(RAW|RW|LW) x (MOVDconst [c])) => (S(RAW|RW|LW)const [c&31 | (c>>5&1*31)] x)
@@ -306,8 +315,8 @@
 (Ctz16 x) => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
 (Ctz8 x)  => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
-(BitLen64 x) => (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
-(BitLen32 x) => (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
+(BitLen64 x) => (SUBFCconst [64] (CNTLZD <typ.Int> x))
+(BitLen32 x) => (SUBFCconst [32] (CNTLZW <typ.Int> x))
 
 (PopCount64 ...) => (POPCNTD ...)
 (PopCount32 x) => (POPCNTW (MOVWZreg x))
@@ -777,9 +786,18 @@
 (ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) => (ADDconst [c+d] x)
 (ADDconst [0] x) => x
 (SUB x (MOVDconst [c])) && is32Bit(-c) => (ADDconst [-c] x)
-// TODO deal with subtract-from-const
 
 (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
+
+// Subtract from (with carry, but ignored) constant.
+// Note, these clobber the carry bit.
+(SUB (MOVDconst [c]) x) && is32Bit(c) => (SUBFCconst [c] x)
+(SUBFCconst [c] (NEG x)) => (ADDconst [c] x)
+(SUBFCconst [c] (SUBFCconst [d] x)) && is32Bit(c-d) => (ADDconst [c-d] x)
+(SUBFCconst [0] x) => (NEG x)
+(ADDconst [c] (SUBFCconst [d] x)) && is32Bit(c+d) => (SUBFCconst [c+d] x)
+(NEG (ADDconst [c] x)) && is32Bit(-c) => (SUBFCconst [-c] x)
+(NEG (SUBFCconst [c] x)) && is32Bit(-c) => (ADDconst [-c] x)
 
 // Use register moves instead of stores and loads to move int<=>float values
 // Common with math Float64bits, Float64frombits

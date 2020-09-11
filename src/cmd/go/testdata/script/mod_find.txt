@@ -19,6 +19,11 @@ go mod init
 stderr 'module example.com/x/y$'
 rm go.mod
 
+# go mod init rejects a zero-length go.mod file
+cp $devnull go.mod # can't use touch to create it because Windows
+! go mod init
+stderr 'go.mod already exists'
+
 # Module path from Godeps/Godeps.json overrides GOPATH.
 cd $GOPATH/src/example.com/x/y/z
 go mod init

@@ -5,6 +5,6 @@
 env GO111MODULE=on
 
 go mod init m
-go list example.com/notags
+go get -d example.com/notags
 go list -m all
 stdout '^example.com/notags v0.0.0-20190507143103-cc8cbe209b64$'

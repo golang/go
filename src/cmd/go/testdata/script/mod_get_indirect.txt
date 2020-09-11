@@ -27,7 +27,7 @@ grep 'golang.org/x/text v0.3.0 // indirect$' go.mod
 
 # indirect tag should be removed upon seeing direct import.
 cp $WORK/tmp/uselang.go x.go
-go list
+go get -d
 grep 'rsc.io/quote v1.5.2$' go.mod
 grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
 

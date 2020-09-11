@@ -278,7 +278,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.LoadTests = *getT
 
-	buildList := modload.LoadBuildList(ctx)
+	buildList := modload.LoadAllModules(ctx)
 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
 	versionByPath := make(map[string]string)
 	for _, m := range buildList {
@@ -290,7 +290,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// what was requested.
 	modload.DisallowWriteGoMod()
 
-	// Allow looking up modules for import paths outside of a module.
+	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
 	modload.AllowMissingModuleImports()
 
@@ -599,7 +599,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.ExitIfErrors()
 
 		// Stop if no changes have been made to the build list.
-		buildList = modload.BuildList()
+		buildList = modload.LoadedModules()
 		eq := len(buildList) == len(prevBuildList)
 		for i := 0; eq && i < len(buildList); i++ {
 			eq = buildList[i] == prevBuildList[i]
@@ -617,7 +617,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Handle downgrades.
 	var down []module.Version
-	for _, m := range modload.BuildList() {
+	for _, m := range modload.LoadedModules() {
 		q := byPath[m.Path]
 		if q != nil && semver.Compare(m.Version, q.m.Version) > 0 {
 			down = append(down, module.Version{Path: m.Path, Version: q.m.Version})
@@ -628,6 +628,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
+
+		// TODO(bcmills) What should happen here under lazy loading?
+		// Downgrading may intentionally violate the lazy-loading invariants.
+
 		modload.SetBuildList(buildList)
 		modload.ReloadBuildList() // note: does not update go.mod
 		base.ExitIfErrors()
@@ -637,7 +641,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	var lostUpgrades []*query
 	if len(down) > 0 {
 		versionByPath = make(map[string]string)
-		for _, m := range modload.BuildList() {
+		for _, m := range modload.LoadedModules() {
 			versionByPath[m.Path] = m.Version
 		}
 		for _, q := range byPath {
@@ -702,6 +706,15 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Everything succeeded. Update go.mod.
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
+	modload.DisallowWriteGoMod()
+
+	// Report warnings if any retracted versions are in the build list.
+	// This must be done after writing go.mod to avoid spurious '// indirect'
+	// comments. These functions read and write global state.
+	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
+	// contains information about direct dependencies that WriteGoMod uses.
+	// Refactor to avoid these kinds of global side effects.
+	reportRetractions(ctx)
 
 	// If -d was specified, we're done after the module work.
 	// We've already downloaded modules by loading packages above.
@@ -804,6 +817,14 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
 	}
 
+	// If vers is a query like "latest", we should ignore retracted and excluded
+	// versions. If vers refers to a specific version or commit like "v1.0.0"
+	// or "master", we should only ignore excluded versions.
+	allowed := modload.CheckAllowed
+	if modload.IsRevisionQuery(vers) {
+		allowed = modload.CheckExclusions
+	}
+
 	// If the query must be a module path, try only that module path.
 	if forceModulePath {
 		if path == modload.Target.Path {
@@ -812,7 +833,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 			}
 		}
 
-		info, err := modload.Query(ctx, path, vers, prevM.Version, modload.Allowed)
+		info, err := modload.Query(ctx, path, vers, prevM.Version, allowed)
 		if err == nil {
 			if info.Version != vers && info.Version != prevM.Version {
 				logOncef("go: %s %s => %s", path, vers, info.Version)
@@ -838,7 +859,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	// If it turns out to only exist as a module, we can detect the resulting
 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
 	// all of the configured proxies.
-	results, err := modload.QueryPattern(ctx, path, vers, modload.Allowed)
+	results, err := modload.QueryPattern(ctx, path, vers, allowed)
 	if err != nil {
 		// If the path doesn't contain a wildcard, check whether it was actually a
 		// module path instead. If so, return that.
@@ -864,190 +885,41 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	return m, nil
 }
 
-// An upgrader adapts an underlying mvs.Reqs to apply an
-// upgrade policy to a list of targets and their dependencies.
-type upgrader struct {
-	mvs.Reqs
-
-	// cmdline maps a module path to a query made for that module at a
-	// specific target version. Each query corresponds to a module
-	// matched by a command line argument.
-	cmdline map[string]*query
-
-	// upgrade is a set of modules providing dependencies of packages
-	// matched by command line arguments. If -u or -u=patch is set,
-	// these modules are upgraded accordingly.
-	upgrade map[string]bool
-}
-
-// newUpgrader creates an upgrader. cmdline contains queries made at
-// specific versions for modules matched by command line arguments. pkgs
-// is the set of packages matched by command line arguments. If -u or -u=patch
-// is set, modules providing dependencies of pkgs are upgraded accordingly.
-func newUpgrader(cmdline map[string]*query, pkgs map[string]bool) *upgrader {
-	u := &upgrader{
-		Reqs:    modload.Reqs(),
-		cmdline: cmdline,
+// reportRetractions prints warnings if any modules in the build list are
+// retracted.
+func reportRetractions(ctx context.Context) {
+	// Query for retractions of modules in the build list.
+	// Use modload.ListModules, since that provides information in the same format
+	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
+	// module.
+	buildList := modload.LoadedModules()
+	args := make([]string, 0, len(buildList))
+	for _, m := range buildList {
+		if m.Version == "" {
+			// main module or dummy target module
+			continue
+		}
+		args = append(args, m.Path+"@"+m.Version)
 	}
-	if getU != "" {
-		u.upgrade = make(map[string]bool)
-
-		// Traverse package import graph.
-		// Initialize work queue with root packages.
-		seen := make(map[string]bool)
-		var work []string
-		add := func(path string) {
-			if !seen[path] {
-				seen[path] = true
-				work = append(work, path)
+	listU := false
+	listVersions := false
+	listRetractions := true
+	mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+	retractPath := ""
+	for _, mod := range mods {
+		if len(mod.Retracted) > 0 {
+			if retractPath == "" {
+				retractPath = mod.Path
+			} else {
+				retractPath = "<module>"
 			}
-		}
-		for pkg := range pkgs {
-			add(pkg)
-		}
-		for len(work) > 0 {
-			pkg := work[0]
-			work = work[1:]
-			m := modload.PackageModule(pkg)
-			u.upgrade[m.Path] = true
-
-			// testImports is empty unless test imports were actually loaded,
-			// i.e., -t was set or "all" was one of the arguments.
-			imports, testImports := modload.PackageImports(pkg)
-			for _, imp := range imports {
-				add(imp)
-			}
-			for _, imp := range testImports {
-				add(imp)
-			}
+			rationale := modload.ShortRetractionRationale(mod.Retracted[0])
+			logOncef("go: warning: %s@%s is retracted: %s", mod.Path, mod.Version, rationale)
 		}
 	}
-	return u
-}
-
-// Required returns the requirement list for m.
-// For the main module, we override requirements with the modules named
-// one the command line, and we include new requirements. Otherwise,
-// we defer to u.Reqs.
-func (u *upgrader) Required(m module.Version) ([]module.Version, error) {
-	rs, err := u.Reqs.Required(m)
-	if err != nil {
-		return nil, err
+	if modload.HasModRoot() && retractPath != "" {
+		logOncef("go: run 'go get %s@latest' to switch to the latest unretracted version", retractPath)
 	}
-	if m != modload.Target {
-		return rs, nil
-	}
-
-	overridden := make(map[string]bool)
-	for i, m := range rs {
-		if q := u.cmdline[m.Path]; q != nil && q.m.Version != "none" {
-			rs[i] = q.m
-			overridden[q.m.Path] = true
-		}
-	}
-	for _, q := range u.cmdline {
-		if !overridden[q.m.Path] && q.m.Path != modload.Target.Path && q.m.Version != "none" {
-			rs = append(rs, q.m)
-		}
-	}
-	return rs, nil
-}
-
-// Upgrade returns the desired upgrade for m.
-//
-// If m was requested at a specific version on the command line, then
-// Upgrade returns that version.
-//
-// If -u is set and m provides a dependency of a package matched by
-// command line arguments, then Upgrade may provider a newer tagged version.
-// If m is a tagged version, then Upgrade will return the latest tagged
-// version (with the same minor version number if -u=patch).
-// If m is a pseudo-version, then Upgrade returns the latest tagged version
-// only if that version has a time-stamp newer than m. This special case
-// prevents accidental downgrades when already using a pseudo-version
-// newer than the latest tagged version.
-//
-// If none of the above cases apply, then Upgrade returns m.
-func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
-	// Allow pkg@vers on the command line to override the upgrade choice v.
-	// If q's version is < m.Version, then we're going to downgrade anyway,
-	// and it's cleaner to avoid moving back and forth and picking up
-	// extraneous other newer dependencies.
-	// If q's version is > m.Version, then we're going to upgrade past
-	// m.Version anyway, and again it's cleaner to avoid moving back and forth
-	// picking up extraneous other newer dependencies.
-	if q := u.cmdline[m.Path]; q != nil {
-		return q.m, nil
-	}
-
-	if !u.upgrade[m.Path] {
-		// Not involved in upgrade. Leave alone.
-		return m, nil
-	}
-
-	// Run query required by upgrade semantics.
-	// Note that Query "latest" is not the same as using repo.Latest,
-	// which may return a pseudoversion for the latest commit.
-	// Query "latest" returns the newest tagged version or the newest
-	// prerelease version if there are no non-prereleases, or repo.Latest
-	// if there aren't any tagged versions.
-	// If we're querying "upgrade" or "patch", Query will compare the current
-	// version against the chosen version and will return the current version
-	// if it is newer.
-	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, modload.Allowed)
-	if err != nil {
-		// Report error but return m, to let version selection continue.
-		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
-
-		// Special case: if the error is for m.Version itself and m.Version has a
-		// replacement, then keep it and don't report the error: the fact that the
-		// version is invalid is likely the reason it was replaced to begin with.
-		var vErr *module.InvalidVersionError
-		if errors.As(err, &vErr) && vErr.Version == m.Version && modload.Replacement(m).Path != "" {
-			return m, nil
-		}
-
-		// Special case: if the error is "no matching versions" then don't
-		// even report the error. Because Query does not consider pseudo-versions,
-		// it may happen that we have a pseudo-version but during -u=patch
-		// the query v0.0 matches no versions (not even the one we're using).
-		var noMatch *modload.NoMatchingVersionError
-		if !errors.As(err, &noMatch) {
-			base.Errorf("go get: upgrading %s@%s: %v", m.Path, m.Version, err)
-		}
-		return m, nil
-	}
-
-	if info.Version != m.Version {
-		logOncef("go: %s %s => %s", m.Path, getU, info.Version)
-	}
-	return module.Version{Path: m.Path, Version: info.Version}, nil
-}
-
-// buildListForLostUpgrade returns the build list for the module graph
-// rooted at lost. Unlike mvs.BuildList, the target module (lost) is not
-// treated specially. The returned build list may contain a newer version
-// of lost.
-//
-// buildListForLostUpgrade is used after a downgrade has removed a module
-// requested at a specific version. This helps us understand the requirements
-// implied by each downgrade.
-func buildListForLostUpgrade(lost module.Version, reqs mvs.Reqs) ([]module.Version, error) {
-	return mvs.BuildList(lostUpgradeRoot, &lostUpgradeReqs{Reqs: reqs, lost: lost})
-}
-
-var lostUpgradeRoot = module.Version{Path: "lost-upgrade-root", Version: ""}
-
-type lostUpgradeReqs struct {
-	mvs.Reqs
-	lost module.Version
-}
-
-func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod == lostUpgradeRoot {
-		return []module.Version{r.lost}, nil
-	}
-	return r.Reqs.Required(mod)
 }
 
 var loggedLines sync.Map

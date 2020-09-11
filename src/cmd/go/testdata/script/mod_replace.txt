@@ -4,7 +4,7 @@ env GO111MODULE=on
 cp go.mod go.mod.orig
 
 # Make sure the test builds without replacement.
-go build -o a1.exe .
+go build -mod=mod -o a1.exe .
 exec ./a1.exe
 stdout 'Don''t communicate by sharing memory'
 
@@ -32,7 +32,7 @@ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/
 # Modules that do not (yet) exist upstream can be replaced too.
 cp go.mod.orig go.mod
 go mod edit -replace=not-rsc.io/quote/v3@v3.1.0=./local/rsc.io/quote/v3
-go build -o a5.exe ./usenewmodule
+go build -mod=mod -o a5.exe ./usenewmodule
 ! stderr 'finding not-rsc.io/quote/v3'
 grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
 exec ./a5.exe

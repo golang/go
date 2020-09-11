@@ -689,8 +689,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	itablinkSym := ldr.Lookup("runtime.itablink", 0)
 	nitablinks := uint64(ldr.SymSize(itablinkSym)) / uint64(ctxt.Arch.PtrSize)
 	moduledata.AddAddr(ctxt.Arch, itablinkSym)
-	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
-	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
+	moduledata.AddUint(ctxt.Arch, nitablinks)
+	moduledata.AddUint(ctxt.Arch, nitablinks)
 	// The ptab slice
 	if ptab := ldr.Lookup("go.plugin.tabs", 0); ptab != 0 && ldr.AttrReachable(ptab) {
 		ldr.SetAttrLocal(ptab, true)

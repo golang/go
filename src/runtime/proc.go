@@ -3928,6 +3928,13 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		return
 	}
 
+	// If mp.profilehz is 0, then profiling is not enabled for this thread.
+	// We must check this to avoid a deadlock between setcpuprofilerate
+	// and the call to cpuprof.add, below.
+	if mp != nil && mp.profilehz == 0 {
+		return
+	}
+
 	// On mips{,le}, 64bit atomics are emulated with spinlocks, in
 	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
 	// the critical section, it creates a deadlock (when writing the sample).
@@ -5459,9 +5466,6 @@ func setMaxThreads(in int) (out int) {
 }
 
 func haveexperiment(name string) bool {
-	if name == "framepointer" {
-		return framepointer_enabled // set by linker
-	}
 	x := sys.Goexperiment
 	for x != "" {
 		xname := ""

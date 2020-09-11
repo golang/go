@@ -251,10 +251,8 @@ func walkselectcases(cases *Nodes) []*Node {
 	r = typecheck(r, ctxStmt)
 	init = append(init, r)
 
+	// No initialization for order; runtime.selectgo is responsible for that.
 	order := temp(types.NewArray(types.Types[TUINT16], 2*int64(ncas)))
-	r = nod(OAS, order, nil)
-	r = typecheck(r, ctxStmt)
-	init = append(init, r)
 
 	var pc0, pcs *Node
 	if flag_race {

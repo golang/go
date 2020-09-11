@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+	if runtime.GOOS == "js" {
 		return // no file system available on builders
 	}
 

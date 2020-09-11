@@ -107,18 +107,7 @@ func typecheckclosure(clo *Node, top int) {
 	}
 
 	xfunc.Func.Nname.Sym = closurename(Curfn)
-	disableExport(xfunc.Func.Nname.Sym)
-	if xfunc.Func.Nname.Sym.Def != nil {
-		// The only case we can reach here is when the outer function was redeclared.
-		// In that case, don't bother to redeclare the closure. Otherwise, we will get
-		// a spurious error message, see #17758. While we are here, double check that
-		// we already reported other error.
-		if nsavederrors+nerrors == 0 {
-			Fatalf("unexpected symbol collision %v", xfunc.Func.Nname.Sym)
-		}
-	} else {
-		declare(xfunc.Func.Nname, PFUNC)
-	}
+	setNodeNameFunc(xfunc.Func.Nname)
 	xfunc = typecheck(xfunc, ctxStmt)
 
 	// Type check the body now, but only if we're inside a function.
@@ -473,7 +462,6 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
 	tfn.List.Set(structargs(t0.Params(), true))
 	tfn.Rlist.Set(structargs(t0.Results(), false))
 
-	disableExport(sym)
 	xfunc := dclfunc(sym, tfn)
 	xfunc.Func.SetDupok(true)
 	xfunc.Func.SetNeedctxt(true)

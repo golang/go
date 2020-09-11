@@ -369,7 +369,18 @@ func (p *Package) guessKinds(f *File) []*Name {
 	fmt.Fprintf(&b, "#line 1 \"completed\"\n"+
 		"int __cgo__1 = __cgo__2;\n")
 
-	stderr := p.gccErrors(b.Bytes())
+	// We need to parse the output from this gcc command, so ensure that it
+	// doesn't have any ANSI escape sequences in it. (TERM=dumb is
+	// insufficient; if the user specifies CGO_CFLAGS=-fdiagnostics-color,
+	// GCC will ignore TERM, and GCC can also be configured at compile-time
+	// to ignore TERM.)
+	stderr := p.gccErrors(b.Bytes(), "-fdiagnostics-color=never")
+	if strings.Contains(stderr, "unrecognized command line option") {
+		// We're using an old version of GCC that doesn't understand
+		// -fdiagnostics-color. Those versions can't print color anyway,
+		// so just rerun without that option.
+		stderr = p.gccErrors(b.Bytes())
+	}
 	if stderr == "" {
 		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
 	}
@@ -1970,22 +1981,25 @@ func (p *Package) gccDefines(stdin []byte) string {
 // gccErrors runs gcc over the C program stdin and returns
 // the errors that gcc prints. That is, this function expects
 // gcc to fail.
-func (p *Package) gccErrors(stdin []byte) string {
+func (p *Package) gccErrors(stdin []byte, extraArgs ...string) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd()
 
 	// Optimization options can confuse the error messages; remove them.
-	nargs := make([]string, 0, len(args))
+	nargs := make([]string, 0, len(args)+len(extraArgs))
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-O") {
 			nargs = append(nargs, arg)
 		}
 	}
 
-	// Force -O0 optimization but keep the trailing "-" at the end.
-	nargs = append(nargs, "-O0")
-	nl := len(nargs)
-	nargs[nl-2], nargs[nl-1] = nargs[nl-1], nargs[nl-2]
+	// Force -O0 optimization and append extra arguments, but keep the
+	// trailing "-" at the end.
+	li := len(nargs) - 1
+	last := nargs[li]
+	nargs[li] = "-O0"
+	nargs = append(nargs, extraArgs...)
+	nargs = append(nargs, last)
 
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))

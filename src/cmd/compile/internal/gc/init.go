@@ -45,7 +45,6 @@ func fninit(n []*Node) {
 	if len(nf) > 0 {
 		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
 		initializers := lookup("init")
-		disableExport(initializers)
 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
 		for _, dcl := range dummyInitFn.Func.Dcl {
 			dcl.Name.Curfn = fn

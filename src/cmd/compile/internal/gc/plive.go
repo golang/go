@@ -259,7 +259,7 @@ func (v *varRegVec) AndNot(v1, v2 varRegVec) {
 // nor do we care about empty structs (handled by the pointer check),
 // nor do we care about the fake PAUTOHEAP variables.
 func livenessShouldTrack(n *Node) bool {
-	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
+	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Type.HasPointers()
 }
 
 // getvariables returns the list of on-stack variables that we need to track
@@ -436,7 +436,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 		case ssa.LocalSlot:
 			return mask
 		case *ssa.Register:
-			if ptrOnly && !v.Type.HasHeapPointer() {
+			if ptrOnly && !v.Type.HasPointers() {
 				return mask
 			}
 			regs[0] = loc
@@ -451,7 +451,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 				if loc1 == nil {
 					continue
 				}
-				if ptrOnly && !v.Type.FieldType(i).HasHeapPointer() {
+				if ptrOnly && !v.Type.FieldType(i).HasPointers() {
 					continue
 				}
 				regs[nreg] = loc1.(*ssa.Register)
@@ -568,13 +568,13 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
 	}
+	if !t.HasPointers() {
+		// Note: this case ensures that pointers to go:notinheap types
+		// are not considered pointers by garbage collection and stack copying.
+		return
+	}
 
 	switch t.Etype {
-	case TINT8, TUINT8, TINT16, TUINT16,
-		TINT32, TUINT32, TINT64, TUINT64,
-		TINT, TUINT, TUINTPTR, TBOOL,
-		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
-
 	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		if off&int64(Widthptr-1) != 0 {
 			Fatalf("onebitwalktype1: invalid alignment, %v", t)

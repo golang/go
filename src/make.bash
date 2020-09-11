@@ -162,15 +162,15 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
 		fi
 	fi
 done; unset IFS
-GOROOT_BOOTSTRAP_VERSION=$($GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
-echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
-if $verbose; then
-	echo cmd/dist
-fi
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
 	exit 1
+fi
+GOROOT_BOOTSTRAP_VERSION=$($GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+if $verbose; then
+	echo cmd/dist
 fi
 if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2

@@ -688,6 +688,10 @@ func TestReaddirOfFile(t *testing.T) {
 	if err == nil {
 		t.Error("Readdirnames succeeded; want non-nil error")
 	}
+	var pe *PathError
+	if !errors.As(err, &pe) || pe.Path != f.Name() {
+		t.Errorf("Readdirnames returned %q; want a PathError with path %q", err, f.Name())
+	}
 	if len(names) > 0 {
 		t.Errorf("unexpected dir names in regular file: %q", names)
 	}

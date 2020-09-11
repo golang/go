@@ -11,16 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
 
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
@@ -29,8 +23,6 @@ import (
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
 	buildList []module.Version
-	cache     par.Cache
-	versions  sync.Map
 }
 
 // Reqs returns the current module requirement graph.
@@ -44,118 +36,21 @@ func Reqs() mvs.Reqs {
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	type cached struct {
-		list []module.Version
-		err  error
-	}
-
-	c := r.cache.Do(mod, func() interface{} {
-		list, err := r.required(mod)
-		if err != nil {
-			return cached{nil, err}
-		}
-		for i, mv := range list {
-			if index != nil {
-				for index.exclude[mv] {
-					mv1, err := r.next(mv)
-					if err != nil {
-						return cached{nil, err}
-					}
-					if mv1.Version == "none" {
-						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-					}
-					mv = mv1
-				}
-			}
-			list[i] = mv
-		}
-
-		return cached{list, nil}
-	}).(cached)
-
-	return c.list, c.err
-}
-
-func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
-	list := make([]module.Version, 0, len(f.Require))
-	for _, r := range f.Require {
-		list = append(list, r.Mod)
-	}
-	return list
-}
-
-// required returns a unique copy of the requirements of mod.
-func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
-		if modFile != nil && modFile.Go != nil {
-			r.versions.LoadOrStore(mod, modFile.Go.Version)
-		}
-		return append([]module.Version(nil), r.buildList[1:]...), nil
-	}
-
-	if cfg.BuildMod == "vendor" {
-		// For every module other than the target,
-		// return the full list of modules from modules.txt.
-		readVendorList()
-		return append([]module.Version(nil), vendorList...), nil
-	}
-
-	origPath := mod.Path
-	if repl := Replacement(mod); repl.Path != "" {
-		if repl.Version == "" {
-			// TODO: need to slip the new version into the tags list etc.
-			dir := repl.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			gomod := filepath.Join(dir, "go.mod")
-			data, err := lockedfile.Read(gomod)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			f, err := modfile.ParseLax(gomod, data, nil)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			if f.Go != nil {
-				r.versions.LoadOrStore(mod, f.Go.Version)
-			}
-			return r.modFileToList(f), nil
-		}
-		mod = repl
+		// Use the build list as it existed when r was constructed, not the current
+		// global build list.
+		return r.buildList[1:], nil
 	}
 
 	if mod.Version == "none" {
 		return nil, nil
 	}
 
-	if !semver.IsValid(mod.Version) {
-		// Disallow the broader queries supported by fetch.Lookup.
-		base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", mod.Path, mod.Version)
-	}
-
-	data, err := modfetch.GoMod(mod.Path, mod.Version)
+	summary, err := goModSummary(mod)
 	if err != nil {
 		return nil, err
 	}
-	f, err := modfile.ParseLax("go.mod", data, nil)
-	if err != nil {
-		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
-	}
-
-	if f.Module == nil {
-		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
-	}
-	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
-	module declares its path as: %s
-	        but was required as: %s`, mpath, origPath))
-	}
-	if f.Go != nil {
-		r.versions.LoadOrStore(mod, f.Go.Version)
-	}
-
-	return r.modFileToList(f), nil
+	return summary.require, nil
 }
 
 // Max returns the maximum of v1 and v2 according to semver.Compare.
@@ -177,16 +72,29 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 	return m, nil
 }
 
-func versions(path string) ([]string, error) {
+func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
 		repo, err := modfetch.Lookup(proxy, path)
-		if err == nil {
-			versions, err = repo.Versions("")
+		if err != nil {
+			return err
 		}
-		return err
+		allVersions, err := repo.Versions("")
+		if err != nil {
+			return err
+		}
+		allowedVersions := make([]string, 0, len(allVersions))
+		for _, v := range allVersions {
+			if err := allowed(ctx, module.Version{Path: path, Version: v}); err == nil {
+				allowedVersions = append(allowedVersions, v)
+			} else if !errors.Is(err, ErrDisallowed) {
+				return err
+			}
+		}
+		versions = allowedVersions
+		return nil
 	})
 	return versions, err
 }
@@ -194,7 +102,8 @@ func versions(path string) ([]string, error) {
 // Previous returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
 func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
+	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		return module.Version{}, err
 	}
@@ -209,7 +118,8 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 // It is only used by the exclusion processing in the Required method,
 // not called directly by MVS.
 func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
+	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		return module.Version{}, err
 	}

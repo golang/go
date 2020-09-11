@@ -2069,10 +2069,10 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ADDshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [armBFAuxInt(8, 8)] x) x)
+	// match: (ADDshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || v_0.AuxInt != armBFAuxInt(8, 8) {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != int32(armBFAuxInt(8, 8)) {
 			break
 		}
 		x := v_0.Args[0]
@@ -8537,10 +8537,10 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (ORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [armBFAuxInt(8, 8)] x) x)
+	// match: (ORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || v_0.AuxInt != armBFAuxInt(8, 8) {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != int32(armBFAuxInt(8, 8)) {
 			break
 		}
 		x := v_0.Args[0]
@@ -12576,10 +12576,10 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (XORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [armBFAuxInt(8, 8)] x) x)
+	// match: (XORshiftLL <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x)
 	// result: (REV16 x)
 	for {
-		if v.Type != typ.UInt16 || v.AuxInt != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || v_0.AuxInt != armBFAuxInt(8, 8) {
+		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMBFXU || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != int32(armBFAuxInt(8, 8)) {
 			break
 		}
 		x := v_0.Args[0]

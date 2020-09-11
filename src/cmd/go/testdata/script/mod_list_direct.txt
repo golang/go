@@ -10,7 +10,7 @@ env GOSUMDB=off
 # For a while, (*modfetch.codeRepo).Stat was not checking for a go.mod file,
 # which would produce a hard error at the subsequent call to GoMod.
 
-go list all
+go get -d
 
 -- go.mod --
 module example.com

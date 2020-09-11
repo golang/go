@@ -62,7 +62,7 @@ func Uvarint(buf []byte) (uint64, int) {
 	var s uint
 	for i, b := range buf {
 		if b < 0x80 {
-			if i > 9 || i == 9 && b > 1 {
+			if i >= MaxVarintLen64 || i == MaxVarintLen64-1 && b > 1 {
 				return 0, -(i + 1) // overflow
 			}
 			return x | uint64(b)<<s, i + 1
@@ -112,7 +112,7 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 			return x, err
 		}
 		if b < 0x80 {
-			if i == 9 && b > 1 {
+			if i == MaxVarintLen64-1 && b > 1 {
 				return x, overflow
 			}
 			return x | uint64(b)<<s, nil
