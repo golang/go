@@ -23,12 +23,18 @@ func setup() unsafe.Pointer {
 
 //go:noinline
 //go:uintptrescapes
-func test(s string, p uintptr) {
+func test(s string, p uintptr) int {
 	runtime.GC()
 	if *(*string)(unsafe.Pointer(p)) != "ok" {
 		panic(s + " return unexpected result")
 	}
 	done <- true
+	return 0
+}
+
+//go:noinline
+func f() int {
+	return test("return", uintptr(setup()))
 }
 
 func main() {
@@ -41,5 +47,8 @@ func main() {
 	func() {
 		defer test("defer", uintptr(setup()))
 	}()
+	<-done
+
+	f()
 	<-done
 }

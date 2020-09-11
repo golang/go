@@ -374,7 +374,6 @@ const (
 	nameReadonly
 	nameByval                 // is the variable captured by value or by reference
 	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
-	nameKeepalive             // mark value live across unknown assembly call
 	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
 	nameUsed                  // for variable declared and not used error
 	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
@@ -391,7 +390,6 @@ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
 func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
 func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
 func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
-func (n *Name) Keepalive() bool             { return n.flags&nameKeepalive != 0 }
 func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
 func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
 func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
@@ -407,7 +405,6 @@ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
 func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
 func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
 func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
-func (n *Name) SetKeepalive(b bool)             { n.flags.set(nameKeepalive, b) }
 func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
 func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
 func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
@@ -707,6 +704,7 @@ const (
 	// Prior to walk, they are: Left(List), where List is all regular arguments.
 	// After walk, List is a series of assignments to temporaries,
 	// and Rlist is an updated set of arguments.
+	// Nbody is all OVARLIVE nodes that are attached to OCALLxxx.
 	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
 	OCALLFUNC  // Left(List/Rlist) (function call f(args))
 	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
