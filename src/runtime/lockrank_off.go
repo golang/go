@@ -18,30 +18,24 @@ func getLockRank(l *mutex) lockRank {
 	return 0
 }
 
-// The following functions may be called in nosplit context.
-// Nosplit is not strictly required for lockWithRank, unlockWithRank
-// and lockWithRankMayAcquire, but these nosplit annotations must
-// be kept consistent with the equivalent functions in lockrank_on.go.
-
-//go:nosplit
 func lockWithRank(l *mutex, rank lockRank) {
 	lock2(l)
 }
 
+// This function may be called in nosplit context and thus must be nosplit.
 //go:nosplit
 func acquireLockRank(rank lockRank) {
 }
 
-//go:nosplit
 func unlockWithRank(l *mutex) {
 	unlock2(l)
 }
 
+// This function may be called in nosplit context and thus must be nosplit.
 //go:nosplit
 func releaseLockRank(rank lockRank) {
 }
 
-//go:nosplit
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 }
 
