@@ -437,7 +437,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
 			if t.Under() != Typ[Invalid] {
-				check.errorf(typ.Pos(), "invalid constant type %s", t)
+				check.errorf(typ, "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
 			return
@@ -591,7 +591,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if alias && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.errorf(tdecl.Pos(), "generic type cannot be alias")
+		check.errorf(tdecl, "generic type cannot be alias")
 		alias = false
 	}
 
@@ -695,7 +695,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 				base := bound.(*Named) // only a *Named type can be generic
 				if j-i != 1 || len(base.tparams) != 1 {
 					// TODO(gri) make this error message better
-					check.errorf(ftype.Pos(), "cannot use generic type %s without instantiation (more than one type parameter)", bound)
+					check.errorf(ftype, "cannot use generic type %s without instantiation (more than one type parameter)", bound)
 					bound = Typ[Invalid]
 					continue
 				}
@@ -725,7 +725,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 				i++
 			}
 		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type.Pos(), "%s is not an interface", bound)
+			check.errorf(f.Type, "%s is not an interface", bound)
 		}
 	}
 
@@ -892,7 +892,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			if values != nil {
 				check.arity(s.Pos(), s.NameList, values, inherited)
 			} else {
-				check.errorf(s.Pos(), "missing init expr")
+				check.errorf(s, "missing init expr")
 			}
 
 			// process function literals in init expressions before scope changes
@@ -979,7 +979,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.pop().setColor(black)
 
 		default:
-			check.invalidAST(s.Pos(), "unknown syntax.Decl node %T", s)
+			check.invalidASTf(s, "unknown syntax.Decl node %T", s)
 		}
 	}
 }

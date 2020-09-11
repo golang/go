@@ -267,11 +267,8 @@ func TestTestdata(t *testing.T) {
 	DefPredeclaredTestFuncs()
 	testDir(t, "testdata")
 }
-func TestExamples(t *testing.T) { testDir(t, "examples") }
-func TestFixedbugs(t *testing.T) {
-	t.Skip("positions need to be fixed first")
-	testDir(t, "fixedbugs")
-}
+func TestExamples(t *testing.T)  { testDir(t, "examples") }
+func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
 
 func testDir(t *testing.T, dir string) {
 	testenv.MustHaveGoBuild(t)

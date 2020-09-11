@@ -34,7 +34,7 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
 		} else {
 			msg = "label %s not declared"
 		}
-		check.errorf(jmp.Label.Pos(), msg, name)
+		check.errorf(jmp.Label, msg, name)
 	}
 
 	// spec: "It is illegal to define a label that is never used."
@@ -150,7 +150,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 						check.recordUse(jmp.Label, lbl)
 						if jumpsOverVarDecl(jmp) {
 							check.softErrorf(
-								jmp.Label.Pos(),
+								jmp.Label,
 								"goto %s jumps over variable declaration at line %d",
 								name,
 								varDeclPos.Line(),
@@ -188,7 +188,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 					}
 				}
 				if !valid {
-					check.errorf(s.Label.Pos(), "invalid break label %s", name)
+					check.errorf(s.Label, "invalid break label %s", name)
 					return
 				}
 
@@ -203,7 +203,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 					}
 				}
 				if !valid {
-					check.errorf(s.Label.Pos(), "invalid continue label %s", name)
+					check.errorf(s.Label, "invalid continue label %s", name)
 					return
 				}
 
@@ -215,7 +215,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				}
 
 			default:
-				check.invalidAST(s.Pos(), "branch statement: %s %s", s.Tok, name)
+				check.invalidASTf(s, "branch statement: %s %s", s.Tok, name)
 				return
 			}
 

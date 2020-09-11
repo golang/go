@@ -57,11 +57,11 @@ func (check *Checker) arity(pos syntax.Pos, names []*syntax.Name, inits []syntax
 		if inherited {
 			check.errorf(pos, "extra init expr at %s", n.Pos())
 		} else {
-			check.errorf(n.Pos(), "extra init expr %s", n)
+			check.errorf(n, "extra init expr %s", n)
 		}
 	case l > r && r != 1: // if r == 1 it may be a multi-valued function and we can't say anything yet
 		n := names[r]
-		check.errorf(n.Pos(), "missing init expr for %s", n.Value)
+		check.errorf(n, "missing init expr for %s", n.Value)
 	}
 }
 
@@ -90,14 +90,14 @@ func (check *Checker) declarePkgObj(ident *syntax.Name, obj Object, d *declInfo)
 	// spec: "A package-scope or file-scope identifier with name init
 	// may only be declared to be a function with this (func()) signature."
 	if ident.Value == "init" {
-		check.errorf(ident.Pos(), "cannot declare init - must be func")
+		check.errorf(ident, "cannot declare init - must be func")
 		return
 	}
 
 	// spec: "The main package must have package name main and declare
 	// a function main that takes no arguments and returns no value."
 	if ident.Value == "main" && check.pkg.name == "main" {
-		check.errorf(ident.Pos(), "cannot declare main - must be func")
+		check.errorf(ident, "cannot declare main - must be func")
 		return
 	}
 
@@ -244,7 +244,7 @@ func (check *Checker) collectObjects() {
 				// import package
 				path, err := validatedImportPath(s.Path.Value)
 				if err != nil {
-					check.errorf(s.Path.Pos(), "invalid import path (%s)", err)
+					check.errorf(s.Path, "invalid import path (%s)", err)
 					continue
 				}
 
@@ -267,11 +267,11 @@ func (check *Checker) collectObjects() {
 					name = s.LocalPkgName.Value
 					if path == "C" {
 						// match cmd/compile (not prescribed by spec)
-						check.errorf(s.LocalPkgName.Pos(), `cannot rename import "C"`)
+						check.errorf(s.LocalPkgName, `cannot rename import "C"`)
 						continue
 					}
 					if name == "init" {
-						check.errorf(s.LocalPkgName.Pos(), "cannot declare init - must be func")
+						check.errorf(s.LocalPkgName, "cannot declare init - must be func")
 						continue
 					}
 				}
@@ -302,7 +302,7 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
 							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(s.LocalPkgName.Pos(), "%s redeclared in this block", obj.Name())
+								check.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
 								check.reportAltDecl(alt)
 							}
 						}
@@ -353,7 +353,7 @@ func (check *Checker) collectObjects() {
 				if values != nil {
 					check.arity(s.Pos(), s.NameList, values, inherited)
 				} else {
-					check.errorf(s.Pos(), "missing init expr")
+					check.errorf(s, "missing init expr")
 				}
 
 			case *syntax.VarDecl:
@@ -408,10 +408,10 @@ func (check *Checker) collectObjects() {
 					if name == "init" {
 						if d.TParamList != nil {
 							//check.softErrorf(d.TParamList.Pos(), "func init must have no type parameters")
-							check.softErrorf(d.Name.Pos(), "func init must have no type parameters")
+							check.softErrorf(d.Name, "func init must have no type parameters")
 						}
 						if t := d.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(d.Pos(), "func init must have no arguments and no return values")
+							check.softErrorf(d, "func init must have no arguments and no return values")
 						}
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
@@ -428,8 +428,8 @@ func (check *Checker) collectObjects() {
 					// method
 					// d.Recv != nil
 					if !methodTypeParamsOk && len(d.TParamList) != 0 {
-						//check.invalidAST(d.TParamList.Pos(), "method must have no type parameters")
-						check.invalidAST(d.Pos(), "method must have no type parameters")
+						//check.invalidASTf(d.TParamList.Pos(), "method must have no type parameters")
+						check.invalidASTf(d, "method must have no type parameters")
 					}
 					ptr, recv, _ := check.unpackRecv(d.Recv.Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
@@ -449,7 +449,7 @@ func (check *Checker) collectObjects() {
 				obj.setOrder(uint32(len(check.objMap)))
 
 			default:
-				check.invalidAST(s.Pos(), "unknown syntax.Decl node %T", s)
+				check.invalidASTf(s, "unknown syntax.Decl node %T", s)
 			}
 		}
 	}
@@ -459,10 +459,10 @@ func (check *Checker) collectObjects() {
 		for _, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt.Pos(), "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					check.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					check.reportAltDecl(pkg)
 				} else {
-					check.errorf(alt.Pos(), "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					check.errorf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
 					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
 					check.reportAltDecl(obj)
 				}
@@ -529,9 +529,9 @@ L: // unpack receiver type
 				case *syntax.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.invalidAST(ptyp.Pos(), "parameterized receiver contains nil parameters")
+					check.invalidASTf(ptyp, "parameterized receiver contains nil parameters")
 				default:
-					check.errorf(arg.Pos(), "receiver type parameter %s must be an identifier", arg)
+					check.errorf(arg, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
 					par = newName(arg.Pos(), "_")

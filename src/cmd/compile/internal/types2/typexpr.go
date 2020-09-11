@@ -29,9 +29,9 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 	scope, obj := check.scope.LookupParent(e.Value, check.pos)
 	if obj == nil {
 		if e.Value == "_" {
-			check.errorf(e.Pos(), "cannot use _ as value or type")
+			check.errorf(e, "cannot use _ as value or type")
 		} else {
-			check.errorf(e.Pos(), "undeclared name: %s", e.Value)
+			check.errorf(e, "undeclared name: %s", e.Value)
 		}
 		return
 	}
@@ -62,7 +62,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 
 	switch obj := obj.(type) {
 	case *PkgName:
-		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)
+		check.errorf(e, "use of package %s not in selector", obj.name)
 		return
 
 	case *Const:
@@ -72,7 +72,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		}
 		if obj == universeIota {
 			if check.iota == nil {
-				check.errorf(e.Pos(), "cannot use iota outside constant declaration")
+				check.errorf(e, "cannot use iota outside constant declaration")
 				return
 			}
 			x.val = check.iota
@@ -127,7 +127,7 @@ func (check *Checker) typ(e syntax.Expr) Type {
 // (see ordinaryType).
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
-	check.ordinaryType(e.Pos(), typ)
+	check.ordinaryType(leftPos(e), typ)
 	return typ
 }
 
@@ -169,7 +169,7 @@ func (check *Checker) definedType(e syntax.Expr, def *Named) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
 	if isGeneric(typ) {
-		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", typ)
+		check.errorf(e, "cannot use generic type %s without instantiation", typ)
 		typ = Typ[Invalid]
 	}
 	check.recordTypeAndValue(e, typexpr, typ, nil)
@@ -182,7 +182,7 @@ func (check *Checker) genericType(e syntax.Expr, reportErr bool) Type {
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
 		if reportErr {
-			check.errorf(e.Pos(), "%s is not a generic type", typ)
+			check.errorf(e, "%s is not a generic type", typ)
 		}
 		typ = Typ[Invalid]
 	}
@@ -332,7 +332,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil && !check.conf.AcceptMethodTypeParams {
-			check.errorf(ftyp.Pos(), "methods cannot have type parameters")
+			check.errorf(ftyp, "methods cannot have type parameters")
 		}
 	}
 
@@ -347,7 +347,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	params, variadic := check.collectParams(scope, ftyp.ParamList, nil, true)
 	results, _ := check.collectParams(scope, ftyp.ResultList, nil, false)
 	scope.Squash(func(obj, alt Object) {
-		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
+		check.errorf(obj, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
 	})
 
@@ -457,9 +457,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		case invalid:
 			// ignore - error reported before
 		case novalue:
-			check.errorf(x.pos(), "%s used as type", &x)
+			check.errorf(&x, "%s used as type", &x)
 		default:
-			check.errorf(x.pos(), "%s is not a type", &x)
+			check.errorf(&x, "%s is not a type", &x)
 		}
 
 	case *syntax.SelectorExpr:
@@ -474,9 +474,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		case invalid:
 			// ignore - error reported before
 		case novalue:
-			check.errorf(x.pos(), "%s used as type", &x)
+			check.errorf(&x, "%s used as type", &x)
 		default:
-			check.errorf(x.pos(), "%s is not a type", &x)
+			check.errorf(&x, "%s is not a type", &x)
 		}
 
 	case *syntax.IndexExpr:
@@ -497,7 +497,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			typ.len = check.arrayLength(e.Len)
 		} else {
 			// [...]array
-			check.errorf(e.Pos(), "invalid use of [...] array (outside a composite literal)")
+			check.errorf(e, "invalid use of [...] array (outside a composite literal)")
 			typ.len = -1
 		}
 		typ.elem = check.varType(e.Elem)
@@ -557,7 +557,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 				if typ.key.TypeParam() != nil {
 					why = " (missing comparable constraint)"
 				}
-				check.errorf(e.Key.Pos(), "invalid map key type %s%s", typ.key, why)
+				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
 			}
 		})
 
@@ -576,7 +576,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		case syntax.RecvOnly:
 			dir = RecvOnly
 		default:
-			check.invalidAST(e.Pos(), "unknown channel direction %d", e.Dir)
+			check.invalidASTf(e, "unknown channel direction %d", e.Dir)
 			// ok to continue
 		}
 
@@ -585,7 +585,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		return typ
 
 	default:
-		check.errorf(e0.Pos(), "%s is not a type", e0)
+		check.errorf(e0, "%s is not a type", e0)
 	}
 
 	typ := Typ[Invalid]
@@ -605,7 +605,7 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 	case invalid:
 		// ignore - error reported before
 	case novalue:
-		check.errorf(x.pos(), "%s used as type", &x)
+		check.errorf(&x, "%s used as type", &x)
 	case typexpr:
 		check.instantiatedOperand(&x)
 		return x.typ
@@ -615,7 +615,7 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 		}
 		fallthrough
 	default:
-		check.errorf(x.pos(), "%s is not a type", &x)
+		check.errorf(&x, "%s is not a type", &x)
 	}
 	return Typ[Invalid]
 }
@@ -671,7 +671,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	check.expr(&x, e)
 	if x.mode != constant_ {
 		if x.mode != invalid {
-			check.errorf(x.pos(), "array length %s must be constant", &x)
+			check.errorf(&x, "array length %s must be constant", &x)
 		}
 		return -1
 	}
@@ -681,12 +681,12 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}
-				check.errorf(x.pos(), "invalid array length %s", &x)
+				check.errorf(&x, "invalid array length %s", &x)
 				return -1
 			}
 		}
 	}
-	check.errorf(x.pos(), "array length %s must be integer", &x)
+	check.errorf(&x, "array length %s must be integer", &x)
 	return -1
 }
 
@@ -727,7 +727,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 			if variadicOk && i == len(list)-1 {
 				variadic = true
 			} else {
-				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
+				check.softErrorf(t, "can only use ... with final parameter in list")
 				// ignore ... and continue
 			}
 		}
@@ -742,7 +742,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 			// named parameter
 			name := field.Name.Value
 			if name == "" {
-				check.invalidAST(field.Name.Pos(), "anonymous parameter")
+				check.invalidASTf(field.Name, "anonymous parameter")
 				// ok to continue
 			}
 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
@@ -759,7 +759,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 	}
 
 	if named && anonymous {
-		check.invalidAST(list[0].Pos(), "list contains both named and anonymous parameters")
+		check.invalidASTf(list[0], "list contains both named and anonymous parameters")
 		// ok to continue
 	}
 
@@ -792,7 +792,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// of a type list (f.Name.Value == "type").
 			name := f.Name.Value
 			if name == "_" {
-				check.errorf(f.Name.Pos(), "invalid method name _")
+				check.errorf(f.Name, "invalid method name _")
 				continue // ignore
 			}
 
@@ -805,7 +805,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			sig, _ := typ.(*Signature)
 			if sig == nil {
 				if typ != Typ[Invalid] {
-					check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
+					check.invalidASTf(f.Type, "%s is not a method signature", typ)
 				}
 				continue // ignore
 			}
@@ -814,7 +814,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
 			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
-				check.errorf(f.Type.Pos(), "methods cannot have type parameters")
+				check.errorf(f.Type, "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
@@ -1026,7 +1026,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
 				return val
 			}
 		}
-		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
+		check.invalidASTf(t, "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }
@@ -1074,7 +1074,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 	}
 
 	for i, f := range e.FieldList {
-		typ = check.typ(f.Type)
+		typ = check.varType(f.Type)
 		if i < len(e.TagList) {
 			tag = check.tag(e.TagList[i])
 		}
@@ -1085,7 +1085,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// embedded field
 			// spec: "An embedded type must be specified as a (possibly parenthesized) type name T or
 			// as a pointer to a non-interface type name *T, and T itself may not be a pointer type."
-			pos := f.Type.Pos()
+			pos := leftPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, "invalid embedded field type %s", f.Type)
@@ -1152,7 +1152,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 	list := make([]Type, 0, len(types)) // assume all types are correct
 	for _, texpr := range types {
 		if texpr == nil {
-			check.invalidAST(pos, "missing type constraint")
+			check.invalidASTf(pos, "missing type constraint")
 			continue
 		}
 		typ := check.varType(texpr)
@@ -1163,7 +1163,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 		const restricted = false
 		var why string
 		if restricted && !check.typeConstraint(typ, &why) {
-			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
+			check.errorf(texpr, "invalid type constraint %s (%s)", typ, why)
 			continue
 		}
 		list = append(list, typ)
@@ -1180,7 +1180,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 				check.completeInterface(types[i].Pos(), t)
 			}
 			if includes(uniques, t) {
-				check.softErrorf(types[i].Pos(), "duplicate type %s in type list", t)
+				check.softErrorf(types[i], "duplicate type %s in type list", t)
 			}
 			uniques = append(uniques, t)
 		}

@@ -149,7 +149,7 @@ type _ struct {
 
 	int8 /* ERROR int8 redeclared */
 	* /* ERROR int16 redeclared */ int16
-	//List /* DISABLED_ERROR List redeclared */ [int] // TODO(gri) fix reported error position
+	List /* ERROR List redeclared */ [int]
 }
 
 // It's possible to declare local types whose underlying types

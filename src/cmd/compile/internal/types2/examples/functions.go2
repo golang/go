@@ -182,7 +182,7 @@ func _() {
 	type myString string
 	var s1 string
 	g3(nil, "1", myString("2"), "3")
-	//g3(&s1, "1", myString /* DISABLED_ERROR does not match */ ("2"), "3") // TODO(gri) fix reported error position
+	g3(&s1, "1", myString /* ERROR does not match */ ("2"), "3")
 	_ = s1
 
 	type myStruct struct{x int}

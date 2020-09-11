@@ -23,7 +23,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// ok
 	default:
 		// we may get here because of other problems (issue #39634, crash 12)
-		check.errorf(x.pos(), "cannot assign %s to %s in %s", x, T, context)
+		check.errorf(x, "cannot assign %s to %s in %s", x, T, context)
 		return
 	}
 
@@ -36,7 +36,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// or string constant."
 		if T == nil || IsInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil in %s", context)
+				check.errorf(x, "use of untyped nil in %s", context)
 				x.mode = invalid
 				return
 			}
@@ -51,7 +51,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig := x.typ.Signature(); sig != nil && len(sig.tparams) > 0 {
-		check.errorf(x.pos(), "cannot use generic function %s without instantiation in %s", x, context)
+		check.errorf(x, "cannot use generic function %s without instantiation in %s", x, context)
 	}
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
@@ -63,9 +63,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	if reason := ""; !x.assignableTo(check, T, &reason) {
 		if reason != "" {
-			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
+			check.errorf(x, "cannot use %s as %s value in %s: %s", x, T, context, reason)
 		} else {
-			check.errorf(x.pos(), "cannot use %s as %s value in %s", x, T, context)
+			check.errorf(x, "cannot use %s as %s value in %s", x, T, context)
 		}
 		x.mode = invalid
 	}
@@ -81,7 +81,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 
 	// rhs must be a constant
 	if x.mode != constant_ {
-		check.errorf(x.pos(), "%s is not constant", x)
+		check.errorf(x, "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -116,7 +116,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil in %s", context)
+				check.errorf(x, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
 				return nil
 			}
@@ -191,11 +191,11 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(z.pos(), "cannot assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(&z, "cannot assign to struct field %s in map", ExprString(z.expr))
 				return nil
 			}
 		}
-		check.errorf(z.pos(), "cannot assign to %s", &z)
+		check.errorf(&z, "cannot assign to %s", &z)
 		return nil
 	}
 
@@ -229,7 +229,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
 			return
 		}
-		check.errorf(rhs[0].pos(), "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+		check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
 		return
 	}
 
@@ -263,7 +263,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 				return
 			}
 		}
-		check.errorf(rhs[0].pos(), "cannot assign %d values to %d variables", len(rhs), len(lhs))
+		check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
 		return
 	}
 
@@ -316,7 +316,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 				if alt, _ := alt.(*Var); alt != nil {
 					obj = alt
 				} else {
-					check.errorf(lhs.Pos(), "cannot assign to %s", lhs)
+					check.errorf(lhs, "cannot assign to %s", lhs)
 				}
 				check.recordUse(ident, alt)
 			} else {
@@ -329,7 +329,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 			}
 		} else {
 			check.useLHS(lhs)
-			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+			check.errorf(lhs, "cannot declare %s", lhs)
 		}
 		if obj == nil {
 			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable

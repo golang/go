@@ -38,7 +38,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	}
 
 	if !ok {
-		check.errorf(x.pos(), "cannot convert %s to %s", x, T)
+		check.errorf(x, "cannot convert %s to %s", x, T)
 		x.mode = invalid
 		return
 	}

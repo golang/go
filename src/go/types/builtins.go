@@ -443,7 +443,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// make(T, n, m)
 		// (no argument evaluated yet)
 		arg0 := call.Args[0]
-		T := check.typ(arg0)
+		T := check.varType(arg0)
 		if T == Typ[Invalid] {
 			return
 		}
