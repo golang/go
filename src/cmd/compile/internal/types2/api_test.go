@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"internal/testenv"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -1379,30 +1380,25 @@ func sameSlice(a, b []int) bool {
 }
 
 // TestScopeLookupParent ensures that (*Scope).LookupParent returns
-// the correct result at various positions with the source.
+// the correct result at various positions within the source.
 func TestScopeLookupParent(t *testing.T) {
-	t.Skip("requires comment handling")
+	t.Skip("requires correct scope extents being set up")
 
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
-	mustParse := func(src string) *syntax.File {
-		//f, err := parser.ParseFile(fset, "dummy.go", src, parser.ParseComments)
-		f, err := parseSrc("dummy.go", src)
+	var info Info
+	makePkg := func(path, src string) {
+		f, err := parseSrc(path, src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return f
-	}
-	var info Info
-	makePkg := func(path string, files ...*syntax.File) {
-		var err error
-		imports[path], err = conf.Check(path, files, &info)
+		imports[path], err = conf.Check(path, []*syntax.File{f}, &info)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	makePkg("lib", mustParse("package lib; var X int"))
+	makePkg("lib", "package lib; var X int")
 	// Each /*name=kind:line*/ comment makes the test look up the
 	// name at that point and checks that it resolves to a decl of
 	// the specified kind and line number.  "undef" means undefined.
@@ -1446,41 +1442,44 @@ func F(){
 `
 
 	info.Uses = make(map[*syntax.Name]Object)
-	f := mustParse(mainSrc)
-	makePkg("main", f)
+	makePkg("main", mainSrc)
 	mainScope := imports["main"].Scope()
-	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
-	unimplemented()
-	_ = rx
-	// for _, group := range f.Comments {
-	// 	for _, comment := range group.List {
-	// 		// Parse the assertion in the comment.
-	// 		m := rx.FindStringSubmatch(comment.Text)
-	// 		if m == nil {
-	// 			t.Errorf("%s: bad comment: %s",
-	// 				fset.Position(comment.Pos()), comment.Text)
-	// 			continue
-	// 		}
-	// 		name, want := m[1], m[2]
 
-	// 		// Look up the name in the innermost enclosing scope.
-	// 		inner := mainScope.Innermost(comment.Pos())
-	// 		if inner == nil {
-	// 			t.Errorf("%s: at %s: can't find innermost scope",
-	// 				fset.Position(comment.Pos()), comment.Text)
-	// 			continue
-	// 		}
-	// 		got := "undef"
-	// 		if _, obj := inner.LookupParent(name, comment.Pos()); obj != nil {
-	// 			kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
-	// 			got = fmt.Sprintf("%s:%d", kind, obj.Pos().Line())
-	// 		}
-	// 		if got != want {
-	// 			t.Errorf("%s: at %s: %s resolved to %s, want %s",
-	// 				fset.Position(comment.Pos()), comment.Text, name, got, want)
-	// 		}
-	// 	}
-	// }
+	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
+
+	base := syntax.NewFileBase("main")
+	syntax.CommentsDo(strings.NewReader(mainSrc), func(line, col uint, text string) {
+		pos := syntax.MakePos(base, line, col)
+
+		// Syntax errors are not comments.
+		if text[0] != '/' {
+			t.Errorf("%s: %s", pos, text)
+			return
+		}
+
+		// Parse the assertion in the comment.
+		m := rx.FindStringSubmatch(text)
+		if m == nil {
+			t.Errorf("%s: bad comment: %s", pos, text)
+			return
+		}
+		name, want := m[1], m[2]
+
+		// Look up the name in the innermost enclosing scope.
+		inner := mainScope.Innermost(pos)
+		if inner == nil {
+			t.Errorf("%s: at %s: can't find innermost scope", pos, text)
+			return
+		}
+		got := "undef"
+		if _, obj := inner.LookupParent(name, pos); obj != nil {
+			kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
+			got = fmt.Sprintf("%s:%d", kind, obj.Pos().Line())
+		}
+		if got != want {
+			t.Errorf("%s: at %s: %s resolved to %s, want %s", pos, text, name, got, want)
+		}
+	})
 
 	// Check that for each referring identifier,
 	// a lookup of its name on the innermost
@@ -1489,8 +1488,7 @@ func F(){
 	for id, wantObj := range info.Uses {
 		inner := mainScope.Innermost(id.Pos())
 		if inner == nil {
-			t.Errorf("%s: can't find innermost scope enclosing %q",
-				id.Pos(), id.Value)
+			t.Errorf("%s: can't find innermost scope enclosing %q", id.Pos(), id.Value)
 			continue
 		}
 
