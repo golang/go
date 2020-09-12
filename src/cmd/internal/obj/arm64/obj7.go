@@ -589,7 +589,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
 
-				if c.ctxt.Headtype == objabi.Hdarwin {
+				if objabi.GOOS == "ios" {
 					// iOS does not support SA_ONSTACK. We will run the signal handler
 					// on the G stack. If we write below SP, it may be clobbered by
 					// the signal handler. So we save LR after decrementing SP.
