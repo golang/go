@@ -1050,7 +1050,7 @@ func (x *Int) Bit(i int) uint {
 
 // SetBit sets z to x, with x's i'th bit set to b (0 or 1).
 // That is, if b is 1 SetBit sets z = x | (1 << i);
-// if b is 0 SetBit sets z = x &^ (1 << i). If b is not 0 or 1,
+// if b is 0 SetBit sets z = x & ~(1 << i). If b is not 0 or 1,
 // SetBit will panic.
 func (z *Int) SetBit(x *Int, i int, b uint) *Int {
 	if i < 0 {
