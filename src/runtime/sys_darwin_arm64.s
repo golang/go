@@ -202,6 +202,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
+#ifdef GOOS_ios
 	MOVD	RSP, R6
 	CMP	$0, g
 	BEQ	nog
@@ -226,16 +227,21 @@ nog:
 	// Switch to gsignal stack.
 	MOVD	R6, RSP
 
-	// Call sigtrampgo.
+	// Save arguments.
 	MOVW	R0, (8*1)(RSP)
 	MOVD	R1, (8*2)(RSP)
 	MOVD	R2, (8*3)(RSP)
+#endif
+
+	// Call sigtrampgo.
 	MOVD	$runtime·sigtrampgo(SB), R11
 	BL	(R11)
 
+#ifdef GOOS_ios
 	// Switch to old stack.
 	MOVD	(8*4)(RSP), R5
 	MOVD	R5, RSP
+#endif
 
 	// Restore callee-save registers.
 	MOVD	(8*4)(RSP), R19
@@ -329,12 +335,20 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	ADD	$16, RSP
 	RET
 
-// sigaltstack on iOS is not supported and will always
-// run the signal handler on the main stack, so our sigtramp has
-// to do the stack switch ourselves.
 TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+#ifdef GOOS_ios
+	// sigaltstack on iOS is not supported and will always
+	// run the signal handler on the main stack, so our sigtramp has
+	// to do the stack switch ourselves.
 	MOVW	$43, R0
 	BL	libc_exit(SB)
+#else
+	MOVD	8(R0), R1		// arg 2 old
+	MOVD	0(R0), R0		// arg 1 new
+	CALL	libc_sigaltstack(SB)
+	CBZ	R0, 2(PC)
+	BL	notok<>(SB)
+#endif
 	RET
 
 // Thread related functions
