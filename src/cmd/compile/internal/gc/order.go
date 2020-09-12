@@ -496,7 +496,6 @@ func (o *Order) call(n *Node) {
 			arg.Left = x
 			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
 			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
-			n.SetNeedsWrapper(true)
 		}
 	}
 
