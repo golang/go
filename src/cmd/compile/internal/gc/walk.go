@@ -231,12 +231,15 @@ func walkstmt(n *Node) *Node {
 		case OCOPY:
 			n.Left = copyany(n.Left, &n.Ninit, true)
 
-		default:
-			if n.Left.NeedsWrapper() {
+		case OCALLFUNC, OCALLMETH, OCALLINTER:
+			if n.Left.Nbody.Len() > 0 {
 				n.Left = wrapCall(n.Left, &n.Ninit)
 			} else {
 				n.Left = walkexpr(n.Left, &n.Ninit)
 			}
+
+		default:
+			n.Left = walkexpr(n.Left, &n.Ninit)
 		}
 
 	case OFOR, OFORUNTIL:
