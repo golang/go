@@ -7,6 +7,7 @@ package json
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -211,7 +212,7 @@ var unsupportedValues = []interface{}{
 func TestUnsupportedValues(t *testing.T) {
 	for _, v := range unsupportedValues {
 		if _, err := Marshal(v); err != nil {
-			if _, ok := err.(*UnsupportedValueError); !ok {
+			if !errors.Is(err, &UnsupportedValueError{}) {
 				t.Errorf("for %v, got %T want UnsupportedValueError", v, err)
 			}
 		} else {
@@ -1153,5 +1154,26 @@ func TestMarshalerError(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("MarshalerError test %d, got: %s, want: %s", i, got, tt.want)
 		}
+	}
+}
+
+func TestMarshalerErrorIs(t *testing.T) {
+	err := fmt.Errorf("apackage: %w: failed to parse struct", &MarshalerError{
+		reflect.TypeOf("a"),
+		fmt.Errorf("something"),
+		"TestMarshalerErrorIs",
+	})
+	if !errors.Is(err, &MarshalerError{}) {
+		t.Fatalf("%v should be unwrapped to a MarshalerError", err)
+	}
+}
+
+func TestUnsupportedValueErrorIs(t *testing.T) {
+	err := fmt.Errorf("apackage: %w: failed to parse struct", &UnsupportedValueError{
+		Value: reflect.Value{},
+		Str:   "Foo",
+	})
+	if !errors.Is(err, &UnsupportedValueError{}) {
+		t.Fatalf("%v should be unwrapped to a UnsupportedValueError", err)
 	}
 }
