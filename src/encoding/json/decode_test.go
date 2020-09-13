@@ -2575,7 +2575,7 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 
 func TestInvalidUnmarshalErrorIs(t *testing.T) {
 	err := fmt.Errorf("apackage: %w: failed to parse struct", &InvalidUnmarshalError{reflect.TypeOf("a")})
-	if !errors.Is(err, &InvalidUnmarshalError{}) {
+	if !errors.Is(err, &InvalidUnmarshalError{reflect.TypeOf("a")}) {
 		t.Fatalf("%v should be unwrapped to a InvalidUnmarshalError", err)
 	}
 }
@@ -2586,7 +2586,11 @@ func TestUnmarshalFieldErrorIs(t *testing.T) {
 		Type:  reflect.TypeOf("a"),
 		Field: reflect.StructField{Name: "b"},
 	})
-	if !errors.Is(err, &UnmarshalFieldError{}) {
+	if !errors.Is(err, &UnmarshalFieldError{
+		Key:   "foo",
+		Type:  reflect.TypeOf("a"),
+		Field: reflect.StructField{Name: "b"},
+	}) {
 		t.Fatalf("%v should be unwrapped to a UnmarshalFieldError", err)
 	}
 }
@@ -2599,7 +2603,13 @@ func TestUnmarshalTypeErrorIs(t *testing.T) {
 		Struct: "Foo",
 		Field:  "Bar",
 	})
-	if !errors.Is(err, &UnmarshalTypeError{}) {
+	if !errors.Is(err, &UnmarshalTypeError{
+		Value:  "foo",
+		Type:   reflect.TypeOf("a"),
+		Offset: 1,
+		Struct: "Foo",
+		Field:  "Bar",
+	}) {
 		t.Fatalf("%v should be unwrapped to a UnmarshalTypeError", err)
 	}
 }

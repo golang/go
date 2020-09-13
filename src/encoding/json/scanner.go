@@ -14,6 +14,7 @@ package json
 // before diving into the scanner itself.
 
 import (
+	"reflect"
 	"strconv"
 	"sync"
 )
@@ -51,8 +52,8 @@ func (e *SyntaxError) Error() string { return e.msg }
 
 // Is returns true if target is a SyntaxError.
 func (e *SyntaxError) Is(target error) bool {
-	_, ok := target.(*SyntaxError)
-	return ok
+	err, ok := target.(*SyntaxError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 // A scanner is a JSON scanning state machine.

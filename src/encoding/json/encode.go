@@ -247,8 +247,8 @@ func (e *UnsupportedValueError) Error() string {
 
 // Is returns true if target is a UnsupportedValueError.
 func (e *UnsupportedValueError) Is(target error) bool {
-	_, ok := target.(*UnsupportedValueError)
-	return ok
+	err, ok := target.(*UnsupportedValueError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 // Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
@@ -287,8 +287,8 @@ func (e *MarshalerError) Unwrap() error { return e.Err }
 
 // Is returns true if target is a MarshalerError.
 func (e *MarshalerError) Is(target error) bool {
-	_, ok := target.(*MarshalerError)
-	return ok
+	err, ok := target.(*MarshalerError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 var hex = "0123456789abcdef"

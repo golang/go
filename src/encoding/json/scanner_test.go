@@ -205,7 +205,7 @@ func TestIndentErrors(t *testing.T) {
 
 func TestSyntaxErrorIs(t *testing.T) {
 	err := fmt.Errorf("apackage: %w: failed to parse struct", &SyntaxError{"some error", 43})
-	if !errors.Is(err, &SyntaxError{}) {
+	if !errors.Is(err, &SyntaxError{"some error", 43}) {
 		t.Fatalf("%v should be unwrapped to a SyntaxError", err)
 	}
 }

@@ -138,8 +138,8 @@ func (e *UnmarshalTypeError) Error() string {
 
 // Is returns true if target is a UnmarshalTypeError.
 func (e *UnmarshalTypeError) Is(target error) bool {
-	_, ok := target.(*UnmarshalTypeError)
-	return ok
+	err, ok := target.(*UnmarshalTypeError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 // An UnmarshalFieldError describes a JSON object key that
@@ -158,8 +158,8 @@ func (e *UnmarshalFieldError) Error() string {
 
 // Is returns true if target is a UnmarshalFieldError.
 func (e *UnmarshalFieldError) Is(target error) bool {
-	_, ok := target.(*UnmarshalFieldError)
-	return ok
+	err, ok := target.(*UnmarshalFieldError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
@@ -170,8 +170,8 @@ type InvalidUnmarshalError struct {
 
 // Is returns true if target is a InvalidUnmarshalError.
 func (e *InvalidUnmarshalError) Is(target error) bool {
-	_, ok := target.(*InvalidUnmarshalError)
-	return ok
+	err, ok := target.(*InvalidUnmarshalError)
+	return ok && reflect.DeepEqual(err, e)
 }
 
 func (e *InvalidUnmarshalError) Error() string {

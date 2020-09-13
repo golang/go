@@ -212,7 +212,8 @@ var unsupportedValues = []interface{}{
 func TestUnsupportedValues(t *testing.T) {
 	for _, v := range unsupportedValues {
 		if _, err := Marshal(v); err != nil {
-			if !errors.Is(err, &UnsupportedValueError{}) {
+			var unsuportedError = &UnsupportedValueError{}
+			if !errors.As(err, &unsuportedError) {
 				t.Errorf("for %v, got %T want UnsupportedValueError", v, err)
 			}
 		} else {
@@ -1163,7 +1164,11 @@ func TestMarshalerErrorIs(t *testing.T) {
 		fmt.Errorf("something"),
 		"TestMarshalerErrorIs",
 	})
-	if !errors.Is(err, &MarshalerError{}) {
+	if !errors.Is(err, &MarshalerError{
+		reflect.TypeOf("a"),
+		fmt.Errorf("something"),
+		"TestMarshalerErrorIs",
+	}) {
 		t.Fatalf("%v should be unwrapped to a MarshalerError", err)
 	}
 }
@@ -1173,7 +1178,10 @@ func TestUnsupportedValueErrorIs(t *testing.T) {
 		Value: reflect.Value{},
 		Str:   "Foo",
 	})
-	if !errors.Is(err, &UnsupportedValueError{}) {
+	if !errors.Is(err, &UnsupportedValueError{
+		Value: reflect.Value{},
+		Str:   "Foo",
+	}) {
 		t.Fatalf("%v should be unwrapped to a UnsupportedValueError", err)
 	}
 }
