@@ -1168,6 +1168,25 @@ func TestMarshalerErrorIs(t *testing.T) {
 	}
 }
 
+func TestMarshalerErrorUnwrap(t *testing.T) {
+	cause := &SyntaxError{"unexpected end of JSON input", 12}
+	err := &MarshalerError{
+		reflect.TypeOf("b"),
+		cause,
+		"TestMarshalerErrorUnwrap",
+	}
+	if result := errors.Unwrap(err); cause != result {
+		t.Fatalf("%v should be unwrapped to a SyntaxError", result)
+	}
+	result := &SyntaxError{}
+	if !errors.As(err, &result) {
+		t.Fatalf("%v should be unwrapped to a SyntaxError", err)
+	}
+	if result != cause {
+		t.Fatalf("result and cause should be the same error: %v != %v", result, cause)
+	}
+}
+
 func TestUnsupportedValueErrorIs(t *testing.T) {
 	err := fmt.Errorf("apackage: %w: failed to parse struct", &UnsupportedValueError{
 		Value: reflect.Value{},
