@@ -245,6 +245,12 @@ func (e *UnsupportedValueError) Error() string {
 	return "json: unsupported value: " + e.Str
 }
 
+// Is returns true if target is a UnsupportedValueError.
+func (e *UnsupportedValueError) Is(target error) bool {
+	_, ok := target.(*UnsupportedValueError)
+	return ok
+}
+
 // Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
 // attempting to encode a string value with invalid UTF-8 sequences.
 // As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
@@ -278,6 +284,12 @@ func (e *MarshalerError) Error() string {
 
 // Unwrap returns the underlying error.
 func (e *MarshalerError) Unwrap() error { return e.Err }
+
+// Is returns true if target is a MarshalerError.
+func (e *MarshalerError) Is(target error) bool {
+	_, ok := target.(*MarshalerError)
+	return ok
+}
 
 var hex = "0123456789abcdef"
 
