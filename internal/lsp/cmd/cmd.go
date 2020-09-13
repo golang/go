@@ -211,9 +211,9 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	case strings.HasPrefix(app.Remote, "internal@"):
 		internalMu.Lock()
 		defer internalMu.Unlock()
-		opts := source.DefaultOptions()
+		opts := source.DefaultOptions().Clone()
 		if app.options != nil {
-			app.options(&opts)
+			app.options(opts)
 		}
 		key := fmt.Sprintf("%s %v", app.wd, opts)
 		if c := internalConnections[key]; c != nil {
@@ -271,9 +271,9 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.Workspace.Configuration = true
 
 	// Make sure to respect configured options when sending initialize request.
-	opts := source.DefaultOptions()
+	opts := source.DefaultOptions().Clone()
 	if options != nil {
-		options(&opts)
+		options(opts)
 	}
 	params.Capabilities.TextDocument.Hover = protocol.HoverClientCapabilities{
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},

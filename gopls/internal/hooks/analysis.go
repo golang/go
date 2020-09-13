@@ -34,10 +34,6 @@ func updateAnalyzers(options *source.Options) {
 	// Always add hooks for all available analyzers, but disable them if the
 	// user does not have staticcheck enabled (they may enable it later on).
 	for _, a := range analyzers {
-		addStaticcheckAnalyzer(options, a)
+		options.AddStaticcheckAnalyzer(a)
 	}
-}
-
-func addStaticcheckAnalyzer(options *source.Options, a *analysis.Analyzer) {
-	options.StaticcheckAnalyzers[a.Name] = source.Analyzer{Analyzer: a, Enabled: true}
 }

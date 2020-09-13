@@ -52,8 +52,8 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 		cache := cache.New(ctx, nil)
 		session := cache.NewSession(ctx)
-		options := source.DefaultOptions()
-		tests.DefaultOptions(&options)
+		options := source.DefaultOptions().Clone()
+		tests.DefaultOptions(options)
 		options.Env = datum.Config.Env
 		view, _, release, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
 		release()
@@ -64,7 +64,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 		// Enable type error analyses for tests.
 		// TODO(golang/go#38212): Delete this once they are enabled by default.
-		tests.EnableAllAnalyzers(view, &options)
+		tests.EnableAllAnalyzers(view, options)
 		view.SetOptions(ctx, options)
 		var modifications []source.FileModification
 		for filename, content := range datum.Config.Overlay {
@@ -295,8 +295,8 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 		t.Fatal(err)
 	}
 	original := r.view.Options()
-	modified := original
-	options(&modified)
+	modified := original.Clone()
+	options(modified)
 	newView, err := r.view.SetOptions(r.ctx, modified)
 	if newView != r.view {
 		t.Fatalf("options change unexpectedly created new view")

@@ -104,7 +104,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}, nil
 }
 
-func toProtocolCompletionItems(candidates []completion.CompletionItem, rng protocol.Range, options source.Options) []protocol.CompletionItem {
+func toProtocolCompletionItems(candidates []completion.CompletionItem, rng protocol.Range, options *source.Options) []protocol.CompletionItem {
 	var (
 		items                  = make([]protocol.CompletionItem, 0, len(candidates))
 		numDeepCompletionsSeen int

@@ -104,7 +104,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}, nil
 }
 
-func formatExplanation(text string, req *modfile.Require, options source.Options, isPrivate bool) string {
+func formatExplanation(text string, req *modfile.Require, options *source.Options, isPrivate bool) string {
 	text = strings.TrimSuffix(text, "\n")
 	splt := strings.Split(text, "\n")
 	length := len(splt)

@@ -123,8 +123,8 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 		t.Fatal(err)
 	}
 	original := view.Options()
-	modified := original
-	options(&modified)
+	modified := view.Options().Clone()
+	options(modified)
 	view, err = view.SetOptions(r.ctx, modified)
 	if err != nil {
 		t.Error(err)

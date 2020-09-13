@@ -373,7 +373,7 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 	return &HoverInformation{source: obj, comment: decl.Doc}
 }
 
-func FormatHover(h *HoverInformation, options Options) (string, error) {
+func FormatHover(h *HoverInformation, options *Options) (string, error) {
 	signature := h.Signature
 	if signature != "" && options.PreferredContentFormat == protocol.Markdown {
 		signature = fmt.Sprintf("```go\n%s\n```", signature)
@@ -403,7 +403,7 @@ func FormatHover(h *HoverInformation, options Options) (string, error) {
 	return "", errors.Errorf("no hover for %v", h.source)
 }
 
-func formatLink(h *HoverInformation, options Options) string {
+func formatLink(h *HoverInformation, options *Options) string {
 	if !options.LinksInHover || options.LinkTarget == "" || h.Link == "" {
 		return ""
 	}
@@ -418,14 +418,14 @@ func formatLink(h *HoverInformation, options Options) string {
 	}
 }
 
-func formatDoc(doc string, options Options) string {
+func formatDoc(doc string, options *Options) string {
 	if options.PreferredContentFormat == protocol.Markdown {
 		return CommentToMarkdown(doc)
 	}
 	return doc
 }
 
-func formatHover(options Options, x ...string) string {
+func formatHover(options *Options, x ...string) string {
 	var b strings.Builder
 	for i, el := range x {
 		if el != "" {

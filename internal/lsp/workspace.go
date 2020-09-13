@@ -33,9 +33,8 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	if state < serverInitialized {
 		return nil, nil, func() {}, errors.Errorf("addView called before server initialized")
 	}
-
-	options := s.session.Options()
-	if err := s.fetchConfig(ctx, name, uri, &options); err != nil {
+	options := s.session.Options().Clone()
+	if err := s.fetchConfig(ctx, name, uri, options); err != nil {
 		return nil, nil, func() {}, err
 	}
 	return s.session.NewView(ctx, name, uri, options)
@@ -44,8 +43,8 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}) error {
 	// go through all the views getting the config
 	for _, view := range s.session.Views() {
-		options := view.Options()
-		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), &options); err != nil {
+		options := s.session.Options().Clone()
+		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), options); err != nil {
 			return err
 		}
 		view, err := view.SetOptions(ctx, options)

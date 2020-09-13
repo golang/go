@@ -221,7 +221,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[VersionedFileI
 		// meant to provide diagnostics, but rather only suggested fixes.
 		// Skip these types of errors in diagnostics; we will use their
 		// suggested fixes when providing code actions.
-		if isConvenienceAnalyzer(e.Category) {
+		if isConvenienceAnalyzer(snapshot.View().Options(), e.Category) {
 			continue
 		}
 		// This is a bit of a hack, but clients > 3.15 will be able to grey out unnecessary code.
@@ -312,7 +312,7 @@ func hasUndeclaredErrors(pkg Package) bool {
 	return false
 }
 
-func isConvenienceAnalyzer(category string) bool {
+func isConvenienceAnalyzer(o *Options, category string) bool {
 	for _, a := range DefaultOptions().ConvenienceAnalyzers {
 		if category == a.Analyzer.Name {
 			return true

@@ -40,7 +40,7 @@ type View struct {
 	id      string
 
 	optionsMu sync.Mutex
-	options   source.Options
+	options   *source.Options
 
 	// mu protects most mutable state of the view.
 	mu sync.Mutex
@@ -278,13 +278,13 @@ func (v *View) Folder() span.URI {
 	return v.folder
 }
 
-func (v *View) Options() source.Options {
+func (v *View) Options() *source.Options {
 	v.optionsMu.Lock()
 	defer v.optionsMu.Unlock()
 	return v.options
 }
 
-func minorOptionsChange(a, b source.Options) bool {
+func minorOptionsChange(a, b *source.Options) bool {
 	// Check if any of the settings that modify our understanding of files have been changed
 	mapEnv := func(env []string) map[string]string {
 		m := make(map[string]string, len(env))
@@ -315,7 +315,7 @@ func minorOptionsChange(a, b source.Options) bool {
 	return true
 }
 
-func (v *View) SetOptions(ctx context.Context, options source.Options) (source.View, error) {
+func (v *View) SetOptions(ctx context.Context, options *source.Options) (source.View, error) {
 	// no need to rebuild the view if the options were not materially changed
 	v.optionsMu.Lock()
 	if minorOptionsChange(v.options, options) {
@@ -804,7 +804,7 @@ func (v *View) maybeReinitialize() {
 	v.initializeOnce = &once
 }
 
-func (v *View) setBuildInformation(ctx context.Context, options source.Options) error {
+func (v *View) setBuildInformation(ctx context.Context, options *source.Options) error {
 	if err := checkPathCase(v.Folder().Filename()); err != nil {
 		return errors.Errorf("invalid workspace configuration: %w", err)
 	}

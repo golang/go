@@ -115,10 +115,14 @@ func readFile(ctx context.Context, uri span.URI, modTime time.Time) *fileHandle 
 
 func (c *Cache) NewSession(ctx context.Context) *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
+	options := source.DefaultOptions().Clone()
+	if c.options != nil {
+		c.options(options)
+	}
 	s := &Session{
 		cache:       c,
 		id:          strconv.FormatInt(index, 10),
-		options:     source.DefaultOptions(),
+		options:     options,
 		overlays:    make(map[span.URI]*overlay),
 		gocmdRunner: &gocommand.Runner{},
 	}

@@ -153,13 +153,13 @@ type View interface {
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
 
 	// Options returns a copy of the Options for this view.
-	Options() Options
+	Options() *Options
 
 	// SetOptions sets the options of this view to new values.
 	// Calling this may cause the view to be invalidated and a replacement view
 	// added to the session. If so the new view will be returned, otherwise the
 	// original one will be.
-	SetOptions(context.Context, Options) (View, error)
+	SetOptions(context.Context, *Options) (View, error)
 
 	// Snapshot returns the current snapshot for the view.
 	Snapshot(ctx context.Context) (Snapshot, func())
@@ -222,7 +222,7 @@ type TidiedModule struct {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View, returning it and its first snapshot.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, Snapshot, func(), error)
+	NewView(ctx context.Context, name string, folder span.URI, options *Options) (View, Snapshot, func(), error)
 
 	// Cache returns the cache that created this session, for debugging only.
 	Cache() interface{}
@@ -250,10 +250,10 @@ type Session interface {
 	Overlays() []Overlay
 
 	// Options returns a copy of the SessionOptions for this session.
-	Options() Options
+	Options() *Options
 
 	// SetOptions sets the options of this session to new values.
-	SetOptions(Options)
+	SetOptions(*Options)
 }
 
 // Overlay is the type for a file held in memory on a session.

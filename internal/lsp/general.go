@@ -39,7 +39,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
 
-	if err := s.handleOptionResults(ctx, source.SetOptions(&options, params.InitializationOptions)); err != nil {
+	if err := s.handleOptionResults(ctx, source.SetOptions(options, params.InitializationOptions)); err != nil {
 		return nil, err
 	}
 	options.ForClientCapabilities(params.Capabilities)

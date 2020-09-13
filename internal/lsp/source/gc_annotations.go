@@ -57,7 +57,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkgDir span.U
 		if x == nil {
 			continue
 		}
-		v = filterDiagnostics(v, &opts)
+		v = filterDiagnostics(v, opts)
 		reports[x.VersionedFileIdentity()] = v
 	}
 	return reports, parseError

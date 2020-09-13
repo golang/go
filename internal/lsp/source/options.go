@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -52,79 +54,87 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+var (
+	optionsOnce    sync.Once
+	defaultOptions *Options
+)
+
 //go:generate go run golang.org/x/tools/cmd/stringer -output enums_string.go -type ImportShortcut,HoverKind,Matcher,SymbolMatcher,SymbolStyle
 //go:generate go run golang.org/x/tools/internal/lsp/source/genopts -output options_json.go
 
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
 // invokation, etc.).
-func DefaultOptions() Options {
-	var commands []string
-	for _, c := range Commands {
-		commands = append(commands, c.Name)
-	}
-	return Options{
-		ClientOptions: ClientOptions{
-			InsertTextFormat:                  protocol.PlainTextTextFormat,
-			PreferredContentFormat:            protocol.Markdown,
-			ConfigurationSupported:            true,
-			DynamicConfigurationSupported:     true,
-			DynamicWatchedFilesSupported:      true,
-			LineFoldingOnly:                   false,
-			HierarchicalDocumentSymbolSupport: true,
-		},
-		ServerOptions: ServerOptions{
-			SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
-				Go: {
-					protocol.SourceFixAll:          true,
-					protocol.SourceOrganizeImports: true,
-					protocol.QuickFix:              true,
-					protocol.RefactorRewrite:       true,
-					protocol.RefactorExtract:       true,
-				},
-				Mod: {
-					protocol.SourceOrganizeImports: true,
-				},
-				Sum: {},
+func DefaultOptions() *Options {
+	optionsOnce.Do(func() {
+		var commands []string
+		for _, c := range Commands {
+			commands = append(commands, c.Name)
+		}
+		defaultOptions = &Options{
+			ClientOptions: ClientOptions{
+				InsertTextFormat:                  protocol.PlainTextTextFormat,
+				PreferredContentFormat:            protocol.Markdown,
+				ConfigurationSupported:            true,
+				DynamicConfigurationSupported:     true,
+				DynamicWatchedFilesSupported:      true,
+				LineFoldingOnly:                   false,
+				HierarchicalDocumentSymbolSupport: true,
 			},
-			SupportedCommands: commands,
-		},
-		UserOptions: UserOptions{
-			HoverKind:  FullDocumentation,
-			LinkTarget: "pkg.go.dev",
-		},
-		DebuggingOptions: DebuggingOptions{
-			CompletionBudget:   100 * time.Millisecond,
-			LiteralCompletions: true,
-		},
-		ExperimentalOptions: ExperimentalOptions{
-			TempModfile:             true,
-			ExpandWorkspaceToModule: true,
-			Codelens: map[string]bool{
-				CommandGenerate.Name:          true,
-				CommandRegenerateCgo.Name:     true,
-				CommandTidy.Name:              true,
-				CommandToggleDetails.Name:     false,
-				CommandUpgradeDependency.Name: true,
-				CommandVendor.Name:            true,
+			ServerOptions: ServerOptions{
+				SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
+					Go: {
+						protocol.SourceFixAll:          true,
+						protocol.SourceOrganizeImports: true,
+						protocol.QuickFix:              true,
+						protocol.RefactorRewrite:       true,
+						protocol.RefactorExtract:       true,
+					},
+					Mod: {
+						protocol.SourceOrganizeImports: true,
+					},
+					Sum: {},
+				},
+				SupportedCommands: commands,
 			},
-			LinksInHover:            true,
-			CompleteUnimported:      true,
-			CompletionDocumentation: true,
-			DeepCompletion:          true,
-			Matcher:                 Fuzzy,
-			SymbolMatcher:           SymbolFuzzy,
-		},
-		Hooks: Hooks{
-			ComputeEdits:         myers.ComputeEdits,
-			URLRegexp:            urlRegexp(),
-			DefaultAnalyzers:     defaultAnalyzers(),
-			TypeErrorAnalyzers:   typeErrorAnalyzers(),
-			ConvenienceAnalyzers: convenienceAnalyzers(),
-			StaticcheckAnalyzers: map[string]Analyzer{},
-			GoDiff:               true,
-		},
-	}
+			UserOptions: UserOptions{
+				HoverKind:  FullDocumentation,
+				LinkTarget: "pkg.go.dev",
+			},
+			DebuggingOptions: DebuggingOptions{
+				CompletionBudget:   100 * time.Millisecond,
+				LiteralCompletions: true,
+			},
+			ExperimentalOptions: ExperimentalOptions{
+				TempModfile:             true,
+				ExpandWorkspaceToModule: true,
+				Codelens: map[string]bool{
+					CommandGenerate.Name:          true,
+					CommandRegenerateCgo.Name:     true,
+					CommandTidy.Name:              true,
+					CommandToggleDetails.Name:     false,
+					CommandUpgradeDependency.Name: true,
+					CommandVendor.Name:            true,
+				},
+				LinksInHover:            true,
+				CompleteUnimported:      true,
+				CompletionDocumentation: true,
+				DeepCompletion:          true,
+				Matcher:                 Fuzzy,
+				SymbolMatcher:           SymbolFuzzy,
+			},
+			Hooks: Hooks{
+				ComputeEdits:         myers.ComputeEdits,
+				URLRegexp:            urlRegexp(),
+				DefaultAnalyzers:     defaultAnalyzers(),
+				TypeErrorAnalyzers:   typeErrorAnalyzers(),
+				ConvenienceAnalyzers: convenienceAnalyzers(),
+				StaticcheckAnalyzers: map[string]Analyzer{},
+				GoDiff:               true,
+			},
+		}
+	})
+	return defaultOptions
 }
 
 // Options holds various configuration that affects Gopls execution, organized
@@ -206,11 +216,11 @@ type Hooks struct {
 	GoDiff               bool
 	ComputeEdits         diff.ComputeEdits
 	URLRegexp            *regexp.Regexp
+	GofumptFormat        func(ctx context.Context, src []byte) ([]byte, error)
 	DefaultAnalyzers     map[string]Analyzer
 	TypeErrorAnalyzers   map[string]Analyzer
 	ConvenienceAnalyzers map[string]Analyzer
 	StaticcheckAnalyzers map[string]Analyzer
-	GofumptFormat        func(ctx context.Context, src []byte) ([]byte, error)
 }
 
 // ExperimentalOptions defines configuration for features under active
@@ -473,6 +483,59 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	o.LineFoldingOnly = fr.LineFoldingOnly
 	// Check if the client supports hierarchical document symbols.
 	o.HierarchicalDocumentSymbolSupport = caps.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport
+}
+
+func (o *Options) Clone() *Options {
+	result := &Options{
+		ClientOptions:       o.ClientOptions,
+		DebuggingOptions:    o.DebuggingOptions,
+		ExperimentalOptions: o.ExperimentalOptions,
+		Hooks: Hooks{
+			GoDiff:        o.Hooks.GoDiff,
+			ComputeEdits:  o.Hooks.ComputeEdits,
+			GofumptFormat: o.GofumptFormat,
+			URLRegexp:     o.URLRegexp,
+		},
+		ServerOptions: o.ServerOptions,
+		UserOptions:   o.UserOptions,
+	}
+	// Fully clone any slice or map fields. Only Hooks, ExperimentalOptions,
+	// and UserOptions can be modified.
+	copyStringMap := func(src map[string]bool) map[string]bool {
+		dst := make(map[string]bool)
+		for k, v := range src {
+			dst[k] = v
+		}
+		return dst
+	}
+	result.Analyses = copyStringMap(o.Analyses)
+	result.Annotations = copyStringMap(o.Annotations)
+	result.Codelens = copyStringMap(o.Codelens)
+
+	copySlice := func(src []string) []string {
+		dst := make([]string, len(src))
+		copy(dst, src)
+		return dst
+	}
+	result.Env = copySlice(o.Env)
+	result.BuildFlags = copySlice(o.BuildFlags)
+
+	copyAnalyzerMap := func(src map[string]Analyzer) map[string]Analyzer {
+		dst := make(map[string]Analyzer)
+		for k, v := range src {
+			dst[k] = v
+		}
+		return dst
+	}
+	result.DefaultAnalyzers = copyAnalyzerMap(o.DefaultAnalyzers)
+	result.TypeErrorAnalyzers = copyAnalyzerMap(o.TypeErrorAnalyzers)
+	result.ConvenienceAnalyzers = copyAnalyzerMap(o.ConvenienceAnalyzers)
+	result.StaticcheckAnalyzers = copyAnalyzerMap(o.StaticcheckAnalyzers)
+	return result
+}
+
+func (options *Options) AddStaticcheckAnalyzer(a *analysis.Analyzer) {
+	options.StaticcheckAnalyzers[a.Name] = Analyzer{Analyzer: a, Enabled: true}
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {

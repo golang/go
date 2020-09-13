@@ -50,8 +50,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 		cache := cache.New(ctx, nil)
 		session := cache.NewSession(ctx)
-		options := source.DefaultOptions()
-		tests.DefaultOptions(&options)
+		options := source.DefaultOptions().Clone()
+		tests.DefaultOptions(options)
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
 		view, _, release, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
@@ -64,7 +64,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 
 		// Enable type error analyses for tests.
 		// TODO(golang/go#38212): Delete this once they are enabled by default.
-		tests.EnableAllAnalyzers(view, &options)
+		tests.EnableAllAnalyzers(view, options)
 		view.SetOptions(ctx, options)
 
 		// Only run the -modfile specific tests in module mode with Go 1.14 or above.
