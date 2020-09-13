@@ -136,6 +136,12 @@ func (e *UnmarshalTypeError) Error() string {
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
+// Is returns true if target is a UnmarshalTypeError.
+func (e *UnmarshalTypeError) Is(target error) bool {
+	_, ok := target.(*UnmarshalTypeError)
+	return ok
+}
+
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
 //
@@ -150,10 +156,22 @@ func (e *UnmarshalFieldError) Error() string {
 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
+// Is returns true if target is a UnmarshalFieldError.
+func (e *UnmarshalFieldError) Is(target error) bool {
+	_, ok := target.(*UnmarshalFieldError)
+	return ok
+}
+
 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
 // (The argument to Unmarshal must be a non-nil pointer.)
 type InvalidUnmarshalError struct {
 	Type reflect.Type
+}
+
+// Is returns true if target is a InvalidUnmarshalError.
+func (e *InvalidUnmarshalError) Is(target error) bool {
+	_, ok := target.(*InvalidUnmarshalError)
+	return ok
 }
 
 func (e *InvalidUnmarshalError) Error() string {
