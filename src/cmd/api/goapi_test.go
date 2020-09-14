@@ -216,3 +216,16 @@ func TestIssue29837(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue41358(t *testing.T) {
+	context := new(build.Context)
+	*context = build.Default
+	context.Dir = filepath.Join(context.GOROOT, "src")
+
+	w := NewWalker(context, context.Dir)
+	for _, pkg := range w.stdPackages {
+		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
+			t.Fatalf("stdPackages contains unexpected package %s", pkg)
+		}
+	}
+}

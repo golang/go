@@ -1106,8 +1106,12 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 		// Do the same for importers beginning with the prefix 'vendor/' even if we
 		// are *inside* of the 'std' module: the 'vendor/' packages that resolve
 		// globally from GOROOT/src/vendor (and are listed as part of 'go list std')
-		// are distinct from the real module dependencies, and cannot import internal
-		// packages from the real module.
+		// are distinct from the real module dependencies, and cannot import
+		// internal packages from the real module.
+		//
+		// (Note that although the 'vendor/' packages match the 'std' *package*
+		// pattern, they are not part of the std *module*, and do not affect
+		// 'go mod tidy' and similar module commands when working within std.)
 		vendorPath := pathpkg.Join("vendor", path)
 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
 			return vendorPath
