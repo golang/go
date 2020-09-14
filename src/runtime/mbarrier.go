@@ -281,28 +281,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 	if elemType.ptrdata == 0 {
-		n := dst.len
-		if n > src.len {
-			n = src.len
-		}
-		if n == 0 {
-			return 0
-		}
-
-		size := uintptr(n) * elemType.size
-		if raceenabled {
-			callerpc := getcallerpc()
-			pc := funcPC(reflect_typedslicecopy)
-			racewriterangepc(dst.array, size, callerpc, pc)
-			racereadrangepc(src.array, size, callerpc, pc)
-		}
-		if msanenabled {
-			msanwrite(dst.array, size)
-			msanread(src.array, size)
-		}
-
-		memmove(dst.array, src.array, size)
-		return n
+		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.size)
 	}
 	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
 }
