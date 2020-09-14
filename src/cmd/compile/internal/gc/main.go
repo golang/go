@@ -809,6 +809,9 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 
+	if len(funcStack) != 0 {
+		Fatalf("funcStack is non-empty: %v", len(funcStack))
+	}
 	if len(compilequeue) != 0 {
 		Fatalf("%d uncompiled functions", len(compilequeue))
 	}
