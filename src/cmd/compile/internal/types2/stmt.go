@@ -253,7 +253,7 @@ L:
 					continue L
 				}
 			}
-			seen[val] = append(seen[val], valueType{v.pos(), v.typ})
+			seen[val] = append(seen[val], valueType{v.Pos(), v.typ})
 		}
 	}
 }

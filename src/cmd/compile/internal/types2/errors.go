@@ -101,55 +101,49 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	f(err)
 }
 
-func (check *Checker) error(at interface{}, msg string) {
+type poser interface {
+	Pos() syntax.Pos
+}
+
+func (check *Checker) error(at poser, msg string) {
 	check.err(posFor(at), msg, false)
 }
 
-func (check *Checker) errorf(at interface{}, format string, args ...interface{}) {
+func (check *Checker) errorf(at poser, format string, args ...interface{}) {
 	check.err(posFor(at), check.sprintf(format, args...), false)
 }
 
-func (check *Checker) softErrorf(at interface{}, format string, args ...interface{}) {
+func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
 	check.err(posFor(at), check.sprintf(format, args...), true)
 }
 
-func (check *Checker) invalidASTf(at interface{}, format string, args ...interface{}) {
+func (check *Checker) invalidASTf(at poser, format string, args ...interface{}) {
 	check.errorf(at, "invalid AST: "+format, args...)
 }
 
-func (check *Checker) invalidArgf(at interface{}, format string, args ...interface{}) {
+func (check *Checker) invalidArgf(at poser, format string, args ...interface{}) {
 	check.errorf(at, "invalid argument: "+format, args...)
 }
 
-func (check *Checker) invalidOpf(at interface{}, format string, args ...interface{}) {
+func (check *Checker) invalidOpf(at poser, format string, args ...interface{}) {
 	check.errorf(at, "invalid operation: "+format, args...)
 }
 
 // posFor reports the left (= start) position of at.
-func posFor(at interface{}) syntax.Pos {
+func posFor(at poser) syntax.Pos {
 	switch x := at.(type) {
-	case nil:
-		panic("internal error: nil")
-	case syntax.Pos:
-		return x
-	case operand:
-		panic("internal error: should always pass *operand")
 	case *operand:
 		if x.expr != nil {
 			return leftPos(x.expr)
 		}
-		return nopos
 	case syntax.Node:
 		return leftPos(x)
-	case Object:
-		return x.Pos()
-	default:
-		panic(fmt.Sprintf("internal error: unknown type %T", x))
 	}
+	return at.Pos()
 }
 
 // leftPos returns left (= start) position of n.
-func leftPos(n syntax.Node) (pos syntax.Pos) {
+func leftPos(n syntax.Node) syntax.Pos {
 	// Cases for nodes which don't need a correction are commented out.
 	switch n := n.(type) {
 	case nil:

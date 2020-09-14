@@ -41,7 +41,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
-		inferred := check.subst(arg.pos(), tpar, smap)
+		inferred := check.subst(arg.Pos(), tpar, smap)
 		if inferred != tpar {
 			check.errorf(arg, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {

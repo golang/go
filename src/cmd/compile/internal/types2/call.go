@@ -127,7 +127,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) 
 					return expression
 				}
 				targs[i] = a.typ
-				poslist[i] = a.pos()
+				poslist[i] = a.Pos()
 			}
 
 			// if we don't have enough type arguments, use constraint type inference
@@ -171,7 +171,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr, orig syntax.Expr) 
 				}
 				check.ordinaryType(pos, typ)
 			}
-			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
+			res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 			assert(res.tparams == nil) // signature is not generic anymore
 			if inferred {
 				check.recordInferred(orig, targs, res)
