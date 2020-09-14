@@ -1,6 +1,6 @@
 module golang.org/x/tools/gopls
 
-go 1.13
+go 1.12
 
 require (
 	github.com/sergi/go-diff v1.1.0
