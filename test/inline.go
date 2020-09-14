@@ -50,7 +50,7 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
-var somethingWrong error = errors.New("something went wrong")
+var somethingWrong error = errors.New("something went wrong") // ERROR "can inline init" "inlining call to errors.New" "errors.errorString.* escapes to heap"
 
 // local closures can be inlined
 func l(x, y int) (int, int, error) {

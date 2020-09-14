@@ -642,6 +642,8 @@ func Main(archInit func(*Arch)) {
 		errorexit()
 	}
 
+	fninit(xtop)
+
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
@@ -750,10 +752,6 @@ func Main(archInit func(*Arch)) {
 		}
 	}
 	timings.AddEvent(fcount, "funcs")
-
-	if nsavederrors+nerrors == 0 {
-		fninit(xtop)
-	}
 
 	compileFunctions()
 
