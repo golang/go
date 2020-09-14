@@ -49,7 +49,11 @@ func initLocal() {
 		if tz != "" && tz[0] == '/' {
 			if z, err := loadLocation(tz, []string{""}); err == nil {
 				localLoc = *z
-				localLoc.name = "Local"
+				if tz == "/etc/localtime" {
+					localLoc.name = "Local"
+				} else {
+					localLoc.name = tz
+				}
 				return
 			}
 		} else if tz != "" && tz != "UTC" {

@@ -5,8 +5,9 @@
 package time_test
 
 import (
-	"testing"
+	"fmt"
 	"os"
+	"testing"
 	"time"
 )
 
@@ -22,8 +23,8 @@ func TestEnvTZUsage(t *testing.T) {
 
 	cases := []struct {
 		nilFlag bool
-		tz string
-		local string
+		tz      string
+		local   string
 	}{
 		// no $TZ means use the system default /etc/localtime.
 		{true, "", "Local"},
@@ -32,6 +33,8 @@ func TestEnvTZUsage(t *testing.T) {
 		{false, ":", "UTC"},
 		{false, "Asia/Shanghai", "Asia/Shanghai"},
 		{false, ":Asia/Shanghai", "Asia/Shanghai"},
+		{false, "/etc/localtime", "Local"},
+		{false, ":/etc/localtime", "Local"},
 	}
 
 	for _, c := range cases {
@@ -56,8 +59,8 @@ func TestEnvTZUsage(t *testing.T) {
 		}
 		return
 	}
-	if time.Local.String() != "Local" {
-		t.Errorf(`custom path should lead to Local: got %q want "Local"`, time.Local)
+	if time.Local.String() != path {
+		t.Errorf(`custom path should lead to path itself: got %q want %q`, time.Local, path)
 	}
 
 	timeInUTC := time.Date(2009, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -67,7 +70,13 @@ func TestEnvTZUsage(t *testing.T) {
 	}
 
 	time.ResetLocalOnceForTest()
-	os.Setenv(env, path[:len(path) - 1])
+	os.Setenv(env, fmt.Sprintf(":%s", path))
+	if time.Local.String() != path {
+		t.Errorf(`custom path should lead to path itself: got %q want %q`, time.Local, path)
+	}
+
+	time.ResetLocalOnceForTest()
+	os.Setenv(env, path[:len(path)-1])
 	if time.Local.String() != "UTC" {
 		t.Errorf(`invalid path should fallback to UTC: got %q want "UTC"`, time.Local)
 	}
