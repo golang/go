@@ -311,3 +311,50 @@ func Hello() int {
 		}
 	})
 }
+
+// This test confirms that a gopls workspace can recover from initialization
+// with one invalid module.
+func TestOneBrokenModule(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+-- modb/go.mod --
+modul b.com // typo here
+
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+`
+	run(t, multiModule, func(t *testing.T, env *Env) {
+		env.Await(InitialWorkspaceLoad)
+		env.OpenFile("modb/go.mod")
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
+				DiagnosticAt("modb/go.mod", 0, 0),
+			),
+		)
+		env.RegexpReplace("modb/go.mod", "modul", "module")
+		env.Editor.SaveBufferWithoutActions(env.Ctx, "modb/go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+		)
+	})
+}

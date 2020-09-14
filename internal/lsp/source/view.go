@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -482,6 +483,17 @@ type Package interface {
 	MissingDependencies() []string
 	Imports() []Package
 	Version() *module.Version
+}
+
+type ErrorList []*Error
+
+func (err *ErrorList) Error() string {
+	var b strings.Builder
+	b.WriteString("source error list:")
+	for _, e := range *err {
+		b.WriteString(fmt.Sprintf("\n\t%s", e))
+	}
+	return b.String()
 }
 
 type Error struct {

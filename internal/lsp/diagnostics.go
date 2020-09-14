@@ -97,6 +97,15 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		if errors.Is(err, context.Canceled) {
 			return nil, nil
 		}
+		// Some error messages can be displayed as diagnostics.
+		if errList := (*source.ErrorList)(nil); errors.As(err, &errList) {
+			if r, err := errorsToDiagnostic(ctx, snapshot, *errList); err == nil {
+				for k, v := range r {
+					reports[k] = v
+				}
+				return reports, nil
+			}
+		}
 		// Try constructing a more helpful error message out of this error.
 		if s.handleFatalErrors(ctx, snapshot, modErr, err) {
 			return nil, nil
@@ -212,6 +221,32 @@ func diagnosticKey(d *source.Diagnostic) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 }
 
+func errorsToDiagnostic(ctx context.Context, snapshot source.Snapshot, errors []*source.Error) (map[idWithAnalysis]map[string]*source.Diagnostic, error) {
+	reports := make(map[idWithAnalysis]map[string]*source.Diagnostic)
+	for _, e := range errors {
+		diagnostic := &source.Diagnostic{
+			Range:    e.Range,
+			Message:  e.Message,
+			Related:  e.Related,
+			Severity: protocol.SeverityError,
+			Source:   e.Category,
+		}
+		fh, err := snapshot.GetFile(ctx, e.URI)
+		if err != nil {
+			return nil, err
+		}
+		id := idWithAnalysis{
+			id:           fh.VersionedFileIdentity(),
+			withAnalysis: false,
+		}
+		if _, ok := reports[id]; !ok {
+			reports[id] = make(map[string]*source.Diagnostic)
+		}
+		reports[id][diagnosticKey(diagnostic)] = diagnostic
+	}
+	return reports, nil
+}
+
 func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[idWithAnalysis]map[string]*source.Diagnostic) {
 	// Check for context cancellation before publishing diagnostics.
 	if ctx.Err() != nil {
@@ -322,7 +357,8 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 func (s *Server) handleFatalErrors(ctx context.Context, snapshot source.Snapshot, modErr, loadErr error) bool {
 	modURI := snapshot.View().ModFile()
 
-	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
+	// If the folder has no Go code in it, we shouldn't spam the user with a
+	// warning.
 	var hasGo bool
 	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
 		if !strings.HasSuffix(info.Name(), ".go") {

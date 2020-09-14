@@ -1402,7 +1402,7 @@ func (s *snapshot) BuildWorkspaceModFile(ctx context.Context) (*modfile.File, er
 		if err != nil {
 			return nil, err
 		}
-		if parsed.File.Module == nil {
+		if parsed.File == nil || parsed.File.Module == nil {
 			return nil, fmt.Errorf("no module declaration for %s", mod.modURI)
 		}
 		path := parsed.File.Module.Mod.Path

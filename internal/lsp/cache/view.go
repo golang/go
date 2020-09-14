@@ -711,24 +711,35 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 
 		// If we have multiple modules, we need to load them by paths.
 		var scopes []interface{}
+		var modErrors *source.ErrorList
+		addError := func(uri span.URI, err error) {
+			if modErrors == nil {
+				modErrors = &source.ErrorList{}
+			}
+			*modErrors = append(*modErrors, &source.Error{
+				URI:      uri,
+				Category: "compiler",
+				Kind:     source.ListError,
+				Message:  err.Error(),
+			})
+		}
 		if len(s.modules) > 0 {
-			// TODO(rstambler): Retry the initial workspace load for whichever
-			// modules we failed to load.
 			for _, mod := range s.modules {
 				fh, err := s.GetFile(ctx, mod.modURI)
 				if err != nil {
-					s.view.initializedErr = err
+					addError(mod.modURI, err)
 					continue
 				}
 				parsed, err := s.ParseMod(ctx, fh)
 				if err != nil {
-					s.view.initializedErr = err
+					addError(mod.modURI, err)
 					continue
 				}
 				path := parsed.File.Module.Mod.Path
 				scopes = append(scopes, moduleLoadScope(path))
 			}
-		} else {
+		}
+		if len(scopes) == 0 {
 			scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
 		}
 		err := s.load(ctx, append(scopes, packagePath("builtin"))...)
@@ -737,8 +748,12 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 		}
 		if err != nil {
 			event.Error(ctx, "initial workspace load failed", err)
+			if modErrors != nil {
+				s.view.initializedErr = errors.Errorf("errors loading modules: %v: %w", err, modErrors)
+			} else {
+				s.view.initializedErr = err
+			}
 		}
-		s.view.initializedErr = err
 	})
 }
 
