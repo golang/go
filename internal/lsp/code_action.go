@@ -327,6 +327,9 @@ func diagnosticToAnalyzer(snapshot source.Snapshot, src, msg string) (analyzer *
 	if a, ok := snapshot.View().Options().DefaultAnalyzers[src]; ok {
 		return &a
 	}
+	if a, ok := snapshot.View().Options().StaticcheckAnalyzers[src]; ok {
+		return &a
+	}
 	if a, ok := snapshot.View().Options().ConvenienceAnalyzers[src]; ok {
 		return &a
 	}
