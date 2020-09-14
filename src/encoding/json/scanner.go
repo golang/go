@@ -49,12 +49,6 @@ type SyntaxError struct {
 
 func (e *SyntaxError) Error() string { return e.msg }
 
-// Is returns true if target is a SyntaxError.
-func (e *SyntaxError) Is(target error) bool {
-	_, ok := target.(*SyntaxError)
-	return ok
-}
-
 // A scanner is a JSON scanning state machine.
 // Callers call scan.reset and then pass bytes in one at a time
 // by calling scan.step(&scan, c) for each byte.

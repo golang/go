@@ -6,8 +6,6 @@ package json
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"math"
 	"math/rand"
 	"reflect"
@@ -200,13 +198,6 @@ func TestIndentErrors(t *testing.T) {
 				continue
 			}
 		}
-	}
-}
-
-func TestSyntaxErrorIs(t *testing.T) {
-	err := fmt.Errorf("apackage: %w: failed to parse struct", &SyntaxError{"some error", 43})
-	if !errors.Is(err, &SyntaxError{}) {
-		t.Fatalf("%v should be unwrapped to a SyntaxError", err)
 	}
 }
 
