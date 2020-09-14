@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build darwin dragonfly freebsd illumos linux netbsd openbsd
 
 package poll
 
@@ -38,7 +38,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 			if len(chunk) == 0 {
 				continue
 			}
-			iovecs = append(iovecs, syscall.Iovec{Base: &chunk[0]})
+			iovecs = append(iovecs, newIovecWithBase(&chunk[0]))
 			if fd.IsStream && len(chunk) > 1<<30 {
 				iovecs[len(iovecs)-1].SetLen(1 << 30)
 				break // continue chunk on next writev
