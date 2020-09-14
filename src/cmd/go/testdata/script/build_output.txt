@@ -18,6 +18,22 @@ go build -o myprog x.go
 exists -exec myprog
 ! exists myprogr.exe
 
+! exists bin
+go build -o bin/x x.go
+exists -exec bin/x
+rm bin
+
+! exists bin
+go build -o bin/ x.go
+exists -exec bin/x
+rm bin
+
+! exists bin
+mkdir bin
+go build -o bin x.go
+exists -exec bin/x
+rm bin
+
 go build p.go
 ! exists p
 ! exists p.a
