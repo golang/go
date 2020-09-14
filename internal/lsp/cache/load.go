@@ -91,7 +91,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	cfg := s.config(ctx)
 
 	cleanup := func() {}
-	
+
 	var modFH, sumFH source.FileHandle
 	var err error
 	if s.view.modURI != "" {
@@ -108,7 +108,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	}
 
 	switch {
-	case s.view.workspaceMode&workspaceModule != 0:
+	case s.view.workspaceMode&usesWorkspaceModule != 0:
 		var (
 			tmpDir span.URI
 			err    error

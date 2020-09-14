@@ -159,14 +159,14 @@ type View struct {
 type workspaceMode int
 
 const (
-	standard workspaceMode = 1 << iota
+	moduleMode workspaceMode = 1 << iota
 
 	// tempModfile indicates whether or not the -modfile flag should be used.
 	tempModfile
 
-	// workspaceModule indicates support for the experimental workspace module
+	// usesWorkspaceModule indicates support for the experimental workspace module
 	// feature.
-	workspaceModule
+	usesWorkspaceModule
 )
 
 type builtinPackageHandle struct {
@@ -818,6 +818,9 @@ func (v *View) setBuildInformation(ctx context.Context, options source.Options) 
 	if err != nil {
 		return err
 	}
+	if modFile != "" {
+		v.workspaceMode |= moduleMode
+	}
 	if modFile == os.DevNull {
 		return nil
 	}
@@ -836,7 +839,6 @@ func (v *View) setBuildInformation(ctx context.Context, options source.Options) 
 	if !options.TempModfile || v.modURI == "" {
 		return nil
 	}
-	v.workspaceMode = standard
 	if v.goversion >= 14 {
 		v.workspaceMode |= tempModfile
 	}
@@ -1020,7 +1022,7 @@ func (v *View) goVersion(ctx context.Context, env []string) (int, error) {
 var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 
 func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (bool, error) {
-	if v.goversion < 16 || modFH == nil {
+	if v.goversion < 16 || v.workspaceMode&moduleMode == 0 {
 		return false, nil
 	}
 
@@ -1034,6 +1036,12 @@ func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (
 		// We do want to override '-mod=readonly': it would break various module code lenses,
 		// and on 1.16 we know -modfile is available, so we won't mess with go.mod anyway.
 		return modFlag == "vendor", nil
+	}
+
+	// In workspace module mode, there may not be a go.mod file.
+	// TODO: Once vendor mode is designed, update to check if it's on, however that works.
+	if modFH == nil {
+		return true, nil
 	}
 
 	modBytes, err := modFH.Read()

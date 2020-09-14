@@ -217,10 +217,13 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, cfg *packages.Config
 		}
 		cfg.BuildFlags = append(cfg.BuildFlags, fmt.Sprintf("-modfile=%s", tmpURI.Filename()))
 	}
-	if s.view.modURI != "" && verb != "mod" && verb != "get" {
-		modFH, err := s.GetFile(ctx, s.view.modURI)
-		if err != nil {
-			return "", nil, nil, cleanup, err
+	if verb != "mod" && verb != "get" {
+		var modFH source.FileHandle
+		if s.view.modURI != "" {
+			modFH, err = s.GetFile(ctx, s.view.modURI)
+			if err != nil {
+				return "", nil, nil, cleanup, err
+			}
 		}
 		modMod, err := s.view.needsModEqualsMod(ctx, modFH)
 		if err != nil {

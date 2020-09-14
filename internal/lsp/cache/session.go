@@ -257,7 +257,7 @@ func (v *View) findAndBuildWorkspaceModule(ctx context.Context, options source.O
 		return nil
 	}
 
-	v.workspaceMode |= workspaceModule
+	v.workspaceMode |= usesWorkspaceModule | moduleMode
 
 	// Walk the view's folder to find all modules in the view.
 	root := v.root.Filename()
