@@ -1484,7 +1484,7 @@ opswitch:
 		} else {
 			// slicebytetostring(*[32]byte, ptr *byte, n int) string
 			n.Left = cheapexpr(n.Left, init)
-			ptr, len := n.Left.slicePtrLen()
+			ptr, len := n.Left.backingArrayPtrLen()
 			n = mkcall("slicebytetostring", n.Type, init, a, ptr, len)
 		}
 
@@ -1497,7 +1497,7 @@ opswitch:
 		}
 		// slicebytetostringtmp(ptr *byte, n int) string
 		n.Left = cheapexpr(n.Left, init)
-		ptr, len := n.Left.slicePtrLen()
+		ptr, len := n.Left.backingArrayPtrLen()
 		n = mkcall("slicebytetostringtmp", n.Type, init, ptr, len)
 
 	case OSTR2BYTES:
@@ -2764,36 +2764,25 @@ func appendslice(n *Node, init *Nodes) *Node {
 		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
 		fn := syslook("typedslicecopy")
 		fn = substArgTypes(fn, l1.Type.Elem(), l2.Type.Elem())
-		ptr1, len1 := nptr1.slicePtrLen()
-		ptr2, len2 := nptr2.slicePtrLen()
+		ptr1, len1 := nptr1.backingArrayPtrLen()
+		ptr2, len2 := nptr2.backingArrayPtrLen()
 		ncopy = mkcall1(fn, types.Types[TINT], &nodes, typename(elemtype), ptr1, len1, ptr2, len2)
-
 	} else if instrumenting && !compiling_runtime {
-		// rely on runtime to instrument copy.
-		// copy(s[len(l1):], l2)
+		// rely on runtime to instrument:
+		//  copy(s[len(l1):], l2)
+		// l2 can be a slice or string.
 		nptr1 := nod(OSLICE, s, nil)
 		nptr1.Type = s.Type
 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
 		nptr1 = cheapexpr(nptr1, &nodes)
-
 		nptr2 := l2
 
-		if l2.Type.IsString() {
-			// instantiate func slicestringcopy(toPtr *byte, toLen int, fr string) int
-			fn := syslook("slicestringcopy")
-			ptr, len := nptr1.slicePtrLen()
-			str := nod(OCONVNOP, nptr2, nil)
-			str.Type = types.Types[TSTRING]
-			ncopy = mkcall1(fn, types.Types[TINT], &nodes, ptr, len, str)
-		} else {
-			// instantiate func slicecopy(to any, fr any, wid uintptr) int
-			fn := syslook("slicecopy")
-			fn = substArgTypes(fn, l1.Type.Elem(), l2.Type.Elem())
-			ptr1, len1 := nptr1.slicePtrLen()
-			ptr2, len2 := nptr2.slicePtrLen()
-			ncopy = mkcall1(fn, types.Types[TINT], &nodes, ptr1, len1, ptr2, len2, nodintconst(elemtype.Width))
-		}
+		ptr1, len1 := nptr1.backingArrayPtrLen()
+		ptr2, len2 := nptr2.backingArrayPtrLen()
 
+		fn := syslook("slicecopy")
+		fn = substArgTypes(fn, ptr1.Type.Elem(), ptr2.Type.Elem())
+		ncopy = mkcall1(fn, types.Types[TINT], &nodes, ptr1, len1, ptr2, len2, nodintconst(elemtype.Width))
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 := nod(OINDEX, s, nod(OLEN, l1, nil))
@@ -3092,28 +3081,25 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 		Curfn.Func.setWBPos(n.Pos)
 		fn := writebarrierfn("typedslicecopy", n.Left.Type.Elem(), n.Right.Type.Elem())
 		n.Left = cheapexpr(n.Left, init)
-		ptrL, lenL := n.Left.slicePtrLen()
+		ptrL, lenL := n.Left.backingArrayPtrLen()
 		n.Right = cheapexpr(n.Right, init)
-		ptrR, lenR := n.Right.slicePtrLen()
+		ptrR, lenR := n.Right.backingArrayPtrLen()
 		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), ptrL, lenL, ptrR, lenR)
 	}
 
 	if runtimecall {
-		if n.Right.Type.IsString() {
-			fn := syslook("slicestringcopy")
-			n.Left = cheapexpr(n.Left, init)
-			ptr, len := n.Left.slicePtrLen()
-			str := nod(OCONVNOP, n.Right, nil)
-			str.Type = types.Types[TSTRING]
-			return mkcall1(fn, n.Type, init, ptr, len, str)
-		}
+		// rely on runtime to instrument:
+		//  copy(n.Left, n.Right)
+		// n.Right can be a slice or string.
+
+		n.Left = cheapexpr(n.Left, init)
+		ptrL, lenL := n.Left.backingArrayPtrLen()
+		n.Right = cheapexpr(n.Right, init)
+		ptrR, lenR := n.Right.backingArrayPtrLen()
 
 		fn := syslook("slicecopy")
-		fn = substArgTypes(fn, n.Left.Type.Elem(), n.Right.Type.Elem())
-		n.Left = cheapexpr(n.Left, init)
-		ptrL, lenL := n.Left.slicePtrLen()
-		n.Right = cheapexpr(n.Right, init)
-		ptrR, lenR := n.Right.slicePtrLen()
+		fn = substArgTypes(fn, ptrL.Type.Elem(), ptrR.Type.Elem())
+
 		return mkcall1(fn, n.Type, init, ptrL, lenL, ptrR, lenR, nodintconst(n.Left.Type.Elem().Width))
 	}
 
