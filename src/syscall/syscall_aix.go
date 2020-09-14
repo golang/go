@@ -214,6 +214,11 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
+//sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+func Fsync(fd int) error {
+	return fsyncRange(fd, O_SYNC, 0, 0)
+}
+
 /*
  * Socket
  */
@@ -600,7 +605,6 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Fsync(fd int) (err error)
 //sysnb	Getgid() (gid int)
 //sysnb	Getpid() (pid int)
 //sys	Geteuid() (euid int)
