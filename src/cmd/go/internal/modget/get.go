@@ -225,6 +225,8 @@ type getArg struct {
 	vers string
 }
 
+func (arg getArg) String() string { return arg.raw }
+
 // querySpec describes a query for a specific module. path may be a
 // module path, package path, or package pattern. vers is a version
 // query string from a command line argument.
@@ -278,13 +280,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.LoadTests = *getT
 
-	buildList := modload.LoadAllModules(ctx)
-	buildList = buildList[:len(buildList):len(buildList)] // copy on append
-	versionByPath := make(map[string]string)
-	for _, m := range buildList {
-		versionByPath[m.Path] = m.Version
-	}
-
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
 	// what was requested.
@@ -294,150 +289,15 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// 'go get' is expected to do this, unlike other commands.
 	modload.AllowMissingModuleImports()
 
-	// Parse command-line arguments and report errors. The command-line
-	// arguments are of the form path@version or simply path, with implicit
-	// @upgrade. path@none is "downgrade away".
-	var gets []getArg
-	var queries []*query
-	for _, arg := range search.CleanPatterns(args) {
-		// Argument is path or path@vers.
-		path := arg
-		vers := ""
-		if i := strings.Index(arg, "@"); i >= 0 {
-			path, vers = arg[:i], arg[i+1:]
-		}
-		if strings.Contains(vers, "@") || arg != path && vers == "" {
-			base.Errorf("go get %s: invalid module version syntax", arg)
-			continue
-		}
+	getArgs := parseArgs(args)
 
-		// Guard against 'go get x.go', a common mistake.
-		// Note that package and module paths may end with '.go', so only print an error
-		// if the argument has no version and either has no slash or refers to an existing file.
-		if strings.HasSuffix(arg, ".go") && vers == "" {
-			if !strings.Contains(arg, "/") {
-				base.Errorf("go get %s: arguments must be package or module paths", arg)
-				continue
-			}
-			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
-				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
-				continue
-			}
-		}
-
-		// If no version suffix is specified, assume @upgrade.
-		// If -u=patch was specified, assume @patch instead.
-		if vers == "" {
-			if getU != "" {
-				vers = string(getU)
-			} else {
-				vers = "upgrade"
-			}
-		}
-
-		gets = append(gets, getArg{raw: arg, path: path, vers: vers})
-
-		// Determine the modules that path refers to, and create queries
-		// to lookup modules at target versions before loading packages.
-		// This is an imprecise process, but it helps reduce unnecessary
-		// queries and package loading. It's also necessary for handling
-		// patterns like golang.org/x/tools/..., which can't be expanded
-		// during package loading until they're in the build list.
-		switch {
-		case filepath.IsAbs(path) || search.IsRelativePath(path):
-			// Absolute paths like C:\foo and relative paths like ../foo...
-			// are restricted to matching packages in the main module. If the path
-			// is explicit and contains no wildcards (...), check that it is a
-			// package in the main module. If the path contains wildcards but
-			// matches no packages, we'll warn after package loading.
-			if !strings.Contains(path, "...") {
-				m := search.NewMatch(path)
-				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
-					m = modload.TargetPackages(ctx, pkgPath)
-				}
-				if len(m.Pkgs) == 0 {
-					for _, err := range m.Errs {
-						base.Errorf("go get %s: %v", arg, err)
-					}
-
-					abs, err := filepath.Abs(path)
-					if err != nil {
-						abs = path
-					}
-					base.Errorf("go get %s: path %s is not a package in module rooted at %s", arg, abs, modload.ModRoot())
-					continue
-				}
-			}
-
-			if path != arg {
-				base.Errorf("go get %s: can't request explicit version of path in main module", arg)
-				continue
-			}
-
-		case strings.Contains(path, "..."):
-			// Wait until we load packages to look up modules.
-			// We don't know yet whether any modules in the build list provide
-			// packages matching the pattern. For example, suppose
-			// golang.org/x/tools and golang.org/x/tools/playground are separate
-			// modules, and only golang.org/x/tools is in the build list. If the
-			// user runs 'go get golang.org/x/tools/playground/...', we should
-			// add a requirement for golang.org/x/tools/playground. We should not
-			// upgrade golang.org/x/tools.
-
-		case path == "all":
-			// If there is no main module, "all" is not meaningful.
-			if !modload.HasModRoot() {
-				base.Errorf(`go get %s: cannot match "all": working directory is not part of a module`, arg)
-			}
-			// Don't query modules until we load packages. We'll automatically
-			// look up any missing modules.
-
-		case search.IsMetaPackage(path):
-			base.Errorf("go get %s: explicit requirement on standard-library module %s not allowed", path, path)
-			continue
-
-		default:
-			// The argument is a package or module path.
-			if modload.HasModRoot() {
-				if m := modload.TargetPackages(ctx, path); len(m.Pkgs) != 0 {
-					// The path is in the main module. Nothing to query.
-					if vers != "upgrade" && vers != "patch" {
-						base.Errorf("go get %s: can't request explicit version of path in main module", arg)
-					}
-					continue
-				}
-			}
-
-			first := path
-			if i := strings.IndexByte(first, '/'); i >= 0 {
-				first = path
-			}
-			if !strings.Contains(first, ".") {
-				// The path doesn't have a dot in the first component and cannot be
-				// queried as a module. It may be a package in the standard library,
-				// which is fine, so don't report an error unless we encounter
-				// a problem loading packages below.
-				continue
-			}
-
-			// If we're querying "upgrade" or "patch", we need to know the current
-			// version of the module. For "upgrade", we want to avoid accidentally
-			// downgrading from a newer prerelease. For "patch", we need to query
-			// the correct minor version.
-			// Here, we check if "path" is the name of a module in the build list
-			// (other than the main module) and set prevM if so. If "path" isn't
-			// a module in the build list, the current version doesn't matter
-			// since it's either an unknown module or a package within a module
-			// that we'll discover later.
-			q := &query{querySpec: querySpec{path: path, vers: vers}, arg: arg}
-			if v, ok := versionByPath[path]; ok && path != modload.Target.Path {
-				q.prevM = module.Version{Path: path, Version: v}
-				q.forceModulePath = true
-			}
-			queries = append(queries, q)
-		}
+	buildList := modload.LoadAllModules(ctx)
+	buildList = buildList[:len(buildList):len(buildList)] // copy on append
+	selectedVersion := make(map[string]string)
+	for _, m := range buildList {
+		selectedVersion[m.Path] = m.Version
 	}
-	base.ExitIfErrors()
+	queries := classifyArgs(ctx, selectedVersion, getArgs)
 
 	// Query modules referenced by command line arguments at requested versions.
 	// We need to do this before loading packages since patterns that refer to
@@ -450,11 +310,11 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// We call SetBuildList here and elsewhere, since newUpgrader,
 	// ImportPathsQuiet, and other functions read the global build list.
 	for _, q := range queries {
-		if _, ok := versionByPath[q.m.Path]; !ok && q.m.Version != "none" {
+		if _, ok := selectedVersion[q.m.Path]; !ok && q.m.Version != "none" {
 			buildList = append(buildList, q.m)
 		}
 	}
-	versionByPath = nil // out of date now; rebuilt later when needed
+	selectedVersion = nil // out of date now; rebuilt later when needed
 	modload.SetBuildList(buildList)
 
 	// Upgrade modules specifically named on the command line. This is our only
@@ -508,7 +368,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Build a list of arguments that may refer to packages.
 	var pkgPatterns []string
 	var pkgGets []getArg
-	for _, arg := range gets {
+	for _, arg := range getArgs {
 		if modOnly[arg.path] == nil && arg.vers != "none" {
 			pkgPatterns = append(pkgPatterns, arg.path)
 			pkgGets = append(pkgGets, arg)
@@ -643,12 +503,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Scan for any upgrades lost by the downgrades.
 	var lostUpgrades []*query
 	if len(down) > 0 {
-		versionByPath = make(map[string]string)
+		selectedVersion = make(map[string]string)
 		for _, m := range modload.LoadedModules() {
-			versionByPath[m.Path] = m.Version
+			selectedVersion[m.Path] = m.Version
 		}
 		for _, q := range byPath {
-			if v, ok := versionByPath[q.m.Path]; q.m.Version != "none" && (!ok || semver.Compare(v, q.m.Version) != 0) {
+			if v, ok := selectedVersion[q.m.Path]; q.m.Version != "none" && (!ok || semver.Compare(v, q.m.Version) != 0) {
 				lostUpgrades = append(lostUpgrades, q)
 			}
 		}
@@ -695,7 +555,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			if sep != "," {
 				// We have no idea why this happened.
 				// At least report the problem.
-				if v := versionByPath[q.m.Path]; v == "" {
+				if v := selectedVersion[q.m.Path]; v == "" {
 					fmt.Fprintf(&buf, " removed unexpectedly")
 				} else {
 					fmt.Fprintf(&buf, " ended up at %s unexpectedly", v)
@@ -733,6 +593,174 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit()
 	pkgs := load.PackagesForBuild(ctx, pkgPatterns)
 	work.InstallPackages(ctx, pkgPatterns, pkgs)
+}
+
+// parseArgs parses command-line arguments and reports errors.
+//
+// The command-line arguments are of the form path@version or simply path, with
+// implicit @upgrade. path@none is "downgrade away".
+func parseArgs(rawArgs []string) []getArg {
+	defer base.ExitIfErrors()
+
+	var gets []getArg
+	for _, raw := range search.CleanPatterns(rawArgs) {
+		// Argument is path or path@vers.
+		path := raw
+		vers := ""
+		if i := strings.Index(raw, "@"); i >= 0 {
+			path, vers = raw[:i], raw[i+1:]
+		}
+		if strings.Contains(vers, "@") || raw != path && vers == "" {
+			base.Errorf("go get %s: invalid module version syntax", raw)
+			continue
+		}
+
+		// Guard against 'go get x.go', a common mistake.
+		// Note that package and module paths may end with '.go', so only print an error
+		// if the argument has no version and either has no slash or refers to an existing file.
+		if strings.HasSuffix(raw, ".go") && vers == "" {
+			if !strings.Contains(raw, "/") {
+				base.Errorf("go get %s: arguments must be package or module paths", raw)
+				continue
+			}
+			if fi, err := os.Stat(raw); err == nil && !fi.IsDir() {
+				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", raw)
+				continue
+			}
+		}
+
+		// If no version suffix is specified, assume @upgrade.
+		// If -u=patch was specified, assume @patch instead.
+		if vers == "" {
+			if getU != "" {
+				vers = string(getU)
+			} else {
+				vers = "upgrade"
+			}
+		}
+
+		gets = append(gets, getArg{raw: raw, path: path, vers: vers})
+	}
+
+	return gets
+}
+
+// classifyArgs determines which arguments refer to packages and which refer to
+// modules, and creates queries to look up modules at target versions before
+// loading packages.
+//
+// This is an imprecise process, but it helps reduce unnecessary
+// queries and package loading. It's also necessary for handling
+// patterns like golang.org/x/tools/..., which can't be expanded
+// during package loading until they're in the build list.
+func classifyArgs(ctx context.Context, selectedVersion map[string]string, args []getArg) []*query {
+	defer base.ExitIfErrors()
+
+	queries := make([]*query, 0, len(args))
+
+	for _, arg := range args {
+		path := arg.path
+		switch {
+		case filepath.IsAbs(path) || search.IsRelativePath(path):
+			// Absolute paths like C:\foo and relative paths like ../foo...
+			// are restricted to matching packages in the main module. If the path
+			// is explicit and contains no wildcards (...), check that it is a
+			// package in the main module. If the path contains wildcards but
+			// matches no packages, we'll warn after package loading.
+			if !strings.Contains(path, "...") {
+				m := search.NewMatch(path)
+				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
+					m = modload.TargetPackages(ctx, pkgPath)
+				}
+				if len(m.Pkgs) == 0 {
+					for _, err := range m.Errs {
+						base.Errorf("go get %s: %v", arg, err)
+					}
+
+					abs, err := filepath.Abs(path)
+					if err != nil {
+						abs = path
+					}
+					base.Errorf("go get %s: path %s is not a package in module rooted at %s", arg, abs, modload.ModRoot())
+					continue
+				}
+			}
+
+			if arg.path != arg.raw {
+				base.Errorf("go get %s: can't request explicit version of path in main module", arg)
+				continue
+			}
+
+		case strings.Contains(path, "..."):
+			// Wait until we load packages to look up modules.
+			// We don't know yet whether any modules in the build list provide
+			// packages matching the pattern. For example, suppose
+			// golang.org/x/tools and golang.org/x/tools/playground are separate
+			// modules, and only golang.org/x/tools is in the build list. If the
+			// user runs 'go get golang.org/x/tools/playground/...', we should
+			// add a requirement for golang.org/x/tools/playground. We should not
+			// upgrade golang.org/x/tools.
+
+		case path == "all":
+			// If there is no main module, "all" is not meaningful.
+			if !modload.HasModRoot() {
+				base.Errorf(`go get %s: cannot match "all": working directory is not part of a module`, arg)
+			}
+			// Don't query modules until we load packages. We'll automatically
+			// look up any missing modules.
+
+		case search.IsMetaPackage(path):
+			base.Errorf("go get %s: explicit requirement on standard-library module %s not allowed", path, path)
+			continue
+
+		default:
+			// The argument is a package or module path.
+			if modload.HasModRoot() {
+				if m := modload.TargetPackages(ctx, path); len(m.Pkgs) != 0 {
+					// The path is in the main module. Nothing to query.
+					if arg.vers != "upgrade" && arg.vers != "patch" {
+						base.Errorf("go get %s: can't request explicit version of path in main module", arg)
+					}
+					continue
+				}
+			}
+
+			first := path
+			if i := strings.IndexByte(first, '/'); i >= 0 {
+				first = path
+			}
+			if !strings.Contains(first, ".") {
+				// The path doesn't have a dot in the first component and cannot be
+				// queried as a module. It may be a package in the standard library,
+				// which is fine, so don't report an error unless we encounter
+				// a problem loading packages.
+				continue
+			}
+
+			// If we're querying "upgrade" or "patch", we need to know the current
+			// version of the module. For "upgrade", we want to avoid accidentally
+			// downgrading from a newer prerelease. For "patch", we need to query
+			// the correct minor version.
+			// Here, we check if "path" is the name of a module in the build list
+			// (other than the main module) and set prevM if so. If "path" isn't
+			// a module in the build list, the current version doesn't matter
+			// since it's either an unknown module or a package within a module
+			// that we'll discover later.
+			q := &query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw}
+			if v, ok := selectedVersion[path]; ok {
+				if path == modload.Target.Path {
+					// TODO(bcmills): This is held over from a previous version of the get
+					// implementation. Why was it a special case?
+				} else {
+					q.prevM = module.Version{Path: path, Version: v}
+					q.forceModulePath = true
+				}
+			}
+			queries = append(queries, q)
+		}
+	}
+
+	return queries
 }
 
 // runQueries looks up modules at target versions in parallel. Results will be
