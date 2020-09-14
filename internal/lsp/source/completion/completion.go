@@ -1051,6 +1051,9 @@ func (c *completer) addFieldItems(ctx context.Context, fields *ast.FieldList) {
 				continue
 			}
 			obj := c.pkg.GetTypesInfo().ObjectOf(name)
+			if obj == nil {
+				continue
+			}
 
 			// if we're in a field comment/doc, score that field as more relevant
 			score := stdScore
