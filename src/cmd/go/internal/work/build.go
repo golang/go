@@ -393,6 +393,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
 		if fi, err := os.Stat(cfg.BuildO); (err == nil && fi.IsDir()) ||
+			strings.HasSuffix(cfg.BuildO, "/") ||
 			strings.HasSuffix(cfg.BuildO, string(os.PathSeparator)) {
 			if !explicitO {
 				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)

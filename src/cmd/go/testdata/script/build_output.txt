@@ -25,13 +25,23 @@ rm bin
 
 ! exists bin
 go build -o bin/ x.go
-exists -exec bin/x
+exists -exec bin/x$GOEXE
 rm bin
+
+[windows] ! exists bin
+[windows] go build -o bin\x x.go
+[windows] exists -exec bin\x
+[windows] rm bin
+
+[windows] ! exists bin
+[windows] go build -o bin\ x.go
+[windows] exists -exec bin\x.exe
+[windows] rm bin
 
 ! exists bin
 mkdir bin
 go build -o bin x.go
-exists -exec bin/x
+exists -exec bin/x$GOEXE
 rm bin
 
 go build p.go
