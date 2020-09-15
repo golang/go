@@ -189,6 +189,10 @@ type NameInField struct {
 	Foo Name `xml:"ns foo"`
 }
 
+type NameInFieldError struct {
+	Foo Name `xml:"ns "`
+}
+
 type AttrTest struct {
 	Int   int     `xml:",attr"`
 	Named int     `xml:"int,attr"`
@@ -968,6 +972,11 @@ var marshalTests = []struct {
 		Value:         &NameInField{Name{Space: "ns", Local: "foo"}},
 		ExpectXML:     `<NameInField><foo xmlns="ns"><ignore></ignore></foo></NameInField>`,
 		UnmarshalOnly: true,
+	},
+	{
+		Value:     &NameInFieldError{Name{Space: "ns", Local: "foo"}},
+		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
+		MarshalError: "xml: namespace without name in field",
 	},
 
 	// Marshaling zero xml.Name uses the tag or field name.
