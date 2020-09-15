@@ -10,7 +10,6 @@
 package foo
 
 import (
-	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -50,7 +49,7 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
-var somethingWrong error = errors.New("something went wrong") // ERROR "can inline init" "inlining call to errors.New" "errors.errorString.* escapes to heap"
+var somethingWrong error
 
 // local closures can be inlined
 func l(x, y int) (int, int, error) {
