@@ -320,10 +320,14 @@ type MyMarshalerTest struct {
 var _ Marshaler = (*MyMarshalerTest)(nil)
 
 func (m *MyMarshalerTest) MarshalXML(e *Encoder, start StartElement) error {
-	e.EncodeToken(start)
-	e.EncodeToken(CharData([]byte("hello world")))
-	e.EncodeToken(EndElement{start.Name})
-	return nil
+	return e.EncodeElement("hello world", start)
+}
+
+type MyMarshalerTestError struct {
+}
+
+func (m *MyMarshalerTestError) MarshalXML(e *Encoder, _ StartElement) error {
+	return e.EncodeElement("hello world", StartElement{Name{"", ""}, nil})
 }
 
 type MyMarshalerAttrTest struct {
@@ -1242,6 +1246,11 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
 		Value:     &MyMarshalerTest{},
+	},
+	{
+		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
+		Value:     &MyMarshalerTestError{},
+		MarshalError: "xml: EncodeElement of StartElement with missing name",
 	},
 	{
 		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
