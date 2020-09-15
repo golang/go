@@ -93,7 +93,7 @@ func TestStdLib(t *testing.T) {
 				if *verify {
 					verifyPrint(filename, ast)
 				}
-				results <- parseResult{filename, ast.Lines}
+				results <- parseResult{filename, ast.EOF.Line()}
 			})
 		}
 	}()

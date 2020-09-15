@@ -60,7 +60,7 @@ func parseFiles(filenames []string) uint {
 		}
 
 		p.node()
-		lines += p.file.Lines
+		lines += p.file.EOF.Line()
 		p.file = nil // release memory
 
 		if nsyntaxerrors != 0 {

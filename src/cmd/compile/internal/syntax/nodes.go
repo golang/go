@@ -37,7 +37,7 @@ type File struct {
 	Pragma   Pragma
 	PkgName  *Name
 	DeclList []Decl
-	Lines    uint
+	EOF      Pos
 	node
 }
 
