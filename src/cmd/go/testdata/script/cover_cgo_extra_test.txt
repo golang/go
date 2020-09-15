@@ -10,7 +10,11 @@ go test -short -cover cgocover3
 stdout  'coverage:.*[1-9][0-9.]+%'
 ! stderr '[^0-9]0\.0%'
 
--- cgocover3/p.go --
+-- go.mod --
+module cgocover3
+
+go 1.16
+-- p.go --
 package p
 
 /*
@@ -30,9 +34,9 @@ func F() {
 	}
 	C.f()
 }
--- cgocover3/p_test.go --
+-- p_test.go --
 package p
--- cgocover3/x_test.go --
+-- x_test.go --
 package p_test
 
 import (
