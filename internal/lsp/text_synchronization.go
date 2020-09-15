@@ -323,6 +323,13 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 		return
 	}
 	for _, uri := range uris {
+		fh, err := snapshot.GetFile(ctx, uri)
+		if err != nil {
+			continue
+		}
+		if fh.Kind() != source.Go {
+			continue
+		}
 		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckWorkspace)
 		if len(pkgs) > 0 || err == nil {
 			return
