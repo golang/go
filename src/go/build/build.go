@@ -1072,9 +1072,9 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		}
 	}
 
-	// Unless GO111MODULE=on, look to see if there is a go.mod.
+	// If GO111MODULE=auto, look to see if there is a go.mod.
 	// Since go1.13, it doesn't matter if we're inside GOPATH.
-	if go111Module != "on" {
+	if go111Module == "auto" {
 		var (
 			parent string
 			err    error

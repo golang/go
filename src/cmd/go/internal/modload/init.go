@@ -120,9 +120,9 @@ func Init() {
 	switch env {
 	default:
 		base.Fatalf("go: unknown environment setting GO111MODULE=%s", env)
-	case "auto", "":
+	case "auto":
 		mustUseModules = ForceUseModules
-	case "on":
+	case "on", "":
 		mustUseModules = true
 	case "off":
 		if ForceUseModules {
@@ -257,9 +257,9 @@ func WillBeEnabled() bool {
 	// exits, so it can't call this function directly.
 	env := cfg.Getenv("GO111MODULE")
 	switch env {
-	case "on":
+	case "on", "":
 		return true
-	case "auto", "":
+	case "auto":
 		break
 	default:
 		return false
