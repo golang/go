@@ -15,7 +15,8 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 )
 
-func TestBundle(t *testing.T) {
+func TestBundle(t *testing.T) { packagestest.TestAll(t, testBundle) }
+func testBundle(t *testing.T, x packagestest.Exporter) {
 	load := func(name string) string {
 		data, err := ioutil.ReadFile(name)
 		if err != nil {
@@ -24,7 +25,7 @@ func TestBundle(t *testing.T) {
 		return string(data)
 	}
 
-	e := packagestest.Export(t, packagestest.Modules, []packagestest.Module{
+	e := packagestest.Export(t, x, []packagestest.Module{
 		{
 			Name: "initial",
 			Files: map[string]interface{}{
