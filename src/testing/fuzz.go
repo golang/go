@@ -39,11 +39,24 @@ type corpusEntry struct {
 	b []byte
 }
 
-// Add will add the arguments to the seed corpus for the fuzz target. This
-// cannot be invoked after or within the Fuzz function. The args must match
+// Add will add the arguments to the seed corpus for the fuzz target. This will
+// be a no-op if called after or within the Fuzz function. The args must match
 // those in the Fuzz function.
 func (f *F) Add(args ...interface{}) {
-	return
+	if len(args) == 0 {
+		panic("testing: Add must have at least one argument")
+	}
+	if len(args) != 1 {
+		// TODO: support more than one argument
+		panic("testing: Add only supports one argument currently")
+	}
+	switch v := args[0].(type) {
+	case []byte:
+		f.corpus = append(f.corpus, corpusEntry{v})
+	// TODO: support other types
+	default:
+		panic("testing: Add only supports []byte currently")
+	}
 }
 
 // Fuzz runs the fuzz function, ff, for fuzz testing. It runs ff in a separate
