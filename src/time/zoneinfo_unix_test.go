@@ -1,11 +1,10 @@
-// Copyright 2018 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package time_test
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -70,7 +69,7 @@ func TestEnvTZUsage(t *testing.T) {
 	}
 
 	time.ResetLocalOnceForTest()
-	os.Setenv(env, fmt.Sprintf(":%s", path))
+	os.Setenv(env, ":"+path)
 	if time.Local.String() != path {
 		t.Errorf(`custom path should lead to path itself: got %q want %q`, time.Local, path)
 	}
