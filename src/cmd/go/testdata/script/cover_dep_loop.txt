@@ -7,11 +7,15 @@
 go test -short -cover coverdep2/p1
 stdout 'coverage: 100.0% of statements' # expect 100.0% coverage
 
--- coverdep2/p1/p.go --
+-- go.mod --
+module coverdep2
+
+go 1.16
+-- p1/p.go --
 package p1
 
 func F() int { return 1 }
--- coverdep2/p1/p_test.go --
+-- p1/p_test.go --
 package p1_test
 
 import (
@@ -22,7 +26,7 @@ import (
 func Test(t *testing.T) {
 	p2.F()
 }
--- coverdep2/p2/p2.go --
+-- p2/p2.go --
 package p2
 
 import "coverdep2/p1"

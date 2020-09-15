@@ -355,13 +355,13 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 import _ "unsafe"
 //go:linkname __debug_modinfo__ runtime.modinfo
 var __debug_modinfo__ = %q
-	`, string(infoStart)+info+string(infoEnd)))
+`, string(infoStart)+info+string(infoEnd)))
 	} else {
 		return []byte(fmt.Sprintf(`package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-	`, string(infoStart)+info+string(infoEnd)))
+`, string(infoStart)+info+string(infoEnd)))
 	}
 }

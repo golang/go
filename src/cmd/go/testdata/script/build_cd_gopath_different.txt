@@ -1,4 +1,5 @@
 [gccgo] skip 'gccgo does not support -ldflags -X'
+env GO111MODULE=off
 go build run_go.go
 
 # Apply identity function to GOPATH

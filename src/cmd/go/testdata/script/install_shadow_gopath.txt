@@ -3,6 +3,7 @@
 
 [!net] skip
 
+env GO111MODULE=off
 env GOPATH=$WORK/gopath1${:}$WORK/gopath2
 
 mkdir $WORK/gopath1/src/test

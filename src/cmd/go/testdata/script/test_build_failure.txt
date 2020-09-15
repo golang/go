@@ -5,13 +5,17 @@
 stderr 'undefined: g'
 stderr 'undefined: j'
 
--- coverbad/p.go --
+-- go.mod --
+module coverbad
+
+go 1.16
+-- p.go --
 package p
 
 func f() {
 	g()
 }
--- coverbad/p1.go --
+-- p1.go --
 package p
 
 import "C"
@@ -19,7 +23,7 @@ import "C"
 func h() {
 	j()
 }
--- coverbad/p_test.go --
+-- p_test.go --
 package p
 
 import "testing"

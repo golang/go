@@ -5,7 +5,7 @@
 [windows] env NONEXE=''
 
 env GOBIN=$WORK/tmp/bin
-go install isarchive &
+go install m/isarchive &
 
 go build x.go
 exists -exec x$GOEXE
@@ -55,6 +55,10 @@ exec $GOBIN/isarchive myatomic.a
 ! go build -o whatever cmd/gofmt sync/atomic
 stderr 'multiple packages'
 
+-- go.mod --
+module m
+
+go 1.16
 -- x.go --
 package main
 
