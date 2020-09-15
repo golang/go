@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"mime/multipart"
 	. "net/http"
 	"net/http/httptest"
@@ -242,6 +243,41 @@ func TestParseMultipartForm(t *testing.T) {
 	err = req.ParseMultipartForm(25)
 	if err != ErrNotMultipart {
 		t.Error("expected ErrNotMultipart for text/plain")
+	}
+}
+
+// Issue #40430: ParseMultipartForm should return error for int overflow
+func TestMaxInt64ForMultipartFormMaxMemory(t *testing.T) {
+	cst := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if err := req.ParseMultipartForm(math.MaxInt64); err != nil {
+			Error(rw, err.Error(), StatusBadRequest)
+			return
+		}
+	}))
+	defer cst.Close()
+	fBuf := new(bytes.Buffer)
+	mw := multipart.NewWriter(fBuf)
+	mf, err := mw.CreateFormFile("file", "myfile.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mf.Write(bytes.Repeat([]byte("abc"), 1<<10)); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := NewRequest("POST", cst.URL, fBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	res, err := cst.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := res.StatusCode, StatusBadRequest; g != w {
+		t.Fatalf("Status code mismatch: got %d, want %d", g, w)
 	}
 }
 
