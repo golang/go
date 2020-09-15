@@ -2,11 +2,116 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements helper functions for position computations.
+// This file implements helper functions for scope position computations.
 
 package types2
 
 import "cmd/compile/internal/syntax"
+
+// startPos returns the start position of n.
+func startPos(n syntax.Node) syntax.Pos {
+	// Cases for nodes which don't need a correction are commented out.
+	for m := n; ; {
+		switch n := m.(type) {
+		case nil:
+			panic("internal error: nil")
+
+		// packages
+		case *syntax.File:
+			// file block starts at the beginning of the file
+			return syntax.MakePos(n.Pos().Base(), 1, 1)
+
+		// declarations
+		// case *syntax.ImportDecl:
+		// case *syntax.ConstDecl:
+		// case *syntax.TypeDecl:
+		// case *syntax.VarDecl:
+		// case *syntax.FuncDecl:
+
+		// expressions
+		// case *syntax.BadExpr:
+		// case *syntax.Name:
+		// case *syntax.BasicLit:
+		case *syntax.CompositeLit:
+			if n.Type != nil {
+				m = n.Type
+				continue
+			}
+			return n.Pos()
+		// case *syntax.KeyValueExpr:
+		// case *syntax.FuncLit:
+		// case *syntax.ParenExpr:
+		case *syntax.SelectorExpr:
+			m = n.X
+		case *syntax.IndexExpr:
+			m = n.X
+		// case *syntax.SliceExpr:
+		case *syntax.AssertExpr:
+			m = n.X
+		case *syntax.TypeSwitchGuard:
+			if n.Lhs != nil {
+				m = n.Lhs
+				continue
+			}
+			m = n.X
+		case *syntax.Operation:
+			if n.Y != nil {
+				m = n.X
+				continue
+			}
+			return n.Pos()
+		case *syntax.CallExpr:
+			m = n.Fun
+		case *syntax.ListExpr:
+			if len(n.ElemList) > 0 {
+				m = n.ElemList[0]
+				continue
+			}
+			return n.Pos()
+		// types
+		// case *syntax.ArrayType:
+		// case *syntax.SliceType:
+		// case *syntax.DotsType:
+		// case *syntax.StructType:
+		// case *syntax.Field:
+		// case *syntax.InterfaceType:
+		// case *syntax.FuncType:
+		// case *syntax.MapType:
+		// case *syntax.ChanType:
+
+		// statements
+		// case *syntax.EmptyStmt:
+		// case *syntax.LabeledStmt:
+		// case *syntax.BlockStmt:
+		// case *syntax.ExprStmt:
+		case *syntax.SendStmt:
+			m = n.Chan
+		// case *syntax.DeclStmt:
+		case *syntax.AssignStmt:
+			m = n.Lhs
+		// case *syntax.BranchStmt:
+		// case *syntax.CallStmt:
+		// case *syntax.ReturnStmt:
+		// case *syntax.IfStmt:
+		// case *syntax.ForStmt:
+		// case *syntax.SwitchStmt:
+		// case *syntax.SelectStmt:
+
+		// helper nodes
+		case *syntax.RangeClause:
+			if n.Lhs != nil {
+				m = n.Lhs
+				continue
+			}
+			m = n.X
+		// case *syntax.CaseClause:
+		// case *syntax.CommClause:
+
+		default:
+			return n.Pos()
+		}
+	}
+}
 
 // endPos returns the approximate end position of n in the source.
 // For some nodes (*syntax.Name, *syntax.BasicLit) it returns

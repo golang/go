@@ -215,8 +215,7 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.PkgName, nil)
 
-		start := syntax.MakePos(file.Pos().Base(), 1, 1) // file block starts at the beginning of the file!
-		fileScope := NewScope(check.pkg.scope, start, endPos(file), check.filename(fileNo))
+		fileScope := NewScope(check.pkg.scope, startPos(file), endPos(file), check.filename(fileNo))
 		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 
