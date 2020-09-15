@@ -348,7 +348,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
 		// for short variable declarations) and ends at the end of the innermost
 		// containing block."
-		scopePos := endPos("rhs[len(rhs)-1].End()")
+		scopePos := endPos(rhs[len(rhs)-1])
 		for _, obj := range newVars {
 			check.declare(scope, nil, obj, scopePos) // recordObject already called
 		}

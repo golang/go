@@ -215,15 +215,8 @@ func (check *Checker) collectObjects() {
 		// but there is no corresponding package object.
 		check.recordDef(file.PkgName, nil)
 
-		// Use the actual source file extent rather than *ast.File extent since the
-		// latter doesn't include comments which appear at the start or end of the file.
-		// Be conservative and use the *ast.File extent if we don't have a *token.File.
-		pos, end := file.Pos(), endPos("file.End()")
-		// TODO(gri) figure out what to do here
-		// if f := check.fset.File(file.Pos()); f != nil {
-		// 	pos, end = syntax.Pos(f.Base()), syntax.Pos(f.Base()+f.Size())
-		// }
-		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
+		start := syntax.MakePos(file.Pos().Base(), 1, 1) // file block starts at the beginning of the file!
+		fileScope := NewScope(check.pkg.scope, start, endPos(file), check.filename(fileNo))
 		fileScopes = append(fileScopes, fileScope)
 		check.recordScope(file, fileScope)
 

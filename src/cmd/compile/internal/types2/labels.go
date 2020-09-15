@@ -8,16 +8,10 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// dummy function to deal with the missing "End() syntax.Pos" methods for now
-// TODO(gri) this needs to be fixed
-func endPos(of string) syntax.Pos {
-	return nopos
-}
-
 // labels checks correct label use in body.
 func (check *Checker) labels(body *syntax.BlockStmt) {
 	// set of all labels in this body
-	all := NewScope(nil, body.Pos(), endPos("body.End()"), "label")
+	all := NewScope(nil, body.Pos(), endPos(body), "label")
 
 	fwdJumps := check.blockBranches(all, nil, nil, body.List)
 

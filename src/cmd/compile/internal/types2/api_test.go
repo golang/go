@@ -1382,8 +1382,6 @@ func sameSlice(a, b []int) bool {
 // TestScopeLookupParent ensures that (*Scope).LookupParent returns
 // the correct result at various positions within the source.
 func TestScopeLookupParent(t *testing.T) {
-	t.Skip("requires correct scope extents being set up")
-
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
 	var info Info
@@ -1473,7 +1471,7 @@ func F(){
 		}
 		got := "undef"
 		if _, obj := inner.LookupParent(name, pos); obj != nil {
-			kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
+			kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types2."))
 			got = fmt.Sprintf("%s:%d", kind, obj.Pos().Line())
 		}
 		if got != want {
