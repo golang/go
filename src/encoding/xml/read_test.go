@@ -332,7 +332,7 @@ var badPathTests = []struct {
 func TestUnmarshalBadPaths(t *testing.T) {
 	for _, tt := range badPathTests {
 		err := Unmarshal([]byte(pathTestString), tt.v)
-		if !reflect.DeepEqual(err, tt.e) {
+		if !strings.Contains(err.Error(), "conflicts with field") || !reflect.DeepEqual(err, tt.e) {
 			t.Fatalf("Unmarshal with %#v didn't fail properly:\nhave %#v,\nwant %#v", tt.v, err, tt.e)
 		}
 	}
