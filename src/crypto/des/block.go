@@ -127,7 +127,7 @@ func permuteInitialBlock(block uint64) uint64 {
 	b2 = (block & 0xff00ff00)
 	block ^= b1<<32 ^ b2 ^ b1<<8 ^ b2<<24 // exchange b0 b4 with b3 b7
 
-	// block is now b1 b3 b5 b7 b0 b2 b4 b7, the permutation:
+	// block is now b1 b3 b5 b7 b0 b2 b4 b6, the permutation:
 	//                  ...  8
 	//                  ... 24
 	//                  ... 40
