@@ -977,6 +977,7 @@ var marshalTests = []struct {
 		Value:     &NameInFieldError{Name{Space: "ns", Local: "foo"}},
 		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
 		MarshalError: "xml: namespace without name in field",
+		UnmarshalError: "xml: namespace without name in field",
 	},
 
 	// Marshaling zero xml.Name uses the tag or field name.
@@ -1691,6 +1692,11 @@ func TestMarshal(t *testing.T) {
 		if test.UnmarshalOnly {
 			continue
 		}
+		//if idx == 32 {
+		//	fmt.Printf("\nidx: %v\ntest: %v\n", idx, test)
+		//} else{
+		//	continue
+		//}
 
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
 			data, err := Marshal(test.Value)
@@ -1725,6 +1731,10 @@ type AttrParent struct {
 
 type BadAttr struct {
 	Name map[string]string `xml:"name,attr"`
+}
+
+type BadTag struct {
+	Comment string   `xml:",comment,omitempty"`
 }
 
 // used by both TestMarshalErrors and TestMarshalIndentErrors
@@ -1763,6 +1773,10 @@ var marshalErrorTests = []struct {
 	{
 		Value: BadAttr{map[string]string{"X": "Y"}},
 		Err:   `xml: unsupported type: map[string]string`,
+	},
+	{
+		Value: BadTag{"some comment"},
+		Err:   `xml: invalid tag in field Comment of type xml.BadTag: ",comment,omitempty"`,
 	},
 }
 
