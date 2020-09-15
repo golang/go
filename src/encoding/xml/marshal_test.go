@@ -1694,6 +1694,7 @@ type BadAttr struct {
 	Name map[string]string `xml:"name,attr"`
 }
 
+// used by both TestMarshalErrors and TestMarshalIndentErrors
 var marshalErrorTests = []struct {
 	Value interface{}
 	Err   string
@@ -1825,6 +1826,24 @@ func TestMarshalIndent(t *testing.T) {
 		}
 		if got, want := string(data), test.ExpectXML; got != want {
 			t.Errorf("#%d: MarshalIndent:\nGot:%s\nWant:\n%s", i, got, want)
+		}
+	}
+}
+
+func TestMarshalIndentErrors(t *testing.T) {
+	for idx, test := range marshalErrorTests {
+		data, err := MarshalIndent(test.Value, "", "")
+		if err == nil {
+			t.Errorf("#%d: marshalIndent(%#v) = [success] %q, want error %v", idx, test.Value, data, test.Err)
+			continue
+		}
+		if err.Error() != test.Err {
+			t.Errorf("#%d: marshalIndent(%#v) = [error] %v, want %v", idx, test.Value, err, test.Err)
+		}
+		if test.Kind != reflect.Invalid {
+			if kind := err.(*UnsupportedTypeError).Type.Kind(); kind != test.Kind {
+				t.Errorf("#%d: marshalIndent(%#v) = [error kind] %s, want %s", idx, test.Value, kind, test.Kind)
+			}
 		}
 	}
 }
@@ -2449,7 +2468,6 @@ func TestIssue16158(t *testing.T) {
 }
 
 // Issue 20953. Crash on invalid XMLName attribute.
-
 type InvalidXMLName struct {
 	XMLName Name `xml:"error"`
 	Type    struct {
