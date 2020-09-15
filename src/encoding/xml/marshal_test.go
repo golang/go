@@ -323,11 +323,21 @@ func (m *MyMarshalerTest) MarshalXML(e *Encoder, start StartElement) error {
 	return e.EncodeElement("hello world", start)
 }
 
-type MyMarshalerTestError struct {
+type MyMarshalerTestErrorMissingName struct {
 }
 
-func (m *MyMarshalerTestError) MarshalXML(e *Encoder, _ StartElement) error {
+func (m *MyMarshalerTestErrorMissingName) MarshalXML(e *Encoder, _ StartElement) error {
 	return e.EncodeElement("hello world", StartElement{Name{"", ""}, nil})
+}
+
+type MyMarshalerTestErrorNotClosed struct {
+}
+
+func (m *MyMarshalerTestErrorNotClosed) MarshalXML(e *Encoder, start StartElement) error {
+	e.EncodeToken(start)
+	e.EncodeToken(CharData([]byte("hello world")))
+	//e.EncodeToken(EndElement{start.Name})
+	return nil
 }
 
 type MyMarshalerAttrTest struct {
@@ -1249,8 +1259,13 @@ var marshalTests = []struct {
 	},
 	{
 		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
-		Value:     &MyMarshalerTestError{},
+		Value:     &MyMarshalerTestErrorMissingName{},
 		MarshalError: "xml: EncodeElement of StartElement with missing name",
+	},
+	{
+		ExpectXML: `<MyMarshalerTest>hello world</MyMarshalerTest>`,
+		Value:     &MyMarshalerTestErrorNotClosed{},
+		MarshalError: "MarshalXML wrote invalid XML",
 	},
 	{
 		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
@@ -2048,6 +2063,12 @@ var encodeTokenTests = []struct {
 		ProcInst{"", []byte("Instruction?>")},
 	},
 	err: "xml: EncodeToken of ProcInst with invalid Target",
+}, {
+	desc: "proc instruction with endProcInst",
+	toks: []Token{
+		ProcInst{"Target", []byte("Instruction?>")},
+	},
+	err: "xml: EncodeToken of ProcInst containing ?> marker",
 }, {
 	desc: "directive",
 	toks: []Token{
