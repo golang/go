@@ -400,6 +400,10 @@ type FileIdentity struct {
 	Kind FileKind
 }
 
+func (id FileIdentity) String() string {
+	return fmt.Sprintf("%s%s%s", id.URI, id.Hash, id.Kind)
+}
+
 // FileKind describes the kind of the file in question.
 // It can be one of Go, mod, or sum.
 type FileKind int

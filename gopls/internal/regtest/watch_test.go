@@ -185,7 +185,7 @@ func _() {
 }
 `
 	runner.Run(t, missing, func(t *testing.T, env *Env) {
-		t.Skipf("the initial workspace load fails and never retries")
+		t.Skip("the initial workspace load fails and never retries")
 
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/c\""),
@@ -586,9 +586,9 @@ func main() {
 	})
 }
 
-// Reproduces golang/go#37069.
+// Reproduces golang/go#40340.
 func TestSwitchFromGOPATHToModules(t *testing.T) {
-	t.Skipf("golang/go#37069 is not yet resolved.")
+	t.Skip("golang/go#40340 is not yet resolved.")
 
 	const files = `
 -- foo/blah/blah.go --

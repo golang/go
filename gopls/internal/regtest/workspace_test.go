@@ -6,6 +6,7 @@ package regtest
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp"
@@ -203,5 +204,110 @@ func Hello() int {
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 			env.NoDiagnosticAtRegexp("moda/a/a.go", `"b.com/b"`),
 		)
+	})
+}
+
+// This change tests that the version of the module used changes after it has
+// been deleted from the workspace.
+func TestDeleteModule_Interdependent(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+-- modb/go.mod --
+module b.com
+
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+`
+	withOptions(
+		WithProxyFiles(workspaceModuleProxy),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
+		env.Await(InitialWorkspaceLoad)
+		env.OpenFile("moda/a/a.go")
+
+		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		if want := "modb/b/b.go"; !strings.HasSuffix(original, want) {
+			t.Errorf("expected %s, got %v", want, original)
+		}
+		env.CloseBuffer(original)
+		env.RemoveWorkspaceFile("modb/b/b.go")
+		env.RemoveWorkspaceFile("modb/go.mod")
+		env.Await(
+			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 2),
+		)
+		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
+			t.Errorf("expected %s, got %v", want, got)
+		}
+	})
+}
+
+// This change tests that the version of the module used changes after it has
+// been added to the workspace.
+func TestCreateModule_Interdependent(t *testing.T) {
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+`
+	withOptions(
+		WithProxyFiles(workspaceModuleProxy),
+	).run(t, multiModule, func(t *testing.T, env *Env) {
+		env.Await(InitialWorkspaceLoad)
+		env.OpenFile("moda/a/a.go")
+		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {
+			t.Errorf("expected %s, got %v", want, original)
+		}
+		env.WriteWorkspaceFiles(map[string]string{
+			"modb/go.mod": "module b.com",
+			"modb/b/b.go": `package b
+
+func Hello() int {
+	var x int
+}
+`,
+		})
+		env.Await(
+			OnceMet(
+				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), 1),
+				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			),
+		)
+		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		if want := "modb/b/b.go"; !strings.HasSuffix(got, want) {
+			t.Errorf("expected %s, got %v", want, original)
+		}
 	})
 }

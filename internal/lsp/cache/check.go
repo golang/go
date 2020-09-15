@@ -177,8 +177,7 @@ func checkPackageKey(ctx context.Context, id packageID, pghs []*parseGoHandle, c
 		b.WriteString(string(dep))
 	}
 	for _, cgf := range pghs {
-		b.WriteString(string(cgf.file.URI()))
-		b.WriteString(cgf.file.FileIdentity().Hash)
+		b.WriteString(cgf.file.FileIdentity().String())
 	}
 	return packageHandleKey(hashContents(b.Bytes()))
 }

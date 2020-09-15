@@ -74,7 +74,7 @@ func main() {
 
 	// Reproduce golang/go#40269 by deleting and recreating main.go.
 	t.Run("delete main.go", func(t *testing.T) {
-		t.Skipf("This test will be flaky until golang/go#40269 is resolved.")
+		t.Skip("This test will be flaky until golang/go#40269 is resolved.")
 
 		withOptions(WithProxyFiles(proxy)).run(t, untidyModule, func(t *testing.T, env *Env) {
 			goModContent := env.ReadWorkspaceFile("go.mod")

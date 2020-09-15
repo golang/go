@@ -199,13 +199,18 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 // packages.Loads that occur from within the workspace module.
 func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup func(), err error) {
 	cleanup = func() {}
-	if len(s.view.modules) == 0 {
+	if len(s.modules) == 0 {
 		return "", cleanup, nil
 	}
-	if s.view.workspaceModule == nil {
-		return "", cleanup, nil
+	wsModuleHandle, err := s.getWorkspaceModuleHandle(ctx)
+	if err != nil {
+		return "", nil, err
 	}
-	content, err := s.view.workspaceModule.Format()
+	file, err := wsModuleHandle.build(ctx, s)
+	if err != nil {
+		return "", nil, err
+	}
+	content, err := file.Format()
 	if err != nil {
 		return "", cleanup, err
 	}

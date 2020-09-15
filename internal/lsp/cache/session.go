@@ -7,8 +7,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -173,7 +171,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		name:               name,
 		folder:             folder,
 		root:               folder,
-		modules:            make(map[span.URI]*moduleRoot),
 		filesByURI:         make(map[span.URI]*fileBase),
 		filesByBase:        make(map[string][]*fileBase),
 	}
@@ -194,6 +191,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		modTidyHandles:    make(map[span.URI]*modTidyHandle),
 		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle),
+		modules:           make(map[span.URI]*moduleRoot),
 	}
 
 	if v.session.cache.options != nil {
@@ -206,7 +204,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// Find all of the modules in the workspace.
-	if err := v.findWorkspaceModules(ctx, options); err != nil {
+	if err := v.snapshot.findWorkspaceModules(ctx, options); err != nil {
 		return nil, nil, func() {}, err
 	}
 
@@ -214,11 +212,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// check if the view has a valid build configuration.
 	v.setBuildConfiguration()
 
-	// Build the workspace module, if needed.
-	if options.ExperimentalWorkspaceModule {
-		if err := v.buildWorkspaceModule(ctx); err != nil {
-			return nil, nil, func() {}, err
-		}
+	// Decide if we should use the workspace module.
+	if v.determineWorkspaceModuleLocked() {
+		v.workspaceMode |= usesWorkspaceModule | moduleMode
 	}
 
 	// We have v.goEnv now.
@@ -242,92 +238,10 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	snapshot := v.snapshot
 	release := snapshot.generation.Acquire(initCtx)
 	go func() {
-		v.initialize(initCtx, snapshot, true)
+		snapshot.initialize(initCtx, true)
 		release()
 	}()
 	return v, snapshot, snapshot.generation.Acquire(ctx), nil
-}
-
-// findWorkspaceModules walks the view's root folder, looking for go.mod files.
-// Any that are found are added to the view's set of modules, which are then
-// used to construct the workspace module.
-//
-// It assumes that the caller has not yet created the view, and therefore does
-// not lock any of the internal data structures before accessing them.
-func (v *View) findWorkspaceModules(ctx context.Context, options *source.Options) error {
-	// If the user is intentionally limiting their workspace scope, add their
-	// folder to the roots and return early.
-	if !options.ExpandWorkspaceToModule {
-		return nil
-	}
-	// The workspace module has been disabled by the user.
-	if !options.ExperimentalWorkspaceModule {
-		return nil
-	}
-
-	// Walk the view's folder to find all modules in the view.
-	root := v.root.Filename()
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// For any path that is not the workspace folder, check if the path
-		// would be ignored by the go command. Vendor directories also do not
-		// contain workspace modules.
-		if info.IsDir() && path != root {
-			suffix := strings.TrimPrefix(path, root)
-			switch {
-			case checkIgnored(suffix),
-				strings.Contains(filepath.ToSlash(suffix), "/vendor/"):
-				return filepath.SkipDir
-			}
-		}
-		// We're only interested in go.mod files.
-		if filepath.Base(path) != "go.mod" {
-			return nil
-		}
-		// At this point, we definitely have a go.mod file in the workspace,
-		// so add it to the view.
-		modURI := span.URIFromPath(path)
-		rootURI := span.URIFromPath(filepath.Dir(path))
-		v.modules[rootURI] = &moduleRoot{
-			rootURI: rootURI,
-			modURI:  modURI,
-			sumURI:  span.URIFromPath(sumFilename(modURI)),
-		}
-		return nil
-	})
-}
-
-func (v *View) buildWorkspaceModule(ctx context.Context) error {
-	// If the view has an invalid configuration, don't build the workspace
-	// module.
-	if !v.hasValidBuildConfiguration {
-		return nil
-	}
-	// If the view is not in a module and contains no modules, but still has a
-	// valid workspace configuration, do not create the workspace module.
-	// It could be using GOPATH or a different build system entirely.
-	if v.modURI == "" && len(v.modules) == 0 && v.hasValidBuildConfiguration {
-		return nil
-	}
-	v.workspaceMode |= moduleMode
-
-	// Don't default to multi-workspace mode if one of the modules contains a
-	// vendor directory. We still have to decide how to handle vendoring.
-	for _, mod := range v.modules {
-		if info, _ := os.Stat(filepath.Join(mod.rootURI.Filename(), "vendor")); info != nil {
-			return nil
-		}
-	}
-
-	v.workspaceMode |= usesWorkspaceModule
-
-	// If the user does not have a gopls.mod, we need to create one, based on
-	// modules we found in the user's workspace.
-	var err error
-	v.workspaceModule, err = v.snapshot.buildWorkspaceModule(ctx)
-	return err
 }
 
 // View returns the view by name.
