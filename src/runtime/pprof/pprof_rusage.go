@@ -19,7 +19,7 @@ func addMaxRSS(w io.Writer) {
 	switch runtime.GOOS {
 	case "linux", "android":
 		rssToBytes = 1024
-	case "darwin":
+	case "darwin", "ios":
 		rssToBytes = 1
 	default:
 		panic("unsupported OS")

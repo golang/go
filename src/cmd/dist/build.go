@@ -80,6 +80,7 @@ var okgoos = []string{
 	"darwin",
 	"dragonfly",
 	"illumos",
+	"ios",
 	"js",
 	"linux",
 	"android",
@@ -970,7 +971,10 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+		(goos == "android" && tag == "linux") ||
+		(goos == "illumos" && tag == "solaris") ||
+		(goos == "ios" && tag == "darwin")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -984,7 +988,7 @@ func shouldbuild(file, pkg string) bool {
 	name := filepath.Base(file)
 	excluded := func(list []string, ok string) bool {
 		for _, x := range list {
-			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
+			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") || (ok == "ios" && x == "darwin") {
 				continue
 			}
 			i := strings.Index(name, x)
@@ -1462,7 +1466,7 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case goos == "darwin" && goarch == "arm64":
+	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
 		if gohostos != "darwin" || gohostarch != "arm64" {
 			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
 		}
@@ -1541,6 +1545,7 @@ var cgoEnabled = map[string]bool{
 	"android/amd64":   true,
 	"android/arm":     true,
 	"android/arm64":   true,
+	"ios/arm64":       true,
 	"js/wasm":         false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,

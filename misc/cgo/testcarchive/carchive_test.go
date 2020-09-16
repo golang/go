@@ -118,9 +118,9 @@ func testMain(m *testing.M) int {
 		cc = append(cc, s[start:])
 	}
 
-	if GOOS == "darwin" {
+	if GOOS == "darwin" || GOOS == "ios" {
 		// For Darwin/ARM.
-		// TODO(crawshaw): can we do better?
+		// TODO: do we still need this?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
 	if GOOS == "aix" {
@@ -133,7 +133,7 @@ func testMain(m *testing.M) int {
 		libbase = "gccgo_" + libgodir + "_fPIC"
 	} else {
 		switch GOOS {
-		case "darwin":
+		case "darwin", "ios":
 			if GOARCH == "arm64" {
 				libbase += "_shared"
 			}
@@ -303,7 +303,7 @@ func TestInstall(t *testing.T) {
 
 func TestEarlySignalHandler(t *testing.T) {
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		switch GOARCH {
 		case "arm64":
 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
@@ -384,7 +384,7 @@ func TestSignalForwarding(t *testing.T) {
 	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
 		// Test SIGPIPE forwarding
 		cmd = exec.Command(bin[0], append(bin[1:], "3")...)
 
@@ -485,7 +485,7 @@ func TestSignalForwardingExternal(t *testing.T) {
 // doesn't work on this platform.
 func checkSignalForwardingTest(t *testing.T) {
 	switch GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		switch GOARCH {
 		case "arm64":
 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
@@ -603,7 +603,7 @@ func TestExtar(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping -extar test when using gccgo")
 	}
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
 		t.Skip("shell scripts are not executable on iOS hosts")
 	}
 
@@ -645,7 +645,7 @@ func TestExtar(t *testing.T) {
 
 func TestPIE(t *testing.T) {
 	switch GOOS {
-	case "windows", "darwin", "plan9":
+	case "windows", "darwin", "ios", "plan9":
 		t.Skipf("skipping PIE test on %s", GOOS)
 	}
 
@@ -738,7 +738,7 @@ func TestSIGPROF(t *testing.T) {
 	switch GOOS {
 	case "windows", "plan9":
 		t.Skipf("skipping SIGPROF test on %s", GOOS)
-	case "darwin":
+	case "darwin", "ios":
 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
 	}
 
@@ -841,7 +841,7 @@ func TestCompileWithoutShared(t *testing.T) {
 	expectSignal(t, err, syscall.SIGSEGV)
 
 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
 		binArgs := append(cmdToRun(exe), "3")
 		t.Log(binArgs)
 		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()

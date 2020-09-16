@@ -105,7 +105,7 @@ func printGoDetails(w io.Writer) {
 
 func printOSDetails(w io.Writer) {
 	switch runtime.GOOS {
-	case "darwin":
+	case "darwin", "ios":
 		printCmdOut(w, "uname -v: ", "uname", "-v")
 		printCmdOut(w, "", "sw_vers")
 	case "linux":

@@ -298,7 +298,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			continue
 		}
 
-		if goos == "darwin" && strings.HasSuffix(n.C, "Ref") {
+		if (goos == "darwin" || goos == "ios") && strings.HasSuffix(n.C, "Ref") {
 			// For FooRef, find out if FooGetTypeID exists.
 			s := n.C[:len(n.C)-3] + "GetTypeID"
 			n := &Name{Go: s, C: s}
@@ -3075,7 +3075,7 @@ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
 	// We identify the correct set of types as those ending in Ref and for which
 	// there exists a corresponding GetTypeID function.
 	// See comment below for details about the bad pointers.
-	if goos != "darwin" {
+	if goos != "darwin" && goos != "ios" {
 		return false
 	}
 	s := dt.Name

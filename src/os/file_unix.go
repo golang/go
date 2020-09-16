@@ -129,7 +129,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// used with kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
 			err := ignoringEINTR(func() error {
 				return syscall.Fstat(fdi, &st)
@@ -150,7 +150,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}

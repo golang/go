@@ -464,7 +464,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test the ios build tag on darwin/amd64 for the iOS simulator.
-	if goos == "darwin" && !t.iOS() {
+	if goos == "darwin" && goarch == "amd64" {
 		t.tests = append(t.tests, distTest{
 			name:    "amd64ios",
 			heading: "ios tag on darwin/amd64",
@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return goos == "darwin" && goarch == "arm64"
+	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
 }
 
 func (t *tester) out(v string) {
@@ -943,7 +943,10 @@ func (t *tester) internalLink() bool {
 	if goos == "android" {
 		return false
 	}
-	if t.iOS() {
+	if goos == "ios" {
+		return false
+	}
+	if goos == "darwin" && goarch == "arm64" {
 		return false
 	}
 	// Internally linking cgo is incomplete on some architectures.

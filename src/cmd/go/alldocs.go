@@ -1608,6 +1608,9 @@
 // Using GOOS=illumos matches build tags and files as for GOOS=solaris
 // in addition to illumos tags and files.
 //
+// Using GOOS=ios matches build tags and files as for GOOS=darwin
+// in addition to ios tags and files.
+//
 // To keep a file from being considered for the build:
 //
 // 	// +build ignore

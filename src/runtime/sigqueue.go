@@ -105,7 +105,7 @@ Send:
 			break Send
 		case sigReceiving:
 			if atomic.Cas(&sig.state, sigReceiving, sigIdle) {
-				if GOOS == "darwin" {
+				if GOOS == "darwin" || GOOS == "ios" {
 					sigNoteWakeup(&sig.note)
 					break Send
 				}
@@ -140,7 +140,7 @@ func signal_recv() uint32 {
 				throw("signal_recv: inconsistent state")
 			case sigIdle:
 				if atomic.Cas(&sig.state, sigIdle, sigReceiving) {
-					if GOOS == "darwin" {
+					if GOOS == "darwin" || GOOS == "ios" {
 						sigNoteSleep(&sig.note)
 						break Receive
 					}
@@ -194,7 +194,7 @@ func signal_enable(s uint32) {
 	if !sig.inuse {
 		// This is the first call to signal_enable. Initialize.
 		sig.inuse = true // enable reception of signals; cannot disable
-		if GOOS == "darwin" {
+		if GOOS == "darwin" || GOOS == "ios" {
 			sigNoteSetup(&sig.note)
 		} else {
 			noteclear(&sig.note)

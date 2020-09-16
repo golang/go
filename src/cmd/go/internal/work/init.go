@@ -121,7 +121,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch cfg.Goos {
-			case "darwin":
+			case "darwin", "ios":
 				switch cfg.Goarch {
 				case "arm64":
 					codegenArg = "-shared"
@@ -157,7 +157,7 @@ func buildModeInit() {
 			ldBuildmode = "pie"
 		case "windows":
 			ldBuildmode = "pie"
-		case "darwin":
+		case "darwin", "ios":
 			switch cfg.Goarch {
 			case "arm64":
 				codegenArg = "-shared"
