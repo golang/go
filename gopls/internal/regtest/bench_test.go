@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -32,9 +31,7 @@ func TestBenchmarkIWL(t *testing.T) {
 	b := testing.Benchmark(func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
-				env.Await(
-					CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-				)
+				env.Await(InitialWorkspaceLoad)
 			})
 		}
 	})
@@ -125,9 +122,7 @@ func TestBenchmarkCompletion(t *testing.T) {
 	// it first (and therefore need hooks).
 	opts = append(opts, SkipHooks(false))
 	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.OpenFile(completionBench.fileName)
 		params := &protocol.CompletionParams{}
 		params.Context.TriggerCharacter = "s"

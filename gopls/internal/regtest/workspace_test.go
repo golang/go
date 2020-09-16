@@ -139,9 +139,7 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 // replace target is added to the go.mod.
 func TestWatchReplaceTargets(t *testing.T) {
 	withOptions(WithProxyFiles(workspaceProxy), WithRootPath("pkg")).run(t, workspaceModule, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		// Add a replace directive and expect the files that gopls is watching
 		// to change.
 		dir := env.Sandbox.Workdir.URI("goodbye").SpanURI().Filename()
@@ -199,9 +197,7 @@ func Hello() int {
 	withOptions(
 		WithProxyFiles(workspaceModuleProxy),
 	).run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.Await(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),

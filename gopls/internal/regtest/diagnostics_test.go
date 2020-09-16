@@ -847,7 +847,7 @@ func TestCreateOnlyXTest(t *testing.T) {
 	-- foo/bar_test.go --
 	`
 	run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
+		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("foo/bar_test.go")
 		env.EditBuffer("foo/bar_test.go", fake.NewEdit(0, 0, 0, 0, `package foo
 	`))
@@ -876,7 +876,7 @@ package foo
 package foo_
 `
 	run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
+		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("foo/bar_test.go")
 		env.RegexpReplace("foo/bar_test.go", "package foo_", "package foo_test")
 		env.SaveBuffer("foo/bar_test.go")
@@ -1101,9 +1101,7 @@ func Foo() {
 	runner.Run(t, basic, func(t *testing.T, env *Env) {
 		testenv.NeedsGo1Point(t, 15)
 
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.WriteWorkspaceFile("foo/foo_test.go", `package main
 
 func main() {
@@ -1132,9 +1130,7 @@ package main
 func main() {}
 `
 	runner.Run(t, basic, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.Editor.OpenFileWithContent(env.Ctx, "foo.go", `package main`)
 		env.Await(
 			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidOpen), 1),
@@ -1293,7 +1289,7 @@ func main() {}
 		log.SetFlags(log.Lshortfile)
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
-		env.Await(CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1))
+		env.Await(InitialWorkspaceLoad)
 		x := env.DiagnosticsFor("main.go")
 		if x == nil {
 			t.Fatalf("expected 1 diagnostic, got none")
@@ -1342,9 +1338,7 @@ func _() {
 }
 `
 	run(t, files, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("a/a.go")
 		env.Await(
 			env.DiagnosticAtRegexp("a/a.go", "x"),

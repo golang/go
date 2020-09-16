@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -22,6 +23,12 @@ type Expectation interface {
 	// Description is a human-readable description of the expectation.
 	Description() string
 }
+
+var (
+	// InitialWorkspaceLoad is an expectation that the workspace initial load has
+	// completed. It is verified via workdone reporting.
+	InitialWorkspaceLoad = CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1)
+)
 
 // A Verdict is the result of checking an expectation against the current
 // editor state.

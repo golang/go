@@ -309,9 +309,7 @@ func _() {
 	// Add the new method before the implementation. Expect diagnostics.
 	t.Run("method before implementation", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
-			env.Await(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-			)
+			env.Await(InitialWorkspaceLoad)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
 				OnceMet(
@@ -328,9 +326,7 @@ func _() {
 	// Add the new implementation before the new method. Expect no diagnostics.
 	t.Run("implementation before method", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
-			env.Await(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-			)
+			env.Await(InitialWorkspaceLoad)
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.Await(
 				OnceMet(
@@ -347,9 +343,7 @@ func _() {
 	// Add both simultaneously. Expect no diagnostics.
 	t.Run("implementation and method simultaneously", func(t *testing.T) {
 		runner.Run(t, pkg, func(t *testing.T, env *Env) {
-			env.Await(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-			)
+			env.Await(InitialWorkspaceLoad)
 			env.WriteWorkspaceFiles(map[string]string{
 				"a/a.go": implementation,
 				"b/b.go": newMethod,
@@ -479,9 +473,7 @@ package a
 func _() {}
 `
 	runner.Run(t, pkg, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.ChangeFilesOnDisk([]fake.FileEvent{
 			{
 				Path: "a/a3.go",
@@ -568,9 +560,7 @@ func main() {
 }
 `
 	withOptions(WithProxyFiles(proxy)).run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		env.WriteWorkspaceFiles(map[string]string{
 			"go.mod": `module mod.com
 
@@ -618,7 +608,7 @@ func main() {
 		env.OpenFile("foo/main.go")
 		env.Await(
 			OnceMet(
-				CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
+				InitialWorkspaceLoad,
 				env.DiagnosticAtRegexp("foo/main.go", `"blah"`),
 			),
 		)
@@ -661,9 +651,7 @@ func TestBob(t *testing.T) {
 }
 `
 	run(t, files, func(t *testing.T, env *Env) {
-		env.Await(
-			CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromInitialWorkspaceLoad), 1),
-		)
+		env.Await(InitialWorkspaceLoad)
 		// Add a new symbol to the package under test and use it in the test
 		// variant. Expect no diagnostics.
 		env.WriteWorkspaceFiles(map[string]string{
