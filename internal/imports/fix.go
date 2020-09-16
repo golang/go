@@ -928,6 +928,17 @@ func (e *ProcessEnv) buildContext() (*build.Context, error) {
 		dir.SetString(e.WorkingDir)
 	}
 
+	// Since Go 1.11, go/build.Context.Import may invoke 'go list' depending on
+	// the value in GO111MODULE in the process's environment. We always want to
+	// run in GOPATH mode when calling Import, so we need to prevent this from
+	// happening. In Go 1.16, GO111MODULE defaults to "on", so this problem comes
+	// up more frequently.
+	//
+	// HACK: setting any of the Context I/O hooks prevents Import from invoking
+	// 'go list', regardless of GO111MODULE. This is undocumented, but it's
+	// unlikely to change before GOPATH support is removed.
+	ctx.ReadDir = ioutil.ReadDir
+
 	return &ctx, nil
 }
 

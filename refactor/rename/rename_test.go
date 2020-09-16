@@ -1325,6 +1325,14 @@ func TestDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	const modFile = `module example.com/rename
+
+go 1.15
+`
+	if err := ioutil.WriteFile(filepath.Join(pkgDir, "go.mod"), []byte(modFile), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	const goFile = `package rename
 
 func justHereForTestingDiff() {
