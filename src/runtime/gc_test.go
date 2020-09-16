@@ -763,6 +763,10 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
 }
 
 func BenchmarkMSpanCountAlloc(b *testing.B) {
+	// Allocate one dummy mspan for the whole benchmark.
+	s := runtime.AllocMSpan()
+	defer runtime.FreeMSpan(s)
+
 	// n is the number of bytes to benchmark against.
 	// n must always be a multiple of 8, since gcBits is
 	// always rounded up 8 bytes.
@@ -774,7 +778,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				runtime.MSpanCountAlloc(bits)
+				runtime.MSpanCountAlloc(s, bits)
 			}
 		})
 	}
