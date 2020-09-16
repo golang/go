@@ -622,8 +622,9 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.ARM64:
-			// ARM64 instructions with one input and two outputs.
-			if arch.IsARM64STLXR(op) {
+			switch {
+			case arch.IsARM64STLXR(op):
+				// ARM64 instructions with one input and two outputs.
 				prog.From = a[0]
 				prog.To = a[1]
 				if a[2].Type != obj.TYPE_REG {
@@ -631,20 +632,16 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
-				break
-			}
-			if arch.IsARM64TBL(op) {
+			case arch.IsARM64TBL(op):
+				// one of its inputs does not fit into prog.Reg.
 				prog.From = a[0]
-				if a[1].Type != obj.TYPE_REGLIST {
-					p.errorf("%s: expected list; found %s", op, obj.Dconv(prog, &a[1]))
-				}
 				prog.SetFrom3(a[1])
 				prog.To = a[2]
-				break
+			default:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
 			}
-			prog.From = a[0]
-			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.To = a[2]
 		case sys.I386:
 			prog.From = a[0]
 			prog.SetFrom3(a[1])
