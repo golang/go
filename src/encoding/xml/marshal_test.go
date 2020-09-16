@@ -821,6 +821,7 @@ var marshalTests = []struct {
 		Value:     &ServiceErrorNameConflict{Port: &Port{Number: "80"}},
 		ExpectXML: `<service><host><port>80</port></host></service>`,
 		MarshalError: `conflicts with name`,
+		UnmarshalError: `conflicts with name`,
 	},
 	{
 		Value: &struct {
@@ -1758,6 +1759,14 @@ type BadTagTrailingTag struct {
 	Comment string   `xml:"comment>"`
 }
 
+type BadEmbed struct {
+	BadInnerEmbed
+}
+
+type BadInnerEmbed struct {
+	Field string `xml:"Field,attr,comment"`
+}
+
 // used by both TestMarshalErrors and TestMarshalIndentErrors
 var marshalErrorTests = []struct {
 	Value interface{}
@@ -1806,6 +1815,10 @@ var marshalErrorTests = []struct {
 	{
 		Value: BadTagTrailingTag{"some comment"},
 		Err:   `xml: trailing '>' in field Comment of type xml.BadTagTrailingTag`,
+	},
+	{
+		Value: BadEmbed{},
+		Err:   `xml: invalid tag in field Field of type xml.BadInnerEmbed: "Field,attr,comment"`,
 	},
 }
 
