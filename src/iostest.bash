@@ -38,7 +38,7 @@ if [ "$1" = "-restart" ]; then
 	sleep 30
 	# Poll until the device has restarted.
 	until idevicediagnostics $IDEVARGS diagnostics; do
-		# TODO(crawshaw): replace with a test app using go_darwin_arm_exec.
+		# TODO(crawshaw): replace with a test app using go_ios_exec.
 		echo "waiting for idevice to come online"
 		sleep 10
 	done
