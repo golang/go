@@ -623,6 +623,9 @@ func typecheck1(n *Node, top int) (res *Node) {
 			// no defaultlit for left
 			// the outer context gives the type
 			n.Type = l.Type
+			if (l.Type == types.Idealfloat || l.Type == types.Idealcomplex) && r.Op == OLITERAL {
+				n.Type = types.Idealint
+			}
 
 			break
 		}
@@ -798,6 +801,20 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		n.Type = t
+		if t.Etype == TIDEAL {
+			switch {
+			case l.Type == types.Idealcomplex || r.Type == types.Idealcomplex:
+				n.Type = types.Idealcomplex
+			case l.Type == types.Idealfloat || r.Type == types.Idealfloat:
+				n.Type = types.Idealfloat
+			case l.Type == types.Idealrune || r.Type == types.Idealrune:
+				n.Type = types.Idealrune
+			case l.Type == types.Idealint || r.Type == types.Idealint:
+				n.Type = types.Idealint
+			default:
+				Fatalf("bad untyped type: %v", t)
+			}
+		}
 
 	case OBITNOT, ONEG, ONOT, OPLUS:
 		ok |= ctxExpr
@@ -1678,7 +1695,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 		var why string
 		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
-		if n.Op == 0 {
+		if n.Op == OXXX {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.SetDiag(true)

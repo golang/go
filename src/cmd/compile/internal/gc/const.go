@@ -44,7 +44,7 @@ func (v Val) Ctype() Ctype {
 		Fatalf("unexpected Ctype for %T", v.U)
 		panic("unreachable")
 	case nil:
-		return 0
+		return CTxxx
 	case *NilVal:
 		return CTNIL
 	case bool:
@@ -261,7 +261,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, context func() string) *Nod
 	}
 
 	if t == nil || !okforconst[t.Etype] {
-		t = defaultType(idealkind(n))
+		t = defaultType(n.Type)
 	}
 
 	switch n.Op {
@@ -994,10 +994,8 @@ func setconst(n *Node, v Val) {
 		Xoffset: BADWIDTH,
 	}
 	n.SetVal(v)
-	if n.Type.IsUntyped() {
-		// TODO(mdempsky): Make typecheck responsible for setting
-		// the correct untyped type.
-		n.Type = idealType(v.Ctype())
+	if vt := idealType(v.Ctype()); n.Type.IsUntyped() && n.Type != vt {
+		Fatalf("untyped type mismatch, have: %v, want: %v", n.Type, vt)
 	}
 
 	// Check range.
@@ -1056,67 +1054,6 @@ func idealType(ct Ctype) *types.Type {
 	return nil
 }
 
-// idealkind returns a constant kind like consttype
-// but for an arbitrary "ideal" (untyped constant) expression.
-func idealkind(n *Node) Ctype {
-	if n == nil || !n.Type.IsUntyped() {
-		return CTxxx
-	}
-
-	switch n.Op {
-	default:
-		return CTxxx
-
-	case OLITERAL:
-		return n.Val().Ctype()
-
-		// numeric kinds.
-	case OADD,
-		OAND,
-		OANDNOT,
-		OBITNOT,
-		ODIV,
-		ONEG,
-		OMOD,
-		OMUL,
-		OSUB,
-		OXOR,
-		OOR,
-		OPLUS:
-		k1 := idealkind(n.Left)
-		k2 := idealkind(n.Right)
-		if k1 > k2 {
-			return k1
-		} else {
-			return k2
-		}
-
-	case OREAL, OIMAG:
-		return CTFLT
-
-	case OCOMPLEX:
-		return CTCPLX
-
-	case OADDSTR:
-		return CTSTR
-
-	case OANDAND,
-		OEQ,
-		OGE,
-		OGT,
-		OLE,
-		OLT,
-		ONE,
-		ONOT,
-		OOROR:
-		return CTBOOL
-
-		// shifts (beware!).
-	case OLSH, ORSH:
-		return idealkind(n.Left)
-	}
-}
-
 // defaultlit on both nodes simultaneously;
 // if they're both ideal going in they better
 // get the same type going out.
@@ -1152,32 +1089,57 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 		return l, r
 	}
 
-	k := idealkind(l)
-	if rk := idealkind(r); rk > k {
-		k = rk
+	nn := l
+	if ctype(r.Type) > ctype(l.Type) {
+		nn = r
 	}
-	t := defaultType(k)
+
+	t := defaultType(nn.Type)
 	l = convlit(l, t)
 	r = convlit(r, t)
 	return l, r
 }
 
-func defaultType(k Ctype) *types.Type {
-	switch k {
-	case CTBOOL:
+func ctype(t *types.Type) Ctype {
+	switch t {
+	case types.Idealbool:
+		return CTBOOL
+	case types.Idealstring:
+		return CTSTR
+	case types.Idealint:
+		return CTINT
+	case types.Idealrune:
+		return CTRUNE
+	case types.Idealfloat:
+		return CTFLT
+	case types.Idealcomplex:
+		return CTCPLX
+	}
+	Fatalf("bad type %v", t)
+	panic("unreachable")
+}
+
+func defaultType(t *types.Type) *types.Type {
+	if !t.IsUntyped() {
+		return t
+	}
+
+	switch t {
+	case types.Idealbool:
 		return types.Types[TBOOL]
-	case CTSTR:
+	case types.Idealstring:
 		return types.Types[TSTRING]
-	case CTINT:
+	case types.Idealint:
 		return types.Types[TINT]
-	case CTRUNE:
+	case types.Idealrune:
 		return types.Runetype
-	case CTFLT:
+	case types.Idealfloat:
 		return types.Types[TFLOAT64]
-	case CTCPLX:
+	case types.Idealcomplex:
 		return types.Types[TCOMPLEX128]
 	}
-	Fatalf("bad idealkind: %v", k)
+
+	Fatalf("bad type %v", t)
 	return nil
 }
 
