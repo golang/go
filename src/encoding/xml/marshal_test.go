@@ -133,6 +133,14 @@ type Service struct {
 	Extra2  interface{} `xml:"host>extra2"`
 }
 
+type ServiceErrorNameConflict struct {
+	XMLName struct{} `xml:"service"`
+	Domain  *Domain  `xml:"host>domain"`
+	Port    *Port    `xml:"host>portZZZ"`
+	Extra1  interface{}
+	Extra2  interface{} `xml:"host>extra2"`
+}
+
 var nilStruct *Ship
 
 type EmbedA struct {
@@ -808,6 +816,11 @@ var marshalTests = []struct {
 			`<host><extra2>example</extra2></host>` +
 			`</service>`,
 		MarshalOnly: true,
+	},
+	{
+		Value:     &ServiceErrorNameConflict{Port: &Port{Number: "80"}},
+		ExpectXML: `<service><host><port>80</port></host></service>`,
+		MarshalError: `conflicts with name`,
 	},
 	{
 		Value: &struct {
