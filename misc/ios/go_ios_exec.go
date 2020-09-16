@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This program can be used as go_darwin_arm_exec by the Go tool.
+// This program can be used as go_ios_$GOARCH_exec by the Go tool.
 // It executes binaries on an iOS device using the XCode toolchain
 // and the ios-deploy program: https://github.com/phonegap/ios-deploy
 //
@@ -34,6 +34,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -66,26 +67,8 @@ func main() {
 		log.Fatal("usage: go_darwin_arm_exec a.out")
 	}
 
-	// e.g. B393DDEB490947F5A463FD074299B6C0AXXXXXXX
-	devID = getenv("GOIOS_DEV_ID")
-
-	// e.g. Z8B3JBXXXX.org.golang.sample, Z8B3JBXXXX prefix is available at
-	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
-	appID = getenv("GOIOS_APP_ID")
-
-	// e.g. Z8B3JBXXXX, available at
-	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
-	teamID = getenv("GOIOS_TEAM_ID")
-
-	// Device IDs as listed with ios-deploy -c.
-	deviceID = os.Getenv("GOIOS_DEVICE_ID")
-
-	parts := strings.SplitN(appID, ".", 2)
 	// For compatibility with the old builders, use a fallback bundle ID
 	bundleID = "golang.gotest"
-	if len(parts) == 2 {
-		bundleID = parts[1]
-	}
 
 	exitCode, err := runMain()
 	if err != nil {
@@ -126,28 +109,12 @@ func runMain() (int, error) {
 		return 1, err
 	}
 
-	if err := uninstall(bundleID); err != nil {
-		return 1, err
+	if goarch := os.Getenv("GOARCH"); goarch == "arm64" {
+		err = runOnDevice(appdir)
+	} else {
+		err = runOnSimulator(appdir)
 	}
-
-	if err := install(appdir); err != nil {
-		return 1, err
-	}
-
-	if err := mountDevImage(); err != nil {
-		return 1, err
-	}
-
-	// Kill any hanging debug bridges that might take up port 3222.
-	exec.Command("killall", "idevicedebugserverproxy").Run()
-
-	closer, err := startDebugBridge()
 	if err != nil {
-		return 1, err
-	}
-	defer closer()
-
-	if err := run(appdir, bundleID, os.Args[2:]); err != nil {
 		// If the lldb driver completed with an exit code, use that.
 		if err, ok := err.(*exec.ExitError); ok {
 			if ws, ok := err.Sys().(interface{ ExitStatus() int }); ok {
@@ -157,6 +124,62 @@ func runMain() (int, error) {
 		return 1, err
 	}
 	return 0, nil
+}
+
+func runOnSimulator(appdir string) error {
+	if err := installSimulator(appdir); err != nil {
+		return err
+	}
+
+	return runSimulator(appdir, bundleID, os.Args[2:])
+}
+
+func runOnDevice(appdir string) error {
+	// e.g. B393DDEB490947F5A463FD074299B6C0AXXXXXXX
+	devID = getenv("GOIOS_DEV_ID")
+
+	// e.g. Z8B3JBXXXX.org.golang.sample, Z8B3JBXXXX prefix is available at
+	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
+	appID = getenv("GOIOS_APP_ID")
+
+	// e.g. Z8B3JBXXXX, available at
+	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
+	teamID = getenv("GOIOS_TEAM_ID")
+
+	// Device IDs as listed with ios-deploy -c.
+	deviceID = os.Getenv("GOIOS_DEVICE_ID")
+
+	parts := strings.SplitN(appID, ".", 2)
+	if len(parts) == 2 {
+		bundleID = parts[1]
+	}
+
+	if err := signApp(appdir); err != nil {
+		return err
+	}
+
+	if err := uninstallDevice(bundleID); err != nil {
+		return err
+	}
+
+	if err := installDevice(appdir); err != nil {
+		return err
+	}
+
+	if err := mountDevImage(); err != nil {
+		return err
+	}
+
+	// Kill any hanging debug bridges that might take up port 3222.
+	exec.Command("killall", "idevicedebugserverproxy").Run()
+
+	closer, err := startDebugBridge()
+	if err != nil {
+		return err
+	}
+	defer closer()
+
+	return runDevice(appdir, bundleID, os.Args[2:])
 }
 
 func getenv(envvar string) string {
@@ -191,7 +214,11 @@ func assembleApp(appdir, bin string) error {
 	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
 		return err
 	}
+	return nil
+}
 
+func signApp(appdir string) error {
+	entitlementsPath := filepath.Join(tmpdir, "Entitlements.plist")
 	cmd := exec.Command(
 		"codesign",
 		"-f",
@@ -421,7 +448,20 @@ func parsePlistDict(dict []byte) (map[string]string, error) {
 	return values, nil
 }
 
-func uninstall(bundleID string) error {
+func installSimulator(appdir string) error {
+	cmd := exec.Command(
+		"xcrun", "simctl", "install",
+		"booted", // Install to the booted simulator.
+		appdir,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("xcrun simctl install booted %q: %v", appdir, err)
+	}
+	return nil
+}
+
+func uninstallDevice(bundleID string) error {
 	cmd := idevCmd(exec.Command(
 		"ideviceinstaller",
 		"-U", bundleID,
@@ -433,7 +473,7 @@ func uninstall(bundleID string) error {
 	return nil
 }
 
-func install(appdir string) error {
+func installDevice(appdir string) error {
 	attempt := 0
 	for {
 		cmd := idevCmd(exec.Command(
@@ -464,15 +504,28 @@ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
 	return cmd
 }
 
-func run(appdir, bundleID string, args []string) error {
-	var env []string
-	for _, e := range os.Environ() {
-		// Don't override TMPDIR, HOME, GOCACHE on the device.
-		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") {
-			continue
-		}
-		env = append(env, e)
+func runSimulator(appdir, bundleID string, args []string) error {
+	cmd := exec.Command(
+		"xcrun", "simctl", "launch",
+		"--wait-for-debugger",
+		"booted",
+		bundleID,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		os.Stderr.Write(out)
+		return fmt.Errorf("xcrun simctl launch booted %q: %v", bundleID, err)
 	}
+	var processID int
+	var ignore string
+	if _, err := fmt.Sscanf(string(out), "%s %d", &ignore, &processID); err != nil {
+		return fmt.Errorf("runSimulator: couldn't find processID from `simctl launch`: %v (%q)", err, out)
+	}
+	_, err = runLLDB("ios-simulator", appdir, strconv.Itoa(processID), args)
+	return err
+}
+
+func runDevice(appdir, bundleID string, args []string) error {
 	attempt := 0
 	for {
 		// The device app path reported by the device might be stale, so retry
@@ -487,37 +540,10 @@ func run(appdir, bundleID string, args []string) error {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		lldb := exec.Command(
-			"python",
-			"-", // Read script from stdin.
-			appdir,
-			deviceapp,
-		)
-		lldb.Args = append(lldb.Args, args...)
-		lldb.Env = env
-		lldb.Stdin = strings.NewReader(lldbDriver)
-		lldb.Stdout = os.Stdout
-		var out bytes.Buffer
-		lldb.Stderr = io.MultiWriter(&out, os.Stderr)
-		err = lldb.Start()
-		if err == nil {
-			// Forward SIGQUIT to the lldb driver which in turn will forward
-			// to the running program.
-			sigs := make(chan os.Signal, 1)
-			signal.Notify(sigs, syscall.SIGQUIT)
-			proc := lldb.Process
-			go func() {
-				for sig := range sigs {
-					proc.Signal(sig)
-				}
-			}()
-			err = lldb.Wait()
-			signal.Stop(sigs)
-			close(sigs)
-		}
+		out, err := runLLDB("remote-ios", appdir, deviceapp, args)
 		// If the program was not started it can be retried without papering over
 		// real test failures.
-		started := bytes.HasPrefix(out.Bytes(), []byte("lldb: running program"))
+		started := bytes.HasPrefix(out, []byte("lldb: running program"))
 		if started || err == nil || attempt == 5 {
 			return err
 		}
@@ -526,6 +552,47 @@ func run(appdir, bundleID string, args []string) error {
 		attempt++
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func runLLDB(target, appdir, deviceapp string, args []string) ([]byte, error) {
+	var env []string
+	for _, e := range os.Environ() {
+		// Don't override TMPDIR, HOME, GOCACHE on the device.
+		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") || strings.HasPrefix(e, "GOCACHE=") {
+			continue
+		}
+		env = append(env, e)
+	}
+	lldb := exec.Command(
+		"python",
+		"-", // Read script from stdin.
+		target,
+		appdir,
+		deviceapp,
+	)
+	lldb.Args = append(lldb.Args, args...)
+	lldb.Env = env
+	lldb.Stdin = strings.NewReader(lldbDriver)
+	lldb.Stdout = os.Stdout
+	var out bytes.Buffer
+	lldb.Stderr = io.MultiWriter(&out, os.Stderr)
+	err := lldb.Start()
+	if err == nil {
+		// Forward SIGQUIT to the lldb driver which in turn will forward
+		// to the running program.
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGQUIT)
+		proc := lldb.Process
+		go func() {
+			for sig := range sigs {
+				proc.Signal(sig)
+			}
+		}()
+		err = lldb.Wait()
+		signal.Stop(sigs)
+		close(sigs)
+	}
+	return out.Bytes(), err
 }
 
 func copyLocalDir(dst, src string) error {
@@ -679,6 +746,7 @@ func infoPlist(pkgpath string) string {
 <key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
 <key>CFBundleExecutable</key><string>gotest</string>
 <key>CFBundleVersion</key><string>1.0</string>
+<key>CFBundleShortVersionString</key><string>1.0</string>
 <key>CFBundleIdentifier</key><string>` + bundleID + `</string>
 <key>CFBundleResourceSpecification</key><string>ResourceRules.plist</string>
 <key>LSRequiresIPhoneOS</key><true/>
@@ -739,7 +807,7 @@ import sys
 import os
 import signal
 
-exe, device_exe, args = sys.argv[1], sys.argv[2], sys.argv[3:]
+platform, exe, device_exe_or_pid, args = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4:]
 
 env = []
 for k, v in os.environ.items():
@@ -754,17 +822,21 @@ debugger.SetAsync(True)
 debugger.SkipLLDBInitFiles(True)
 
 err = lldb.SBError()
-target = debugger.CreateTarget(exe, None, 'remote-ios', True, err)
+target = debugger.CreateTarget(exe, None, platform, True, err)
 if not target.IsValid() or not err.Success():
 	sys.stderr.write("lldb: failed to setup up target: %s\n" % (err))
 	sys.exit(1)
 
-target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_exe))
-
 listener = debugger.GetListener()
-process = target.ConnectRemote(listener, 'connect://localhost:3222', None, err)
+
+if platform == 'remote-ios':
+	target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_exe_or_pid))
+	process = target.ConnectRemote(listener, 'connect://localhost:3222', None, err)
+else:
+	process = target.AttachToProcessWithID(listener, int(device_exe_or_pid), err)
+
 if not err.Success():
-	sys.stderr.write("lldb: failed to connect to remote target: %s\n" % (err))
+	sys.stderr.write("lldb: failed to connect to remote target %s: %s\n" % (device_exe_or_pid, err))
 	sys.exit(1)
 
 # Don't stop on signals.
@@ -777,6 +849,25 @@ for i in range(0, sigs.GetNumSignals()):
 event = lldb.SBEvent()
 running = False
 prev_handler = None
+
+def signal_handler(signal, frame):
+	process.Signal(signal)
+
+def run_program():
+	# Forward SIGQUIT to the program.
+	prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
+	# Tell the Go driver that the program is running and should not be retried.
+	sys.stderr.write("lldb: running program\n")
+	running = True
+	# Process is stopped at attach/launch. Let it run.
+	process.Continue()
+
+if platform != 'remote-ios':
+	# For the local emulator the program is ready to run.
+	# For remote device runs, we need to wait for eStateConnected,
+	# below.
+	run_program()
+
 while True:
 	if not listener.WaitForEvent(1, event):
 		continue
@@ -800,24 +891,22 @@ while True:
 			signal.signal(signal.SIGQUIT, prev_handler)
 		break
 	elif state == lldb.eStateConnected:
-		process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
-		if not err.Success():
-			sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
-			process.Kill()
-			debugger.Terminate()
-			sys.exit(1)
-		# Forward SIGQUIT to the program.
-		def signal_handler(signal, frame):
-			process.Signal(signal)
-		prev_handler = signal.signal(signal.SIGQUIT, signal_handler)
-		# Tell the Go driver that the program is running and should not be retried.
-		sys.stderr.write("lldb: running program\n")
-		running = True
-		# Process stops once at the beginning. Continue.
-		process.Continue()
+		if platform == 'remote-ios':
+			process.RemoteLaunch(args, env, None, None, None, None, 0, False, err)
+			if not err.Success():
+				sys.stderr.write("lldb: failed to launch remote process: %s\n" % (err))
+				process.Kill()
+				debugger.Terminate()
+				sys.exit(1)
+		run_program()
 
 exitStatus = process.GetExitStatus()
+exitDesc = process.GetExitDescription()
 process.Kill()
 debugger.Terminate()
+if exitStatus == 0 and exitDesc is not None:
+	# Ensure tests fail when killed by a signal.
+	exitStatus = 123
+
 sys.exit(exitStatus)
 `
