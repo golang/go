@@ -240,28 +240,6 @@ func (e *Env) checkConditionsLocked() {
 	}
 }
 
-// ExpectNow asserts that the current state of the editor matches the given
-// expectations.
-//
-// It can be used together with Env.Await to allow waiting on
-// simple expectations, followed by more detailed expectations tested by
-// ExpectNow. For example:
-//
-//  env.RegexpReplace("foo.go", "a", "x")
-//  env.Await(env.AnyDiagnosticAtCurrentVersion("foo.go"))
-//  env.ExpectNow(env.DiagnosticAtRegexp("foo.go", "x"))
-//
-// This has the advantage of not timing out if the diagnostic received for
-// "foo.go" does not match the expectation: instead it fails early.
-func (e *Env) ExpectNow(expectations ...Expectation) {
-	e.T.Helper()
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if verdict, summary, _ := checkExpectations(e.state, expectations); verdict != Met {
-		e.T.Fatalf("expectations unmet:\n%s\ncurrent state:\n%v", summary, e.state)
-	}
-}
-
 // checkExpectations reports whether s meets all expectations.
 func checkExpectations(s State, expectations []Expectation) (Verdict, string, []interface{}) {
 	finalVerdict := Met
