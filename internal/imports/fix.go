@@ -920,11 +920,6 @@ func (e *ProcessEnv) buildContext() (*build.Context, error) {
 	// Populate it only if present.
 	rc := reflect.ValueOf(&ctx).Elem()
 	dir := rc.FieldByName("Dir")
-	if !dir.IsValid() {
-		// Working drafts of Go 1.14 named the field "WorkingDir" instead.
-		// TODO(bcmills): Remove this case after the Go 1.14 beta has been released.
-		dir = rc.FieldByName("WorkingDir")
-	}
 	if dir.IsValid() && dir.Kind() == reflect.String {
 		dir.SetString(e.WorkingDir)
 	}
