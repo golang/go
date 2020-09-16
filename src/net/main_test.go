@@ -133,7 +133,7 @@ func setupTestData() {
 			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
 		}...)
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "openbsd", "netbsd":
 			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
 				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
 				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},

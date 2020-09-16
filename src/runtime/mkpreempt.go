@@ -361,6 +361,9 @@ func genARM64() {
 	p("#ifdef GOOS_darwin")
 	p("MOVD R30, (RSP)")
 	p("#endif")
+	p("#ifdef GOOS_ios")
+	p("MOVD R30, (RSP)")
+	p("#endif")
 
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")

@@ -2424,7 +2424,7 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 	// On OS X, some of the compilers behave as if -fno-common
 	// is always set, and the Mach-O linker in 6l/8l assumes this.
 	// See https://golang.org/issue/3253.
-	if cfg.Goos == "darwin" {
+	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
 		a = append(a, "-fno-common")
 	}
 
