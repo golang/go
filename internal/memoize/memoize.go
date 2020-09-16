@@ -228,7 +228,7 @@ func (g *Generation) Inherit(h *Handle) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.state == stateDestroyed {
-		panic(fmt.Sprintf("inheriting destroyed handle %#v into generation %v", h.key, g.name))
+		panic(fmt.Sprintf("inheriting destroyed handle %#v (type %T) into generation %v", h.key, h.key, g.name))
 	}
 	h.generations[g] = struct{}{}
 }
@@ -280,7 +280,7 @@ func (h *Handle) Get(ctx context.Context, g *Generation, arg Arg) (interface{}, 
 		return h.value, nil
 	case stateDestroyed:
 		h.mu.Unlock()
-		err := fmt.Errorf("Get on destroyed entry %#v in generation %v", h.key, g.name)
+		err := fmt.Errorf("Get on destroyed entry %#v (type %T) in generation %v", h.key, h.key, g.name)
 		if *panicOnDestroyed {
 			panic(err)
 		}
