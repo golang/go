@@ -126,17 +126,14 @@ require example.com v1.2.3
 `
 	runner.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		d := env.Await(
-			env.DiagnosticAtRegexp("go.mod", "// indirect"),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("go.mod", "// indirect"),
+				ReadDiagnostics("go.mod", &d),
+			),
 		)
-		if len(d) == 0 {
-			t.Fatalf("no diagnostics")
-		}
-		params, ok := d[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("expected diagnostic of type PublishDiagnosticParams, got %T", d[0])
-		}
-		env.ApplyQuickFixes("go.mod", params.Diagnostics)
+		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		if got := env.Editor.BufferText("go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", tests.Diff(want, got))
 		}
@@ -184,17 +181,14 @@ func _() {
 	runner.Run(t, repro, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.OpenFile("main.go")
-		d := env.Await(
-			env.DiagnosticAtRegexp("main.go", `"github.com/esimov/caire"`),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("main.go", `"github.com/esimov/caire"`),
+				ReadDiagnostics("main.go", &d),
+			),
 		)
-		if len(d) == 0 {
-			t.Fatalf("no diagnostics")
-		}
-		params, ok := d[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("expected diagnostic of type PublishDiagnosticParams, got %T", d[0])
-		}
-		env.ApplyQuickFixes("main.go", params.Diagnostics)
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		want := `module mod.com
 
 go 1.14
@@ -308,14 +302,13 @@ func main() {
 	runner.Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
-		metBy := env.Await(
-			DiagnosticAt("go.mod", 0, 0),
-			NoDiagnostics("main.go"),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				DiagnosticAt("go.mod", 0, 0),
+				ReadDiagnostics("go.mod", &d),
+			),
 		)
-		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("unexpected type for metBy (%T)", metBy)
-		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		const want = `module mod.com
 

@@ -19,7 +19,7 @@ import (
 type Expectation interface {
 	// Check determines whether the state of the editor satisfies the
 	// expectation, returning the results that met the condition.
-	Check(State) (Verdict, interface{})
+	Check(State) Verdict
 	// Description is a human-readable description of the expectation.
 	Description() string
 }
@@ -61,12 +61,12 @@ func (v Verdict) String() string {
 
 // SimpleExpectation holds an arbitrary check func, and implements the Expectation interface.
 type SimpleExpectation struct {
-	check       func(State) (Verdict, interface{})
+	check       func(State) Verdict
 	description string
 }
 
 // Check invokes e.check.
-func (e SimpleExpectation) Check(s State) (Verdict, interface{}) {
+func (e SimpleExpectation) Check(s State) Verdict {
 	return e.check(s)
 }
 
@@ -78,18 +78,18 @@ func (e SimpleExpectation) Description() string {
 // OnceMet returns an Expectation that, once the precondition is met, asserts
 // that mustMeet is met.
 func OnceMet(precondition Expectation, mustMeet Expectation) *SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
-		switch pre, _ := precondition.Check(s); pre {
+	check := func(s State) Verdict {
+		switch pre := precondition.Check(s); pre {
 		case Unmeetable:
-			return Unmeetable, nil
+			return Unmeetable
 		case Met:
-			verdict, metBy := mustMeet.Check(s)
+			verdict := mustMeet.Check(s)
 			if verdict != Met {
-				return Unmeetable, metBy
+				return Unmeetable
 			}
-			return Met, metBy
+			return Met
 		default:
-			return Unmet, nil
+			return Unmet
 		}
 	}
 	return &SimpleExpectation{
@@ -98,14 +98,31 @@ func OnceMet(precondition Expectation, mustMeet Expectation) *SimpleExpectation 
 	}
 }
 
+// ReadDiagnostics is an 'expectation' that is used to read diagnostics
+// atomically. It is intended to be used with 'OnceMet'.
+func ReadDiagnostics(fileName string, into *protocol.PublishDiagnosticsParams) *SimpleExpectation {
+	check := func(s State) Verdict {
+		diags, ok := s.diagnostics[fileName]
+		if !ok {
+			return Unmeetable
+		}
+		*into = *diags
+		return Met
+	}
+	return &SimpleExpectation{
+		check:       check,
+		description: fmt.Sprintf("read diagnostics for %q", fileName),
+	}
+}
+
 // NoOutstandingWork asserts that there is no work initiated using the LSP
 // $/progress API that has not completed.
 func NoOutstandingWork() SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if len(s.outstandingWork) == 0 {
-			return Met, nil
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -115,11 +132,11 @@ func NoOutstandingWork() SimpleExpectation {
 
 // NoShowMessage asserts that the editor has not received a ShowMessage.
 func NoShowMessage() SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if len(s.showMessage) == 0 {
-			return Met, "no ShowMessage"
+			return Met
 		}
-		return Unmeetable, nil
+		return Unmeetable
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -130,13 +147,13 @@ func NoShowMessage() SimpleExpectation {
 // ShownMessage asserts that the editor has received a ShownMessage with the
 // given title.
 func ShownMessage(title string) SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		for _, m := range s.showMessage {
 			if strings.Contains(m.Message, title) {
-				return Met, m
+				return Met
 			}
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -147,19 +164,19 @@ func ShownMessage(title string) SimpleExpectation {
 // ShowMessageRequest asserts that the editor has received a ShowMessageRequest
 // with an action item that has the given title.
 func ShowMessageRequest(title string) SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if len(s.showMessageRequest) == 0 {
-			return Unmet, nil
+			return Unmet
 		}
 		// Only check the most recent one.
 		m := s.showMessageRequest[len(s.showMessageRequest)-1]
 		if len(m.Actions) == 0 || len(m.Actions) > 1 {
-			return Unmet, nil
+			return Unmet
 		}
 		if m.Actions[0].Title == title {
-			return Met, m.Actions[0]
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -172,11 +189,11 @@ func ShowMessageRequest(title string) SimpleExpectation {
 // Since the Progress API doesn't include any hidden metadata, we must use the
 // progress notification title to identify the work we expect to be completed.
 func CompletedWork(title string, atLeast int) SimpleExpectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if s.completedWork[title] >= atLeast {
-			return Met, title
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -187,12 +204,12 @@ func CompletedWork(title string, atLeast int) SimpleExpectation {
 // LogExpectation is an expectation on the log messages received by the editor
 // from gopls.
 type LogExpectation struct {
-	check       func([]*protocol.LogMessageParams) (Verdict, interface{})
+	check       func([]*protocol.LogMessageParams) Verdict
 	description string
 }
 
 // Check implements the Expectation interface.
-func (e LogExpectation) Check(s State) (Verdict, interface{}) {
+func (e LogExpectation) Check(s State) Verdict {
 	return e.check(s.logs)
 }
 
@@ -214,7 +231,7 @@ func LogMatching(typ protocol.MessageType, re string, count int) LogExpectation 
 	if err != nil {
 		panic(err)
 	}
-	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
+	check := func(msgs []*protocol.LogMessageParams) Verdict {
 		var found int
 		for _, msg := range msgs {
 			if msg.Type == typ && rec.Match([]byte(msg.Message)) {
@@ -222,9 +239,9 @@ func LogMatching(typ protocol.MessageType, re string, count int) LogExpectation 
 			}
 		}
 		if found == count {
-			return Met, nil
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return LogExpectation{
 		check:       check,
@@ -244,16 +261,16 @@ func NoLogMatching(typ protocol.MessageType, re string) LogExpectation {
 			panic(err)
 		}
 	}
-	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
+	check := func(msgs []*protocol.LogMessageParams) Verdict {
 		for _, msg := range msgs {
 			if msg.Type != typ {
 				continue
 			}
 			if r == nil || r.Match([]byte(msg.Message)) {
-				return Unmeetable, nil
+				return Unmeetable
 			}
 		}
-		return Met, nil
+		return Met
 	}
 	return LogExpectation{
 		check:       check,
@@ -264,12 +281,12 @@ func NoLogMatching(typ protocol.MessageType, re string) LogExpectation {
 // RegistrationExpectation is an expectation on the capability registrations
 // received by the editor from gopls.
 type RegistrationExpectation struct {
-	check       func([]*protocol.RegistrationParams) (Verdict, interface{})
+	check       func([]*protocol.RegistrationParams) Verdict
 	description string
 }
 
 // Check implements the Expectation interface.
-func (e RegistrationExpectation) Check(s State) (Verdict, interface{}) {
+func (e RegistrationExpectation) Check(s State) Verdict {
 	return e.check(s.registrations)
 }
 
@@ -285,15 +302,15 @@ func RegistrationMatching(re string) RegistrationExpectation {
 	if err != nil {
 		panic(err)
 	}
-	check := func(params []*protocol.RegistrationParams) (Verdict, interface{}) {
+	check := func(params []*protocol.RegistrationParams) Verdict {
 		for _, p := range params {
 			for _, r := range p.Registrations {
 				if rec.Match([]byte(r.Method)) {
-					return Met, r
+					return Met
 				}
 			}
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return RegistrationExpectation{
 		check:       check,
@@ -304,12 +321,12 @@ func RegistrationMatching(re string) RegistrationExpectation {
 // UnregistrationExpectation is an expectation on the capability
 // unregistrations received by the editor from gopls.
 type UnregistrationExpectation struct {
-	check       func([]*protocol.UnregistrationParams) (Verdict, interface{})
+	check       func([]*protocol.UnregistrationParams) Verdict
 	description string
 }
 
 // Check implements the Expectation interface.
-func (e UnregistrationExpectation) Check(s State) (Verdict, interface{}) {
+func (e UnregistrationExpectation) Check(s State) Verdict {
 	return e.check(s.unregistrations)
 }
 
@@ -325,15 +342,15 @@ func UnregistrationMatching(re string) UnregistrationExpectation {
 	if err != nil {
 		panic(err)
 	}
-	check := func(params []*protocol.UnregistrationParams) (Verdict, interface{}) {
+	check := func(params []*protocol.UnregistrationParams) Verdict {
 		for _, p := range params {
 			for _, r := range p.Unregisterations {
 				if rec.Match([]byte(r.Method)) {
-					return Met, r
+					return Met
 				}
 			}
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return UnregistrationExpectation{
 		check:       check,
@@ -354,11 +371,11 @@ type DiagnosticExpectation struct {
 }
 
 // Check implements the Expectation interface.
-func (e DiagnosticExpectation) Check(s State) (Verdict, interface{}) {
+func (e DiagnosticExpectation) Check(s State) Verdict {
 	if diags, ok := s.diagnostics[e.path]; ok && e.isMet(diags) {
-		return Met, diags
+		return Met
 	}
-	return Unmet, nil
+	return Unmet
 }
 
 // Description implements the Expectation interface.
@@ -369,11 +386,11 @@ func (e DiagnosticExpectation) Description() string {
 // EmptyDiagnostics asserts that empty diagnostics are sent for the
 // workspace-relative path name.
 func EmptyDiagnostics(name string) Expectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if diags := s.diagnostics[name]; diags != nil && len(diags.Diagnostics) == 0 {
-			return Met, nil
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,
@@ -386,11 +403,11 @@ func EmptyDiagnostics(name string) Expectation {
 // with a OnceMet, as it has to check that all outstanding diagnostics have
 // already been delivered.
 func NoDiagnostics(name string) Expectation {
-	check := func(s State) (Verdict, interface{}) {
+	check := func(s State) Verdict {
 		if _, ok := s.diagnostics[name]; !ok {
-			return Met, nil
+			return Met
 		}
-		return Unmet, nil
+		return Unmet
 	}
 	return SimpleExpectation{
 		check:       check,

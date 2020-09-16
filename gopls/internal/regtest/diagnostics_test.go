@@ -259,13 +259,13 @@ func Hello() {
 			env.Await(
 				EmptyDiagnostics("main.go"),
 			)
-			metBy := env.Await(
-				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+			var d protocol.PublishDiagnosticsParams
+			env.Await(
+				OnceMet(
+					env.DiagnosticAtRegexp("bob/bob.go", "x"),
+					ReadDiagnostics("bob/bob.go", &d),
+				),
 			)
-			d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-			if !ok {
-				t.Fatalf("unexpected met by result %v (%T)", metBy, metBy)
-			}
 			if len(d.Diagnostics) != 1 {
 				t.Fatalf("expected 1 diagnostic, got %v", len(d.Diagnostics))
 			}
@@ -490,13 +490,13 @@ func _() {
 	runner.Run(t, generated, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("main.go")
-		metBy := env.Await(
-			DiagnosticAt("main.go", 5, 8),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				DiagnosticAt("main.go", 5, 8),
+				ReadDiagnostics("main.go", &d),
+			),
 		)
-		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("unexpected met by result %v (%T)", metBy, metBy)
-		}
 		// Apply fixes and save the buffer.
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.SaveBuffer("main.go")
@@ -649,13 +649,13 @@ func main() {
 		// "github.com/ardanlabs/conf" to the go.mod file.
 		env.OpenFile("go.mod")
 		env.OpenFile("main.go")
-		metBy := env.Await(
-			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+				ReadDiagnostics("main.go", &d),
+			),
 		)
-		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("unexpected type for metBy (%T)", metBy)
-		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.SaveBuffer("go.mod")
 		env.Await(
@@ -669,14 +669,13 @@ func main() {
 		)
 		env.SaveBuffer("main.go")
 		// Expect a diagnostic and fix to remove the dependency in the go.mod.
-		metBy = env.Await(
-			EmptyDiagnostics("main.go"),
-			env.DiagnosticAtRegexp("go.mod", "require github.com/ardanlabs/conf"),
+		env.Await(EmptyDiagnostics("main.go"))
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("go.mod", "require github.com/ardanlabs/conf"),
+				ReadDiagnostics("go.mod", &d),
+			),
 		)
-		d, ok = metBy[1].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("unexpected type for metBy (%T)", metBy)
-		}
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		env.SaveBuffer("go.mod")
 		env.Await(
@@ -715,13 +714,13 @@ func main() {
 }
 `))
 		env.SaveBuffer("main.go")
-		metBy := env.Await(
-			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+				ReadDiagnostics("main.go", &d),
+			),
 		)
-		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("unexpected type for diagnostics (%T)", d)
-		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.Await(
 			EmptyDiagnostics("main.go"),

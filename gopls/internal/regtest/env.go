@@ -233,7 +233,7 @@ func (e *Env) onUnregistration(_ context.Context, m *protocol.UnregistrationPara
 
 func (e *Env) checkConditionsLocked() {
 	for id, condition := range e.waiters {
-		if v, _, _ := checkExpectations(e.state, condition.expectations); v != Unmet {
+		if v, _ := checkExpectations(e.state, condition.expectations); v != Unmet {
 			delete(e.waiters, id)
 			condition.verdict <- v
 		}
@@ -241,21 +241,17 @@ func (e *Env) checkConditionsLocked() {
 }
 
 // checkExpectations reports whether s meets all expectations.
-func checkExpectations(s State, expectations []Expectation) (Verdict, string, []interface{}) {
+func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 	finalVerdict := Met
-	var metBy []interface{}
 	var summary strings.Builder
 	for _, e := range expectations {
-		v, mb := e.Check(s)
-		if v == Met {
-			metBy = append(metBy, mb)
-		}
+		v := e.Check(s)
 		if v > finalVerdict {
 			finalVerdict = v
 		}
 		summary.WriteString(fmt.Sprintf("\t%v: %s\n", v, e.Description()))
 	}
-	return finalVerdict, summary.String(), metBy
+	return finalVerdict, summary.String()
 }
 
 // DiagnosticsFor returns the current diagnostics for the file. It is useful
@@ -269,16 +265,16 @@ func (e *Env) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams {
 
 // Await waits for all expectations to simultaneously be met. It should only be
 // called from the main test goroutine.
-func (e *Env) Await(expectations ...Expectation) []interface{} {
+func (e *Env) Await(expectations ...Expectation) {
 	e.T.Helper()
 	e.mu.Lock()
 	// Before adding the waiter, we check if the condition is currently met or
 	// failed to avoid a race where the condition was realized before Await was
 	// called.
-	switch verdict, summary, metBy := checkExpectations(e.state, expectations); verdict {
+	switch verdict, summary := checkExpectations(e.state, expectations); verdict {
 	case Met:
 		e.mu.Unlock()
-		return metBy
+		return
 	case Unmeetable:
 		e.mu.Unlock()
 		e.T.Fatalf("unmeetable expectations:\n%s\nstate:\n%v", summary, e.state)
@@ -302,12 +298,11 @@ func (e *Env) Await(expectations ...Expectation) []interface{} {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	_, summary, metBy := checkExpectations(e.state, expectations)
+	_, summary := checkExpectations(e.state, expectations)
 
 	// Debugging an unmet expectation can be tricky, so we put some effort into
 	// nicely formatting the failure.
 	if err != nil {
 		e.T.Fatalf("waiting on:\n%s\nerr:%v\n\nstate:\n%v", summary, err, e.state)
 	}
-	return metBy
 }

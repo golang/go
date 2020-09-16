@@ -191,13 +191,13 @@ func TestA(t *testing.T) {
 	run(t, pkg, func(t *testing.T, env *Env) {
 		env.Await(InitialWorkspaceLoad)
 		env.OpenFile("a/a.go")
-		metBy := env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
+				ReadDiagnostics("a/a.go", &d),
+			),
 		)
-		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
-		if !ok {
-			t.Fatalf("expected *protocol.PublishDiagnosticsParams, got %v (%T)", d, d)
-		}
 		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
 		env.Await(
 			EmptyDiagnostics("a/a.go"),
