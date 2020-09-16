@@ -991,7 +991,9 @@ type MSpan mspan
 func AllocMSpan() *MSpan {
 	var s *mspan
 	systemstack(func() {
+		lock(&mheap_.lock)
 		s = (*mspan)(mheap_.spanalloc.alloc())
+		unlock(&mheap_.lock)
 	})
 	return (*MSpan)(s)
 }
@@ -999,7 +1001,9 @@ func AllocMSpan() *MSpan {
 // Free an allocated mspan.
 func FreeMSpan(s *MSpan) {
 	systemstack(func() {
+		lock(&mheap_.lock)
 		mheap_.spanalloc.free(unsafe.Pointer(s))
+		unlock(&mheap_.lock)
 	})
 }
 
