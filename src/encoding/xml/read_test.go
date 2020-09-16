@@ -348,6 +348,18 @@ type TestThree struct {
 	Attr    string `xml:",attr"`
 }
 
+func TestUnmarshalNonpointer(t *testing.T) {
+	var x TestThree
+	err := Unmarshal([]byte(withoutNameTypeData), x)
+	errText := "non-pointer passed to Unmarshal"
+	if err == nil {
+		t.Errorf("[success], want error %v", errText)
+	}
+	if err.Error() != errText {
+		t.Errorf("[error] %v, want %v", err, errText)
+	}
+}
+
 func TestUnmarshalWithoutNameType(t *testing.T) {
 	var x TestThree
 	if err := Unmarshal([]byte(withoutNameTypeData), &x); err != nil {
