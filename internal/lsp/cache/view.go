@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/build"
 	"io"
 	"io/ioutil"
 	"os"
@@ -1012,7 +1011,7 @@ func (v *View) goVersion(ctx context.Context, env []string) (int, error) {
 	tags := strings.Fields(stdout[1 : len(stdout)-2])
 	for i := len(tags) - 1; i >= 0; i-- {
 		var version int
-		if _, err := fmt.Sscanf(build.Default.ReleaseTags[i], "go1.%d", &version); err != nil {
+		if _, err := fmt.Sscanf(tags[i], "go1.%d", &version); err != nil {
 			continue
 		}
 		return version, nil
