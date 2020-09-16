@@ -65,6 +65,7 @@ var (
 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
 	flagRace          = flag.Bool("race", false, "enable race detector")
 	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
+	flagAslr          = flag.Bool("aslr", true, "enable ASLR for buildmode=c-shared on windows")
 
 	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")
 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
@@ -155,6 +156,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	if ctxt.HeadType == objabi.Hunknown {
 		ctxt.HeadType.Set(objabi.GOOS)
+	}
+
+	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
+		Errorf(nil, "-aslr=false is only allowed for -buildmode=c-shared")
+		usage()
 	}
 
 	checkStrictDups = *FlagStrictDups
