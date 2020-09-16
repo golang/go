@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"errors"
 	"io"
 	"reflect"
 	"strings"
@@ -657,6 +658,8 @@ func (m *MyCharData) UnmarshalXML(d *Decoder, start StartElement) error {
 
 var _ Unmarshaler = (*MyCharData)(nil)
 
+
+
 func (m *MyCharData) UnmarshalXMLAttr(attr Attr) error {
 	panic("must not call")
 }
@@ -695,6 +698,28 @@ func TestUnmarshaler(t *testing.T) {
 
 	if m.Data == nil || m.Attr == nil || m.Data.body != "hello world" || m.Attr.attr != "attr1" || m.Data2.body != "howdy world" || m.Attr2.attr != "attr2" {
 		t.Errorf("m=%#+v\n", m)
+	}
+}
+
+var errText = "UnmarshalXML failed"
+type MyBodyError struct {
+	Body string
+}
+
+func (m *MyBodyError) UnmarshalXML(*Decoder, StartElement) error {
+	return errors.New(errText)
+}
+
+func TestUnmarshalerError(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="utf-8"?><Body>words</Body>`
+	var m MyBodyError
+	err := Unmarshal([]byte(xml), &m)
+
+	if err == nil {
+		t.Errorf("[success], want error %v", errText)
+	}
+	if err.Error() != errText {
+		t.Errorf("[error] %v, want %v", err, errText)
 	}
 }
 
