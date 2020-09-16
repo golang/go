@@ -44,6 +44,9 @@ func upgradeLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHa
 		if !ok {
 			continue
 		}
+		if req.Syntax == nil {
+			continue
+		}
 		// Get the range of the require directive.
 		rng, err := positionsToRange(fh.URI(), pm.Mapper, req.Syntax.Start, req.Syntax.End)
 		if err != nil {
@@ -103,6 +106,9 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	if err != nil {
 		return nil, err
 	}
+	if pm.File == nil || pm.File.Module == nil || pm.File.Module.Syntax == nil {
+		return nil, fmt.Errorf("no parsed go.mod for %s", fh.URI())
+	}
 	rng, err := positionsToRange(pm.Mapper.URI, pm.Mapper, pm.File.Module.Syntax.Start, pm.File.Module.Syntax.End)
 	if err != nil {
 		return nil, err
@@ -125,6 +131,9 @@ func vendorLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		return nil, err
+	}
+	if pm.File == nil || pm.File.Module == nil || pm.File.Module.Syntax == nil {
+		return nil, fmt.Errorf("no parsed go.mod for %s", fh.URI())
 	}
 	rng, err := positionsToRange(pm.Mapper.URI, pm.Mapper, pm.File.Module.Syntax.Start, pm.File.Module.Syntax.End)
 	if err != nil {
