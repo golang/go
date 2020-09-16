@@ -260,8 +260,9 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 const (
 	// Optab.flag
 	LFROM     = 1 << 0 // p.From uses constant pool
-	LTO       = 1 << 1 // p.To uses constant pool
-	NOTUSETMP = 1 << 2 // p expands to multiple instructions, but does NOT use REGTMP
+	LFROM3    = 1 << 1 // p.From3 uses constant pool
+	LTO       = 1 << 2 // p.To uses constant pool
+	NOTUSETMP = 1 << 3 // p expands to multiple instructions, but does NOT use REGTMP
 )
 
 var optab = []Optab{
@@ -397,10 +398,10 @@ var optab = []Optab{
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
 
-	// Move a large constant to a Vn.
-	{AFMOVQ, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
-	{AFMOVD, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
-	{AFMOVS, C_LCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+	// Move a large constant to a vector register.
+	{AVMOVQ, C_VCON, C_NONE, C_VCON, C_VREG, 101, 4, 0, LFROM | LFROM3, 0},
+	{AVMOVD, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+	{AVMOVS, C_LCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
 
 	/* jump operations */
 	{AB, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0},
@@ -950,13 +951,14 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
 		}
-		switch o.flag & (LFROM | LTO) {
-		case LFROM:
+		if o.flag&LFROM != 0 {
 			c.addpool(p, &p.From)
-
-		case LTO:
+		}
+		if o.flag&LFROM3 != 0 {
+			c.addpool(p, p.GetFrom3())
+		}
+		if o.flag&LTO != 0 {
 			c.addpool(p, &p.To)
-			break
 		}
 
 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
@@ -1174,8 +1176,8 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	sz := 4
 
 	if a.Type == obj.TYPE_CONST {
-		if lit != int64(int32(lit)) && uint64(lit) != uint64(uint32(lit)) {
-			// out of range -0x80000000 ~ 0xffffffff, must store 64-bit
+		if (lit != int64(int32(lit)) && uint64(lit) != uint64(uint32(lit))) || p.As == AVMOVQ || p.As == AVMOVD {
+			// out of range -0x80000000 ~ 0xffffffff or VMOVQ or VMOVD operand, must store 64-bit.
 			t.As = ADWORD
 			sz = 8
 		} // else store 32-bit
@@ -2675,7 +2677,7 @@ func buildop(ctxt *obj.Link) {
 		case AFCSELD:
 			oprangeset(AFCSELS, t)
 
-		case AFMOVS, AFMOVD, AFMOVQ:
+		case AFMOVS, AFMOVD, AVMOVQ, AVMOVD, AVMOVS:
 			break
 
 		case AFCVTZSD:
@@ -5142,7 +5144,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = q<<30 | 0xe<<24 | len<<13
 		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
 
-	case 101: // FOMVQ/FMOVD $vcon, Vd -> load from constant pool.
+	case 101: // VMOVQ $vcon1, $vcon2, Vd or VMOVD|VMOVS $vcon, Vd -> FMOVQ/FMOVD/FMOVS pool(PC), Vd: load from constant pool.
 		o1 = c.omovlit(p.As, p, &p.From, int(p.To.Reg))
 
 	case 102: /* vushll, vushll2, vuxtl, vuxtl2 */
@@ -6672,15 +6674,15 @@ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 	} else {
 		fp, w := 0, 0
 		switch as {
-		case AFMOVS:
+		case AFMOVS, AVMOVS:
 			fp = 1
 			w = 0 /* 32-bit SIMD/FP */
 
-		case AFMOVD:
+		case AFMOVD, AVMOVD:
 			fp = 1
 			w = 1 /* 64-bit SIMD/FP */
 
-		case AFMOVQ:
+		case AVMOVQ:
 			fp = 1
 			w = 2 /* 128-bit SIMD/FP */
 
