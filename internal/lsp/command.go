@@ -42,6 +42,10 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 	if !match {
 		return nil, fmt.Errorf("%s is not a supported command", command.Name)
 	}
+	title := command.Title
+	if title == "" {
+		title = command.Name
+	}
 	// Some commands require that all files are saved to disk. If we detect
 	// unsaved files, warn the user instead of running the commands.
 	unsaved := false
@@ -55,50 +59,19 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		switch params.Command {
 		case source.CommandTest.Name, source.CommandGenerate.Name, source.CommandToggleDetails.Name:
 			// TODO(PJW): for Toggle, not an error if it is being disabled
-			err := fmt.Errorf("cannot run command %s: unsaved files in the view", params.Command)
-			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: err.Error(),
-			})
+			err := errors.New("unsaved files in the view")
+			s.showCommandError(ctx, title, err)
 			return nil, err
 		}
 	}
 	// If the command has a suggested fix function available, use it and apply
 	// the edits to the workspace.
 	if command.IsSuggestedFix() {
-		var uri protocol.DocumentURI
-		var rng protocol.Range
-		if err := source.UnmarshalArgs(params.Arguments, &uri, &rng); err != nil {
-			return nil, err
-		}
-		snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.Go)
-		defer release()
-		if !ok {
-			return nil, err
-		}
-		edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
+		err := s.runSuggestedFixCommand(ctx, command, params.Arguments)
 		if err != nil {
-			return nil, err
+			s.showCommandError(ctx, title, err)
 		}
-		r, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: edits,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		if !r.Applied {
-			return nil, s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf("%s failed: %v", params.Command, r.FailureReason),
-			})
-		}
-		return nil, nil
-	}
-	title := command.Title
-	if title == "" {
-		title = command.Name
+		return nil, err
 	}
 	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	// Start progress prior to spinning off a goroutine specifically so that
@@ -117,17 +90,52 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			work.end(title + ": failed")
 			// Show a message when work completes with error, because the progress end
 			// message is typically dismissed immediately by LSP clients.
-			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf("%s: An error occurred: %v", title, err),
-			}); err != nil {
-				event.Error(ctx, title+": failed to show message", err)
-			}
+			s.showCommandError(ctx, title, err)
 		default:
 			work.end(command.Name + ": completed")
 		}
 	}()
 	return nil, nil
+}
+
+func (s *Server) runSuggestedFixCommand(ctx context.Context, command *source.Command, args []json.RawMessage) error {
+	var uri protocol.DocumentURI
+	var rng protocol.Range
+	if err := source.UnmarshalArgs(args, &uri, &rng); err != nil {
+		return err
+	}
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, uri, source.Go)
+	defer release()
+	if !ok {
+		return err
+	}
+	edits, err := command.SuggestedFix(ctx, snapshot, fh, rng)
+	if err != nil {
+		return err
+	}
+	r, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+		Edit: protocol.WorkspaceEdit{
+			DocumentChanges: edits,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if !r.Applied {
+		return errors.New(r.FailureReason)
+	}
+	return nil
+}
+
+func (s *Server) showCommandError(ctx context.Context, title string, err error) {
+	// Command error messages should not be cancelable.
+	ctx = xcontext.Detach(ctx)
+	if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+		Type:    protocol.Error,
+		Message: fmt.Sprintf("%s failed: %v", title, err),
+	}); err != nil {
+		event.Error(ctx, title+": failed to show message", err)
+	}
 }
 
 func (s *Server) runCommand(ctx context.Context, work *workDone, command *source.Command, args []json.RawMessage) error {
