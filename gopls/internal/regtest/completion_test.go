@@ -31,6 +31,10 @@ fun apple() int {
 -- fruits/testfile.go --
 // this is a comment
 
+/*
+ this is a multiline comment
+*/
+
 import "fmt"
 
 func test() {}
@@ -44,57 +48,78 @@ pac
 	var (
 		testfile4 = ""
 		testfile5 = "/*a comment*/ "
+		testfile6 = "/*a comment*/\n"
 	)
 	for _, tc := range []struct {
-		name      string
-		filename  string
-		content   *string
-		line, col int
-		want      []string
+		name          string
+		filename      string
+		content       *string
+		triggerRegexp string
+		want          []string
+		editRegexp    string
 	}{
 		{
-			name:     "package completion at valid position",
-			filename: "fruits/testfile.go",
-			line:     1, col: 0,
-			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:          "package completion at valid position",
+			filename:      "fruits/testfile.go",
+			triggerRegexp: "\n()",
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    "\n()",
 		},
 		{
-			name:     "package completion in a comment",
-			filename: "fruits/testfile.go",
-			line:     0, col: 5,
-			want: nil,
+			name:          "package completion in a comment",
+			filename:      "fruits/testfile.go",
+			triggerRegexp: "th(i)s",
+			want:          nil,
 		},
 		{
-			name:     "package completion at invalid position",
-			filename: "fruits/testfile.go",
-			line:     4, col: 0,
-			want: nil,
+			name:          "package completion in a multiline comment",
+			filename:      "fruits/testfile.go",
+			triggerRegexp: `\/\*\n()`,
+			want:          nil,
 		},
 		{
-			name:     "package completion after keyword 'package'",
-			filename: "fruits/testfile2.go",
-			line:     0, col: 7,
-			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:          "package completion at invalid position",
+			filename:      "fruits/testfile.go",
+			triggerRegexp: "import \"fmt\"\n()",
+			want:          nil,
 		},
 		{
-			name:     "package completion with 'pac' prefix",
-			filename: "fruits/testfile3.go",
-			line:     0, col: 3,
-			want: []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:          "package completion after keyword 'package'",
+			filename:      "fruits/testfile2.go",
+			triggerRegexp: "package()",
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    "package\n",
 		},
 		{
-			name:     "package completion at end of file",
-			filename: "fruits/testfile4.go",
-			line:     0, col: 0,
-			content: &testfile4,
-			want:    []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:          "package completion with 'pac' prefix",
+			filename:      "fruits/testfile3.go",
+			triggerRegexp: "pac()",
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    "pac",
 		},
 		{
-			name:     "package completion without terminal newline",
-			filename: "fruits/testfile5.go",
-			line:     0, col: 14,
-			content: &testfile5,
-			want:    []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			name:          "package completion for empty file",
+			filename:      "fruits/testfile4.go",
+			triggerRegexp: "^$",
+			content:       &testfile4,
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    "^$",
+		},
+		{
+			name:          "package completion without terminal newline",
+			filename:      "fruits/testfile5.go",
+			triggerRegexp: `\*\/ ()`,
+			content:       &testfile5,
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    `\*\/ ()`,
+		},
+		{
+			name:          "package completion on terminal newline",
+			filename:      "fruits/testfile6.go",
+			triggerRegexp: `\*\/\n()`,
+			content:       &testfile6,
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    `\*\/\n()`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -106,10 +131,7 @@ pac
 					)
 				}
 				env.OpenFile(tc.filename)
-				completions, err := env.Editor.Completion(env.Ctx, tc.filename, fake.Pos{
-					Line:   tc.line,
-					Column: tc.col,
-				})
+				completions, err := env.Editor.Completion(env.Ctx, tc.filename, env.RegexpSearch(tc.filename, tc.triggerRegexp))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -124,6 +146,22 @@ pac
 						t.Fatalf("unexpected text edit range end line number: got %d, want less than %d", end, lineCount)
 					}
 				}
+
+				if tc.want != nil {
+					start, end := env.RegexpRange(tc.filename, tc.editRegexp)
+					expectedRng := protocol.Range{
+						Start: fake.Pos.ToProtocolPosition(start),
+						End:   fake.Pos.ToProtocolPosition(end),
+					}
+					for _, item := range completions.Items {
+						gotRng := item.TextEdit.Range
+						if expectedRng != gotRng {
+							t.Errorf("unexpected completion range for completion item %s: got %v, want %v",
+								item.Label, gotRng, expectedRng)
+						}
+					}
+				}
+
 				diff := compareCompletionResults(tc.want, completions.Items)
 				if diff != "" {
 					t.Error(diff)

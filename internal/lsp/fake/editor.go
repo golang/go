@@ -426,7 +426,7 @@ func contentPosition(content string, offset int) (Pos, error) {
 		return Pos{}, errors.Errorf("scanning content: %w", err)
 	}
 	// Scan() will drop the last line if it is empty. Correct for this.
-	if strings.HasSuffix(content, "\n") && offset == start {
+	if (strings.HasSuffix(content, "\n") || content == "") && offset == start {
 		return Pos{Line: line, Column: 0}, nil
 	}
 	return Pos{}, fmt.Errorf("position %d out of bounds in %q (line = %d, start = %d)", offset, content, line, start)
@@ -471,6 +471,18 @@ func regexpRange(content, re string) (Pos, Pos, error) {
 	return startPos, endPos, nil
 }
 
+// RegexpRange returns the first range in the buffer bufName matching re. See
+// RegexpSearch for more information on matching.
+func (e *Editor) RegexpRange(bufName, re string) (Pos, Pos, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	buf, ok := e.buffers[bufName]
+	if !ok {
+		return Pos{}, Pos{}, ErrUnknownBuffer
+	}
+	return regexpRange(buf.text(), re)
+}
+
 // RegexpSearch returns the position of the first match for re in the buffer
 // bufName. For convenience, RegexpSearch supports the following two modes:
 //  1. If re has no subgroups, return the position of the match for re itself.
@@ -478,13 +490,7 @@ func regexpRange(content, re string) (Pos, Pos, error) {
 // It returns an error re is invalid, has more than one subgroup, or doesn't
 // match the buffer.
 func (e *Editor) RegexpSearch(bufName, re string) (Pos, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	buf, ok := e.buffers[bufName]
-	if !ok {
-		return Pos{}, ErrUnknownBuffer
-	}
-	start, _, err := regexpRange(buf.text(), re)
+	start, _, err := e.RegexpRange(bufName, re)
 	return start, err
 }
 

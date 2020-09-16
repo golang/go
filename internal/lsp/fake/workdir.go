@@ -115,6 +115,14 @@ func (w *Workdir) ReadFile(path string) (string, error) {
 	return string(b), nil
 }
 
+func (w *Workdir) RegexpRange(path, re string) (Pos, Pos, error) {
+	content, err := w.ReadFile(path)
+	if err != nil {
+		return Pos{}, Pos{}, err
+	}
+	return regexpRange(content, re)
+}
+
 // RegexpSearch searches the file corresponding to path for the first position
 // matching re.
 func (w *Workdir) RegexpSearch(path string, re string) (Pos, error) {
