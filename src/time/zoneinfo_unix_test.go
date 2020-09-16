@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
+
 package time_test
 
 import (
@@ -20,20 +22,26 @@ func TestEnvTZUsage(t *testing.T) {
 	}
 	defer time.ForceUSPacificForTesting()
 
+        localZoneName := "Local"
+	// The file may not exists on FreeBSD.
+        if _, err := os.Stat("/etc/localtime"); os.IsNotExist(err) {
+            localZoneName = "UTC"
+        }
+
 	cases := []struct {
 		nilFlag bool
 		tz      string
 		local   string
 	}{
 		// no $TZ means use the system default /etc/localtime.
-		{true, "", "Local"},
+		{true, "", localZoneName},
 		// $TZ="" means use UTC.
 		{false, "", "UTC"},
 		{false, ":", "UTC"},
 		{false, "Asia/Shanghai", "Asia/Shanghai"},
 		{false, ":Asia/Shanghai", "Asia/Shanghai"},
-		{false, "/etc/localtime", "Local"},
-		{false, ":/etc/localtime", "Local"},
+		{false, "/etc/localtime", localZoneName},
+		{false, ":/etc/localtime", localZoneName},
 	}
 
 	for _, c := range cases {
