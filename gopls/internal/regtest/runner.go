@@ -117,11 +117,11 @@ func WithModes(modes Mode) RunOption {
 	})
 }
 
-// WithEditorConfig configures the editor's LSP session.
-func WithEditorConfig(config fake.EditorConfig) RunOption {
-	return optionSetter(func(opts *runConfig) {
-		opts.editor = config
-	})
+// EditorConfig is a RunOption option that configured the regtest editor.
+type EditorConfig fake.EditorConfig
+
+func (c EditorConfig) set(opts *runConfig) {
+	opts.editor = fake.EditorConfig(c)
 }
 
 // WithoutWorkspaceFolders prevents workspace folders from being sent as part

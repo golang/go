@@ -7,7 +7,6 @@ package regtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -48,13 +47,15 @@ const (
 	}
 	for _, test := range tests {
 		t.Run(test.label, func(t *testing.T) {
-			runner.Run(t, workspace, func(t *testing.T, env *Env) {
+			withOptions(
+				EditorConfig{CodeLens: test.enabled},
+			).run(t, workspace, func(t *testing.T, env *Env) {
 				env.OpenFile("lib.go")
 				lens := env.CodeLens("lib.go")
 				if gotCodeLens := len(lens) > 0; gotCodeLens != test.wantCodeLens {
 					t.Errorf("got codeLens: %t, want %t", gotCodeLens, test.wantCodeLens)
 				}
-			}, WithEditorConfig(fake.EditorConfig{CodeLens: test.enabled}))
+			})
 		})
 	}
 }

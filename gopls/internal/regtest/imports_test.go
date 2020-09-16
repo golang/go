@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -143,9 +142,9 @@ var _, _ = x.X, y.Y
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(modcache)
-	editorConfig := fake.EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
+	editorConfig := EditorConfig{Env: map[string]string{"GOMODCACHE": modcache}}
 	withOptions(
-		WithEditorConfig(editorConfig),
+		editorConfig,
 		WithProxyFiles(proxy),
 	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")

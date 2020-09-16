@@ -438,8 +438,8 @@ func _() {
 	fmt.Println("Hello World")
 }
 `
-	editorConfig := fake.EditorConfig{Env: map[string]string{"GOPATH": ""}}
-	withOptions(WithEditorConfig(editorConfig)).run(t, files, func(t *testing.T, env *Env) {
+	editorConfig := EditorConfig{Env: map[string]string{"GOPATH": ""}}
+	withOptions(editorConfig).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
 		env.SaveBuffer("main.go")
@@ -462,8 +462,8 @@ package x
 
 var X = 0
 `
-	editorConfig := fake.EditorConfig{Env: map[string]string{"GOFLAGS": "-tags=foo"}}
-	withOptions(WithEditorConfig(editorConfig)).run(t, files, func(t *testing.T, env *Env) {
+	editorConfig := EditorConfig{Env: map[string]string{"GOFLAGS": "-tags=foo"}}
+	withOptions(editorConfig).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		env.Await(EmptyDiagnostics("main.go"))
@@ -556,9 +556,9 @@ hi mom
 `
 	for _, go111module := range []string{"on", "off", ""} {
 		t.Run(fmt.Sprintf("GO111MODULE_%v", go111module), func(t *testing.T) {
-			withOptions(WithEditorConfig(fake.EditorConfig{
+			withOptions(EditorConfig{
 				Env: map[string]string{"GO111MODULE": go111module},
-			})).run(t, files, func(t *testing.T, env *Env) {
+			}).run(t, files, func(t *testing.T, env *Env) {
 				env.OpenFile("hello.txt")
 				env.Await(
 					OnceMet(
@@ -642,7 +642,9 @@ func main() {
 	_ = conf.ErrHelpWanted
 }
 `
-	runner.Run(t, ardanLabs, func(t *testing.T, env *Env) {
+	withOptions(
+		WithProxyFiles(ardanLabsProxy),
+	).run(t, ardanLabs, func(t *testing.T, env *Env) {
 		// Expect a diagnostic with a suggested fix to add
 		// "github.com/ardanlabs/conf" to the go.mod file.
 		env.OpenFile("go.mod")
@@ -686,7 +688,7 @@ func main() {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
 		)
-	}, WithProxyFiles(ardanLabsProxy))
+	})
 }
 
 // Test for golang/go#38207.
@@ -699,7 +701,9 @@ module mod.com
 go 1.12
 -- main.go --
 `
-	runner.Run(t, emptyFile, func(t *testing.T, env *Env) {
+	withOptions(
+		WithProxyFiles(ardanLabsProxy),
+	).run(t, emptyFile, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("go.mod")
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
@@ -722,7 +726,7 @@ func main() {
 		env.Await(
 			EmptyDiagnostics("main.go"),
 		)
-	}, WithProxyFiles(ardanLabsProxy))
+	})
 }
 
 // Test for golang/go#36960.
@@ -1263,7 +1267,7 @@ func main() {
 `
 
 	withOptions(
-		WithEditorConfig(fake.EditorConfig{EnableStaticcheck: true}),
+		EditorConfig{EnableStaticcheck: true},
 	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		// Staticcheck should generate a diagnostic to simplify this literal.

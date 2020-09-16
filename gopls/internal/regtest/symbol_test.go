@@ -7,7 +7,6 @@ package regtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -193,10 +192,9 @@ func TestSymbolPos(t *testing.T) {
 
 func checkChecks(t *testing.T, matcher string, checks map[string]*expSymbolInformation) {
 	t.Helper()
-	opts := []RunOption{
-		WithEditorConfig(fake.EditorConfig{SymbolMatcher: &matcher}),
-	}
-	runner.Run(t, symbolSetup, func(t *testing.T, env *Env) {
+	withOptions(
+		EditorConfig{SymbolMatcher: &matcher},
+	).run(t, symbolSetup, func(t *testing.T, env *Env) {
 		t.Run(matcher, func(t *testing.T) {
 			for query, exp := range checks {
 				t.Run(query, func(t *testing.T) {
@@ -207,5 +205,5 @@ func checkChecks(t *testing.T, matcher string, checks map[string]*expSymbolInfor
 				})
 			}
 		})
-	}, opts...)
+	})
 }

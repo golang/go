@@ -8,8 +8,6 @@ package regtest
 
 import (
 	"testing"
-
-	"golang.org/x/tools/internal/lsp/fake"
 )
 
 func TestBadGOPATH(t *testing.T) {
@@ -21,12 +19,10 @@ func _() {
 	fmt.Println("Hello World")
 }
 `
-	editorConfig := fake.EditorConfig{
-		Env: map[string]string{"GOPATH": ":/path/to/gopath"},
-	}
-	// Test the case given in
 	// https://github.com/fatih/vim-go/issues/2673#issuecomment-622307211.
-	withOptions(WithEditorConfig(editorConfig)).run(t, files, func(t *testing.T, env *Env) {
+	withOptions(
+		EditorConfig{Env: map[string]string{"GOPATH": ":/path/to/gopath"}},
+	).run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(env.DiagnosticAtRegexp("main.go", "fmt"))
 		if err := env.Editor.OrganizeImports(env.Ctx, "main.go"); err != nil {

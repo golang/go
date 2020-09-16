@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
@@ -56,14 +55,14 @@ func TestBenchmarkSymbols(t *testing.T) {
 		t.Skip("-symbol_workdir not configured")
 	}
 	opts := stressTestOptions(symbolBench.workdir)
-	conf := fake.EditorConfig{}
+	conf := EditorConfig{}
 	if symbolBench.matcher != "" {
 		conf.SymbolMatcher = &symbolBench.matcher
 	}
 	if symbolBench.style != "" {
 		conf.SymbolStyle = &symbolBench.style
 	}
-	opts = append(opts, WithEditorConfig(conf))
+	opts = append(opts, conf)
 	withOptions(opts...).run(t, "", func(t *testing.T, env *Env) {
 		// We can't Await in this test, since we have disabled hooks. Instead, run
 		// one symbol request to completion to ensure all necessary cache entries
