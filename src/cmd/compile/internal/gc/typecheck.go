@@ -3135,9 +3135,14 @@ func checkassign(stmt *Node, n *Node) {
 		return
 	}
 
-	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
+	switch {
+	case n.Op == ODOT && n.Left.Op == OINDEXMAP:
 		yyerror("cannot assign to struct field %v in map", n)
-	} else {
+	case (n.Op == OINDEX && n.Left.Type.IsString()) || n.Op == OSLICESTR:
+		yyerror("cannot assign to %v (strings are immutable)", n)
+	case n.Op == OLITERAL && n.Sym != nil && n.isGoConst():
+		yyerror("cannot assign to %v (declared const)", n)
+	default:
 		yyerror("cannot assign to %v", n)
 	}
 	n.Type = nil
