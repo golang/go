@@ -1737,6 +1737,10 @@ type BadTag struct {
 	Comment string   `xml:",comment,omitempty"`
 }
 
+type BadTagMultipleModes struct {
+	Comment string   `xml:",attr,comment"`
+}
+
 // used by both TestMarshalErrors and TestMarshalIndentErrors
 var marshalErrorTests = []struct {
 	Value interface{}
@@ -1777,6 +1781,10 @@ var marshalErrorTests = []struct {
 	{
 		Value: BadTag{"some comment"},
 		Err:   `xml: invalid tag in field Comment of type xml.BadTag: ",comment,omitempty"`,
+	},
+	{
+		Value: BadTagMultipleModes{"some comment"},
+		Err:   `xml: invalid tag in field Comment of type xml.BadTagMultipleModes: ",attr,comment"`,
 	},
 }
 
