@@ -983,9 +983,31 @@ func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
 	return x, y
 }
 
-func MSpanCountAlloc(bits []byte) int {
-	s := (*mspan)(mheap_.spanalloc.alloc())
+// mspan wrapper for testing.
+//go:notinheap
+type MSpan mspan
+
+// Allocate an mspan for testing.
+func AllocMSpan() *MSpan {
+	var s *mspan
+	systemstack(func() {
+		s = (*mspan)(mheap_.spanalloc.alloc())
+	})
+	return (*MSpan)(s)
+}
+
+// Free an allocated mspan.
+func FreeMSpan(s *MSpan) {
+	systemstack(func() {
+		mheap_.spanalloc.free(unsafe.Pointer(s))
+	})
+}
+
+func MSpanCountAlloc(ms *MSpan, bits []byte) int {
+	s := (*mspan)(ms)
 	s.nelems = uintptr(len(bits) * 8)
 	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
-	return s.countAlloc()
+	result := s.countAlloc()
+	s.gcmarkBits = nil
+	return result
 }
