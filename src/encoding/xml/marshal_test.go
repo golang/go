@@ -1741,6 +1741,10 @@ type BadTagMultipleModes struct {
 	Comment string   `xml:",attr,comment"`
 }
 
+type BadTagTrailingTag struct {
+	Comment string   `xml:"comment>"`
+}
+
 // used by both TestMarshalErrors and TestMarshalIndentErrors
 var marshalErrorTests = []struct {
 	Value interface{}
@@ -1785,6 +1789,10 @@ var marshalErrorTests = []struct {
 	{
 		Value: BadTagMultipleModes{"some comment"},
 		Err:   `xml: invalid tag in field Comment of type xml.BadTagMultipleModes: ",attr,comment"`,
+	},
+	{
+		Value: BadTagTrailingTag{"some comment"},
+		Err:   `xml: trailing '>' in field Comment of type xml.BadTagTrailingTag`,
 	},
 }
 
