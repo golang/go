@@ -6,6 +6,11 @@
 // various CPU architectures.
 package cpu
 
+import (
+	"os"
+	"strings"
+)
+
 // Initialized reports whether the CPU features were initialized.
 //
 // For some GOOS/GOARCH combinations initialization of the CPU features depends
@@ -168,4 +173,95 @@ var S390X struct {
 	HasVX     bool // vector facility
 	HasVXE    bool // vector-enhancements facility 1
 	_         CacheLinePad
+}
+
+func init() {
+	archInit()
+	initOptions()
+	processOptions()
+}
+
+// options contains the cpu debug options that can be used in GODEBUG.
+// Options are arch dependent and are added by the arch specific initOptions functions.
+// Features that are mandatory for the specific GOARCH should have the Required field set
+// (e.g. SSE2 on amd64).
+var options []option
+
+// Option names should be lower case. e.g. avx instead of AVX.
+type option struct {
+	Name      string
+	Feature   *bool
+	Specified bool // whether feature value was specified in GODEBUG
+	Enable    bool // whether feature should be enabled
+	Required  bool // whether feature is mandatory and can not be disabled
+}
+
+func processOptions() {
+	env := os.Getenv("GODEBUG")
+field:
+	for env != "" {
+		field := ""
+		i := strings.IndexByte(env, ',')
+		if i < 0 {
+			field, env = env, ""
+		} else {
+			field, env = env[:i], env[i+1:]
+		}
+		if len(field) < 4 || field[:4] != "cpu." {
+			continue
+		}
+		i = strings.IndexByte(field, '=')
+		if i < 0 {
+			print("GODEBUG sys/cpu: no value specified for \"", field, "\"\n")
+			continue
+		}
+		key, value := field[4:i], field[i+1:] // e.g. "SSE2", "on"
+
+		var enable bool
+		switch value {
+		case "on":
+			enable = true
+		case "off":
+			enable = false
+		default:
+			print("GODEBUG sys/cpu: value \"", value, "\" not supported for cpu option \"", key, "\"\n")
+			continue field
+		}
+
+		if key == "all" {
+			for i := range options {
+				options[i].Specified = true
+				options[i].Enable = enable || options[i].Required
+			}
+			continue field
+		}
+
+		for i := range options {
+			if options[i].Name == key {
+				options[i].Specified = true
+				options[i].Enable = enable
+				continue field
+			}
+		}
+
+		print("GODEBUG sys/cpu: unknown cpu feature \"", key, "\"\n")
+	}
+
+	for _, o := range options {
+		if !o.Specified {
+			continue
+		}
+
+		if o.Enable && !*o.Feature {
+			print("GODEBUG sys/cpu: can not enable \"", o.Name, "\", missing CPU support\n")
+			continue
+		}
+
+		if !o.Enable && o.Required {
+			print("GODEBUG sys/cpu: can not disable \"", o.Name, "\", required CPU feature\n")
+			continue
+		}
+
+		*o.Feature = o.Enable
+	}
 }

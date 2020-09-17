@@ -339,6 +339,12 @@ const (
 	CLOCK_UPTIME_FAST              = 0x8
 	CLOCK_UPTIME_PRECISE           = 0x7
 	CLOCK_VIRTUAL                  = 0x1
+	CPUSTATES                      = 0x5
+	CP_IDLE                        = 0x4
+	CP_INTR                        = 0x3
+	CP_NICE                        = 0x1
+	CP_SYS                         = 0x2
+	CP_USER                        = 0x0
 	CREAD                          = 0x800
 	CRTSCTS                        = 0x30000
 	CS5                            = 0x0

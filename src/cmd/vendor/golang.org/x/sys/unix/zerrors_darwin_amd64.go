@@ -232,6 +232,8 @@ const (
 	CLOCK_THREAD_CPUTIME_ID           = 0x10
 	CLOCK_UPTIME_RAW                  = 0x8
 	CLOCK_UPTIME_RAW_APPROX           = 0x9
+	CLONE_NOFOLLOW                    = 0x1
+	CLONE_NOOWNERCOPY                 = 0x2
 	CR0                               = 0x0
 	CR1                               = 0x1000
 	CR2                               = 0x2000
