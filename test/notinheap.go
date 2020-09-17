@@ -11,18 +11,6 @@ package p
 //go:notinheap
 type nih struct{}
 
-// Types embedding notinheap types must be notinheap.
-
-type embed1 struct { // ERROR "must be go:notinheap"
-	x nih
-}
-
-type embed2 [1]nih // ERROR "must be go:notinheap"
-
-type embed3 struct { // ERROR "must be go:notinheap"
-	x [1]nih
-}
-
 type embed4 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
 
 type embed5 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
@@ -51,14 +39,6 @@ type t3 byte
 
 //go:notinheap
 type t4 rune
-
-// Type aliases inherit the go:notinheap-ness of the type they alias.
-type nihAlias = nih
-
-type embedAlias1 struct { // ERROR "must be go:notinheap"
-	x nihAlias
-}
-type embedAlias2 [1]nihAlias // ERROR "must be go:notinheap"
 
 var sink interface{}
 
