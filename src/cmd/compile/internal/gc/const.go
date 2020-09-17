@@ -838,10 +838,6 @@ Outer:
 				return Val{}
 			}
 			u.Quo(y)
-		case OMOD, OOR, OAND, OANDNOT, OXOR:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped float", op)
-			return Val{}
 		default:
 			break Outer
 		}
@@ -867,10 +863,6 @@ Outer:
 				yyerror("complex division by zero")
 				return Val{}
 			}
-		case OMOD, OOR, OAND, OANDNOT, OXOR:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped complex", op)
-			return Val{}
 		default:
 			break Outer
 		}
@@ -932,15 +924,6 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
 			}
 			u.Xor(x)
 			return Val{U: u}
-
-		case CTFLT:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped float", op)
-			return Val{}
-		case CTCPLX:
-			// TODO(mdempsky): Move to typecheck; see #31060.
-			yyerror("invalid operation: operator %v not defined on untyped complex", op)
-			return Val{}
 		}
 
 	case ONOT:
@@ -1120,7 +1103,7 @@ func ctype(t *types.Type) Ctype {
 }
 
 func defaultType(t *types.Type) *types.Type {
-	if !t.IsUntyped() {
+	if !t.IsUntyped() || t.Etype == TNIL {
 		return t
 	}
 

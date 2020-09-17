@@ -716,8 +716,22 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		if !okfor[op][et] {
-			yyerror("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(t))
+		if t.Etype == TIDEAL {
+			switch {
+			case l.Type == types.Idealcomplex || r.Type == types.Idealcomplex:
+				t = types.Idealcomplex
+			case l.Type == types.Idealfloat || r.Type == types.Idealfloat:
+				t = types.Idealfloat
+			case l.Type == types.Idealrune || r.Type == types.Idealrune:
+				t = types.Idealrune
+			case l.Type == types.Idealint || r.Type == types.Idealint:
+				t = types.Idealint
+			default:
+				Fatalf("bad untyped type: %v", t)
+			}
+		}
+		if dt := defaultType(t); !okfor[op][dt.Etype] {
+			yyerror("invalid operation: %v (operator %v not defined on %v)", n, op, t)
 			n.Type = nil
 			return n
 		}
@@ -756,15 +770,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			}
 		}
 
-		t = l.Type
 		if iscmp[n.Op] {
-			// TIDEAL includes complex constant, but only OEQ and ONE are defined for complex,
-			// so check that the n.op is available for complex  here before doing evconst.
-			if !okfor[n.Op][TCOMPLEX128] && (Isconst(l, CTCPLX) || Isconst(r, CTCPLX)) {
-				yyerror("invalid operation: %v (operator %v not defined on untyped complex)", n, n.Op)
-				n.Type = nil
-				return n
-			}
 			evconst(n)
 			t = types.Idealbool
 			if n.Op != OLITERAL {
@@ -801,20 +807,6 @@ func typecheck1(n *Node, top int) (res *Node) {
 		}
 
 		n.Type = t
-		if t.Etype == TIDEAL {
-			switch {
-			case l.Type == types.Idealcomplex || r.Type == types.Idealcomplex:
-				n.Type = types.Idealcomplex
-			case l.Type == types.Idealfloat || r.Type == types.Idealfloat:
-				n.Type = types.Idealfloat
-			case l.Type == types.Idealrune || r.Type == types.Idealrune:
-				n.Type = types.Idealrune
-			case l.Type == types.Idealint || r.Type == types.Idealint:
-				n.Type = types.Idealint
-			default:
-				Fatalf("bad untyped type: %v", t)
-			}
-		}
 
 	case OBITNOT, ONEG, ONOT, OPLUS:
 		ok |= ctxExpr
@@ -825,8 +817,8 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Type = nil
 			return n
 		}
-		if !okfor[n.Op][t.Etype] {
-			yyerror("invalid operation: %v %v", n.Op, t)
+		if !okfor[n.Op][defaultType(t).Etype] {
+			yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(t))
 			n.Type = nil
 			return n
 		}
