@@ -9,7 +9,7 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"flag"
@@ -21,7 +21,7 @@ import (
 )
 
 func BuildInit() {
-	load.ModInit()
+	modload.Init()
 	instrumentInit()
 	buildModeInit()
 

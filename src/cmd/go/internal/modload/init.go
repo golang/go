@@ -22,7 +22,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
@@ -210,14 +209,7 @@ func Init() {
 	}
 
 	cfg.ModulesEnabled = true
-	load.ModBinDir = BinDir
-	load.ModLookup = Lookup
-	load.ModPackageModuleInfo = PackageModuleInfo
-	load.ModImportPaths = ImportPaths
-	load.ModPackageBuildInfo = PackageBuildInfo
-	load.ModInfoProg = ModInfoProg
-	load.ModImportFromFiles = ImportFromFiles
-	load.ModDirImportPath = DirImportPath
+	// load.ModDirImportPath = DirImportPath
 
 	if modRoot == "" {
 		// We're in module mode, but not inside a module.
@@ -241,10 +233,6 @@ func Init() {
 		modfetch.GoSumFile = strings.TrimSuffix(ModFilePath(), ".mod") + ".sum"
 		search.SetModRoot(modRoot)
 	}
-}
-
-func init() {
-	load.ModInit = Init
 }
 
 // WillBeEnabled checks whether modules should be enabled but does not

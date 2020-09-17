@@ -21,7 +21,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"cmd/go/internal/web"
 )
 
@@ -664,7 +663,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
-			err = load.ImportErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
+			err = importErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
 		}
 	}
 	if err != nil {
@@ -679,7 +678,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
 		// Do not allow wildcards in the repo root.
 		rr = nil
-		err = load.ImportErrorf(importPath, "cannot expand ... in %q", importPath)
+		err = importErrorf(importPath, "cannot expand ... in %q", importPath)
 	}
 	return rr, err
 }
@@ -703,7 +702,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		m := srv.regexp.FindStringSubmatch(importPath)
 		if m == nil {
 			if srv.prefix != "" {
-				return nil, load.ImportErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
+				return nil, importErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
 			}
 			continue
 		}
@@ -1184,4 +1183,33 @@ func launchpadVCS(match map[string]string) error {
 		match["repo"] = expand(match, "https://{root}")
 	}
 	return nil
+}
+
+// importError is a copy of load.importError, made to avoid a dependency cycle
+// on cmd/go/internal/load. It just needs to satisfy load.ImportPathError.
+type importError struct {
+	importPath string
+	err        error
+}
+
+func importErrorf(path, format string, args ...interface{}) error {
+	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
+	if errStr := err.Error(); !strings.Contains(errStr, path) {
+		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
+	}
+	return err
+}
+
+func (e *importError) Error() string {
+	return e.err.Error()
+}
+
+func (e *importError) Unwrap() error {
+	// Don't return e.err directly, since we're only wrapping an error if %w
+	// was passed to ImportErrorf.
+	return errors.Unwrap(e.err)
+}
+
+func (e *importError) ImportPath() string {
+	return e.importPath
 }
