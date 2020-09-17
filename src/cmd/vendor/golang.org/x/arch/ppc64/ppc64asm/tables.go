@@ -730,6 +730,7 @@ const (
 	LXV
 	LXVL
 	LXVLL
+	LXVX
 	STXSDX
 	STXSIWX
 	STXSSPX
@@ -738,6 +739,7 @@ const (
 	STXV
 	STXVL
 	STXVLL
+	STXVX
 	XSABSDP
 	XSADDDP
 	XSADDSP
@@ -2098,6 +2100,7 @@ var opstr = [...]string{
 	LXV:           "lxv",
 	LXVL:          "lxvl",
 	LXVLL:         "lxvll",
+	LXVX:          "lxvx",
 	STXSDX:        "stxsdx",
 	STXSIWX:       "stxsiwx",
 	STXSSPX:       "stxsspx",
@@ -2106,6 +2109,7 @@ var opstr = [...]string{
 	STXV:          "stxv",
 	STXVL:         "stxvl",
 	STXVLL:        "stxvll",
+	STXVX:         "stxvx",
 	XSABSDP:       "xsabsdp",
 	XSADDDP:       "xsadddp",
 	XSADDSP:       "xsaddsp",
@@ -4266,6 +4270,8 @@ var instFormats = [...]instFormat{
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{LXVLL, 0xfc0007fe, 0x7c00025a, 0x0, // Load VSX Vector Left-justified with Length X-form (lxvll XT,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{LXVX, 0xfc0007fe, 0x7c000218, 0x0, // Load VSX Vector Indexed X-form (lxvx XT,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXSDX, 0xfc0007fe, 0x7c000598, 0x0, // Store VSX Scalar Doubleword Indexed XX1-form (stxsdx XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXSIWX, 0xfc0007fe, 0x7c000118, 0x0, // Store VSX Scalar as Integer Word Indexed XX1-form (stxsiwx XS,RA,RB)
@@ -4281,6 +4287,8 @@ var instFormats = [...]instFormat{
 	{STXVL, 0xfc0007fe, 0x7c00031a, 0x0, // Store VSX Vector with Length X-form (stxvl XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{STXVLL, 0xfc0007fe, 0x7c00035a, 0x0, // Store VSX Vector Left-justified with Length X-form (stxvll XS,RA,RB)
+		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+	{STXVX, 0xfc0007fe, 0x7c000318, 0x0, // Store VSX Vector Indexed X-form (stxvx XS,RA,RB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
 	{XSABSDP, 0xfc0007fc, 0xf0000564, 0x1f0000, // VSX Scalar Absolute Value Double-Precision XX2-form (xsabsdp XT,XB)
 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},

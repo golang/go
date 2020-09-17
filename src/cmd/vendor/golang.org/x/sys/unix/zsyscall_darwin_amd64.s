@@ -110,6 +110,10 @@ TEXT ·libc_clock_gettime_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_clock_gettime(SB)
 TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_close(SB)
+TEXT ·libc_clonefile_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_clonefile(SB)
+TEXT ·libc_clonefileat_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_clonefileat(SB)
 TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_dup(SB)
 TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
@@ -132,6 +136,8 @@ TEXT ·libc_fchown_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fchown(SB)
 TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fchownat(SB)
+TEXT ·libc_fclonefileat_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_fclonefileat(SB)
 TEXT ·libc_flock_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_flock(SB)
 TEXT ·libc_fpathconf_trampoline(SB),NOSPLIT,$0-0
@@ -164,6 +170,8 @@ TEXT ·libc_getrusage_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getrusage(SB)
 TEXT ·libc_getsid_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getsid(SB)
+TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_gettimeofday(SB)
 TEXT ·libc_getuid_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_getuid(SB)
 TEXT ·libc_issetugid_trampoline(SB),NOSPLIT,$0-0
@@ -266,8 +274,6 @@ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munmap(SB)
 TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_ptrace(SB)
-TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_gettimeofday(SB)
 TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fstat64(SB)
 TEXT ·libc_fstatat64_trampoline(SB),NOSPLIT,$0-0

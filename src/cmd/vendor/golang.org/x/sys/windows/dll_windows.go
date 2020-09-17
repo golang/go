@@ -104,6 +104,35 @@ func (d *DLL) MustFindProc(name string) *Proc {
 	return p
 }
 
+// FindProcByOrdinal searches DLL d for procedure by ordinal and returns *Proc
+// if found. It returns an error if search fails.
+func (d *DLL) FindProcByOrdinal(ordinal uintptr) (proc *Proc, err error) {
+	a, e := GetProcAddressByOrdinal(d.Handle, ordinal)
+	name := "#" + itoa(int(ordinal))
+	if e != nil {
+		return nil, &DLLError{
+			Err:     e,
+			ObjName: name,
+			Msg:     "Failed to find " + name + " procedure in " + d.Name + ": " + e.Error(),
+		}
+	}
+	p := &Proc{
+		Dll:  d,
+		Name: name,
+		addr: a,
+	}
+	return p, nil
+}
+
+// MustFindProcByOrdinal is like FindProcByOrdinal but panics if search fails.
+func (d *DLL) MustFindProcByOrdinal(ordinal uintptr) *Proc {
+	p, e := d.FindProcByOrdinal(ordinal)
+	if e != nil {
+		panic(e)
+	}
+	return p
+}
+
 // Release unloads DLL d from memory.
 func (d *DLL) Release() (err error) {
 	return FreeLibrary(d.Handle)
