@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
+	return goos == "ios"
 }
 
 func (t *tester) out(v string) {
