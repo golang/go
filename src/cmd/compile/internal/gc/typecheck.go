@@ -2711,7 +2711,7 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 			return ""
 		}
 	}
-	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.retsigerr(isddd), tstruct)
+	return fmt.Sprintf("\n\thave %s\n\twant %v", nl.sigerr(isddd), tstruct)
 }
 
 // sigrepr is a type's representation to the outside world,
@@ -2735,9 +2735,8 @@ func sigrepr(t *types.Type) string {
 	return t.String()
 }
 
-// retsigerr returns the signature of the types
-// at the respective return call site of a function.
-func (nl Nodes) retsigerr(isddd bool) string {
+// sigerr returns the signature of the types at the call or return.
+func (nl Nodes) sigerr(isddd bool) string {
 	if nl.Len() < 1 {
 		return "()"
 	}
