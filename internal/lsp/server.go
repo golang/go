@@ -30,6 +30,7 @@ func NewServer(session source.Session, client protocol.Client) *Server {
 		client:               client,
 		diagnosticsSema:      make(chan struct{}, concurrentAnalyses),
 		progress:             newProgressTracker(client),
+		debouncer:            newDebouncer(),
 	}
 }
 
@@ -94,6 +95,9 @@ type Server struct {
 	diagnosticsSema chan struct{}
 
 	progress *progressTracker
+
+	// debouncer is used for debouncing diagnostics.
+	debouncer *debouncer
 }
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.

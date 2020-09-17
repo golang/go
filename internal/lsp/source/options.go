@@ -330,6 +330,14 @@ type ExperimentalOptions struct {
 	// "&someStruct{}" are offered. Tests disable this flag to simplify
 	// their expected values.
 	LiteralCompletions bool
+
+	// ExperimentalDiagnosticsDelay controls the amount of time that gopls waits
+	// after the most recent file modification before computing deep diagnostics.
+	// Simple diagnostics (parsing and type-checking) are always run immediately
+	// on recently modified packages.
+	//
+	// This option must be set to a valid duration string, for example `"250ms"`.
+	ExperimentalDiagnosticsDelay time.Duration
 }
 
 // DebuggingOptions should not affect the logical execution of Gopls, but may
@@ -548,15 +556,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "completeUnimported":
 		result.setBool(&o.CompleteUnimported)
 	case "completionBudget":
-		if v, ok := result.asString(); ok {
-			d, err := time.ParseDuration(v)
-			if err != nil {
-				result.errorf("failed to parse duration %q: %v", v, err)
-				break
-			}
-			o.CompletionBudget = d
-		}
-
+		result.setDuration(&o.CompletionBudget)
 	case "matcher":
 		matcher, ok := result.asString()
 		if !ok {
@@ -693,6 +693,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "experimentalWorkspaceModule":
 		result.setBool(&o.ExperimentalWorkspaceModule)
 
+	case "experimentalDiagnosticsDelay":
+		result.setDuration(&o.ExperimentalDiagnosticsDelay)
+
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":
 		result.State = OptionDeprecated
@@ -757,6 +760,17 @@ func (r *OptionResult) asBool() (bool, bool) {
 func (r *OptionResult) setBool(b *bool) {
 	if v, ok := r.asBool(); ok {
 		*b = v
+	}
+}
+
+func (r *OptionResult) setDuration(d *time.Duration) {
+	if v, ok := r.asString(); ok {
+		parsed, err := time.ParseDuration(v)
+		if err != nil {
+			r.errorf("failed to parse duration %q: %v", v, err)
+			return
+		}
+		*d = parsed
 	}
 }
 

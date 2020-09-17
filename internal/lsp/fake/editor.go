@@ -204,6 +204,11 @@ func (e *Editor) configuration() map[string]interface{} {
 	if !e.Config.WithoutExperimentalWorkspaceModule {
 		config["experimentalWorkspaceModule"] = true
 	}
+
+	// TODO(rFindley): uncomment this if/when diagnostics delay is on by
+	// default... and probably change to the new settings name.
+	// config["experimentalDiagnosticsDelay"] = "10ms"
+
 	return config
 }
 

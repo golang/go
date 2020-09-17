@@ -57,7 +57,12 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			// go list and should already be GOPATH-vendorized when appropriate.
 			query = append(query, string(scope))
 		case fileURI:
-			query = append(query, fmt.Sprintf("file=%s", span.URI(scope).Filename()))
+			uri := span.URI(scope)
+			// Don't try to load a file that doesn't exist.
+			fh := s.FindFile(uri)
+			if fh != nil {
+				query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
+			}
 		case moduleLoadScope:
 			query = append(query, fmt.Sprintf("%s/...", scope))
 		case viewLoadScope:
@@ -75,6 +80,9 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		case viewLoadScope:
 			containsDir = true
 		}
+	}
+	if len(query) == 0 {
+		return nil
 	}
 	sort.Strings(query) // for determinism
 

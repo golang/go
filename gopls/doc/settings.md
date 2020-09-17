@@ -244,6 +244,16 @@ their expected values.
 
 
 Default: `true`.
+### **experimentalDiagnosticsDelay** *time.Duration*
+experimentalDiagnosticsDelay controls the amount of time that gopls waits
+after the most recent file modification before computing deep diagnostics.
+Simple diagnostics (parsing and type-checking) are always run immediately
+on recently modified packages.
+
+This option must be set to a valid duration string, for example `"250ms"`.
+
+
+Default: `0`.
 <!-- END Experimental: DO NOT MANUALLY EDIT THIS SECTION -->
 
 ## Debugging

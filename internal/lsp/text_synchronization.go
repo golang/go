@@ -191,6 +191,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		return err
 	}
 
+	// Clear out diagnostics for deleted files.
 	for _, uri := range deletions {
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			URI:         protocol.URIFromSpanURI(uri),
@@ -254,7 +255,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()
-			s.diagnoseSnapshot(snapshot)
+			s.diagnoseSnapshot(snapshot, uris)
 		}(snapshot, uris)
 	}
 
