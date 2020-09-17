@@ -8,6 +8,7 @@ package completion
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/scanner"
@@ -683,32 +684,65 @@ func (c *completer) emptySwitchStmt() bool {
 // (i.e. "golang.org/x/"). The user is meant to accept completion suggestions
 // until they reach a complete import path.
 func (c *completer) populateImportCompletions(ctx context.Context, searchImport *ast.ImportSpec) error {
-	c.surrounding = &Selection{
-		content:     searchImport.Path.Value,
-		cursor:      c.pos,
-		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, searchImport.Path.Pos(), searchImport.Path.End()),
-	}
+	importPath := searchImport.Path.Value
 
-	seenImports := make(map[string]struct{})
-	for _, importSpec := range c.file.Imports {
-		if importSpec.Path.Value == searchImport.Path.Value {
-			continue
-		}
-		importPath, err := strconv.Unquote(importSpec.Path.Value)
-		if err != nil {
-			return err
-		}
-		seenImports[importPath] = struct{}{}
-	}
-
-	prefixEnd := c.pos - searchImport.Path.ValuePos
 	// Extract the text between the quotes (if any) in an import spec.
 	// prefix is the part of import path before the cursor.
-	prefix := strings.Trim(searchImport.Path.Value[:prefixEnd], `"`)
+	prefixEnd := c.pos - searchImport.Path.Pos()
+	prefix := strings.Trim(importPath[:prefixEnd], `"`)
 
 	// The number of directories in the import path gives us the depth at
 	// which to search.
 	depth := len(strings.Split(prefix, "/")) - 1
+
+	content := importPath
+	start, end := searchImport.Path.Pos(), searchImport.Path.End()
+	namePrefix, nameSuffix := `"`, `"`
+	// If a starting quote is present, adjust surrounding to either after the
+	// cursor or after the first slash (/), except if cursor is at the starting
+	// quote. Otherwise we provide a completion including the starting quote.
+	if strings.HasPrefix(importPath, `"`) && c.pos > searchImport.Path.Pos() {
+		content = content[1:]
+		start++
+		if depth > 0 {
+			// Adjust textEdit start to replacement range. For ex: if current
+			// path was "golang.or/x/to<>ols/internal/", where <> is the cursor
+			// position, start of the replacement range would be after
+			// "golang.org/x/".
+			path := strings.SplitAfter(prefix, "/")
+			numChars := len(strings.Join(path[:len(path)-1], ""))
+			content = content[numChars:]
+			start += token.Pos(numChars)
+		}
+		namePrefix = ""
+	}
+
+	// We won't provide an ending quote if one is already present, except if
+	// cursor is after the ending quote but still in import spec. This is
+	// because cursor has to be in our textEdit range.
+	if strings.HasSuffix(importPath, `"`) && c.pos < searchImport.Path.End() {
+		end--
+		content = content[:len(content)-1]
+		nameSuffix = ""
+	}
+
+	c.surrounding = &Selection{
+		content:     content,
+		cursor:      c.pos,
+		MappedRange: source.NewMappedRange(c.snapshot.FileSet(), c.mapper, start, end),
+	}
+
+	seenImports := make(map[string]struct{})
+	for _, importSpec := range c.file.Imports {
+		if importSpec.Path.Value == importPath {
+			continue
+		}
+		seenImportPath, err := strconv.Unquote(importSpec.Path.Value)
+		if err != nil {
+			return err
+		}
+		seenImports[seenImportPath] = struct{}{}
+	}
 
 	var mu sync.Mutex // guard c.items locally, since searchImports is called in parallel
 	seen := make(map[string]struct{})
@@ -726,12 +760,20 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		}
 		pkgToConsider := strings.Join(pkgDirList[:depth+1], "/")
 
+		name := pkgDirList[depth]
+		// if we're adding an opening quote to completion too, set name to full
+		// package path since we'll need to overwrite that range.
+		if namePrefix == `"` {
+			name = pkgToConsider
+		}
+
 		score := float64(pkg.Relevance)
 		if len(pkgDirList)-1 == depth {
 			score *= highScore
 		} else {
 			// For incomplete package paths, add a terminal slash to indicate that the
 			// user should keep triggering completions.
+			name += "/"
 			pkgToConsider += "/"
 		}
 
@@ -744,11 +786,11 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		defer mu.Unlock()
 
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkgToConsider, pkg.IdentName))
-		// Running goimports logic in completions is expensive, and the
-		// (*completer).found method imposes a 100ms budget. Work-around this
-		// by adding to c.items directly.
-		cand := candidate{obj: obj, name: `"` + pkgToConsider + `"`, score: score}
+		cand := candidate{obj: obj, name: namePrefix + name + nameSuffix, score: score}
+		// We use c.item here to be able to manually update the detail for a
+		// candidate. c.found doesn't give us access to the completion item.
 		if item, err := c.item(ctx, cand); err == nil {
+			item.Detail = fmt.Sprintf("%q", pkgToConsider)
 			c.items = append(c.items, item)
 		}
 	}
