@@ -742,7 +742,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 	// For vendored imports, it is the expanded form.
 	//
 	// Note that when modules are enabled, local import paths are normally
-	// canonicalized by modload.ImportPaths before now. However, if there's an
+	// canonicalized by modload.LoadPackages before now. However, if there's an
 	// error resolving a local path, it will be returned untransformed
 	// so that 'go list -e' reports something useful.
 	importKey := importSpec{
@@ -885,7 +885,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
 // because of global mutable state that cannot safely be read and written
 // concurrently. In particular, packageDataCache may be cleared by "go get"
 // in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
-// modified by modload.ImportPaths.
+// modified by modload.LoadPackages.
 type preload struct {
 	cancel chan struct{}
 	sema   chan struct{}
@@ -2106,6 +2106,18 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 	return p
 }
 
+// ModResolveTests indicates whether calls to the module loader should also
+// resolve test dependencies of the requested packages.
+//
+// If ModResolveTests is true, then the module loader needs to resolve test
+// dependencies at the same time as packages; otherwise, the test dependencies
+// of those packages could be missing, and resolving those missing dependencies
+// could change the selected versions of modules that provide other packages.
+//
+// TODO(#40775): Change this from a global variable to an explicit function
+// argument where needed.
+var ModResolveTests bool
+
 // Packages returns the packages named by the
 // command line arguments 'args'. If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
@@ -2147,7 +2159,18 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
 		}
 	}
 
-	matches := ImportPaths(ctx, patterns)
+	var matches []*search.Match
+	if modload.Init(); cfg.ModulesEnabled {
+		loadOpts := modload.PackageOpts{
+			ResolveMissingImports: true,
+			LoadTests:             ModResolveTests,
+			AllowErrors:           true,
+		}
+		matches, _ = modload.LoadPackages(ctx, loadOpts, patterns...)
+	} else {
+		matches = search.ImportPaths(patterns)
+	}
+
 	var (
 		pkgs    []*Package
 		stk     ImportStack
@@ -2215,13 +2238,6 @@ func setToolFlags(pkgs ...*Package) {
 		p.Internal.Ldflags = BuildLdflags.For(p)
 		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
 	}
-}
-
-func ImportPaths(ctx context.Context, args []string) []*search.Match {
-	if modload.Init(); cfg.ModulesEnabled {
-		return modload.ImportPaths(ctx, args)
-	}
-	return search.ImportPaths(args)
 }
 
 // PackagesForBuild is like Packages but exits

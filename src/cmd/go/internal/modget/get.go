@@ -284,7 +284,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.Insecure {
 		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
 	}
-	modload.LoadTests = *getT
+	load.ModResolveTests = *getT
 
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
@@ -314,7 +314,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Add missing modules to the build list.
 	// We call SetBuildList here and elsewhere, since newUpgrader,
-	// ImportPathsQuiet, and other functions read the global build list.
+	// LoadPackages, and other functions read the global build list.
 	for _, q := range queries {
 		if _, ok := selectedVersion[q.m.Path]; !ok && q.m.Version != "none" {
 			buildList = append(buildList, q.m)
@@ -400,9 +400,16 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 
 		if len(pkgPatterns) > 0 {
 			// Don't load packages if pkgPatterns is empty. Both
-			// modload.ImportPathsQuiet and ModulePackages convert an empty list
+			// modload.LoadPackages and ModulePackages convert an empty list
 			// of patterns to []string{"."}, which is not what we want.
-			matches = modload.ImportPathsQuiet(ctx, pkgPatterns, imports.AnyTags())
+			loadOpts := modload.PackageOpts{
+				Tags:                     imports.AnyTags(),
+				ResolveMissingImports:    true, // dubious; see https://golang.org/issue/32567
+				LoadTests:                *getT,
+				AllowErrors:              true, // Errors may be fixed by subsequent upgrades or downgrades.
+				SilenceUnmatchedWarnings: true, // We will warn after iterating below.
+			}
+			matches, _ = modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
 			seenPkgs = make(map[string]bool)
 			for i, match := range matches {
 				arg := pkgGets[i]

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 
 	"golang.org/x/mod/module"
@@ -63,12 +64,14 @@ func init() {
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
-	loadALL := modload.LoadALL
-	if *whyVendor {
-		loadALL = modload.LoadVendor
-	} else {
-		modload.LoadTests = true
+
+	loadOpts := modload.PackageOpts{
+		Tags:         imports.AnyTags(),
+		LoadTests:    !*whyVendor,
+		AllowErrors:  true,
+		UseVendorAll: *whyVendor,
 	}
+
 	if *whyM {
 		listU := false
 		listVersions := false
@@ -80,7 +83,8 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
 		byModule := make(map[module.Version][]string)
-		for _, path := range loadALL(ctx) {
+		_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+		for _, path := range pkgs {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
 				byModule[m] = append(byModule[m], path)
@@ -109,8 +113,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		matches := modload.ImportPaths(ctx, args) // resolve to packages
-		loadALL(ctx)                              // rebuild graph, from main module (not from named packages)
+		// Resolve to packages.
+		matches, _ := modload.LoadPackages(ctx, loadOpts, args...)
+
+		modload.LoadPackages(ctx, loadOpts, "all") // rebuild graph, from main module (not from named packages)
+
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {

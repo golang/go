@@ -83,12 +83,12 @@ const (
 
 // ModFile returns the parsed go.mod file.
 //
-// Note that after calling ImportPaths or LoadBuildList,
+// Note that after calling LoadPackages or LoadAllModules,
 // the require statements in the modfile.File are no longer
 // the source of truth and will be ignored: edits made directly
 // will be lost at the next call to WriteGoMod.
 // To make permanent changes to the require statements
-// in go.mod, edit it before calling ImportPaths or LoadBuildList.
+// in go.mod, edit it before loading.
 func ModFile() *modfile.File {
 	Init()
 	if modFile == nil {
@@ -943,9 +943,9 @@ func WriteGoMod() {
 
 // keepSums returns a set of module sums to preserve in go.sum. The set
 // includes entries for all modules used to load packages (according to
-// the last load function like ImportPaths, LoadALL, etc.). It also contains
-// entries for go.mod files needed for MVS (the version of these entries
-// ends with "/go.mod").
+// the last load function such as LoadPackages or ImportFromFiles).
+// It also contains entries for go.mod files needed for MVS (the version
+// of these entries ends with "/go.mod").
 //
 // If addDirect is true, the set also includes sums for modules directly
 // required by go.mod, as represented by the index, with replacements applied.
@@ -977,8 +977,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
 	}
 	walk(Target)
 
-	// Add entries for modules that provided packages loaded with ImportPaths,
-	// LoadALL, or similar functions.
+	// Add entries for modules from which packages were loaded.
 	if loaded != nil {
 		for _, pkg := range loaded.pkgs {
 			m := pkg.mod

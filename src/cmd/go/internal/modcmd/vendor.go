@@ -49,7 +49,13 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
-	pkgs := modload.LoadVendor(ctx)
+
+	loadOpts := modload.PackageOpts{
+		Tags:                  imports.AnyTags(),
+		ResolveMissingImports: true,
+		UseVendorAll:          true,
+	}
+	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
 	vdir := filepath.Join(modload.ModRoot(), "vendor")
 	if err := os.RemoveAll(vdir); err != nil {
