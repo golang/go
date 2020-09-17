@@ -17,8 +17,8 @@ import (
 )
 
 // buildList is the list of modules to use for building packages.
-// It is initialized by calling ImportPaths, ImportFromFiles,
-// LoadALL, or LoadBuildList, each of which uses loaded.load.
+// It is initialized by calling LoadPackages or ImportFromFiles,
+// each of which uses loaded.load.
 //
 // Ideally, exactly ONE of those functions would be called,
 // and exactly once. Most of the time, that's true.
@@ -31,8 +31,8 @@ var buildList []module.Version
 // module pattern, starting with the Target module and in a deterministic
 // (stable) order, without loading any packages.
 //
-// Modules are loaded automatically (and lazily) in ImportPaths:
-// LoadAllModules need only be called if ImportPaths is not,
+// Modules are loaded automatically (and lazily) in LoadPackages:
+// LoadAllModules need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
 //
 // The caller must not modify the returned list.
@@ -44,7 +44,7 @@ func LoadAllModules(ctx context.Context) []module.Version {
 }
 
 // LoadedModules returns the list of module requirements loaded or set by a
-// previous call (typically LoadAllModules or ImportPaths), starting with the
+// previous call (typically LoadAllModules or LoadPackages), starting with the
 // Target module and in a deterministic (stable) order.
 //
 // The caller must not modify the returned list.
@@ -71,8 +71,8 @@ func ReloadBuildList() []module.Version {
 }
 
 // TidyBuildList trims the build list to the minimal requirements needed to
-// retain the same versions of all packages from the preceding Load* or
-// ImportPaths* call.
+// retain the same versions of all packages from the preceding call to
+// LoadPackages.
 func TidyBuildList() {
 	used := map[module.Version]bool{Target: true}
 	for _, pkg := range loaded.pkgs {

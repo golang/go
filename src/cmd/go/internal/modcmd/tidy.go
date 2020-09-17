@@ -9,6 +9,7 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"context"
 )
@@ -49,11 +50,15 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// those packages. In order to make 'go test' reproducible for the packages
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
-	modload.LoadTests = true
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
 
-	modload.LoadALL(ctx)
+	modload.LoadPackages(ctx, modload.PackageOpts{
+		Tags:                  imports.AnyTags(),
+		ResolveMissingImports: true,
+		LoadTests:             true,
+		AllowErrors:           false, // TODO(#26603): Make this a flag.
+	}, "all")
 	modload.TidyBuildList()
 	modload.TrimGoSum()
 	modload.WriteGoMod()
