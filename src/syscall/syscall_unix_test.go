@@ -70,7 +70,7 @@ func _() {
 // Thus this test also verifies that the Flock_t structure can be
 // roundtripped with F_SETLK and F_GETLK.
 func TestFcntlFlock(t *testing.T) {
-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+	if runtime.GOOS == "ios" {
 		t.Skip("skipping; no child processes allowed on iOS")
 	}
 	flock := syscall.Flock_t{
