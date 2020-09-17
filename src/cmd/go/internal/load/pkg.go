@@ -28,25 +28,11 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
-)
-
-var (
-	// module initialization hook; never nil, no-op if module use is disabled
-	ModInit func()
-
-	// module hooks; nil if module use is disabled
-	ModBinDir            func() string                                                                            // return effective bin directory
-	ModLookup            func(parentPath string, parentIsStd bool, path string) (dir, realPath string, err error) // lookup effective meaning of import
-	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
-	ModImportPaths       func(ctx context.Context, args []string) []*search.Match                                 // expand import paths
-	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
-	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
-	ModImportFromFiles   func(context.Context, []string)                                                          // update go.mod to add modules for imports in these files
-	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
 )
 
 var IgnoreImports bool // control whether we ignore imports in packages
@@ -770,7 +756,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			r.dir = filepath.Join(parentDir, path)
 			r.path = dirToImportPath(r.dir)
 		} else if cfg.ModulesEnabled {
-			r.dir, r.path, r.err = ModLookup(parentPath, parentIsStd, path)
+			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
 		} else if mode&ResolveImport != 0 {
 			// We do our own path resolution, because we want to
 			// find out the key to use in packageCache without the
@@ -801,7 +787,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
 			if data.p.Root == "" && cfg.ModulesEnabled {
-				if info := ModPackageModuleInfo(path); info != nil {
+				if info := modload.PackageModuleInfo(path); info != nil {
 					data.p.Root = info.Dir
 				}
 			}
@@ -827,7 +813,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			if cfg.GOBIN != "" {
 				data.p.BinDir = cfg.GOBIN
 			} else if cfg.ModulesEnabled {
-				data.p.BinDir = ModBinDir()
+				data.p.BinDir = modload.BinDir()
 			}
 		}
 
@@ -895,8 +881,8 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
 // to ensure preload goroutines are no longer active. This is necessary
 // because of global mutable state that cannot safely be read and written
 // concurrently. In particular, packageDataCache may be cleared by "go get"
-// in GOPATH mode, and modload.loaded (accessed via ModLookup) may be
-// modified by modload.ImportPaths (ModImportPaths).
+// in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
+// modified by modload.ImportPaths (modload.ImportPaths).
 type preload struct {
 	cancel chan struct{}
 	sema   chan struct{}
@@ -1006,7 +992,7 @@ func ResolveImportPath(parent *Package, path string) (found string) {
 
 func resolveImportPath(path, parentPath, parentDir, parentRoot string, parentIsStd bool) (found string) {
 	if cfg.ModulesEnabled {
-		if _, p, e := ModLookup(parentPath, parentIsStd, path); e == nil {
+		if _, p, e := modload.Lookup(parentPath, parentIsStd, path); e == nil {
 			return p
 		}
 		return path
@@ -1369,7 +1355,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 			// directory containing them.
 			// If the directory is outside the main module, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath = ModDirImportPath(importer.Dir)
+			importerPath = modload.DirImportPath(importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
@@ -1652,7 +1638,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 			elem = full
 		}
 		if p.Internal.Build.BinDir == "" && cfg.ModulesEnabled {
-			p.Internal.Build.BinDir = ModBinDir()
+			p.Internal.Build.BinDir = modload.BinDir()
 		}
 		if p.Internal.Build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
@@ -1861,9 +1847,9 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
 		if p.Internal.CmdlineFiles {
 			mainPath = "command-line-arguments"
 		}
-		p.Module = ModPackageModuleInfo(mainPath)
+		p.Module = modload.PackageModuleInfo(mainPath)
 		if p.Name == "main" && len(p.DepsErrors) == 0 {
-			p.Internal.BuildInfo = ModPackageBuildInfo(mainPath, p.Deps)
+			p.Internal.BuildInfo = modload.PackageBuildInfo(mainPath, p.Deps)
 		}
 	}
 }
@@ -2229,8 +2215,8 @@ func setToolFlags(pkgs ...*Package) {
 }
 
 func ImportPaths(ctx context.Context, args []string) []*search.Match {
-	if ModInit(); cfg.ModulesEnabled {
-		return ModImportPaths(ctx, args)
+	if modload.Init(); cfg.ModulesEnabled {
+		return modload.ImportPaths(ctx, args)
 	}
 	return search.ImportPaths(args)
 }
@@ -2282,7 +2268,7 @@ func PackagesForBuild(ctx context.Context, args []string) []*Package {
 // (typically named on the command line). The target is named p.a for
 // package p or named after the first Go file for package main.
 func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
-	ModInit()
+	modload.Init()
 
 	for _, f := range gofiles {
 		if !strings.HasSuffix(f, ".go") {
@@ -2329,7 +2315,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
 
 	if cfg.ModulesEnabled {
-		ModImportFromFiles(ctx, gofiles)
+		modload.ImportFromFiles(ctx, gofiles)
 	}
 
 	var err error
@@ -2357,7 +2343,7 @@ func GoFilesPackage(ctx context.Context, gofiles []string) *Package {
 		if cfg.GOBIN != "" {
 			pkg.Target = filepath.Join(cfg.GOBIN, exe)
 		} else if cfg.ModulesEnabled {
-			pkg.Target = filepath.Join(ModBinDir(), exe)
+			pkg.Target = filepath.Join(modload.BinDir(), exe)
 		}
 	}
 

@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -37,8 +36,6 @@ type ImportMissingError struct {
 	// in the build list. When set, we can't automatically upgrade.
 	newMissingVersion string
 }
-
-var _ load.ImportPathError = (*ImportMissingError)(nil)
 
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
@@ -105,8 +102,6 @@ func (e *AmbiguousImportError) Error() string {
 	return buf.String()
 }
 
-var _ load.ImportPathError = &AmbiguousImportError{}
-
 type invalidImportError struct {
 	importPath string
 	err        error
@@ -123,8 +118,6 @@ func (e *invalidImportError) Error() string {
 func (e *invalidImportError) Unwrap() error {
 	return e.err
 }
-
-var _ load.ImportPathError = &invalidImportError{}
 
 // importFromBuildList finds the module and directory in the build list
 // containing the package with the given import path. The answer must be unique:
