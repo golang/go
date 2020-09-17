@@ -2717,7 +2717,7 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
 // sigrepr is a type's representation to the outside world,
 // in string representations of return signatures
 // e.g in error messages about wrong arguments to return.
-func sigrepr(t *types.Type) string {
+func sigrepr(t *types.Type, isddd bool) string {
 	switch t {
 	case types.Idealstring:
 		return "string"
@@ -2732,6 +2732,13 @@ func sigrepr(t *types.Type) string {
 		return "number"
 	}
 
+	// Turn []T... argument to ...T for clearer error message.
+	if isddd {
+		if !t.IsSlice() {
+			Fatalf("bad type for ... argument: %v", t)
+		}
+		return "..." + t.Elem().String()
+	}
 	return t.String()
 }
 
@@ -2742,15 +2749,12 @@ func (nl Nodes) sigerr(isddd bool) string {
 	}
 
 	var typeStrings []string
-	for _, n := range nl.Slice() {
-		typeStrings = append(typeStrings, sigrepr(n.Type))
+	for i, n := range nl.Slice() {
+		isdddArg := isddd && i == nl.Len()-1
+		typeStrings = append(typeStrings, sigrepr(n.Type, isdddArg))
 	}
 
-	ddd := ""
-	if isddd {
-		ddd = "..."
-	}
-	return fmt.Sprintf("(%s%s)", strings.Join(typeStrings, ", "), ddd)
+	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
 }
 
 // type check composite
