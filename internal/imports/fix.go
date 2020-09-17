@@ -827,7 +827,11 @@ func (e *ProcessEnv) goEnv() (map[string]string, error) {
 }
 
 func (e *ProcessEnv) matchFile(dir, name string) (bool, error) {
-	return build.Default.MatchFile(dir, name)
+	bctx, err := e.buildContext()
+	if err != nil {
+		return false, err
+	}
+	return bctx.MatchFile(dir, name)
 }
 
 // CopyConfig copies the env's configuration into a new env.
