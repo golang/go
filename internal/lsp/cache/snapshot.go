@@ -138,7 +138,7 @@ func (s *snapshot) configWithDir(ctx context.Context, dir string) *packages.Conf
 	cfg := &packages.Config{
 		Context:    ctx,
 		Dir:        dir,
-		Env:        append([]string{}, env...),
+		Env:        append(append([]string{}, env...), "GO111MODULE="+s.view.go111module),
 		BuildFlags: append([]string{}, buildFlags...),
 		Mode: packages.NeedName |
 			packages.NeedFiles |

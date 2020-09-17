@@ -150,6 +150,9 @@ type View struct {
 	// `go env` variables that need to be tracked by gopls.
 	gocache, gomodcache, gopath, goprivate string
 
+	// The value of GO111MODULE we want to run with.
+	go111module string
+
 	// goEnv is the `go env` output collected when a view is created.
 	// It includes the values of the environment variables above.
 	goEnv map[string]string
@@ -492,6 +495,8 @@ func (v *View) populateProcessEnv(ctx context.Context, modFH, sumFH source.FileH
 	for k, v := range v.goEnv {
 		pe.Env[k] = v
 	}
+	pe.Env["GO111MODULE"] = v.go111module
+
 	modmod, err := v.needsModEqualsMod(ctx, modFH)
 	if err != nil {
 		return cleanup, err
@@ -795,8 +800,25 @@ func (v *View) setBuildInformation(ctx context.Context, options *source.Options)
 	if err != nil {
 		return err
 	}
+
+	v.go111module = os.Getenv("GO111MODULE")
+	for _, kv := range options.Env {
+		split := strings.SplitN(kv, "=", 2)
+		if len(split) != 2 {
+			continue
+		}
+		if split[0] == "GO111MODULE" {
+			v.go111module = split[1]
+		}
+	}
+	// If using 1.16, change the default back to auto. The primary effect of
+	// GO111MODULE=on is to break GOPATH, which we aren't too interested in.
+	if v.goversion >= 16 && v.go111module == "" {
+		v.go111module = "auto"
+	}
+
 	// Make sure to get the `go env` before continuing with initialization.
-	modFile, err := v.setGoEnv(ctx, options.Env)
+	modFile, err := v.setGoEnv(ctx, append(options.Env, "GO111MODULE="+v.go111module))
 	if err != nil {
 		return err
 	}
