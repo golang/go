@@ -1178,8 +1178,13 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		key, val := cfg.GetArchEnv()
 		fmt.Fprintf(h, "%s=%s\n", key, val)
 
-		// The linker writes source file paths that say GOROOT_FINAL.
-		fmt.Fprintf(h, "GOROOT=%s\n", cfg.GOROOT_FINAL)
+		// The linker writes source file paths that say GOROOT_FINAL, but
+		// only if -trimpath is not specified (see ld() in gc.go).
+		gorootFinal := cfg.GOROOT_FINAL
+		if cfg.BuildTrimpath {
+			gorootFinal = trimPathGoRootFinal
+		}
+		fmt.Fprintf(h, "GOROOT=%s\n", gorootFinal)
 
 		// GO_EXTLINK_ENABLED controls whether the external linker is used.
 		fmt.Fprintf(h, "GO_EXTLINK_ENABLED=%s\n", cfg.Getenv("GO_EXTLINK_ENABLED"))
