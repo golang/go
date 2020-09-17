@@ -93,8 +93,9 @@
 //
 // The -o flag forces build to write the resulting executable or object
 // to the named output file or directory, instead of the default behavior described
-// in the last two paragraphs. If the named output is a directory that exists,
-// then any resulting executables will be written to that directory.
+// in the last two paragraphs. If the named output is an existing directory or
+// ends with a slash or backslash, then any resulting executables
+// will be written to that directory.
 //
 // The -i flag installs the packages that are dependencies of the target.
 //

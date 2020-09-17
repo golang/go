@@ -53,8 +53,9 @@ serving only as a check that the packages can be built.
 
 The -o flag forces build to write the resulting executable or object
 to the named output file or directory, instead of the default behavior described
-in the last two paragraphs. If the named output is a directory that exists,
-then any resulting executables will be written to that directory.
+in the last two paragraphs. If the named output is an existing directory or
+ends with a slash or backslash, then any resulting executables
+will be written to that directory.
 
 The -i flag installs the packages that are dependencies of the target.
 
@@ -387,10 +388,13 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildO != "" {
-		// If the -o name exists and is a directory, then
+		// If the -o name exists and is a directory or
+		// ends with a slash or backslash, then
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
-		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+		if fi, err := os.Stat(cfg.BuildO); (err == nil && fi.IsDir()) ||
+			strings.HasSuffix(cfg.BuildO, "/") ||
+			strings.HasSuffix(cfg.BuildO, string(os.PathSeparator)) {
 			if !explicitO {
 				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
 			}
