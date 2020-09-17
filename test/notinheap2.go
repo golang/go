@@ -32,6 +32,25 @@ var y3 *[1]nih
 var z []nih
 var w []nih
 var n int
+var sink interface{}
+
+type embed1 struct { // implicitly notinheap
+	x nih
+}
+
+type embed2 [1]nih // implicitly notinheap
+
+type embed3 struct { // implicitly notinheap
+	x [1]nih
+}
+
+// Type aliases inherit the go:notinheap-ness of the type they alias.
+type nihAlias = nih
+
+type embedAlias1 struct { // implicitly notinheap
+	x nihAlias
+}
+type embedAlias2 [1]nihAlias // implicitly notinheap
 
 func g() {
 	y = new(nih)              // ERROR "can't be allocated in Go"
@@ -39,6 +58,13 @@ func g() {
 	y3 = new([1]nih)          // ERROR "can't be allocated in Go"
 	z = make([]nih, 1)        // ERROR "can't be allocated in Go"
 	z = append(z, x)          // ERROR "can't be allocated in Go"
+
+	sink = new(embed1)      // ERROR "can't be allocated in Go"
+	sink = new(embed2)      // ERROR "can't be allocated in Go"
+	sink = new(embed3)      // ERROR "can't be allocated in Go"
+	sink = new(embedAlias1) // ERROR "can't be allocated in Go"
+	sink = new(embedAlias2) // ERROR "can't be allocated in Go"
+
 	// Test for special case of OMAKESLICECOPY
 	x := make([]nih, n) // ERROR "can't be allocated in Go"
 	copy(x, z)
