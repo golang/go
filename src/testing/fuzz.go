@@ -78,20 +78,16 @@ func (f *F) run(name string, fn func(f *F)) (ran, ok bool) {
 		context: f.context,
 	}
 	if innerF.chatty != nil {
-		if f.fuzz {
-			innerF.chatty.Updatef(name, "--- FUZZ: %s\n", name)
-		} else {
-			innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
-		}
+		innerF.chatty.Updatef(name, "=== RUN   %s\n", name)
 	}
-	go runTarget(innerF, fn)
+	go innerF.runTarget(fn)
 	<-innerF.signal
 	return innerF.ran, !innerF.failed
 }
 
 // runTarget runs the given target, handling panics and exits
 // within the test, and reporting errors.
-func runTarget(f *F, fn func(f *F)) {
+func (f *F) runTarget(fn func(f *F)) {
 	defer func() {
 		err := recover()
 		// If the function has recovered but the test hasn't finished,
@@ -202,7 +198,8 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 	}
 	f := &F{
 		common: common{
-			w: os.Stdout,
+			signal: make(chan bool),
+			w:      os.Stdout,
 		},
 		context: ctx,
 		fuzz:    true,
@@ -227,8 +224,11 @@ func runFuzzing(matchString func(pat, str string) (bool, error), fuzzTargets []I
 	}
 	if Verbose() {
 		f.chatty = newChattyPrinter(f.w)
+		f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
 	}
-	return f.run(ft.Name, ft.Fn)
+	go f.runTarget(ft.Fn)
+	<-f.signal
+	return f.ran, !f.failed
 }
 
 // Fuzz runs a single fuzz target. It is useful for creating
