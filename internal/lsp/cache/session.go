@@ -239,12 +239,13 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel
+	snapshot := v.snapshot
+	release := snapshot.generation.Acquire(initCtx)
 	go func() {
-		release := v.snapshot.generation.Acquire(initCtx)
-		v.initialize(initCtx, v.snapshot, true)
+		v.initialize(initCtx, snapshot, true)
 		release()
 	}()
-	return v, v.snapshot, v.snapshot.generation.Acquire(ctx), nil
+	return v, snapshot, snapshot.generation.Acquire(ctx), nil
 }
 
 // findWorkspaceModules walks the view's root folder, looking for go.mod files.

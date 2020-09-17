@@ -526,7 +526,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) 
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.
-	s.view.AwaitInitialized(ctx)
+	s.AwaitInitialized(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -705,7 +705,7 @@ func (s *snapshot) IsSaved(uri span.URI) bool {
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	// Do not return results until the snapshot's view has been initialized.
-	s.view.AwaitInitialized(ctx)
+	s.AwaitInitialized(ctx)
 
 	if err := s.reloadWorkspace(ctx); err != nil {
 		return err
@@ -722,6 +722,17 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 		return s.view.initializedErr
 	}
 	return nil
+}
+
+func (s *snapshot) AwaitInitialized(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-s.view.initialized:
+	}
+	// We typically prefer to run something as intensive as the IWL without
+	// blocking. I'm not sure if there is a way to do that here.
+	s.view.initialize(ctx, s, false)
 }
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
@@ -1202,7 +1213,7 @@ func (s *snapshot) findWorkspaceDirectories(ctx context.Context, modFH source.Fi
 }
 
 func (s *snapshot) BuiltinPackage(ctx context.Context) (*source.BuiltinPackage, error) {
-	s.view.AwaitInitialized(ctx)
+	s.AwaitInitialized(ctx)
 
 	if s.builtin == nil {
 		return nil, errors.Errorf("no builtin package for view %s", s.view.name)

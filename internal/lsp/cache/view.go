@@ -677,15 +677,9 @@ func checkIgnored(suffix string) bool {
 }
 
 func (v *View) Snapshot(ctx context.Context) (source.Snapshot, func()) {
-	s := v.getSnapshot()
-	return s, s.generation.Acquire(ctx)
-}
-
-func (v *View) getSnapshot() *snapshot {
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
-
-	return v.snapshot
+	return v.snapshot, v.snapshot.generation.Acquire(ctx)
 }
 
 func (v *View) initialize(ctx context.Context, s *snapshot, firstAttempt bool) {
@@ -743,18 +737,6 @@ func (v *View) initialize(ctx context.Context, s *snapshot, firstAttempt bool) {
 	})
 }
 
-// AwaitInitialized waits until a view is initialized
-func (v *View) AwaitInitialized(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-v.initialized:
-	}
-	// We typically prefer to run something as intensive as the IWL without
-	// blocking. I'm not sure if there is a way to do that here.
-	v.initialize(ctx, v.getSnapshot(), false)
-}
-
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
@@ -767,7 +749,7 @@ func (v *View) invalidateContent(ctx context.Context, uris map[span.URI]source.V
 	v.cancelBackground()
 
 	// Do not clone a snapshot until its view has finished initializing.
-	v.AwaitInitialized(ctx)
+	v.snapshot.AwaitInitialized(ctx)
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()

@@ -205,8 +205,11 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			work.end(fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
+		var swg sync.WaitGroup
+		swg.Add(1)
 		go func() {
-			view.AwaitInitialized(ctx)
+			defer swg.Done()
+			snapshot.AwaitInitialized(ctx)
 			work.end("Finished loading packages.")
 		}()
 
@@ -226,6 +229,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		wg.Add(1)
 		go func() {
 			s.diagnoseDetached(snapshot)
+			swg.Wait()
 			release()
 			wg.Done()
 		}()
