@@ -63,10 +63,6 @@ type View struct {
 	// folder is the folder with which this view was constructed.
 	folder span.URI
 
-	// root is the root directory of this view. If we are in GOPATH mode, this
-	// is just the folder. If we are in module mode, this is the module root.
-	root span.URI
-
 	// importsMu guards imports-related state, particularly the ProcessEnv.
 	importsMu sync.Mutex
 
@@ -118,19 +114,22 @@ type View struct {
 	initializeOnce     *sync.Once
 	initializedErr     error
 
-	// True if the view is either in GOPATH, a module, or some other
-	// non go command build system.
-	hasValidBuildConfiguration bool
-
-	// The real go.mod and go.sum files that are attributed to a view.
-	modURI, sumURI span.URI
-
-	// The Go version in use: X in Go 1.X.
-	goversion int
+	// workspaceInformation tracks various details about this view's
+	// environment variables, go version, and use of modules.
+	workspaceInformation
 
 	// workspaceMode describes the way in which the view's workspace should be
 	// loaded.
 	workspaceMode workspaceMode
+
+	// True if the view is either in GOPATH, a module, or some other
+	// non go command build system.
+	hasValidBuildConfiguration bool
+}
+
+type workspaceInformation struct {
+	// The Go version in use: X in Go 1.X.
+	goversion int
 
 	// hasGopackagesDriver is true if the user has a value set for the
 	// GOPACKAGESDRIVER environment variable or a gopackagesdriver binary on
@@ -138,7 +137,7 @@ type View struct {
 	hasGopackagesDriver bool
 
 	// `go env` variables that need to be tracked by gopls.
-	gocache, gomodcache, gopath, goprivate string
+	environmentVariables
 
 	// The value of GO111MODULE we want to run with.
 	go111module string
@@ -146,6 +145,17 @@ type View struct {
 	// goEnv is the `go env` output collected when a view is created.
 	// It includes the values of the environment variables above.
 	goEnv map[string]string
+
+	// The real go.mod and go.sum files that are attributed to a view.
+	modURI, sumURI span.URI
+
+	// rootURI is the rootURI directory of this view. If we are in GOPATH mode, this
+	// is just the folder. If we are in module mode, this is the module rootURI.
+	rootURI span.URI
+}
+
+type environmentVariables struct {
+	gocache, gopath, goprivate, gomodcache, gomod string
 }
 
 type workspaceMode int
@@ -350,7 +360,7 @@ func (v *View) WriteEnv(ctx context.Context, w io.Writer) error {
 
 	}
 	fmt.Fprintf(w, "go env for %v\n(root %s)\n(valid build configuration = %v)\n(build flags: %v)\n",
-		v.folder.Filename(), v.root.Filename(), v.hasValidBuildConfiguration, buildFlags)
+		v.folder.Filename(), v.rootURI.Filename(), v.hasValidBuildConfiguration, buildFlags)
 	for k, v := range fullEnv {
 		fmt.Fprintf(w, "%s=%s\n", k, v)
 	}
@@ -519,7 +529,7 @@ func (v *View) envLocked() ([]string, []string) {
 }
 
 func (v *View) contains(uri span.URI) bool {
-	return strings.HasPrefix(string(uri), string(v.root))
+	return strings.HasPrefix(string(uri), string(v.rootURI))
 }
 
 func (v *View) mapFile(uri span.URI, f *fileBase) {
@@ -789,62 +799,73 @@ func (v *View) reinitialize(force bool) {
 	v.initializeOnce = &once
 }
 
-func (v *View) setBuildInformation(ctx context.Context, options *source.Options) error {
-	if err := checkPathCase(v.Folder().Filename()); err != nil {
-		return errors.Errorf("invalid workspace configuration: %w", err)
+func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {
+	if err := checkPathCase(folder.Filename()); err != nil {
+		return nil, errors.Errorf("invalid workspace configuration: %w", err)
 	}
 	var err error
-	v.goversion, err = v.goVersion(ctx, v.Options().Env)
+	goversion, err := s.goVersion(ctx, folder.Filename(), options.Env)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	v.go111module = os.Getenv("GO111MODULE")
+	go111module := os.Getenv("GO111MODULE")
 	for _, kv := range options.Env {
 		split := strings.SplitN(kv, "=", 2)
 		if len(split) != 2 {
 			continue
 		}
 		if split[0] == "GO111MODULE" {
-			v.go111module = split[1]
+			go111module = split[1]
 		}
 	}
 	// If using 1.16, change the default back to auto. The primary effect of
 	// GO111MODULE=on is to break GOPATH, which we aren't too interested in.
-	if v.goversion >= 16 && v.go111module == "" {
-		v.go111module = "auto"
+	if goversion >= 16 && go111module == "" {
+		go111module = "auto"
 	}
 
 	// Make sure to get the `go env` before continuing with initialization.
-	modFile, err := v.setGoEnv(ctx, append(options.Env, "GO111MODULE="+v.go111module))
+	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), append(options.Env, "GO111MODULE="+go111module))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if modFile != "" {
-		v.workspaceMode |= moduleMode
+	// The value of GOPACKAGESDRIVER is not returned through the go command.
+	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
+	for _, s := range env {
+		split := strings.SplitN(s, "=", 2)
+		if split[0] == "GOPACKAGESDRIVER" {
+			gopackagesdriver = split[1]
+		}
 	}
-	if modFile == os.DevNull {
-		return nil
+	// A user may also have a gopackagesdriver binary on their machine, which
+	// works the same way as setting GOPACKAGESDRIVER.
+	tool, _ := exec.LookPath("gopackagesdriver")
+	hasGopackagesDriver := gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
+
+	var modURI, sumURI span.URI
+	if envVars.gomod != os.DevNull && envVars.gomod != "" {
+		modURI = span.URIFromPath(envVars.gomod)
 	}
-	v.modURI = span.URIFromPath(modFile)
 	// Set the sumURI, if the go.sum exists.
-	sumFilename := filepath.Join(filepath.Dir(modFile), "go.sum")
+	sumFilename := filepath.Join(filepath.Dir(envVars.gomod), "go.sum")
 	if stat, _ := os.Stat(sumFilename); stat != nil {
-		v.sumURI = span.URIFromPath(sumFilename)
+		sumURI = span.URIFromPath(sumFilename)
 	}
-
-	if options.ExpandWorkspaceToModule && v.modURI != "" {
-		v.root = span.URIFromPath(filepath.Dir(v.modURI.Filename()))
+	root := folder
+	if options.ExpandWorkspaceToModule && modURI != "" {
+		root = span.URIFromPath(filepath.Dir(modURI.Filename()))
 	}
-
-	// The user has disabled the use of the -modfile flag or has no go.mod file.
-	if !options.TempModfile || v.modURI == "" {
-		return nil
-	}
-	if v.goversion >= 14 {
-		v.workspaceMode |= tempModfile
-	}
-	return nil
+	return &workspaceInformation{
+		hasGopackagesDriver:  hasGopackagesDriver,
+		go111module:          go111module,
+		goversion:            goversion,
+		rootURI:              root,
+		environmentVariables: envVars,
+		goEnv:                env,
+		modURI:               modURI,
+		sumURI:               sumURI,
+	}, nil
 }
 
 // OS-specific path case check, for case-insensitive filesystems.
@@ -854,59 +875,24 @@ func defaultCheckPathCase(path string) error {
 	return nil
 }
 
-func (v *View) determineWorkspaceModuleLocked() bool {
-	// If the user is intentionally limiting their workspace scope, add their
-	// folder to the roots and return early.
-	if !v.options.ExpandWorkspaceToModule {
-		return false
-	}
-	// The workspace module has been disabled by the user.
-	if !v.options.ExperimentalWorkspaceModule {
-		return false
-	}
-	// If the view has an invalid configuration, don't build the workspace
-	// module.
-	if !v.hasValidBuildConfiguration {
-		return false
-	}
-	// If the view is not in a module and contains no modules, but still has a
-	// valid workspace configuration, do not create the workspace module.
-	// It could be using GOPATH or a different build system entirely.
-	if v.modURI == "" && len(v.snapshot.modules) == 0 && v.hasValidBuildConfiguration {
-		return false
-	}
-
-	// Don't default to multi-workspace mode if one of the modules contains a
-	// vendor directory. We still have to decide how to handle vendoring.
-	for _, mod := range v.snapshot.modules {
-		if info, _ := os.Stat(filepath.Join(mod.rootURI.Filename(), "vendor")); info != nil {
-			return false
-		}
-	}
-	return true
-}
-
-func (v *View) setBuildConfiguration() (isValid bool) {
-	defer func() {
-		v.hasValidBuildConfiguration = isValid
-	}()
+func validBuildConfiguration(folder span.URI, ws *workspaceInformation, modules map[span.URI]*moduleRoot) bool {
 	// Since we only really understand the `go` command, if the user has a
 	// different GOPACKAGESDRIVER, assume that their configuration is valid.
-	if v.hasGopackagesDriver {
+	if ws.hasGopackagesDriver {
 		return true
 	}
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
-	if v.modURI != "" {
+	if ws.modURI != "" {
 		return true
 	}
-	if len(v.snapshot.modules) > 0 {
+	if len(modules) > 0 {
 		return true
 	}
 	// The user may have a multiple directories in their GOPATH.
 	// Check if the workspace is within any of them.
-	for _, gp := range filepath.SplitList(v.gopath) {
-		if isSubdirectory(filepath.Join(gp, "src"), v.folder.Filename()) {
+	for _, gp := range filepath.SplitList(ws.gopath) {
+		if isSubdirectory(filepath.Join(gp, "src"), folder.Filename()) {
 			return true
 		}
 	}
@@ -918,16 +904,15 @@ func isSubdirectory(root, leaf string) bool {
 	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
-// setGoEnv sets the view's various GO* values. It also returns the view's
-// GOMOD value, which need not be cached.
-func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error) {
-	var gomod string
+// getGoEnv gets the view's various GO* values.
+func (s *Session) getGoEnv(ctx context.Context, folder string, configEnv []string) (environmentVariables, map[string]string, error) {
+	envVars := environmentVariables{}
 	vars := map[string]*string{
-		"GOCACHE":    &v.gocache,
-		"GOPATH":     &v.gopath,
-		"GOPRIVATE":  &v.goprivate,
-		"GOMODCACHE": &v.gomodcache,
-		"GOMOD":      &gomod,
+		"GOCACHE":    &envVars.gocache,
+		"GOPATH":     &envVars.gopath,
+		"GOPRIVATE":  &envVars.goprivate,
+		"GOMODCACHE": &envVars.gomodcache,
+		"GOMOD":      &envVars.gomod,
 	}
 	// We can save ~200 ms by requesting only the variables we care about.
 	args := append([]string{"-json"}, imports.RequiredGoEnvVars...)
@@ -939,40 +924,28 @@ func (v *View) setGoEnv(ctx context.Context, configEnv []string) (string, error)
 		Verb:       "env",
 		Args:       args,
 		Env:        configEnv,
-		WorkingDir: v.Folder().Filename(),
+		WorkingDir: folder,
 	}
 	// Don't go through runGoCommand, as we don't need a temporary -modfile to
 	// run `go env`.
-	stdout, err := v.session.gocmdRunner.Run(ctx, inv)
+	stdout, err := s.gocmdRunner.Run(ctx, inv)
 	if err != nil {
-		return "", err
+		return environmentVariables{}, nil, err
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &v.goEnv); err != nil {
-		return "", err
+	env := make(map[string]string)
+	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
+		return environmentVariables{}, nil, err
 	}
 
 	for key, ptr := range vars {
-		*ptr = v.goEnv[key]
+		*ptr = env[key]
 	}
 
 	// Old versions of Go don't have GOMODCACHE, so emulate it.
-	if v.gomodcache == "" && v.gopath != "" {
-		v.gomodcache = filepath.Join(filepath.SplitList(v.gopath)[0], "pkg/mod")
+	if envVars.gomodcache == "" && envVars.gopath != "" {
+		envVars.gomodcache = filepath.Join(filepath.SplitList(envVars.gopath)[0], "pkg/mod")
 	}
-
-	// The value of GOPACKAGESDRIVER is not returned through the go command.
-	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
-	for _, s := range configEnv {
-		split := strings.SplitN(s, "=", 2)
-		if split[0] == "GOPACKAGESDRIVER" {
-			gopackagesdriver = split[1]
-		}
-	}
-	// A user may also have a gopackagesdriver binary on their machine, which
-	// works the same way as setting GOPACKAGESDRIVER.
-	tool, _ := exec.LookPath("gopackagesdriver")
-	v.hasGopackagesDriver = gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
-	return gomod, nil
+	return envVars, env, err
 }
 
 func (v *View) IsGoPrivatePath(target string) bool {
@@ -1021,38 +994,6 @@ func globsMatchPath(globs, target string) bool {
 	return false
 }
 
-// This function will return the main go.mod file for this folder if it exists
-// and whether the -modfile flag exists for this version of go.
-func (v *View) goVersion(ctx context.Context, env []string) (int, error) {
-	// Check the go version by running "go list" with modules off.
-	// Borrowed from internal/imports/mod.go:620.
-	const format = `{{context.ReleaseTags}}`
-	inv := gocommand.Invocation{
-		Verb:       "list",
-		Args:       []string{"-e", "-f", format},
-		Env:        append(env, "GO111MODULE=off"),
-		WorkingDir: v.root.Filename(),
-	}
-	stdoutBytes, err := v.session.gocmdRunner.Run(ctx, inv)
-	if err != nil {
-		return 0, err
-	}
-	stdout := stdoutBytes.String()
-	if len(stdout) < 3 {
-		return 0, fmt.Errorf("bad ReleaseTags output: %q", stdout)
-	}
-	// Split up "[go1.1 go1.15]"
-	tags := strings.Fields(stdout[1 : len(stdout)-2])
-	for i := len(tags) - 1; i >= 0; i-- {
-		var version int
-		if _, err := fmt.Sscanf(tags[i], "go1.%d", &version); err != nil {
-			continue
-		}
-		return version, nil
-	}
-	return 0, fmt.Errorf("no parseable ReleaseTags in %v", tags)
-}
-
 var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 
 func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (bool, error) {
@@ -1091,4 +1032,49 @@ func (v *View) needsModEqualsMod(ctx context.Context, modFH source.FileHandle) (
 	}
 	vendorEnabled := modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
 	return !vendorEnabled, nil
+}
+
+// determineWorkspaceMode determines the workspace mode for the given view.
+func determineWorkspaceMode(options *source.Options, validBuildConfiguration bool, ws *workspaceInformation, modules map[span.URI]*moduleRoot) workspaceMode {
+	var mode workspaceMode
+
+	// If the view has an invalid configuration, don't build the workspace
+	// module.
+	if !validBuildConfiguration {
+		return mode
+	}
+	// If the view is not in a module and contains no modules, but still has a
+	// valid workspace configuration, do not create the workspace module.
+	// It could be using GOPATH or a different build system entirely.
+	if ws.modURI == "" && len(modules) == 0 && validBuildConfiguration {
+		return mode
+	}
+	// Check if we should be using module mode.
+	if ws.modURI != "" || len(modules) > 0 {
+		mode |= moduleMode
+	}
+	// The -modfile flag is available for Go versions >= 1.14.
+	if options.TempModfile && ws.goversion >= 14 {
+		mode |= tempModfile
+	}
+	// Don't default to multi-workspace mode if one of the modules contains a
+	// vendor directory. We still have to decide how to handle vendoring.
+	for _, mod := range modules {
+		if info, _ := os.Stat(filepath.Join(mod.rootURI.Filename(), "vendor")); info != nil {
+			return mode
+		}
+	}
+	// If the user is intentionally limiting their workspace scope, don't
+	// enable multi-module workspace mode.
+	// TODO(rstambler): This should only change the calculation of the root,
+	// not the mode.
+	if !options.ExpandWorkspaceToModule {
+		return mode
+	}
+	// The workspace module has been disabled by the user.
+	if !options.ExperimentalWorkspaceModule {
+		return mode
+	}
+	mode |= usesWorkspaceModule
+	return mode
 }

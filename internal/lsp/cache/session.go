@@ -7,6 +7,8 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -153,26 +155,55 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, snapshotID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
+
+	if s.cache.options != nil {
+		s.cache.options(options)
+	}
+
+	// Set the module-specific information.
+	ws, err := s.getWorkspaceInformation(ctx, folder, options)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+
+	// Find all of the modules in the workspace.
+	modules, err := findWorkspaceModules(ctx, ws.rootURI, options)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+
+	// Now that we have set all required fields,
+	// check if the view has a valid build configuration.
+	validBuildConfiguration := validBuildConfiguration(folder, ws, modules)
+	mode := determineWorkspaceMode(options, validBuildConfiguration, ws, modules)
+
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := event.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
 	v := &View{
-		session:            s,
-		initialized:        make(chan struct{}),
-		initializationSema: make(chan struct{}, 1),
-		initializeOnce:     &sync.Once{},
-		id:                 strconv.FormatInt(index, 10),
-		options:            options,
-		baseCtx:            baseCtx,
-		backgroundCtx:      backgroundCtx,
-		cancel:             cancel,
-		name:               name,
-		folder:             folder,
-		root:               folder,
-		filesByURI:         make(map[span.URI]*fileBase),
-		filesByBase:        make(map[string][]*fileBase),
+		session:                    s,
+		initialized:                make(chan struct{}),
+		initializationSema:         make(chan struct{}, 1),
+		initializeOnce:             &sync.Once{},
+		id:                         strconv.FormatInt(index, 10),
+		options:                    options,
+		baseCtx:                    baseCtx,
+		backgroundCtx:              backgroundCtx,
+		cancel:                     cancel,
+		name:                       name,
+		folder:                     folder,
+		filesByURI:                 make(map[span.URI]*fileBase),
+		filesByBase:                make(map[string][]*fileBase),
+		hasValidBuildConfiguration: validBuildConfiguration,
+		processEnv: &imports.ProcessEnv{
+			GocmdRunner: s.gocmdRunner,
+			WorkingDir:  folder.Filename(),
+			Env:         ws.goEnv,
+		},
+		workspaceMode:        mode,
+		workspaceInformation: *ws,
 	}
 	v.snapshot = &snapshot{
 		id:                snapshotID,
@@ -191,39 +222,10 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		modTidyHandles:    make(map[span.URI]*modTidyHandle),
 		modUpgradeHandles: make(map[span.URI]*modUpgradeHandle),
 		modWhyHandles:     make(map[span.URI]*modWhyHandle),
-		modules:           make(map[span.URI]*moduleRoot),
+		modules:           modules,
 	}
 
-	if v.session.cache.options != nil {
-		v.session.cache.options(v.options)
-	}
-
-	// Set the module-specific information.
-	if err := v.setBuildInformation(ctx, options); err != nil {
-		return nil, nil, func() {}, err
-	}
-
-	// Find all of the modules in the workspace.
-	if err := v.snapshot.findWorkspaceModules(ctx, options); err != nil {
-		return nil, nil, func() {}, err
-	}
-
-	// Now that we have set all required fields,
-	// check if the view has a valid build configuration.
-	v.setBuildConfiguration()
-
-	// Decide if we should use the workspace module.
-	if v.determineWorkspaceModuleLocked() {
-		v.workspaceMode |= usesWorkspaceModule | moduleMode
-	}
-
-	// We have v.goEnv now.
-	v.processEnv = &imports.ProcessEnv{
-		GocmdRunner: s.gocmdRunner,
-		WorkingDir:  folder.Filename(),
-		Env:         v.goEnv,
-	}
-
+	// TODO(rstambler): Change this function to work without a snapshot.
 	// Set the first snapshot's workspace directories. The view's modURI was
 	// set by setBuildInformation.
 	var fh source.FileHandle
@@ -242,6 +244,47 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		release()
 	}()
 	return v, snapshot, snapshot.generation.Acquire(ctx), nil
+}
+
+// findWorkspaceModules walks the view's root folder, looking for go.mod files.
+// Any that are found are added to the view's set of modules, which are then
+// used to construct the workspace module.
+//
+// It assumes that the caller has not yet created the view, and therefore does
+// not lock any of the internal data structures before accessing them.
+func findWorkspaceModules(ctx context.Context, root span.URI, options *source.Options) (map[span.URI]*moduleRoot, error) {
+	// Walk the view's folder to find all modules in the view.
+	modules := make(map[span.URI]*moduleRoot)
+	return modules, filepath.Walk(root.Filename(), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// For any path that is not the workspace folder, check if the path
+		// would be ignored by the go command. Vendor directories also do not
+		// contain workspace modules.
+		if info.IsDir() && path != root.Filename() {
+			suffix := strings.TrimPrefix(path, root.Filename())
+			switch {
+			case checkIgnored(suffix),
+				strings.Contains(filepath.ToSlash(suffix), "/vendor/"):
+				return filepath.SkipDir
+			}
+		}
+		// We're only interested in go.mod files.
+		if filepath.Base(path) != "go.mod" {
+			return nil
+		}
+		// At this point, we definitely have a go.mod file in the workspace,
+		// so add it to the view.
+		modURI := span.URIFromPath(path)
+		rootURI := span.URIFromPath(filepath.Dir(path))
+		modules[rootURI] = &moduleRoot{
+			rootURI: rootURI,
+			modURI:  modURI,
+			sumURI:  span.URIFromPath(sumFilename(modURI)),
+		}
+		return nil
+	})
 }
 
 // View returns the view by name.
@@ -604,4 +647,35 @@ func (s *Session) Overlays() []source.Overlay {
 		overlays = append(overlays, overlay)
 	}
 	return overlays
+}
+
+// goVersion returns the Go version in use for the given session.
+func (s *Session) goVersion(ctx context.Context, folder string, env []string) (int, error) {
+	// Check the go version by running "go list" with modules off.
+	// Borrowed from internal/imports/mod.go:620.
+	const format = `{{context.ReleaseTags}}`
+	inv := gocommand.Invocation{
+		Verb:       "list",
+		Args:       []string{"-e", "-f", format},
+		Env:        append(env, "GO111MODULE=off"),
+		WorkingDir: folder,
+	}
+	stdoutBytes, err := s.gocmdRunner.Run(ctx, inv)
+	if err != nil {
+		return 0, err
+	}
+	stdout := stdoutBytes.String()
+	if len(stdout) < 3 {
+		return 0, fmt.Errorf("bad ReleaseTags output: %q", stdout)
+	}
+	// Split up "[go1.1 go1.15]"
+	tags := strings.Fields(stdout[1 : len(stdout)-2])
+	for i := len(tags) - 1; i >= 0; i-- {
+		var version int
+		if _, err := fmt.Sscanf(tags[i], "go1.%d", &version); err != nil {
+			continue
+		}
+		return version, nil
+	}
+	return 0, fmt.Errorf("no parseable ReleaseTags in %v", tags)
 }

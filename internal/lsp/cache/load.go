@@ -61,7 +61,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			// Simplify the query if it will be run in the requested directory.
 			// This ensures compatibility with Go 1.12 that doesn't allow
 			// <directory>/... in GOPATH mode.
-			if s.view.root.Filename() == filename {
+			if s.view.rootURI.Filename() == filename {
 				q = "./..."
 			}
 			query = append(query, q)
@@ -199,7 +199,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 // packages.Loads that occur from within the workspace module.
 func (s *snapshot) tempWorkspaceModule(ctx context.Context) (_ span.URI, cleanup func(), err error) {
 	cleanup = func() {}
-	if len(s.modules) == 0 {
+	if s.view.workspaceMode&usesWorkspaceModule == 0 {
 		return "", cleanup, nil
 	}
 	wsModuleHandle, err := s.getWorkspaceModuleHandle(ctx)

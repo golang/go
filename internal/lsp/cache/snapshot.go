@@ -128,7 +128,7 @@ func (s *snapshot) FileSet() *token.FileSet {
 // config returns a *packages.Config with the working directory set to the
 // view's root.
 func (s *snapshot) config(ctx context.Context) *packages.Config {
-	return s.configWithDir(ctx, s.view.root.Filename())
+	return s.configWithDir(ctx, s.view.rootURI.Filename())
 }
 
 // configWithDir returns the configuration used for the snapshot's interaction
@@ -1195,7 +1195,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	}
 	// If a go.mod in the workspace has been changed, invalidate metadata.
 	if kind := originalFH.Kind(); kind == source.Mod {
-		return isSubdirectory(filepath.Dir(s.view.root.Filename()), filepath.Dir(originalFH.URI().Filename()))
+		return isSubdirectory(filepath.Dir(s.view.rootURI.Filename()), filepath.Dir(originalFH.URI().Filename()))
 	}
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the
@@ -1248,7 +1248,7 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 // The caller need not be holding the snapshot's mutex, but it might be.
 func (s *snapshot) findWorkspaceDirectories(ctx context.Context, modFH source.FileHandle) map[span.URI]struct{} {
 	m := map[span.URI]struct{}{
-		s.view.root: {},
+		s.view.rootURI: {},
 	}
 	// If the view does not have a go.mod file, only the root directory
 	// is known. In GOPATH mode, we should really watch the entire GOPATH,
@@ -1448,42 +1448,6 @@ func (s *snapshot) buildWorkspaceModule(ctx context.Context) (*modfile.File, err
 		}
 	}
 	return file, nil
-}
-
-// findWorkspaceModules walks the view's root folder, looking for go.mod
-// files. Any that are found are added to the view's set of modules, which are
-// then used to construct the workspace module.
-//
-// It assumes that the caller has not yet created the view, and therefore does
-// not lock any of the internal data structures before accessing them.
-func (s *snapshot) findWorkspaceModules(ctx context.Context, options *source.Options) error {
-	// Walk the view's folder to find all modules in the view.
-	root := s.view.root.Filename()
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// For any path that is not the workspace folder, check if the path
-		// would be ignored by the go command. Vendor directories also do not
-		// contain workspace modules.
-		if info.IsDir() && path != root {
-			suffix := strings.TrimPrefix(path, root)
-			switch {
-			case checkIgnored(suffix),
-				strings.Contains(filepath.ToSlash(suffix), "/vendor/"):
-				return filepath.SkipDir
-			}
-		}
-		// We're only interested in go.mod files.
-		if filepath.Base(path) != "go.mod" {
-			return nil
-		}
-		// At this point, we definitely have a go.mod file in the workspace,
-		// so add it to the view.
-		modURI := span.URIFromPath(path)
-		s.addModule(ctx, modURI)
-		return nil
-	})
 }
 
 func (s *snapshot) addModule(ctx context.Context, modURI span.URI) {

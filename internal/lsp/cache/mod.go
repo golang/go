@@ -211,7 +211,7 @@ func (s *snapshot) ModWhy(ctx context.Context, fh source.FileHandle) (map[string
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
 		mod:       fh.FileIdentity(),
-		view:      s.view.root.Filename(),
+		view:      s.view.rootURI.Filename(),
 		verb:      why,
 	}
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
@@ -303,7 +303,7 @@ func (s *snapshot) ModUpgrade(ctx context.Context, fh source.FileHandle) (map[st
 		sessionID: s.view.session.id,
 		cfg:       hashConfig(cfg),
 		mod:       fh.FileIdentity(),
-		view:      s.view.root.Filename(),
+		view:      s.view.rootURI.Filename(),
 		verb:      upgrade,
 	}
 	h := s.generation.Bind(key, func(ctx context.Context, arg memoize.Arg) interface{} {
