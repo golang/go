@@ -8,6 +8,16 @@ go test success_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
+# Test that calling f.Fatal while fuzzing causes a non-zero exit status.
+! go test -fuzz Fuzz fail_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test that successful fuzzing exits cleanly.
+go test -fuzz Fuzz success_fuzz_test.go
+stdout ok
+! stdout FAIL
+
 [short] stop
 
 # Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
