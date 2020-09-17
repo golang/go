@@ -183,11 +183,14 @@ type PointerCycleIndirect struct {
 	Ptrs []interface{}
 }
 
+type RecursiveSlice []RecursiveSlice
+
 var (
 	pointerCycleIndirect = &PointerCycleIndirect{}
 	mapCycle             = make(map[string]interface{})
 	sliceCycle           = []interface{}{nil}
 	sliceNoCycle         = []interface{}{nil, nil}
+	recursiveSliceCycle  = []RecursiveSlice{nil}
 )
 
 func init() {
@@ -204,6 +207,7 @@ func init() {
 	for i := startDetectingCyclesAfter; i > 0; i-- {
 		sliceNoCycle = []interface{}{sliceNoCycle}
 	}
+	recursiveSliceCycle[0] = recursiveSliceCycle
 }
 
 func TestSamePointerNoCycle(t *testing.T) {
@@ -226,6 +230,7 @@ var unsupportedValues = []interface{}{
 	pointerCycleIndirect,
 	mapCycle,
 	sliceCycle,
+	recursiveSliceCycle,
 }
 
 func TestUnsupportedValues(t *testing.T) {
