@@ -130,6 +130,19 @@ func (d *deadcodePass) flood() {
 				}
 				if usedInIface {
 					methods = append(methods, methodref{src: symIdx, r: i})
+					// The method descriptor is itself a type descriptor, and
+					// it can be used to reach other types, e.g. by using
+					// reflect.Type.Method(i).Type.In(j). We need to traverse
+					// its child types with UsedInIface set. (See also the
+					// comment below.)
+					rs := r.Sym()
+					if !d.ldr.AttrUsedInIface(rs) {
+						d.ldr.SetAttrUsedInIface(rs, true)
+						if d.ldr.AttrReachable(rs) {
+							d.ldr.SetAttrReachable(rs, false)
+							d.mark(rs, symIdx)
+						}
+					}
 				}
 				i += 2
 				continue
@@ -215,9 +228,15 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 		if *flagDumpDep {
 			to := d.ldr.SymName(symIdx)
 			if to != "" {
+				if d.ldr.AttrUsedInIface(symIdx) {
+					to += " <UsedInIface>"
+				}
 				from := "_"
 				if parent != 0 {
 					from = d.ldr.SymName(parent)
+					if d.ldr.AttrUsedInIface(parent) {
+						from += " <UsedInIface>"
+					}
 				}
 				fmt.Printf("%s -> %s\n", from, to)
 			}
