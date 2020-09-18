@@ -5,7 +5,7 @@ env GO111MODULE=on
 # to resolve an external module.
 cd dir
 ! go get .
-stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
+stderr 'go get: \. \(.*[/\\]dir\) is not a package in module rooted at .*[/\\]dir$'
 ! go list
 ! stderr 'cannot find module providing package'
 stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'

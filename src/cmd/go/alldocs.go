@@ -617,15 +617,15 @@
 // dependency should be removed entirely, downgrading or removing modules
 // depending on it as needed.
 //
-// The version suffix @latest explicitly requests the latest minor release of the
+// The version suffix @latest explicitly requests the latest minor release ofthe
 // module named by the given path. The suffix @upgrade is like @latest but
 // will not downgrade a module if it is already required at a revision or
 // pre-release version newer than the latest released version. The suffix
 // @patch requests the latest patch release: the latest released version
 // with the same major and minor version numbers as the currently required
 // version. Like @upgrade, @patch will not downgrade a module already required
-// at a newer version. If the path is not already required, @upgrade and @patch
-// are equivalent to @latest.
+// at a newer version. If the path is not already required, @upgrade is
+// equivalent to @latest, and @patch is disallowed.
 //
 // Although get defaults to using the latest version of the module containing
 // a named package, it does not use the latest version of that module's

@@ -99,8 +99,16 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 
 // Previous returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
+//
+// Since the version of Target is not found in the version list,
+// it has no previous version.
 func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+
+	if m == Target {
+		return module.Version{Path: m.Path, Version: "none"}, nil
+	}
+
 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
