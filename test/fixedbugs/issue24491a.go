@@ -23,29 +23,43 @@ func setup() unsafe.Pointer {
 
 //go:noinline
 //go:uintptrescapes
-func test(s string, p uintptr) int {
+func test(s string, p, q uintptr, rest ...uintptr) int {
 	runtime.GC()
+	runtime.GC()
+
 	if *(*string)(unsafe.Pointer(p)) != "ok" {
-		panic(s + " return unexpected result")
+		panic(s + ": p failed")
 	}
+	if *(*string)(unsafe.Pointer(q)) != "ok" {
+		panic(s + ": q failed")
+	}
+	for _, r := range rest {
+		// TODO(mdempsky): Remove.
+		break
+
+		if *(*string)(unsafe.Pointer(r)) != "ok" {
+			panic(s + ": r[i] failed")
+		}
+	}
+
 	done <- true
 	return 0
 }
 
 //go:noinline
 func f() int {
-	return test("return", uintptr(setup()))
+	return test("return", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 }
 
 func main() {
-	test("normal", uintptr(setup()))
+	test("normal", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 	<-done
 
-	go test("go", uintptr(setup()))
+	go test("go", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 	<-done
 
 	func() {
-		defer test("defer", uintptr(setup()))
+		defer test("defer", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
 	}()
 	<-done
 

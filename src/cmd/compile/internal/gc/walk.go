@@ -3900,6 +3900,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
 	if !isBuiltinCall {
 		call.Op = OCALL
 		call.Left = n.Left
+		call.SetIsDDD(n.IsDDD())
 	}
 	call.List.Set(args)
 	fn.Nbody.Set1(call)
