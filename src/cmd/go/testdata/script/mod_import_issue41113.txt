@@ -5,7 +5,7 @@
 
 # Initially, our module depends on split-incompatible v2.1.0-pre+incompatible,
 # from which an imported package has been removed (and relocated to the nested
-# split-incompatible/subpkg module). modload.QueryPackage will suggest
+# split-incompatible/subpkg module). modload.QueryPattern will suggest
 # split-incompatible v2.0.0+incompatible, which we cannot use (because it would
 # be an implicit downgrade), and split-incompatible/subpkg v0.1.0, which we
 # *should* use.

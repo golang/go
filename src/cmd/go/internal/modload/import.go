@@ -261,7 +261,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		}
 
 		// Every module path in mods is a prefix of the import path.
-		// As in QueryPackage, prefer the longest prefix that satisfies the import.
+		// As in QueryPattern, prefer the longest prefix that satisfies the import.
 		sort.Slice(mods, func(i, j int) bool {
 			return len(mods[i].Path) > len(mods[j].Path)
 		})
@@ -300,9 +300,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		// in the build list, and isn't in any other module that the user has
 		// shimmed in via a "replace" directive.
 		// Moreover, the import path is reserved for the standard library, so
-		// QueryPackage cannot possibly find a module containing this package.
+		// QueryPattern cannot possibly find a module containing this package.
 		//
-		// Instead of trying QueryPackage, report an ImportMissingError immediately.
+		// Instead of trying QueryPattern, report an ImportMissingError immediately.
 		return module.Version{}, &ImportMissingError{Path: path}
 	}
 
@@ -321,11 +321,11 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 	// and return m, dir, ImpportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPackage(ctx, path, "latest", CheckAllowed)
+	candidates, err := QueryPattern(ctx, path, "latest", CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever
-			// low-level error QueryPackage produced.
+			// low-level error QueryPattern produced.
 			return module.Version{}, &ImportMissingError{Path: path, QueryErr: err}
 		} else {
 			return module.Version{}, err
@@ -338,7 +338,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
 		canAdd := true
 		for _, bm := range buildList {
 			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
-				// QueryPackage proposed that we add module cm to provide the package,
+				// QueryPattern proposed that we add module cm to provide the package,
 				// but we already depend on a newer version of that module (and we don't
 				// have the package).
 				//

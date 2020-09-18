@@ -1018,6 +1018,14 @@ func (ld *loader) load(pkg *loadPkg) {
 		return
 	}
 
+	if search.IsMetaPackage(pkg.path) {
+		pkg.err = &invalidImportError{
+			importPath: pkg.path,
+			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
+		}
+		return
+	}
+
 	pkg.mod, pkg.dir, pkg.err = importFromBuildList(context.TODO(), pkg.path)
 	if pkg.dir == "" {
 		return
