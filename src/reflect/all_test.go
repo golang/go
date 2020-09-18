@@ -6006,6 +6006,14 @@ func TestReflectMethodTraceback(t *testing.T) {
 	}
 }
 
+func TestSmallZero(t *testing.T) {
+	type T [10]byte
+	typ := TypeOf(T{})
+	if allocs := testing.AllocsPerRun(100, func() { Zero(typ) }); allocs > 0 {
+		t.Errorf("Creating small zero values caused %f allocs, want 0", allocs)
+	}
+}
+
 func TestBigZero(t *testing.T) {
 	const size = 1 << 10
 	var v [size]byte
@@ -6014,6 +6022,27 @@ func TestBigZero(t *testing.T) {
 		if z[i] != 0 {
 			t.Fatalf("Zero object not all zero, index %d", i)
 		}
+	}
+}
+
+func TestZeroSet(t *testing.T) {
+	type T [16]byte
+	type S struct {
+		a uint64
+		T T
+		b uint64
+	}
+	v := S{
+		a: 0xaaaaaaaaaaaaaaaa,
+		T: T{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
+		b: 0xbbbbbbbbbbbbbbbb,
+	}
+	ValueOf(&v).Elem().Field(1).Set(Zero(TypeOf(T{})))
+	if v != (S{
+		a: 0xaaaaaaaaaaaaaaaa,
+		b: 0xbbbbbbbbbbbbbbbb,
+	}) {
+		t.Fatalf("Setting a field to a Zero value didn't work")
 	}
 }
 
