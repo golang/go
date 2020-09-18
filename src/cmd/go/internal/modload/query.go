@@ -431,20 +431,6 @@ type QueryResult struct {
 	Packages []string
 }
 
-// QueryPackage looks up the module(s) containing path at a revision matching
-// query. The results are sorted by module path length in descending order.
-//
-// If the package is in the main module, QueryPackage considers only the main
-// module and only the version "latest", without checking for other possible
-// modules.
-func QueryPackage(ctx context.Context, path, query string, allowed AllowedFunc) ([]QueryResult, error) {
-	m := search.NewMatch(path)
-	if m.IsLocal() || !m.IsLiteral() {
-		return nil, fmt.Errorf("pattern %s is not an importable package", path)
-	}
-	return QueryPattern(ctx, path, query, allowed)
-}
-
 // QueryPattern looks up the module(s) containing at least one package matching
 // the given pattern at the given version. The results are sorted by module path
 // length in descending order.
