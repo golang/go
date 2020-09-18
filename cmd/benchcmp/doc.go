@@ -4,6 +4,8 @@
 
 /*
 
+Deprecated: benchcmp is deprecated in favor of benchstat: golang.org/x/perf/cmd/benchstat
+
 The benchcmp command displays performance changes between benchmarks.
 
 Benchcmp parses the output of two 'go test' benchmark runs,
