@@ -588,6 +588,20 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
 	}
 
+	// If -d was specified, we're done after the module work.
+	// We've already downloaded modules by loading packages above.
+	// Otherwise, we need to build and install the packages matched by
+	// command line arguments. This may be a different set of packages,
+	// since we only build packages for the target platform.
+	// Note that 'go get -u' without arguments is equivalent to
+	// 'go get -u .', so we'll typically build the package in the current
+	// directory.
+	if !*getD && len(pkgPatterns) > 0 {
+		work.BuildInit()
+		pkgs := load.PackagesForBuild(ctx, pkgPatterns)
+		work.InstallPackages(ctx, pkgPatterns, pkgs)
+	}
+
 	// Everything succeeded. Update go.mod.
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
@@ -600,21 +614,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// contains information about direct dependencies that WriteGoMod uses.
 	// Refactor to avoid these kinds of global side effects.
 	reportRetractions(ctx)
-
-	// If -d was specified, we're done after the module work.
-	// We've already downloaded modules by loading packages above.
-	// Otherwise, we need to build and install the packages matched by
-	// command line arguments. This may be a different set of packages,
-	// since we only build packages for the target platform.
-	// Note that 'go get -u' without arguments is equivalent to
-	// 'go get -u .', so we'll typically build the package in the current
-	// directory.
-	if *getD || len(pkgPatterns) == 0 {
-		return
-	}
-	work.BuildInit()
-	pkgs := load.PackagesForBuild(ctx, pkgPatterns)
-	work.InstallPackages(ctx, pkgPatterns, pkgs)
 }
 
 // parseArgs parses command-line arguments and reports errors.
