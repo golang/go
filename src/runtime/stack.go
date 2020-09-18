@@ -497,6 +497,8 @@ func stackfree(stk stack) {
 
 var maxstacksize uintptr = 1 << 20 // enough until runtime.main sets it for real
 
+var maxstackceiling = maxstacksize
+
 var ptrnames = []string{
 	0: "scalar",
 	1: "ptr",
@@ -1050,8 +1052,12 @@ func newstack() {
 		}
 	}
 
-	if newsize > maxstacksize {
-		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+	if newsize > maxstacksize || newsize > maxstackceiling {
+		if maxstacksize < maxstackceiling {
+			print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+		} else {
+			print("runtime: goroutine stack exceeds ", maxstackceiling, "-byte limit\n")
+		}
 		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		throw("stack overflow")
 	}

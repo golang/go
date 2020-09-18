@@ -106,6 +106,8 @@ func FreeOSMemory() {
 // the program crashes.
 // SetMaxStack returns the previous setting.
 // The initial setting is 1 GB on 64-bit systems, 250 MB on 32-bit systems.
+// There may be a system-imposed maximum stack limit regardless
+// of the value provided to SetMaxStack.
 //
 // SetMaxStack is useful mainly for limiting the damage done by
 // goroutines that enter an infinite recursion. It only limits future
